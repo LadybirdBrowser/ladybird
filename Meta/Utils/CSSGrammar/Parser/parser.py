@@ -2,6 +2,8 @@ from Utils.CSSGrammar.Parser.grammar_node import CombinatorGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
 from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import GroupGrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import OptionalGrammarNode
 from Utils.CSSGrammar.Parser.token import Token
 from Utils.CSSGrammar.Parser.token import TokenType
 from Utils.CSSGrammar.Parser.tokenizer import Tokenizer
@@ -24,25 +26,63 @@ class Parser:
         return value
 
     def parse_alternatives(self) -> GrammarNode:
-        children = [self.parse_component_value()]
+        children = [self.parse_juxtaposition()]
 
         while self.peek().is_token_type(TokenType.SINGLE_BAR):
             self.consume()
-            children.append(self.parse_component_value())
+            children.append(self.parse_juxtaposition())
 
         if len(children) == 1:
             return children[0]
 
         return CombinatorGrammarNode(CombinatorType.ALTERNATIVES, children)
 
+    def parse_juxtaposition(self) -> GrammarNode:
+        children = [self.parse_component_value()]
+
+        while self.next_token_starts_component_value():
+            children.append(self.parse_component_value())
+
+        if len(children) == 1:
+            return children[0]
+
+        return CombinatorGrammarNode(CombinatorType.JUXTAPOSITION, children)
+
     def parse_component_value(self) -> GrammarNode:
         # https://drafts.csswg.org/css-values-4/#component-multipliers
         # FIXME: Support component multipliers
 
-        if not self.peek().is_token_type(TokenType.COMPONENT_VALUE):
+        peeked = self.peek()
+        component_value = None
+
+        if peeked.is_token_type(TokenType.OPEN_SQUARE_BRACKET):
+            self.consume()
+            group = self.parse_alternatives()
+
+            if not self.peek().is_token_type(TokenType.CLOSE_SQUARE_BRACKET):
+                raise SyntaxError("CSSGrammar::Parser: Expected ']'")
+
+            # FIXME: Support required groups (e.g. [ <foo>? ]!)
+            self.consume()
+            component_value = GroupGrammarNode(group)
+
+        if peeked.is_token_type(TokenType.COMPONENT_VALUE):
+            component_value = ComponentValueGrammarNode(self.consume().component_value())
+
+        if component_value is None:
             raise SyntaxError("CSSGrammar::Parser: Expected a component value")
 
-        return ComponentValueGrammarNode(self.consume().component_value())
+        if self.peek().is_token_type(TokenType.QUESTION_MARK):
+            self.consume()
+            component_value = OptionalGrammarNode(component_value)
+
+        return component_value
+
+    def next_token_starts_component_value(self) -> bool:
+        return self.peek().token_type in (
+            TokenType.OPEN_SQUARE_BRACKET,
+            TokenType.COMPONENT_VALUE,
+        )
 
     def peek(self, offset: int = 0) -> Token:
         index = min(self.index + offset, len(self.tokens) - 1)

@@ -12,17 +12,17 @@ namespace Web::ContentSecurityPolicy {
 
 GC_DEFINE_ALLOCATOR(SecurityPolicyViolationEvent);
 
-GC::Ref<SecurityPolicyViolationEvent> SecurityPolicyViolationEvent::create(JS::Realm& realm, FlyString const& event_name, SecurityPolicyViolationEventInit const& event_init)
+GC::Ref<SecurityPolicyViolationEvent> SecurityPolicyViolationEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init)
 {
     return realm.create<SecurityPolicyViolationEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> SecurityPolicyViolationEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, SecurityPolicyViolationEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> SecurityPolicyViolationEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init)
 {
     return realm.create<SecurityPolicyViolationEvent>(realm, event_name, event_init);
 }
 
-SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(JS::Realm& realm, FlyString const& event_name, SecurityPolicyViolationEventInit const& event_init)
+SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(JS::Realm& realm, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init)
     : Event(realm, event_name, event_init)
     , m_document_uri(event_init.document_uri)
     , m_referrer(event_init.referrer)

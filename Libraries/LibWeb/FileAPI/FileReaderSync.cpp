@@ -94,7 +94,7 @@ WebIDL::ExceptionOr<Result> FileReaderSync::read_as(Blob& blob, FileReader::Type
     if (promise->state() == JS::Promise::State::Fulfilled && array_buffer) {
         // AD-HOC: This diverges from the spec as wrritten, where the type argument is specified explicitly for each caller.
         // 1. Return the result of package data given bytes, type, blob’s type, and encoding.
-        auto result = TRY(FileReader::blob_package_data(realm(), array_buffer->buffer(), type, blob.type(), encoding));
+        auto result = TRY(FileReader::blob_package_data(realm(), MUST(ByteBuffer::copy(array_buffer->bytes())), type, blob.type(), encoding));
         return result.get<Result>();
     }
 

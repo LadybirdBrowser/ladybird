@@ -138,7 +138,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
-WebIDL::ExceptionOr<String> ShadowRoot::get_html(GetHTMLOptions const& options) const
+WebIDL::ExceptionOr<String> ShadowRoot::get_html(Bindings::GetHTMLOptions const& options) const
 {
     // ShadowRoot's getHTML(options) method steps are to return the result
     // of HTML fragment serialization algorithm with this,

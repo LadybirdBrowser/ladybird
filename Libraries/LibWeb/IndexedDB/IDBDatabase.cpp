@@ -113,7 +113,7 @@ void IDBDatabase::close()
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-createobjectstore
-WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(String const& name, IDBObjectStoreParameters const& options)
+WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(String const& name, Bindings::IDBObjectStoreParameters const& options)
 {
     auto& realm = this->realm();
 
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-transaction
-WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<String, Vector<String>> store_names, Bindings::IDBTransactionMode mode, IDBTransactionOptions options)
+WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<String, Vector<String>> store_names, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionOptions options)
 {
     auto& realm = this->realm();
 

@@ -6,8 +6,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
+#include <AK/NumericLimits.h>
+#include <AK/StringBuilder.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
@@ -41,6 +46,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/WebAssembly/WebAssemblyModule.h>
 
 namespace Web::HTML {
 
@@ -58,7 +64,111 @@ struct BytecodeCacheContext {
 
 static ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8> bytecode_cache_source_hash(JS::SourceCode const& source_code)
 {
+    if (source_code.code_view().has_ascii_storage()) {
+        auto hasher = ::Crypto::Hash::SHA256::create();
+        auto ascii = source_code.code_view().ascii_span();
+
+        constexpr size_t chunk_size = 4096;
+        Array<u16, chunk_size> utf16_data;
+        for (size_t offset = 0; offset < ascii.size(); offset += chunk_size) {
+            auto current_chunk_size = min(chunk_size, ascii.size() - offset);
+            for (size_t i = 0; i < current_chunk_size; ++i)
+                utf16_data[i] = static_cast<u16>(ascii[offset + i]);
+
+            hasher->update(reinterpret_cast<u8 const*>(utf16_data.data()), current_chunk_size * sizeof(u16));
+        }
+
+        return hasher->digest();
+    }
+
     return ::Crypto::Hash::SHA256::hash(reinterpret_cast<u8 const*>(source_code.utf16_data()), source_code.length_in_code_units() * sizeof(u16));
+}
+
+struct DecodedSourceTextInfo {
+    ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8> hash;
+    size_t length_in_code_units { 0 };
+};
+
+static ErrorOr<String> decode_source_text(TextCodec::Decoder& fallback_decoder, StringView input)
+{
+    return TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(fallback_decoder, input);
+}
+
+static ErrorOr<String> decode_source_text(TextCodec::Decoder& fallback_decoder, ReadonlyBytes bytes)
+{
+    return decode_source_text(fallback_decoder, StringView { bytes });
+}
+
+static ReadonlyBytes body_bytes_view(Fetch::Infrastructure::FetchAlgorithms::BodyBytes const& body_bytes)
+{
+    return body_bytes.get<Core::ImmutableBytes>().bytes();
+}
+
+static Core::ImmutableBytes take_body_bytes(Fetch::Infrastructure::FetchAlgorithms::BodyBytes& body_bytes)
+{
+    return move(body_bytes.get<Core::ImmutableBytes>());
+}
+
+static ByteBuffer take_body_bytes_as_byte_buffer(Fetch::Infrastructure::FetchAlgorithms::BodyBytes& body_bytes)
+{
+    return body_bytes.get<Core::ImmutableBytes>().copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+}
+
+static ErrorOr<DecodedSourceTextInfo> decoded_source_text_info(TextCodec::Decoder& fallback_decoder, ReadonlyBytes bytes)
+{
+    StringView input { bytes };
+    TextCodec::Decoder* actual_decoder = &fallback_decoder;
+
+    auto unicode_decoder = TextCodec::bom_sniff_to_decoder(input);
+    if (unicode_decoder.has_value()) {
+        auto input_bytes = input.bytes();
+        auto byte_order_mark_size = input_bytes.size() >= 3 && input_bytes[0] == 0xEF && input_bytes[1] == 0xBB && input_bytes[2] == 0xBF ? 3 : 2;
+        actual_decoder = &unicode_decoder.value();
+        input = input.substring_view(byte_order_mark_size);
+    }
+
+    auto hasher = ::Crypto::Hash::SHA256::create();
+
+    constexpr size_t chunk_size = 4096;
+    Array<u16, chunk_size> utf16_data;
+    size_t chunk_offset = 0;
+    auto flush_chunk = [&] {
+        if (chunk_offset == 0)
+            return;
+        hasher->update(reinterpret_cast<u8 const*>(utf16_data.data()), chunk_offset * sizeof(u16));
+        chunk_offset = 0;
+    };
+
+    size_t length_in_code_units = 0;
+    TRY(actual_decoder->process_code_points(input, [&](auto code_point) -> ErrorOr<void> {
+        if (code_point <= 0xffff) {
+            ++length_in_code_units;
+            utf16_data[chunk_offset++] = static_cast<u16>(code_point);
+            if (chunk_offset == chunk_size)
+                flush_chunk();
+            return {};
+        }
+
+        Array<char16_t, 2> code_units;
+        size_t code_point_length_in_code_units = 0;
+        (void)AK::UnicodeUtils::code_point_to_utf16(code_point, [&](auto code_unit) {
+            code_units[code_point_length_in_code_units++] = code_unit;
+        });
+
+        length_in_code_units += code_point_length_in_code_units;
+        for (size_t i = 0; i < code_point_length_in_code_units; ++i) {
+            utf16_data[chunk_offset++] = code_units[i];
+            if (chunk_offset == chunk_size)
+                flush_chunk();
+        }
+        return {};
+    }));
+
+    flush_chunk();
+    return DecodedSourceTextInfo {
+        .hash = hasher->digest(),
+        .length_in_code_units = length_in_code_units,
+    };
 }
 
 static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::Response const& response, URL::URL const& response_url)
@@ -587,8 +697,6 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         auto fallback_decoder = TextCodec::decoder_for(extracted_character_encoding);
         VERIFY(fallback_decoder.has_value());
 
-        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*fallback_decoder, body_bytes.template get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
-
         // 6. Let muted errors be true if response was CORS-cross-origin, and false otherwise.
         auto muted_errors = response->is_cors_cross_origin() ? ClassicScript::MutedErrors::Yes : ClassicScript::MutedErrors::No;
 
@@ -602,16 +710,29 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
             auto on_complete_root = GC::make_root(on_complete);
             auto settings_root = GC::make_root(settings_object);
             auto response_url_string = response_url.to_byte_string();
-            auto source_code = JS::SourceCode::create(
-                String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
-                Utf16String::from_utf8(source_text));
+            auto source_bytes = body_bytes_view(body_bytes);
+            auto const& bytecode = response->javascript_bytecode_cache();
+            Optional<DecodedSourceTextInfo> source_text_info;
+            if (bytecode.has_value())
+                source_text_info = decoded_source_text_info(*fallback_decoder, source_bytes).release_value_but_fixme_should_propagate_errors();
+            auto source_code_filename = String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors();
+            auto source_code = [&] {
+                if (source_text_info.has_value()) {
+                    return JS::SourceCode::create(
+                        move(source_code_filename),
+                        source_text_info->length_in_code_units,
+                        String::from_utf8(extracted_character_encoding).release_value_but_fixme_should_propagate_errors(),
+                        take_body_bytes(body_bytes));
+                }
+                return JS::SourceCode::create(move(source_code_filename), Utf16String::from_utf8(decode_source_text(*fallback_decoder, source_bytes).release_value_but_fixme_should_propagate_errors()));
+            }();
             auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *response, response_url);
             // Warm-cache fast path: a sidecar arrived with the response, decode it, and try to materialize a script
             // straight from the cached bytecode without parsing or compiling. Pass non-moved source_code / response_url
             // so the fallback compile path below can reuse them if decode or materialization is rejected.
-            if (auto const& bytecode = response->javascript_bytecode_cache(); bytecode.has_value()) {
-                auto source_hash = bytecode_cache_source_hash(*source_code);
-                if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(bytecode->bytes(), JS::RustIntegration::ProgramType::Script, source_hash.bytes())) {
+            if (bytecode.has_value()) {
+                VERIFY(source_text_info.has_value());
+                if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(*bytecode, JS::RustIntegration::ProgramType::Script, source_text_info->hash.bytes())) {
                     auto script = ClassicScript::create_from_bytecode_cache(response_url_string, source_code, settings_object, response_url, bytecode_cache, muted_errors);
                     // Bytecode validation runs during materialization and may reject a structurally valid blob whose
                     // bytecode is corrupt. Treat that as a cache miss and fall through to off-thread source compile.
@@ -641,6 +762,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                         schedule_bytecode_cache_generation(*source_code_for_cache, JS::RustIntegration::ProgramType::Script, 1, bytecode_cache_context.release_value());
                 });
         } else {
+            auto source_text = decode_source_text(*fallback_decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
             auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object, response_url, 1, muted_errors);
 
             // 8. Run onComplete given script.
@@ -703,7 +825,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
         // 4. Let sourceText be the result of UTF-8 decoding bodyBytes.
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
         VERIFY(decoder.has_value());
-        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.template get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
+        auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
         // 5. Let script be the result of creating a classic script using sourceText, settingsObject,
         //    response's URL, and the default classic script fetch options.
@@ -793,7 +915,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.
     auto decoder = TextCodec::decoder_for("UTF-8"sv);
     VERIFY(decoder.has_value());
-    auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
+    auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
 
     // 9. Let mutedErrors be true if response was CORS-cross-origin, and false otherwise.
     auto muted_errors = response->is_cors_cross_origin() ? ClassicScript::MutedErrors::Yes : ClassicScript::MutedErrors::No;
@@ -969,21 +1091,18 @@ void fetch_single_module_script(JS::Realm& realm,
         //     options.
         // FIXME: Pass options.
         if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm") {
-            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), body_bytes.get<ByteBuffer>(), settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), take_body_bytes_as_byte_buffer(body_bytes), settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
         }
 
         // 7. Otherwise
         else {
-            // 1. Let sourceText be the result of UTF-8 decoding bodyBytes.
-            auto decoder = TextCodec::decoder_for("UTF-8"sv);
-            VERIFY(decoder.has_value());
-            auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
-
             // 2. If mimeType is a JavaScript MIME type and moduleType is "javascript-or-wasm", then set moduleScript to
             //    the result of creating a JavaScript module script given sourceText, moduleMapRealm, response's URL,
             //    and options.
             // FIXME: Pass options.
             if (mime_type.has_value() && mime_type->is_javascript() && module_type == "javascript-or-wasm") {
+                auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                VERIFY(decoder.has_value());
                 // If the Rust pipeline is available, parse off the main thread.
                 if (JS::RustIntegration::rust_pipeline_available()) {
                     auto on_complete_root = GC::make_root(on_complete);
@@ -991,13 +1110,26 @@ void fetch_single_module_script(JS::Realm& realm,
                     auto url_string = url.to_byte_string();
                     auto response_url = response->url().value_or({});
                     auto module_type_string = module_type.to_byte_string();
-                    auto source_code = JS::SourceCode::create(
-                        String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors(),
-                        Utf16String::from_utf8(source_text));
+                    auto source_bytes = body_bytes_view(body_bytes);
+                    auto const& bytecode = internal_response->javascript_bytecode_cache();
+                    Optional<DecodedSourceTextInfo> source_text_info;
+                    if (bytecode.has_value())
+                        source_text_info = decoded_source_text_info(*decoder, source_bytes).release_value_but_fixme_should_propagate_errors();
+                    auto source_code_filename = String::from_utf8(url_string.view()).release_value_but_fixme_should_propagate_errors();
+                    auto source_code = [&] {
+                        if (source_text_info.has_value()) {
+                            return JS::SourceCode::create(
+                                move(source_code_filename),
+                                source_text_info->length_in_code_units,
+                                "UTF-8"_string,
+                                take_body_bytes(body_bytes));
+                        }
+                        return JS::SourceCode::create(move(source_code_filename), Utf16String::from_utf8(decode_source_text(*decoder, source_bytes).release_value_but_fixme_should_propagate_errors()));
+                    }();
                     auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *internal_response, response_url);
-                    if (auto const& bytecode = internal_response->javascript_bytecode_cache(); bytecode.has_value()) {
-                        auto source_hash = bytecode_cache_source_hash(*source_code);
-                        if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(bytecode->bytes(), JS::RustIntegration::ProgramType::Module, source_hash.bytes())) {
+                    if (bytecode.has_value()) {
+                        VERIFY(source_text_info.has_value());
+                        if (auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(*bytecode, JS::RustIntegration::ProgramType::Module, source_text_info->hash.bytes())) {
                             auto module_script = ModuleScript::create_from_bytecode_cache(url_string, source_code, settings_object, response_url, bytecode_cache).release_value_but_fixme_should_propagate_errors();
                             if (module_script && module_script->parse_error().is_null()) {
                                 settings_object.module_map().set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
@@ -1027,6 +1159,7 @@ void fetch_single_module_script(JS::Realm& realm,
                         });
                     return;
                 }
+                auto source_text = decode_source_text(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
                 module_script = ModuleScript::create_a_javascript_module_script(url.to_byte_string(), source_text, settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
             }
 
@@ -1035,13 +1168,21 @@ void fetch_single_module_script(JS::Realm& realm,
 
             // 4. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to
             //    the result of creating a CSS module script given sourceText and settingsObject.
-            if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css")
+            if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css") {
+                auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                VERIFY(decoder.has_value());
+                auto source_text = decode_source_text(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
                 module_script = ModuleScript::create_a_css_module_script(url.to_byte_string(), source_text, settings_object).release_value_but_fixme_should_propagate_errors();
+            }
 
             // 4. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of
             //    creating a JSON module script given sourceText and settingsObject.
-            if (mime_type.has_value() && mime_type->is_json() && module_type == "json")
+            if (mime_type.has_value() && mime_type->is_json() && module_type == "json") {
+                auto decoder = TextCodec::decoder_for("UTF-8"sv);
+                VERIFY(decoder.has_value());
+                auto source_text = decode_source_text(*decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
                 module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text, settings_object).release_value_but_fixme_should_propagate_errors();
+            }
         }
 
         // 8. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.

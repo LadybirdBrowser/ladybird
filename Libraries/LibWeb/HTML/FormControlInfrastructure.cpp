@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
             // 1. If value is not a File object, then set value to a new File object, representing the same bytes, whose
             //    name attribute value is "blob".
             if (!is<FileAPI::File>(*blob)) {
-                FileAPI::FilePropertyBag options {};
+                Bindings::FilePropertyBag options {};
                 options.type = blob->type();
 
                 blob = TRY(FileAPI::File::create(realm, { GC::make_root(*blob) }, "blob"_string, move(options)));
@@ -45,7 +45,7 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
             // 2. If filename is given, then set value to a new File object, representing the same bytes, whose name
             //    attribute is filename.
             if (filename.has_value()) {
-                FileAPI::FilePropertyBag options {};
+                Bindings::FilePropertyBag options {};
                 options.type = blob->type();
                 options.last_modified = as<FileAPI::File>(*blob).last_modified();
 
@@ -207,7 +207,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
         else if (auto* file_element = as_if<HTMLInputElement>(*control); file_element && file_element->type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
             // 1. If there are no selected files, then create an entry with name and a new File object with an empty name, application/octet-stream as type, and an empty body, and append it to entry list.
             if (file_element->files()->length() == 0) {
-                FileAPI::FilePropertyBag options {};
+                Bindings::FilePropertyBag options {};
                 options.type = "application/octet-stream"_string;
                 auto file = TRY(FileAPI::File::create(realm, {}, String {}, options));
                 entry_list.append(TRY(create_entry(realm, name.to_string(), GC::Ref<FileAPI::Blob> { file })));
@@ -249,7 +249,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
     auto form_data = TRY(XHR::FormData::construct_impl(realm, move(entry_list)));
 
     // 7. Fire an event named formdata at form using FormDataEvent, with the formData attribute initialized to form data and the bubbles attribute initialized to true.
-    FormDataEventInit init {};
+    Bindings::FormDataEventInit init {};
     init.form_data = form_data;
     auto form_data_event = TRY(FormDataEvent::construct_impl(realm, HTML::EventNames::formdata, init));
     form_data_event->set_bubbles(true);

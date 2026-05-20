@@ -18,6 +18,7 @@ class RootImpl;
 class Heap;
 class HeapBlock;
 class NanBoxedValue;
+class Timer;
 class WeakContainer;
 class WeakImpl;
 
@@ -38,5 +39,8 @@ class HeapVector;
 
 template<class T, size_t inline_capacity = 0>
 class RootVector;
+
+template<typename T, typename TraitsForT, bool IsOrdered>
+class RootHashTable;
 
 }

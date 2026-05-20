@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWebView/Forward.h>
+#include <UI/Gtk/GLibPtr.h>
 #include <UI/Gtk/Widgets/LadybirdWebView.h>
 
 #include <adwaita.h>
@@ -34,6 +35,8 @@ public:
     WebContentView const& view() const { return *m_view; }
 
     void navigate(URL::URL const& url);
+    GdkPaintable* favicon() const { return m_favicon.ptr(); }
+    bool is_loading() const { return m_is_loading; }
 
     AdwTabPage* tab_page() const { return m_tab_page; }
     void set_tab_page(AdwTabPage* page) { m_tab_page = page; }
@@ -50,6 +53,8 @@ private:
     AdwTabPage* m_tab_page { nullptr };
 
     URL::URL m_initial_url;
+    GObjectPtr<GdkPaintable> m_favicon;
+    bool m_is_loading { false };
 };
 
 }

@@ -7,6 +7,7 @@ from dataclasses import field
 from pathlib import Path
 from typing import Dict
 from typing import List
+from typing import NoReturn
 from typing import Optional
 
 from Utils.lexer import Lexer
@@ -34,6 +35,7 @@ class Interface:
     constants: List[Constant] = field(default_factory=list)
     named_property_getter: Optional[SpecialOperation] = None
     indexed_property_getter: Optional[SpecialOperation] = None
+    has_special_member: bool = False
     implemented_name: str = ""
     namespaced_name: str = ""
     constructor_class: str = ""
@@ -57,9 +59,16 @@ class Interface:
 
 
 @dataclass
+class Dictionary:
+    name: str
+    path: Path
+
+
+@dataclass
 class Module:
     path: Path
     interface: Optional[Interface] = None
+    dictionaries: List[Dictionary] = field(default_factory=list)
 
 
 @dataclass
@@ -115,7 +124,9 @@ class Parser:
                 extended_attributes = self.parse_extended_attributes()
 
             if self.next_is_keyword("dictionary") or self.next_is_keyword("partial dictionary"):
-                self.skip_braced_declaration()
+                dictionary = self.parse_dictionary()
+                if dictionary is not None:
+                    module.dictionaries.append(dictionary)
             elif self.next_is_keyword("enum"):
                 self.skip_braced_declaration()
             elif self.next_is_keyword("typedef"):
@@ -151,9 +162,6 @@ class Parser:
                 self.parse_includes_statement()
 
             self.consume_whitespace()
-
-        if module.interface is None:
-            self.raise_parse_error("did not find an interface, callback interface, or namespace")
 
         return module
 
@@ -224,6 +232,33 @@ class Parser:
         interface.finalize()
         return interface
 
+    def parse_dictionary(self) -> Optional[Dictionary]:
+        is_partial = False
+        if self.next_is_keyword("partial"):
+            self.consume_keyword("partial")
+            self.consume_whitespace()
+            is_partial = True
+
+        self.consume_keyword("dictionary")
+        self.consume_whitespace()
+
+        dictionary_name = self.parse_identifier_ending_with_space_or(":", "{")
+        self.consume_whitespace()
+
+        if self.lexer.consume_specific(":"):
+            self.consume_whitespace()
+            self.parse_identifier_ending_with_space_or("{")
+            self.consume_whitespace()
+
+        self.consume_braced_block()
+        self.consume_whitespace()
+        self.assert_specific(";")
+
+        if is_partial:
+            return None
+
+        return Dictionary(name=dictionary_name, path=self.path)
+
     def parse_interface_body(self, interface: Interface, body_text: str) -> None:
         for statement in split_top_level_statements(remove_line_comments(body_text)):
             if not statement:
@@ -237,6 +272,14 @@ class Parser:
                 interface.constants.append(Constant(stripped_statement))
                 continue
 
+            if (
+                stripped_statement.startswith("iterable<")
+                or stripped_statement.startswith("async iterable<")
+                or stripped_statement.startswith("maplike<")
+                or stripped_statement.startswith("setlike<")
+            ):
+                interface.has_special_member = True
+
             if stripped_statement.startswith("getter "):
                 identifier_type = parse_special_operation_identifier_type(stripped_statement)
                 special_operation = SpecialOperation(identifier_type=identifier_type, declaration=stripped_statement)
@@ -249,6 +292,7 @@ class Parser:
                     self.raise_parse_error(
                         f"named/indexed property getter must use DOMString or unsigned long, got '{identifier_type}'"
                     )
+                continue
 
     def parse_extended_attributes(self) -> Dict[str, str]:
         extended_attributes: Dict[str, str] = {}
@@ -405,7 +449,7 @@ class Parser:
         if not self.lexer.consume_specific(expected_character):
             self.raise_parse_error(f"expected '{expected_character}'")
 
-    def raise_parse_error(self, message: str) -> None:
+    def raise_parse_error(self, message: str) -> NoReturn:
         line_number = 1
         column_number = 1
 

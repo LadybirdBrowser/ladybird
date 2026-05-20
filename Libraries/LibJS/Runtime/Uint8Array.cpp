@@ -163,7 +163,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_hex)
 
     // 7. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
     //    index of result.[[Bytes]].
-    auto& array_buffer_data = typed_array->viewed_array_buffer()->buffer();
+    auto* array_buffer_data = typed_array->viewed_array_buffer()->data();
 
     for (size_t index = 0; index < result_length; ++index)
         array_buffer_data[index] = result.bytes[index];
@@ -464,7 +464,7 @@ ThrowCompletionOr<ReadonlyBytes> get_uint8_array_bytes_view(VM& vm, TypedArrayBa
     auto byte_offset = typed_array.byte_offset();
 
     return ReadonlyBytes {
-        typed_array.viewed_array_buffer()->buffer().data() + byte_offset,
+        typed_array.viewed_array_buffer()->data() + byte_offset,
         length
     };
 }

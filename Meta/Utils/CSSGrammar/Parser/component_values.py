@@ -3,6 +3,8 @@ from math import inf
 from typing import Optional
 from typing import Union
 
+from Utils.css_dimensions import get_css_dimensions
+
 
 @dataclass(frozen=True)
 class NumericTypeRangeRestriction:
@@ -22,16 +24,7 @@ def bound_value_to_string(value: float) -> str:
 
 
 def is_dimension_type(type_name: str) -> bool:
-    # NB: Keep this up to date with the list of dimensions in Units.json
-    return type_name in (
-        "angle",
-        "decibel",
-        "flex",
-        "frequency",
-        "length",
-        "resolution",
-        "time",
-    )
+    return type_name in get_css_dimensions().keys()
 
 
 def is_dimension_percentage_mix_type(type_name: str) -> bool:

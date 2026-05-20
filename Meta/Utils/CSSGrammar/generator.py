@@ -8,6 +8,8 @@ from Utils.CSSGrammar.Parser.grammar_node import CombinatorGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
 from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import GroupGrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import OptionalGrammarNode
 from Utils.CSSGrammar.Parser.parser import parse_value_definition_grammar
 from Utils.utils import snake_casify
 from Utils.utils import title_casify
@@ -50,7 +52,7 @@ def generate_css_parser_expression_for_type_component_value(out: TextIO, cpp_nam
 
 def generate_css_parser_expression_for_keyword_component_value(out: TextIO, cpp_name: str, keyword: Keyword) -> None:
     keyword_name = title_casify(keyword.value)
-    out.write(f"auto {cpp_name} = parse_specific_keyword_value(tokens, Keyword::{keyword_name});\n")
+    out.write(f"auto {cpp_name} = parse_specific_keyword_value(tokens, {{ {{ Keyword::{keyword_name} }} }});\n")
 
 
 def generate_css_parser_expression_for_component_value_grammar_node(
@@ -69,12 +71,26 @@ def generate_css_parser_expression_for_alternatives(
 ) -> None:
     out.write(f"auto const parse_{cpp_name}_alternatives = [&]() -> RefPtr<StyleValue const> {{\n")
 
+    # NB: As an optimization we combine all keyword alternatives into a single parse_specific_keyword_value call to
+    #     avoid unnecessary backtracking in the common case of multiple keyword alternatives.
+    keyword_alternatives: list[str] = []
+
     for i, alternative in enumerate(alternatives):
+        if isinstance(alternative, ComponentValueGrammarNode) and isinstance(alternative.component_value, Keyword):
+            keyword_alternatives.append(alternative.component_value.value)
+            continue
+
         alternative_name = f"{cpp_name}_alternative_{i}"
         generate_css_parser_expression_for_grammar_node(out, alternative_name, alternative)
         out.write(f"""if ({alternative_name})
     return {alternative_name};
+""")
 
+    if keyword_alternatives:
+        keyword_alternatives_names = ", ".join(f"Keyword::{title_casify(keyword)}" for keyword in keyword_alternatives)
+        out.write(f"""auto {cpp_name}_keyword_alternative = parse_specific_keyword_value(tokens, {{ {{ {keyword_alternatives_names} }} }});
+if ({cpp_name}_keyword_alternative)
+    return {cpp_name}_keyword_alternative;
 """)
 
     out.write(f"""return nullptr;
@@ -84,9 +100,38 @@ auto {cpp_name} = parse_{cpp_name}_alternatives();
 """)
 
 
+def generate_css_parser_expression_for_juxtaposition(out: TextIO, cpp_name: str, children: list[GrammarNode]) -> None:
+    out.write(f"""auto const parse_{cpp_name}_juxtaposition = [&]() -> RefPtr<StyleValue const> {{
+auto {cpp_name}_transaction = tokens.begin_transaction();
+StyleValueVector {cpp_name}_values;
+{cpp_name}_values.ensure_capacity({len(children)});
+
+""")
+
+    for i, component in enumerate(children):
+        component_name = f"{cpp_name}_component_{i}"
+        generate_css_parser_expression_for_grammar_node(out, component_name, component)
+        out.write(f"""if (!{component_name})
+    return nullptr;
+
+{cpp_name}_values.append({component_name}.release_nonnull());
+""")
+
+    out.write(f"""{cpp_name}_transaction.commit();
+return StyleValueList::create(move({cpp_name}_values), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+}};
+
+auto {cpp_name} = parse_{cpp_name}_juxtaposition();
+""")
+
+
 def generate_css_parser_expression_for_combinator_grammar_node(
     out: TextIO, cpp_name: str, grammar_node: CombinatorGrammarNode
 ) -> None:
+    if grammar_node.combinator_type == CombinatorType.JUXTAPOSITION:
+        generate_css_parser_expression_for_juxtaposition(out, cpp_name, grammar_node.children)
+        return
+
     if grammar_node.combinator_type == CombinatorType.ALTERNATIVES:
         generate_css_parser_expression_for_alternatives(out, cpp_name, grammar_node.children)
         return
@@ -94,9 +139,34 @@ def generate_css_parser_expression_for_combinator_grammar_node(
     raise TypeError(f"Unhandled combinator type: {grammar_node.combinator_type}")
 
 
+def generate_css_parser_expression_for_group_grammar_node(
+    out: TextIO, cpp_name: str, grammar_node: GroupGrammarNode
+) -> None:
+    generate_css_parser_expression_for_grammar_node(out, cpp_name, grammar_node.child)
+
+
+def generate_css_parser_expression_for_optional_grammar_node(
+    out: TextIO, cpp_name: str, grammar_node: OptionalGrammarNode
+) -> None:
+    out.write(f"""RefPtr<StyleValue const> {cpp_name} = EmptyOptionalStyleValue::create();
+""")
+
+    generate_css_parser_expression_for_grammar_node(out, f"maybe_{cpp_name}", grammar_node.child)
+
+    out.write(f"""if (maybe_{cpp_name})
+        {cpp_name} = maybe_{cpp_name};
+""")
+
+
 def generate_css_parser_expression_for_grammar_node(out: TextIO, cpp_name: str, grammar_node: GrammarNode) -> None:
     if isinstance(grammar_node, ComponentValueGrammarNode):
         generate_css_parser_expression_for_component_value_grammar_node(out, cpp_name, grammar_node)
+        return
+    if isinstance(grammar_node, GroupGrammarNode):
+        generate_css_parser_expression_for_group_grammar_node(out, cpp_name, grammar_node)
+        return
+    if isinstance(grammar_node, OptionalGrammarNode):
+        generate_css_parser_expression_for_optional_grammar_node(out, cpp_name, grammar_node)
         return
     if isinstance(grammar_node, CombinatorGrammarNode):
         generate_css_parser_expression_for_combinator_grammar_node(out, cpp_name, grammar_node)

@@ -11,11 +11,6 @@
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#GainOptions
-struct GainOptions : AudioNodeOptions {
-    float gain { 1.0 };
-};
-
 // https://webaudio.github.io/web-audio-api/#GainNode
 class GainNode : public AudioNode {
     WEB_PLATFORM_OBJECT(GainNode, AudioNode);
@@ -24,8 +19,8 @@ class GainNode : public AudioNode {
 public:
     virtual ~GainNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<GainNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, GainOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<GainNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, GainOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<GainNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<GainNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -33,7 +28,7 @@ public:
     GC::Ref<AudioParam const> gain() const { return m_gain; }
 
 protected:
-    GainNode(JS::Realm&, GC::Ref<BaseAudioContext>, GainOptions const& = {});
+    GainNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

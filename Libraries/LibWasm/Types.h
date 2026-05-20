@@ -9,7 +9,11 @@
 #include <AK/Badge.h>
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
+#include <AK/FixedArray.h>
 #include <AK/LEB128.h>
+#include <AK/NumericLimits.h>
+#include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/Result.h>
 #include <AK/String.h>
 #include <AK/UFixedBigInt.h>
@@ -80,6 +84,26 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, GlobalIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, LabelIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, DataIndex);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, InstructionPointer, Arithmetic, Comparison, Flags, Increment);
+
+}
+
+namespace AK {
+
+template<>
+struct SentinelOptionalTraits<Wasm::InstructionPointer> {
+    static constexpr Wasm::InstructionPointer sentinel_value() { return { NumericLimits<Wasm::InstructionPointer::Type>::max() }; }
+    static constexpr bool is_sentinel(Wasm::InstructionPointer const& value) { return value.value() == NumericLimits<Wasm::InstructionPointer::Type>::max(); }
+};
+
+template<>
+class Optional<Wasm::InstructionPointer> : public SentinelOptional<Wasm::InstructionPointer> {
+public:
+    using SentinelOptional::SentinelOptional;
+};
+
+}
+
+namespace Wasm {
 
 constexpr static inline auto LocalArgumentMarker = static_cast<LocalIndex::Type>(1) << (sizeof(LocalIndex::Type) * 8 - 1);
 
@@ -182,11 +206,11 @@ public:
     {
     }
 
-    template<typename T>
-    explicit ValueType(Kind kind, T argument)
+    explicit ValueType(Kind kind, TypeIndex type_index)
         : m_kind(kind)
-        , m_argument(move(argument))
+        , m_type_index(type_index)
     {
+        VERIFY(kind == TypeUseReference);
     }
 
     bool operator==(ValueType const&) const = default;
@@ -200,7 +224,11 @@ public:
     auto is_typeuse() const { return m_kind == TypeUseReference; }
     auto kind() const { return m_kind; }
 
-    auto unsafe_typeindex() const { return m_argument.unsafe_get<TypeIndex>(); }
+    auto unsafe_typeindex() const
+    {
+        VERIFY(m_kind == TypeUseReference);
+        return m_type_index;
+    }
 
     static ParseResult<ValueType> parse(Stream& stream);
 
@@ -234,8 +262,10 @@ public:
 private:
     Kind m_kind;
     bool m_nullable { true };
-    Variant<TypeIndex, Empty> m_argument;
+    TypeIndex m_type_index;
 };
+
+static_assert(sizeof(ValueType) == 8);
 
 // https://webassembly.github.io/spec/core/bikeshed/#result-types%E2%91%A2
 class ResultType {
@@ -543,16 +573,32 @@ public:
         TableIndex rhs;
     };
 
-    struct StructuredInstructionArgs {
+    template<typename ExtraData>
+    struct StructuredInstructionArgsBase {
+        using Extra = ExtraData;
+
         BlockType block_type;
         InstructionPointer end_ip; // 'end' instruction IP if there is no 'else'; otherwise IP of instruction after 'end'.
-        Optional<InstructionPointer> else_ip;
+        ExtraData extra;
 
         struct Meta {
             u32 arity;
             u32 parameter_count;
         };
-        mutable Optional<Meta> meta {};
+        mutable Meta meta {};
+    };
+
+    struct StructuredInstructionArgs : StructuredInstructionArgsBase<Optional<InstructionPointer>> {
+        using Base = StructuredInstructionArgsBase<Optional<InstructionPointer>>;
+        using Meta = typename Base::Meta;
+
+        StructuredInstructionArgs(BlockType block_type, InstructionPointer end_ip, Optional<InstructionPointer> else_ip, Meta meta = {})
+            : Base { block_type, end_ip, else_ip, meta }
+        {
+        }
+
+        auto& else_ip() { return extra; }
+        auto& else_ip() const { return extra; }
     };
 
     struct TableBranchArgs {
@@ -601,9 +647,55 @@ public:
     };
 
     // Proposal "exception-handling"
-    struct TryTableArgs {
-        StructuredInstructionArgs try_; // "else" unused.
-        Vector<Catch> catches;
+    struct TryTableArgs : StructuredInstructionArgsBase<OwnPtr<FixedArray<Catch>>> {
+        using Base = StructuredInstructionArgsBase<OwnPtr<FixedArray<Catch>>>;
+        using Meta = typename Base::Meta;
+
+        TryTableArgs(BlockType block_type, InstructionPointer end_ip, ReadonlySpan<Catch> catches, Meta meta = {})
+            : Base { block_type, end_ip, create_catches(catches), meta }
+        {
+        }
+
+        TryTableArgs(TryTableArgs const& other)
+            : Base { other.block_type, other.end_ip, clone_catches(other.extra), other.meta }
+        {
+        }
+
+        TryTableArgs& operator=(TryTableArgs const& other)
+        {
+            if (this == &other)
+                return *this;
+            block_type = other.block_type;
+            end_ip = other.end_ip;
+            extra = clone_catches(other.extra);
+            meta = other.meta;
+            return *this;
+        }
+
+        TryTableArgs(TryTableArgs&&) = default;
+        TryTableArgs& operator=(TryTableArgs&&) = default;
+
+        ReadonlySpan<Catch> catches() const
+        {
+            if (!extra)
+                return {};
+            return extra->span();
+        }
+
+    private:
+        static OwnPtr<FixedArray<Catch>> create_catches(ReadonlySpan<Catch> catches)
+        {
+            if (catches.is_empty())
+                return nullptr;
+            return make<FixedArray<Catch>>(MUST(FixedArray<Catch>::create(catches)));
+        }
+
+        static OwnPtr<FixedArray<Catch>> clone_catches(OwnPtr<FixedArray<Catch>> const& catches)
+        {
+            if (!catches)
+                return nullptr;
+            return make<FixedArray<Catch>>(MUST(catches->clone()));
+        }
     };
 
     struct ShuffleArgument {
@@ -690,6 +782,30 @@ private:
         m_arguments;
 };
 
+}
+
+namespace AK {
+
+template<>
+struct SentinelOptionalTraits<Wasm::Instruction> {
+    static Wasm::Instruction sentinel_value() { return Wasm::Instruction { Wasm::OpCode { NumericLimits<Wasm::OpCode::Type>::max() } }; }
+    static bool is_sentinel(Wasm::Instruction const& value) { return value.opcode().value() == NumericLimits<Wasm::OpCode::Type>::max(); }
+};
+
+template<>
+class Optional<Wasm::Instruction> : public SentinelOptional<Wasm::Instruction> {
+public:
+    using SentinelOptional::SentinelOptional;
+};
+
+}
+
+namespace Wasm {
+
+static_assert(sizeof(Optional<Instruction>) == sizeof(Instruction));
+
+static_assert(sizeof(Optional<InstructionPointer>) == sizeof(InstructionPointer));
+
 struct Dispatch {
     enum RegisterOrStack : u8 {
         R0,
@@ -723,11 +839,41 @@ union SourcesAndDestination {
     u32 sources_and_destination;
 };
 
+class InstructionStorage {
+    using Chunk = FixedArray<Optional<Instruction>>;
+
+public:
+    InstructionStorage() = default;
+    InstructionStorage(InstructionStorage const&) = delete;
+    InstructionStorage& operator=(InstructionStorage const&) = delete;
+    InstructionStorage(InstructionStorage&&) = default;
+    InstructionStorage& operator=(InstructionStorage&&) = default;
+
+    Instruction& append(Instruction);
+
+    size_t size() const { return m_size; }
+    size_t capacity() const { return m_capacity; }
+    bool is_empty() const { return m_size == 0; }
+
+private:
+    void add_chunk();
+
+    Vector<Chunk, 0, FastLastAccess::Yes> m_chunks;
+    size_t m_size { 0 };
+    size_t m_capacity { 0 };
+    size_t m_next_index_in_last_chunk { 0 };
+};
+
+void free_cranelift_code(void* handle);
+
 struct CompiledInstructions {
     Vector<Dispatch> dispatches;
     Vector<SourcesAndDestination> src_dst_mappings;
-    Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
+    InstructionStorage extra_instruction_storage;
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
+    bool cranelift_compiled = false;
+    void* cranelift_code_handle = nullptr; // Owned; freed when the owning Module is destroyed.
+    size_t cranelift_code_size = 0;
     size_t max_call_arg_count = 0;
     size_t max_call_rec_size = 0;
 };
@@ -1398,5 +1544,7 @@ private:
 };
 
 CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);
+bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity = 0);
+void flush_cranelift_batch();
 
 }

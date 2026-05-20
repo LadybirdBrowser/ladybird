@@ -47,6 +47,7 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
@@ -79,7 +80,7 @@ RefPtr<StyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<C
 {
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
-    auto keyword_value = parse_specific_keyword_value(tokens, keyword);
+    auto keyword_value = parse_specific_keyword_value(tokens, { { keyword } });
     tokens.discard_whitespace();
 
     if (tokens.has_next_token() || !keyword_value)
@@ -3329,20 +3330,66 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
 // https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
 RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_value(TokenStream<ComponentValue>& tokens)
 {
-    // <visual-box> || <length [0,∞]>
-    // FIXME: Implement the <visual-box> part of this.
+    // <visual-box> || <length>
+    auto parse_visual_box = [this](auto& tokens) -> Optional<BackgroundBox> {
+        auto transaction = tokens.begin_transaction();
+        auto maybe_visual_box = parse_keyword_value(tokens);
+        if (!maybe_visual_box)
+            return {};
 
-    if (auto length = parse_length_value(tokens, non_negative_range)) {
-        return length.release_nonnull();
+        auto keyword = maybe_visual_box->to_keyword();
+        Optional<BackgroundBox> box;
+        if (keyword == Keyword::ContentBox)
+            box = BackgroundBox::ContentBox;
+        else if (keyword == Keyword::PaddingBox)
+            box = BackgroundBox::PaddingBox;
+        else if (keyword == Keyword::BorderBox)
+            box = BackgroundBox::BorderBox;
+        else
+            return {};
+
+        transaction.commit();
+        return box;
+    };
+
+    RefPtr<StyleValue const> length;
+    Optional<BackgroundBox> visual_box;
+
+    for (size_t i = 0; i < 2; ++i) {
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token())
+            break;
+
+        if (!visual_box.has_value()) {
+            if (auto maybe_visual_box = parse_visual_box(tokens); maybe_visual_box.has_value()) {
+                visual_box = maybe_visual_box.release_value();
+                continue;
+            }
+        }
+
+        if (!length) {
+            if (auto maybe_length = parse_length_value(tokens, non_negative_range)) {
+                length = maybe_length.release_nonnull();
+                continue;
+            }
+        }
+
+        return nullptr;
     }
 
-    return nullptr;
+    tokens.discard_whitespace();
+    if (tokens.has_next_token() || (!visual_box.has_value() && !length))
+        return nullptr;
+
+    if (!length)
+        length = LengthStyleValue::create(Length::make_px(0));
+
+    return OverflowClipMarginStyleValue::create(visual_box, length.release_nonnull());
 }
 
 RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_shorthand(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
-    // <visual-box> || <length [0,∞]>
-    // FIXME: Implement the <visual-box> part of this.
+    // <visual-box> || <length>
 
     if (auto value = parse_overflow_clip_margin_value(tokens)) {
         auto const& longhands = longhands_for_shorthand(property_id);
@@ -5603,7 +5650,7 @@ RefPtr<StyleValue const> Parser::parse_container_name_value(TokenStream<Componen
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
-    if (auto none = parse_specific_keyword_value(tokens, Keyword::None)) {
+    if (auto none = parse_specific_keyword_value(tokens, { { Keyword::None } })) {
         transaction.commit();
         return none;
     }

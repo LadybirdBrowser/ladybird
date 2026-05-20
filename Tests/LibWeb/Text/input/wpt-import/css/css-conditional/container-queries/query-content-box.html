@@ -1,0 +1,122 @@
+<!doctype html>
+<title>CSS Container Queries Test: Size queries match content-box</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  .container {
+    container-type: size;
+    border: 10px solid black;
+    padding: 40px;
+    margin: 20px;
+  }
+
+  #container1 {
+    box-sizing: content-box;
+    width: 100px;
+    height: 100px;
+  }
+
+  #container2 {
+    box-sizing: border-box;
+    width: 200px;
+    height: 200px;
+  }
+
+  #container3 {
+    box-sizing: content-box;
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+  }
+
+  #container4 {
+    box-sizing: border-box;
+    width: 200px;
+    height: 200px;
+    overflow: scroll;
+  }
+
+  #container5 {
+    box-sizing: content-box;
+    width: 100px;
+    height: 100px;
+    overflow-x: scroll;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  #container6 {
+    box-sizing: border-box;
+    width: 200px;
+    height: 200px;
+    overflow-x: scroll;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  @container ((width = 100px) and (height = 100px)) {
+    .target {
+      background-color: green;
+      height: 100%;
+    }
+  }
+  @container ((width < 100px) and (height < 100px)) {
+    .target {
+      background-color: blue;
+      height: 100%;
+    }
+  }
+</style>
+<div id="sentinel" style="overflow: scroll; width: min-content;"></div>
+<div id="container1" class="container">
+  <div class="target"></div>
+</div>
+<div id="container2" class="container">
+  <div class="target"></div>
+</div>
+<div id="container3" class="container">
+  <div class="target"></div>
+</div>
+<div id="container4" class="container">
+  <div class="target"></div>
+</div>
+<div id="container5" class="container">
+  <div class="target"></div>
+</div>
+<div id="container6" class="container">
+  <div class="target"></div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  const green = "rgb(0, 128, 0)";
+  const blue = "rgb(0, 0, 255)";
+  const has_non_overlay_scrollbars = document.getElementById('sentinel') != 0;
+  const scroll_color = has_non_overlay_scrollbars ? blue : green;
+
+  test(() => {
+    assert_equals(getComputedStyle(document.querySelector("#container1 > .target")).backgroundColor, green);
+  }, "Size queries with content-box sizing");
+
+  test(() => {
+    assert_equals(getComputedStyle(document.querySelector("#container2 > .target")).backgroundColor, green);
+  }, "Size queries with border-box sizing");
+
+  test(() => {
+    assert_equals(getComputedStyle(document.querySelector("#container3 > .target")).backgroundColor, scroll_color);
+  }, "Size queries with content-box sizing and overflow:scroll");
+
+  test(() => {
+    assert_equals(getComputedStyle(document.querySelector("#container4 > .target")).backgroundColor, scroll_color);
+  }, "Size queries with border-box sizing and overflow:scroll");
+
+  test(() => {
+    assert_equals(getComputedStyle(document.querySelector("#container5 > .target")).backgroundColor, scroll_color);
+  }, "Size queries with content-box sizing and scrollbar-gutter:stable");
+
+  test(() => {
+    assert_equals(getComputedStyle(document.querySelector("#container6 > .target")).backgroundColor, scroll_color);
+  }, "Size queries with border-box sizing and scrollbar-gutter:stable");
+</script>

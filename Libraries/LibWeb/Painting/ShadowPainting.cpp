@@ -53,7 +53,7 @@ void paint_box_shadow(DisplayListRecordingContext& context,
 
             auto shrinked_border_radii = border_radii;
             shrinked_border_radii.shrink(borders_data.top.width, borders_data.right.width, borders_data.bottom.width, borders_data.left.width);
-            ScopedCornerRadiusClip corner_clipper { context, device_content_rect, shrinked_border_radii, CornerClip::Outside };
+            ScopedCornerRadiusClip corner_clipper { context, device_content_rect, shrinked_border_radii, Gfx::CornerClip::Outside };
             context.display_list_recorder().paint_inner_box_shadow(PaintInnerBoxShadow {
                 .color = box_shadow_data.color,
                 .blur_radius = blur_radius,
@@ -71,7 +71,7 @@ void paint_box_shadow(DisplayListRecordingContext& context,
             auto shadow_corner_radii = corner_radii;
             shadow_corner_radii.adjust_corners_for_spread_distance(spread_distance);
 
-            ScopedCornerRadiusClip corner_clipper { context, device_content_rect, border_radii, CornerClip::Inside };
+            ScopedCornerRadiusClip corner_clipper { context, device_content_rect, border_radii, Gfx::CornerClip::Inside };
             context.display_list_recorder().paint_outer_box_shadow(PaintOuterBoxShadow {
                 .color = box_shadow_data.color,
                 .blur_radius = blur_radius,

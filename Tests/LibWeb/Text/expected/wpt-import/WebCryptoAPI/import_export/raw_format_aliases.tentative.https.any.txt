@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	importKey/exportKey with raw-secret: AES-CTR
+Pass	wrapKey/unwrapKey with raw-secret: AES-CTR
+Pass	importKey/exportKey with raw-secret: AES-CBC
+Pass	wrapKey/unwrapKey with raw-secret: AES-CBC
+Pass	importKey/exportKey with raw-secret: AES-GCM
+Pass	wrapKey/unwrapKey with raw-secret: AES-GCM
+Pass	importKey/exportKey with raw-secret: AES-KW
+Pass	wrapKey/unwrapKey with raw-secret: AES-KW
+Pass	importKey/exportKey with raw-secret: HMAC
+Pass	wrapKey/unwrapKey with raw-secret: HMAC
+Pass	importKey/exportKey with raw-secret: HKDF
+Pass	importKey/exportKey with raw-secret: PBKDF2
+Pass	importKey/exportKey with raw-public: ECDSA
+Pass	wrapKey/unwrapKey with raw-public: ECDSA
+Pass	importKey/exportKey with raw-public: ECDH
+Pass	wrapKey/unwrapKey with raw-public: ECDH
+Pass	importKey/exportKey with raw-public: Ed25519
+Pass	wrapKey/unwrapKey with raw-public: Ed25519
+Pass	importKey/exportKey with raw-public: X25519
+Pass	wrapKey/unwrapKey with raw-public: X25519

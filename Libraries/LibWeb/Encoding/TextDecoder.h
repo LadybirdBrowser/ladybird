@@ -11,22 +11,12 @@
 #include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Encoding {
-
-// https://encoding.spec.whatwg.org/#textdecoderoptions
-struct TextDecoderOptions {
-    bool fatal = false;
-    bool ignore_bom = false;
-};
-
-// https://encoding.spec.whatwg.org/#textdecodeoptions
-struct TextDecodeOptions {
-    bool stream = false;
-};
 
 // https://encoding.spec.whatwg.org/#textdecoder
 class TextDecoder
@@ -36,11 +26,11 @@ class TextDecoder
     GC_DECLARE_ALLOCATOR(TextDecoder);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> construct_impl(JS::Realm&, FlyString encoding, Optional<TextDecoderOptions> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> construct_impl(JS::Realm&, FlyString encoding, Optional<Bindings::TextDecoderOptions> const& options = {});
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(Optional<GC::Root<WebIDL::BufferSource>> const&, Optional<TextDecodeOptions> const& options = {}) const;
+    WebIDL::ExceptionOr<String> decode(Optional<GC::Root<WebIDL::BufferSource>> const&, Optional<Bindings::TextDecodeOptions> const& options = {}) const;
 
 private:
     TextDecoder(JS::Realm&, TextCodec::Decoder&, FlyString encoding, ErrorMode error_mode, bool ignore_bom);

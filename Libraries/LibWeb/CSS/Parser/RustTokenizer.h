@@ -9,6 +9,7 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/Token.h>
+#include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS::Parser::FFI {
@@ -21,7 +22,7 @@ namespace Web::CSS::Parser {
 
 class WEB_API RustTokenizer {
 public:
-    static Vector<Token> tokenize(StringView input, StringView encoding);
+    static Vector<Token> tokenize(StringView input, StringView encoding, TokenizerInput = TokenizerInput::DecodedText);
 
 private:
     static Token token_from_ffi(FFI::CssToken const&);

@@ -1,0 +1,8 @@
+StartTag <html> [] @0:1-0:5
+StartTag <head> [] @0:7-0:11
+EndTag </head> @0:14-0:18
+StartTag <body> [] @0:20-0:24
+EndTag </body> @0:27-0:31
+EndTag </html> @0:34-0:38
+Character U+000A @1:0
+EndOfFile @1:0

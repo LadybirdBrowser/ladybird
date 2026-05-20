@@ -38,6 +38,13 @@ u64 create_vary_key(HeaderList const& request_headers, HeaderList const& respons
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key);
 LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key, CacheEntryAssociatedData);
 
+struct CacheEntryData {
+    u64 cache_key { 0 };
+    u64 vary_key { 0 };
+    Optional<CacheEntryAssociatedData> associated_data;
+};
+Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const&);
+
 bool is_cacheable(StringView method, HeaderList const&);
 bool is_cacheable(u32 status_code, HeaderList const&);
 bool is_header_exempted_from_storage(StringView name);

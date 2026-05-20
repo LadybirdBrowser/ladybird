@@ -12,3 +12,13 @@ extend-select = [
 [tool.ruff.lint.isort]
 force-single-line = true
 lines-between-types = 1
+
+[tool.pyright]
+pythonVersion = "3.9"
+extraPaths = ["Meta"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "**/lit.cfg.py",
+]

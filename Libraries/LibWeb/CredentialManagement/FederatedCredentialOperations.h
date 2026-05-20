@@ -10,6 +10,6 @@
 
 namespace Web::CredentialManagement {
 
-WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS::Realm& realm, FederatedCredentialInit const&);
+WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS::Realm& realm, Bindings::FederatedCredentialInit const&);
 
 }

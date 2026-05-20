@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
@@ -45,11 +46,11 @@
 
 namespace Web::Layout {
 
-Node::Node(DOM::Document& document, DOM::Node* node)
+Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_dom_node)
     : m_dom_node(node ? *node : document)
     , m_anonymous(node == nullptr)
 {
-    if (node)
+    if (node && attach_to_dom_node == AttachToDOMNode::Yes)
         node->set_layout_node({}, *this);
 }
 
@@ -628,6 +629,12 @@ void NodeWithStyle::ImageObserver::visit_edges(JS::Cell::Visitor& visitor) const
     m_image->visit_edges(visitor);
 }
 
+void NodeWithStyle::finalize()
+{
+    Base::finalize();
+    m_image_observers.clear();
+}
+
 void NodeWithStyle::rebuild_image_observers()
 {
     auto add_observer_for = [&](CSS::AbstractImageStyleValue const* abstract_image, Vector<NonnullOwnPtr<ImageObserver>>& observers) {
@@ -822,7 +829,25 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_inset(computed_style.length_box(CSS::PropertyID::Left, CSS::PropertyID::Top, CSS::PropertyID::Right, CSS::PropertyID::Bottom, CSS::LengthPercentageOrAuto::make_auto()));
     computed_values.set_margin(computed_style.length_box(CSS::PropertyID::MarginLeft, CSS::PropertyID::MarginTop, CSS::PropertyID::MarginRight, CSS::PropertyID::MarginBottom, CSS::Length::make_px(0)));
     computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
-    computed_values.set_overflow_clip_margin(computed_style.length_box(CSS::PropertyID::OverflowClipMarginLeft, CSS::PropertyID::OverflowClipMarginTop, CSS::PropertyID::OverflowClipMarginRight, CSS::PropertyID::OverflowClipMarginBottom, CSS::Length::make_px(0)));
+    {
+        auto extract_side = [&](CSS::PropertyID property_id) -> CSS::OverflowClipMarginSide {
+            auto const& value = computed_style.property(property_id);
+            if (value.is_overflow_clip_margin()) {
+                auto const& overflow_clip_margin = value.as_overflow_clip_margin();
+                CSS::Length offset = CSS::Length::make_px(0);
+                if (overflow_clip_margin.offset().is_length())
+                    offset = overflow_clip_margin.offset().as_length().length();
+                return { overflow_clip_margin.visual_box(), offset };
+            }
+            return {};
+        };
+        CSS::OverflowClipMarginData data;
+        data.left = extract_side(CSS::PropertyID::OverflowClipMarginLeft);
+        data.top = extract_side(CSS::PropertyID::OverflowClipMarginTop);
+        data.right = extract_side(CSS::PropertyID::OverflowClipMarginRight);
+        data.bottom = extract_side(CSS::PropertyID::OverflowClipMarginBottom);
+        computed_values.set_overflow_clip_margin(data);
+    }
 
     computed_values.set_box_shadow(computed_style.box_shadow(*this));
 
@@ -841,15 +866,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_transform_style(computed_style.transform_style());
     computed_values.set_perspective(computed_style.perspective());
     computed_values.set_perspective_origin(computed_style.perspective_origin());
-
-    auto const& transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
-    if (transition_delay_property.is_time()) {
-        auto const& transition_delay = transition_delay_property.as_time();
-        computed_values.set_transition_delay(transition_delay.time());
-    } else if (transition_delay_property.is_calculated()) {
-        auto const& transition_delay = transition_delay_property.as_calculated();
-        computed_values.set_transition_delay(transition_delay.resolve_time({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
-    }
 
     auto do_border_style = [&](CSS::BorderData& border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
         // FIXME: Support <image-1d>
@@ -1197,6 +1213,13 @@ void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_valu
     mutable_computed_values.set_float(CSS::InitialValues::float_());
     mutable_computed_values.set_clear(CSS::InitialValues::clear());
     mutable_computed_values.set_inset(CSS::InitialValues::inset());
+    mutable_computed_values.set_grid_column_end(CSS::InitialValues::grid_column_end());
+    mutable_computed_values.set_grid_column_start(CSS::InitialValues::grid_column_start());
+    mutable_computed_values.set_grid_row_end(CSS::InitialValues::grid_row_end());
+    mutable_computed_values.set_grid_row_start(CSS::InitialValues::grid_row_start());
+    mutable_computed_values.set_align_self(CSS::InitialValues::align_self());
+    mutable_computed_values.set_justify_self(CSS::InitialValues::justify_self());
+    mutable_computed_values.set_order(CSS::InitialValues::order());
     mutable_computed_values.set_margin(CSS::InitialValues::margin());
     // AD-HOC:
     // To match other browsers, z-index needs to be moved to the wrapper box as well,
@@ -1220,6 +1243,15 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     mutable_wrapper_computed_values.set_inset(computed_values().inset());
     mutable_wrapper_computed_values.set_float(computed_values().float_());
     mutable_wrapper_computed_values.set_clear(computed_values().clear());
+    // CSS 2 moves table-root positioning and margins to the wrapper. The wrapper is also the grid item for
+    // display:table, so grid placement, self-alignment, and order need to move there as well.
+    mutable_wrapper_computed_values.set_grid_column_end(computed_values().grid_column_end());
+    mutable_wrapper_computed_values.set_grid_column_start(computed_values().grid_column_start());
+    mutable_wrapper_computed_values.set_grid_row_end(computed_values().grid_row_end());
+    mutable_wrapper_computed_values.set_grid_row_start(computed_values().grid_row_start());
+    mutable_wrapper_computed_values.set_align_self(computed_values().align_self());
+    mutable_wrapper_computed_values.set_justify_self(computed_values().justify_self());
+    mutable_wrapper_computed_values.set_order(computed_values().order());
     mutable_wrapper_computed_values.set_margin(computed_values().margin());
     // AD-HOC:
     // To match other browsers, z-index needs to be moved to the wrapper box as well,

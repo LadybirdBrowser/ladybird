@@ -318,6 +318,7 @@ public:
     // The value of the Function component of the running execution context is also called the active function object.
     FunctionObject const* active_function_object() const { return running_execution_context().function; }
     FunctionObject* active_function_object() { return running_execution_context().function; }
+    SharedFunctionInstanceData* active_shared_function_data();
 
     size_t argument_count() const
     {

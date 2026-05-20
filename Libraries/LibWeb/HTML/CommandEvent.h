@@ -7,24 +7,20 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibWeb/Bindings/CommandEvent.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Utils.h>
 
 namespace Web::HTML {
 
-struct CommandEventInit : public DOM::EventInit {
-    GC::Ptr<DOM::Element> source;
-    String command;
-};
-
 class CommandEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(CommandEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CommandEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CommandEvent> create(JS::Realm&, FlyString const& event_name, CommandEventInit = {});
-    static WebIDL::ExceptionOr<GC::Ref<CommandEvent>> construct_impl(JS::Realm&, FlyString const& event_name, CommandEventInit);
+    [[nodiscard]] static GC::Ref<CommandEvent> create(JS::Realm&, FlyString const& event_name, Bindings::CommandEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<CommandEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CommandEventInit const&);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-command
     String const& command() const { return m_command; }
@@ -35,7 +31,7 @@ public:
 private:
     void visit_edges(Visitor&) override;
 
-    CommandEvent(JS::Realm&, FlyString const& event_name, CommandEventInit event_init);
+    CommandEvent(JS::Realm&, FlyString const& event_name, Bindings::CommandEventInit const&);
 
     void initialize(JS::Realm&) override;
 

@@ -1,4 +1,4 @@
-$ddd7ff5c named-class-expression-no-lhs-name-leak.js:1:1
+$b15087f2 named-class-expression-no-lhs-name-leak.js:1:1
   Registers: 13
   Blocks:    7
   Constants:
@@ -21,14 +21,14 @@ block2:
   [  80] JumpUndefined condition:reg10, true_target:block3, false_target:block4
 
 block3:
-  [  90] CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:0
-  [  a0] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:false
-  [  b0] SetLexicalEnvironment environment:reg4
-  [  b8] NewClass dst:reg12, class_environment:reg11, class_blueprint_index:0
-  [  d8] Mov dst:reg10, src:reg12
+  [  90] CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:0, is_catch_environment:false
+  [  a8] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:false
+  [  b8] SetLexicalEnvironment environment:reg4
+  [  c0] NewClass dst:reg12, class_environment:reg11, class_blueprint_index:0
+  [  e0] Mov dst:reg10, src:reg12
 
 block4:
-  [  e8] SetGlobal `C`, src:reg10
+  [  f0] SetGlobal `C`, src:reg10
   [ 100] JumpFalse condition:reg6, target:block6
 
 block5:

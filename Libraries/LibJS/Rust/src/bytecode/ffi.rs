@@ -22,11 +22,14 @@
 //! All `FFI*` structs are `#[repr(C)]`.
 
 use std::ffi::c_void;
+use std::mem::align_of;
 
 use super::generator::{
-    AssembledBytecode, ConstantValue, Generator, PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind,
+    AssembledBytecode, ConstantValue, ExceptionHandler, Generator, PendingClassBlueprint, PendingClassElement,
+    PendingLiteralValueKind,
 };
 use crate::ast::Utf16String;
+use crate::bytecode::basic_block::SourceMapEntry;
 use crate::u32_from_usize;
 
 /// Opaque pointer returned from rust_create_executable.
@@ -40,16 +43,12 @@ pub struct FFIExceptionHandler {
     pub handler_offset: u32,
 }
 
-/// Source map entry mapping bytecode offset to source range.
+/// Source map entry mapping bytecode offset to source position.
 #[repr(C)]
 pub struct FFISourceMapEntry {
     pub bytecode_offset: u32,
     pub source_start_line: u32,
     pub source_start_column: u32,
-    pub source_start_offset: u32,
-    pub source_end_line: u32,
-    pub source_end_column: u32,
-    pub source_end_offset: u32,
 }
 
 /// A borrowed UTF-16 string slice for passing across FFI.
@@ -193,6 +192,7 @@ pub struct FFISharedFunctionData {
 pub struct FFIExecutableData {
     pub bytecode: *const u8,
     pub bytecode_length: usize,
+    pub bytecode_owner: *mut c_void,
     pub identifier_table: *const FFIUtf16Slice,
     pub identifier_count: usize,
     pub property_key_table: *const FFIUtf16Slice,
@@ -212,6 +212,7 @@ pub struct FFIExecutableData {
     pub local_variable_count: usize,
     pub property_lookup_cache_count: u32,
     pub global_variable_cache_count: u32,
+    pub environment_coordinate_cache_count: u32,
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
     pub object_property_iterator_cache_count: u32,
@@ -254,6 +255,31 @@ unsafe extern "C" {
         this_value_needs_environment_resolution: bool,
         function_environment_needed: bool,
         function_environment_bindings_count: usize,
+        var_environment_bindings_count: usize,
+        might_need_arguments_object: bool,
+        contains_direct_call_to_eval: bool,
+    );
+
+    pub fn rust_sfd_set_cached_bytecode_executable(
+        sfd_ptr: *mut c_void,
+        cached_executable_ptr: *mut c_void,
+        uses_this: bool,
+        this_value_needs_environment_resolution: bool,
+        function_environment_needed: bool,
+        function_environment_bindings_count: usize,
+        var_environment_bindings_count: usize,
+        might_need_arguments_object: bool,
+        contains_direct_call_to_eval: bool,
+    );
+
+    pub fn rust_sfd_set_precompiled_bytecode_executable(
+        sfd_ptr: *mut c_void,
+        precompiled_executable_ptr: *mut c_void,
+        uses_this: bool,
+        this_value_needs_environment_resolution: bool,
+        function_environment_needed: bool,
+        function_environment_bindings_count: usize,
+        var_environment_bindings_count: usize,
         might_need_arguments_object: bool,
         contains_direct_call_to_eval: bool,
     );
@@ -447,28 +473,26 @@ unsafe fn materialize_shared_function_data(
             if let Some((name, is_private)) = &pending.class_field_initializer_name {
                 rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);
             }
-            if let Some(precompiled) = pending.precompiled_function.as_mut() {
-                precompiled.generator.vm_ptr = vm_ptr;
-                precompiled.generator.source_code_ptr = source_code_ptr;
-                let executable_ptr = create_executable(
-                    &mut precompiled.generator,
-                    &precompiled.assembled,
-                    vm_ptr,
-                    source_code_ptr,
-                );
-                assert!(
-                    !executable_ptr.is_null(),
-                    "materialize_shared_function_data: eager function executable materialization failed"
-                );
-                rust_sfd_set_precompiled_executable(
+            if let Some(precompiled) = pending.precompiled_function.take() {
+                let uses_this = precompiled.metadata.uses_this;
+                let this_value_needs_environment_resolution =
+                    precompiled.metadata.this_value_needs_environment_resolution;
+                let function_environment_needed = precompiled.metadata.function_environment_needed;
+                let function_environment_bindings_count = precompiled.metadata.function_environment_bindings_count;
+                let var_environment_bindings_count = precompiled.metadata.var_environment_bindings_count;
+                let might_need_arguments = precompiled.metadata.might_need_arguments;
+                let contains_eval = precompiled.metadata.contains_eval;
+                let precompiled_ptr = Box::into_raw(precompiled) as *mut c_void;
+                rust_sfd_set_precompiled_bytecode_executable(
                     sfd_ptr,
-                    executable_ptr,
-                    precompiled.metadata.uses_this,
-                    precompiled.metadata.this_value_needs_environment_resolution,
-                    precompiled.metadata.function_environment_needed,
-                    precompiled.metadata.function_environment_bindings_count,
-                    precompiled.metadata.might_need_arguments,
-                    precompiled.metadata.contains_eval,
+                    precompiled_ptr,
+                    uses_this,
+                    this_value_needs_environment_resolution,
+                    function_environment_needed,
+                    function_environment_bindings_count,
+                    var_environment_bindings_count,
+                    might_need_arguments,
+                    contains_eval,
                 );
             }
             sfd_ptrs.push(sfd_ptr as *const c_void);
@@ -570,7 +594,7 @@ pub enum ConstantTag {
 }
 
 /// Encode constants into a tagged byte buffer for FFI.
-fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
+pub(crate) fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
     let mut buffer = Vec::new();
     for c in constants {
         match c {
@@ -585,6 +609,7 @@ fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
             ConstantValue::Empty => buffer.push(ConstantTag::Empty as u8),
             ConstantValue::String(s) => {
                 buffer.push(ConstantTag::String as u8);
+                align_buffer_to(&mut buffer, align_of::<u16>());
                 let len = u32_from_usize(s.len());
                 buffer.extend_from_slice(&len.to_le_bytes());
                 for &code_unit in s {
@@ -608,6 +633,11 @@ fn encode_constants(constants: &[ConstantValue]) -> Vec<u8> {
         }
     }
     buffer
+}
+
+fn align_buffer_to(buffer: &mut Vec<u8>, alignment: usize) {
+    let padding = buffer.len().next_multiple_of(alignment) - buffer.len();
+    buffer.extend(std::iter::repeat_n(0, padding));
 }
 
 /// Create a C++ Executable from the generator's assembled output.
@@ -645,6 +675,152 @@ pub unsafe fn create_executable_with_dependencies(
     bp_ptrs: &[*mut c_void],
 ) -> ExecutableHandle {
     unsafe {
+        let parts = ExecutableParts {
+            bytecode: &assembled.bytecode,
+            bytecode_owner: std::ptr::null_mut(),
+            exception_handlers: &assembled.exception_handlers,
+            source_map: &assembled.source_map,
+            basic_block_start_offsets: &assembled.basic_block_start_offsets,
+            number_of_registers: assembled.number_of_registers,
+            number_of_arguments: assembled.number_of_arguments,
+        };
+        create_executable_with_dependencies_from_parts(generator, parts, vm_ptr, source_code_ptr, sfd_ptrs, bp_ptrs)
+    }
+}
+
+pub struct ExecutableParts<'a> {
+    pub bytecode: &'a [u8],
+    pub bytecode_owner: *mut c_void,
+    pub exception_handlers: &'a [ExceptionHandler],
+    pub source_map: &'a [SourceMapEntry],
+    pub basic_block_start_offsets: &'a [usize],
+    pub number_of_registers: u32,
+    pub number_of_arguments: u32,
+}
+
+pub struct ExecutableMetadata {
+    pub property_lookup_cache_count: u32,
+    pub global_variable_cache_count: u32,
+    pub environment_coordinate_cache_count: u32,
+    pub template_object_cache_count: u32,
+    pub object_shape_cache_count: u32,
+    pub object_property_iterator_cache_count: u32,
+    pub is_strict: bool,
+    pub length_identifier: Option<u32>,
+}
+
+pub struct ExecutableSlices<'a> {
+    pub identifier_table: &'a [FFIUtf16Slice],
+    pub property_key_table: &'a [FFIUtf16Slice],
+    pub string_table: &'a [FFIUtf16Slice],
+    pub constants_data: &'a [u8],
+    pub constants_count: usize,
+    pub local_variable_names: &'a [FFIUtf16Slice],
+    pub compiled_regexes: &'a [*mut c_void],
+}
+
+/// Create a C++ Executable from borrowed FFI slices.
+///
+/// This is the lowest-level executable constructor wrapper. It lets cache
+/// materialization pass table slices borrowed from mmap-backed cache bytes
+/// without first copying them into the bytecode generator's owned tables.
+///
+/// # Safety
+/// `vm_ptr`, `source_code_ptr`, all dependency pointers, and all borrowed
+/// slices must be valid for the duration of the call.
+pub unsafe fn create_executable_from_slices(
+    parts: ExecutableParts<'_>,
+    metadata: ExecutableMetadata,
+    slices: ExecutableSlices<'_>,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    sfd_ptrs: &[*const c_void],
+    bp_ptrs: &[*mut c_void],
+) -> ExecutableHandle {
+    unsafe {
+        // Build FFI exception handlers
+        let ffi_handlers: Vec<FFIExceptionHandler> = parts
+            .exception_handlers
+            .iter()
+            .map(|h| FFIExceptionHandler {
+                start_offset: h.start_offset,
+                end_offset: h.end_offset,
+                handler_offset: h.handler_offset,
+            })
+            .collect();
+
+        // Build FFI source map
+        let ffi_source_map: Vec<FFISourceMapEntry> = parts
+            .source_map
+            .iter()
+            .map(|e| FFISourceMapEntry {
+                bytecode_offset: e.bytecode_offset,
+                source_start_line: e.line,
+                source_start_column: e.column,
+            })
+            .collect();
+
+        let ffi_data = FFIExecutableData {
+            bytecode: parts.bytecode.as_ptr(),
+            bytecode_length: parts.bytecode.len(),
+            bytecode_owner: parts.bytecode_owner,
+            identifier_table: slices.identifier_table.as_ptr(),
+            identifier_count: slices.identifier_table.len(),
+            property_key_table: slices.property_key_table.as_ptr(),
+            property_key_count: slices.property_key_table.len(),
+            string_table: slices.string_table.as_ptr(),
+            string_count: slices.string_table.len(),
+            constants_data: slices.constants_data.as_ptr(),
+            constants_data_length: slices.constants_data.len(),
+            constants_count: slices.constants_count,
+            exception_handlers: ffi_handlers.as_ptr(),
+            exception_handler_count: ffi_handlers.len(),
+            source_map: ffi_source_map.as_ptr(),
+            source_map_count: ffi_source_map.len(),
+            basic_block_offsets: parts.basic_block_start_offsets.as_ptr(),
+            basic_block_count: parts.basic_block_start_offsets.len(),
+            local_variable_names: slices.local_variable_names.as_ptr(),
+            local_variable_count: slices.local_variable_names.len(),
+            property_lookup_cache_count: metadata.property_lookup_cache_count,
+            global_variable_cache_count: metadata.global_variable_cache_count,
+            environment_coordinate_cache_count: metadata.environment_coordinate_cache_count,
+            template_object_cache_count: metadata.template_object_cache_count,
+            object_shape_cache_count: metadata.object_shape_cache_count,
+            object_property_iterator_cache_count: metadata.object_property_iterator_cache_count,
+            number_of_registers: parts.number_of_registers,
+            number_of_arguments: parts.number_of_arguments,
+            is_strict: metadata.is_strict,
+            length_identifier: FFIOptionalU32::from(metadata.length_identifier),
+            shared_function_data: sfd_ptrs.as_ptr(),
+            shared_function_data_count: sfd_ptrs.len(),
+            class_blueprints: bp_ptrs.as_ptr(),
+            class_blueprint_count: bp_ptrs.len(),
+            compiled_regexes: slices.compiled_regexes.as_ptr(),
+            regex_count: slices.compiled_regexes.len(),
+        };
+
+        rust_create_executable(vm_ptr, source_code_ptr, &raw const ffi_data)
+    }
+}
+
+/// Create a C++ Executable from already materialized dependency objects and
+/// borrowed bytecode/table slices.
+///
+/// This variant lets bytecode cache materialization point at mmap-backed cache
+/// blob bytes without first cloning executable bytecode into a Rust Vec.
+///
+/// # Safety
+/// `vm_ptr`, `source_code_ptr`, all dependency pointers, and all borrowed
+/// slices must be valid for the duration of the call.
+pub unsafe fn create_executable_with_dependencies_from_parts(
+    generator: &Generator,
+    parts: ExecutableParts<'_>,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    sfd_ptrs: &[*const c_void],
+    bp_ptrs: &[*mut c_void],
+) -> ExecutableHandle {
+    unsafe {
         // Build FFI slices for tables
         let ident_slices: Vec<FFIUtf16Slice> = generator
             .identifier_table
@@ -667,32 +843,6 @@ pub unsafe fn create_executable_with_dependencies(
         // Encode constants
         let constants_buffer = encode_constants(&generator.constants);
 
-        // Build FFI exception handlers
-        let ffi_handlers: Vec<FFIExceptionHandler> = assembled
-            .exception_handlers
-            .iter()
-            .map(|h| FFIExceptionHandler {
-                start_offset: h.start_offset,
-                end_offset: h.end_offset,
-                handler_offset: h.handler_offset,
-            })
-            .collect();
-
-        // Build FFI source map
-        let ffi_source_map: Vec<FFISourceMapEntry> = assembled
-            .source_map
-            .iter()
-            .map(|e| FFISourceMapEntry {
-                bytecode_offset: e.bytecode_offset,
-                source_start_line: e.source_start.line,
-                source_start_column: e.source_start.column,
-                source_start_offset: e.source_start.offset,
-                source_end_line: e.source_end.line,
-                source_end_column: e.source_end.column,
-                source_end_offset: e.source_end.offset,
-            })
-            .collect();
-
         // Build local variable name slices
         let local_var_slices: Vec<FFIUtf16Slice> = generator
             .local_variables
@@ -700,44 +850,28 @@ pub unsafe fn create_executable_with_dependencies(
             .map(|v| FFIUtf16Slice::from(v.name.as_ref()))
             .collect();
 
-        let ffi_data = FFIExecutableData {
-            bytecode: assembled.bytecode.as_ptr(),
-            bytecode_length: assembled.bytecode.len(),
-            identifier_table: ident_slices.as_ptr(),
-            identifier_count: ident_slices.len(),
-            property_key_table: property_key_slices.as_ptr(),
-            property_key_count: property_key_slices.len(),
-            string_table: string_slices.as_ptr(),
-            string_count: string_slices.len(),
-            constants_data: constants_buffer.as_ptr(),
-            constants_data_length: constants_buffer.len(),
-            constants_count: generator.constants.len(),
-            exception_handlers: ffi_handlers.as_ptr(),
-            exception_handler_count: ffi_handlers.len(),
-            source_map: ffi_source_map.as_ptr(),
-            source_map_count: ffi_source_map.len(),
-            basic_block_offsets: assembled.basic_block_start_offsets.as_ptr(),
-            basic_block_count: assembled.basic_block_start_offsets.len(),
-            local_variable_names: local_var_slices.as_ptr(),
-            local_variable_count: local_var_slices.len(),
+        let metadata = ExecutableMetadata {
             property_lookup_cache_count: generator.next_property_lookup_cache,
             global_variable_cache_count: generator.next_global_variable_cache,
+            environment_coordinate_cache_count: generator.next_environment_coordinate_cache,
             template_object_cache_count: generator.next_template_object_cache,
             object_shape_cache_count: generator.next_object_shape_cache,
             object_property_iterator_cache_count: generator.next_object_property_iterator_cache,
-            number_of_registers: assembled.number_of_registers,
-            number_of_arguments: assembled.number_of_arguments,
             is_strict: generator.strict,
-            length_identifier: FFIOptionalU32::from(generator.length_identifier.map(|index| index.0)),
-            shared_function_data: sfd_ptrs.as_ptr(),
-            shared_function_data_count: sfd_ptrs.len(),
-            class_blueprints: bp_ptrs.as_ptr(),
-            class_blueprint_count: bp_ptrs.len(),
-            compiled_regexes: generator.compiled_regexes.as_ptr(),
-            regex_count: generator.compiled_regexes.len(),
+            length_identifier: generator.length_identifier.map(|index| index.0),
         };
 
-        rust_create_executable(vm_ptr, source_code_ptr, &raw const ffi_data)
+        let slices = ExecutableSlices {
+            identifier_table: &ident_slices,
+            property_key_table: &property_key_slices,
+            string_table: &string_slices,
+            constants_data: &constants_buffer,
+            constants_count: generator.constants.len(),
+            local_variable_names: &local_var_slices,
+            compiled_regexes: &generator.compiled_regexes,
+        };
+
+        create_executable_from_slices(parts, metadata, slices, vm_ptr, source_code_ptr, sfd_ptrs, bp_ptrs)
     }
 }
 

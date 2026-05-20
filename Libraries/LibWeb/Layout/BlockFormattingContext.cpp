@@ -506,7 +506,8 @@ void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box cons
     }
 
     box_state.set_content_height(height);
-    box_state.set_has_definite_height(true);
+    if (computed_height_establishes_definite_containing_block_height(computed_values.height()))
+        box_state.set_has_definite_height(true);
 }
 
 void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& box, AvailableSpace const& available_space, FormattingContext const* box_formatting_context)

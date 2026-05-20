@@ -23,10 +23,10 @@ void SerialPort::initialize(JS::Realm& realm)
 }
 
 // https://wicg.github.io/serial/#getinfo-method
-SerialPortInfo SerialPort::get_info() const
+Bindings::SerialPortInfo SerialPort::get_info() const
 {
     // 1. Let info be an empty ordered map.
-    auto info = SerialPortInfo {};
+    auto info = Bindings::SerialPortInfo {};
 
     // FIXME: 2. If the port is part of a USB device, perform the following steps:
     {
@@ -45,7 +45,7 @@ SerialPortInfo SerialPort::get_info() const
 }
 
 // https://wicg.github.io/serial/#open-method
-GC::Ref<WebIDL::Promise> SerialPort::open(SerialOptions)
+GC::Ref<WebIDL::Promise> SerialPort::open(Bindings::SerialOptions const&)
 {
     auto& realm = this->realm();
 
@@ -82,7 +82,7 @@ GC::Ref<WebIDL::Promise> SerialPort::open(SerialOptions)
 }
 
 // https://wicg.github.io/serial/#setsignals-method
-GC::Ref<WebIDL::Promise> SerialPort::set_signals(SerialOutputSignals)
+GC::Ref<WebIDL::Promise> SerialPort::set_signals(Bindings::SerialOutputSignals const&)
 {
     auto& realm = this->realm();
 

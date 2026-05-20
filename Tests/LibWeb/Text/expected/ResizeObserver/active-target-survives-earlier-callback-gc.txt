@@ -1,0 +1,5 @@
+first observer target: first
+second observer entries: 1
+second observer target: second
+first observer callbacks: 1
+second observer callbacks: 1

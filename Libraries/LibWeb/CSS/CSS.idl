@@ -1,3 +1,6 @@
+// https://drafts.csswg.org/cssom-1/#cssomstring
+typedef DOMString CSSOMString;
+
 dictionary PropertyDefinition {
     required CSSOMString name;
     CSSOMString syntax = "*";

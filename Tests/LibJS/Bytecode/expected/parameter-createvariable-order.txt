@@ -1,4 +1,4 @@
-$6ef6ff9a parameter-createvariable-order.js:7:1
+$516a2e0b parameter-createvariable-order.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,11 +9,11 @@ $6ef6ff9a parameter-createvariable-order.js:7:1
 
 block0:
   [   0] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  48] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  40] End value:reg5
 
 
-f$40c96172 parameter-createvariable-order.js:2:5
+f$8982c134 parameter-createvariable-order.js:2:5
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -34,14 +34,14 @@ block0:
   [  d0] Return value:reg5
 
 
-inner$350d7dbe parameter-createvariable-order.js:3:9
+inner$2575e5f9 parameter-createvariable-order.js:3:9
   Registers: 8
   Blocks:    1
 
 block0:
-  [   0] GetBinding dst:reg5, `a`
-  [  18] GetBinding dst:reg6, `b`
-  [  30] Add dst:reg7, lhs:reg5, rhs:reg6
-  [  40] GetBinding dst:reg5, `c`
-  [  58] Add dst:reg6, lhs:reg7, rhs:reg5
-  [  68] Return value:reg6
+  [   0] DynamicGetBinding dst:reg5, `a`
+  [  10] DynamicGetBinding dst:reg6, `b`
+  [  20] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  30] DynamicGetBinding dst:reg5, `c`
+  [  40] Add dst:reg6, lhs:reg7, rhs:reg5
+  [  50] Return value:reg6

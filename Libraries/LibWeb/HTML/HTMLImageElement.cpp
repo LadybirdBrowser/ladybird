@@ -692,6 +692,9 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                 // 2. Set the current request's current URL to urlString.
                 m_current_request->set_current_url(realm(), *url_string);
 
+                set_needs_style_update(true);
+                set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
+
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
@@ -927,6 +930,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
 
                 // 3. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
                 document().list_of_available_images().add(key, *image_data, true);
+                document().prune_image_resource_caches();
 
                 set_needs_style_update(true);
                 set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
@@ -1077,6 +1081,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
             // 4. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
             document().list_of_available_images().add(key, image_data, true);
+            document().prune_image_resource_caches();
 
             // 5. Upgrade the pending request to the current request.
             upgrade_pending_request_to_current_request();

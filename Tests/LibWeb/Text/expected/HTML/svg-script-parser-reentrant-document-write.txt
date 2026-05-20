@@ -1,0 +1,2 @@
+svg write parent: body
+body children: svg,span,script

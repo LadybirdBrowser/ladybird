@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
+#include <LibGC/RootHashTable.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/AsyncFunctionDriverWrapper.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
@@ -116,7 +117,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
     if (rust_result->is_error())
         return rust_result->release_error();
     auto& module_result = rust_result->value();
-    Vector<FunctionToInitialize> functions_to_initialize;
+    GC::ConservativeVector<FunctionToInitialize> functions_to_initialize(realm.heap());
     functions_to_initialize.ensure_capacity(module_result.functions_to_initialize.size());
     for (auto& f : module_result.functions_to_initialize)
         functions_to_initialize.append({ *f.shared_data, move(f.name) });
@@ -186,7 +187,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
         return rust_result->release_error();
 
     auto& module_result = rust_result->value();
-    Vector<FunctionToInitialize> functions_to_initialize;
+    GC::ConservativeVector<FunctionToInitialize> functions_to_initialize(realm.heap());
     functions_to_initialize.ensure_capacity(module_result.functions_to_initialize.size());
     for (auto& f : module_result.functions_to_initialize)
         functions_to_initialize.append({ *f.shared_data, move(f.name) });
@@ -201,7 +202,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
 }
 
 // 16.2.1.7.2.1 GetExportedNames ( [ exportStarSet ] ), https://tc39.es/ecma262/#sec-getexportednames
-Vector<Utf16FlyString> SourceTextModule::get_exported_names(VM& vm, HashTable<Module const*>& export_star_set)
+Vector<Utf16FlyString> SourceTextModule::get_exported_names(VM& vm, GC::RootHashTable<GC::Ref<Module const>>& export_star_set)
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] get_export_names of {}", filename());
 
@@ -212,7 +213,7 @@ Vector<Utf16FlyString> SourceTextModule::get_exported_names(VM& vm, HashTable<Mo
     // NOTE: This is done by Module.
 
     // 3. If exportStarSet contains module, then
-    if (export_star_set.contains(this)) {
+    if (export_star_set.contains(GC::Ref<Module const>(*this))) {
         // a. Assert: We've reached the starting point of an export * circularity.
         // FIXME: How do we check that?
 
@@ -221,7 +222,7 @@ Vector<Utf16FlyString> SourceTextModule::get_exported_names(VM& vm, HashTable<Mo
     }
 
     // 4. Append module to exportStarSet.
-    export_star_set.set(this);
+    export_star_set.set(GC::Ref<Module const>(*this));
 
     // 5. Let exportedNames be a new empty List.
     Vector<Utf16FlyString> exported_names;
@@ -655,7 +656,8 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         auto& env = as<DeclarativeEnvironment>(*module_context->lexical_environment);
 
         // e. Set result to Completion(DisposeResources(env.[[DisposeCapability]], result)).
-        result = dispose_resources(vm, env.dispose_capability(), result);
+        if (auto* dispose_capability = env.dispose_capability_if_exists())
+            result = dispose_resources(vm, *dispose_capability, result);
 
         // f. Suspend moduleContext and remove it from the execution context stack.
         vm.pop_execution_context();

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.grid {
+    display: grid;
+    width: 100px;
+    grid-template-columns: 100px;
+}
+
+.center {
+    justify-items: center;
+}
+
+.end {
+    justify-items: end;
+}
+
+.stretch-grid {
+    justify-items: stretch;
+}
+
+.table {
+    display: table;
+    height: 20px;
+}
+
+.auto-margins {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.cell {
+    display: table-cell;
+}
+
+.wide-content {
+    display: inline-block;
+    width: 180px;
+    height: 20px;
+}
+
+.narrow-content {
+    display: inline-block;
+    width: 60px;
+    height: 20px;
+}
+
+.very-narrow-content {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+}
+</style>
+<div class="grid">
+    <div id="oversized-start" class="table">
+        <div class="cell"><span class="wide-content"></span></div>
+    </div>
+</div>
+<div class="grid center">
+    <div id="oversized-center" class="table">
+        <div class="cell"><span class="wide-content"></span></div>
+    </div>
+</div>
+<div class="grid end">
+    <div id="oversized-end" class="table">
+        <div class="cell"><span class="wide-content"></span></div>
+    </div>
+</div>
+<div class="grid center">
+    <div id="oversized-auto-margins-center" class="table auto-margins">
+        <div class="cell"><span class="wide-content"></span></div>
+    </div>
+</div>
+<div class="grid end">
+    <div id="oversized-auto-margins-end" class="table auto-margins">
+        <div class="cell"><span class="wide-content"></span></div>
+    </div>
+</div>
+<div class="grid center">
+    <div id="narrow-center" class="table">
+        <div class="cell"><span class="narrow-content"></span></div>
+    </div>
+</div>
+<div class="grid stretch-grid">
+    <div id="narrow-stretch" class="table">
+        <div class="cell"><span class="very-narrow-content"></span></div>
+    </div>
+</div>
+<script>
+test(() => {
+    const printRect = (name, selector) => {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        println(`${name} left: ${rect.left.toFixed(1)}`);
+        println(`${name} right: ${rect.right.toFixed(1)}`);
+        println(`${name} width: ${rect.width.toFixed(1)}`);
+    };
+
+    printRect("oversized start", "#oversized-start");
+    printRect("oversized center", "#oversized-center");
+    printRect("oversized end", "#oversized-end");
+    printRect("oversized auto margins center", "#oversized-auto-margins-center");
+    printRect("oversized auto margins end", "#oversized-auto-margins-end");
+    printRect("narrow center", "#narrow-center");
+    printRect("narrow stretch", "#narrow-stretch");
+});
+</script>

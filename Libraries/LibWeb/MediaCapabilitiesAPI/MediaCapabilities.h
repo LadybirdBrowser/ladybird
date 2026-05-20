@@ -13,94 +13,15 @@
 
 namespace Web::MediaCapabilitiesAPI {
 
-// https://w3c.github.io/media-capabilities/#dictdef-videoconfiguration
-struct VideoConfiguration {
-    String content_type;
-    WebIDL::UnsignedLong width;
-    WebIDL::UnsignedLong height;
-    Optional<WebIDL::UnsignedLongLong> bitrate;
-    double framerate;
-    Optional<bool> has_alpha_channel;
-    Optional<Bindings::HdrMetadataType> hdr_metadata_type;
-    Optional<Bindings::ColorGamut> color_gamut;
-    Optional<Bindings::TransferFunction> transfer_function;
-    Optional<String> scalability_mode;
-    Optional<bool> spatial_scalability;
+bool is_valid_video_configuration(Bindings::VideoConfiguration const&);
 
-    // https://w3c.github.io/media-capabilities/#valid-video-configuration
-    bool is_valid_video_configuration() const;
-};
+bool is_valid_audio_configuration(Bindings::AudioConfiguration const&);
 
-// https://w3c.github.io/media-capabilities/#dictdef-audioconfiguration
-struct AudioConfiguration {
-    String content_type;
-    Optional<String> channels;
-    Optional<WebIDL::UnsignedLongLong> bitrate;
-    Optional<WebIDL::UnsignedLong> samplerate;
-    Optional<bool> spatial_rendering;
+bool is_valid_media_configuration(Bindings::MediaConfiguration const&);
 
-    // https://w3c.github.io/media-capabilities/#valid-audio-configuration
-    bool is_valid_audio_configuration() const;
-};
+bool is_valid_media_decoding_configuration(Bindings::MediaDecodingConfiguration const&);
 
-// https://w3c.github.io/media-capabilities/#dictdef-mediaconfiguration
-struct MediaConfiguration {
-    Optional<VideoConfiguration> video;
-    Optional<AudioConfiguration> audio;
-
-    // https://w3c.github.io/media-capabilities/#valid-mediaconfiguration
-    bool is_valid_media_configuration() const;
-};
-
-// https://w3c.github.io/media-capabilities/#keysystemtrackconfiguration
-struct KeySystemTrackConfiguration {
-    String robustness;
-    Optional<String> encryption_scheme;
-};
-
-// https://w3c.github.io/media-capabilities/#mediacapabilitieskeysystemconfiguration
-struct MediaCapabilitiesKeySystemConfiguration {
-    String key_system;
-    String init_data_type;
-    Bindings::MediaKeysRequirement distinctive_identifier;
-    Bindings::MediaKeysRequirement persistent_state;
-    Optional<Vector<String>> session_types;
-    Optional<KeySystemTrackConfiguration> audio;
-    Optional<KeySystemTrackConfiguration> video;
-};
-
-// https://w3c.github.io/media-capabilities/#dictdef-mediadecodingconfiguration
-struct MediaDecodingConfiguration : public MediaConfiguration {
-    Bindings::MediaDecodingType type;
-    Optional<MediaCapabilitiesKeySystemConfiguration> key_system_configuration;
-
-    // https://w3c.github.io/media-capabilities/#valid-mediadecodingconfiguration
-    bool is_valid_media_decoding_configuration() const;
-};
-
-// https://w3c.github.io/media-capabilities/#dictdef-mediaencodingconfiguration
-struct MediaEncodingConfiguration : public MediaConfiguration {
-    Bindings::MediaEncodingType type;
-};
-
-// https://w3c.github.io/media-capabilities/#media-capabilities-info
-struct MediaCapabilitiesInfo {
-    bool supported;
-    bool smooth;
-    bool power_efficient;
-};
-
-// https://w3c.github.io/media-capabilities/#dictdef-mediacapabilitiesdecodinginfo
-struct MediaCapabilitiesDecodingInfo : public MediaCapabilitiesInfo {
-    MediaDecodingConfiguration configuration;
-    Optional<MediaCapabilitiesKeySystemConfiguration> key_system_configuration;
-
-    GC::Ref<JS::Object> to_object(JS::Realm&);
-};
-
-struct MediaCapabilitiesEncodingInfo : public MediaCapabilitiesInfo {
-    Optional<MediaEncodingConfiguration> configuration;
-};
+GC::Ref<JS::Object> to_object(JS::Realm&, Bindings::MediaCapabilitiesDecodingInfo const&);
 
 // https://w3c.github.io/media-capabilities/#media-capabilities-interface
 class MediaCapabilities final : public Bindings::PlatformObject {
@@ -112,24 +33,21 @@ public:
     virtual ~MediaCapabilities() override = default;
 
     // https://w3c.github.io/media-capabilities/#dom-mediacapabilities-decodinginfo
-    GC::Ref<WebIDL::Promise> decoding_info(MediaDecodingConfiguration const&);
+    GC::Ref<WebIDL::Promise> decoding_info(Bindings::MediaDecodingConfiguration const&);
 
 private:
     MediaCapabilities(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
-
-    // https://w3c.github.io/media-capabilities/#valid-mediadecodingconfiguration
-    bool is_valid_media_decoding_configuration() const;
 };
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
 void queue_a_media_capabilities_task(JS::VM& vm, Function<void()>);
 
 // https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
-MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration);
+Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(Bindings::MediaDecodingConfiguration);
 
-bool is_able_to_decode_media(MediaDecodingConfiguration configuration);
+bool is_able_to_decode_media(Bindings::MediaDecodingConfiguration);
 
 // https://w3c.github.io/media-capabilities/#valid-audio-mime-type
 bool is_valid_audio_mime_type(StringView);

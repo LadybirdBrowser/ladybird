@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout test: align-self and justify-self with auto margins</title>
+<link rel="author" title="Rossana Monteriso" href="mailto:rmonteriso@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#auto-margins">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-items">
+<meta name="assert" content="This test checks that align-self and justify-self properties are not applied when there is auto-margin in the corresponding axis. Instead, auto-margin alignment should be applied, both for LTR and RTL directions.">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+
+<style>
+.grid {
+    grid-template-columns: 100px 100px;
+    grid-template-rows: 200px 200px;
+    margin-bottom: 20px;
+}
+
+.item {
+    width: 20px;
+    height: 40px;
+}
+
+.autoMarginTop { margin-top: auto; }
+.autoMarginRight { margin-right: auto; }
+.autoMarginBottom { margin-bottom: auto; }
+.autoMarginLeft { margin-left: auto; }
+.autoMargin { margin: auto; }
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<p>This test checks that align-self and justify-self properties are not applied when there is auto-margin in the corresponding axis. Instead, auto-margin alignment should be applied.</p>
+
+<p>Direction: LTR | Self Alignment: center | fixed size items | 1 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content itemsCenter">
+        <div class="item autoMarginTop firstRowFirstColumn" data-offset-x="40" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMarginRight firstRowSecondColumn" data-offset-x="100" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMarginLeft secondRowFirstColumn" data-offset-x="80" data-offset-y="280" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMarginBottom secondRowSecondColumn" data-offset-x="140" data-offset-y="200" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<p>Direction: LTR | Self Alignment: start | fixed size items | 4 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content">
+        <div class="item autoMargin firstRowFirstColumn" data-offset-x="40" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMargin firstRowSecondColumn" data-offset-x="140" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMargin secondRowFirstColumn" data-offset-x="40" data-offset-y="280" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMargin secondRowSecondColumn" data-offset-x="140" data-offset-y="280" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<p>Direction: LTR | Self Alignment: center | auto size items | 1 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content itemsCenter">
+        <div class="autoMarginTop firstRowFirstColumn" data-offset-x="40" data-offset-y="160" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMarginRight firstRowSecondColumn" data-offset-x="100" data-offset-y="80" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMarginLeft secondRowFirstColumn" data-offset-x="80" data-offset-y="280" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMarginBottom secondRowSecondColumn" data-offset-x="140" data-offset-y="200" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+    </div>
+</div>
+
+<p>Direction: LTR | Self Alignment: start | auto size items | 4 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content">
+        <div class="autoMargin firstRowFirstColumn" data-offset-x="40" data-offset-y="80" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMargin firstRowSecondColumn" data-offset-x="140" data-offset-y="80" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMargin secondRowFirstColumn" data-offset-x="40" data-offset-y="280" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMargin secondRowSecondColumn" data-offset-x="140" data-offset-y="280" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+    </div>
+</div>
+
+<!-- direction RTL -->
+<p>Direction: RTL | Self Alignment: center | fixed size items | 1 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content itemsCenter directionRTL">
+        <div class="item autoMarginTop firstRowFirstColumn" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMarginRight firstRowSecondColumn" data-offset-x="0" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMarginLeft secondRowFirstColumn" data-offset-x="180" data-offset-y="280" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMarginBottom secondRowSecondColumn" data-offset-x="40" data-offset-y="200" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<p>Direction: RTL | Self Alignment: start | fixed size items | 4 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content directionRTL">
+        <div class="item autoMargin firstRowFirstColumn" data-offset-x="140" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMargin firstRowSecondColumn" data-offset-x="40" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMargin secondRowFirstColumn" data-offset-x="140" data-offset-y="280" data-expected-width="20" data-expected-height="40"></div>
+        <div class="item autoMargin secondRowSecondColumn" data-offset-x="40" data-offset-y="280" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<p>Direction: RTL | Self Alignment: center | auto size items | 1 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content itemsCenter directionRTL">
+        <div class="autoMarginTop firstRowFirstColumn" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMarginRight firstRowSecondColumn" data-offset-x="0" data-offset-y="80" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMarginLeft secondRowFirstColumn" data-offset-x="180" data-offset-y="280" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMarginBottom secondRowSecondColumn" data-offset-x="40" data-offset-y="200" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+    </div>
+</div>
+
+<p>Direction: RTL | Self Alignment: start | auto size items | 4 auto-margin</p>
+<div style="position: relative">
+    <div class="grid fit-content directionRTL">
+        <div class="autoMargin firstRowFirstColumn" data-offset-x="140" data-offset-y="80" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMargin firstRowSecondColumn" data-offset-x="40" data-offset-y="80" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMargin secondRowFirstColumn" data-offset-x="140" data-offset-y="280" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+        <div class="autoMargin secondRowSecondColumn" data-offset-x="40" data-offset-y="280" data-expected-width="20" data-expected-height="40"><div class="item"></div></div>
+    </div>
+</div>
+
+</body>

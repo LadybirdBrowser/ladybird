@@ -13,7 +13,7 @@ namespace Web::CredentialManagement {
 GC_DEFINE_ALLOCATOR(FederatedCredential);
 
 // https://www.w3.org/TR/credential-management-1/#dom-federatedcredential-federatedcredential
-WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> FederatedCredential::construct_impl(JS::Realm& realm, FederatedCredentialInit const& data)
+WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> FederatedCredential::construct_impl(JS::Realm& realm, Bindings::FederatedCredentialInit const& data)
 {
     // 1. Let r be the result of executing Create a FederatedCredential from FederatedCredentialInit on data. If that
     // threw an exception, rethrow that exception.
@@ -25,7 +25,7 @@ FederatedCredential::~FederatedCredential()
 {
 }
 
-FederatedCredential::FederatedCredential(JS::Realm& realm, FederatedCredentialInit const& init, URL::Origin origin)
+FederatedCredential::FederatedCredential(JS::Realm& realm, Bindings::FederatedCredentialInit const& init, URL::Origin origin)
     : Credential(realm, init.id)
     , CredentialUserData(init.name.value_or(String {}), init.icon_url.value_or(String {}))
     , m_provider(init.provider)

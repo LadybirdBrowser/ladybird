@@ -88,6 +88,7 @@ public:
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
 
     Main::Arguments const& command_line_arguments() const { return m_arguments; }
+    virtual void open_url_in_new_window(URL::URL const& url);
 
     void add_child_process(Process&&);
 
@@ -171,7 +172,7 @@ protected:
 
     ErrorOr<void> initialize(Main::Arguments const&);
 
-    virtual void process_did_exit(Process&&);
+    virtual void process_did_exit(Process&&, Optional<int> exit_status);
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
@@ -181,6 +182,7 @@ protected:
 
     virtual void rebuild_bookmarks_menu() const { }
     virtual void update_bookmarks_bar_display([[maybe_unused]] bool show_bookmarks_bar) const { }
+    virtual void on_recently_closed_entries_changed() const { }
 
     struct BookmarkID {
         String id;

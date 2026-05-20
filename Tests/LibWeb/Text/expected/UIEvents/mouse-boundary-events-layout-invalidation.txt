@@ -1,0 +1,3 @@
+showed popover from pointerout
+received pointerover after layout invalidation
+Didn't crash after layout invalidation during boundary events

@@ -1,0 +1,6 @@
+async can scroll before wheel: false
+wheel event count: 1
+wheel event cancelable: true
+wheel event defaultPrevented: true
+scroller scrollTop: 0
+window scrollY: 0

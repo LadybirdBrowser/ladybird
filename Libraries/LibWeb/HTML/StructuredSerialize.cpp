@@ -167,7 +167,10 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, TransferData
         auto data_copy = TRY(JS::create_byte_data_block(vm, size));
 
         // 4. Perform CopyDataBlockBytes(dataCopy, 0, value.[[ArrayBufferData]], 0, size).
-        JS::copy_data_block_bytes(data_copy.buffer(), 0, array_buffer.buffer(), 0, size);
+        if (array_buffer.is_external())
+            data_copy.overwrite(0, array_buffer.data(), size);
+        else
+            JS::copy_data_block_bytes(data_copy.buffer(), 0, array_buffer.buffer(), 0, size);
 
         // 5. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "ResizableArrayBuffer",
         //    [[ArrayBufferData]]: dataCopy, [[ArrayBufferByteLength]]: size, [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]] }.
@@ -1040,13 +1043,17 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         // 4. If transferable has an [[ArrayBufferData]] internal slot, then:
         if (array_buffer) {
             // 1. If transferable has an [[ArrayBufferMaxByteLength]] internal slot, then:
+            auto buffer_data = array_buffer->is_external()
+                ? MUST(ByteBuffer::copy(array_buffer->bytes()))
+                : ByteBuffer(array_buffer->buffer());
+
             if (!array_buffer->is_fixed_length()) {
                 // 1. Set dataHolder.[[Type]] to "ResizableArrayBuffer".
                 data_holder.encode(TransferType::ResizableArrayBuffer);
 
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
-                data_holder.encode(array_buffer->buffer());
+                data_holder.encode(buffer_data);
 
                 // 4. Set dataHolder.[[ArrayBufferMaxByteLength]] to transferable.[[ArrayBufferMaxByteLength]].
                 data_holder.encode(array_buffer->max_byte_length());
@@ -1058,7 +1065,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
-                data_holder.encode(array_buffer->buffer());
+                data_holder.encode(buffer_data);
             }
 
             // 3. Perform ? DetachArrayBuffer(transferable).

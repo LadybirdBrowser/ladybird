@@ -9,10 +9,11 @@
 #include <AK/String.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
-class DocumentType final
+class WEB_API DocumentType final
     : public Node
     , public ChildNode<DocumentType> {
     WEB_PLATFORM_OBJECT(DocumentType, Node);

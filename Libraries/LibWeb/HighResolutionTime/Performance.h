@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibCore/ElapsedTimer.h>
+#include <LibWeb/Bindings/PerformanceMeasure.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
@@ -25,9 +26,9 @@ public:
     double now() const;
     double time_origin() const;
 
-    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> mark(String const& mark_name, UserTiming::PerformanceMarkOptions const& mark_options = {});
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> mark(String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
     void clear_marks(Optional<String> mark_name);
-    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(String const& measure_name, Variant<String, UserTiming::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
+    WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> measure(String const& measure_name, Variant<String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark);
     void clear_measures(Optional<String> measure_name);
 
     void clear_resource_timings();

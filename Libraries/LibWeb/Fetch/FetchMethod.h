@@ -14,7 +14,7 @@
 
 namespace Web::Fetch {
 
-GC::Ref<WebIDL::Promise> fetch(JS::VM&, RequestInfo const& input, RequestInit const& init = {});
+GC::Ref<WebIDL::Promise> fetch(JS::VM&, RequestInfo const& input, Bindings::RequestInit const& init = {});
 void abort_fetch(JS::Realm&, WebIDL::Promise const&, GC::Ref<Infrastructure::Request>, GC::Ptr<Response>, JS::Value error);
 
 }

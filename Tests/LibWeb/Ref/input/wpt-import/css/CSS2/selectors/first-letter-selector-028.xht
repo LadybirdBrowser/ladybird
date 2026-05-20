@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <!--
+  Inspired by
+  Bug 214004 - ::first-letter isn't applied if first letter is inside a child block
+  https://bugzilla.mozilla.org/show_bug.cgi?id=214004
+  -->
+
+  <title>CSS Test: First-letter - in-flow block descendant that contains text</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/selector.html#first-letter" title="5.12.2 The :first-letter pseudo-element" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/selectors/first-letter-selector-028-ref.xht" />
+
+  <meta name="assert" content="The :first-letter pseudo-element can be used and will apply onto in-flow block descendant that contains text." />
+
+  <style type="text/css"><![CDATA[
+  div {color: white;}
+
+  div#test:first-letter, span#reference
+  {
+  color: blue;
+  font-size: 3em;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there are 2 identical big blue "A" letters.</p>
+
+  <div id="test">
+      <div>Adivtest</div>
+  </div>
+
+  <div><span id="reference">A</span>spanref</div>
+
+ </body>
+</html>

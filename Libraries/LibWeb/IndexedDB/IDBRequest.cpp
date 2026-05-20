@@ -45,11 +45,7 @@ void IDBRequest::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_result);
     visitor.visit(m_transaction);
-
-    m_source.visit(
-        [&](Empty) {},
-        [&](auto const& object) { visitor.visit(object); });
-
+    visitor.visit(m_source);
     visitor.visit(m_error);
 }
 

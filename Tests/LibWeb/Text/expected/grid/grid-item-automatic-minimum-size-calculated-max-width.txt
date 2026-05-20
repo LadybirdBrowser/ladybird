@@ -1,0 +1,7 @@
+document scroll width: 1280
+grid-template-columns: 272px 1008px
+item left: 272
+item right: 1280
+item width: 1008
+item margin-left: 0px
+item margin-right: 0px

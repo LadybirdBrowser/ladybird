@@ -70,7 +70,7 @@ void WebUIConnection::send_message(String name, JsonValue data)
         return;
     }
 
-    Web::DOM::CustomEventInit event_init {};
+    Web::Bindings::CustomEventInit event_init {};
     event_init.detail = serialized_detail.value();
 
     m_document->dispatch_event(Web::DOM::CustomEvent::create(realm, WEB_UI_MESSAGE_EVENT, event_init));

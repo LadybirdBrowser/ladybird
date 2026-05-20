@@ -19,17 +19,6 @@ struct MediaKeySystemMediaCapability {
     Utf16String robustness;
 };
 
-// https://w3c.github.io/encrypted-media/#dom-mediakeysystemconfiguration
-struct MediaKeySystemConfiguration {
-    Utf16String label;
-    Vector<Utf16String> init_data_types;
-    Vector<MediaKeySystemMediaCapability> audio_capabilities;
-    Vector<MediaKeySystemMediaCapability> video_capabilities;
-    Bindings::MediaKeysRequirement distinctive_identifier { Bindings::MediaKeysRequirement::Optional };
-    Bindings::MediaKeysRequirement persistent_state { Bindings::MediaKeysRequirement::Optional };
-    Optional<Vector<Utf16String>> session_types;
-};
-
 struct MediaKeyRestrictions {
     bool distinctive_identifiers { true };
     bool persist_state { true };
@@ -48,7 +37,7 @@ enum ConsentStatus {
 
 struct ConsentConfiguration {
     ConsentStatus status { ConsentStatus::ConsentDenied };
-    Optional<MediaKeySystemConfiguration> configuration;
+    Optional<Bindings::MediaKeySystemConfiguration> configuration;
 };
 
 }

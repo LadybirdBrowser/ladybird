@@ -1,0 +1,91 @@
+<!doctype html>
+<title>Evaluation of size features</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+
+<div id=container>
+  <div id=target>
+    Test
+  </div>
+</div>
+
+<script>
+setup(() => assert_implements_size_container_queries());
+
+function test_evaluation(container_class, query, expected) {
+  test(function(t) {
+    let style_node = document.createElement('style');
+    t.add_cleanup(() => {
+      container.classList.remove(container_class);
+      style_node.remove();
+    });
+    style_node.innerText = `@container ${query} { #target { --applied:true; } }`;
+
+    assert_equals(getComputedStyle(target).getPropertyValue('--applied'), '');
+    container.classList.add(container_class);
+    document.head.append(style_node);
+    assert_equals(getComputedStyle(target).getPropertyValue('--applied'), expected ? 'true' : '');
+  }, `${query} (.${container_class})`);
+}
+
+</script>
+
+<style>
+  .horizontal {
+    width: 100px;
+    height: 200px;
+    container-type: size;
+  }
+
+  .vertical {
+    width: 100px;
+    height: 200px;
+    container-type: size;
+    writing-mode: vertical-rl;
+  }
+</style>
+<script>
+
+  for (let cls of ['horizontal', 'vertical']) {
+
+    let logical_width = (cls == 'horizontal') ? 'inline' : 'block';
+    let logical_height = (cls == 'horizontal') ? 'block' : 'inline';
+
+    test_evaluation(cls, '(width < 100px)', false);
+    test_evaluation(cls, '(width >= 100px)', true);
+    test_evaluation(cls, '(min-width: 100px)', true);
+    test_evaluation(cls, '(min-width: 101px)', false);
+    test_evaluation(cls, '(max-width: 100px)', true);
+    test_evaluation(cls, '(max-width: 99px)', false);
+
+    test_evaluation(cls, '(height < 200px)', false);
+    test_evaluation(cls, '(height >= 200px)', true);
+    test_evaluation(cls, '(min-height: 200px)', true);
+    test_evaluation(cls, '(min-height: 201px)', false);
+    test_evaluation(cls, '(max-height: 200px)', true);
+    test_evaluation(cls, '(max-height: 199px)', false);
+
+    test_evaluation(cls, `(${logical_width}-size < 100px)`, false);
+    test_evaluation(cls, `(${logical_width}-size >= 100px)`, true);
+    test_evaluation(cls, `(min-${logical_width}-size: 100px)`, true);
+    test_evaluation(cls, `(min-${logical_width}-size: 101px)`, false);
+    test_evaluation(cls, `(max-${logical_width}-size: 100px)`, true);
+    test_evaluation(cls, `(max-${logical_width}-size: 99px)`, false);
+
+    test_evaluation(cls, `(${logical_height}-size < 200px)`, false);
+    test_evaluation(cls, `(${logical_height}-size >= 200px)`, true);
+    test_evaluation(cls, `(min-${logical_height}-size: 200px)`, true);
+    test_evaluation(cls, `(min-${logical_height}-size: 201px)`, false);
+    test_evaluation(cls, `(max-${logical_height}-size: 200px)`, true);
+    test_evaluation(cls, `(max-${logical_height}-size: 199px)`, false);
+
+    test_evaluation(cls, '(orientation: landscape)', false);
+    test_evaluation(cls, '(orientation: portrait)', true);
+
+    test_evaluation(cls, '(aspect-ratio: 1/2)', true);
+    test_evaluation(cls, '(aspect-ratio: 2/1)', false);
+  }
+
+</script>

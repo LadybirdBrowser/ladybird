@@ -113,12 +113,12 @@ public:
     virtual ThrowCompletionOr<GC::Ref<PromiseCapability>> evaluate(VM& vm) = 0;
 
     Vector<Utf16FlyString> get_exported_names(VM& vm);
-    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) = 0;
+    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, GC::RootHashTable<GC::Ref<Module const>>& export_star_set) = 0;
 
     virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {}) = 0;
 
-    virtual ThrowCompletionOr<u32> inner_module_linking(VM& vm, Vector<Module*>& stack, u32 index);
-    virtual ThrowCompletionOr<u32> inner_module_evaluation(VM& vm, Vector<Module*>& stack, u32 index);
+    virtual ThrowCompletionOr<u32> inner_module_linking(VM& vm, GC::RootVector<GC::Ref<Module>>& stack, u32 index);
+    virtual ThrowCompletionOr<u32> inner_module_evaluation(VM& vm, GC::RootVector<GC::Ref<Module>>& stack, u32 index);
 
     virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) = 0;
 

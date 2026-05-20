@@ -22,12 +22,6 @@
 
 namespace Web::ServiceWorker {
 
-struct RegistrationOptions {
-    Optional<String> scope;
-    Bindings::WorkerType type = Bindings::WorkerType::Classic;
-    Bindings::ServiceWorkerUpdateViaCache update_via_cache = Bindings::ServiceWorkerUpdateViaCache::Imports;
-};
-
 class ServiceWorkerContainer : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(ServiceWorkerContainer, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(ServiceWorkerContainer);
@@ -36,7 +30,7 @@ public:
     [[nodiscard]] static GC::Ref<ServiceWorkerContainer> create(JS::Realm& realm);
     virtual ~ServiceWorkerContainer() override;
 
-    GC::Ref<WebIDL::Promise> register_(TrustedTypes::TrustedScriptURLOrString script_url, RegistrationOptions const& options);
+    GC::Ref<WebIDL::Promise> register_(TrustedTypes::TrustedScriptURLOrString script_url, Bindings::RegistrationOptions const&);
 
     GC::Ref<WebIDL::Promise> get_registration(String const& client_url);
 

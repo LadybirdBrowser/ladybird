@@ -1,0 +1,7 @@
+initial target color: rgb(0, 0, 0)
+initial full invalidations: 0
+initial recomputations bounded: true
+dynamic target color: rgb(0, 128, 0)
+dynamic full invalidations: 0
+dynamic recomputations bounded: true
+dynamic noop recomputations bounded: true

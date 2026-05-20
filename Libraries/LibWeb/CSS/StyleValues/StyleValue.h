@@ -56,6 +56,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Display, display, DisplayStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Easing, easing, EasingStyleValue)                                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Edge, edge, EdgeStyleValue)                                                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(EmptyOptional, empty_optional, EmptyOptionalStyleValue)                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(FilterValueList, filter_value_list, FilterValueListStyleValue)                            \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Function, function, FunctionStyleValue)                                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Flex, flex, FlexStyleValue)                                                               \
@@ -76,6 +77,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Number, number, NumberStyleValue)                                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpacityValue, opacity_value, OpacityValueStyleValue)                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpenTypeTagged, open_type_tagged, OpenTypeTaggedStyleValue)                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(OverflowClipMargin, overflow_clip_margin, OverflowClipMarginStyleValue)                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(PendingSubstitution, pending_substitution, PendingSubstitutionStyleValue)                 \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Percentage, percentage, PercentageStyleValue)                                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Position, position, PositionStyleValue)                                                   \

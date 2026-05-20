@@ -26,8 +26,208 @@
 #include <LibWasm/Opcode.h>
 #include <LibWasm/Printer/Printer.h>
 #include <LibWasm/Types.h>
+#include <setjmp.h>
+
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#else
+#    include <signal.h>
+#    include <unistd.h>
+#    if defined(AK_OS_MACOS)
+#        include <sys/ucontext.h>
+#    else
+#        include <ucontext.h>
+#    endif
+#endif
 
 using namespace AK::SIMD;
+
+namespace {
+
+struct CompiledFaultRecoveryContext {
+    Wasm::BytecodeInterpreter* interpreter { nullptr };
+    Wasm::Configuration* configuration { nullptr };
+    CompiledFaultRecoveryContext* previous { nullptr };
+    jmp_buf jump_buffer;
+    bool faulted { false };
+};
+
+thread_local CompiledFaultRecoveryContext* s_compiled_fault_recovery = nullptr;
+
+#if WASM_COMPILED_FAULT_RECOVERY_SUPPORTED
+
+static bool is_wasm_memory_fault(Wasm::Configuration& configuration, void* address)
+{
+    auto const& memories = configuration.frame().module().memories();
+    for (auto const& memory_address : memories) {
+        auto* memory = configuration.store().unsafe_get(memory_address);
+        if (memory && memory->contains_virtual_address(address))
+            return true;
+    }
+    return false;
+}
+
+extern "C" {
+[[noreturn, gnu::used]] static void wasm_compiled_fault_trampoline()
+{
+    auto* recovery = s_compiled_fault_recovery;
+    // NOTE: The segfault handler redirects sigreturn flow to here, which then runs on the normal stack.
+    longjmp(recovery->jump_buffer, 1);
+}
+}
+
+#    if defined(AK_OS_WINDOWS)
+
+static LONG WINAPI compiled_fault_exception_handler(EXCEPTION_POINTERS* exception_info)
+{
+    if (exception_info->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION
+        && exception_info->ExceptionRecord->ExceptionCode != EXCEPTION_IN_PAGE_ERROR)
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    auto* fault_address = reinterpret_cast<void*>(exception_info->ExceptionRecord->ExceptionInformation[1]);
+    if (auto* recovery = s_compiled_fault_recovery; recovery && is_wasm_memory_fault(*recovery->configuration, fault_address)) {
+        recovery->faulted = true;
+        auto* ctx = exception_info->ContextRecord;
+#        if ARCH(AARCH64)
+        ctx->Pc = reinterpret_cast<DWORD64>(&wasm_compiled_fault_trampoline);
+#        elif ARCH(X86_64)
+        ctx->Rip = reinterpret_cast<DWORD64>(&wasm_compiled_fault_trampoline);
+#        endif
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static void install_compiled_fault_handlers()
+{
+    static bool s_installed = false;
+    if (s_installed)
+        return;
+    s_installed = true;
+    AddVectoredExceptionHandler(1, compiled_fault_exception_handler);
+}
+
+#    else
+
+static struct sigaction s_old_sigsegv;
+static struct sigaction s_old_sigbus;
+
+[[noreturn]] static void chain_fault_signal(int signal, siginfo_t* info, void* context, struct sigaction const& previous_action)
+{
+    if (previous_action.sa_flags & SA_SIGINFO) {
+        previous_action.sa_sigaction(signal, info, context);
+        __builtin_unreachable();
+    }
+
+    if (previous_action.sa_handler == SIG_IGN)
+        goto no_handler;
+
+    if (previous_action.sa_handler != SIG_DFL) {
+        previous_action.sa_handler(signal);
+        __builtin_unreachable();
+    }
+
+    {
+        struct sigaction default_action {};
+        default_action.sa_handler = SIG_DFL;
+        sigemptyset(&default_action.sa_mask);
+        sigaction(signal, &default_action, nullptr);
+        raise(signal);
+    }
+
+no_handler:
+    _exit(128 + signal);
+}
+
+static void compiled_fault_signal_handler(int signal, siginfo_t* info, void* context)
+{
+    if (auto* recovery = s_compiled_fault_recovery; recovery && info && is_wasm_memory_fault(*recovery->configuration, info->si_addr)) {
+        recovery->faulted = true;
+        // Redirect the resumed PC to our trampoline and return.
+        // sigreturn (or the platform equivalent) will take the flow to the trampoline on the faulting thread's "normal" stack,
+        // from where we can then longjmp to the recovery code.
+        auto* uc = static_cast<ucontext_t*>(context);
+#        if defined(AK_OS_MACOS)
+#            if ARCH(AARCH64)
+        uc->uc_mcontext->__ss.__pc = reinterpret_cast<uintptr_t>(&wasm_compiled_fault_trampoline);
+#            elif ARCH(X86_64)
+        uc->uc_mcontext->__ss.__rip = reinterpret_cast<uintptr_t>(&wasm_compiled_fault_trampoline);
+#            endif
+#        else
+#            if ARCH(AARCH64)
+        uc->uc_mcontext.pc = reinterpret_cast<uintptr_t>(&wasm_compiled_fault_trampoline);
+#            elif ARCH(X86_64)
+        uc->uc_mcontext.gregs[REG_RIP] = reinterpret_cast<greg_t>(&wasm_compiled_fault_trampoline);
+#            endif
+#        endif
+        return;
+    }
+
+    if (signal == SIGSEGV)
+        chain_fault_signal(signal, info, context, s_old_sigsegv);
+    chain_fault_signal(signal, info, context, s_old_sigbus);
+}
+
+static void install_compiled_fault_handlers()
+{
+    static bool s_installed = false;
+    if (s_installed)
+        return;
+    s_installed = true;
+    struct sigaction action {};
+    action.sa_sigaction = compiled_fault_signal_handler;
+    action.sa_flags = SA_SIGINFO;
+    sigemptyset(&action.sa_mask);
+    sigaction(SIGSEGV, &action, &s_old_sigsegv);
+    sigaction(SIGBUS, &action, &s_old_sigbus);
+}
+
+#    endif
+
+#else
+
+static void install_compiled_fault_handlers() { }
+
+#endif
+
+class ScopedCompiledFaultRecovery {
+public:
+    ScopedCompiledFaultRecovery(Wasm::BytecodeInterpreter& interpreter, Wasm::Configuration& configuration)
+    {
+        m_context.interpreter = &interpreter;
+        m_context.configuration = &configuration;
+        m_context.previous = s_compiled_fault_recovery;
+    }
+
+    ~ScopedCompiledFaultRecovery()
+    {
+        if (m_armed)
+            s_compiled_fault_recovery = m_context.previous;
+    }
+
+    bool arm()
+    {
+        install_compiled_fault_handlers();
+        s_compiled_fault_recovery = &m_context;
+        m_armed = true;
+        if (setjmp(m_context.jump_buffer) != 0) {
+            // Disarm immediately after longjmp return; the compiled code may
+            // have corrupted our stack frame, so the destructor must be a no-op.
+            s_compiled_fault_recovery = m_context.previous;
+            m_armed = false;
+            return false;
+        }
+        return true;
+    }
+
+    bool faulted() const { return m_context.faulted; }
+
+private:
+    CompiledFaultRecoveryContext m_context;
+    bool m_armed { false };
+};
+
+}
 
 #ifdef AK_COMPILER_CLANG
 #    define TAILCALL [[clang::musttail]]
@@ -53,6 +253,25 @@ constexpr static auto should_try_to_use_direct_threading = true;
 #endif
 
 namespace Wasm {
+
+struct InstructionOperandCounts {
+    ssize_t inputs;
+    ssize_t outputs;
+};
+
+static InstructionOperandCounts instruction_operand_counts(OpCode opcode)
+{
+    switch (opcode.value()) {
+#define XM(name, _, ins, outs)             \
+    case Wasm::Instructions::name.value(): \
+        return { ins, outs };
+
+        ENUMERATE_WASM_OPCODES(XM)
+#undef XM
+    }
+
+    VERIFY_NOT_REACHED();
+}
 
 constexpr auto regname = [](auto regnum) -> ByteString {
     if (regnum == Dispatch::Stack)
@@ -96,32 +315,30 @@ struct ConvertToRaw<double> {
         }                                                                                              \
     } while (false)
 
-#define XM(name, _, ins, outs)             \
-    case Wasm::Instructions::name.value(): \
-        in_count = ins;                    \
-        out_count = outs;                  \
-        break;
+static constexpr u64 trace_missing = NumericLimits<u64>::max();
 
-#define LOG_INSN_UNGUARDED                                                                    \
-    do {                                                                                      \
-        LOAD_ADDRESSES();                                                                     \
-        warnln("[{:04}]", short_ip.current_ip_value);                                         \
-        ssize_t in_count = 0;                                                                 \
-        ssize_t out_count = 0;                                                                \
-        switch (instruction->opcode().value()) {                                              \
-            ENUMERATE_WASM_OPCODES(XM)                                                        \
-        }                                                                                     \
-        ScopedValueRollback stack { configuration.value_stack() };                            \
-        for (ssize_t i = 0; i < in_count; ++i) {                                              \
-            auto value = configuration.take_source<source_address_mix>(i, addresses.sources); \
-            warnln("       arg{} [{}]: {}", i, regname(addresses.sources[i]), value.value()); \
-        }                                                                                     \
-        if (out_count == 1) {                                                                 \
-            auto dest = addresses.destination;                                                \
-            warnln("       dest [{}]", regname(dest));                                        \
-        } else if (out_count > 1) {                                                           \
-            warnln("       dest [multiple outputs]");                                         \
-        }                                                                                     \
+#define LOG_INSN_UNGUARDED                                                                                                                                                                                                    \
+    do {                                                                                                                                                                                                                      \
+        LOAD_ADDRESSES();                                                                                                                                                                                                     \
+        auto [in_count, out_count] = instruction_operand_counts(instruction->opcode());                                                                                                                                       \
+        u64 src_lows[3] { trace_missing, trace_missing, trace_missing };                                                                                                                                                      \
+        u64 src_highs[3] { trace_missing, trace_missing, trace_missing };                                                                                                                                                     \
+        ScopedValueRollback stack { configuration.value_stack() };                                                                                                                                                            \
+        for (ssize_t i = 0; i < in_count; ++i) {                                                                                                                                                                              \
+            auto value = configuration.take_source<source_address_mix>(i, addresses.sources);                                                                                                                                 \
+            src_lows[i] = value.value().low();                                                                                                                                                                                \
+            src_highs[i] = value.value().high();                                                                                                                                                                              \
+        }                                                                                                                                                                                                                     \
+        warnln("WASMTRACE ip={} op={} in={} out={} depth={} stack={} dst={} s0={} s0l={:x} s0h={:x} s1={} s1l={:x} s1h={:x} s2={} s2l={:x} s2h={:x} r0l={:x} r0h={:x} r1l={:x} r1h={:x} r2l={:x} r2h={:x} r3l={:x} r3h={:x}", \
+            short_ip.current_ip_value, instruction_name(instruction->opcode()), in_count, out_count, configuration.depth(), configuration.value_stack().size(),                                                               \
+            to_underlying(addresses.destination),                                                                                                                                                                             \
+            to_underlying(addresses.sources[0]), src_lows[0], src_highs[0],                                                                                                                                                   \
+            to_underlying(addresses.sources[1]), src_lows[1], src_highs[1],                                                                                                                                                   \
+            to_underlying(addresses.sources[2]), src_lows[2], src_highs[2],                                                                                                                                                   \
+            configuration.regs[0].value().low(), configuration.regs[0].value().high(),                                                                                                                                        \
+            configuration.regs[1].value().low(), configuration.regs[1].value().high(),                                                                                                                                        \
+            configuration.regs[2].value().low(), configuration.regs[2].value().high(),                                                                                                                                        \
+            configuration.regs[3].value().low(), configuration.regs[3].value().high());                                                                                                                                       \
     } while (0)
 
 #define LOG_INSN                          \
@@ -137,6 +354,14 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
 {
     m_trap = Empty {};
     auto& expression = configuration.frame().expression();
+    Optional<ScopedCompiledFaultRecovery> compiled_fault_recovery;
+    if (expression.compiled_instructions.cranelift_compiled && !s_compiled_fault_recovery) {
+        compiled_fault_recovery.emplace(*this, configuration);
+        if (!compiled_fault_recovery->arm()) {
+            m_trap = Trap::from_string("Memory access out of bounds");
+            return;
+        }
+    }
     auto const should_limit_instruction_count = configuration.should_limit_instruction_count();
     if (!expression.compiled_instructions.dispatches.is_empty()) {
         if (expression.compiled_instructions.direct) {
@@ -173,6 +398,20 @@ static_assert(sizeof(ShortenedIP) == sizeof(u32));
 #define DECOMPOSE_PARAMS(t, n) [[maybe_unused]] t n
 #define DECOMPOSE_PARAMS_NAME_ONLY(t, n) n
 #define DECOMPOSE_PARAMS_TYPE_ONLY(t, ...) t
+
+Outcome BytecodeInterpreter::run_compiled_function_direct(Configuration& configuration)
+{
+    m_trap = Empty {};
+    auto& expression = configuration.frame().expression();
+    VERIFY(expression.compiled_instructions.direct);
+    auto const* cc = expression.compiled_instructions.dispatches.data();
+    auto const* addresses_ptr = expression.compiled_instructions.src_dst_mappings.data();
+    ShortenedIP short_ip { .current_ip_value = 0 };
+    auto const instruction = cc[0].instruction;
+    auto const handler = bit_cast<Outcome (*)(HANDLER_PARAMS(DECOMPOSE_PARAMS_TYPE_ONLY))>(cc[0].handler_ptr);
+    return handler(*this, configuration, instruction, short_ip, cc, addresses_ptr);
+}
+
 #define HANDLE_INSTRUCTION(name, ...)                                                              \
     template<>                                                                                     \
     struct InstructionHandler<Instructions::name.value()> {                                        \
@@ -1649,6 +1888,11 @@ HANDLE_INSTRUCTION(synthetic_local_seti64_const)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+HANDLE_INSTRUCTION(synthetic_br_table_cont)
+{
+    VERIFY_NOT_REACHED();
+}
+
 HANDLE_INSTRUCTION(synthetic_call_00)
 {
     LOG_INSN;
@@ -1830,7 +2074,7 @@ HANDLE_INSTRUCTION(block)
 {
     LOG_INSN;
     auto& args = instruction->arguments().unsafe_get<Instruction::StructuredInstructionArgs>();
-    auto& meta = args.meta.unchecked_value();
+    auto& meta = args.meta;
     auto label = Label(meta.arity, args.end_ip, configuration.value_stack().size() - meta.parameter_count);
     configuration.label_stack().unchecked_append(move(label));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1840,7 +2084,7 @@ HANDLE_INSTRUCTION(loop)
 {
     LOG_INSN;
     auto& args = instruction->arguments().get<Instruction::StructuredInstructionArgs>();
-    size_t params = args.meta->parameter_count;
+    size_t params = args.meta.parameter_count;
     configuration.label_stack().unchecked_append(Label(params, short_ip.current_ip_value + 1, configuration.value_stack().size() - params));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
@@ -1850,13 +2094,13 @@ HANDLE_INSTRUCTION(if_)
     LOG_INSN;
     LOAD_ADDRESSES();
     auto& args = instruction->arguments().unsafe_get<Instruction::StructuredInstructionArgs>();
-    auto& meta = args.meta.value();
+    auto& meta = args.meta;
 
     auto value = configuration.take_source<source_address_mix>(0, addresses.sources).template to<i32>();
     auto end_label = Label(meta.arity, args.end_ip.value(), configuration.value_stack().size() - meta.parameter_count);
     if (value == 0) {
-        if (args.else_ip.has_value()) {
-            short_ip.current_ip_value = args.else_ip->value() - 1;
+        if (args.else_ip().has_value()) {
+            short_ip.current_ip_value = args.else_ip()->value() - 1;
             configuration.label_stack().unchecked_append(end_label);
         } else {
             short_ip.current_ip_value = args.end_ip.value();
@@ -2006,7 +2250,8 @@ HANDLE_INSTRUCTION(call_indirect)
     auto table_address = configuration.frame().module().tables()[args.table.value()];
     auto table_instance = configuration.store().get(table_address);
     // bounds checked by verifier.
-    auto index = configuration.take_source<source_address_mix>(0, addresses.sources).template to<i32>();
+    auto src_value = configuration.take_source<source_address_mix>(0, addresses.sources);
+    auto index = src_value.template to<i32>();
     TRAP_IN_LOOP_IF_NOT(index >= 0);
     TRAP_IN_LOOP_IF_NOT(static_cast<size_t>(index) < table_instance->elements().size());
     auto& element = table_instance->elements()[index];
@@ -2393,14 +2638,14 @@ HANDLE_INSTRUCTION(memory_grow)
     auto& args = instruction->arguments().unsafe_get<Instruction::MemoryIndexArgument>();
     auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
     auto instance = configuration.store().get(address);
-    i32 old_pages = instance->size() / Constants::page_size;
+    u32 old_pages = instance->size() / Constants::page_size;
     auto& entry = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
-    auto new_pages = entry.template to<i32>();
+    auto new_pages = entry.template to<u32>();
     dbgln_if(WASM_TRACE_DEBUG, "memory.grow({}), previously {} pages...", new_pages, old_pages);
-    if (instance->grow(new_pages * Constants::page_size))
-        entry = Value(old_pages);
+    if (instance->grow(static_cast<u64>(new_pages) * Constants::page_size))
+        entry = Value(static_cast<i32>(old_pages));
     else
-        entry = Value(-1);
+        entry = Value(static_cast<i32>(-1));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2443,10 +2688,10 @@ HANDLE_INSTRUCTION(memory_copy)
     auto source_instance = configuration.store().get(source_address);
     auto destination_instance = configuration.store().get(destination_address);
 
-    // bounds checked by verifier.
-    auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<i32>();
-    auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<i32>();
-    auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<i32>();
+    // Wasm memory.copy operands are i32 values used as unsigned offsets/counts.
+    auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
+    auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>();
+    auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<u32>();
 
     auto source_position = saturating_add(static_cast<size_t>(source_offset), static_cast<size_t>(count));
     auto destination_position = saturating_add(static_cast<size_t>(destination_offset), static_cast<size_t>(count));
@@ -2457,15 +2702,15 @@ HANDLE_INSTRUCTION(memory_copy)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
     if (destination_offset <= source_offset) {
-        for (auto i = 0; i < count; ++i) {
+        for (u32 i = 0; i < count; ++i) {
             auto value = source_instance->data()[source_offset + i];
-            if (interpreter.store_to_memory(*destination_instance, destination_offset + i, value))
+            if (interpreter.store_to_memory(*destination_instance, static_cast<u64>(destination_offset) + i, value))
                 return Outcome::Return;
         }
     } else {
-        for (auto i = count - 1; i >= 0; --i) {
-            auto value = source_instance->data()[source_offset + i];
-            if (interpreter.store_to_memory(*destination_instance, destination_offset + i, value))
+        for (u32 i = count; i > 0; --i) {
+            auto value = source_instance->data()[source_offset + i - 1];
+            if (interpreter.store_to_memory(*destination_instance, static_cast<u64>(destination_offset) + i - 1, value))
                 return Outcome::Return;
         }
     }
@@ -2543,8 +2788,13 @@ HANDLE_INSTRUCTION(table_init)
     TRAP_IN_LOOP_IF_NOT(!checked_source_offset.has_overflow() && checked_source_offset <= (u32)element->references().size());
     TRAP_IN_LOOP_IF_NOT(!checked_destination_offset.has_overflow() && checked_destination_offset <= (u32)table->elements().size());
 
-    for (u32 i = 0; i < count; ++i)
-        table->elements()[destination_offset + i] = element->references()[source_offset + i];
+    for (u32 i = 0; i < count; ++i) {
+        auto const& ref = element->references()[source_offset + i];
+        RefPtr<ModuleInstance const> anchor;
+        if (auto const* func = ref.ref().template get_pointer<Reference::Func>())
+            anchor = configuration.store().get_module_instance_for(func->address);
+        table->set_element(destination_offset + i, ref, move(anchor));
+    }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2573,13 +2823,15 @@ HANDLE_INSTRUCTION(table_copy)
 
     if (destination_offset <= source_offset) {
         for (u32 i = 0; i < count; ++i) {
-            auto value = source_instance->elements()[source_offset + i];
-            destination_instance->elements()[destination_offset + i] = value;
+            destination_instance->set_element(destination_offset + i,
+                source_instance->elements()[source_offset + i],
+                source_instance->module_anchor_at(source_offset + i));
         }
     } else {
         for (u32 i = count - 1; i != NumericLimits<u32>::max(); --i) {
-            auto value = source_instance->elements()[source_offset + i];
-            destination_instance->elements()[destination_offset + i] = value;
+            destination_instance->set_element(destination_offset + i,
+                source_instance->elements()[source_offset + i],
+                source_instance->module_anchor_at(source_offset + i));
         }
     }
 
@@ -2602,8 +2854,15 @@ HANDLE_INSTRUCTION(table_fill)
     checked_offset += count;
     TRAP_IN_LOOP_IF_NOT(!checked_offset.has_overflow() && checked_offset <= (u32)table->elements().size());
 
-    for (u32 i = 0; i < count; ++i)
-        table->elements()[start + i] = value.template to<Reference>();
+    // Don't leak the RefPtr to the sibling call.
+    {
+        auto ref = value.template to<Reference>();
+        RefPtr<ModuleInstance const> anchor;
+        if (auto const* func = ref.ref().template get_pointer<Reference::Func>())
+            anchor = configuration.store().get_module_instance_for(func->address);
+        for (u32 i = 0; i < count; ++i)
+            table->set_element(start + i, ref, anchor);
+    }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2613,12 +2872,18 @@ HANDLE_INSTRUCTION(table_set)
     LOAD_ADDRESSES();
     // bounds checked by verifier.
     auto ref = configuration.take_source<source_address_mix>(0, addresses.sources);
-    auto index = (size_t)(configuration.take_source<source_address_mix>(1, addresses.sources).template to<i32>());
+    auto index = static_cast<size_t>(configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>());
     auto table_index = instruction->arguments().get<TableIndex>();
     auto address = configuration.frame().module().tables()[table_index.value()];
     auto table = configuration.store().get(address);
     TRAP_IN_LOOP_IF_NOT(index < table->elements().size());
-    table->elements()[index] = ref.template to<Reference>();
+    {
+        auto reference = ref.template to<Reference>();
+        RefPtr<ModuleInstance const> anchor;
+        if (auto const* func = reference.ref().template get_pointer<Reference::Func>())
+            anchor = configuration.store().get_module_instance_for(func->address);
+        table->set_element(index, reference, move(anchor));
+    }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2628,7 +2893,7 @@ HANDLE_INSTRUCTION(table_get)
     LOAD_ADDRESSES();
     // bounds checked by verifier.
     auto& index_value = configuration.source_value<source_address_mix>(0, addresses.sources);
-    auto index = static_cast<size_t>(index_value.template to<i32>());
+    auto index = static_cast<size_t>(index_value.template to<u32>());
     auto table_index = instruction->arguments().get<TableIndex>();
     auto address = configuration.frame().module().tables()[table_index.value()];
     auto table = configuration.store().get(address);
@@ -5096,6 +5361,11 @@ HANDLE_INSTRUCTION(try_table)
     return Outcome::Return;
 }
 
+bool BytecodeInterpreter::trap_if_insufficient_native_stack_space(size_t minimum_native_stack_space_to_keep_free)
+{
+    return trap_if_not(m_stack_info.size_free() >= minimum_native_stack_space_to_keep_free, Constants::stack_exhaustion_message);
+}
+
 template<u64 opcode, bool HasDynamicInsnLimit, typename Continue, SourceAddressMix mix, typename... Args>
 constexpr static auto handle_instruction(Args&&... a)
 {
@@ -5223,7 +5493,6 @@ bool BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     dbgln_if(WASM_TRACE_DEBUG, "vec-load({} : {}) -> stack", instance_address, M * N / 8);
     if (instance_address + M * N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: load_and_push_mxn - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
         return true;
     }
     auto slice = memory->data().bytes().slice(instance_address, M * N / 8);
@@ -5254,7 +5523,6 @@ bool BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
     dbgln_if(WASM_TRACE_DEBUG, "load-lane({} : {}, lane {}) -> stack", instance_address, N / 8, memarg_and_lane.lane);
     if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: load_and_push_lane_n - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + N / 8, memory->size());
         return true;
     }
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
@@ -5277,7 +5545,6 @@ bool BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
     dbgln_if(WASM_TRACE_DEBUG, "load-zero({} : {}) -> stack", instance_address, N / 8);
     if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: load_and_push_zero_n - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + N / 8, memory->size());
         return true;
     }
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
@@ -5300,7 +5567,6 @@ bool BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     dbgln_if(WASM_TRACE_DEBUG, "vec-splat({} : {}) -> stack", instance_address, M / 8);
     if (instance_address + M / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: load_and_push_m_splat - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
         return true;
     }
     auto slice = memory->data().bytes().slice(instance_address, M / 8);
@@ -5534,7 +5800,6 @@ bool BytecodeInterpreter::store_to_memory(MemoryInstance& memory, u64 address, T
     addition += data_size;
     if (addition.has_overflow() || addition.value() > memory.size()) [[unlikely]] {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: store_to_memory - Memory access out of bounds (expected 0 <= {} and {} <= {})", address, address + data_size, memory.size());
         return true;
     }
 
@@ -5570,13 +5835,34 @@ double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
     return bit_cast<double>(read_value<u64>(data));
 }
 
+void InstructionStorage::add_chunk()
+{
+    static constexpr size_t initial_chunk_capacity = 8;
+    static constexpr size_t max_chunk_capacity = 512;
+    auto chunk_capacity = clamp(m_capacity, initial_chunk_capacity, max_chunk_capacity);
+    m_chunks.append(Chunk::must_create_but_fixme_should_propagate_errors(chunk_capacity));
+    m_capacity += chunk_capacity;
+    m_next_index_in_last_chunk = 0;
+}
+
+Instruction& InstructionStorage::append(Instruction instruction)
+{
+    if (m_chunks.is_empty() || m_next_index_in_last_chunk == m_chunks.unsafe_last().size())
+        add_chunk();
+
+    auto& slot = m_chunks.unsafe_last()[m_next_index_in_last_chunk++];
+    slot = move(instruction);
+    ++m_size;
+    return slot.value();
+}
+
 CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions)
 {
     CompiledInstructions result;
 
-    result.dispatches.ensure_capacity(expression.instructions().size());
-    result.src_dst_mappings.ensure_capacity(expression.instructions().size());
-    result.extra_instruction_storage.ensure_capacity(expression.instructions().size());
+    auto instruction_count = expression.instructions().size();
+    result.dispatches.ensure_capacity(instruction_count);
+    result.src_dst_mappings.ensure_capacity(instruction_count);
 
     i32 i32_const_value { 0 };
     i64 i64_const_value { 0 };
@@ -5597,6 +5883,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     size_t calls_in_expression = 0;
 
+    auto append_extra_instruction = [&result](auto&&... args) -> Instruction& {
+        return result.extra_instruction_storage.append(Instruction(forward<decltype(args)>(args)...));
+    };
+
     auto const set_default_dispatch = [&result](Instruction const& instruction, size_t index = NumericLimits<size_t>::max()) {
         if (index < result.dispatches.size()) {
             result.dispatches[index] = { { .instruction_opcode = instruction.opcode() }, &instruction };
@@ -5612,11 +5902,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto& function = functions[instruction.arguments().get<FunctionIndex>().value()];
             if (function.results().size() <= 1 && function.parameters().size() < 4) {
                 pattern_state = InsnPatternState::Nothing;
-                OpCode op { Instructions::synthetic_call_00.value() + function.parameters().size() * 2 + function.results().size() };
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                OpCode op { static_cast<OpCode::Type>(Instructions::synthetic_call_00.value() + function.parameters().size() * 2 + function.results().size()) };
+                auto& extra_instruction = append_extra_instruction(
                     op,
-                    instruction.arguments()));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    instruction.arguments());
+                set_default_dispatch(extra_instruction);
                 continue;
             }
 
@@ -5649,34 +5939,34 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_storelocal,
                     local_index_0,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::i64_store) {
                 // `local.get a; i64.store m` -> `i64.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_storelocal,
                     local_index_0,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::local_set) {
                 // `local.get a; local.set b` -> `local_copy a b`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_copy,
                     local_index_0,
-                    instruction.local_index()));
+                    instruction.local_index());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -5687,12 +5977,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto make_2local_synthetic = [&](OpCode synthetic_op) {
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction {
+                auto& extra_instruction = append_extra_instruction(
                     synthetic_op,
                     local_index_0,
-                    local_index_1,
-                });
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    local_index_1);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
             };
             if (instruction.opcode() == Instructions::i32_add) {
@@ -5788,24 +6077,24 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_storelocal,
                     local_index_1,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
             if (instruction.opcode() == Instructions::i64_store) {
                 // `local.get a; i64.store m` -> `i64.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_storelocal,
                     local_index_1,
-                    instruction.arguments()));
+                    instruction.arguments());
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -5830,11 +6119,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::local_set) {
                 // `i32.const a; local.set b` -> `local.seti32_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti32_const,
                     instruction.local_index(),
-                    i32_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i32_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -5845,11 +6134,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (instruction.opcode() == Instructions::local_set) {
                 // `i32.const a; local.set b` -> `local.seti32_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti32_const,
                     instruction.local_index(),
-                    i32_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i32_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -5876,12 +6165,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i32.add_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_addconstlocal,
                     local_index_0,
-                    i32_const_value));
+                    i32_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::i32_and) {
@@ -5889,12 +6178,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i32.and_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i32_andconstlocal,
                     local_index_0,
-                    i32_const_value));
+                    i32_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -5910,11 +6199,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::local_set) {
                 // `i64.const a; local.set b` -> `local.seti64_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti64_const,
                     instruction.local_index(),
-                    i64_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i64_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -5925,11 +6214,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (instruction.opcode() == Instructions::local_set) {
                 // `i64.const a; local.set b` -> `local.seti64_const b a`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_local_seti64_const,
                     instruction.local_index(),
-                    i64_const_value));
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                    i64_const_value);
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -5956,12 +6245,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i64.add_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_addconstlocal,
                     local_index_0,
-                    i64_const_value));
+                    i64_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::i64_and) {
@@ -5969,12 +6258,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 // Replace the previous two ops with noops, and add i64.and_constlocal.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_i64_andconstlocal,
                     local_index_0,
-                    i64_const_value));
+                    i64_const_value);
 
-                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                set_default_dispatch(extra_instruction);
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -6014,17 +6303,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 return offset;
             };
 
-            InstructionPointer end_ip = ptr->end_ip.value() - offset_accumulated - offset_to(ptr->end_ip - ptr->else_ip.has_value());
-            auto else_ip = ptr->else_ip.map([&](InstructionPointer const& ip) -> InstructionPointer { return ip.value() - offset_accumulated - offset_to(ip - 1); });
+            InstructionPointer end_ip = ptr->end_ip.value() - offset_accumulated - offset_to(ptr->end_ip - ptr->else_ip().has_value());
+            auto else_ip = ptr->else_ip().map([&](InstructionPointer const& ip) -> InstructionPointer { return ip.value() - offset_accumulated - offset_to(ip - 1); });
             auto instruction = *result.dispatches[i].instruction;
-            instruction.arguments() = Instruction::StructuredInstructionArgs {
-                .block_type = ptr->block_type,
-                .end_ip = end_ip,
-                .else_ip = else_ip,
-                .meta = ptr->meta,
-            };
-            result.extra_instruction_storage.unchecked_append(move(instruction));
-            result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+            instruction.arguments() = Instruction::StructuredInstructionArgs { ptr->block_type, end_ip, else_ip, ptr->meta };
+            auto& extra_instruction = append_extra_instruction(move(instruction));
+            result.dispatches[i].instruction = &extra_instruction;
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
         }
     }
@@ -6038,28 +6322,28 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::local_get) {
             auto local_index = dispatch.instruction->local_index();
             if (local_index.value() & LocalArgumentMarker) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_argument_get,
-                    local_index));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    local_index);
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         } else if (dispatch.instruction->opcode() == Instructions::local_set) {
             auto local_index = dispatch.instruction->local_index();
             if (local_index.value() & LocalArgumentMarker) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_argument_set,
-                    local_index));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    local_index);
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         } else if (dispatch.instruction->opcode() == Instructions::local_tee) {
             auto local_index = dispatch.instruction->local_index();
             if (local_index.value() & LocalArgumentMarker) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     Instructions::synthetic_argument_tee,
-                    local_index));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    local_index);
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         }
@@ -6449,8 +6733,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             new_call_opcode,
             result.dispatches[call_info->call_index].instruction->arguments());
 
-        result.extra_instruction_storage.unchecked_append(new_call_insn);
-        result.dispatches[call_info->call_index].instruction = &result.extra_instruction_storage.unsafe_last();
+        auto& extra_instruction = append_extra_instruction(move(new_call_insn));
+        result.dispatches[call_info->call_index].instruction = &extra_instruction;
         result.dispatches[call_info->call_index].instruction_opcode = new_call_opcode;
     }
 
@@ -6669,10 +6953,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::local_get) {
             auto local_index = dispatch.instruction->local_index().value();
             if (local_index <= 7) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     static_cast<OpCode>(Instructions::synthetic_local_get_0.value() + local_index),
-                    dispatch.instruction->local_index()));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    dispatch.instruction->local_index());
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         }
@@ -6684,10 +6968,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::local_set) {
             auto local_index = dispatch.instruction->local_index().value();
             if (local_index <= 7) {
-                result.extra_instruction_storage.unchecked_append(Instruction(
+                auto& extra_instruction = append_extra_instruction(
                     static_cast<OpCode>(Instructions::synthetic_local_set_0.value() + local_index),
-                    dispatch.instruction->local_index()));
-                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                    dispatch.instruction->local_index());
+                result.dispatches[i].instruction = &extra_instruction;
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
             }
         }
@@ -6701,10 +6985,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             auto new_opcode = dispatch.instruction->opcode() == Instructions::br
                 ? Instructions::synthetic_br_nostack
                 : Instructions::synthetic_br_if_nostack;
-            result.extra_instruction_storage.unchecked_append(Instruction(
+            auto& extra_instruction = append_extra_instruction(
                 new_opcode,
-                dispatch.instruction->arguments()));
-            result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                dispatch.instruction->arguments());
+            result.dispatches[i].instruction = &extra_instruction;
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
         }
     }
@@ -6793,17 +7077,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
                 ([&] { if (k == marks.ip) warnln("       ^-- {}", marks.label); }(), ...);
 
-                ssize_t in_count = 0;
-                ssize_t out_count = 0;
-                switch (instruction->opcode().value()) {
-#define XM(name, _, ins, outs)             \
-    case Wasm::Instructions::name.value(): \
-        in_count = ins;                    \
-        out_count = outs;                  \
-        break;
-
-                    ENUMERATE_WASM_OPCODES(XM)
-                }
+                auto [in_count, out_count] = instruction_operand_counts(instruction->opcode());
                 for (ssize_t i = 0; i < in_count; ++i) {
                     warnln("       arg{} [{}]", i, regname(addresses.sources[i]));
                 }
@@ -6853,8 +7127,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::if_) {
             // if (else) (end), verify (else) - 1 points at a synthetic:else_, and (end)-1+(!has-else) points at a synthetic:end.
             auto args = dispatch.instruction->arguments().get<Instruction::StructuredInstructionArgs>();
-            if (args.else_ip.has_value()) {
-                size_t else_ip = args.else_ip->value() - 1;
+            if (args.else_ip().has_value()) {
+                size_t else_ip = args.else_ip()->value() - 1;
                 if (result.dispatches[else_ip].instruction->opcode() != Instructions::structured_else) {
                     dbgln("Invalid else_ip target at instruction {}: else_ip {}", i, else_ip);
                     dbgln("Instructions around the invalid else_ip:");
@@ -6862,7 +7136,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                     VERIFY_NOT_REACHED();
                 }
             }
-            size_t end_ip = args.end_ip.value() - 1 + (args.else_ip.has_value() ? 0 : 1);
+            size_t end_ip = args.end_ip.value() - 1 + (args.else_ip().has_value() ? 0 : 1);
             if (result.dispatches[end_ip].instruction->opcode() != Instructions::structured_end) {
                 dbgln("Invalid end_ip target at instruction {}: end_ip {}", i, end_ip);
                 dbgln("Instructions around the invalid end_ip:");
@@ -6879,11 +7153,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         auto& addr = result.src_dst_mappings[i];
 
         // for each input, ensure it's not reading from a register that is not marked as used (unless stack).
-        ssize_t in_count = 0;
-        ssize_t out_count = 0;
-        switch (dispatch.instruction->opcode().value()) {
-            ENUMERATE_WASM_OPCODES(XM)
-        }
+        auto [in_count, out_count] = instruction_operand_counts(dispatch.instruction->opcode());
         for (ssize_t j = 0; j < in_count; ++j) {
             auto src = addr.sources[j];
             if (src == Dispatch::Stack)

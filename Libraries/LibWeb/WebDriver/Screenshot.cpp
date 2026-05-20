@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Namespace.h>
@@ -20,6 +21,8 @@ namespace Web::WebDriver {
 // https://w3c.github.io/webdriver/#dfn-draw-a-bounding-box-from-the-framebuffer
 ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_context, DOM::Element& element, Gfx::IntRect rect)
 {
+    HTML::TemporaryExecutionContext execution_context { element.realm() };
+
     // 1. If either the initial viewport's width or height is 0 CSS pixels, return error with error code unable to capture screen.
     auto viewport_rect = browsing_context.top_level_traversable()->viewport_rect();
     if (viewport_rect.is_empty())

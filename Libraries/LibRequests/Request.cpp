@@ -4,11 +4,35 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 
 namespace Requests {
+
+static Optional<Core::ImmutableBytes> map_body_file(int fd, u64 offset, u64 size)
+{
+    ArmedScopeGuard close_fd = [fd] {
+        (void)Core::System::close(fd);
+    };
+
+    if (!AK::is_within_range<off_t>(offset) || !AK::is_within_range<size_t>(size)) {
+        dbgln("Request: Received body file outside mappable range");
+        return {};
+    }
+
+    close_fd.disarm();
+    auto payload = Core::ImmutableBytes::map_from_fd_range_and_close(fd, "request response"sv, static_cast<off_t>(offset), static_cast<size_t>(size));
+    if (payload.is_error()) {
+        dbgln("Request: Failed to map body file: {}", payload.error());
+        return {};
+    }
+
+    return payload.release_value();
+}
 
 ErrorOr<NonnullOwnPtr<ReadStream>> ReadStream::create(int reader_fd)
 {
@@ -59,6 +83,49 @@ void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
     m_internal_stream_data->read_stream = move(read_stream);
 }
 
+void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
+{
+    auto payload = map_body_file(fd, offset, size);
+    if (!payload.has_value()) {
+        if (m_internal_stream_data)
+            m_body_delivery_error = NetworkError::CacheReadFailed;
+        return;
+    }
+
+    // If the request was stopped while this IPC was in-flight, just bail.
+    if (!m_internal_stream_data)
+        return;
+
+    if (m_mode == Mode::Buffered) {
+        m_internal_buffered_data->payload = payload.release_value();
+        return;
+    }
+
+    m_internal_stream_data->file_backed_payload = payload.release_value();
+    if (m_internal_stream_data->on_data_available)
+        m_internal_stream_data->on_data_available(ResponseData::from_immutable_bytes(*m_internal_stream_data->file_backed_payload));
+}
+
+void Request::set_request_cached_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
+{
+    auto payload = map_body_file(fd, offset, size);
+    if (!payload.has_value())
+        return;
+
+    if (m_mode == Mode::Buffered) {
+        m_internal_buffered_data->payload = payload.release_value();
+        return;
+    }
+
+    // If the request was stopped while this IPC was in-flight, just bail.
+    if (!m_internal_stream_data)
+        return;
+
+    m_internal_stream_data->cached_payload = payload.release_value();
+    if (m_internal_stream_data->on_cached_body_available)
+        m_internal_stream_data->on_cached_body_available(*m_internal_stream_data->cached_payload);
+}
+
 void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_buffered_request_finished)
 {
     VERIFY(m_mode == Mode::Unknown);
@@ -75,8 +142,14 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
     };
 
     on_finish = [this, on_buffered_request_finished = move(on_buffered_request_finished)](auto total_size, auto& timing_info, auto network_error) {
-        auto output_buffer = ByteBuffer::create_uninitialized(m_internal_buffered_data->payload_stream.used_buffer_size()).release_value_but_fixme_should_propagate_errors();
-        m_internal_buffered_data->payload_stream.read_until_filled(output_buffer).release_value_but_fixme_should_propagate_errors();
+        auto payload = [&] {
+            if (m_internal_buffered_data->payload.has_value())
+                return m_internal_buffered_data->payload.release_value();
+
+            auto output_buffer = ByteBuffer::create_uninitialized(m_internal_buffered_data->payload_stream.used_buffer_size()).release_value_but_fixme_should_propagate_errors();
+            m_internal_buffered_data->payload_stream.read_until_filled(output_buffer).release_value_but_fixme_should_propagate_errors();
+            return Core::ImmutableBytes::adopt(move(output_buffer));
+        }();
 
         on_buffered_request_finished(
             total_size,
@@ -87,16 +160,16 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
             m_internal_buffered_data->reason_phrase,
             move(m_internal_buffered_data->javascript_bytecode),
             m_internal_buffered_data->javascript_bytecode_cache_vary_key,
-            output_buffer);
+            move(payload));
     };
 
-    set_up_internal_stream_data([this](auto read_bytes) {
+    set_up_internal_stream_data([this](auto data) {
         // FIXME: What do we do if this fails?
-        m_internal_buffered_data->payload_stream.write_until_depleted(read_bytes).release_value_but_fixme_should_propagate_errors();
+        m_internal_buffered_data->payload_stream.write_until_depleted(data.bytes()).release_value_but_fixme_should_propagate_errors();
     });
 }
 
-void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_received, DataReceived on_data_received, RequestFinished on_finish)
+void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_received, DataReceived on_data_received, CachedBodyAvailable on_cached_body_available, RequestFinished on_finish)
 {
     VERIFY(m_mode == Mode::Unknown);
     m_mode = Mode::Unbuffered;
@@ -105,15 +178,17 @@ void Request::set_unbuffered_request_callbacks(HeadersReceived on_headers_receiv
     this->on_finish = move(on_finish);
 
     set_up_internal_stream_data(move(on_data_received));
+    m_internal_stream_data->on_cached_body_available = move(on_cached_body_available);
 }
 
 void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error)
 {
+    auto effective_network_error = m_body_delivery_error.has_value() ? m_body_delivery_error : network_error;
     if (on_finish)
-        on_finish(total_size, timing_info, network_error);
+        on_finish(total_size, timing_info, effective_network_error);
 }
 
-void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)
+void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)
 {
     if (on_headers_received)
         on_headers_received(move(response_headers), response_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key);
@@ -134,6 +209,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     VERIFY(!m_internal_stream_data);
 
     m_internal_stream_data = make<InternalStreamData>();
+    m_internal_stream_data->on_data_available = move(on_data_available);
     m_internal_stream_data->read_notifier = Core::Notifier::construct(fd(), Core::Notifier::Type::Read);
     if (fd() != -1)
         m_internal_stream_data->read_stream = MUST(ReadStream::create(fd()));
@@ -162,7 +238,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         }
     };
 
-    m_internal_stream_data->read_notifier->on_activation = [this, on_data_available = move(on_data_available)]() {
+    m_internal_stream_data->read_notifier->on_activation = [this]() {
         static constexpr size_t buffer_size = 256 * KiB;
         static char buffer[buffer_size];
 
@@ -181,7 +257,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             if (read_bytes.is_empty())
                 break;
 
-            on_data_available(read_bytes);
+            m_internal_stream_data->on_data_available(ResponseData::from_bytes(read_bytes));
         } while (true);
 
         if (m_internal_stream_data->read_stream->is_eof())

@@ -355,10 +355,10 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSNumericValue::to(FlyString const& 
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-type
-CSSNumericType CSSNumericValue::type_for_bindings() const
+Bindings::CSSNumericType CSSNumericValue::type_for_bindings() const
 {
     // 1. Let result be a new CSSNumericType.
-    CSSNumericType result {};
+    Bindings::CSSNumericType result {};
 
     // 2. For each baseType → power in the type of this,
     m_type.for_each_type_and_exponent([&result](NumericType::BaseType base_type, auto power) {

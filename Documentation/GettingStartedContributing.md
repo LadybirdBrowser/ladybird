@@ -43,7 +43,7 @@ That’s because without even knowing any C++ at all, you can still — by work
 
 That said, if you _do_ want to start learning some C++ programming yourself, then working from a WPT test case may be the very best way for you on your own to start — by getting an understanding of how and where the JavaScript code in the WPT test ends up calling into the related C++ code in the Ladybird sources — and then start fixing the underlying problem in the C++ code on your own.
 
-The list of [beginner-friendly issues](https://github.com/LadybirdBrowser/ladybird/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22) is usually very short, and there currently isn't a strict roadmap of issues to address first. It is ultimately up to you to choose a task that you feel comfortable working on.
+There currently isn't a strict roadmap of issues to address first. It is ultimately up to you to choose a task that you feel comfortable working on.
 
 ## Submitting an issue
 

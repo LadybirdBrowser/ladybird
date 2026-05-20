@@ -109,7 +109,7 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
 
 // FIXME: It would be nicer if create_entry just returned the cache and vary keys. But the call sites of create_entry and
 //        finalize_entry are pretty far apart, so passing that information along is rather awkward in Fetch.
-void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, ByteBuffer response_body)
+void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, Core::ImmutableBytes response_body)
 {
     if (!is_cacheable(method, request_headers))
         return;

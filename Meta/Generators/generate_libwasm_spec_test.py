@@ -34,7 +34,7 @@ class GenerateException(Exception):
 @dataclass
 class WasmPrimitiveValue:
     kind: Literal["i32", "i64", "f32", "f64", "externref", "funcref"]
-    value: str
+    value: Optional[str]
 
 
 @dataclass
@@ -179,7 +179,7 @@ class Context:
     has_unclosed: bool
 
 
-def parse_value(arg: dict[str, str]) -> WasmValue:
+def parse_value(arg: dict[str, Any]) -> WasmValue:
     type_ = arg["type"]
     if type_ in ("i32", "i64", "f32", "f64"):
         return WasmPrimitiveValue(type_, arg["value"])
@@ -320,6 +320,9 @@ def gen_value_arg(value: WasmValue) -> str:
     if isinstance(value, EitherOf):
         raise AssertionError("EitherOf should not appear here")
 
+    if value.value is None:
+        raise GenerateException("Cannot generate an argument without a concrete value")
+
     def unsigned_to_signed(uint: int, bits: int) -> int:
         max_value = 2**bits
         if uint >= 2 ** (bits - 1):
@@ -344,7 +347,7 @@ def gen_value_arg(value: WasmValue) -> str:
         f = int_to_float64_bitcast(bits) if double else int_to_float_bitcast(bits)
         return str(f)
 
-    if value.value is not None and value.value.startswith("nan"):
+    if value.value.startswith("nan"):
         raise GenerateException("Should not get indeterminate nan value as an argument")
     if value.value == "inf":
         return "Infinity"
@@ -374,13 +377,15 @@ def gen_value_result(value: WasmValue) -> GeneratedValue:
     if value.kind == "funcref" and value.value is None:
         return GeneratedAnyFuncRef()
 
-    if (value.kind == "f32" or value.kind == "f64") and value.value.startswith("nan"):
-        num_bits = int(value.kind[1:])
-        if value.value == "nan:canonical":
-            return CanonicalNan(num_bits)
-        if value.value == "nan:arithmetic":
-            return ArithmeticNan(num_bits)
-        raise GenerateException(f"Unknown indeterminate nan: {value.value}")
+    if value.kind == "f32" or value.kind == "f64":
+        assert value.value is not None
+        if value.value.startswith("nan"):
+            num_bits = int(value.kind[1:])
+            if value.value == "nan:canonical":
+                return CanonicalNan(num_bits)
+            if value.value == "nan:arithmetic":
+                return ArithmeticNan(num_bits)
+            raise GenerateException(f"Unknown indeterminate nan: {value.value}")
     return gen_value_arg(value)
 
 

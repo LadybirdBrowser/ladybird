@@ -20,6 +20,7 @@ set(SOURCES
     Bindings/AudioConstructor.cpp
     Bindings/HostDefined.cpp
     Bindings/ImageConstructor.cpp
+    Bindings/InterfaceObject.cpp
     Bindings/Intrinsics.cpp
     Bindings/MainThreadVM.cpp
     Bindings/OptionConstructor.cpp
@@ -29,6 +30,11 @@ set(SOURCES
     Clipboard/ClipboardEvent.cpp
     Clipboard/ClipboardItem.cpp
     Clipboard/SystemClipboard.cpp
+    Compositor/AsyncScrollTree.cpp
+    Compositor/AsyncScrollingState.cpp
+    Compositor/BackingStoreManager.cpp
+    Compositor/CompositorContextState.cpp
+    Compositor/CompositorThread.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
@@ -159,6 +165,7 @@ set(SOURCES
     CSS/Display.cpp
     CSS/EasingFunction.cpp
     CSS/EdgeRect.cpp
+    CSS/FeatureQuery.cpp
     CSS/Fetch.cpp
     CSS/Filter.cpp
     CSS/Flex.cpp
@@ -289,6 +296,7 @@ set(SOURCES
     CSS/StyleValues/NumberStyleValue.cpp
     CSS/StyleValues/OpacityValueStyleValue.cpp
     CSS/StyleValues/OpenTypeTaggedStyleValue.cpp
+    CSS/StyleValues/OverflowClipMarginStyleValue.cpp
     CSS/StyleValues/PositionStyleValue.cpp
     CSS/StyleValues/RadialGradientStyleValue.cpp
     CSS/StyleValues/RadialSizeStyleValue.cpp
@@ -472,7 +480,6 @@ set(SOURCES
     HTML/Canvas/CanvasDrawImage.cpp
     HTML/Canvas/CanvasFillStrokeStyles.cpp
     HTML/Canvas/CanvasPath.cpp
-    HTML/Canvas/CanvasSettings.cpp
     HTML/Canvas/CanvasState.cpp
     HTML/Canvas/CanvasTextDrawingStyles.cpp
     HTML/Canvas/SerializeBitmap.cpp
@@ -639,10 +646,7 @@ set(SOURCES
     HTML/Parser/HTMLToken.cpp
     HTML/Parser/HTMLTokenizer.cpp
     HTML/Parser/IncrementalDocumentParser.cpp
-    HTML/Parser/ListOfActiveFormattingElements.cpp
     HTML/Parser/SpeculativeHTMLParser.cpp
-    HTML/Parser/SpeculativeMockElement.cpp
-    HTML/Parser/StackOfOpenElements.cpp
     HTML/Path2D.cpp
     HTML/Plugin.cpp
     HTML/PluginArray.cpp
@@ -653,7 +657,6 @@ set(SOURCES
     HTML/PreloadEntry.cpp
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioNodeList.cpp
-    HTML/RenderingThread.cpp
     HTML/SandboxingFlagSet.cpp
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
@@ -798,6 +801,7 @@ set(SOURCES
     Layout/TextAreaBox.cpp
     Layout/TextInputBox.cpp
     Layout/TextNode.cpp
+    Layout/TextOffsetMapping.cpp
     Layout/TreeBuilder.cpp
     Layout/VideoBox.cpp
     Layout/Viewport.cpp
@@ -846,7 +850,6 @@ set(SOURCES
     Page/Page.cpp
     Painting/AccumulatedVisualContext.cpp
     Painting/BackgroundPainting.cpp
-    Painting/BackingStoreManager.cpp
     Painting/Blending.cpp
     Painting/BorderPainting.cpp
     Painting/BorderRadiiData.cpp
@@ -860,7 +863,7 @@ set(SOURCES
     Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
     Painting/DisplayListRecordingContext.cpp
-    Painting/ExternalContentSource.cpp
+    Painting/DisplayListResourceStorage.cpp
     Painting/FieldSetPaintable.cpp
     Painting/GradientPainting.cpp
     Painting/ImagePaintable.cpp
@@ -874,7 +877,6 @@ set(SOURCES
     Painting/RadioButtonPaintable.cpp
     Painting/ReplacedElementCommon.cpp
     Painting/ResolvedCSSFilter.cpp
-    Painting/VideoFrameSource.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
     Painting/ScrollFrame.cpp
@@ -900,6 +902,9 @@ set(SOURCES
     PerformanceTimeline/PerformanceObserver.cpp
     PerformanceTimeline/PerformanceObserverEntryList.cpp
     PermissionsPolicy/AutoplayAllowlist.cpp
+    PermissionsAPI/Permissions.cpp
+    PermissionsAPI/PermissionStore.cpp
+    PermissionsAPI/PermissionStatus.cpp
     PixelUnits.cpp
     Platform/EventLoopPlugin.cpp
     Platform/FontPlugin.cpp
@@ -960,12 +965,9 @@ set(SOURCES
     Streams/ReadableStreamOperations.cpp
     Streams/ReadableStreamPipeTo.cpp
     Streams/ReadableStreamTee.cpp
-    Streams/Transformer.cpp
     Streams/TransformStream.cpp
     Streams/TransformStreamDefaultController.cpp
     Streams/TransformStreamOperations.cpp
-    Streams/UnderlyingSink.cpp
-    Streams/UnderlyingSource.cpp
     Streams/WritableStream.cpp
     Streams/WritableStreamDefaultController.cpp
     Streams/WritableStreamDefaultWriter.cpp
@@ -1114,7 +1116,6 @@ set(SOURCES
     WebDriver/ElementReference.cpp
     WebDriver/Error.cpp
     WebDriver/ExecuteScript.cpp
-    WebDriver/HeapTimer.cpp
     WebDriver/InputSource.cpp
     WebDriver/InputState.cpp
     WebDriver/JSON.cpp
@@ -1246,10 +1247,14 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibSync LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADER RustFFI.h)
 target_link_libraries(LibWeb PRIVATE libweb_rust)
+get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
+set_property(SOURCE HTML/Parser/HTMLTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+set_property(SOURCE HTML/Parser/HTMLParser.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+set_property(SOURCE HTML/Parser/SpeculativeHTMLParser.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
     target_link_options(LibWeb INTERFACE LINKER:--allow-multiple-definition)
 endif()
@@ -1270,7 +1275,6 @@ if(NOT BUILD_SHARED_LIBS)
     # stale Rust objects. Force the C++ FFI bridge file to depend on the
     # Rust archive: when it changes, RustTokenizer.cpp recompiles, LibWeb
     # re-archives, and POST_BUILD re-merges the fresh Rust objects.
-    get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
     set_property(SOURCE CSS/Parser/RustTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 endif()
 

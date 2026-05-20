@@ -6,14 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/ChannelSplitterNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
 namespace Web::WebAudio {
-
-// https://webaudio.github.io/web-audio-api/#ChannelSplitterOptions
-struct ChannelSplitterOptions : AudioNodeOptions {
-    WebIDL::UnsignedLong number_of_outputs { 6 };
-};
 
 /// https://webaudio.github.io/web-audio-api/#ChannelSplitterNode
 class ChannelSplitterNode final : public AudioNode {
@@ -23,8 +19,8 @@ class ChannelSplitterNode final : public AudioNode {
 public:
     virtual ~ChannelSplitterNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, ChannelSplitterOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, ChannelSplitterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelSplitterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelSplitterOptions const& = {});
 
     virtual WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     virtual WebIDL::UnsignedLong number_of_outputs() override { return m_number_of_outputs; }
@@ -34,7 +30,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation) override;
 
 private:
-    ChannelSplitterNode(JS::Realm&, GC::Ref<BaseAudioContext>, ChannelSplitterOptions const&);
+    ChannelSplitterNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelSplitterOptions const&);
 
     virtual void initialize(JS::Realm&) override;
 

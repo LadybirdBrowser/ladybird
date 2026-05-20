@@ -6,19 +6,23 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
-#include <AK/RefPtr.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/Time.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaPipelineNode.h>
+#include <LibMedia/Producers/VideoProducer.h>
 
 namespace Media {
 
-// A consumer to be attached to a VideoDataProvider in order to receive video frames from a decoding thread.
-class VideoSink : public AtomicRefCounted<VideoSink> {
+// A consumer to be attached to a VideoProducer in order to receive video frames from a decoding thread.
+class VideoSink : public virtual MediaPipelineNode {
 public:
     virtual ~VideoSink() = default;
 
-    virtual void set_provider(Track const&, RefPtr<VideoDataProvider> const&) = 0;
-    virtual RefPtr<VideoDataProvider> provider(Track const&) const = 0;
+    virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) = 0;
+    virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) = 0;
+
+    virtual void seek(AK::Duration timestamp) = 0;
 };
 
 }

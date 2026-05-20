@@ -15,7 +15,7 @@ void StartingStateHandler::start()
 {
     m_started = true;
 
-    if (manager().m_tracks_still_buffering.is_empty())
+    if (!manager().m_audio_buffering && manager().m_video_tracks_buffering.is_empty())
         resume();
 }
 

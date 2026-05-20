@@ -8,23 +8,18 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibWeb/Bindings/CloseEvent.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
-
-struct CloseEventInit : public DOM::EventInit {
-    bool was_clean { false };
-    u16 code { 0 };
-    String reason;
-};
 
 class CloseEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(CloseEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CloseEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CloseEvent> create(JS::Realm&, FlyString const& event_name, CloseEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<CloseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, CloseEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CloseEvent> create(JS::Realm&, FlyString const& event_name, Bindings::CloseEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<CloseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CloseEventInit const& event_init);
 
     virtual ~CloseEvent() override;
 
@@ -33,7 +28,7 @@ public:
     String reason() const { return m_reason; }
 
 private:
-    CloseEvent(JS::Realm&, FlyString const& event_name, CloseEventInit const& event_init);
+    CloseEvent(JS::Realm&, FlyString const& event_name, Bindings::CloseEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
 

@@ -1,0 +1,11 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#canvascolortype
+enum CanvasColorType { "unorm8", "float16" };
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasrenderingcontext2dsettings
+dictionary CanvasRenderingContext2DSettings {
+    boolean alpha = true;
+    boolean desynchronized = false;
+    PredefinedColorSpace colorSpace = "srgb";
+    CanvasColorType colorType = "unorm8";
+    boolean willReadFrequently = false;
+};

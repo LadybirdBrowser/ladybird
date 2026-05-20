@@ -16,7 +16,7 @@ namespace Web::WebAudio {
 GC_DEFINE_ALLOCATOR(PeriodicWave);
 
 // https://webaudio.github.io/web-audio-api/#dom-periodicwave-periodicwave
-WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext>, PeriodicWaveOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext>, Bindings::PeriodicWaveOptions const& options)
 {
     // 1. Let p be a new PeriodicWave object. Let [[real]] and [[imag]] be two internal slots of type Float32Array, and let [[normalize]] be an internal slot.
     auto p = realm.create<PeriodicWave>(realm);

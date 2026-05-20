@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/WebGLContextEvent.h>
 #include <LibWeb/Bindings/WebGLRenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/Infra/Strings.h>
@@ -32,7 +33,7 @@ void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString
 {
     // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
     // FIXME: Consider setting a status message.
-    auto event = WebGLContextEvent::create(canvas_element.realm(), type, WebGLContextEventInit {});
+    auto event = WebGLContextEvent::create(canvas_element.realm(), type, Bindings::WebGLContextEventInit {});
     event->set_is_trusted(true);
     event->set_cancelable(true);
     canvas_element.dispatch_event(*event);

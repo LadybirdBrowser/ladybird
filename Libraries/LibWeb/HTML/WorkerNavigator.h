@@ -44,6 +44,8 @@ public:
 
     [[nodiscard]] GC::Ref<Serial::Serial> serial();
 
+    [[nodiscard]] GC::Ref<PermissionsAPI::Permissions> permissions();
+
 private:
     explicit WorkerNavigator(WorkerGlobalScope&);
 
@@ -60,6 +62,9 @@ private:
     GC::Ptr<Serial::Serial> m_serial;
 
     GC::Ptr<ServiceWorker::ServiceWorkerContainer> m_service_worker_container;
+
+    // https://w3c.github.io/permissions/#navigator-and-workernavigator-extension
+    GC::Ptr<PermissionsAPI::Permissions> m_permissions;
 };
 
 }

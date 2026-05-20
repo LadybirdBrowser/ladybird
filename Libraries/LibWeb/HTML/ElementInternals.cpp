@@ -115,8 +115,22 @@ WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> ElementInternals::form() const
     return m_target_element->form();
 }
 
+static bool validity_flags_has_one_or_more_true_values(Bindings::ValidityStateFlags const& flags)
+{
+    return flags.value_missing
+        || flags.type_mismatch
+        || flags.pattern_mismatch
+        || flags.too_long
+        || flags.too_short
+        || flags.range_underflow
+        || flags.range_overflow
+        || flags.step_mismatch
+        || flags.bad_input
+        || flags.custom_error;
+}
+
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setvalidity
-WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor)
+WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor)
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;
@@ -126,7 +140,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags cons
         return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
 
     // 3. If flags contains one or more true values and message is not given or is the empty string, then throw a TypeError.
-    if (flags.has_one_or_more_true_values() && (!message.has_value() || message->is_empty())) {
+    if (validity_flags_has_one_or_more_true_values(flags) && (!message.has_value() || message->is_empty())) {
         return WebIDL::SimpleException {
             WebIDL::SimpleExceptionType::TypeError,
             "Invalid flag(s) and empty message"sv
@@ -138,7 +152,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(ValidityStateFlags cons
 
     // 5. Set element's validation message to the empty string if message is not given or all of element's validity flags are false, or to message otherwise.
     String validation_message;
-    if (message.has_value() && flags.has_one_or_more_true_values())
+    if (message.has_value() && validity_flags_has_one_or_more_true_values(flags))
         validation_message = message.release_value();
 
     element->set_face_validation_message({}, validation_message);

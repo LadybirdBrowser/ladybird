@@ -26,7 +26,7 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ReadableStreamAsyncIterator);
 
 // https://streams.spec.whatwg.org/#ref-for-asynchronous-iterator-initialization-steps
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStreamAsyncIterator::create(JS::Realm& realm, JS::Object::PropertyKind kind, ReadableStream& stream, ReadableStreamIteratorOptions options)
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStreamAsyncIterator::create(JS::Realm& realm, JS::Object::PropertyKind kind, ReadableStream& stream, Bindings::ReadableStreamIteratorOptions options)
 {
     // 1. Let reader be ? AcquireReadableStreamDefaultReader(stream).
     // 2. Set iterator’s reader to reader.

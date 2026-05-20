@@ -6,57 +6,61 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
-#include <LibMedia/Track.h>
 
 namespace Media {
 
-enum class DisplayingVideoSinkUpdateResult : u8 {
+enum class [[nodiscard]] DisplayingVideoSinkUpdateResult : u8 {
     NewFrameAvailable,
     NoChange,
 };
 
 class MEDIA_API DisplayingVideoSink final : public VideoSink {
 public:
-    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(NonnullRefPtr<MediaTimeProvider> const&);
+    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(NonnullRefPtr<MediaTimeProvider> const&, PipelineStateChangeHandler on_state_changed);
 
-    DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&);
+    DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&, PipelineStateChangeHandler);
     virtual ~DisplayingVideoSink() override;
 
     void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
 
-    virtual void set_provider(Track const&, RefPtr<VideoDataProvider> const&) override;
-    RefPtr<VideoDataProvider> provider(Track const&) const override;
+    virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
+    virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
 
-    // Updates the frame returned by current_frame() based on the time provider's current timestamp.
-    //
-    // Note that push_frame may block until update() is called, so do not call them from the same thread.
-    DisplayingVideoSinkUpdateResult update();
-    void prepare_current_frame_for_next_update();
+    virtual void seek(AK::Duration timestamp) override;
+
+    [[nodiscard]] DisplayingVideoSinkUpdateResult update();
     RefPtr<VideoFrame> current_frame();
 
-    void pause_updates();
-    void resume_updates();
-
-    Function<void()> m_on_start_buffering;
-
 private:
-    static constexpr size_t DEFAULT_QUEUE_SIZE = 8;
+    DisplayingVideoSinkUpdateResult consume_moved_position_signals(PipelineStatus&);
 
-    void verify_track(Track const&) const;
+    void dispatch_state_if_changed(PipelineStatus);
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
-    RefPtr<VideoDataProvider> m_provider;
-    Optional<Track> m_track;
+    RefPtr<VideoProducer> m_input;
 
     RefPtr<VideoFrame> m_next_frame;
     RefPtr<VideoFrame> m_current_frame;
-    bool m_pause_updates { false };
-    bool m_has_new_current_frame { false };
+
+    enum class SeekStatus : u8 {
+        None,
+        InProgress,
+        FrameInvalidated,
+        Complete,
+    };
+    SeekStatus m_seek_status { SeekStatus::None };
+
+    PipelineStateChangeHandler m_on_state_changed;
+    PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
+    u32 m_seek_id { 0 };
 };
 
 }

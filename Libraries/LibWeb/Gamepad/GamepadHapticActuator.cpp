@@ -83,7 +83,7 @@ void GamepadHapticActuator::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/gamepad/#dfn-valid-effect
-static bool is_valid_effect(Bindings::GamepadHapticEffectType type, GamepadEffectParameters const& params)
+static bool is_valid_effect(Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params)
 {
     // 1. Given the value of GamepadHapticEffectType type, switch on:
     //    "dual-rumble"
@@ -139,7 +139,7 @@ static bool is_valid_effect(Bindings::GamepadHapticEffectType type, GamepadEffec
 }
 
 // https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-playeffect
-GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHapticEffectType type, GamepadEffectParameters const& params)
+GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params)
 {
     auto& realm = this->realm();
 
@@ -310,7 +310,7 @@ void GamepadHapticActuator::document_became_hidden()
 }
 
 // https://w3c.github.io/gamepad/#dfn-issue-a-haptic-effect
-void GamepadHapticActuator::issue_haptic_effect(Bindings::GamepadHapticEffectType type, GamepadEffectParameters const& params, GC::Ref<GC::Function<void()>> on_complete)
+void GamepadHapticActuator::issue_haptic_effect(Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params, GC::Ref<GC::Function<void()>> on_complete)
 {
     auto& heap = this->heap();
 

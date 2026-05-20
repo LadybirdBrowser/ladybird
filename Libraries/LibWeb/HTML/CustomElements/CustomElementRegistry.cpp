@@ -123,7 +123,7 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-define
-JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions options)
+JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();

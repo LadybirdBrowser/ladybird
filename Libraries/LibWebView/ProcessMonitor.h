@@ -13,13 +13,13 @@ namespace WebView {
 
 class ProcessMonitor {
 public:
-    ProcessMonitor(Function<void(pid_t)> exit_handler);
+    ProcessMonitor(Function<void(pid_t, Optional<int> exit_status)> exit_handler);
     ~ProcessMonitor();
 
     void add_process(pid_t pid);
 
 private:
-    Function<void(pid_t)> m_on_process_exit;
+    Function<void(pid_t, Optional<int> exit_status)> m_on_process_exit;
     HashTable<pid_t> m_monitored_processes;
     [[maybe_unused]] int m_signal_handle { -1 };
 };

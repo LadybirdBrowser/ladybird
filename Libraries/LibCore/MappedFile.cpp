@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
@@ -27,12 +28,35 @@ ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_file(NonnullOwnPtr<Core:
 
 ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_and_close(int fd, [[maybe_unused]] StringView path, Mode mode)
 {
-    ScopeGuard fd_close_guard = [fd] {
+    ArmedScopeGuard fd_close_guard = [fd] {
         (void)System::close(fd);
     };
 
     auto stat = TRY(Core::System::fstat(fd));
-    auto size = stat.st_size;
+    if (stat.st_size < 0)
+        return Error::from_errno(EINVAL);
+
+    fd_close_guard.disarm();
+    return map_from_fd_range_and_close(fd, path, 0, static_cast<size_t>(stat.st_size), mode);
+}
+
+ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_range_and_close(int fd, [[maybe_unused]] StringView path, off_t offset, size_t size, Mode mode)
+{
+    ScopeGuard fd_close_guard = [fd] {
+        (void)System::close(fd);
+    };
+
+    if (offset < 0 || !AK::is_within_range<size_t>(offset))
+        return Error::from_errno(EINVAL);
+
+    auto stat = TRY(Core::System::fstat(fd));
+    if (stat.st_size < 0 || !AK::is_within_range<size_t>(stat.st_size))
+        return Error::from_errno(EINVAL);
+
+    auto file_size = static_cast<size_t>(stat.st_size);
+    auto requested_offset = static_cast<size_t>(offset);
+    if (requested_offset > file_size || size > file_size - requested_offset)
+        return Error::from_errno(EINVAL);
 
     int protection;
     int flags;
@@ -48,23 +72,40 @@ ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_and_close(int fd, [[m
         break;
     }
 
-    auto* ptr = TRY(Core::System::mmap(nullptr, size, protection, flags, fd, 0, 0, path));
+    if (size == 0)
+        return adopt_own(*new MappedFile(nullptr, 0, nullptr, 0, mode));
 
-    return adopt_own(*new MappedFile(ptr, size, mode));
+    auto page_aligned_offset = align_down_to(requested_offset, PAGE_SIZE);
+    auto offset_in_mapping = requested_offset - page_aligned_offset;
+
+    Checked<size_t> mapping_size = offset_in_mapping;
+    mapping_size += size;
+    if (mapping_size.has_overflow())
+        return Error::from_errno(EOVERFLOW);
+
+    auto* mapping = TRY(Core::System::mmap(nullptr, mapping_size.value(), protection, flags, fd, page_aligned_offset, 0, path));
+    auto* data = reinterpret_cast<u8*>(mapping) + offset_in_mapping;
+
+    return adopt_own(*new MappedFile(mapping, mapping_size.value(), data, size, mode));
 }
 
-MappedFile::MappedFile(void* ptr, size_t size, Mode mode)
-    : FixedMemoryStream(Bytes { ptr, size }, mode)
-    , m_data(ptr)
+MappedFile::MappedFile(void* mapping, size_t mapping_size, void* data, size_t size, Mode mode)
+    : FixedMemoryStream(Bytes { data, size }, mode)
+    , m_mapping(mapping)
+    , m_mapping_size(mapping_size)
+    , m_data(data)
     , m_size(size)
 {
 }
 
 MappedFile::~MappedFile()
 {
-    auto res = Core::System::munmap(m_data, m_size);
+    if (!m_mapping)
+        return;
+
+    auto res = Core::System::munmap(m_mapping, m_mapping_size);
     if (res.is_error())
-        dbgln("Failed to unmap MappedFile (@ {:p}): {}", m_data, res.error());
+        dbgln("Failed to unmap MappedFile (@ {:p}): {}", m_mapping, res.error());
 }
 
 }

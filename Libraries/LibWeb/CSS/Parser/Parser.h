@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -398,7 +398,7 @@ private:
     RefPtr<CalculationNode const> parse_math_function(Function const&, CalculationContext const&);
     RefPtr<CalculationNode const> parse_a_calc_function_node(Function const&, CalculationContext const&);
     RefPtr<StyleValue const> parse_keyword_value(TokenStream<ComponentValue>&);
-    RefPtr<StyleValue const> parse_specific_keyword_value(TokenStream<ComponentValue>&, Keyword);
+    RefPtr<StyleValue const> parse_specific_keyword_value(TokenStream<ComponentValue>&, ReadonlySpan<Keyword>);
     RefPtr<StyleValue const> parse_hue_none_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_rgb_color_value(TokenStream<ComponentValue>&);
@@ -435,7 +435,6 @@ private:
     RefPtr<AbstractImageStyleValue const> parse_image_value(TokenStream<ComponentValue>&);
     RefPtr<AbstractImageStyleValue const> parse_image_value(TokenStream<ComponentValue>&, AllowImageSet);
     RefPtr<ImageSetStyleValue const> parse_image_set_function(TokenStream<ComponentValue>&);
-    RefPtr<StyleValue const> parse_paint_value(TokenStream<ComponentValue>&);
     enum class PositionParsingMode {
         Normal,
         BackgroundPosition,
@@ -593,7 +592,12 @@ private:
     OwnPtr<BooleanExpression> parse_media_condition(TokenStream<ComponentValue>&);
     OwnPtr<MediaFeature> parse_media_feature(TokenStream<ComponentValue>&);
     Optional<MediaQuery::MediaType> parse_media_type(TokenStream<ComponentValue>&);
-    Optional<MediaFeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
+    Optional<FeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
+    OwnPtr<SizeFeature> parse_size_feature(TokenStream<ComponentValue>&);
+    Optional<FeatureValue> parse_size_feature_value(SizeFeatureID, TokenStream<ComponentValue>&);
+
+    template<typename FeatureID, typename FeatureAcceptsKeyword, typename FeatureAcceptsType>
+    Optional<FeatureValue> parse_feature_value(FeatureID, TokenStream<ComponentValue>&, FeatureAcceptsKeyword, FeatureAcceptsType);
 
     using ParseTest = AK::Function<OwnPtr<BooleanExpression>(TokenStream<ComponentValue>&)> const&;
     OwnPtr<BooleanExpression> parse_boolean_expression(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
@@ -673,7 +677,7 @@ Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::Parsi
 RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, StringView);
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const&, StringView);
 GC::Ref<JS::Realm> internal_css_realm();
-ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ByteBuffer const& encoded_string);
+ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_custom_ident(FlyString const&, ReadonlySpan<StringView> const& blacklist);
 
 }

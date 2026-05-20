@@ -23,7 +23,7 @@ namespace Web::IntersectionObserver {
 GC_DEFINE_ALLOCATOR(IntersectionObserver);
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-intersectionobserver
-WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverInit const& options)
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, Bindings::IntersectionObserverInit const& options)
 {
     // https://w3c.github.io/IntersectionObserver/#initialize-a-new-intersectionobserver
     // 1. Let this be a new IntersectionObserver object
@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
     return realm.create<IntersectionObserver>(realm, callback, options.root, move(root_margin.value()), move(scroll_margin.value()), move(thresholds), move(delay), move(options.track_visibility));
 }
 
-IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, NullableIntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
+IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
     : PlatformObject(realm)
     , m_callback(callback)
     , m_root_margin(root_margin)

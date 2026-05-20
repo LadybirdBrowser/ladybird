@@ -1,4 +1,4 @@
-$b46fb5c4 regex-literals.js:2:1
+$a246183e regex-literals.js:2:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,24 +8,24 @@ $b46fb5c4 regex-literals.js:2:1
 
 block0:
   [   0] NewRegExp dst:reg5, foo, 
-  [  18] InitializeLexicalBinding `a`, src:reg5
-  [  30] NewRegExp dst:reg5, bar, gi
-  [  48] InitializeLexicalBinding `b`, src:reg5
-  [  60] NewRegExp dst:reg5, baz, i
-  [  78] Add dst:reg6, lhs:Int32(1), rhs:reg5
-  [  88] InitializeLexicalBinding `c`, src:reg6
-  [  a0] GetGlobal dst:reg5, `matchDigits`
-  [  b8] Call dst:reg6, callee:reg5, this_value:Undefined, matchDigits, arguments:[String("abc123")]
-  [  e0] End value:reg6
+  [  18] DynamicInitializeLexicalBinding `a`, src:reg5
+  [  28] NewRegExp dst:reg5, bar, gi
+  [  40] DynamicInitializeLexicalBinding `b`, src:reg5
+  [  50] NewRegExp dst:reg5, baz, i
+  [  68] Add dst:reg6, lhs:Int32(1), rhs:reg5
+  [  78] DynamicInitializeLexicalBinding `c`, src:reg6
+  [  88] GetGlobal dst:reg5, `matchDigits`
+  [  98] Call dst:reg6, callee:reg5, this_value:Undefined, matchDigits, arguments:[String("abc123")]
+  [  c0] End value:reg6
 
 
-matchDigits$4cca49e8 regex-literals.js:8:5
+matchDigits$cfe7cda7 regex-literals.js:8:5
   Registers: 9
   Blocks:    1
 
 block0:
   [   0] NewRegExp dst:reg6, \d+, g
   [  18] GetById dst:reg7, base:reg6, `test`
-  [  38] Mov dst:reg8, src:arg0
-  [  48] Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
-  [  70] Return value:reg5
+  [  30] Mov dst:reg8, src:arg0
+  [  40] Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
+  [  68] Return value:reg5

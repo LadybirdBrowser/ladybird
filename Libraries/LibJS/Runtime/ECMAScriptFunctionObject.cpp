@@ -297,14 +297,7 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
 
     if (m_class_data) {
         for (auto& field : m_class_data->fields) {
-            field.initializer.visit(
-                [&visitor](GC::Ref<ECMAScriptFunctionObject>& initializer) {
-                    visitor.visit(initializer);
-                },
-                [&visitor](Value initializer) {
-                    visitor.visit(initializer);
-                },
-                [](Empty) {});
+            visitor.visit(field.initializer);
             if (auto* property_key_ptr = field.name.get_pointer<PropertyKey>(); property_key_ptr && property_key_ptr->is_symbol())
                 visitor.visit(property_key_ptr->as_symbol());
         }
@@ -313,11 +306,7 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
             visitor.visit(private_element.value);
     }
 
-    m_script_or_module.visit(
-        [](Empty) {},
-        [&](auto& script_or_module) {
-            visitor.visit(script_or_module);
-        });
+    visitor.visit(m_script_or_module);
 }
 
 // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod
@@ -349,7 +338,9 @@ void ECMAScriptFunctionObject::prepare_for_ordinary_call(VM& vm, ExecutionContex
     if (function_environment_needed()) {
         // 7. Let localEnv be NewFunctionEnvironment(F, newTarget).
         auto local_environment = new_function_environment(*this, new_target);
-        local_environment->ensure_capacity(shared_data().m_function_environment_bindings_count);
+        auto function_environment_bindings_count = shared_data().m_function_environment_bindings_count;
+        local_environment->set_environment_shape_cache(shared_data().m_function_environment_shape, function_environment_bindings_count);
+        local_environment->ensure_capacity(function_environment_bindings_count);
 
         // 8. Set the LexicalEnvironment of calleeContext to localEnv.
         callee_context.lexical_environment = local_environment;

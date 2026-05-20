@@ -23,8 +23,9 @@
 <script src="include.js"></script>
 <div id="scrollable"><div id="content"></div></div>
 <script>
-    test(() => {
-        internals.wheel(10, 10, 0, 1000);
+    promiseTest(async () => {
+        await internals.wheel(10, 10, 0, 1000);
+
         const scrollable = document.getElementById("scrollable");
         println("scrollable.scrollTop: " + scrollable.scrollTop);
         println("window.scrollY: " + window.scrollY);

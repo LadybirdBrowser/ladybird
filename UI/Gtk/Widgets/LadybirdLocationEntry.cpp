@@ -18,10 +18,13 @@
 struct LocationEntryState {
     NonnullOwnPtr<WebView::Autocomplete> autocomplete;
     Vector<WebView::AutocompleteSuggestion> suggestions;
+    Ladybird::GObjectPtr<GdkPaintable> favicon;
     int selected_index { -1 };
     String user_text;
     bool is_focused { false };
+    bool is_loading { false };
     bool updating_text { false };
+    guint loading_pulse_source_id { 0 };
     Function<void(String)> on_navigate;
 };
 
@@ -51,6 +54,7 @@ static void ladybird_location_entry_hide_completions(LadybirdLocationEntry* self
 static void ladybird_location_entry_navigate(LadybirdLocationEntry* self);
 static void ladybird_location_entry_move_selection(LadybirdLocationEntry* self, int delta);
 static void ladybird_location_entry_apply_selected_suggestion(LadybirdLocationEntry* self);
+static void ladybird_location_entry_update_leading_icon(LadybirdLocationEntry* self);
 
 static void set_entry_text_suppressed(LadybirdLocationEntry* self, char const* text, bool move_cursor_to_end = false)
 {
@@ -64,6 +68,10 @@ static void set_entry_text_suppressed(LadybirdLocationEntry* self, char const* t
 static void ladybird_location_entry_finalize(GObject* object)
 {
     auto* self = LADYBIRD_LOCATION_ENTRY(object);
+    if (self->state && self->state->loading_pulse_source_id != 0) {
+        g_source_remove(self->state->loading_pulse_source_id);
+        self->state->loading_pulse_source_id = 0;
+    }
     if (self->popover) {
         gtk_popover_popdown(self->popover);
         gtk_widget_unparent(GTK_WIDGET(self->popover));
@@ -81,7 +89,18 @@ static void ladybird_location_entry_class_init(LadybirdLocationEntryClass* klass
 
 static void ladybird_location_entry_init(LadybirdLocationEntry* self)
 {
-    self->state = adopt_own(*new LocationEntryState { .autocomplete = make<WebView::Autocomplete>(), .suggestions = {}, .user_text = {}, .on_navigate = {} });
+    self->state = adopt_own(*new LocationEntryState {
+        .autocomplete = make<WebView::Autocomplete>(),
+        .suggestions = {},
+        .favicon = {},
+        .selected_index = -1,
+        .user_text = {},
+        .is_focused = false,
+        .is_loading = false,
+        .updating_text = false,
+        .loading_pulse_source_id = 0,
+        .on_navigate = {},
+    });
 
     gtk_widget_set_hexpand(GTK_WIDGET(self), TRUE);
 
@@ -193,21 +212,6 @@ void ladybird_location_entry_set_url(LadybirdLocationEntry* self, char const* ur
 {
     set_entry_text_suppressed(self, url ? url : "");
 
-    // Extract scheme for security icon
-    if (url) {
-        auto sv = StringView(url, strlen(url));
-        auto colon = sv.find(':');
-        if (colon.has_value()) {
-            auto scheme = sv.substring_view(0, *colon);
-            auto scheme_bs = ByteString(scheme);
-            ladybird_location_entry_set_security_icon(self, scheme_bs.characters());
-        } else {
-            ladybird_location_entry_set_security_icon(self, nullptr);
-        }
-    } else {
-        ladybird_location_entry_set_security_icon(self, nullptr);
-    }
-
     if (!self->state->is_focused)
         ladybird_location_entry_update_display_attributes(self);
 }
@@ -216,26 +220,60 @@ void ladybird_location_entry_set_text(LadybirdLocationEntry* self, char const* t
 {
     set_entry_text_suppressed(self, text ? text : "");
     gtk_entry_set_attributes(GTK_ENTRY(self), nullptr);
-    ladybird_location_entry_set_security_icon(self, nullptr);
+    ladybird_location_entry_set_favicon(self, nullptr);
 }
 
-void ladybird_location_entry_set_security_icon(LadybirdLocationEntry* self, char const* scheme)
+void ladybird_location_entry_set_favicon(LadybirdLocationEntry* self, GdkPaintable* favicon)
 {
-    if (!scheme) {
-        gtk_entry_set_icon_from_icon_name(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, nullptr);
+    self->state->favicon = Ladybird::GObjectPtr<GdkPaintable>(favicon ? GDK_PAINTABLE(g_object_ref(favicon)) : nullptr);
+    ladybird_location_entry_update_leading_icon(self);
+}
+
+void ladybird_location_entry_set_loading(LadybirdLocationEntry* self, bool is_loading)
+{
+    if (self->state->is_loading == is_loading)
+        return;
+
+    self->state->is_loading = is_loading;
+    if (self->state->is_loading) {
+        gtk_entry_set_progress_pulse_step(GTK_ENTRY(self), 0.15);
+        self->state->loading_pulse_source_id = g_timeout_add_full(
+            G_PRIORITY_DEFAULT,
+            100,
+            +[](gpointer user_data) -> gboolean {
+                auto* self = LADYBIRD_LOCATION_ENTRY(user_data);
+                gtk_entry_progress_pulse(GTK_ENTRY(self));
+                return G_SOURCE_CONTINUE;
+            },
+            self,
+            nullptr);
+    } else {
+        if (self->state->loading_pulse_source_id != 0) {
+            g_source_remove(self->state->loading_pulse_source_id);
+            self->state->loading_pulse_source_id = 0;
+        }
+        gtk_entry_set_progress_fraction(GTK_ENTRY(self), 0.0);
+    }
+
+    ladybird_location_entry_update_leading_icon(self);
+}
+
+static void ladybird_location_entry_update_leading_icon(LadybirdLocationEntry* self)
+{
+    if (self->state->is_loading) {
+        gtk_entry_set_icon_from_icon_name(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, "process-working-symbolic");
+        gtk_entry_set_icon_tooltip_text(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, "Loading");
         return;
     }
 
-    auto sv = StringView(scheme, strlen(scheme));
-    if (sv == "https"sv) {
-        gtk_entry_set_icon_from_icon_name(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, "channel-secure-symbolic");
-        gtk_entry_set_icon_tooltip_text(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, "Secure connection");
-    } else if (sv == "file"sv || sv == "resource"sv || sv == "about"sv || sv == "data"sv) {
-        gtk_entry_set_icon_from_icon_name(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, nullptr);
-    } else {
-        gtk_entry_set_icon_from_icon_name(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, "channel-insecure-symbolic");
-        gtk_entry_set_icon_tooltip_text(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, "Insecure connection");
+    if (self->state->favicon.ptr()) {
+        gtk_entry_set_icon_from_paintable(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, self->state->favicon.ptr());
+        gtk_entry_set_icon_tooltip_text(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, "Page icon");
+        return;
     }
+
+    gtk_entry_set_icon_from_icon_name(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, nullptr);
+    gtk_entry_set_icon_tooltip_text(GTK_ENTRY(self), GTK_ENTRY_ICON_PRIMARY, nullptr);
 }
 
 void ladybird_location_entry_focus_and_select_all(LadybirdLocationEntry* self)

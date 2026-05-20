@@ -1,0 +1,3 @@
+active observer callback: 200px x 200px
+active callbacks after first rendering opportunity: 1
+active callbacks after second rendering opportunity: 1

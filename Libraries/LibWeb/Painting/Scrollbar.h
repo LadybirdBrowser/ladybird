@@ -30,7 +30,7 @@ private:
     MouseAction mouse_down(CSSPixelPoint, unsigned button);
     MouseAction mouse_move(CSSPixelPoint);
     MouseAction mouse_up(CSSPixelPoint, unsigned button);
-    void scroll_to_mouse_position(CSSPixelPoint);
+    bool scroll_to_mouse_position(CSSPixelPoint);
 
     WeakPtr<PaintableBox> m_paintable_box;
     PaintableBox::ScrollDirection m_direction;

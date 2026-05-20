@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+#grid {
+    display: grid;
+    grid-template-columns: 272px 1fr;
+    width: 1280px;
+}
+
+#item {
+    box-sizing: border-box;
+    grid-column-start: 2;
+    height: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: calc(1080px - 72px);
+    padding-left: 24px;
+    padding-right: 24px;
+    width: 1120px;
+}
+</style>
+<div id="grid">
+    <div id="item"></div>
+</div>
+<script>
+test(() => {
+    const grid = document.getElementById("grid");
+    const item = document.getElementById("item");
+
+    println(`document scroll width: ${document.documentElement.scrollWidth}`);
+    println(`grid-template-columns: ${getComputedStyle(grid).gridTemplateColumns}`);
+    println(`item left: ${Math.round(item.getBoundingClientRect().left)}`);
+    println(`item right: ${Math.round(item.getBoundingClientRect().right)}`);
+    println(`item width: ${Math.round(item.getBoundingClientRect().width)}`);
+    println(`item margin-left: ${getComputedStyle(item).marginLeft}`);
+    println(`item margin-right: ${getComputedStyle(item).marginRight}`);
+});
+</script>

@@ -1,0 +1,8 @@
+matching-child color: rgb(0, 128, 0)
+matching-child background-color: rgb(255, 255, 255)
+non-matching-child color: rgb(0, 0, 0)
+non-matching-child background-color: rgb(255, 255, 255)
+nested-child color: rgb(0, 128, 0)
+nested-child background-color: rgb(255, 255, 255)
+outer-missing-inner-matching-child color: rgb(0, 128, 0)
+outer-missing-inner-matching-child background-color: rgb(255, 255, 255)

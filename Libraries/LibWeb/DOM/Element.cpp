@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -66,6 +67,7 @@
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
@@ -116,6 +118,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -927,6 +930,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     m_style_uses_tree_counting_function = false;
     m_style_uses_if_css_function = false;
     m_style_uses_inherit_css_function = false;
+    m_style_depends_on_size_container_query = false;
     m_affected_by_has_pseudo_class_in_subject_position = false;
     m_affected_by_has_pseudo_class_in_non_subject_position = false;
     m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = false;
@@ -1013,6 +1017,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
     recompute_pseudo_element_style(CSS::PseudoElement::Before);
     recompute_pseudo_element_style(CSS::PseudoElement::After);
+    recompute_pseudo_element_style(CSS::PseudoElement::FirstLetter);
     recompute_pseudo_element_style(CSS::PseudoElement::Selection);
     if (m_rendered_in_top_layer)
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
@@ -1227,7 +1232,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 }
 
 // https://dom.spec.whatwg.org/#dom-element-attachshadow
-WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootInit init)
+WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(Bindings::ShadowRootInit const& init)
 {
     // 1. Let registry be this’s node document’s custom element registry.
     auto registry = document().custom_element_registry();
@@ -2723,12 +2728,17 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     // block flow direction position block, an inline base direction position inline, and a scrolling box scrolling box,
     // run the following steps:
 
-    if (!scrolling_box.is_document()) {
-        // FIXME: Add support for scrolling boxes other than the viewport.
+    CSSPixelRect scrolling_box_rect;
+    CSSPixelPoint scroll_offset;
+    if (scrolling_box.is_document()) {
+        // NOTE: For a viewport scrolling box is initial containing block
+        scrolling_box_rect = scrolling_box.document().viewport_rect();
+    } else if (auto paintable_box = scrolling_box.paintable_box()) {
+        scroll_offset = paintable_box->scroll_offset();
+        scrolling_box_rect = paintable_box->absolute_rect().translated(scroll_offset);
+    } else {
         return {};
     }
-    // NOTE: For a viewport scrolling box is initial containing block
-    CSSPixelRect scrolling_box_rect = scrolling_box.document().viewport_rect();
 
     // FIXME: All of this needs to support different block/inline directions.
 
@@ -2736,6 +2746,56 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     //    getBoundingClientRect(), if target is an Element, or Range’s getBoundingClientRect(),
     //    if target is a Range.
     auto target_bounding_border_box = target.get_bounding_client_rect();
+
+    // AD-HOC: If scrolling_box is a box, translate target bounding box so that the following math works for both the
+    //         viewport and a regular scrollable box.
+    if (!scrolling_box.is_document()) {
+        target_bounding_border_box.translate_by(scroll_offset);
+        target_bounding_border_box.translate_by(-scrolling_box.paintable_box()->absolute_rect().top_left());
+    }
+
+    // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
+    //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
+    auto scroll_margin = target.computed_properties()->length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0));
+    auto& target_layout_node = *target.layout_node();
+    auto scroll_margin_top = scroll_margin.top().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+    auto scroll_margin_right = scroll_margin.right().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+    auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+    auto scroll_margin_left = scroll_margin.left().to_px_or_zero(target_layout_node, CSSPixels { 0 });
+
+    target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_margin_top);
+    target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
+    target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
+    target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
+
+    auto scrolling_box_computed_properties = [&scrolling_box]() -> GC::Ptr<CSS::ComputedProperties const> {
+        if (scrolling_box.is_document()) {
+            return scrolling_box.document().scrolling_element()->computed_properties();
+        }
+
+        if (auto const* element = as_if<DOM::Element>(scrolling_box)) {
+            return element->computed_properties();
+        }
+
+        return nullptr;
+    }();
+
+    if (scrolling_box_computed_properties) {
+        auto scroll_padding = scrolling_box_computed_properties->length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::Length::make_px(0));
+        auto& scrolling_box_layout_node = *scrolling_box.layout_node();
+        auto scrolling_box_width = scrolling_box_rect.width();
+        auto scrolling_box_height = scrolling_box_rect.height();
+
+        auto scroll_padding_top = scroll_padding.top().to_px_or_zero(scrolling_box_layout_node, scrolling_box_height);
+        auto scroll_padding_right = scroll_padding.right().to_px_or_zero(scrolling_box_layout_node, scrolling_box_width);
+        auto scroll_padding_bottom = scroll_padding.bottom().to_px_or_zero(scrolling_box_layout_node, scrolling_box_height);
+        auto scroll_padding_left = scroll_padding.left().to_px_or_zero(scrolling_box_layout_node, scrolling_box_width);
+
+        target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_padding_top);
+        target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_padding_left + scroll_padding_right);
+        target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_padding_top + scroll_padding_bottom);
+        target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_padding_left);
+    }
 
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
@@ -2783,7 +2843,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         }
         // 2. Otherwise, if block is "end", then align element edge B with scrolling box edge B.
         else if (block == Bindings::ScrollLogicalPosition::End) {
-            y = element_edge_a + element_height - scrolling_box_height;
+            y = element_edge_b - scrolling_box_height;
         }
         // 3. Otherwise, if block is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s block flow direction.
@@ -2806,7 +2866,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
             // If element edge B is outside scrolling box edge B and element height is less than scrolling box height
             else if ((element_edge_b >= scrolling_box_height && element_height < scrolling_box_height) || (element_edge_a <= 0 && element_height > scrolling_box_height)) {
                 // Align element edge B with scrolling box edge B.
-                y = element_edge_a + element_height - scrolling_box_height;
+                y = element_edge_b - scrolling_box_height;
             }
         }
 
@@ -2816,7 +2876,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         }
         // 6. Otherwise, if inline is "end", then align element edge D with scrolling box edge D.
         else if (inline_ == Bindings::ScrollLogicalPosition::End) {
-            x = element_edge_d + element_width - scrolling_box_width;
+            x = element_edge_d - scrolling_box_width;
         }
         // 7. Otherwise, if inline is "center", then align the center of target bounding border box with the center of
         //    scrolling box in scrolling box’s inline base direction.
@@ -2839,9 +2899,14 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
             // If element edge D is outside scrolling box edge D and element width is less than scrolling box width
             else if ((element_edge_d >= scrolling_box_width && element_width < scrolling_box_width) || (element_edge_c <= 0 && element_width > scrolling_box_width)) {
                 // Align element edge D with scrolling box edge D.
-                x = element_edge_d + element_width - scrolling_box_width;
+                x = element_edge_d - scrolling_box_width;
             }
         }
+
+        // FIXME: 9. If target is an Element, and the target element defines some scroll snap positions, then the user
+        //           agent must scroll snap the resulting position to one of that element’s scroll snap positions if its
+        //           nearest scroll container is a scroll snap container. The user agent may also do this even when the
+        //           scroll container has scroll-snap-type: none.
 
         return CSSPixelPoint { x, y };
     }();
@@ -2882,8 +2947,9 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
         // FIXME: Actually check this condition.
         if (true) {
             // -> If scrolling box is associated with an element
-            if (scrolling_box.is_element()) {
+            if (auto* element = as_if<Element>(scrolling_box)) {
                 // FIXME: Perform a scroll of the element’s scrolling box to position, with the element as the associated element and behavior as the scroll behavior.
+                element->paintable_box()->set_scroll_offset(position);
             }
             // -> If scrolling box is associated with a viewport
             else if (scrolling_box.is_document()) {
@@ -2923,7 +2989,7 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview
-GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> arg)
+GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Bindings::ScrollIntoViewOptions>> arg)
 {
     // 1. Let behavior be "auto".
     auto behavior = Bindings::ScrollBehavior::Auto;
@@ -2938,8 +3004,8 @@ GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Scroll
     GC::Ptr<Element> container = nullptr;
 
     // 5. If arg is a ScrollIntoViewOptions dictionary, then:
-    if (arg.has_value() && arg->has<ScrollIntoViewOptions>()) {
-        auto options = arg->get<ScrollIntoViewOptions>();
+    if (arg.has_value() && arg->has<Bindings::ScrollIntoViewOptions>()) {
+        auto options = arg->get<Bindings::ScrollIntoViewOptions>();
 
         // 1. Set behavior to the behavior dictionary member of options.
         behavior = options.behavior;
@@ -3541,6 +3607,20 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS
     return ensure_pseudo_element(pseudo_element.value()).custom_property_data();
 }
 
+bool Element::refresh_inherited_custom_property_data()
+{
+    RefPtr<CSS::CustomPropertyData const> parent_data;
+    if (auto inherit_from = element_to_inherit_style_from({})) {
+        if (auto data = inherit_from->custom_property_data({}))
+            parent_data = data->inheritable(document());
+    }
+
+    if (m_custom_property_data == parent_data)
+        return false;
+    m_custom_property_data = move(parent_data);
+    return true;
+}
+
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
 GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 {
@@ -3619,7 +3699,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
-GC::Ref<WebIDL::Promise> Element::scroll(HTML::ScrollToOptions options)
+GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
 {
     // 1. If invoked with one argument, follow these substeps:
     //     1. Let options be the argument.
@@ -3637,20 +3717,20 @@ GC::Ref<WebIDL::Promise> Element::scroll_by(double x, double y)
 {
     // 2. If invoked with two arguments, follow these substeps:
     //    1. Let options be null converted to a ScrollToOptions dictionary. [WEBIDL]
-    HTML::ScrollToOptions options;
+    Bindings::ScrollToOptions options;
 
     //    2. Let x and y be the arguments, respectively.
     //    3. Normalize non-finite values for x and y.
     //    4. Let the left dictionary member of options have the value x.
     //    5. Let the top dictionary member of options have the value y.
-    // NOTE: Element::scroll_by(HTML::ScrollToOptions) performs the normalization and following steps.
+    // NOTE: Element::scroll_by(Bindings::ScrollToOptions) performs the normalization and following steps.
     options.left = x;
     options.top = y;
     return scroll_by(options);
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollby
-GC::Ref<WebIDL::Promise> Element::scroll_by(HTML::ScrollToOptions options)
+GC::Ref<WebIDL::Promise> Element::scroll_by(Bindings::ScrollToOptions options)
 {
     // 1. If invoked with one argument, follow these substeps:
     //    1. Let options be the argument.
@@ -3671,7 +3751,7 @@ GC::Ref<WebIDL::Promise> Element::scroll_by(HTML::ScrollToOptions options)
 }
 
 // https://drafts.csswg.org/cssom-view-1/#dom-element-checkvisibility
-bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
+bool Element::check_visibility(Optional<Bindings::CheckVisibilityOptions> options)
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     document().update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementCheckVisibility);
@@ -4403,7 +4483,7 @@ ElementByIdMap& Element::document_or_shadow_root_element_by_id_map()
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
-WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) const
+WebIDL::ExceptionOr<String> Element::get_html(Bindings::GetHTMLOptions const& options) const
 {
     // Element's getHTML(options) method steps are to return the result
     // of HTML fragment serialization algorithm with this,
@@ -4762,7 +4842,7 @@ double Element::ensure_css_random_base_value(CSS::RandomCachingKey const& random
     });
 }
 
-GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<PointerLockOptions>)
+GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<Bindings::PointerLockOptions>)
 {
     dbgln("FIXME: request_pointer_lock()");
     auto promise = WebIDL::create_promise(realm());

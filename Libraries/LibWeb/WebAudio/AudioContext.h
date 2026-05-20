@@ -14,29 +14,19 @@
 
 namespace Web::WebAudio {
 
-struct AudioContextOptions {
-    Variant<Bindings::AudioContextLatencyCategory, double> latency_hint = Bindings::AudioContextLatencyCategory::Interactive;
-    Optional<float> sample_rate;
-};
-
-struct AudioTimestamp {
-    double context_time { 0 };
-    double performance_time { 0 };
-};
-
 // https://webaudio.github.io/web-audio-api/#AudioContext
 class AudioContext final : public BaseAudioContext {
     WEB_PLATFORM_OBJECT(AudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(AudioContext);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, Optional<AudioContextOptions> const& context_options = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, Optional<Bindings::AudioContextOptions> const& context_options = {});
 
     virtual ~AudioContext() override;
 
     double base_latency() const { return m_base_latency; }
     double output_latency() const { return m_output_latency; }
-    AudioTimestamp get_output_timestamp();
+    Bindings::AudioTimestamp get_output_timestamp();
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> resume();
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> suspend();
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> close();

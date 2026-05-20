@@ -7,6 +7,8 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibGC/RootHashTable.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -75,7 +77,7 @@ ThrowCompletionOr<void> Module::evaluate_module_sync(VM& vm)
 }
 
 // 16.2.1.5.1.1 InnerModuleLinking ( module, stack, index ), https://tc39.es/ecma262/#sec-InnerModuleLinking
-ThrowCompletionOr<u32> Module::inner_module_linking(VM& vm, Vector<Module*>&, u32 index)
+ThrowCompletionOr<u32> Module::inner_module_linking(VM& vm, GC::RootVector<GC::Ref<Module>>&, u32 index)
 {
     // 1. If module is not a Cyclic Module Record, then
     // a. Perform ? module.Link().
@@ -85,7 +87,7 @@ ThrowCompletionOr<u32> Module::inner_module_linking(VM& vm, Vector<Module*>&, u3
 }
 
 // 16.2.1.5.2.1 InnerModuleEvaluation ( module, stack, index ), https://tc39.es/ecma262/#sec-innermoduleevaluation
-ThrowCompletionOr<u32> Module::inner_module_evaluation(VM& vm, Vector<Module*>&, u32 index)
+ThrowCompletionOr<u32> Module::inner_module_evaluation(VM& vm, GC::RootVector<GC::Ref<Module>>&, u32 index)
 {
     // 1. If module is not a Cyclic Module Record, then
     // a. Perform ? EvaluateModuleSync(module).
@@ -186,7 +188,7 @@ GC::Ref<Object> Module::get_module_namespace(VM& vm)
 
 Vector<Utf16FlyString> Module::get_exported_names(VM& vm)
 {
-    HashTable<Module const*> export_star_set;
+    GC::RootHashTable<GC::Ref<Module const>> export_star_set(vm.heap());
     return get_exported_names(vm, export_star_set);
 }
 

@@ -17,6 +17,11 @@
 
 namespace Web::CSS::Parser {
 
+enum class TokenizerInput {
+    DecodedText,
+    EncodedBytes,
+};
+
 class U32Twin {
 public:
     void set(size_t index, u32 value)
@@ -60,7 +65,7 @@ public:
 
 class WEB_API Tokenizer {
 public:
-    static Vector<Token> tokenize(StringView input, StringView encoding);
+    static Vector<Token> tokenize(StringView input, StringView encoding, TokenizerInput = TokenizerInput::DecodedText);
 
     [[nodiscard]] static Token create_eof_token();
 

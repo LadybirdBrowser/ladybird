@@ -1,0 +1,39 @@
+<!doctype html>
+<title>@container-dependent elements respond to container size changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #container {
+    container-type: size;
+    width: 200px;
+    height: 50px;
+  }
+  div { color: red; }
+  @container (min-width: 300px) {
+    div { color: green; }
+  }
+</style>
+<main id=container>
+  <div id=child>
+    Test
+    <p><span id=descendant>Deep</span></p>
+  </div>
+</main>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(function() {
+    assert_equals(getComputedStyle(child).color, 'rgb(255, 0, 0)');
+    container.style.width = '300px';
+    assert_equals(getComputedStyle(child).color, 'rgb(0, 128, 0)');
+  }, 'Children respond to changes in container size');
+
+  test(function() {
+    container.style = '';
+    assert_equals(getComputedStyle(descendant).color, 'rgb(255, 0, 0)');
+    container.style.width = '300px';
+    assert_equals(getComputedStyle(descendant).color, 'rgb(0, 128, 0)');
+  }, 'Descendants respond to changes in container size');
+</script>

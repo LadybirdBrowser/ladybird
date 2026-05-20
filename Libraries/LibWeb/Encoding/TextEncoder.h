@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -17,12 +18,6 @@
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Encoding {
-
-// https://encoding.spec.whatwg.org/#dictdef-textencoderencodeintoresult
-struct TextEncoderEncodeIntoResult {
-    WebIDL::UnsignedLongLong read;
-    WebIDL::UnsignedLongLong written;
-};
 
 // https://encoding.spec.whatwg.org/#textencoder
 class TextEncoder final
@@ -37,7 +32,7 @@ public:
     virtual ~TextEncoder() override;
 
     GC::Ref<JS::Uint8Array> encode(String const& input) const;
-    TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const;
+    Bindings::TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const;
 
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder

@@ -1,0 +1,8 @@
+#include <LibGfx/Rect.h>
+#include <LibGfx/SharedImage.h>
+
+endpoint CompositorClient
+{
+    did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) =|
+    did_paint(u64 page_id, Gfx::IntRect content_rect, i32 bitmap_id) =|
+}

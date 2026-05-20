@@ -15,22 +15,24 @@ namespace Gfx {
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, u32 ttc_index)
 {
-    auto font_data = Gfx::FontData::create_from_resource(resource);
-    return try_load_from_font_data(move(font_data), ttc_index);
+    auto typeface = TRY(try_load_from_externally_owned_memory(resource.data(), ttc_index));
+    typeface->set_resource_font_data(resource);
+    return typeface;
 }
 
-ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_font_data(NonnullOwnPtr<Gfx::FontData> font_data, u32 ttc_index)
+ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_anonymous_buffer(Core::AnonymousBuffer anonymous_buffer, u32 ttc_index)
 {
-    auto typeface = TRY(try_load_from_externally_owned_memory(font_data->bytes(), ttc_index));
-    typeface->m_font_data = move(font_data);
+    auto typeface = TRY(try_load_from_externally_owned_memory(anonymous_buffer.bytes(), ttc_index));
+    typeface->set_anonymous_font_data(move(anonymous_buffer));
     return typeface;
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index)
 {
-    auto buffer = TRY(ByteBuffer::copy(bytes));
-    auto font_data = FontData::create_from_byte_buffer(move(buffer));
-    return try_load_from_font_data(move(font_data), ttc_index);
+    auto anonymous_buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size()));
+    if (!bytes.is_empty())
+        memcpy(anonymous_buffer.data<void>(), bytes.data(), bytes.size());
+    return try_load_from_anonymous_buffer(move(anonymous_buffer), ttc_index);
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index)
@@ -68,7 +70,7 @@ NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const
                 used_typeface = move(derived);
     }
 
-    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, DEFAULT_DPI, DEFAULT_DPI, variations, shape_features));
+    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, variations, shape_features));
     m_fonts.set(key, font);
     return font;
 }
@@ -80,6 +82,37 @@ hb_face_t* Typeface::harfbuzz_typeface() const
     if (!m_harfbuzz_face)
         m_harfbuzz_face = hb_face_create(m_harfbuzz_blob, ttc_index());
     return m_harfbuzz_face;
+}
+
+ReadonlyBytes Typeface::font_data_bytes() const
+{
+    if (!m_font_data.has_value())
+        return buffer();
+    return m_font_data->visit(
+        [](Core::AnonymousBuffer const& anonymous_buffer) { return anonymous_buffer.bytes(); },
+        [](NonnullRefPtr<Core::Resource const> const& resource) { return resource->data(); });
+}
+
+Optional<Core::AnonymousBuffer> Typeface::anonymous_font_data() const
+{
+    if (!m_font_data.has_value() || !m_font_data->has<Core::AnonymousBuffer>())
+        return {};
+    return m_font_data->get<Core::AnonymousBuffer>();
+}
+
+void Typeface::set_anonymous_font_data(Core::AnonymousBuffer anonymous_buffer)
+{
+    m_font_data = FontDataBacking { move(anonymous_buffer) };
+}
+
+void Typeface::set_resource_font_data(Core::Resource const& resource)
+{
+    m_font_data = FontDataBacking { NonnullRefPtr<Core::Resource const> { resource } };
+}
+
+void Typeface::copy_font_data_from(Typeface const& other)
+{
+    m_font_data = other.m_font_data;
 }
 
 }

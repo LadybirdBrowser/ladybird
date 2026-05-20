@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+#active-box {
+    width: 200px;
+    height: 200px;
+}
+</style>
+<script src="../include.js"></script>
+<div id="active-box"></div>
+<script>
+    let deadBox = null;
+
+    asyncTest(async done => {
+        let deadObserver = new ResizeObserver(() => {
+            println("dead observer callback");
+        });
+
+        deadBox = document.createElement("div");
+        deadBox.style.width = "100px";
+        deadBox.style.height = "100px";
+        document.body.appendChild(deadBox);
+        deadObserver.observe(deadBox);
+        deadBox.remove();
+        internals.markAsGarbage("deadBox");
+        internals.gc();
+
+        let activeCallbackCount = 0;
+        let activeObserver = new ResizeObserver(entries => {
+            ++activeCallbackCount;
+            const { width, height } = entries[0].contentRect;
+            println(`active observer callback: ${width}px x ${height}px`);
+        });
+        activeObserver.observe(document.getElementById("active-box"));
+
+        await animationFrame();
+        await timeout(0);
+        println(`active callbacks after first rendering opportunity: ${activeCallbackCount}`);
+
+        await animationFrame();
+        await timeout(0);
+        println(`active callbacks after second rendering opportunity: ${activeCallbackCount}`);
+
+        done();
+    });
+</script>

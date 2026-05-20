@@ -17,12 +17,13 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaTimeProvider.h>
+#include <LibMedia/PipelineStatus.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
-#include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Media {
 
@@ -107,14 +108,14 @@ public:
 private:
     struct VideoTrackData {
         Track track;
-        NonnullRefPtr<VideoDataProvider> provider;
+        NonnullRefPtr<DecodedVideoProducer> producer;
         RefPtr<DisplayingVideoSink> display;
     };
     using VideoTrackDatas = Vector<VideoTrackData, EXPECTED_VIDEO_TRACK_COUNT>;
 
     struct AudioTrackData {
         Track track;
-        NonnullRefPtr<AudioDataProvider> provider;
+        NonnullRefPtr<DecodedAudioProducer> producer;
         bool enabled { false };
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
@@ -124,9 +125,10 @@ private:
     void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
     void disable_audio();
 
-    void set_up_data_providers();
-    void track_started_buffering(Track const&);
-    void track_stopped_buffering(Track const&);
+    void set_up_producers();
+    void on_audio_sink_state_changed(PipelineStatus);
+    void on_video_sink_state_changed(Track const&, PipelineStatus);
+    void update_buffering_state();
     void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
 
@@ -169,7 +171,8 @@ private:
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;
 
-    RefPtr<AudioMixingSink> m_audio_sink;
+    RefPtr<AudioMixer> m_audio_mixer;
+    RefPtr<AudioPlaybackSink> m_audio_sink;
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
 
@@ -179,7 +182,9 @@ private:
     AK::Duration m_duration;
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
-    HashTable<Track> m_tracks_still_buffering;
+    bool m_audio_buffering { false };
+    HashTable<Track> m_video_tracks_buffering;
+    bool m_was_buffering { false };
 
     bool m_is_in_error_state { false };
 };
@@ -223,7 +228,7 @@ public:
 
     void revoke(Badge<PlaybackManager>)
     {
-        Threading::MutexLocker locker { m_mutex };
+        Sync::MutexLocker locker { m_mutex };
         m_manager = nullptr;
     }
 
@@ -234,7 +239,7 @@ private:
         VERIFY(&Core::EventLoop::current() == &m_originating_event_loop);
     }
 
-    mutable Threading::Mutex m_mutex;
+    mutable Sync::Mutex m_mutex;
     PlaybackManager* m_manager { nullptr };
     Core::EventLoop& m_originating_event_loop;
 };

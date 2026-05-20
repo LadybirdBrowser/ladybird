@@ -29,8 +29,8 @@ public:
 
     virtual bool is_focusable() const { return false; }
 
-    void add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<AddEventListenerOptions, bool> const& options);
-    void remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<EventListenerOptions, bool> const& options);
+    void add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::AddEventListenerOptions, bool> const& options);
+    void remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<Bindings::EventListenerOptions, bool> const& options);
 
     // NOTE: These are for internal use only. They operate as though addEventListener(type, callback) was called instead of addEventListener(type, callback, options).
     void add_event_listener_without_options(FlyString const& type, IDLEventListener& callback);
@@ -44,7 +44,7 @@ public:
     void add_an_event_listener(DOMEventListener&);
     void remove_an_event_listener(DOMEventListener&);
 
-    Vector<GC::Root<DOMEventListener>> event_listener_list();
+    Vector<GC::Root<DOMEventListener>> event_listener_list() const;
 
     virtual bool has_activation_behavior() const;
     virtual void activation_behavior(Event const&);
@@ -58,6 +58,7 @@ public:
     void set_event_handler_attribute(FlyString const& name, WebIDL::CallbackType*);
 
     bool has_event_listener(FlyString const& type) const;
+    bool has_blocking_wheel_event_listener() const;
     bool has_event_listeners() const;
 
     virtual bool is_universal_global_scope_mixin() const { return false; }

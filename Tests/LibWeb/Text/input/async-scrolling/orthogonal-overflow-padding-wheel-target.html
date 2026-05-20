@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 92px;
+        height: 100px;
+        padding-right: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    #spacer {
+        width: 50px;
+        height: 200px;
+    }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<script>
+    test(() => {
+        println(`client width: ${scroller.clientWidth}`);
+        println(`scroll width: ${scroller.scrollWidth}`);
+        println(`horizontal wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 100, 0)}`);
+    });
+</script>

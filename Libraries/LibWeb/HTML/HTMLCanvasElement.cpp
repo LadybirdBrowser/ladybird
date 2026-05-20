@@ -7,7 +7,7 @@
 #include <AK/Base64.h>
 #include <AK/Checked.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/SharedImage.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -54,6 +54,7 @@ void HTMLCanvasElement::initialize(JS::Realm& realm)
 
 void HTMLCanvasElement::finalize()
 {
+    clear_compositor_surface();
     Base::finalize();
     document().page().unregister_canvas_element({}, unique_id());
 }
@@ -61,18 +62,7 @@ void HTMLCanvasElement::finalize()
 void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_context.visit(
-        [&](GC::Ref<CanvasRenderingContext2D>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [](Empty) {
-        });
+    visitor.visit(m_context);
 }
 
 bool HTMLCanvasElement::is_presentational_hint(FlyString const& name) const
@@ -142,17 +132,16 @@ WebIDL::UnsignedLong HTMLCanvasElement::height() const
     return 150;
 }
 
-Painting::ExternalContentSource& HTMLCanvasElement::ensure_external_content_source()
+Painting::CompositorSurfaceId HTMLCanvasElement::ensure_compositor_surface_id()
 {
-    if (!m_external_content_source)
-        m_external_content_source = Painting::ExternalContentSource::create();
-    return *m_external_content_source;
+    if (!m_compositor_surface_id.has_value())
+        m_compositor_surface_id = Painting::allocate_compositor_surface_id();
+    return *m_compositor_surface_id;
 }
 
 void HTMLCanvasElement::reset_context_to_default_state()
 {
-    if (m_external_content_source)
-        m_external_content_source->clear();
+    clear_compositor_surface();
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>& context) {
             context->reset_to_default_state();
@@ -464,9 +453,17 @@ void HTMLCanvasElement::present()
 
     if (auto surface = this->surface()) {
         surface->flush();
-        auto snapshot = Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
-        ensure_external_content_source().update(snapshot);
+        if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
+            navigable->compositor_context().update_compositor_surface(ensure_compositor_surface_id(), surface->snapshot_into_shared_image());
     }
+}
+
+void HTMLCanvasElement::clear_compositor_surface()
+{
+    if (!m_compositor_surface_id.has_value())
+        return;
+    if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
+        navigable->compositor_context().clear_compositor_surface(*m_compositor_surface_id);
 }
 
 RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const

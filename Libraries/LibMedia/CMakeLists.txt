@@ -4,23 +4,24 @@ set(SOURCES
     Audio/AudioDevices.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
+    GenericTimeProvider.cpp
     IncrementallyPopulatedStream.cpp
     PlaybackManager.cpp
     PlaybackStates/StartingStateHandler.cpp
     PlaybackStates/PausedStateHandler.cpp
     PlaybackStates/PlaybackStateHandler.cpp
     PlaybackStates/ResumingStateHandler.cpp
-    Providers/AudioDataProvider.cpp
-    Providers/GenericTimeProvider.cpp
-    Providers/VideoDataProvider.cpp
-    Sinks/AudioMixingSink.cpp
+    Processors/AudioMixer.cpp
+    Producers/DecodedAudioProducer.cpp
+    Producers/DecodedVideoProducer.cpp
+    Sinks/AudioPlaybackSink.cpp
     Sinks/DisplayingVideoSink.cpp
     TimeRanges.cpp
     VideoFrame.cpp
 )
 
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
+target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibSync LibThreading LibUnicode)
 
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp

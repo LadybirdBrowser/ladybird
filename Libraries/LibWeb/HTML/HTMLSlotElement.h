@@ -10,15 +10,12 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
+#include <LibWeb/Bindings/HTMLSlotElement.h>
 #include <LibWeb/DOM/Slot.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::HTML {
-
-struct AssignedNodesOptions {
-    bool flatten { false };
-};
 
 class HTMLSlotElement final
     : public HTMLElement
@@ -29,8 +26,8 @@ class HTMLSlotElement final
 public:
     virtual ~HTMLSlotElement() override;
 
-    Vector<GC::Root<DOM::Node>> assigned_nodes(AssignedNodesOptions options = {}) const;
-    Vector<GC::Root<DOM::Element>> assigned_elements(AssignedNodesOptions options = {}) const;
+    Vector<GC::Root<DOM::Node>> assigned_nodes(Bindings::AssignedNodesOptions options = {}) const;
+    Vector<GC::Root<DOM::Element>> assigned_elements(Bindings::AssignedNodesOptions options = {}) const;
 
     using SlottableHandle = Variant<GC::Root<DOM::Element>, GC::Root<DOM::Text>>;
     void assign(Vector<SlottableHandle> nodes);

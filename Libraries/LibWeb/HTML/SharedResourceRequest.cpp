@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -27,13 +29,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SharedResourceRequest);
 
+static u64 s_next_memory_cache_touch_serial;
+
 GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(JS::Realm& realm, GC::Ref<Page> page, URL::URL const& url)
 {
     auto document = Bindings::principal_host_defined_environment_settings_object(realm).responsible_document();
     VERIFY(document);
     auto& shared_resource_requests = document->shared_resource_requests();
-    if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end())
+    if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end()) {
+        it->value->touch_memory_cache_entry();
         return *it->value;
+    }
     auto request = realm.create<SharedResourceRequest>(page, url, *document);
     shared_resource_requests.set(url, request);
     return request;
@@ -44,6 +50,7 @@ SharedResourceRequest::SharedResourceRequest(GC::Ref<Page> page, URL::URL url, G
     , m_url(move(url))
     , m_document(document)
 {
+    touch_memory_cache_entry();
 }
 
 SharedResourceRequest::~SharedResourceRequest() = default;
@@ -51,8 +58,19 @@ SharedResourceRequest::~SharedResourceRequest() = default;
 void SharedResourceRequest::finalize()
 {
     Base::finalize();
-    auto& shared_resource_requests = m_document->shared_resource_requests();
-    shared_resource_requests.remove(m_url);
+
+    m_callbacks.clear();
+    m_load_event_delayer.clear();
+    m_image_data = nullptr;
+    m_fetch_controller = nullptr;
+
+    if (m_document) {
+        auto& shared_resource_requests = m_document->shared_resource_requests();
+        if (auto it = shared_resource_requests.find(m_url);
+            it != shared_resource_requests.end() && it->value.ptr() == this)
+            shared_resource_requests.remove(it);
+        m_document = nullptr;
+    }
 }
 
 void SharedResourceRequest::visit_edges(JS::Cell::Visitor& visitor)
@@ -73,6 +91,11 @@ GC::Ptr<DecodedImageData> SharedResourceRequest::image_data() const
     return m_image_data;
 }
 
+void SharedResourceRequest::touch_memory_cache_entry()
+{
+    m_cache_touch_serial = ++s_next_memory_cache_touch_serial;
+}
+
 GC::Ptr<Fetch::Infrastructure::FetchController> SharedResourceRequest::fetch_controller()
 {
     return m_fetch_controller.ptr();
@@ -85,24 +108,42 @@ void SharedResourceRequest::set_fetch_controller(GC::Ptr<Fetch::Infrastructure::
 
 void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
+    if (!ResourceLoader::is_initialized()) {
+        handle_failed_fetch();
+        return;
+    }
+
+    GC::Weak weak_this { *this };
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response = [this, &realm, request](GC::Ref<Fetch::Infrastructure::Response> response) {
+    fetch_algorithms_input.process_response = [weak_this, &realm, request](GC::Ref<Fetch::Infrastructure::Response> response) {
+        auto self = weak_this.ptr();
+        if (!self)
+            return;
+
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
-        auto process_body = GC::create_function(heap(), [this, request, response](ByteBuffer data) {
+        auto process_body = GC::create_function(self->heap(), [weak_this, request, response](ByteBuffer data) {
+            auto self = weak_this.ptr();
+            if (!self)
+                return;
+
             auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
             auto mime_type = extracted_mime_type.has_value() ? extracted_mime_type.value().essence().bytes_as_string_view() : StringView {};
-            handle_successful_fetch(request->url(), mime_type, move(data));
+            self->handle_successful_fetch(request->url(), mime_type, move(data));
         });
-        auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
-            handle_failed_fetch();
+        auto process_body_error = GC::create_function(self->heap(), [weak_this](JS::Value) {
+            auto self = weak_this.ptr();
+            if (!self)
+                return;
+
+            self->handle_failed_fetch();
         });
 
         // Check for failed fetch response
         if (!Fetch::Infrastructure::is_ok_status(response->status()) || !response->body()) {
-            handle_failed_fetch();
+            self->handle_failed_fetch();
             return;
         }
 
@@ -208,6 +249,7 @@ void SharedResourceRequest::handle_failed_fetch()
 {
     m_state = State::Failed;
     m_load_event_delayer.clear();
+    m_fetch_controller = nullptr;
     for (auto& callback : m_callbacks) {
         if (callback.on_fail)
             callback.on_fail->function()();
@@ -219,11 +261,13 @@ void SharedResourceRequest::handle_successful_resource_load()
 {
     m_state = State::Finished;
     m_load_event_delayer.clear();
+    m_fetch_controller = nullptr;
     for (auto& callback : m_callbacks) {
         if (callback.on_finish)
             callback.on_finish->function()();
     }
     m_callbacks.clear();
+    m_document->prune_image_resource_caches();
 }
 
 bool SharedResourceRequest::needs_fetching() const

@@ -1,4 +1,4 @@
-$69cce752 async-await.js:9:1
+$89d6cbb5 async-await.js:9:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,11 +6,11 @@ $69cce752 async-await.js:9:1
 
 block0:
   [   0] GetGlobal dst:reg6, `f`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  30] End value:reg5
 
 
-f$c9505126 async-await.js:7:5
+f$ecdffc4e async-await.js:7:5
   Registers: 10
   Blocks:    8
   Constants:
@@ -23,29 +23,29 @@ block0:
 
 block1:
   [  10] GetGlobal dst:reg6, `Promise`
-  [  28] GetById dst:reg7, base:reg6, `resolve` (Promise.resolve)
-  [  48] Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
-  [  70] Mov dst:reg7, src:reg0
-  [  80] Await continuation_label:block2, argument:reg5
+  [  20] GetById dst:reg7, base:reg6, `resolve` (Promise.resolve)
+  [  38] Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
+  [  60] Mov dst:reg7, src:reg0
+  [  70] Await continuation_label:block2, argument:reg5
 
 block2:
-  [  90] Mov dst:reg7, src:reg0
-  [  a0] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
-  [  b0] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
+  [  80] Mov dst:reg7, src:reg0
+  [  90] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
+  [  a0] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
 
 block3:
-  [  c8] Await continuation_label:block5, argument:reg8
+  [  b8] Await continuation_label:block5, argument:reg8
 
 block4:
-  [  d8] Throw src:reg8
+  [  c8] Throw src:reg8
 
 block5:
-  [  e0] Mov dst:reg5, src:reg0
-  [  f0] GetCompletionFields type_dst:reg7, value_dst:reg6, completion:reg5
-  [ 100] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block6, false_target:block7
+  [  d0] Mov dst:reg5, src:reg0
+  [  e0] GetCompletionFields type_dst:reg7, value_dst:reg6, completion:reg5
+  [  f0] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block6, false_target:block7
 
 block6:
-  [ 118] Yield value:reg6
+  [ 108] Yield value:reg6
 
 block7:
-  [ 128] Throw src:reg6
+  [ 118] Throw src:reg6

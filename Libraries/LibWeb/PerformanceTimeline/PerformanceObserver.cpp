@@ -45,7 +45,7 @@ void PerformanceObserver::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver-observe
-WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& options)
+WebIDL::ExceptionOr<void> PerformanceObserver::observe(Bindings::PerformanceObserverInit& options)
 {
     auto& realm = this->realm();
 
@@ -151,7 +151,7 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
         if (relevant_global.has_registered_performance_observer(*this)) {
             // 1. If obs's options list contains a PerformanceObserverInit item currentOptions whose type is equal to options's type,
             //    replace currentOptions with options in obs's options list.
-            auto index = m_options_list.find_first_index_if([&options](PerformanceObserverInit const& entry) {
+            auto index = m_options_list.find_first_index_if([&options](Bindings::PerformanceObserverInit const& entry) {
                 return entry.type == options.type;
             });
             if (index.has_value()) {

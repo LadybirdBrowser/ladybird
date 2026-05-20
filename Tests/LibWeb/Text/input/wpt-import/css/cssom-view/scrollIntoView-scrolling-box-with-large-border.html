@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+
+<title>CSSOM View - scrollIntoView should account for the border of scrollable elements.</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview">
+<link rel="author" title="Martin Robinson" href="mailto:mrobinson@igalia.com">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="scroller" style="overflow: scroll; border: solid 100px; width: 100px; height: 100px;">
+    <div style="height: 1000px;"></div>
+    <div id="target" style="background: green; width: 100px; height: 100px"></div>
+    <div style="height: 1000px;"></div>
+</div>
+
+<script>
+    test(function() {
+        target.scrollIntoView();
+        assert_equals(1000, scroller.scrollTop, "Should scroll the target into view.");
+    }, "scrollIntoView takes into account the border of the scroller");
+</script>

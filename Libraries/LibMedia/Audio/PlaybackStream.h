@@ -65,6 +65,10 @@ public:
     // as soon as possible instead of waiting for remaining audio to play.
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() = 0;
 
+    // Notifies the stream that the data request callback may be able to provide data now. This is used to
+    // wake playback streams that have stopped requesting data due to an underrun.
+    virtual void notify_data_available() = 0;
+
     // Returns a accurate monotonically-increasing time duration that is based on the number of samples that have
     // been played by the output device. The value is interpolated and takes into account latency to the speakers
     // whenever possible.

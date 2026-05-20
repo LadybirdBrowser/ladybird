@@ -56,7 +56,7 @@ void ResizeObserver::finalize()
 }
 
 // https://drafts.csswg.org/resize-observer-1/#dom-resizeobserver-observe
-void ResizeObserver::observe(DOM::Element& target, ResizeObserverOptions options)
+void ResizeObserver::observe(DOM::Element& target, Bindings::ResizeObserverOptions options)
 {
     // 1. If target is in [[observationTargets]] slot, call unobserve() with argument target.
     auto observation = m_observation_targets.find_if([&](auto& observation) { return observation->target().ptr() == &target; });
@@ -103,6 +103,21 @@ void ResizeObserver::disconnect()
 
     // 2. Clear the [[activeTargets]] list.
     m_active_targets.clear();
+
+    unregister_observer_if_needed();
+}
+
+void ResizeObserver::remove_dead_observations()
+{
+    m_observation_targets.remove_all_matching([](auto& observation) {
+        return !observation->target();
+    });
+    m_active_targets.remove_all_matching([](auto& observation) {
+        return !observation->target();
+    });
+    m_skipped_targets.remove_all_matching([](auto& observation) {
+        return !observation->target();
+    });
 
     unregister_observer_if_needed();
 }

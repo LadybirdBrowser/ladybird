@@ -13,16 +13,13 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/EventSource.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
-
-struct EventSourceInit {
-    bool with_credentials { false };
-};
 
 class EventSource : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(EventSource, DOM::EventTarget);
@@ -33,7 +30,7 @@ public:
 
     virtual ~EventSource() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<EventSource>> construct_impl(JS::Realm&, StringView url, EventSourceInit event_source_init_dict = {});
+    static WebIDL::ExceptionOr<GC::Ref<EventSource>> construct_impl(JS::Realm&, StringView url, Bindings::EventSourceInit const& event_source_init_dict = {});
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-url
     String url() const { return m_url.serialize(); }

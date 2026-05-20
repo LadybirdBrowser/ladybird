@@ -12,17 +12,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CommandEvent);
 
-GC::Ref<CommandEvent> CommandEvent::create(JS::Realm& realm, FlyString const& event_name, CommandEventInit event_init)
+GC::Ref<CommandEvent> CommandEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CommandEventInit const& event_init)
 {
     return realm.create<CommandEvent>(realm, event_name, move(event_init));
 }
 
-WebIDL::ExceptionOr<GC::Ref<CommandEvent>> CommandEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, CommandEventInit event_init)
+WebIDL::ExceptionOr<GC::Ref<CommandEvent>> CommandEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CommandEventInit const& event_init)
 {
     return create(realm, event_name, move(event_init));
 }
 
-CommandEvent::CommandEvent(JS::Realm& realm, FlyString const& event_name, CommandEventInit event_init)
+CommandEvent::CommandEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CommandEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_source(event_init.source)
     , m_command(move(event_init.command))

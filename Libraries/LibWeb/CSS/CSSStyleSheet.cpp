@@ -39,7 +39,7 @@ GC::Ref<CSSStyleSheet> CSSStyleSheet::create(JS::Realm& realm, CSSRuleList& rule
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-cssstylesheet
-WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Realm& realm, Optional<CSSStyleSheetInit> const& options)
+WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Realm& realm, Optional<Bindings::CSSStyleSheetInit> const& options)
 {
     // 1. Construct a new CSSStyleSheet object sheet.
     auto sheet = create(realm, CSSRuleList::create(realm), CSS::MediaList::create(realm, {}), {});

@@ -27,6 +27,7 @@
 #include <LibJS/Runtime/FunctionEnvironment.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/Symbol.h>
@@ -239,6 +240,18 @@ VM::~VM()
 {
     --s_vm_count;
     VERIFY(s_vm_count == 0);
+}
+
+SharedFunctionInstanceData* VM::active_shared_function_data()
+{
+    auto* function = active_function_object();
+    if (!function)
+        return nullptr;
+    if (auto* ecmascript_function = as_if<ECMAScriptFunctionObject>(*function))
+        return &ecmascript_function->shared_data();
+    if (auto* native_javascript_backed_function = as_if<NativeJavaScriptBackedFunction>(*function))
+        return &native_javascript_backed_function->shared_data();
+    return nullptr;
 }
 
 Utf16String const& VM::error_message(ErrorMessage type) const
@@ -488,7 +501,9 @@ void VM::run_queued_finalization_registry_cleanup_jobs()
     while (!m_finalization_registry_cleanup_jobs.is_empty()) {
         auto registry = m_finalization_registry_cleanup_jobs.take_last();
         // FIXME: Handle any uncatched exceptions here.
-        (void)registry->cleanup();
+        auto result = registry->cleanup();
+        if (result.is_error() && registry->has_empty_cells())
+            m_finalization_registry_cleanup_jobs.append(registry);
     }
 }
 
@@ -742,14 +757,14 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
 
 #if JS_MODULE_DEBUG
     ByteString referencing_module_string = referrer.visit(
-        [&](Empty) -> ByteString {
-            return ".";
+        [&](GC::Ref<Script> const& script) {
+            return ByteString::formatted("Script @ {}", script.ptr());
         },
-        [&](auto& script_or_module) {
-            if constexpr (IsSame<Script*, decltype(script_or_module)>) {
-                return ByteString::formatted("Script @ {}", script_or_module.ptr());
-            }
-            return ByteString::formatted("Module @ {}", script_or_module.ptr());
+        [&](GC::Ref<CyclicModule> const& module) {
+            return ByteString::formatted("Module @ {}", module.ptr());
+        },
+        [&](GC::Ref<Realm> const& realm) {
+            return ByteString::formatted("Realm @ {}", realm.ptr());
         });
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] load_imported_module({}, {})", referencing_module_string, filename);

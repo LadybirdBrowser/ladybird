@@ -1,0 +1,131 @@
+test("cleanupSome is not exposed", () => {
+    expect(FinalizationRegistry.prototype.cleanupSome).toBeUndefined();
+});
+
+test("basic functionality", () => {
+    var registry = new FinalizationRegistry(() => {});
+
+    var count = 0;
+    var increment = () => {
+        count++;
+    };
+
+    cleanupFinalizationRegistry(registry, increment);
+
+    expect(count).toBe(0);
+
+    evaluateSource("var __finalizationRegistryTarget = {};");
+    registry.register(globalThis.__finalizationRegistryTarget, {});
+    markAsGarbage("__finalizationRegistryTarget");
+    gc();
+
+    cleanupFinalizationRegistry(registry, increment);
+
+    expect(count).toBe(1);
+});
+
+test("callback can unregister the next record after the current record dies", () => {
+    var token2 = {};
+    var heldValues = [];
+    var registry = new FinalizationRegistry(held => {
+        heldValues.push(held);
+        if (held === "first") expect(registry.unregister(token2)).toBeTrue();
+    });
+
+    evaluateSource("var __finalizationRegistryFirst = {};");
+    evaluateSource("var __finalizationRegistrySecond = {};");
+    registry.register(globalThis.__finalizationRegistryFirst, "first");
+    registry.register(globalThis.__finalizationRegistrySecond, "second", token2);
+    markAsGarbage("__finalizationRegistryFirst");
+    markAsGarbage("__finalizationRegistrySecond");
+    gc();
+
+    cleanupFinalizationRegistry(registry);
+
+    expect(heldValues).toEqual(["first"]);
+    expect(registry.unregister(token2)).toBeFalse();
+});
+
+test("cleanup can process multiple dead records from one garbage collection", () => {
+    var heldValues = [];
+    var registry = new FinalizationRegistry(value => {
+        heldValues.push(value);
+    });
+
+    evaluateSource("var __finalizationRegistryCleanupTarget1 = {};");
+    evaluateSource("var __finalizationRegistryCleanupTarget2 = {};");
+    registry.register(globalThis.__finalizationRegistryCleanupTarget1, "first");
+    registry.register(globalThis.__finalizationRegistryCleanupTarget2, "second");
+    markAsGarbage("__finalizationRegistryCleanupTarget1");
+    markAsGarbage("__finalizationRegistryCleanupTarget2");
+    gc();
+
+    cleanupFinalizationRegistry(registry);
+
+    expect(heldValues).toEqual(["first", "second"]);
+});
+
+test("held values are kept alive until cleanup", () => {
+    var heldValue;
+    var registry = new FinalizationRegistry(value => {
+        heldValue = value;
+    });
+
+    evaluateSource("var __finalizationRegistryHeldValueTarget = {};");
+    evaluateSource("var __finalizationRegistryHeldValue = { marker: 1 };");
+    registry.register(globalThis.__finalizationRegistryHeldValueTarget, globalThis.__finalizationRegistryHeldValue);
+    markAsGarbage("__finalizationRegistryHeldValueTarget");
+    markAsGarbage("__finalizationRegistryHeldValue");
+    gc();
+
+    cleanupFinalizationRegistry(registry);
+
+    expect(heldValue.marker).toBe(1);
+});
+
+test.xfail("unregister tokens are kept alive", () => {
+    var registry = new FinalizationRegistry(() => {});
+    var target = {};
+    evaluateSource("var __finalizationRegistryUnregisterToken = {};");
+    var tokenRef = new WeakRef(globalThis.__finalizationRegistryUnregisterToken);
+
+    registry.register(target, "held value", globalThis.__finalizationRegistryUnregisterToken);
+    markAsGarbage("__finalizationRegistryUnregisterToken");
+    clearKeptObjects();
+    gc();
+
+    expect(tokenRef.deref()).not.toBe(undefined);
+    expect(registry.unregister(tokenRef.deref())).toBeTrue();
+});
+
+test("automatic cleanup continues after a callback throws", () => {
+    var heldValues = [];
+    var registry = new FinalizationRegistry(value => {
+        heldValues.push(value);
+        if (value === "first") throw new Error("expected abrupt completion");
+    });
+
+    evaluateSource("var __finalizationRegistryCleanupAfterThrowTarget1 = {};");
+    evaluateSource("var __finalizationRegistryCleanupAfterThrowTarget2 = {};");
+    registry.register(globalThis.__finalizationRegistryCleanupAfterThrowTarget1, "first");
+    registry.register(globalThis.__finalizationRegistryCleanupAfterThrowTarget2, "second");
+    markAsGarbage("__finalizationRegistryCleanupAfterThrowTarget1");
+    markAsGarbage("__finalizationRegistryCleanupAfterThrowTarget2");
+    gc();
+
+    runQueuedFinalizationRegistryCleanupJobs();
+
+    expect(heldValues).toEqual(["first", "second"]);
+});
+
+test("cleanup helper errors", () => {
+    var registry = new FinalizationRegistry(() => {});
+
+    expect(() => {
+        cleanupFinalizationRegistry(registry, 5);
+    }).toThrowWithMessage(TypeError, "is not a function");
+
+    expect(() => {
+        cleanupFinalizationRegistry({});
+    }).toThrowWithMessage(TypeError, "Not an object of type FinalizationRegistry");
+});

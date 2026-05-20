@@ -64,6 +64,10 @@ public:
     DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& stream_consumer, u64 track_number);
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
 
+    Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number);
+
+    static size_t find_cue_point_index_at_or_before(Vector<TrackCuePoint> const&, Optional<AK::Duration> total_duration, AK::Duration target);
+
 private:
     Reader() = default;
 
@@ -79,7 +83,6 @@ private:
 
     DecoderErrorOr<void> parse_cues(Streamer&);
 
-    Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number);
     bool has_cues_for_track(u64 track_number);
     DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&, Vector<TrackCuePoint> const&, CuePointTarget);
 

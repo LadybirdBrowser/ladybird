@@ -1242,20 +1242,20 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() co
     }
 
     // 3. For each own property key P of O such that Type(P) is String and P is not an array index, in ascending chronological order of property creation, do
-    for (auto& it : shape().property_table()) {
-        if (it.key.is_string()) {
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+        if (property_key.is_string()) {
             // a. Add P as the last element of keys.
-            keys.append(it.key.to_value(vm));
+            keys.append(property_key.to_value(vm));
         }
-    }
+    });
 
     // 4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
-    for (auto& it : shape().property_table()) {
-        if (it.key.is_symbol()) {
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+        if (property_key.is_symbol()) {
             // a. Add P as the last element of keys.
-            keys.append(it.key.to_value(vm));
+            keys.append(property_key.to_value(vm));
         }
-    }
+    });
 
     // 5. Return keys.
     return { move(keys) };
@@ -1486,11 +1486,11 @@ ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Functio
         if (has_magical_length_property())
             keys.unchecked_append({ PropertyKey(vm.names.length), false });
 
-        for (auto const& [property_key, metadata] : shape().property_table()) {
+        shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
             if (!property_key.is_string())
-                continue;
+                return;
             keys.unchecked_append({ property_key, metadata.attributes.is_enumerable() });
-        }
+        });
 
         for (auto& key : keys)
             TRY(callback(key.property_key, key.enumerable));
@@ -1512,7 +1512,7 @@ ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Functio
 
 size_t Object::own_properties_count() const
 {
-    return indexed_real_size() + shape().property_table().size() + (has_magical_length_property() ? 1 : 0);
+    return indexed_real_size() + shape().property_count() + (has_magical_length_property() ? 1 : 0);
 }
 
 // Simple side-effect free property lookup, following the prototype chain. Non-standard.

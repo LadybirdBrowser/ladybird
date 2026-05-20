@@ -104,7 +104,7 @@ WebIDL::ExceptionOr<void> RsaKeyAlgorithm::set_public_exponent(::Crypto::Unsigne
 
     // The BigInteger typedef from the WebCrypto spec requires the bytes in the Uint8Array be ordered in Big Endian
     m_public_exponent = TRY(JS::Uint8Array::create(realm, result.size()));
-    m_public_exponent->viewed_array_buffer()->buffer().overwrite(0, result.data(), result.size());
+    m_public_exponent->viewed_array_buffer()->overwrite(0, result.data(), result.size());
 
     return {};
 }

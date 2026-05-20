@@ -26,7 +26,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#dom-global-fetch
-GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit const& init)
+GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Bindings::RequestInit const& init)
 {
     auto& realm = *vm.current_realm();
 

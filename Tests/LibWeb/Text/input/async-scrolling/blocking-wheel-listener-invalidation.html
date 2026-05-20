@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="spacer"></div>
+<script>
+    function printOutputAndDisplayList(output) {
+        const displayList = internals.dumpDisplayList();
+        for (const line of output)
+            println(line);
+        println("display list:");
+        println(displayList);
+    }
+
+    test(() => {
+        const output = [];
+        const before = internals.asyncScrollingState();
+        output.push(`before routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+
+        document.addEventListener("wheel", event => event.preventDefault(), { passive: false });
+
+        const after = internals.asyncScrollingState();
+        output.push(`listener generation increased: ${after.wheelEventListenerStateGeneration > before.wheelEventListenerStateGeneration}`);
+        output.push(`after routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        printOutputAndDisplayList(output);
+    });
+</script>

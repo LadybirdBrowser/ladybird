@@ -80,7 +80,11 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
                 if (image_data->is_animated() && image_data->frame_count() > 1) {
                     self.m_timer = Platform::Timer::create(self.m_document->heap());
                     self.m_timer->set_interval(image_data->frame_duration(0));
-                    self.m_timer->on_timeout = GC::create_function(self.m_document->heap(), [ptr = &self] { ptr->animate(); });
+                    auto weak_self = self.template make_weak_ptr<ImageStyleValue>();
+                    self.m_timer->on_timeout = GC::create_function(self.m_document->heap(), [weak_self] {
+                        if (weak_self)
+                            weak_self->animate();
+                    });
                     self.m_timer->start();
                 }
             }),

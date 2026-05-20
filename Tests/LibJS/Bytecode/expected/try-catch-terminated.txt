@@ -1,4 +1,4 @@
-$31ad76ee try-catch-terminated.js:12:1
+$546ebce0 try-catch-terminated.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,11 +6,11 @@ $31ad76ee try-catch-terminated.js:12:1
 
 block0:
   [   0] GetGlobal dst:reg6, `try_return`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, try_return
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, try_return
+  [  30] End value:reg5
 
 
-try_return$21828749 try-catch-terminated.js:5:5
+try_return$6825fe97 try-catch-terminated.js:5:5
   Registers: 6
   Blocks:    3
   Locals:    e~0

@@ -24,7 +24,7 @@ AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL
 
 AudioNode::~AudioNode() = default;
 
-WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options)
+WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(Bindings::AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options)
 {
     // Set channel count, fallback to default if not provided
     if (given_options.channel_count.has_value()) {

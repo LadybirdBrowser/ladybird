@@ -11,28 +11,13 @@
 
 namespace Web::ContentSecurityPolicy {
 
-struct SecurityPolicyViolationEventInit final : public DOM::EventInit {
-    String document_uri;
-    String referrer;
-    String blocked_uri;
-    String violated_directive;
-    String effective_directive;
-    String original_policy;
-    String source_file;
-    String sample;
-    Bindings::SecurityPolicyViolationEventDisposition disposition { Bindings::SecurityPolicyViolationEventDisposition::Enforce };
-    u16 status_code { 0 };
-    u32 line_number { 0 };
-    u32 column_number { 0 };
-};
-
 class SecurityPolicyViolationEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(SecurityPolicyViolationEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(SecurityPolicyViolationEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SecurityPolicyViolationEvent> create(JS::Realm&, FlyString const& event_name, SecurityPolicyViolationEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> construct_impl(JS::Realm&, FlyString const& event_name, SecurityPolicyViolationEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<SecurityPolicyViolationEvent> create(JS::Realm&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init);
 
     virtual ~SecurityPolicyViolationEvent() override;
 
@@ -50,7 +35,7 @@ public:
     u32 column_number() const { return m_column_number; }
 
 private:
-    SecurityPolicyViolationEvent(JS::Realm&, FlyString const& event_name, SecurityPolicyViolationEventInit const&);
+    SecurityPolicyViolationEvent(JS::Realm&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
 

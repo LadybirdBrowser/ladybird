@@ -51,6 +51,8 @@ static StringView validation_error_kind_to_string(JS::FFI::ValidationErrorKind k
         return "PropertyLookupCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::GlobalVariableCacheIndexOutOfRange:
         return "GlobalVariableCacheIndexOutOfRange"sv;
+    case JS::FFI::ValidationErrorKind::EnvironmentCoordinateCacheIndexOutOfRange:
+        return "EnvironmentCoordinateCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::TemplateObjectCacheIndexOutOfRange:
         return "TemplateObjectCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::ObjectShapeCacheIndexOutOfRange:
@@ -94,7 +96,7 @@ static_assert(put_kind_variant_count == 5);
 static constexpr u32 arguments_kind_variant_count = to_underlying(Op::ArgumentsKind::Unmapped) + 1;
 static_assert(arguments_kind_variant_count == 2);
 
-ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_state)
+ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> basic_block_offsets)
 {
     JS::FFI::FFIValidatorBounds bounds {
         .number_of_registers = executable.number_of_registers,
@@ -109,6 +111,7 @@ ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_s
         .regex_table_size = 0,
         .property_lookup_cache_count = static_cast<u32>(executable.property_lookup_caches.size()),
         .global_variable_cache_count = static_cast<u32>(executable.global_variable_caches.size()),
+        .environment_coordinate_cache_count = static_cast<u32>(executable.environment_coordinate_caches.size()),
         .template_object_cache_count = static_cast<u32>(executable.template_object_caches.size()),
         .object_shape_cache_count = static_cast<u32>(executable.object_shape_caches.size()),
         .object_property_iterator_cache_count = static_cast<u32>(executable.object_property_iterator_caches.size()),
@@ -119,7 +122,6 @@ ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_s
         .environment_mode_variant_count = environment_mode_variant_count,
         .put_kind_variant_count = put_kind_variant_count,
         .arguments_kind_variant_count = arguments_kind_variant_count,
-        .before_cache_fixup = cache_state == CacheState::BeforeFixup,
     };
 
     // Project Executable's exception handlers down to plain offsets; the
@@ -133,11 +135,6 @@ ErrorOr<void> validate_bytecode(Executable const& executable, CacheState cache_s
             .handler = static_cast<u32>(h.handler_offset),
         });
     }
-
-    Vector<u32> basic_block_offsets;
-    basic_block_offsets.ensure_capacity(executable.basic_block_start_offsets.size());
-    for (auto offset : executable.basic_block_start_offsets)
-        basic_block_offsets.append(static_cast<u32>(offset));
 
     Vector<u32> source_map_offsets;
     source_map_offsets.ensure_capacity(executable.source_map.size());

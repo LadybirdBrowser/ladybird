@@ -193,25 +193,29 @@ fn emit_scalar_field_check(
         "RegexTableIndex" => {
             // The regex table is not consulted at runtime; skip range-checking.
         }
-        "PropertyLookupCache*" => writeln!(
+        "PropertyLookupCacheIndex" => writeln!(
             w,
-            "            validate_property_lookup_cache_index(read_u64(bytes, at + {offset}), ctx)?;"
+            "            validate_property_lookup_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
-        "GlobalVariableCache*" => writeln!(
+        "GlobalVariableCacheIndex" => writeln!(
             w,
-            "            validate_global_variable_cache_index(read_u64(bytes, at + {offset}), ctx)?;"
+            "            validate_global_variable_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
-        "TemplateObjectCache*" => writeln!(
+        "EnvironmentCoordinateCacheIndex" => writeln!(
             w,
-            "            validate_template_object_cache_index(read_u64(bytes, at + {offset}), ctx)?;"
+            "            validate_environment_coordinate_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
-        "ObjectShapeCache*" => writeln!(
+        "TemplateObjectCacheIndex" => writeln!(
             w,
-            "            validate_object_shape_cache_index(read_u64(bytes, at + {offset}), ctx)?;"
+            "            validate_template_object_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
-        "ObjectPropertyIteratorCache*" => writeln!(
+        "ObjectShapeCacheIndex" => writeln!(
             w,
-            "            validate_object_property_iterator_cache_index(read_u64(bytes, at + {offset}), ctx)?;"
+            "            validate_object_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        "ObjectPropertyIteratorCacheIndex" => writeln!(
+            w,
+            "            validate_object_property_iterator_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
         "u32" => {
             // The .def gives us no first-class types for SFD, class-blueprint,
@@ -230,7 +234,7 @@ fn emit_scalar_field_check(
             } else if field_name == "m_shape_cache_index" {
                 writeln!(
                     w,
-                    "            validate_object_shape_cache_index(read_u32(bytes, at + {offset}) as u64, ctx)?;"
+                    "            validate_object_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
                 )?;
             }
         }

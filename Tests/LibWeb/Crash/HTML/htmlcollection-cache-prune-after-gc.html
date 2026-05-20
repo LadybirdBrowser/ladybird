@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<div id="container"></div>
+<script>
+    const container = document.getElementById("container");
+    const collection   = container.getElementsByTagName("div");
+
+    for (let i = 0; i < 800; i++) {
+        container.appendChild(document.createElement("div"));
+    }
+    collection.length;
+
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+        internals.gc();
+    }
+</script>

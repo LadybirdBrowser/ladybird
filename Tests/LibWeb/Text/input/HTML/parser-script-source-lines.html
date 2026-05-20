@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    removeTestErrorHandler();
+    let labels = ["HTML", "SVG"];
+    let lines = [];
+    window.onerror = (message, source, lineno) => {
+        lines.push(`${labels[lines.length]} split start tag line: ${lineno}`);
+        return true;
+    };
+    test(() => {
+        for (let line of lines)
+            println(line);
+    });
+</script>
+<script
+>throw new Error("HTML split start tag");</script>
+<svg><script
+>throw new Error("SVG split start tag");</script></svg>

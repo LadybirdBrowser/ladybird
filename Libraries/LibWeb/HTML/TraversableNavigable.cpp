@@ -35,7 +35,10 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(TraversableNavigable);
 
 TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
-    : Navigable(page, page->client().is_svg_page_client())
+    : Navigable(
+          page,
+          page->client().is_svg_page_client(),
+          Compositor::CompositorThread::PagePresentationRegistration::Yes)
     , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
@@ -74,6 +77,7 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
 {
     auto& vm = Bindings::main_thread_vm();
+    page->ensure_compositor_thread();
 
     // 1. Let document be null.
     GC::Ptr<DOM::Document> document = nullptr;
@@ -122,7 +126,11 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_trave
     traversable->m_session_history_entries.append(*initial_history_entry);
     traversable->set_has_session_history_entry_and_ready_for_navigation();
 
-    // FIXME: 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
+    // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
+    if (opener) {
+        auto opener_traversable = opener->top_level_traversable();
+        traversable->storage_shed().legacy_clone(opener_traversable->storage_shed(), page);
+    }
 
     // 11. Append traversable to the user agent's top-level traversable set.
     user_agent_top_level_traversable_set().set(traversable);
@@ -673,7 +681,13 @@ void ApplyHistoryStepState::start()
             changing_navigable_continuation->population_output = nullptr;
 
             // 4. If displayedEntry is targetEntry and targetEntry's document state's reload pending is false, then:
-            if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes && !target_entry->document_state()->reload_pending()) {
+            // AD-HOC: A synchronous same-document navigation has already updated the active entry by this point.
+            //         A later queued reload can additionally set reload pending on an already-active target entry
+            //         before that synchronous step is applied. The reload step owns that population work.
+            bool is_update_only = displayed_entry == target_entry && !target_entry->document_state()->reload_pending();
+            if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes)
+                is_update_only = !target_entry->document_state()->reload_pending() || displayed_entry == target_entry;
+            if (is_update_only) {
                 // 1. Set changingNavigableContinuation's update-only to true.
                 changing_navigable_continuation->update_only = true;
                 changing_navigable_continuation->resolved_document = navigable->active_document();
@@ -765,6 +779,9 @@ void ApplyHistoryStepState::start()
                 && (target_entry->document_state()->document_id() != navigable->active_document_id()
                     || target_entry->document_state()->reload_pending());
             if (needs_population) {
+                if (target_entry->document_state()->reload_pending() && navigable->is_top_level_traversable())
+                    navigable->page().client().page_did_start_loading(target_entry->url(), false);
+
                 // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
                 // 2. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.

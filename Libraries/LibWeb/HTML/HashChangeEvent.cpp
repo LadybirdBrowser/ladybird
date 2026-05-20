@@ -14,17 +14,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HashChangeEvent);
 
-[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
+[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
 {
     return realm.create<HashChangeEvent>(realm, event_name, event_init);
 }
 
-GC::Ref<HashChangeEvent> HashChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
+GC::Ref<HashChangeEvent> HashChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
 {
     return realm.create<HashChangeEvent>(realm, event_name, event_init);
 }
 
-HashChangeEvent::HashChangeEvent(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
+HashChangeEvent::HashChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_old_url(event_init.old_url)
     , m_new_url(event_init.new_url)

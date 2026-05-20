@@ -243,11 +243,6 @@ pub type ParseErrorCallback = Option<
     unsafe extern "C" fn(ctx: *mut c_void, message: *const u8, message_len: usize, line: u32, column: u32) -> (),
 >;
 
-/// Log parser and scope collector errors, returning true if any were found.
-fn check_errors(parser: &mut Parser) -> bool {
-    check_errors_with_callback(parser, std::ptr::null_mut(), None)
-}
-
 /// Check for errors, optionally reporting them via a C++ callback.
 fn check_errors_with_callback(
     parser: &mut Parser,
@@ -544,80 +539,6 @@ unsafe fn compile_program_body(
 // =============================================================================
 // FFI entry points: program compilation
 // =============================================================================
-
-/// Compile a JavaScript program using the parser and bytecode generator.
-///
-/// This is the full pipeline: parse → codegen → assemble → create Executable.
-/// Called from C++ unless `LIBJS_CPP=1` is set.
-///
-/// Returns a `GC::Ptr<Bytecode::Executable>` cast to `void*`, or nullptr on failure.
-///
-/// # Safety
-/// - `source` must point to a valid UTF-16 buffer of `source_len` elements.
-/// - `vm_ptr` must be a valid `JS::VM*`.
-/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compile_program(
-    source: *const u16,
-    source_len: usize,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
-    program_type: u8,
-    starts_in_strict_mode: bool,
-    initiated_by_eval: bool,
-    in_eval_function_context: bool,
-    allow_super_property_lookup: bool,
-    allow_super_constructor_call: bool,
-    in_class_field_initializer: bool,
-) -> *mut c_void {
-    unsafe {
-        abort_on_panic(|| {
-            let Some(source_slice) = source_from_raw(source, source_len) else {
-                return std::ptr::null_mut();
-            };
-            let pt = match program_type {
-                0 => ProgramType::Script,
-                1 => ProgramType::Module,
-                _ => {
-                    return std::ptr::null_mut();
-                }
-            };
-            let mut parser = Parser::new(source_slice, pt);
-            if initiated_by_eval {
-                parser.initiated_by_eval = true;
-                parser.in_eval_function_context = in_eval_function_context;
-                parser.flags.allow_super_property_lookup = allow_super_property_lookup;
-                parser.flags.allow_super_constructor_call = allow_super_constructor_call;
-                parser.flags.in_class_field_initializer = in_class_field_initializer;
-            }
-
-            let program = parser.parse_program(starts_in_strict_mode);
-
-            if check_errors(&mut parser) {
-                return std::ptr::null_mut();
-            }
-
-            parser.scope_collector.analyze(
-                initiated_by_eval,
-                &mut parser.arena.identifiers,
-                &parser.arena.strings,
-                &mut parser.arena.scopes,
-            );
-
-            let scope_id = if let StatementKind::Program(ref data) = program.inner {
-                data.scope
-            } else {
-                return std::ptr::null_mut();
-            };
-
-            let mut generator = new_program_generator(starts_in_strict_mode, vm_ptr, source_code_ptr, source_len);
-            generator.function_table = std::mem::take(&mut parser.function_table);
-            generator.arena = std::sync::Arc::new(std::mem::take(&mut parser.arena));
-            // Make a clone of the Arc so we can keep using it after generator is consumed.
-            compile_program_body(&mut generator, &program, scope_id, vm_ptr, source_code_ptr)
-        })
-    }
-}
 
 /// Parse a program (script or module) without any GC interaction.
 ///
@@ -940,10 +861,61 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob(
             let expected_source_hash = std::slice::from_raw_parts(expected_source_hash, expected_source_hash_len)
                 .try_into()
                 .expect("source hash length was checked");
-            let Some(blob) = bytecode_cache::decode_blob(
+            let bytes = std::slice::from_raw_parts(data, length);
+            let Some(blob) = bytecode_cache::decode_blob(bytes, expected_program_type, expected_source_hash) else {
+                return std::ptr::null_mut();
+            };
+            Box::into_raw(Box::new(DecodedBytecodeCacheBlob { _blob: blob }))
+        })
+    }
+}
+
+/// Decode an mmap-backed bytecode cache blob into an owned parser-free cache handle.
+///
+/// # Safety
+/// - `data` must point to `length` readable bytes.
+/// - `owner` must keep `data` alive until `free_owner` is called.
+/// - `clone_owner` must return a new owner that keeps the same bytes alive.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
+    data: *const u8,
+    length: usize,
+    expected_program_type: u8,
+    expected_source_hash: *const u8,
+    expected_source_hash_len: usize,
+    owner: *mut c_void,
+    clone_owner: bytecode_cache::CloneBytecodeCacheBlobOwner,
+    free_owner: bytecode_cache::FreeBytecodeCacheBlobOwner,
+) -> *mut DecodedBytecodeCacheBlob {
+    unsafe {
+        abort_on_panic(|| {
+            if owner.is_null() {
+                return std::ptr::null_mut();
+            }
+            let reject = || {
+                free_owner(owner);
+                std::ptr::null_mut()
+            };
+            if data.is_null() || expected_source_hash.is_null() || expected_source_hash_len != 32 {
+                return reject();
+            }
+            let expected_program_type = match expected_program_type {
+                0 => ast::ProgramType::Script,
+                1 => ast::ProgramType::Module,
+                _ => return reject(),
+            };
+            let expected_source_hash = std::slice::from_raw_parts(expected_source_hash, expected_source_hash_len)
+                .try_into()
+                .expect("source hash length was checked");
+            let Some(blob) = bytecode_cache::decode_blob_with_foreign_owner(
                 std::slice::from_raw_parts(data, length),
                 expected_program_type,
                 expected_source_hash,
+                bytecode_cache::ForeignBytecodeCacheBlobOwner {
+                    owner,
+                    clone_owner,
+                    free_owner,
+                },
             ) else {
                 return std::ptr::null_mut();
             };
@@ -1022,6 +994,90 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_module(
             blob._blob
                 .materialize_module(vm_ptr, source_code_ptr, module_context, callbacks, tla_executable_out)
         })
+    }
+}
+
+/// Materialize a decoded function executable from a bytecode cache blob.
+/// Consumes and frees the cached executable.
+///
+/// # Safety
+/// - `cached_executable` must be a valid pointer attached to a
+///   `SharedFunctionInstanceData` by bytecode cache materialization.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_bytecode_cache_function(
+    cached_executable: *mut c_void,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| bytecode_cache::materialize_cached_function(cached_executable, vm_ptr, source_code_ptr))
+    }
+}
+
+/// Free a cached decoded function executable without materializing it.
+///
+/// # Safety
+/// `cached_executable` must be either null or a valid pointer attached to a
+/// `SharedFunctionInstanceData` by bytecode cache materialization.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_cached_bytecode_executable(cached_executable: *mut c_void) {
+    unsafe {
+        abort_on_panic(|| {
+            bytecode_cache::free_cached_function(cached_executable);
+        });
+    }
+}
+
+/// Materialize a precompiled function executable.
+/// Consumes and frees the precompiled executable.
+///
+/// # Safety
+/// - `precompiled_executable` must be a valid `Box<PrecompiledFunction>`
+///   pointer attached to a `SharedFunctionInstanceData`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_materialize_precompiled_bytecode_function(
+    precompiled_executable: *mut c_void,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if precompiled_executable.is_null() {
+                return std::ptr::null_mut();
+            }
+            let mut precompiled =
+                Box::from_raw(precompiled_executable as *mut bytecode::generator::PrecompiledFunction);
+            precompiled.generator.vm_ptr = vm_ptr;
+            precompiled.generator.source_code_ptr = source_code_ptr;
+            bytecode::ffi::create_executable(
+                &mut precompiled.generator,
+                &precompiled.assembled,
+                vm_ptr,
+                source_code_ptr,
+            )
+        })
+    }
+}
+
+/// Free a precompiled function executable without materializing it.
+///
+/// # Safety
+/// `precompiled_executable` must be either null or a valid
+/// `Box<PrecompiledFunction>` pointer attached to a `SharedFunctionInstanceData`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_free_precompiled_bytecode_executable(precompiled_executable: *mut c_void) {
+    unsafe {
+        abort_on_panic(|| {
+            if !precompiled_executable.is_null() {
+                drop(Box::from_raw(
+                    precompiled_executable as *mut bytecode::generator::PrecompiledFunction,
+                ));
+            }
+        });
     }
 }
 
@@ -1963,7 +2019,13 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                         StatementKind::FunctionDeclaration(_) | StatementKind::ClassDeclaration(_)
                     )
                 });
-                if !is_declaration && let Some(ref name) = entry.local_or_import_name {
+                let is_specific_import_export = all_import_entries
+                    .iter()
+                    .any(|ie| entry.local_or_import_name.as_ref() == Some(&ie.local_name) && ie.import_name.is_some());
+                if !is_declaration
+                    && !is_specific_import_export
+                    && let Some(ref name) = entry.local_or_import_name
+                {
                     (cb.set_default_export_binding)(ctx, name.as_ptr(), name.len());
                 }
             }
@@ -2767,9 +2829,10 @@ pub unsafe extern "C" fn rust_compile_function_off_thread(
     }
 }
 
-/// Materialize a GC-free compiled function onto an existing SFD.
+/// Attach a GC-free compiled function to an existing SFD.
 ///
-/// Consumes and frees the compiled function.
+/// Consumes the compiled function. Its precompiled bytecode is materialized
+/// lazily the first time the function is called.
 ///
 /// # Safety
 /// - `compiled` must be a valid pointer returned by `rust_compile_function_off_thread`.
@@ -2777,8 +2840,8 @@ pub unsafe extern "C" fn rust_compile_function_off_thread(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_materialize_compiled_function(
     compiled: *mut CompiledFunction,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    _vm_ptr: *mut c_void,
+    _source_code_ptr: *const c_void,
     sfd_ptr: *mut c_void,
 ) {
     unsafe {
@@ -2786,28 +2849,25 @@ pub unsafe extern "C" fn rust_materialize_compiled_function(
             if compiled.is_null() {
                 return;
             }
-            let mut compiled = Box::from_raw(compiled);
-            compiled.precompiled.generator.vm_ptr = vm_ptr;
-            compiled.precompiled.generator.source_code_ptr = source_code_ptr;
-            let executable_ptr = bytecode::ffi::create_executable(
-                &mut compiled.precompiled.generator,
-                &compiled.precompiled.assembled,
-                vm_ptr,
-                source_code_ptr,
-            );
-            assert!(
-                !executable_ptr.is_null(),
-                "rust_materialize_compiled_function: executable materialization failed"
-            );
-            bytecode::ffi::rust_sfd_set_precompiled_executable(
+            let CompiledFunction { precompiled } = *Box::from_raw(compiled);
+            let uses_this = precompiled.metadata.uses_this;
+            let this_value_needs_environment_resolution = precompiled.metadata.this_value_needs_environment_resolution;
+            let function_environment_needed = precompiled.metadata.function_environment_needed;
+            let function_environment_bindings_count = precompiled.metadata.function_environment_bindings_count;
+            let var_environment_bindings_count = precompiled.metadata.var_environment_bindings_count;
+            let might_need_arguments = precompiled.metadata.might_need_arguments;
+            let contains_eval = precompiled.metadata.contains_eval;
+            let precompiled_ptr = Box::into_raw(precompiled) as *mut c_void;
+            bytecode::ffi::rust_sfd_set_precompiled_bytecode_executable(
                 sfd_ptr,
-                executable_ptr,
-                compiled.precompiled.metadata.uses_this,
-                compiled.precompiled.metadata.this_value_needs_environment_resolution,
-                compiled.precompiled.metadata.function_environment_needed,
-                compiled.precompiled.metadata.function_environment_bindings_count,
-                compiled.precompiled.metadata.might_need_arguments,
-                compiled.precompiled.metadata.contains_eval,
+                precompiled_ptr,
+                uses_this,
+                this_value_needs_environment_resolution,
+                function_environment_needed,
+                function_environment_bindings_count,
+                var_environment_bindings_count,
+                might_need_arguments,
+                contains_eval,
             );
         });
     }
@@ -2878,7 +2938,7 @@ fn compile_function_payload_to_bytecode(
         generator.switch_to_basic_block(start_block);
     }
 
-    generator.capture_saved_lexical_environment();
+    generator.capture_saved_lexical_environment_with_coordinates();
 
     if let Some(scope_id) = body_scope {
         let arena_clone = generator.arena.clone();
@@ -3157,6 +3217,7 @@ unsafe fn write_sfd_metadata(sfd_ptr: *mut c_void, metadata: &bytecode::generato
             metadata.this_value_needs_environment_resolution,
             metadata.function_environment_needed,
             metadata.function_environment_bindings_count,
+            metadata.var_environment_bindings_count,
             metadata.might_need_arguments,
             metadata.contains_eval,
         );
@@ -3261,6 +3322,7 @@ unsafe extern "C" {
         this_value_needs_environment_resolution: bool,
         function_environment_needed: bool,
         function_environment_bindings_count: usize,
+        var_environment_bindings_count: usize,
         might_need_arguments_object: bool,
         contains_direct_call_to_eval: bool,
     );
@@ -3400,5 +3462,66 @@ pub unsafe extern "C" fn rust_validate_bytecode(
                 }
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static FREED_FOREIGN_OWNERS: AtomicUsize = AtomicUsize::new(0);
+
+    unsafe extern "C" fn count_freed_foreign_owner(owner: *mut c_void) {
+        FREED_FOREIGN_OWNERS.fetch_add(1, Ordering::Relaxed);
+        unsafe {
+            drop(Box::from_raw(owner.cast::<u8>()));
+        }
+    }
+
+    unsafe extern "C" fn clone_foreign_owner(owner: *const c_void) -> *mut c_void {
+        let value = unsafe { *owner.cast::<u8>() };
+        Box::into_raw(Box::new(value)).cast()
+    }
+
+    fn new_foreign_owner() -> *mut c_void {
+        Box::into_raw(Box::new(0u8)).cast()
+    }
+
+    #[test]
+    fn decode_blob_with_owner_frees_owner_on_early_rejection() {
+        FREED_FOREIGN_OWNERS.store(0, Ordering::Relaxed);
+        let source_hash = [0u8; 32];
+
+        let blob = unsafe {
+            rust_decode_bytecode_cache_blob_with_owner(
+                std::ptr::null(),
+                0,
+                0,
+                source_hash.as_ptr(),
+                source_hash.len(),
+                new_foreign_owner(),
+                clone_foreign_owner,
+                count_freed_foreign_owner,
+            )
+        };
+        assert!(blob.is_null());
+        assert_eq!(FREED_FOREIGN_OWNERS.load(Ordering::Relaxed), 1);
+
+        let bytes = [0u8; 1];
+        let blob = unsafe {
+            rust_decode_bytecode_cache_blob_with_owner(
+                bytes.as_ptr(),
+                bytes.len(),
+                2,
+                source_hash.as_ptr(),
+                source_hash.len(),
+                new_foreign_owner(),
+                clone_foreign_owner,
+                count_freed_foreign_owner,
+            )
+        };
+        assert!(blob.is_null());
+        assert_eq!(FREED_FOREIGN_OWNERS.load(Ordering::Relaxed), 2);
     }
 }

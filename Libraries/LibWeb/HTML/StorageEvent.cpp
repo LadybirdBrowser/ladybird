@@ -13,14 +13,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(StorageEvent);
 
-GC::Ref<StorageEvent> StorageEvent::create(JS::Realm& realm, FlyString const& event_name, StorageEventInit const& event_init)
+GC::Ref<StorageEvent> StorageEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::StorageEventInit const& event_init)
 {
     auto event = realm.create<StorageEvent>(realm, event_name, event_init);
     event->set_is_trusted(true);
     return event;
 }
 
-GC::Ref<StorageEvent> StorageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, StorageEventInit const& event_init)
+GC::Ref<StorageEvent> StorageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::StorageEventInit const& event_init)
 {
     return realm.create<StorageEvent>(realm, event_name, event_init);
 }
@@ -51,7 +51,7 @@ void StorageEvent::init_storage_event(
     m_storage_area = storage_area;
 }
 
-StorageEvent::StorageEvent(JS::Realm& realm, FlyString const& event_name, StorageEventInit const& event_init)
+StorageEvent::StorageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::StorageEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_key(event_init.key)
     , m_old_value(event_init.old_value)

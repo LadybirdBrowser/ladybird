@@ -15,6 +15,14 @@
 
 namespace Ladybird {
 
+struct WindowConfiguration {
+    Optional<Web::DevicePixels> x {};
+    Optional<Web::DevicePixels> y {};
+    Optional<Web::DevicePixels> width {};
+    Optional<Web::DevicePixels> height {};
+    Optional<bool> maximized {};
+};
+
 class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
@@ -22,13 +30,13 @@ public:
     virtual ~Application() override;
 
     Function<void(URL::URL)> on_open_file;
-
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
     BrowserWindow& active_window() const { return *m_active_window; }
     void set_active_window(BrowserWindow& w) { m_active_window = &w; }
 
     Tab* active_tab() const { return m_active_window ? m_active_window->current_tab() : nullptr; }
+    void update_reopen_recently_closed_actions() const;
 
 private:
     explicit Application();
@@ -38,6 +46,7 @@ private:
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override;
+    virtual void open_url_in_new_window(URL::URL const& url) override;
 
     virtual Optional<ByteString> ask_user_for_download_path(StringView file) const override;
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
@@ -58,6 +67,7 @@ private:
 
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
+    virtual void on_recently_closed_entries_changed() const override;
 
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };

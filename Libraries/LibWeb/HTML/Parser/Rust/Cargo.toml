@@ -1,0 +1,10 @@
+[package]
+name = "libweb_html_tokenizer"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib"]
+
+[build-dependencies]
+cbindgen = "0.29"

@@ -16,14 +16,13 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/RefCountedTreeNode.h>
 #include <LibWeb/TraversalDecision.h>
 
 namespace Web::Painting {
-
-class ChromeWidget;
 
 enum class PaintPhase {
     Background,
@@ -92,7 +91,7 @@ public:
 
     virtual bool forms_unconnected_subtree() const { return false; }
 
-    virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, int wheel_delta_x, int wheel_delta_y);
+    virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y);
 
     Layout::Node const& layout_node() const
     {

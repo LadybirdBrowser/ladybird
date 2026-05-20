@@ -9,12 +9,10 @@
 #pragma once
 
 #include <LibGfx/Rect.h>
-#include <LibGfx/SharedImage.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
@@ -42,6 +40,8 @@ public:
 
     virtual bool is_headless() const override;
     static void set_is_headless(bool);
+
+    static void set_async_scrolling_enabled(bool);
 
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
@@ -85,8 +85,6 @@ public:
     void did_disconnect_devtools_client();
     bool has_devtools_client() const { return m_devtools_client_count > 0; }
 
-    void ready_to_paint();
-
     void initialize_js_console(Web::DOM::Document& document);
     void js_console_input(StringView js_source);
     void did_execute_js_console_input(JsonValue const&);
@@ -101,6 +99,10 @@ public:
     virtual double device_pixels_per_css_pixel() const override { return m_device_pixel_ratio * m_zoom_level; }
 
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
+    virtual bool supports_compositor() const override { return true; }
+    virtual void ensure_compositor_thread() override;
+    virtual Web::Compositor::CompositorThread* compositor_thread() override;
+    virtual Web::Compositor::CompositorThread const* compositor_thread() const override;
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
 
@@ -188,11 +190,10 @@ private:
     virtual void page_did_change_theme_color(Gfx::Color color) override;
     virtual void page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;
+    virtual void page_did_request_paste() override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
-    virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) override;
     virtual WorkerAgentResponse request_worker_agent(Web::Bindings::AgentType) override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
-    virtual void page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id) override;
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
     virtual void page_did_start_network_request(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ReadonlyBytes, Optional<String>) override;

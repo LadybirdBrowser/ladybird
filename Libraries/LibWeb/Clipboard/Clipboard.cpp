@@ -167,7 +167,7 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
-GC::Ref<WebIDL::Promise> Clipboard::read(ClipboardUnsanitizedFormats formats)
+GC::Ref<WebIDL::Promise> Clipboard::read(Bindings::ClipboardUnsanitizedFormats formats)
 {
     // 1. Let realm be this's relevant realm.
     auto& realm = HTML::relevant_realm(*this);

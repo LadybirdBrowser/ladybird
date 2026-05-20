@@ -90,6 +90,74 @@ static NonnullRefPtr<Selector> create_invalid_selector(Selector::Combinator comb
     return Selector::create({ move(compound) });
 }
 
+static Vector<Selector::CompoundSelector> normalize_pseudo_element_transitions(Vector<Selector::CompoundSelector>&& compound_selectors)
+{
+    // Splits up any CompoundSelectors including pseudo-elements, so that they are separated by a PseudoElement
+    // combinator, while ensuring that any pseudo-element CompoundSelectors are preceded by a CompoundSelector for
+    // their originating element.
+    // Any that don't have one specified explicitly receive an implicit `*` before them:
+    // eg, `::before` becomes two CompoundSelectors, for the implicit `*` and for the `::before` pseudo-element.
+
+    // If we don't have any pseudo-elements, return the original CompoundSelectors unchanged.
+    bool contains_pseudo_element = false;
+    for (auto const& compound_selector : compound_selectors) {
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type != Selector::SimpleSelector::Type::PseudoElement)
+                continue;
+            contains_pseudo_element = true;
+            break;
+        }
+        if (contains_pseudo_element)
+            break;
+    }
+    if (!contains_pseudo_element)
+        return move(compound_selectors);
+
+    Vector<Selector::CompoundSelector> normalized_compound_selectors;
+
+    auto append_compound = [&](Selector::Combinator combinator, Vector<Selector::SimpleSelector>&& simple_selectors) {
+        if (simple_selectors.is_empty())
+            return;
+        normalized_compound_selectors.append({
+            .combinator = combinator,
+            .simple_selectors = move(simple_selectors),
+        });
+    };
+
+    for (auto& compound_selector : compound_selectors) {
+        auto current_combinator = compound_selector.combinator;
+        Vector<Selector::SimpleSelector> current_simple_selectors;
+        current_simple_selectors.ensure_capacity(compound_selector.simple_selectors.size());
+
+        for (auto& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement) {
+                if (current_simple_selectors.is_empty()) {
+                    normalized_compound_selectors.append({
+                        .combinator = current_combinator,
+                        .is_implicit_universal_anchor = true,
+                        .simple_selectors = { Selector::SimpleSelector {
+                            .type = Selector::SimpleSelector::Type::Universal,
+                            .value = Selector::SimpleSelector::QualifiedName {
+                                .namespace_type = Selector::SimpleSelector::QualifiedName::NamespaceType::Any,
+                                .name = Selector::SimpleSelector::Name { "*"_fly_string },
+                            },
+                        } },
+                    });
+                } else {
+                    append_compound(current_combinator, move(current_simple_selectors));
+                    current_simple_selectors = {};
+                }
+                current_combinator = Selector::Combinator::PseudoElement;
+            }
+            current_simple_selectors.append(move(simple_selector));
+        }
+
+        append_compound(current_combinator, move(current_simple_selectors));
+    }
+
+    return normalized_compound_selectors;
+}
+
 template<typename T>
 Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenStream<T>& tokens, SelectorType mode, SelectorParsingMode parsing_mode)
 {
@@ -126,7 +194,7 @@ template Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenS
 
 Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(TokenStream<ComponentValue>& tokens, SelectorType mode)
 {
-    Vector<Selector::CompoundSelector> compound_selectors;
+    Vector<Selector::CompoundSelector> raw_compound_selectors;
 
     auto first_combinator = parse_selector_combinator(tokens);
 
@@ -161,7 +229,7 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
     }
 
     first_selector.combinator = first_combinator.value_or(Selector::Combinator::None);
-    compound_selectors.append(move(first_selector));
+    raw_compound_selectors.append(move(first_selector));
 
     while (tokens.has_next_token()) {
         auto combinator = parse_selector_combinator(tokens);
@@ -180,10 +248,10 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
         }
 
         compound_selector.combinator = combinator.release_value();
-        compound_selectors.append(move(compound_selector));
+        raw_compound_selectors.append(move(compound_selector));
     }
 
-    if (compound_selectors.is_empty()) {
+    if (raw_compound_selectors.is_empty()) {
         ErrorReporter::the().report(InvalidSelectorError {
             .value_string = tokens.dump_string(),
             .description = "Selector contains no compound-selectors."_string,
@@ -199,36 +267,34 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
         return ParseError::SyntaxError;
     }
 
-    auto parsed_selector = Selector::create(move(compound_selectors));
+    auto parsed_selector = Selector::create(normalize_pseudo_element_transitions(move(raw_compound_selectors)));
 
-    // The rest of our code assumes selectors have at most 1 pseudo-element, in the final compound selector,
-    // so reject anything else for now.
-    // FIXME: Remove this once we support them elsewhere.
-    for (auto i = 0u; i < parsed_selector->compound_selectors().size() - 1; ++i) {
-        for (auto const& simple_selector : parsed_selector->compound_selectors()[i].simple_selectors) {
-            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement) {
-                ErrorReporter::the().report(InvalidSelectorError {
-                    .value_string = parsed_selector->serialize(),
-                    .description = "Pseudo elements before the final compound-selector are not yet supported."_string,
-                });
-                return ParseError::SyntaxError;
-            }
-        }
-    }
-    // https://drafts.csswg.org/css-shadow-1/#selectordef-part
-    // The ::part() pseudo-element can be followed by other pseudo-elements to style pseudo-elements of the part itself.
     auto pseudo_element_count = 0;
     Optional<PseudoElement> first_pseudo_element;
     Optional<PseudoElement> second_pseudo_element;
-    for (auto const& simple_selector : parsed_selector->compound_selectors().last().simple_selectors) {
-        if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement) {
+    bool saw_pseudo_element_transition = false;
+    for (auto const& compound_selector : parsed_selector->compound_selectors()) {
+        if (saw_pseudo_element_transition && compound_selector.combinator != Selector::Combinator::PseudoElement) {
+            ErrorReporter::the().report(InvalidSelectorError {
+                .value_string = parsed_selector->serialize(),
+                .description = "Pseudo-elements cannot be followed by a non-pseudo-element combinator."_string,
+            });
+            return ParseError::SyntaxError;
+        }
+        if (compound_selector.combinator == Selector::Combinator::PseudoElement)
+            saw_pseudo_element_transition = true;
+
+        if (!compound_selector.simple_selectors.is_empty()
+            && compound_selector.simple_selectors.first().type == Selector::SimpleSelector::Type::PseudoElement) {
             ++pseudo_element_count;
+            auto pseudo_element = compound_selector.simple_selectors.first().pseudo_element().type();
             if (!first_pseudo_element.has_value())
-                first_pseudo_element = simple_selector.pseudo_element().type();
+                first_pseudo_element = pseudo_element;
             else if (!second_pseudo_element.has_value())
-                second_pseudo_element = simple_selector.pseudo_element().type();
+                second_pseudo_element = pseudo_element;
         }
     }
+
     if (pseudo_element_count > 1) {
         // FIXME: Other pseudo-elements can also be chained (e.g. ::highlight()::before).
         //        For now, only ::part() followed by one other pseudo-element is supported.
@@ -265,7 +331,10 @@ Parser::ParseErrorOr<Selector::CompoundSelector> Parser::parse_compound_selector
         simple_selectors.append(component.release_value());
     }
 
-    return Selector::CompoundSelector { Selector::Combinator::None, move(simple_selectors) };
+    return Selector::CompoundSelector {
+        .combinator = Selector::Combinator::None,
+        .simple_selectors = move(simple_selectors),
+    };
 }
 
 Optional<Selector::Combinator> Parser::parse_selector_combinator(TokenStream<ComponentValue>& tokens)

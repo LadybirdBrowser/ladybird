@@ -40,7 +40,7 @@ static Wasm::ValueType to_value_type(Bindings::ValueType type)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-global-global
-WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, GlobalDescriptor& descriptor, JS::Value v)
+WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, Bindings::GlobalDescriptor const& descriptor, JS::Value v)
 {
     auto& vm = realm.vm();
 

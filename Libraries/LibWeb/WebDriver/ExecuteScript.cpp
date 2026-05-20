@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Timer.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
@@ -18,7 +19,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
-#include <LibWeb/WebDriver/HeapTimer.h>
 
 namespace Web::WebDriver {
 
@@ -91,7 +91,7 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     return completion;
 }
 
-static void fire_completion_when_resolved(GC::Ref<WebIDL::Promise> promise, GC::Ref<HeapTimer> timer, GC::Ref<OnScriptComplete> on_complete)
+static void fire_completion_when_resolved(GC::Ref<WebIDL::Promise> promise, GC::Ref<GC::Timer> timer, GC::Ref<OnScriptComplete> on_complete)
 {
     auto reaction_steps = GC::create_function(promise->heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         if (timer->is_timed_out())
@@ -114,7 +114,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, String body, 
     auto& vm = document->vm();
 
     // 5. Let timer be a new timer.
-    auto timer = realm.create<HeapTimer>();
+    auto timer = vm.heap().allocate<GC::Timer>();
 
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {
@@ -165,7 +165,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
     auto& vm = document->vm();
 
     // 5. Let timer be a new timer.
-    auto timer = realm.create<HeapTimer>();
+    auto timer = vm.heap().allocate<GC::Timer>();
 
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {

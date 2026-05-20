@@ -362,6 +362,8 @@ Utf16View StringBuilder::utf16_string_view() const
 void StringBuilder::clear()
 {
     m_buffer.resize(string_builder_prefix_size(m_mode));
+    if (m_mode == Mode::UTF16)
+        m_utf16_builder_is_ascii = true;
 }
 
 ErrorOr<void> StringBuilder::try_append_code_point(u32 code_point)

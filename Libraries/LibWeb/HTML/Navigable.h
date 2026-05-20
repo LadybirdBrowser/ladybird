@@ -7,11 +7,14 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/HashTable.h>
+#include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Tuple.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/Navigation.h>
+#include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -22,7 +25,7 @@
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
-#include <LibWeb/HTML/RenderingThread.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -30,7 +33,7 @@
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
-#include <LibWeb/Painting/BackingStoreManager.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
@@ -195,9 +198,9 @@ public:
     CSSPixelSize viewport_size() const { return m_viewport_size; }
     void set_viewport_size(CSSPixelSize, InvalidateDisplayList = InvalidateDisplayList::No);
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
+    void adopt_pending_async_scroll_offsets();
+    void wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID, GC::Ref<WebIDL::Promise>);
     void clamp_viewport_scroll_offset();
-
-    Painting::BackingStoreManager& backing_store_manager() { return *m_backing_store_manager; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
     [[nodiscard]] bool has_a_rendering_opportunity() const;
@@ -228,19 +231,25 @@ public:
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
     void clear_pending_navigations() { m_pending_navigations.clear(); }
 
-    void ready_to_paint();
     void record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
+    void set_needs_to_record_display_list() { m_needs_to_record_display_list = true; }
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 
-    RenderingThread& rendering_thread() { return m_rendering_thread; }
+    Compositor::CompositorThread::Context& compositor_context()
+    {
+        VERIFY(m_compositor_context);
+        return *m_compositor_context;
+    }
+    bool has_compositor_context() const { return m_compositor_context; }
 
-    NonnullRefPtr<Painting::ExternalContentSource> external_content_source() const;
+    Painting::CompositorSurfaceId compositor_surface_id() const;
+    bool has_compositor_surface_id() const { return m_compositor_surface_id.has_value(); }
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
@@ -257,7 +266,10 @@ public:
     void reset_zoom();
 
 protected:
-    explicit Navigable(GC::Ref<Page>, bool is_svg_page);
+    explicit Navigable(
+        GC::Ref<Page>,
+        bool is_svg_page,
+        Compositor::CompositorThread::PagePresentationRegistration = Compositor::CompositorThread::PagePresentationRegistration::No);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
@@ -273,8 +285,11 @@ private:
     void reset_cursor_blink_cycle();
 
     void scroll_offset_did_change();
+    void clear_compositor_surface();
 
     void inform_the_navigation_api_about_aborting_navigation();
+    void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID);
+    void resolve_all_pending_async_scroll_operations();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-id
     String m_id;
@@ -321,11 +336,20 @@ private:
 
     bool m_is_svg_page { false };
     bool m_needs_repaint { true };
+    bool m_needs_to_record_display_list { true };
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
-    GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
-    RenderingThread m_rendering_thread;
-    RefPtr<Painting::ExternalContentSource> m_external_content_source;
+    Optional<PaintConfig> m_rendering_thread_display_list_paint_config;
+    Painting::DisplayListResourceStorage m_display_list_resource_storage;
+    Painting::DisplayListResourceSet m_rendering_thread_display_list_resources;
+    OwnPtr<Compositor::CompositorThread::Context> m_compositor_context;
+    Optional<Painting::CompositorSurfaceId> m_compositor_surface_id;
+
+    struct PendingAsyncScrollOperation {
+        Compositor::AsyncScrollOperationID operation_id { 0 };
+        GC::Ref<WebIDL::Promise> promise;
+    };
+    Vector<PendingAsyncScrollOperation> m_pending_async_scroll_operations;
 };
 
 struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {

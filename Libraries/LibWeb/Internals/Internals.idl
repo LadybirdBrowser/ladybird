@@ -10,6 +10,9 @@ interface Internals {
 
     undefined gc();
     Promise<undefined> gcAsync();
+    // Clears a named environment binding and forces its current cell to be treated as garbage.
+    // This does not work for values stored only in optimized locals or registers.
+    undefined markAsGarbage(DOMString variableName);
     object hitTest(double x, double y);
 
     const unsigned short MOD_NONE = 0;
@@ -36,7 +39,7 @@ interface Internals {
     // High-level mouse conveniences
     undefined click(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     undefined clickAndHold(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
-    undefined wheel(double x, double y, double deltaX, double deltaY);
+    Promise<undefined> wheel(double x, double y, double deltaX, double deltaY);
     undefined pinch(double x, double y, double scaleDelta);
 
     DOMString currentCursor();
@@ -89,5 +92,12 @@ interface Internals {
     // elementStyleNoopRecomputations.
     object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
+
+    object asyncScrollingState();
+    boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);
+    boolean asyncScrollingStateCanWheelScrollAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
+    DOMString asyncScrollingStateWheelRoutingAdmission();
+    DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
+    DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY);
 
 };

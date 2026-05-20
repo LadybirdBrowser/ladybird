@@ -10,6 +10,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/DOM/AbstractElement.h>
+#include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS {
 
@@ -32,6 +34,19 @@ void CSSContainerRule::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSContainerRule);
     Base::initialize(realm);
+}
+
+void CSSContainerRule::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_cached_parent_container_rule);
+}
+
+void CSSContainerRule::clear_caches()
+{
+    Base::clear_caches();
+    m_cached_parent_container_rule = nullptr;
+    m_parent_container_rule_cache_valid = false;
 }
 
 // https://drafts.csswg.org/css-conditional-5/#the-csscontainerrule-interface
@@ -80,6 +95,74 @@ bool CSSContainerRule::condition_matches() const
 {
     // NB: @container is processed differently from other CSSConditionRules. As such this is never called.
     VERIFY_NOT_REACHED();
+}
+
+static bool has_ancestor_container_with_name(DOM::AbstractElement const& element, FlyString const& container_name)
+{
+    Optional<FlyString> optional_container_name { container_name };
+    for (auto* container = element.element().flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
+        if (container_name_matches(*container, optional_container_name))
+            return true;
+    }
+
+    return false;
+}
+
+bool CSSContainerRule::conditions_match(DOM::AbstractElement const& element) const
+{
+    for (auto const& condition : m_conditions) {
+        if (condition.container_query) {
+            if (condition.container_query->evaluate(element, condition.container_name) == MatchResult::True)
+                return true;
+            continue;
+        }
+
+        if (condition.container_name.has_value() && has_ancestor_container_with_name(element, *condition.container_name))
+            return true;
+    }
+
+    return false;
+}
+
+CSSContainerRule const* CSSContainerRule::find_parent_container_rule() const
+{
+    if (m_parent_container_rule_cache_valid)
+        return m_cached_parent_container_rule.ptr();
+
+    m_cached_parent_container_rule = nullptr;
+    for (auto const* rule = parent_rule(); rule; rule = rule->parent_rule()) {
+        if (auto const* container_rule = as_if<CSSContainerRule>(*rule)) {
+            m_cached_parent_container_rule = container_rule;
+            break;
+        }
+    }
+    m_parent_container_rule_cache_valid = true;
+
+    return m_cached_parent_container_rule.ptr();
+}
+
+bool CSSContainerRule::matches(DOM::AbstractElement const& element) const
+{
+    if (!conditions_match(element))
+        return false;
+
+    if (auto const* parent_container_rule = find_parent_container_rule())
+        return parent_container_rule->matches(element);
+
+    return true;
+}
+
+bool CSSContainerRule::contains_size_feature() const
+{
+    for (auto const& condition : m_conditions) {
+        if (condition.container_query && condition.container_query->contains_size_feature())
+            return true;
+    }
+
+    if (auto const* parent_container_rule = find_parent_container_rule())
+        return parent_container_rule->contains_size_feature();
+
+    return false;
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
@@ -183,47 +266,10 @@ void CSSContainerRule::for_each_effective_rule(TraversalOrder order, Function<vo
     // https://drafts.csswg.org/css-conditional-5/#container-rule
     // Global, name-defining at-rules such as @keyframes or @font-face or @layer that are defined inside container
     // queries are not constrained by the container query conditions.
-
-    // NB: Due to how @container queries are applied to an element instead of globally, this method only treats those
-    //     global, name-defining at-rules as effective.
-    // FIXME: Is this right?
-    for (auto const& rule : css_rules()) {
-        switch (rule->type()) {
-            // These are not valid inside @container.
-        case Type::Import:
-        case Type::FunctionDeclarations:
-        case Type::Namespace:
-        case Type::Keyframe:
-            break;
-
-            // These are effective if the container rule is effective, which is not handled in this method.
-        case Type::Container:
-        case Type::Media:
-        case Type::NestedDeclarations:
-        case Type::Style:
-        case Type::Supports:
-            break;
-
-            // These are global and always effective.
-        case Type::CounterStyle:
-        case Type::FontFace:
-        case Type::FontFeatureValues:
-        case Type::Function:
-        case Type::Keyframes:
-        case Type::LayerBlock:
-        case Type::LayerStatement:
-        case Type::Margin:
-        case Type::Page:
-        case Type::Property:
-            if (order == TraversalOrder::Preorder)
-                callback(rule);
-            if (auto* grouping_rule = as_if<CSSGroupingRule>(*rule))
-                grouping_rule->for_each_effective_rule(order, callback);
-            if (order == TraversalOrder::Postorder)
-                callback(rule);
-            break;
-        }
-    }
+    //
+    // NB: For other rules, we always treat them as effective now, and reject them later when our @container conditions
+    //     are evaluated.
+    CSSGroupingRule::for_each_effective_rule(order, callback);
 }
 
 }

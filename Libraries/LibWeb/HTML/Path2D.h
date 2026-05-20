@@ -26,7 +26,7 @@ public:
 
     virtual ~Path2D() override;
 
-    WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, Geometry::DOMMatrix2DInit& transform);
+    WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit& transform);
 
 private:
     Path2D(JS::Realm&, Optional<Variant<GC::Root<Path2D>, String>> const&);

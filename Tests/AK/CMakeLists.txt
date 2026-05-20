@@ -60,7 +60,6 @@ set(AK_TEST_SOURCES
     TestRandom.cpp
     TestRedBlackTree.cpp
     TestRefPtr.cpp
-    TestSegmentedVector.cpp
     TestSinglyLinkedList.cpp
     TestSourceGenerator.cpp
     TestSourceLocation.cpp

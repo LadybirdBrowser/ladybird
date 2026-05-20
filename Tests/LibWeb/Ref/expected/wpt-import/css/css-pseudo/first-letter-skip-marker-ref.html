@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<title>Reference: The element's own ::marker should be skipped when finding the ::first-letter content</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<style>
+body { margin-left:100px; }
+ol > li { list-style-position: inside }
+first-letter { color: green }
+li:first-child { list-style-type: lower-alpha; list-style-type: '::marker ' }
+li:last-child::marker { content: '::marker ' }
+</style>
+<ol>
+  <li><first-letter>i</first-letter>tem</li>
+  <li><first-letter>i</first-letter>tem</li>
+</ol>
+
+<ul>
+  <li><first-letter>i</first-letter>tem</li>
+  <li><first-letter>i</first-letter>tem</li>
+</ul>

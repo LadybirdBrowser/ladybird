@@ -1,0 +1,13 @@
+// https://w3c.github.io/permissions/#permissionstatus-interface
+[Experimental, Exposed=(Window,Worker)]
+interface PermissionStatus : EventTarget {
+    readonly attribute PermissionState state;
+    readonly attribute DOMString name;
+    attribute EventHandler onchange;
+};
+
+enum PermissionState {
+    "granted",
+    "denied",
+    "prompt",
+};

@@ -13,7 +13,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/WeakPtr.h>
-#include <LibCore/AnonymousBuffer.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibCore/Notifier.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/NetworkError.h>
@@ -22,6 +22,34 @@
 namespace Requests {
 
 class RequestClient;
+
+class ResponseData {
+public:
+    static ResponseData from_bytes(ReadonlyBytes bytes) { return ResponseData { bytes }; }
+    static ResponseData from_immutable_bytes(Core::ImmutableBytes bytes) { return ResponseData { move(bytes) }; }
+
+    [[nodiscard]] ReadonlyBytes bytes() const
+    {
+        if (m_immutable_bytes.has_value())
+            return m_immutable_bytes->bytes();
+        return m_bytes;
+    }
+    [[nodiscard]] Optional<Core::ImmutableBytes> const& immutable_bytes() const { return m_immutable_bytes; }
+
+private:
+    explicit ResponseData(ReadonlyBytes bytes)
+        : m_bytes(bytes)
+    {
+    }
+
+    explicit ResponseData(Core::ImmutableBytes bytes)
+        : m_immutable_bytes(move(bytes))
+    {
+    }
+
+    ReadonlyBytes m_bytes;
+    Optional<Core::ImmutableBytes> m_immutable_bytes;
+};
 
 class ReadStream {
 public:
@@ -61,28 +89,31 @@ public:
     int fd() const { return m_fd; }
     bool stop();
 
-    using BufferedRequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, ReadonlyBytes payload)>;
+    using BufferedRequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Core::ImmutableBytes payload)>;
 
     // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
     // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
     void set_buffered_request_finished_callback(BufferedRequestFinished);
 
-    using HeadersReceived = Function<void(NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)>;
-    using DataReceived = Function<void(ReadonlyBytes data)>;
+    using HeadersReceived = Function<void(NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)>;
+    using DataReceived = Function<void(ResponseData data)>;
+    using CachedBodyAvailable = Function<void(Core::ImmutableBytes data)>;
     using RequestFinished = Function<void(u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> network_error)>;
 
     // Configure the request such that the response data is provided unbuffered as it is received. Using this method is
     // mutually exclusive with `set_buffered_request_finished_callback`.
-    void set_unbuffered_request_callbacks(HeadersReceived, DataReceived, RequestFinished);
+    void set_unbuffered_request_callbacks(HeadersReceived, DataReceived, CachedBodyAvailable, RequestFinished);
 
     Function<CertificateAndKey()> on_certificate_requested;
 
     void did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error);
-    void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key);
+    void did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key);
     void did_request_certificates(Badge<RequestClient>);
 
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
     void set_request_fd(Badge<RequestClient>, int fd);
+    void set_request_body_file(Badge<RequestClient>, int fd, u64 offset, u64 size);
+    void set_request_cached_body_file(Badge<RequestClient>, int fd, u64 offset, u64 size);
 
 private:
     Request(RequestClient&, u64 request_id);
@@ -111,8 +142,9 @@ private:
         NonnullRefPtr<HTTP::HeaderList> response_headers;
         Optional<u32> response_code;
         Optional<String> reason_phrase;
-        Optional<Core::AnonymousBuffer> javascript_bytecode;
+        Optional<Core::ImmutableBytes> javascript_bytecode;
         Optional<u64> javascript_bytecode_cache_vary_key;
+        Optional<Core::ImmutableBytes> payload;
     };
 
     struct InternalStreamData {
@@ -120,16 +152,21 @@ private:
 
         OwnPtr<ReadStream> read_stream;
         RefPtr<Core::Notifier> read_notifier;
-        u32 total_size { 0 };
+        u64 total_size { 0 };
         Optional<NetworkError> network_error;
         bool request_done { false };
         RequestTimingInfo timing_info;
+        DataReceived on_data_available;
+        CachedBodyAvailable on_cached_body_available;
         Function<void()> on_finish {};
         bool user_finish_called { false };
+        Optional<Core::ImmutableBytes> file_backed_payload;
+        Optional<Core::ImmutableBytes> cached_payload;
     };
 
     OwnPtr<InternalBufferedData> m_internal_buffered_data;
     OwnPtr<InternalStreamData> m_internal_stream_data;
+    Optional<NetworkError> m_body_delivery_error;
 };
 
 }

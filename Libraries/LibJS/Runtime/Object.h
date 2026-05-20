@@ -26,6 +26,7 @@
 namespace JS {
 
 #define JS_OBJECT(class_, base_class) GC_CELL(class_, base_class)
+#define JS_OBJECT_WITH_CUSTOM_CLASS_NAME(class_, base_class) GC_CELL_WITH_CUSTOM_CLASS_NAME(class_, base_class)
 
 struct PrivateElement {
     enum class Kind {

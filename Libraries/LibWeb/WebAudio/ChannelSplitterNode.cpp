@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(ChannelSplitterNode);
 
-ChannelSplitterNode::ChannelSplitterNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ChannelSplitterOptions const& options)
+ChannelSplitterNode::ChannelSplitterNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelSplitterOptions const& options)
     : AudioNode(realm, context)
     , m_number_of_outputs(options.number_of_outputs)
 {
@@ -21,12 +21,12 @@ ChannelSplitterNode::ChannelSplitterNode(JS::Realm& realm, GC::Ref<BaseAudioCont
 
 ChannelSplitterNode::~ChannelSplitterNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ChannelSplitterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelSplitterOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ChannelSplitterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> ChannelSplitterNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ChannelSplitterOptions const& options)
 {
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelsplitter
     // An IndexSizeError exception MUST be thrown if numberOfOutputs is less than 1 or is greater than the number of supported channels.

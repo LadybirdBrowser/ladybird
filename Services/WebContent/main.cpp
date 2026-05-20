@@ -11,6 +11,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
+#include <LibCore/TimeZone.h>
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
@@ -29,7 +30,6 @@
 #include <LibWeb/Loader/ContentFilter.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -148,6 +148,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool collect_garbage_on_every_allocation = false;
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
+    bool disable_async_scrolling = false;
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
     StringView style_invalidation_counter_dump_interval {};
@@ -169,6 +170,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
+    args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
@@ -182,7 +184,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     if (!default_time_zone.is_empty()) {
-        if (auto result = Unicode::set_current_time_zone(default_time_zone); result.is_error())
+        if (auto result = Core::TimeZone::set_current_time_zone(default_time_zone); result.is_error())
             dbgln("Failed to set default time zone: {}", result.error());
     }
 
@@ -219,6 +221,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Web::Fetch::Fetching::set_http_memory_cache_enabled(true);
 
     Web::Painting::set_paint_viewport_scrollbars(!disable_scrollbar_painting);
+    WebContent::PageClient::set_async_scrolling_enabled(!disable_async_scrolling);
 
     if (!echo_server_port_string_view.is_empty()) {
         if (auto maybe_echo_server_port = echo_server_port_string_view.to_number<u16>(); maybe_echo_server_port.has_value())

@@ -13,7 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
-#include <AK/WeakPtr.h>
+#include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
@@ -43,10 +43,6 @@ namespace Web::DOM {
 enum class NameOrDescription {
     Name,
     Description
-};
-
-struct GetRootNodeOptions {
-    bool composed { false };
 };
 
 enum class IsDescendant {
@@ -383,6 +379,11 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
+    template<typename T>
+    T* fast_as() = delete;
+    template<typename T>
+    T const* fast_as() const = delete;
+
     WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(JS::Realm&, GC::Ref<Node> node, GC::Ptr<Node> child) const;
 
     bool is_host_including_inclusive_ancestor_of(Node const&) const;
@@ -412,7 +413,7 @@ public:
     bool is_same_node(Node const*) const;
     bool is_equal_node(Node const*) const;
 
-    GC::Ref<Node> get_root_node(GetRootNodeOptions const& options = {});
+    GC::Ref<Node> get_root_node(Bindings::GetRootNodeOptions const& options = {});
 
     bool is_uninteresting_whitespace_node() const;
 

@@ -1,4 +1,4 @@
-$b4f9525c class-literal-fields.js:12:1
+$77ae058b class-literal-fields.js:12:1
   Registers: 15
   Blocks:    1
   Constants:
@@ -6,27 +6,27 @@ $b4f9525c class-literal-fields.js:12:1
 
 block0:
   [   0] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  38] InitializeLexicalBinding `a`, src:reg5
-  [  50] GetGlobal dst:reg6, `console`
-  [  68] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  88] GetGlobal dst:reg8, `a`
-  [  a0] GetById dst:reg9, base:reg8, `x` (a.x)
-  [  c0] GetGlobal dst:reg8, `a`
-  [  d8] GetById dst:reg10, base:reg8, `y` (a.y)
-  [  f8] GetGlobal dst:reg8, `a`
-  [ 110] GetById dst:reg11, base:reg8, `z` (a.z)
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  30] DynamicInitializeLexicalBinding `a`, src:reg5
+  [  40] GetGlobal dst:reg6, `console`
+  [  50] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  68] GetGlobal dst:reg8, `a`
+  [  78] GetById dst:reg9, base:reg8, `x` (a.x)
+  [  90] GetGlobal dst:reg8, `a`
+  [  a0] GetById dst:reg10, base:reg8, `y` (a.y)
+  [  b8] GetGlobal dst:reg8, `a`
+  [  c8] GetById dst:reg11, base:reg8, `z` (a.z)
+  [  e0] GetGlobal dst:reg8, `a`
+  [  f0] GetById dst:reg12, base:reg8, `w` (a.w)
+  [ 108] GetGlobal dst:reg8, `a`
+  [ 118] GetById dst:reg13, base:reg8, `s` (a.s)
   [ 130] GetGlobal dst:reg8, `a`
-  [ 148] GetById dst:reg12, base:reg8, `w` (a.w)
-  [ 168] GetGlobal dst:reg8, `a`
-  [ 180] GetById dst:reg13, base:reg8, `s` (a.s)
-  [ 1a0] GetGlobal dst:reg8, `a`
-  [ 1b8] GetById dst:reg14, base:reg8, `computed` (a.computed)
-  [ 1d8] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
-  [ 210] End value:reg5
+  [ 140] GetById dst:reg14, base:reg8, `computed` (a.computed)
+  [ 158] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
+  [ 190] End value:reg5
 
 
-test$657cc1d3 class-literal-fields.js:2:5
+test$fa7458d4 class-literal-fields.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    A~0
@@ -41,17 +41,17 @@ test$657cc1d3 class-literal-fields.js:2:5
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
-  [  68] Mov dst:A~0, src:reg6
-  [  78] ThrowIfTDZ src:A~0
-  [  80] CallConstruct dst:reg6, callee:A~0, A
-  [  98] Return value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
+  [  70] Mov dst:A~0, src:reg6
+  [  80] ThrowIfTDZ src:A~0
+  [  88] CallConstruct dst:reg6, callee:A~0, A
+  [  a0] Return value:reg6
 
 
-A$811c9dc5
+A$ef0589ec
   Registers: 5
   Blocks:    1
   Constants:
@@ -61,7 +61,7 @@ block0:
   [   0] End value:Undefined
 
 
-field$4297853c class-literal-fields.js:8:22
+field$d016a301 class-literal-fields.js:8:22
   Registers: 5
   Blocks:    1
   Constants:

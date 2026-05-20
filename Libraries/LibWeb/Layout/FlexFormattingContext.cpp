@@ -1657,9 +1657,10 @@ void FlexFormattingContext::align_all_flex_lines()
     CSSPixels cross_size_of_flex_container = inner_cross_size(m_flex_container_state);
 
     if (is_single_line()) {
-        // For single-line flex containers, we only need to center the line along the cross axis.
+        // https://drafts.csswg.org/css-flexbox-1/#flex-lines
+        // 'align-content' does not apply to single-line flex containers, so place the line at cross-start.
         auto& flex_line = m_flex_lines[0];
-        CSSPixels center_of_line = cross_size_of_flex_container / 2;
+        CSSPixels center_of_line = flex_line.cross_size / 2;
         for (auto& item : flex_line.items) {
             item.cross_offset += center_of_line;
         }

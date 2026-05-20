@@ -1,0 +1,1 @@
+  CompositorBlockingWheelEventRegion@1 rect=[8,8 100x100]

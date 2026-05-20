@@ -1,4 +1,4 @@
-$7861a666 destructuring-no-base-identifier.js:1:1
+$ae8c96e2 destructuring-no-base-identifier.js:1:1
   Registers: 12
   Blocks:    5
   Constants:
@@ -8,24 +8,24 @@ $7861a666 destructuring-no-base-identifier.js:1:1
 block0:
   [   0] NewObject dst:reg5
   [  10] SetGlobal `x`, src:reg5
-  [  28] NewPrimitiveArray dst:reg5, elements:[42]
-  [  40] Mov dst:reg6, src:Bool(false)
-  [  50] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-  [  68] GetGlobal dst:reg10, `x`
-  [  80] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  98] JumpFalse condition:reg6, target:block2
+  [  20] NewPrimitiveArray dst:reg5, elements:[42]
+  [  38] Mov dst:reg6, src:Bool(false)
+  [  48] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  60] GetGlobal dst:reg10, `x`
+  [  70] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  88] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  a8] Mov dst:reg11, src:Undefined
-  [  b8] Jump target:block2
+  [  98] Mov dst:reg11, src:Undefined
+  [  a8] Jump target:block2
 
 block2:
-  [  c0] PutById base:reg10, `y`, src:reg11, kind:Normal
-  [  e8] JumpFalse condition:reg6, target:block4
+  [  b0] PutById base:reg10, `y`, src:reg11, kind:Normal
+  [  d0] JumpFalse condition:reg6, target:block4
 
 block3:
-  [  f8] End value:reg5
+  [  e0] End value:reg5
 
 block4:
-  [ 100] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 118] End value:reg5
+  [  e8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 100] End value:reg5

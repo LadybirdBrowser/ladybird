@@ -51,13 +51,7 @@ private:
         bool operator==(Properties const&) const = default;
     } m_properties;
 
-    // Data that can affect the bitmap rendering.
-    struct CacheKey {
-        Length::ResolutionContext length_resolution_context;
-        Gfx::Color current_color;
-        bool operator==(CacheKey const&) const = default;
-    };
-    mutable Optional<CacheKey> m_cache_key;
+    mutable Optional<Color> m_cached_bitmap_color;
     mutable Optional<Gfx::ShareableBitmap> m_cached_bitmap;
 };
 

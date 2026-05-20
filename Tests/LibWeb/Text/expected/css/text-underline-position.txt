@@ -3,6 +3,12 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x39]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 27.15625x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[43.15625,8 27.640625x18]
   DrawGlyphRun@1 rect=[35,8 8x18] translation=[35.15625,21.796875] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,8 28x18] translation=[8,21.796875] color=rgb(0, 0, 0)
   DrawLine@1 from=[8,25] to=[35,25] color=rgb(0, 0, 0) thickness=2

@@ -11,6 +11,7 @@
 #include <LibCore/System.h>
 #include <LibIPC/MachBootstrapMessages.h>
 #include <LibIPC/TransportBootstrapMach.h>
+#include <LibSync/Mutex.h>
 
 #include <mach/mach.h>
 
@@ -112,7 +113,7 @@ ErrorOr<TransportBootstrapMachServer::BootstrapRequestResult> TransportBootstrap
 {
     Optional<TransportBootstrapMachPorts> child_transport;
     {
-        Threading::MutexLocker locker(m_child_registration_mutex);
+        Sync::MutexLocker locker(m_child_registration_mutex);
         child_transport = m_child_transports.take(pid);
     }
 

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	@container queries with aspect-ratio and size containment
+Pass	@container query with aspect-ratio change after resize

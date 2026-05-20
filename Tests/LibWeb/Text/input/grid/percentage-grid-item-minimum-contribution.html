@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+#section {
+    display: grid;
+    width: 1280px;
+}
+
+#container {
+    margin-left: 90px;
+    margin-right: 90px;
+    max-width: none;
+    width: auto;
+}
+
+#cards {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: auto;
+}
+
+.card {
+    width: 100%;
+}
+
+.media {
+    aspect-ratio: 26 / 17;
+    height: 300px;
+}
+</style>
+<section id="section">
+    <div id="container">
+        <div id="cards">
+            <div class="card"><div class="media"></div></div>
+            <div class="card"><div class="media"></div></div>
+            <div class="card"><div class="media"></div></div>
+        </div>
+    </div>
+</section>
+<script>
+test(() => {
+    const section = document.getElementById("section");
+    const container = document.getElementById("container");
+    const cards = document.getElementById("cards");
+
+    println(`document scroll width: ${document.documentElement.scrollWidth}`);
+    println(`section grid-template-columns: ${getComputedStyle(section).gridTemplateColumns}`);
+    println(`container width: ${Math.round(container.getBoundingClientRect().width)}`);
+    println(`cards width: ${Math.round(cards.getBoundingClientRect().width)}`);
+    println(`cards scroll width exceeds client width: ${cards.scrollWidth > cards.clientWidth}`);
+});
+</script>

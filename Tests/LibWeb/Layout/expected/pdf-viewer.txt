@@ -276,7 +276,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         TextNode <#text> (not painted)
                     BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                       TextNode <#text> (not painted)
-                    BlockContainer <div#editorModeSeparator.verticalToolbarSeparator> at [704,4.796875] flex-item [2+1+0 0 0+0+2] [0+0+0 22.40625 0+0+0] [BFC] children: not-inline
+                    BlockContainer <div#editorModeSeparator.verticalToolbarSeparator> at [704,4.8125] flex-item [2+1+0 0 0+0+2] [0+0+0 22.390625 0+0+0] [BFC] children: not-inline
                     BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                       TextNode <#text> (not painted)
                     Box <div.toolbarHorizontalGroup.hiddenMediumView> at [707,2] flex-container(row) flex-item [0+0+0 57 0+0+0] [0+0+0 28 0+0+0] [FFC] children: not-inline
@@ -310,7 +310,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         TextNode <#text> (not painted)
                     BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                       TextNode <#text> (not painted)
-                    BlockContainer <div.verticalToolbarSeparator.hiddenMediumView> at [768,4.796875] flex-item [2+1+0 0 0+0+2] [0+0+0 22.40625 0+0+0] [BFC] children: not-inline
+                    BlockContainer <div.verticalToolbarSeparator.hiddenMediumView> at [768,4.8125] flex-item [2+1+0 0 0+0+2] [0+0+0 22.390625 0+0+0] [BFC] children: not-inline
                     BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                       TextNode <#text> (not painted)
                     BlockContainer <div#secondaryToolbarToggle.toolbarButtonWithContainer> at [771,2] positioned flex-item [0+0+0 28 0+0+0] [0+0+0 28 0+0+0] [BFC] children: not-inline
@@ -474,7 +474,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                           PaintableWithLines (BlockContainer<SPAN>) [694,16 0x0] overflow: [694,16 51.734375x72]
                             TextPaintable (TextNode<#text>)
                         PaintableWithLines (BlockContainer(anonymous)) [672,30 28x0]
-                    PaintableWithLines (BlockContainer<DIV>#editorModeSeparator.verticalToolbarSeparator) [703,4.796875 1x22.40625]
+                    PaintableWithLines (BlockContainer<DIV>#editorModeSeparator.verticalToolbarSeparator) [703,4.8125 1x22.390625]
                     PaintableBox (Box<DIV>.toolbarHorizontalGroup.hiddenMediumView) [707,2 57x28]
                       PaintableBox (Box<BUTTON>#printButton.toolbarButton) [707,2 28x28]
                         PaintableWithLines (BlockContainer(anonymous)) [713,8 16x16]
@@ -484,7 +484,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                         PaintableWithLines (BlockContainer(anonymous)) [742,8 16x16]
                         PaintableWithLines (BlockContainer<SPAN>) [758,16 0x0] overflow: [758,16 38.234375x18]
                           TextPaintable (TextNode<#text>)
-                    PaintableWithLines (BlockContainer<DIV>.verticalToolbarSeparator.hiddenMediumView) [767,4.796875 1x22.40625]
+                    PaintableWithLines (BlockContainer<DIV>.verticalToolbarSeparator.hiddenMediumView) [767,4.8125 1x22.390625]
                     PaintableWithLines (BlockContainer<DIV>#secondaryToolbarToggle.toolbarButtonWithContainer) [771,2 28x28]
                       PaintableWithLines (BlockContainer(anonymous)) [771,2 28x0]
                       PaintableBox (Box<BUTTON>#secondaryToolbarToggleButton.toolbarButton) [771,2 28x28]

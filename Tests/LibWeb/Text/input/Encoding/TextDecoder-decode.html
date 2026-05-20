@@ -8,7 +8,10 @@
             println(`[${decoder.decode()}]`);
 
             const surrogate = decoder.decode(new Uint8Array([0xed, 0xa0, 0x80])); // U+D800
-            println(`[${surrogate.codePointAt(0).toString(16)}]`);
+            println(`[${surrogate.length}, ${surrogate.codePointAt(0).toString(16)}, ${surrogate.codePointAt(1).toString(16)}, ${surrogate.codePointAt(2).toString(16)}]`);
+
+            const truncatedTail = decoder.decode(new Uint8Array([0xf0, 0x9f, 0x98]));
+            println(`[${truncatedTail.length}, ${truncatedTail.codePointAt(0).toString(16)}]`);
         } catch (e) {
             println("ERROR: " + e.name + ": " + e.message);
         }

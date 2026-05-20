@@ -387,6 +387,21 @@ describe("Object.defineProperty on dictionaries", () => {
 });
 
 describe("dictionary objects with prototype chain", () => {
+    test("setting prototype of a very large dictionary object", () => {
+        const obj = {};
+        const propertyCount = 65537;
+        for (let i = 0; i < propertyCount; ++i) {
+            obj["p" + i] = i;
+        }
+
+        const proto = { inherited: "value" };
+        Object.setPrototypeOf(obj, proto);
+
+        expect(obj.p0).toBe(0);
+        expect(obj.p65536).toBe(65536);
+        expect(obj.inherited).toBe("value");
+    });
+
     test("dictionary object inheriting from prototype", () => {
         const proto = { inherited: 42 };
         const obj = Object.create(proto);

@@ -12,12 +12,12 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(OfflineAudioCompletionEvent);
 
-WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> OfflineAudioCompletionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> OfflineAudioCompletionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const& event_init)
 {
     return realm.create<OfflineAudioCompletionEvent>(realm, event_name, event_init);
 }
 
-OfflineAudioCompletionEvent::OfflineAudioCompletionEvent(JS::Realm& realm, FlyString const& event_name, OfflineAudioCompletionEventInit const& event_init)
+OfflineAudioCompletionEvent::OfflineAudioCompletionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_rendered_buffer(event_init.rendered_buffer)
 {

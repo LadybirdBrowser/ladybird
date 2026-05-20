@@ -3,10 +3,17 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x221]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,13 784x200]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,13 784x200]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,13 300x200]
   Save@1
     AddClipRect@1 rect=[8,13 300x200]
     PaintNestedDisplayList@1 rect=[8,13 300x200]
       SaveLayer@0
+        CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 300x200]
+        CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 300x200]
         FillPath@1 path_bounding_rect=[5,0 55x56]
         FillPath@1 path_bounding_rect=[1,50 55x55]
         Save@1

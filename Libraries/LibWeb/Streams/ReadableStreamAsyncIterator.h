@@ -7,22 +7,18 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/AsyncIterator.h>
 
 namespace Web::Streams {
-
-// https://streams.spec.whatwg.org/#dictdef-readablestreamiteratoroptions
-struct ReadableStreamIteratorOptions {
-    bool prevent_cancel { false };
-};
 
 class ReadableStreamAsyncIterator final : public WebIDL::AsyncIterator {
     WEB_NON_IDL_PLATFORM_OBJECT(ReadableStreamAsyncIterator, WebIDL::AsyncIterator);
     GC_DECLARE_ALLOCATOR(ReadableStreamAsyncIterator);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> create(JS::Realm&, JS::Object::PropertyKind, ReadableStream&, ReadableStreamIteratorOptions);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> create(JS::Realm&, JS::Object::PropertyKind, ReadableStream&, Bindings::ReadableStreamIteratorOptions);
 
     virtual ~ReadableStreamAsyncIterator() override;
 

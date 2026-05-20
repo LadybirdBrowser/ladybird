@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+  div { font-size: 36px; font-family: serif; line-height: 1.2; }
+  div > span { color: green; }
+</style>
+<p>Test passes if only the <strong>green</strong> portions at the start of each line match the reference.</p>
+
+<div><span>(A</span>(est</div>
+<div><span>[A</span>[est</div>
+<div><span>{A</span>{est</div>
+
+<div><span>-A</span>-est</div>
+
+<div><span>(A)</span>est</div>
+
+<div><span>&#x201c;A&#x201d;</span>est</div>
+
+<div><span>A!</span>est</div>
+
+<div><span>A!</span> !est</div>
+
+<div><span>A!</span>&#xa0;!est</div>
+
+<div><span>(A</span> est</div>
+
+<div><span>-A</span> est</div>

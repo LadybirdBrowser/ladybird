@@ -234,33 +234,6 @@ def main():
 
     gb18030_table = prepare_table(data["gb18030"], GenerateAccessor.YES)
 
-    # FIXME: Update JSON to match GB-18030-2022 Encoding specification (https://github.com/whatwg/encoding/issues/312)
-    # NOTE: See https://commits.webkit.org/264918@main
-    gb18030_updates = {
-        7182: 0xFE10,
-        7183: 0xFE12,
-        7184: 0xFE11,
-        7185: 0xFE13,
-        7186: 0xFE14,
-        7187: 0xFE15,
-        7188: 0xFE16,
-        7201: 0xFE17,
-        7202: 0xFE18,
-        7208: 0xFE19,
-        23775: 0x9FB4,
-        23783: 0x9FB5,
-        23788: 0x9FB6,
-        23789: 0x9FB7,
-        23795: 0x9FB8,
-        23812: 0x9FB9,
-        23829: 0x9FBA,
-        23845: 0x9FBB,
-    }
-
-    for index, value in gb18030_updates.items():
-        if index < len(gb18030_table.code_points):
-            gb18030_table.code_points[index] = value
-
     tables = LookupTables(
         gb18030_ranges=data["gb18030-ranges"],
         indexes={

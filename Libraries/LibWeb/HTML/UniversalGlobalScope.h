@@ -29,7 +29,7 @@ public:
     WebIDL::ExceptionOr<String> btoa(String const& data) const;
     WebIDL::ExceptionOr<String> atob(String const& data) const;
     void queue_microtask(WebIDL::CallbackType&);
-    WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, StructuredSerializeOptions const&) const;
+    WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, Bindings::StructuredSerializeOptions const&) const;
 
     GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
     GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();

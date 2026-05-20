@@ -7,8 +7,6 @@
 
 #include <LibGC/Function.h>
 #include <LibHTTP/Cache/MemoryCache.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -42,7 +40,7 @@ void FetchedDataReceiver::set_body(GC::Ref<Fetch::Infrastructure::Body> body)
         m_pre_body_sniff_buffer.clear();
     }
     // If the stream already completed before the body was set,
-    // we missed the set_sniff_bytes_complete() call in handle_network_bytes.
+    // we missed the set_sniff_bytes_complete() call in handle_network_data.
     if (m_network_complete)
         m_body->set_sniff_bytes_complete();
 }
@@ -58,10 +56,10 @@ void FetchedDataReceiver::visit_edges(Visitor& visitor)
 
 // This implements the parallel steps of the pullAlgorithm in HTTP-network-fetch.
 // https://fetch.spec.whatwg.org/#ref-for-in-parallel⑤
-void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState state)
+void FetchedDataReceiver::handle_network_data(Requests::ResponseData data, NetworkState state)
 {
     if (state == NetworkState::Complete) {
-        VERIFY(bytes.is_empty());
+        VERIFY(data.bytes().is_empty());
         m_network_complete = true;
         // Mark sniff bytes as complete when the stream ends
         if (m_body)
@@ -79,6 +77,7 @@ void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState
         return;
 
     // 1. If one or more bytes have been transmitted from response’s message body, then:
+    auto bytes = data.bytes();
     if (bytes.is_empty())
         return;
 
@@ -92,20 +91,41 @@ void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState
 
     // Capture bytes for MIME sniffing
     if (m_body) {
+        if (auto const& immutable_bytes = data.immutable_bytes(); immutable_bytes.has_value() && immutable_bytes->is_file_backed() && m_body->source().has<Empty>() && bytes.size() == immutable_bytes->size())
+            m_body->set_source(*immutable_bytes, static_cast<u64>(immutable_bytes->size()));
         m_body->append_sniff_bytes(bytes);
     } else if (m_pre_body_sniff_buffer.size() < Infrastructure::MAX_SNIFF_BYTES) {
         auto space_remaining = Infrastructure::MAX_SNIFF_BYTES - m_pre_body_sniff_buffer.size();
         m_pre_body_sniff_buffer.append(bytes.slice(0, min(bytes.size(), space_remaining)));
     }
 
-    if (m_http_cache)
-        m_cache_buffer.append(bytes);
+    if (m_http_cache && !m_cache_body_replaces_network_buffer) {
+        if (auto const& immutable_bytes = data.immutable_bytes(); immutable_bytes.has_value() && immutable_bytes->is_file_backed() && m_cache_buffer.is_empty() && !m_cache_body.has_value()) {
+            m_cache_body = *immutable_bytes;
+        } else {
+            if (m_cache_body.has_value()) {
+                m_cache_buffer.append(m_cache_body->bytes());
+                m_cache_body.clear();
+            }
+            m_cache_buffer.append(bytes);
+        }
+    }
 
     // 7. Append bytes to buffer.
     enqueue_into_stream(bytes);
 
     // FIXME: 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent
     //           to suspend the ongoing fetch.
+}
+
+void FetchedDataReceiver::set_cached_response_body(Core::ImmutableBytes body)
+{
+    if (!m_http_cache)
+        return;
+
+    m_cache_buffer.clear();
+    m_cache_body = move(body);
+    m_cache_body_replaces_network_buffer = true;
 }
 
 // This implements the parallel steps of the pullAlgorithm in HTTP-network-fetch.
@@ -123,12 +143,10 @@ void FetchedDataReceiver::enqueue_into_stream(ReadonlyBytes bytes)
 
     // 1. Pull from bytes buffer into stream.
     auto byte_buffer = MUST(ByteBuffer::copy(bytes));
-    auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
-    auto view = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     auto& controller = m_stream->controller()->get<GC::Ref<Streams::ReadableByteStreamController>>();
 
-    if (auto result = Streams::readable_byte_stream_controller_enqueue(*controller, view); result.is_error()) {
+    if (auto result = Streams::readable_byte_stream_controller_enqueue_native_bytes(*controller, move(byte_buffer)); result.is_error()) {
         auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), result.release_error());
         // 2. If stream is errored, then terminate fetchParams’s controller.
         Streams::readable_byte_stream_controller_error(*controller, throw_completion.value());
@@ -142,10 +160,14 @@ void FetchedDataReceiver::close_stream()
         auto request = m_fetch_params->request();
         if (m_stream->is_readable() && !m_fetch_params->is_canceled()
             && m_response && request->cache_mode() != HTTP::CacheMode::NoStore) {
-            m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), move(m_cache_buffer));
+            auto response_body = m_cache_body.has_value()
+                ? m_cache_body.release_value()
+                : Core::ImmutableBytes::adopt(move(m_cache_buffer));
+            m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), move(response_body));
         }
 
         m_http_cache.clear();
+        m_cache_body.clear();
     }
 
     if (!m_stream->is_readable())

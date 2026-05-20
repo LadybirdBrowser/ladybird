@@ -21,6 +21,8 @@
 #include <QToolButton>
 #include <QWidget>
 
+class QTimer;
+
 namespace Ladybird {
 
 class BrowserWindow;
@@ -67,6 +69,7 @@ public:
     void request_close();
 
     QIcon const& favicon() const { return m_favicon; }
+    QIcon tab_icon() const;
     QString const& title() const { return m_title; }
 
     QMenu* context_menu() const { return m_context_menu; }
@@ -92,6 +95,8 @@ private:
     virtual bool event(QEvent*) override;
 
     void recreate_toolbar_icons();
+    void set_loading(bool);
+    void update_tab_icon();
     int tab_index();
 
     QBoxLayout* m_layout { nullptr };
@@ -106,6 +111,9 @@ private:
     QString m_title;
     HyperlinkLabel* m_hover_label { nullptr };
     QIcon m_favicon;
+    QTimer* m_loading_animation_timer { nullptr };
+    bool m_is_loading { false };
+    int m_loading_animation_frame { 0 };
 
     QMenu* m_context_menu { nullptr };
     QMenu* m_page_context_menu { nullptr };

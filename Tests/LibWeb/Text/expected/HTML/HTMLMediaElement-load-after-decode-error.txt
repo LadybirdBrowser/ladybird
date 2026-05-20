@@ -1,12 +1,9 @@
-loadstart: readyState=0
-durationchange: readyState=1 duration=0
-loadedmetadata: readyState=1
-error: readyState=1 code=3
-abort: readyState=0
-emptied: readyState=0
-loadstart: readyState=0
-durationchange: readyState=1 duration=12.043
-loadedmetadata: readyState=1
-loadeddata: readyState=4
-canplay: readyState=4
-canplaythrough: readyState=4
+loadstart: readyState >= HAVE_NOTHING
+durationchange: readyState >= HAVE_METADATA duration=0
+loadedmetadata: readyState >= HAVE_METADATA
+error: readyState >= HAVE_NOTHING code=3
+abort: readyState >= HAVE_NOTHING
+emptied: readyState >= HAVE_NOTHING
+loadstart: readyState >= HAVE_NOTHING
+durationchange: readyState >= HAVE_METADATA duration=12.043
+loadedmetadata: readyState >= HAVE_METADATA

@@ -77,7 +77,7 @@ void CanvasPattern::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvaspattern-settransform
-WebIDL::ExceptionOr<void> CanvasPattern::set_transform(Geometry::DOMMatrix2DInit& transform)
+WebIDL::ExceptionOr<void> CanvasPattern::set_transform(Bindings::DOMMatrix2DInit& transform)
 {
     // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
     auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm(), transform));

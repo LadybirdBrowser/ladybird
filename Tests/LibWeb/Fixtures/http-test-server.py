@@ -70,10 +70,23 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def end_headers(self):
         if hasattr(self, "_extra_headers"):
+            self._sending_extra_headers = True
             for key, value in self._extra_headers:
                 self.send_header(key, value)
+            self._sending_extra_headers = False
             del self._extra_headers
+            del self._extra_header_names
         super().end_headers()
+
+    def send_header(self, keyword, value):
+        # Headers from .headers files override headers created by SimpleHTTPRequestHandler.
+        if (
+            hasattr(self, "_extra_header_names")
+            and not getattr(self, "_sending_extra_headers", False)
+            and keyword.lower() in self._extra_header_names
+        ):
+            return
+        super().send_header(keyword, value)
 
     def _serve_static_request(self):
         if self.path.startswith("/static/"):
@@ -90,12 +103,14 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         if os.path.isfile(headers_path):
             self._extra_headers = []
+            self._extra_header_names = set()
             with open(headers_path) as f:
                 for line in f:
                     line = line.strip()
                     if ":" in line:
                         key, _, value = line.partition(":")
                         self._extra_headers.append((key.strip(), value.strip()))
+                        self._extra_header_names.add(key.strip().lower())
 
         super().do_GET()
 
@@ -227,7 +242,11 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if key not in echo_store:
             key = f"{method} {parsed_url.path}"
 
-        recorded_request_headers[self.path] = {header: self.headers.get_all(header) for header in self.headers.keys()}
+        headers_for_path: Dict[str, list[str]] = {}
+        for header, value in self.headers.items():
+            headers_for_path.setdefault(header, []).append(value)
+        recorded_request_headers[self.path] = headers_for_path
+
         if parsed_url.path != self.path:
             recorded_request_headers[parsed_url.path] = recorded_request_headers[self.path]
 

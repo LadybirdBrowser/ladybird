@@ -16,17 +16,6 @@
 
 namespace Web::IndexedDB {
 
-struct IDBIndexParameters {
-    bool unique { false };
-    bool multi_entry { false };
-};
-
-struct IDBGetAllOptions {
-    JS::Value query { JS::js_undefined() };
-    Optional<WebIDL::UnsignedLong> count;
-    Bindings::IDBCursorDirection direction { Bindings::IDBCursorDirection::Next };
-};
-
 // https://w3c.github.io/IndexedDB/#object-store-interface
 // https://w3c.github.io/IndexedDB/#object-store-handle-construct
 class IDBObjectStore : public Bindings::PlatformObject {
@@ -52,14 +41,14 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_key(JS::Value);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_keys(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(IDBGetAllOptions const&);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(Bindings::IDBGetAllOptions const&);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> count(Optional<JS::Value>);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
 
     WebIDL::ExceptionOr<GC::Ref<IDBIndex>> index(String const&);
 
-    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, IDBIndexParameters options);
+    WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, Bindings::IDBIndexParameters const&);
     WebIDL::ExceptionOr<void> delete_index(String const&);
 
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }

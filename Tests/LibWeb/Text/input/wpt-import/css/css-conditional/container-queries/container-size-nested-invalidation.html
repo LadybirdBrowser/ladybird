@@ -1,0 +1,62 @@
+<!doctype html>
+<title>Nested @container-dependent elements respond to outer container size changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #outer {
+    container-type: size;
+    container-name: outer;
+    width: 100px;
+    height: 100px;
+  }
+
+  /* Note that it's intentional that nothing queries this container. */
+  #inner {
+    container-type: size;
+    width: 42px;
+    height: 42px;
+  }
+
+  @container (width > 90px) {
+    #outer_child {
+      --outer:true;
+    }
+  }
+
+  @container outer (width > 70px) {
+    #inner_child {
+      --inner:true;
+    }
+  }
+</style>
+<div id=outer>
+  <div id=outer_child></div>
+  <div id=inner>
+    <div id=inner_child></div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(function() {
+    assert_equals(getComputedStyle(outer_child).getPropertyValue('--outer'), 'true');
+    assert_equals(getComputedStyle(inner_child).getPropertyValue('--inner'), 'true');
+
+    outer.style.width = '80px';
+
+    assert_equals(getComputedStyle(outer_child).getPropertyValue('--outer'), '');
+    assert_equals(getComputedStyle(inner_child).getPropertyValue('--inner'), 'true');
+
+    outer.style.width = '60px';
+
+    assert_equals(getComputedStyle(outer_child).getPropertyValue('--outer'), '');
+    assert_equals(getComputedStyle(inner_child).getPropertyValue('--inner'), '');
+
+    outer.style.width = '100px';
+
+    assert_equals(getComputedStyle(outer_child).getPropertyValue('--outer'), 'true');
+    assert_equals(getComputedStyle(inner_child).getPropertyValue('--inner'), 'true');
+  }, 'Queries that skip a container are invalidated correctly');
+</script>

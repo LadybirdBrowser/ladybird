@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2D.h>
+#include <LibWeb/Bindings/DOMRectReadOnly.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -49,11 +50,11 @@ GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
 
 JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element, JS::Value options)
 {
-    auto context_attributes = TRY(CanvasRenderingContext2DSettings::from_js_value(realm.vm(), options));
+    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(realm.vm(), options));
     return realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
 }
 
-CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, CanvasRenderingContext2DSettings context_attributes)
+CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, Bindings::CanvasRenderingContext2DSettings context_attributes)
     : PlatformObject(realm)
     , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
     , m_element(element)
@@ -520,7 +521,7 @@ void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<Bindings::ImageDataSettings> const& settings) const
 {
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
@@ -553,7 +554,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_d
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
-WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings) const
 {
     // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)

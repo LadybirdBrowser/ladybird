@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/HeapBlock.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
 
@@ -50,15 +51,26 @@ bool FinalizationRegistry::remove_by_token(Cell& unregister_token)
     return removed;
 }
 
+bool FinalizationRegistry::has_empty_cells() const
+{
+    for (auto& record : m_records) {
+        if (!record.target)
+            return true;
+    }
+    return false;
+}
+
 void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
 {
     auto any_cells_were_removed = false;
     for (auto& record : m_records) {
-        if (!record.target || record.target->state() == Cell::State::Live)
+        if (!record.target)
+            continue;
+        auto* block = GC::HeapBlock::from_cell(record.target);
+        if (heap().is_live_heap_block(block) && record.target->state() == Cell::State::Live && record.target->is_marked())
             continue;
         record.target = nullptr;
         any_cells_were_removed = true;
-        break;
     }
     if (any_cells_were_removed) {
         // NOTE: We make a GC::Root here to ensure that the FinalizationRegistry stays alive
@@ -81,12 +93,15 @@ ThrowCompletionOr<void> FinalizationRegistry::cleanup(GC::Ptr<JobCallback> callb
     auto cleanup_callback = callback ? callback : m_cleanup_callback;
 
     // 3. While finalizationRegistry.[[Cells]] contains a Record cell such that cell.[[WeakRefTarget]] is empty, an implementation may perform the following steps:
-    for (auto it = m_records.begin(); it != m_records.end();) {
+    for (;;) {
         // a. Choose any such cell.
-        if (it->target != nullptr) {
-            ++it;
-            continue;
+        auto it = m_records.begin();
+        for (; it != m_records.end(); ++it) {
+            if (it->target == nullptr)
+                break;
         }
+        if (it == m_records.end())
+            break;
 
         // b. Remove cell from finalizationRegistry.[[Cells]].
         GC::RootVector<Value> arguments(vm.heap());

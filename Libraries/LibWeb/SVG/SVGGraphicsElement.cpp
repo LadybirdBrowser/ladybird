@@ -349,7 +349,7 @@ Optional<float> SVGGraphicsElement::stroke_width() const
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Optional<SVGBoundingBoxOptions>)
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Optional<Bindings::SVGBoundingBoxOptions> const&)
 {
     // FIXME: It should be possible to compute this without layout updates. The bounding box is within the
     // SVG coordinate space (before any viewbox or other transformations), so it should be possible to

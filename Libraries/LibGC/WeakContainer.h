@@ -16,6 +16,7 @@ public:
     explicit WeakContainer(Heap&);
     virtual ~WeakContainer();
 
+    virtual Cell const& owner_cell(Badge<Heap>) const = 0;
     virtual void remove_dead_cells(Badge<Heap>) = 0;
 
 protected:

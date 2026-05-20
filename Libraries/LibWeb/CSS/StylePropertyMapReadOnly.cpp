@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-getall
-WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(String property_name)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(String property_name)
 {
     // The getAll(property) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -85,17 +85,18 @@ WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::ge
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;
 
+    GC::RootVector<GC::Ref<CSSStyleValue>> results { heap() };
+
     // 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
     if (auto property_value = get_style_value(props, property.value())) {
         auto iterations = property_value->subdivide_into_iterations(property.value());
-        GC::RootVector<GC::Ref<CSSStyleValue>> results { heap() };
         for (auto const& style_value : iterations)
             results.append(style_value->reify(realm(), property->name()));
         return results;
     }
 
     // 5. Otherwise, return an empty list.
-    return Vector<GC::Ref<CSSStyleValue>> {};
+    return results;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-has
@@ -120,7 +121,7 @@ WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(String property_name)
             // registered custom property, and every non-registered custom property which is not set to its initial
             // value on this"
             // Ensure style is computed on the element before we try to read it, so we can check custom properties.
-            element.document().update_style();
+            element.document().update_style_for_element(element);
             if (property->is_custom_property()) {
                 if (element.get_custom_property(property->name()))
                     return true;
@@ -146,7 +147,7 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
             // registered custom property, and every non-registered custom property which is not set to its initial
             // value on this"
             // Ensure style is computed on the element before we try to read it.
-            element.document().update_style();
+            element.document().update_style_for_element(element);
 
             // Some custom properties set on the element might also be in the registered custom properties set, so we
             // want the size of the union of the two sets.
@@ -173,7 +174,7 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
             // registered custom property, and every non-registered custom property which is not set to its initial
             // value on this"
             // Ensure style is computed on the element before we try to read it.
-            element.document().update_style();
+            element.document().update_style_for_element(element);
             if (property.is_custom_property()) {
                 if (auto custom_property = element.get_custom_property(property.name()))
                     return custom_property;

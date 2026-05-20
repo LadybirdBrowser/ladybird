@@ -1,4 +1,4 @@
-$bc2d85a0 string-from-char-code-builtin.js:3:1
+$7ba8b0ff string-from-char-code-builtin.js:3:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -7,9 +7,9 @@ $bc2d85a0 string-from-char-code-builtin.js:3:1
 
 block0:
   [   0] GetGlobal dst:reg6, `String`
-  [  18] GetById dst:reg7, base:reg6, `fromCharCode` (String.fromCharCode)
-  [  38] CallBuiltinStringFromCharCode dst:reg5, callee:reg7, this_value:reg6, argument:Int32(65), String.fromCharCode
-  [  50] GetGlobal dst:reg6, `String`
-  [  68] GetById dst:reg8, base:reg6, `fromCharCode` (String.fromCharCode)
-  [  88] Call dst:reg7, callee:reg8, this_value:reg6, String.fromCharCode, arguments:[Int32(65), Int32(66)]
-  [  b0] End value:reg7
+  [  10] GetById dst:reg7, base:reg6, `fromCharCode` (String.fromCharCode)
+  [  28] CallBuiltinStringFromCharCode dst:reg5, callee:reg7, this_value:reg6, argument:Int32(65), String.fromCharCode
+  [  40] GetGlobal dst:reg6, `String`
+  [  50] GetById dst:reg8, base:reg6, `fromCharCode` (String.fromCharCode)
+  [  68] Call dst:reg7, callee:reg8, this_value:reg6, String.fromCharCode, arguments:[Int32(65), Int32(66)]
+  [  90] End value:reg7

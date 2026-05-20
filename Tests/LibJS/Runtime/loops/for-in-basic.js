@@ -562,24 +562,6 @@ test("repeated for-in after full named completion still sees the full next enume
     ]);
 });
 
-test("completed cached for-in does not keep the last receiver alive", () => {
-    function exhaust(object) {
-        for (const key in object) {
-        }
-    }
-
-    function exhaust_and_drop_receiver() {
-        let receiver = { a: 1, b: 2, c: 3 };
-        let weak_ref = new WeakRef(receiver);
-        exhaust(receiver);
-        return weak_ref;
-    }
-
-    let weak_ref = exhaust_and_drop_receiver();
-    gc();
-    expect(weak_ref.deref()).toBeUndefined();
-});
-
 test("repeated for-in after full packed completion still sees the full next enumeration", () => {
     function collect_twice(object) {
         const runs = [];

@@ -13,12 +13,12 @@ namespace Web::Clipboard {
 
 GC_DEFINE_ALLOCATOR(ClipboardEvent);
 
-GC::Ref<ClipboardEvent> ClipboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ClipboardEventInit const& event_init)
+GC::Ref<ClipboardEvent> ClipboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::ClipboardEventInit const& event_init)
 {
     return realm.create<ClipboardEvent>(realm, event_name, event_init);
 }
 
-ClipboardEvent::ClipboardEvent(JS::Realm& realm, FlyString const& event_name, ClipboardEventInit const& event_init)
+ClipboardEvent::ClipboardEvent(JS::Realm& realm, FlyString const& event_name, Bindings::ClipboardEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_clipboard_data(event_init.clipboard_data)
 {

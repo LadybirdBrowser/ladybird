@@ -21,13 +21,6 @@
 
 namespace Web::SVG {
 
-struct SVGBoundingBoxOptions {
-    bool fill { true };
-    bool stroke { false };
-    bool markers { false };
-    bool clipped { false };
-};
-
 class WEB_API SVGGraphicsElement : public SVGElement {
     WEB_PLATFORM_OBJECT(SVGGraphicsElement, SVGElement);
 
@@ -71,7 +64,7 @@ public:
     GC::Ptr<SVG::SVGPatternElement const> fill_pattern() const;
     GC::Ptr<SVG::SVGPatternElement const> stroke_pattern() const;
 
-    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Optional<SVGBoundingBoxOptions>);
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Optional<Bindings::SVGBoundingBoxOptions> const&);
     GC::Ref<SVGAnimatedTransformList> transform() const;
 
     GC::Ptr<Geometry::DOMMatrix> get_ctm();

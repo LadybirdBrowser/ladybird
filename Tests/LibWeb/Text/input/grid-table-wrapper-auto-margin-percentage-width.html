@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.outer {
+    display: grid;
+    width: 1280px;
+}
+
+.grid {
+    display: grid;
+    width: 100%;
+}
+
+.full-area-item,
+.partial-area-item {
+    display: table;
+    margin: auto;
+    height: 20px;
+}
+
+.full-area-item {
+    width: 96%;
+    min-width: 991px;
+    max-width: 1323px;
+}
+
+.two-column-grid {
+    display: grid;
+    width: 1000px;
+    grid-template-columns: 500px 500px;
+}
+
+.partial-area-item {
+    width: 50%;
+}
+
+.uneven-grid {
+    display: grid;
+    width: 1000px;
+    grid-template-columns: 250px 750px;
+}
+
+.oversized-grid {
+    display: grid;
+    width: 500px;
+}
+
+.oversized-grid.fixed-track {
+    grid-template-columns: 500px;
+}
+
+.oversized-grid.auto-track {
+    grid-template-columns: auto;
+}
+
+.oversized-grid.auto-after-fixed-track {
+    grid-template-columns: 250px auto;
+}
+
+.min-width-floor-grid {
+    display: grid;
+    width: 500px;
+    grid-template-columns: auto;
+}
+
+.oversized-grid.centered {
+    justify-items: center;
+}
+
+.oversized-grid.end {
+    justify-items: end;
+}
+
+.oversized-item {
+    display: table;
+    width: 200%;
+    height: 20px;
+}
+
+.fixed-width-item {
+    display: table;
+    width: 600px;
+    height: 20px;
+}
+
+.min-width-percentage-item {
+    display: table;
+    width: 200%;
+    min-width: 600px;
+    margin-left: 10%;
+    height: 20px;
+}
+
+.auto-width-grid {
+    display: grid;
+    width: 100px;
+    justify-items: center;
+}
+
+.auto-width-grid.stretch {
+    justify-items: stretch;
+}
+
+.auto-width-item {
+    display: table;
+    height: 20px;
+    font: 16px SerenitySans;
+}
+
+#auto-width-margins {
+    margin-left: auto;
+    margin-right: auto;
+}
+</style>
+<div class="outer">
+    <div class="grid">
+        <div id="full-area" class="full-area-item"></div>
+    </div>
+</div>
+<div class="two-column-grid">
+    <div id="first-column" class="partial-area-item"></div>
+    <div id="second-column" class="partial-area-item"></div>
+</div>
+<div class="uneven-grid">
+    <div></div>
+    <div id="wide-second-column" class="partial-area-item"></div>
+</div>
+<div class="oversized-grid centered">
+    <div id="oversized-centered" class="oversized-item"></div>
+</div>
+<div class="oversized-grid end">
+    <div id="oversized-end" class="oversized-item"></div>
+</div>
+<div class="oversized-grid fixed-track centered">
+    <div id="oversized-fixed-centered" class="oversized-item"></div>
+</div>
+<div class="oversized-grid fixed-track end">
+    <div id="oversized-fixed-end" class="oversized-item"></div>
+</div>
+<div class="oversized-grid auto-track centered">
+    <div id="oversized-explicit-auto-centered" class="oversized-item"></div>
+</div>
+<div class="oversized-grid auto-track end">
+    <div id="oversized-explicit-auto-end" class="oversized-item"></div>
+</div>
+<div class="oversized-grid auto-after-fixed-track centered">
+    <div></div>
+    <div id="oversized-auto-after-fixed-centered" class="oversized-item"></div>
+</div>
+<div class="oversized-grid auto-after-fixed-track end">
+    <div></div>
+    <div id="oversized-auto-after-fixed-end" class="oversized-item"></div>
+</div>
+<div class="oversized-grid centered">
+    <div id="fixed-width-auto-track-centered" class="fixed-width-item"></div>
+</div>
+<div class="min-width-floor-grid">
+    <div id="min-width-percentage" class="min-width-percentage-item"></div>
+</div>
+<div class="auto-width-grid">
+    <div id="auto-width-centered" class="auto-width-item">alpha beta gamma delta epsilon</div>
+</div>
+<div class="auto-width-grid stretch">
+    <div id="auto-width-margins" class="auto-width-item">alpha beta gamma delta epsilon</div>
+</div>
+<div id="matrix-root"></div>
+<script>
+test(() => {
+    const matrixRoot = document.querySelector("#matrix-root");
+    const trackModes = [
+        { name: "auto", columns: "auto", column: "auto" },
+        { name: "fixed", columns: "500px", column: "auto" },
+        { name: "offset-auto", columns: "250px auto", column: "2", prefix: true },
+        { name: "span-fixed-auto", columns: "250px auto", column: "1 / 3" },
+        { name: "two-auto-second", columns: "auto auto", column: "2", prefix: true },
+        { name: "minmax-auto", columns: "minmax(auto, max-content)", column: "auto" },
+        { name: "auto-fixed-first", columns: "auto 100px", column: "1" },
+    ];
+    const widths = [ "auto", "100%", "200%" ];
+    const minWidths = [ "", "400px", "200%" ];
+    const maxWidths = [ "", "150%" ];
+    const marginModes = [
+        { name: "none", style: "" },
+        { name: "left10", style: "margin-left: 10%;" },
+        { name: "right10", style: "margin-right: 10%;" },
+        { name: "both5", style: "margin-left: 5%; margin-right: 5%;" },
+    ];
+
+    let caseIndex = 0;
+    for (const trackMode of trackModes) {
+        for (const width of widths) {
+            for (const minWidth of minWidths) {
+                for (const maxWidth of maxWidths) {
+                    for (const marginMode of marginModes) {
+                        const grid = document.createElement("div");
+                        grid.style.display = "grid";
+                        grid.style.width = "500px";
+                        grid.style.gridTemplateColumns = trackMode.columns;
+
+                        if (trackMode.prefix) {
+                            const prefix = document.createElement("div");
+                            grid.appendChild(prefix);
+                        }
+
+                        const table = document.createElement("div");
+                        table.id = `matrix-${caseIndex}`;
+                        table.style.display = "table";
+                        table.style.height = "20px";
+                        table.style.width = width;
+                        table.style.cssText += marginMode.style;
+                        if (minWidth)
+                            table.style.minWidth = minWidth;
+                        if (maxWidth)
+                            table.style.maxWidth = maxWidth;
+                        if (trackMode.column !== "auto")
+                            table.style.gridColumn = trackMode.column;
+
+                        grid.appendChild(table);
+                        matrixRoot.appendChild(grid);
+                        caseIndex++;
+                    }
+                }
+            }
+        }
+    }
+
+    const printRect = (name, selector) => {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        println(`${name} left: ${rect.left.toFixed(1)}`);
+        println(`${name} right: ${rect.right.toFixed(1)}`);
+        println(`${name} width: ${rect.width.toFixed(1)}`);
+    };
+
+    printRect("full area", "#full-area");
+    printRect("first column", "#first-column");
+    printRect("second column", "#second-column");
+    printRect("wide second column", "#wide-second-column");
+    printRect("oversized centered", "#oversized-centered");
+    printRect("oversized end", "#oversized-end");
+    printRect("oversized fixed centered", "#oversized-fixed-centered");
+    printRect("oversized fixed end", "#oversized-fixed-end");
+    printRect("oversized explicit auto centered", "#oversized-explicit-auto-centered");
+    printRect("oversized explicit auto end", "#oversized-explicit-auto-end");
+    printRect("oversized auto after fixed centered", "#oversized-auto-after-fixed-centered");
+    printRect("oversized auto after fixed end", "#oversized-auto-after-fixed-end");
+    printRect("fixed width auto track centered", "#fixed-width-auto-track-centered");
+    printRect("min width percentage", "#min-width-percentage");
+    printRect("auto width centered", "#auto-width-centered");
+    printRect("auto width margins", "#auto-width-margins");
+    for (let index = 0; index < caseIndex; index++) {
+        const rect = document.querySelector(`#matrix-${index}`).getBoundingClientRect();
+        println(`matrix ${index}: ${rect.left.toFixed(1)} ${rect.width.toFixed(1)} ${rect.right.toFixed(1)}`);
+    }
+    println(`document scroll width: ${document.documentElement.scrollWidth}`);
+});
+</script>

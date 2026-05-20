@@ -51,7 +51,7 @@ GC::Ref<JS::Uint8Array> TextEncoder::encode(String const& input) const
 }
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encodeinto
-TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const
+Bindings::TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const
 {
     // AD-HOC: Return early if destination is detached. This is not explicitly handled in the spec,
     //         however no bytes are copied as destinations size is always zero in this case.

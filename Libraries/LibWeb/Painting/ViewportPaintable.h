@@ -32,7 +32,7 @@ public:
     GC::Ptr<Selection::Selection> selection() const;
     void recompute_selection_states(DOM::Range&);
 
-    bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y) override;
+    bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y) override;
 
     void set_needs_to_refresh_scroll_state(bool value) { m_needs_to_refresh_scroll_state = value; }
 

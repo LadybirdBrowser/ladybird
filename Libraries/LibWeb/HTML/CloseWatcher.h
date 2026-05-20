@@ -11,11 +11,6 @@
 
 namespace Web::HTML {
 
-// https://html.spec.whatwg.org/multipage/interaction.html#closewatcheroptions
-struct CloseWatcherOptions {
-    GC::Ptr<DOM::AbortSignal> signal;
-};
-
 // https://html.spec.whatwg.org/multipage/interaction.html#the-closewatcher-interface
 class CloseWatcher final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(CloseWatcher, DOM::EventTarget);
@@ -24,7 +19,7 @@ class CloseWatcher final : public DOM::EventTarget {
 public:
     using GetEnabledState = GC::Ref<GC::Function<bool()>>;
 
-    static WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> construct_impl(JS::Realm&, CloseWatcherOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> construct_impl(JS::Realm&, Bindings::CloseWatcherOptions const&);
     [[nodiscard]] static GC::Ref<CloseWatcher> establish(HTML::Window&, GetEnabledState);
 
     void request_close_for_bindings();

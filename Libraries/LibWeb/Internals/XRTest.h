@@ -19,7 +19,7 @@ class WEB_API XRTest final : public InternalsBase {
 public:
     virtual ~XRTest() override;
 
-    GC::Ref<WebIDL::Promise> simulate_device_connection(FakeXRDeviceInit const&) const;
+    GC::Ref<WebIDL::Promise> simulate_device_connection(Bindings::FakeXRDeviceInit const&) const;
 
     void simulate_user_activation(GC::Ref<WebIDL::CallbackType>) const;
 

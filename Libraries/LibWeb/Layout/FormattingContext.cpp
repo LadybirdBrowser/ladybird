@@ -29,6 +29,102 @@
 
 namespace Web::Layout {
 
+enum class SizeDimension {
+    Width,
+    Height,
+};
+
+// https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
+static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural_size(Box const& box, CSS::SizeWithAspectRatio const& natural_size, SizeDimension dimension, Optional<CSSPixels> definite_opposite_size = {})
+{
+    // the intrinsic sizes of replaced elements without natural sizes are defined below:
+    auto is_width = dimension == SizeDimension::Width;
+    if (!box.is_replaced_box() || (is_width ? natural_size.has_width() : natural_size.has_height()))
+        return {};
+
+    // SVG Integration says that a non-top-level <svg> starts with auto width/height, and that with a viewBox, missing
+    // width/height attributes "keep" their auto value. The resulting width, height, and aspect ratio are then
+    // "used in CSS sizing as intrinsic element size properties".
+    //
+    // CSS Sizing defines max-content as the size the box would have "if it was a float" with an auto preferred size.
+    // CSS2 replaced sizing then resolves auto width from "(used height) * (intrinsic ratio)", and auto height from
+    // "(used width) / (intrinsic ratio)". Keep this SVG specific bridge before falling through to CSS Sizing's fallback
+    // for replaced elements without natural sizes.
+    //  - https://svgwg.org/specs/integration/#svg-css-sizing
+    //  - https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
+    //  - https://drafts.csswg.org/css2/#inline-replaced-width
+    //  - https://drafts.csswg.org/css2/#inline-replaced-height
+    if (box.is_svg_svg_box() && natural_size.has_aspect_ratio()) {
+        if (is_width && natural_size.has_height())
+            return natural_size.height.value() * natural_size.aspect_ratio.value();
+        if (!is_width && natural_size.has_width())
+            return natural_size.width.value() / natural_size.aspect_ratio.value();
+    }
+
+    // For the max-content size:
+    // If it has a preferred aspect ratio:
+    if (natural_size.has_aspect_ratio()) {
+        auto aspect_ratio = natural_size.aspect_ratio.value();
+
+        // If the available space is definite in the inline axis, use the stretch fit into that size for the inline size
+        // and calculate the block size using the aspect ratio.
+        //
+        // NB: This helper is only for the max-content size, which has no definite available inline size. Callers may
+        //     still know a definite used size in the opposite axis when the box lacks a natural size in that axis.
+        if (definite_opposite_size.has_value()) {
+            auto opposite_size = definite_opposite_size.value();
+            return is_width ? opposite_size * aspect_ratio : opposite_size / aspect_ratio;
+        }
+
+        // Otherwise if the box has a <length> as its computed value for min-width or min-height, use that size and
+        // calculate the other dimension using the aspect ratio; if both dimensions have a <length> minimum, choose the
+        // one that results in the larger overall size.
+        //
+        // NOTE: This case was previous calculated from a 300x150 default size, rather than the box’s min size. This is
+        //       believed to be a better behavior, and likely to be Web-compatible, but please send feedback to the CSSWG
+        //       if there are any problems.
+        Optional<CSSPixels> size_from_min_width;
+        auto const& min_width = box.computed_values().min_width();
+        if (min_width.is_length()) {
+            auto inline_size = min_width.to_px(box, 0);
+            size_from_min_width = is_width ? inline_size : inline_size / aspect_ratio;
+        }
+
+        Optional<CSSPixels> size_from_min_height;
+        auto const& min_height = box.computed_values().min_height();
+        if (min_height.is_length()) {
+            auto block_size = min_height.to_px(box, 0);
+            size_from_min_height = is_width ? block_size * aspect_ratio : block_size;
+        }
+
+        if (size_from_min_width.has_value() && size_from_min_height.has_value())
+            return max(size_from_min_width.value(), size_from_min_height.value());
+        if (size_from_min_width.has_value())
+            return size_from_min_width.value();
+        if (size_from_min_height.has_value())
+            return size_from_min_height.value();
+
+        // Otherwise use an inline size matching the corresponding dimension of the initial containing block and calculate
+        // the other dimension using the aspect ratio.
+        //
+        // NOTE: This author-controllable behavior is made possible by the new auto value for the min size properties.
+        //       This is believed to be a better behavior, but it is not yet clear if it is Web-compatible, so please
+        //       send feedback to the CSSWG if there are any problems.
+        auto inline_size = box.document().viewport_rect().width();
+        return is_width ? inline_size : inline_size / aspect_ratio;
+    }
+
+    // If it has no preferred aspect ratio:
+    // For both the min-content size and max-content size:
+    // If the box has a <length> as its computed minimum size (min-width/min-height) in that dimension, use that size.
+    auto const& min_size = is_width ? box.computed_values().min_width() : box.computed_values().min_height();
+    if (min_size.is_length())
+        return min_size.to_px(box, 0);
+
+    // Otherwise, use 300px for the width and/or 150px for the height as needed.
+    return is_width ? CSSPixels(300) : CSSPixels(150);
+}
+
 FormattingContext::FormattingContext(Type type, LayoutMode layout_mode, LayoutState& state, Box const& context_box, FormattingContext* parent)
     : m_type(type)
     , m_layout_mode(layout_mode)
@@ -39,6 +135,14 @@ FormattingContext::FormattingContext(Type type, LayoutMode layout_mode, LayoutSt
 }
 
 FormattingContext::~FormattingContext() = default;
+
+bool FormattingContext::computed_height_establishes_definite_containing_block_height(CSS::Size const& computed_height)
+{
+    // A resolved used height is not always a definite containing block height.
+    // Intrinsic sizing keywords like fit-content still depend on child layout,
+    // so percentage-height descendants must continue to treat them as indefinite.
+    return !computed_height.is_intrinsic_sizing_constraint();
+}
 
 // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
 bool FormattingContext::creates_block_formatting_context(Box const& box)
@@ -460,13 +564,17 @@ CSSPixels FormattingContext::compute_auto_height_for_block_formatting_context_ro
 
 // 17.5.2 Table width algorithms: the 'table-layout' property
 // https://www.w3.org/TR/CSS22/tables.html#width-layout
-CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box const& box, AvailableSpace const& available_space)
+CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(
+    Box const& box,
+    AvailableSpace const& available_space,
+    Optional<CSSPixels> table_wrapper_containing_block_width,
+    TableWrapperWidthMode table_wrapper_width_mode)
 {
-    // Table wrapper width should be equal to width of table box it contains
+    // CSS 2 says the table wrapper width is the border-edge width of the table grid box inside it.
 
     auto const& computed_values = box.computed_values();
 
-    auto width_of_containing_block = available_space.width.to_px_or_zero();
+    auto width_of_containing_block = table_wrapper_containing_block_width.value_or(available_space.width.to_px_or_zero());
 
     // If 'margin-left', or 'margin-right' are computed as 'auto', their used value is '0'.
     auto margin_left = computed_values.margin().left().to_px_or_zero(box, width_of_containing_block);
@@ -486,7 +594,11 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     VERIFY(table_box.has_value());
 
     LayoutState throwaway_state(box);
-    throwaway_state.populate_node_from(m_state, *box.containing_block());
+    auto& containing_block_state = throwaway_state.populate_node_from(m_state, *box.containing_block());
+    // CSS Grid lays out grid items into their grid-area containing blocks, which need not match the layout-tree
+    // containing block. Use the explicit grid-area width when measuring a table wrapper for grid alignment.
+    if (table_wrapper_containing_block_width.has_value())
+        containing_block_state.set_content_width(*table_wrapper_containing_block_width);
 
     auto& table_box_state = throwaway_state.get_mutable(*table_box);
     auto const& table_box_computed_values = table_box->computed_values();
@@ -499,6 +611,10 @@ CSSPixels FormattingContext::compute_table_box_width_inside_table_wrapper(Box co
     context->run_until_width_calculation(m_state.get(*table_box).available_inner_space_or_constraints_from(available_space));
 
     auto table_used_width = throwaway_state.get(*table_box).border_box_width();
+    if (table_wrapper_width_mode == TableWrapperWidthMode::UseTableUsedWidthIfNotAuto
+        && !table_box->computed_values().width().is_auto()) {
+        return table_used_width;
+    }
     return available_space.width.is_definite() ? min(table_used_width, available_width) : table_used_width;
 }
 
@@ -1240,7 +1356,8 @@ void FormattingContext::compute_height_for_absolutely_positioned_non_replaced_el
     // do not set calculated insets or margins on the first pass, there will be a second pass
     if (box.computed_values().height().is_auto() && before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
         return;
-    box_state.set_has_definite_height(true);
+    if (computed_height_establishes_definite_containing_block_height(box.computed_values().height()))
+        box_state.set_has_definite_height(true);
     box_state.inset_top = top.to_px_or_zero(box, height_of_containing_block);
     box_state.inset_bottom = bottom.to_px_or_zero(box, height_of_containing_block);
     box_state.margin_top = margin_top.to_px_or_zero(box, width_of_containing_block);
@@ -1643,7 +1760,8 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
     if (is_non_auto(computed_values.inset().left()) && is_non_auto(computed_values.inset().right())) {
         box_state.set_has_definite_width(true);
     }
-    if (is_non_auto(computed_values.inset().top()) && is_non_auto(computed_values.inset().bottom())) {
+    if (is_non_auto(computed_values.inset().top()) && is_non_auto(computed_values.inset().bottom())
+        && (computed_values.height().is_auto() || computed_height_establishes_definite_containing_block_height(computed_values.height()))) {
         box_state.set_has_definite_height(true);
     }
 
@@ -1656,7 +1774,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
             && box.has_preferred_aspect_ratio()
             && box_state.has_definite_width();
         box_state.set_has_definite_width(true);
-        if (!computed_values.height().is_auto() || height_resolved_from_aspect_ratio)
+        if ((!computed_values.height().is_auto() && computed_height_establishes_definite_containing_block_height(computed_values.height())) || height_resolved_from_aspect_ratio)
             box_state.set_has_definite_height(true);
     }
 
@@ -1809,7 +1927,8 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
     // do not set calculated insets or margins on the first pass, there will be a second pass
     if (box.computed_values().height().is_auto() && before_or_after_inside_layout == BeforeOrAfterInsideLayout::Before)
         return;
-    box_state.set_has_definite_height(true);
+    if (computed_height_establishes_definite_containing_block_height(box.computed_values().height()))
+        box_state.set_has_definite_height(true);
     box_state.inset_top = to_px(top);
     box_state.inset_bottom = to_px(bottom);
     box_state.margin_top = to_px(margin_top);
@@ -1957,9 +2076,18 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
 
 CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box) const
 {
-
-    if (auto auto_size = box.auto_content_box_size(); auto_size.has_width())
+    auto auto_size = box.auto_content_box_size();
+    if (auto_size.has_width())
         return auto_size.width.value();
+
+    Optional<CSSPixels> definite_height;
+    if (box.is_replaced_box() && !auto_size.has_height()) {
+        if (auto const& box_state = m_state.get(box); box_state.has_definite_height())
+            definite_height = box_state.content_height();
+    }
+
+    if (auto max_content_width = max_content_size_for_replaced_element_without_natural_size(box, auto_size, SizeDimension::Width, definite_height); max_content_width.has_value())
+        return max_content_width.value();
 
     // Boxes with no children have zero intrinsic width.
     if (!box.has_children())
@@ -2043,6 +2171,8 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
 
     if (auto auto_size = box.auto_content_box_size(); auto_size.has_height())
         return auto_size.height.value();
+    if (auto max_content_height = max_content_size_for_replaced_element_without_natural_size(box, box.auto_content_box_size(), SizeDimension::Height); max_content_height.has_value())
+        return max_content_height.value();
 
     // Boxes with no children have zero intrinsic height.
     if (!box.has_children())

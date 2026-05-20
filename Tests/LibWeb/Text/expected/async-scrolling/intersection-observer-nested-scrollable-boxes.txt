@@ -1,0 +1,10 @@
+initial isIntersecting: false
+initial ratio: 0
+wheel routing admission: accepted
+wheel scroll admission: accepted
+downward wheel target before wheel: non-viewport
+scrolled isIntersecting: true
+scrolled ratio: 1
+inner scrollTop: 100
+outer scrollTop: 0
+window scrollY: 0

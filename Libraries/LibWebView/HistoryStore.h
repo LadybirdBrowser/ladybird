@@ -11,8 +11,9 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <LibDatabase/Forward.h>
-#include <LibURL/Forward.h>
+#include <LibURL/URL.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
@@ -23,6 +24,13 @@ struct WEBVIEW_API HistoryEntry {
     Optional<String> favicon_base64_png;
     u64 visit_count { 0 };
     UnixDateTime last_visited_time;
+};
+
+struct WEBVIEW_API RecentlyClosedEntry {
+    Vector<URL::URL> urls;
+    bool was_window { false };
+    size_t active_tab_index { 0 };
+    UnixDateTime closed_time;
 };
 
 class WEBVIEW_API HistoryStore {
@@ -41,6 +49,12 @@ public:
     void update_title(URL::URL const&, String const& title);
     void update_favicon(URL::URL const&, String const& favicon_base64_png);
 
+    void record_closed_tab(URL::URL const&, UnixDateTime closed_at = UnixDateTime::now());
+    void record_closed_window(Vector<URL::URL>, size_t active_tab_index, UnixDateTime closed_at = UnixDateTime::now());
+    bool has_recently_closed_entries() const;
+    Optional<RecentlyClosedEntry const&> most_recently_closed_entry() const;
+    Optional<RecentlyClosedEntry> pop_most_recently_closed_entry();
+
     Optional<HistoryEntry> entry_for_url(URL::URL const&);
     Vector<HistoryEntry> autocomplete_entries(StringView query, size_t limit = 8);
 
@@ -58,41 +72,69 @@ private:
         Database::StatementID delete_entries_accessed_since { 0 };
     };
 
-    class TransientStorage {
+    class StorageImpl {
     public:
-        void record_visit(String url, Optional<String> title, UnixDateTime visited_at);
-        void update_title(String const& url, String title);
-        void update_favicon(String const& url, String favicon_base64_png);
+        virtual ~StorageImpl() = default;
 
-        Optional<HistoryEntry> entry_for_url(String const& url);
-        Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit);
+        virtual StringView name() = 0;
 
-        void clear();
-        void remove_entries_accessed_since(UnixDateTime since);
+        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at) = 0;
+        virtual void update_title(String const& url, String const& title) = 0;
+        virtual void update_favicon(String const& url, String const& favicon_base64_png) = 0;
+
+        virtual Optional<HistoryEntry> entry_for_url(String const& url) = 0;
+        virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) = 0;
+
+        virtual void clear() = 0;
+        virtual void remove_entries_accessed_since(UnixDateTime since) = 0;
+    };
+
+    class TransientStorage : public StorageImpl {
+    public:
+        virtual ~TransientStorage() override = default;
+
+        virtual StringView name() override { return "transient"sv; }
+
+        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at) override;
+        virtual void update_title(String const& url, String const& title) override;
+        virtual void update_favicon(String const& url, String const& favicon_base64_png) override;
+
+        virtual Optional<HistoryEntry> entry_for_url(String const& url) override;
+        virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
+
+        virtual void clear() override;
+        virtual void remove_entries_accessed_since(UnixDateTime since) override;
 
     private:
         HashMap<String, HistoryEntry> m_entries;
     };
 
-    struct PersistedStorage {
-        void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at);
-        void update_title(String const& url, String const& title);
-        void update_favicon(String const& url, String const& favicon_base64_png);
+    class PersistedStorage : public StorageImpl {
+    public:
+        PersistedStorage(Database::Database&, Statements&&);
+        virtual ~PersistedStorage() override;
 
-        Optional<HistoryEntry> entry_for_url(String const& url);
-        Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit);
+        virtual StringView name() override { return "SQL"sv; }
 
-        void clear();
-        void remove_entries_accessed_since(UnixDateTime since);
+        virtual void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at) override;
+        virtual void update_title(String const& url, String const& title) override;
+        virtual void update_favicon(String const& url, String const& favicon_base64_png) override;
 
-        Database::Database& database;
-        Statements statements;
+        virtual Optional<HistoryEntry> entry_for_url(String const& url) override;
+        virtual Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit) override;
+
+        virtual void clear() override;
+        virtual void remove_entries_accessed_since(UnixDateTime since) override;
+
+    private:
+        Database::Database& m_database;
+        Statements m_statements;
     };
 
-    explicit HistoryStore(Optional<PersistedStorage>, bool is_disabled = false);
+    explicit HistoryStore(NonnullOwnPtr<StorageImpl>&&, bool is_disabled = false);
 
-    Optional<PersistedStorage> m_persisted_storage;
-    TransientStorage m_transient_storage;
+    NonnullOwnPtr<StorageImpl> m_storage;
+    Vector<RecentlyClosedEntry> m_recently_closed_entries;
     bool m_is_disabled { false };
 };
 

@@ -155,6 +155,34 @@
       "inline-start": "padding-inline-start"
     }
   },
+  "scroll-margin": {
+    "physical": {
+      "top": "scroll-margin-top",
+      "right": "scroll-margin-right",
+      "bottom": "scroll-margin-bottom",
+      "left": "scroll-margin-left"
+    },
+    "logical": {
+      "block-start": "scroll-margin-block-start",
+      "inline-end": "scroll-margin-inline-end",
+      "block-end": "scroll-margin-block-end",
+      "inline-start": "scroll-margin-inline-start"
+    }
+  },
+  "scroll-padding": {
+    "physical": {
+      "top": "scroll-padding-top",
+      "right": "scroll-padding-right",
+      "bottom": "scroll-padding-bottom",
+      "left": "scroll-padding-left"
+    },
+    "logical": {
+      "block-start": "scroll-padding-block-start",
+      "inline-end": "scroll-padding-inline-end",
+      "block-end": "scroll-padding-block-end",
+      "inline-start": "scroll-padding-inline-start"
+    }
+  },
   "size": {
     "physical": {
       "width": "width",

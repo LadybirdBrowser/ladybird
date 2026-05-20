@@ -15,7 +15,7 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ByteLengthQueuingStrategy);
 
 // https://streams.spec.whatwg.org/#blqs-constructor
-GC::Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::construct_impl(JS::Realm& realm, QueuingStrategyInit const& init)
+GC::Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::construct_impl(JS::Realm& realm, Bindings::QueuingStrategyInit const& init)
 {
     // The new ByteLengthQueuingStrategy(init) constructor steps are:
     // 1. Set this.[[highWaterMark]] to init["highWaterMark"].

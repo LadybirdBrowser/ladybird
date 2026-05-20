@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 100px;
+    width: 100px;
+}
+
+.intrinsic {
+    grid-template-columns: max-content;
+}
+
+.center {
+    justify-items: center;
+}
+
+.end {
+    justify-items: end;
+}
+
+.stretch {
+    justify-items: stretch;
+}
+
+.tall-row {
+    grid-template-rows: 60px;
+}
+
+.two-columns {
+    grid-template-columns: 100px 100px;
+}
+
+.wide-grid {
+    grid-template-columns: 300px;
+    width: 300px;
+}
+
+.table {
+    display: table;
+    height: 20px;
+}
+
+.order-early {
+    order: 1;
+}
+
+.order-late {
+    order: 2;
+}
+
+.self-end {
+    justify-self: end;
+}
+
+.self-center {
+    align-self: center;
+}
+
+.fixed {
+    width: 50px;
+}
+
+.bordered {
+    border: 5px solid black;
+}
+
+.border-box {
+    border-left: 10px solid black;
+    border-right: 10px solid black;
+    box-sizing: border-box;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.max-width {
+    max-width: 60px;
+}
+
+.max-width-border-box {
+    max-width: 60px;
+}
+
+.min-over-max {
+    max-width: 60px;
+    min-width: 120px;
+}
+
+.min-width-border-box {
+    min-width: 60px;
+}
+
+.max-content-width {
+    max-width: max-content;
+}
+
+.min-content-width {
+    max-width: min-content;
+}
+
+.fit-content-width {
+    max-width: fit-content(120px);
+}
+
+.fixed-border-box {
+    width: 60px;
+}
+
+.auto-margins {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.cell {
+    display: table-cell;
+}
+
+.narrow {
+    display: inline-block;
+    height: 20px;
+    width: 20px;
+}
+
+.medium {
+    display: inline-block;
+    height: 20px;
+    width: 60px;
+}
+
+.wide {
+    display: inline-block;
+    height: 20px;
+    width: 160px;
+}
+
+.segment {
+    display: inline-block;
+    height: 20px;
+    width: 80px;
+}
+
+.track-sizer {
+    height: 0;
+    width: 260px;
+}
+</style>
+<div class="grid stretch"><div class="table"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid center"><div class="table"><div class="cell"><span class="medium"></span></div></div></div>
+<div class="grid end"><div class="table"><div class="cell"><span class="wide"></span></div></div></div>
+<div class="grid center"><div class="table auto-margins"><div class="cell"><span class="wide"></span></div></div></div>
+<div class="grid end"><div class="table fixed"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid stretch"><div class="table bordered"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid stretch"><div class="table max-width"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid stretch"><div class="table max-width"><div class="cell"><span class="wide"></span></div></div></div>
+<div class="grid stretch"><div class="table min-over-max"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid stretch"><div class="table border-box max-width-border-box"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid stretch"><div class="table border-box max-width-border-box"><div class="cell"><span class="wide"></span></div></div></div>
+<div class="grid stretch"><div class="table border-box min-width-border-box"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid stretch"><div class="table border-box fixed-border-box"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid wide-grid stretch"><div class="table max-content-width"><div class="cell"><span class="segment"></span> <span class="segment"></span> <span class="segment"></span></div></div></div>
+<div class="grid wide-grid stretch"><div class="table min-content-width"><div class="cell"><span class="segment"></span> <span class="segment"></span> <span class="segment"></span></div></div></div>
+<div class="grid wide-grid stretch"><div class="table fit-content-width"><div class="cell"><span class="segment"></span> <span class="segment"></span> <span class="segment"></span></div></div></div>
+<div class="grid intrinsic stretch"><div class="track-sizer"></div><div class="table"><div class="cell"><span class="segment"></span> <span class="segment"></span> <span class="segment"></span></div></div></div>
+<div class="grid stretch"><div class="table fixed self-end"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid tall-row stretch"><div class="table fixed self-center"><div class="cell"><span class="narrow"></span></div></div></div>
+<div class="grid two-columns stretch"><div class="table fixed order-late"><div class="cell"><span class="narrow"></span></div></div><div class="table fixed order-early"><div class="cell"><span class="medium"></span></div></div></div>

@@ -9,10 +9,10 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigable.h>
-#include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/SessionHistoryTraversalQueue.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>

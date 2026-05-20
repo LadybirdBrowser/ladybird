@@ -12,6 +12,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <LibGfx/Point.h>
 #include <LibGfx/SharedImage.h>
 #include <LibHTTP/Header.h>
 #include <LibIPC/ConnectionToServer.h>
@@ -20,6 +21,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/SelectItem.h>
@@ -57,7 +59,14 @@ public:
 
     void web_ui_disconnected(Badge<WebUI>);
 
+    bool has_views() const { return !m_views.is_empty(); }
+
     void notify_all_views_of_crash();
+    bool send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
+    bool send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const&);
+    void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
+    void did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
+    void did_present_bitmap(u64 page_id, Gfx::IntRect, i32 bitmap_id);
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
@@ -67,7 +76,6 @@ private:
 
     virtual void die() override;
 
-    virtual void did_paint(u64 page_id, Gfx::IntRect, i32) override;
     virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url) override;
     virtual void did_finish_loading(u64 page_id, URL::URL) override;
     virtual void did_request_refresh(u64 page_id) override;
@@ -151,9 +159,9 @@ private:
     virtual void did_change_theme_color(u64 page_id, Gfx::Color color) override;
     virtual void did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation, String presentation_style) override;
     virtual void did_request_clipboard_entries(u64 page_id, u64 request_id) override;
+    virtual void did_request_paste(u64 page_id) override;
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
-    virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());

@@ -35,11 +35,11 @@ GC_DEFINE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
 
 JS::ThrowCompletionOr<GC::Ref<OffscreenCanvasRenderingContext2D>> OffscreenCanvasRenderingContext2D::create(JS::Realm& realm, OffscreenCanvas& offscreen_canvas, JS::Value options)
 {
-    auto context_attributes = TRY(CanvasRenderingContext2DSettings::from_js_value(realm.vm(), options));
+    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(realm.vm(), options));
     return realm.create<OffscreenCanvasRenderingContext2D>(realm, offscreen_canvas, context_attributes);
 }
 
-OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(JS::Realm& realm, OffscreenCanvas& offscreen_canvas, CanvasRenderingContext2DSettings context_attributes)
+OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(JS::Realm& realm, OffscreenCanvas& offscreen_canvas, Bindings::CanvasRenderingContext2DSettings context_attributes)
     : PlatformObject(realm)
     , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
     , m_canvas(offscreen_canvas)
@@ -143,7 +143,7 @@ void OffscreenCanvasRenderingContext2D::fill(Path2D&, StringView)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::create_image_data(int, int, Optional<ImageDataSettings> const&) const
+WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::create_image_data(int, int, Optional<Bindings::ImageDataSettings> const&) const
 {
     return WebIDL::NotSupportedError::create(realm(), "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(int, int)"_utf16);
 }
@@ -153,7 +153,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::creat
     return WebIDL::NotSupportedError::create(realm(), "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(ImageData&)"_utf16);
 }
 
-WebIDL::ExceptionOr<GC::Ptr<ImageData>> OffscreenCanvasRenderingContext2D::get_image_data(int, int, int, int, Optional<ImageDataSettings> const&) const
+WebIDL::ExceptionOr<GC::Ptr<ImageData>> OffscreenCanvasRenderingContext2D::get_image_data(int, int, int, int, Optional<Bindings::ImageDataSettings> const&) const
 {
     return WebIDL::NotSupportedError::create(realm(), "(STUBBED) OffscreenCanvasRenderingContext2D::get_image_data()"_utf16);
 }

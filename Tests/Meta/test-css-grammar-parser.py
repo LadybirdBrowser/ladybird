@@ -6,7 +6,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(os.environ["LADYBIRD_SOURCE_DIR"]) / "Meta"))
 
+from Utils.css_dimensions import load_css_dimensions
 from Utils.CSSGrammar.Parser.parser import parse_value_definition_grammar
+
+load_css_dimensions(str(Path(os.environ["LADYBIRD_SOURCE_DIR"]).joinpath("Libraries/LibWeb/CSS/Units.json")))
 
 
 class TestCSSGrammarParser(unittest.TestCase):
@@ -116,6 +119,116 @@ class TestCSSGrammarParser(unittest.TestCase):
 """,
         )
 
+    def test_parse_juxtaposition(self) -> None:
+        syntax = parse_value_definition_grammar("<foo> <bar> baz")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Juxtaposition):
+  ComponentValue
+    Type: foo
+  ComponentValue
+    Type: bar
+  ComponentValue
+    Keyword: baz
+""",
+        )
+
+    def test_parse_juxtaposition_has_higher_precedence_than_alternatives(self) -> None:
+        syntax = parse_value_definition_grammar("<foo> <bar> | <baz>")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Alternatives):
+  Combinator(Juxtaposition):
+    ComponentValue
+      Type: foo
+    ComponentValue
+      Type: bar
+  ComponentValue
+    Type: baz
+""",
+        )
+
+    def test_parse_grouped_alternatives_in_juxtaposition(self) -> None:
+        syntax = parse_value_definition_grammar("[ <foo> | <bar> ] <baz>")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Juxtaposition):
+  Group:
+    Combinator(Alternatives):
+      ComponentValue
+        Type: foo
+      ComponentValue
+        Type: bar
+  ComponentValue
+    Type: baz
+""",
+        )
+
+    def test_parse_group(self) -> None:
+        syntax = parse_value_definition_grammar("[ <length> ]")
+        self.assertEqual(
+            syntax.dump(),
+            """Group:
+  ComponentValue
+    Type: length [-∞,∞]
+""",
+        )
+
+    def test_parse_grouped_alternatives(self) -> None:
+        syntax = parse_value_definition_grammar("[ auto | none | <length> ]")
+        self.assertEqual(
+            syntax.dump(),
+            """Group:
+  Combinator(Alternatives):
+    ComponentValue
+      Keyword: auto
+    ComponentValue
+      Keyword: none
+    ComponentValue
+      Type: length [-∞,∞]
+""",
+        )
+
+    def test_parse_groups_as_alternative(self) -> None:
+        syntax = parse_value_definition_grammar("[ auto | none ] | <length>")
+        self.assertEqual(
+            syntax.dump(),
+            """Combinator(Alternatives):
+  Group:
+    Combinator(Alternatives):
+      ComponentValue
+        Keyword: auto
+      ComponentValue
+        Keyword: none
+  ComponentValue
+    Type: length [-∞,∞]
+""",
+        )
+
+    def test_parse_optional_type_reference(self) -> None:
+        syntax = parse_value_definition_grammar("<foo>?")
+        self.assertEqual(
+            syntax.dump(),
+            """Optional:
+  ComponentValue
+    Type: foo
+""",
+        )
+
+    def test_parse_optional_group(self) -> None:
+        syntax = parse_value_definition_grammar("[ auto | none ]?")
+        self.assertEqual(
+            syntax.dump(),
+            """Optional:
+  Group:
+    Combinator(Alternatives):
+      ComponentValue
+        Keyword: auto
+      ComponentValue
+        Keyword: none
+""",
+        )
+
     def test_parse_ignores_whitespace_around_tokens(self) -> None:
         syntax = parse_value_definition_grammar("  <foo>\t|\n<bar>  ")
         self.assertEqual(
@@ -139,6 +252,27 @@ class TestCSSGrammarParser(unittest.TestCase):
     def test_reject_trailing_bar(self) -> None:
         with self.assertRaises(SyntaxError):
             parse_value_definition_grammar("<foo> |")
+
+    def test_reject_invalid_optional(self) -> None:
+        for value in (
+            "?",
+            "<foo>??",
+            "[ <foo> ]??",
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(SyntaxError):
+                    parse_value_definition_grammar(value)
+
+    def test_reject_invalid_group(self) -> None:
+        for value in (
+            "[]",
+            "[ <foo>",
+            "<foo> ]",
+            "[ <foo> | ]",
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(SyntaxError):
+                    parse_value_definition_grammar(value)
 
     def test_reject_invalid_type_reference(self) -> None:
         for value in (

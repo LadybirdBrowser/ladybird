@@ -789,11 +789,11 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
         Vector<Line::CompletionSuggestion> results;
 
         Function<void(JS::Shape const&, Utf16FlyString const&)> list_all_properties = [&results, &list_all_properties](JS::Shape const& shape, Utf16FlyString const& property_pattern) {
-            for (auto const& descriptor : shape.property_table()) {
-                if (!descriptor.key.is_string())
-                    continue;
+            shape.for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+                if (!property_key.is_string())
+                    return;
 
-                auto key = descriptor.key.as_string().to_utf16_string();
+                auto key = property_key.as_string().to_utf16_string();
 
                 if (key.starts_with(property_pattern.view())) {
                     Line::CompletionSuggestion completion { key.to_utf8_but_should_be_ported_to_utf16(), Line::CompletionSuggestion::ForSearch };
@@ -802,7 +802,7 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
                         results.last().invariant_offset = property_pattern.length_in_code_units();
                     }
                 }
-            }
+            });
             if (auto const* prototype = shape.prototype()) {
                 list_all_properties(prototype->shape(), property_pattern);
             }

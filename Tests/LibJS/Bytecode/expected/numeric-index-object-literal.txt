@@ -1,4 +1,4 @@
-$d99dc022 numeric-index-object-literal.js:4:1
+$bacf2c68 numeric-index-object-literal.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,11 +6,11 @@ $d99dc022 numeric-index-object-literal.js:4:1
 
 block0:
   [   0] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  30] End value:reg5
 
 
-test$9f6ed6e2 numeric-index-object-literal.js:2:5
+test$7e9a426c numeric-index-object-literal.js:2:5
   Registers: 6
   Blocks:    1
   Constants:

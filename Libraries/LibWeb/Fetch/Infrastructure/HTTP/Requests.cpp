@@ -35,18 +35,11 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_client);
-    m_body.visit(
-        [&](GC::Ref<Body>& body) { visitor.visit(body); },
-        [](auto&) {});
+    visitor.visit(m_body);
     visitor.visit(m_reserved_client);
-    m_traversable_for_user_prompts.visit(
-        [&](GC::Ptr<HTML::EnvironmentSettingsObject> const& value) { visitor.visit(value); },
-        [&](GC::Ptr<HTML::TraversableNavigable> const& value) { visitor.visit(value); },
-        [](auto const&) {});
+    visitor.visit(m_traversable_for_user_prompts);
     visitor.visit(m_pending_responses);
-    m_policy_container.visit(
-        [&](GC::Ref<HTML::PolicyContainer> const& policy_container) { visitor.visit(policy_container); },
-        [](auto const&) {});
+    visitor.visit(m_policy_container);
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-url

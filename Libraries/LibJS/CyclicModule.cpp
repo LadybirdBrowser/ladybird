@@ -222,7 +222,7 @@ ThrowCompletionOr<void> CyclicModule::link(VM& vm)
     // 1. Assert: module.[[Status]] is one of unlinked, linked, evaluating-async, or evaluated.
     VERIFY(m_status == ModuleStatus::Unlinked || m_status == ModuleStatus::Linked || m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated);
     // 2. Let stack be a new empty List.
-    Vector<Module*> stack;
+    GC::RootVector<GC::Ref<Module>> stack(vm.heap());
 
     // 3. Let result be Completion(InnerModuleLinking(module, stack, 0)).
     auto result = inner_module_linking(vm, stack, 0);
@@ -230,8 +230,8 @@ ThrowCompletionOr<void> CyclicModule::link(VM& vm)
     // 4. If result is an abrupt completion, then
     if (result.is_throw_completion()) {
         // a. For each Cyclic Module Record m of stack, do
-        for (auto* module : stack) {
-            if (is<CyclicModule>(module)) {
+        for (auto module : stack) {
+            if (is<CyclicModule>(*module)) {
                 auto& cyclic_module = static_cast<CyclicModule&>(*module);
                 // i. Assert: m.[[Status]] is linking.
                 VERIFY(cyclic_module.m_status == ModuleStatus::Linking);
@@ -257,7 +257,7 @@ ThrowCompletionOr<void> CyclicModule::link(VM& vm)
 }
 
 // 16.2.1.5.1.1 InnerModuleLinking ( module, stack, index ), https://tc39.es/ecma262/#sec-InnerModuleLinking
-ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*>& stack, u32 index)
+ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, GC::RootVector<GC::Ref<Module>>& stack, u32 index)
 {
     // 1. If module is not a Cyclic Module Record, then
     //    a. Perform ? module.Link().
@@ -288,7 +288,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*
     ++index;
 
     // 8. Append module to stack.
-    stack.append(this);
+    stack.append(*this);
 
 #if JS_MODULE_DEBUG
     StringBuilder request_module_names;
@@ -315,7 +315,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*
             VERIFY(cyclic_module.m_status == ModuleStatus::Linking || cyclic_module.m_status == ModuleStatus::Linked || cyclic_module.m_status == ModuleStatus::EvaluatingAsync || cyclic_module.m_status == ModuleStatus::Evaluated);
 
             // ii. Assert: requiredModule.[[Status]] is linking if and only if requiredModule is in stack.
-            VERIFY((cyclic_module.m_status == ModuleStatus::Linking) == (stack.contains_slow(&cyclic_module)));
+            VERIFY((cyclic_module.m_status == ModuleStatus::Linking) == (stack.contains_slow(GC::Ref { cyclic_module })));
 
             // iii. If requiredModule.[[Status]] is linking, then
             if (cyclic_module.m_status == ModuleStatus::Linking) {
@@ -330,7 +330,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*
 
     // 11. Assert: module occurs exactly once in stack.
     size_t count = 0;
-    for (auto* module : stack) {
+    for (auto module : stack) {
         if (module == this)
             count++;
     }
@@ -348,7 +348,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, Vector<Module*
         while (true) {
             // i. Let requiredModule be the last element in stack.
             // ii. Remove the last element of stack.
-            auto* required_module = stack.take_last();
+            auto required_module = stack.take_last();
 
             // iii. Assert: requiredModule is a Cyclic Module Record.
             VERIFY(is<CyclicModule>(*required_module));
@@ -398,7 +398,7 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
     }
 
     // 5. Let stack be a new empty List.
-    Vector<Module*> stack;
+    GC::RootVector<GC::Ref<Module>> stack(vm.heap());
 
     auto& realm = *vm.current_realm();
 
@@ -414,7 +414,7 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
         VERIFY(!m_evaluation_error.is_error());
 
         // a. For each Cyclic Module Record m of stack, do
-        for (auto* mod : stack) {
+        for (auto mod : stack) {
             if (!is<CyclicModule>(*mod))
                 continue;
 
@@ -465,7 +465,7 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
 }
 
 // 16.2.1.5.2.1 InnerModuleEvaluation ( module, stack, index ), https://tc39.es/ecma262/#sec-innermoduleevaluation
-ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, Vector<Module*>& stack, u32 index)
+ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, GC::RootVector<GC::Ref<Module>>& stack, u32 index)
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] inner_module_evaluation[{}](vm, {}, {})", this, ByteString::join(", "sv, stack), index);
     // Note: Step 1 is performed in Module.cpp
@@ -503,7 +503,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, Vector<Modu
     ++index;
 
     // 10. Append module to stack.
-    stack.append(this);
+    stack.append(*this);
 
     // 11. For each ModuleRequest Record request of module.[[RequestedModules]], do
     for (auto& request : m_requested_modules) {
@@ -575,7 +575,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, Vector<Modu
 
     // 14. Assert: module occurs exactly once in stack.
     auto count = 0;
-    for (auto* module : stack) {
+    for (auto module : stack) {
         if (module == this)
             count++;
     }
@@ -593,7 +593,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, Vector<Modu
 
             // i. Let requiredModule be the last element in stack.
             // ii. Remove the last element of stack.
-            auto* required_module = stack.take_last();
+            auto required_module = stack.take_last();
 
             // iii. Assert: requiredModule is a Cyclic Module Record.
             VERIFY(is<CyclicModule>(*required_module));
@@ -684,7 +684,7 @@ void CyclicModule::execute_async_module(VM& vm)
 }
 
 // 16.2.1.5.2.3 GatherAvailableAncestors ( module, execList ), https://tc39.es/ecma262/#sec-gather-available-ancestors
-void CyclicModule::gather_available_ancestors(Vector<CyclicModule*>& exec_list)
+void CyclicModule::gather_available_ancestors(GC::RootVector<GC::Ptr<CyclicModule>>& exec_list)
 {
     // 1. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
     for (auto module : m_async_parent_modules) {
@@ -757,7 +757,7 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
     }
 
     // 8. Let execList be a new empty List.
-    Vector<CyclicModule*> exec_list;
+    GC::RootVector<GC::Ptr<CyclicModule>> exec_list(vm.heap());
 
     // 9. Perform GatherAvailableAncestors(module, execList).
     gather_available_ancestors(exec_list);
@@ -766,10 +766,10 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
     // FIXME: Sort the list. To do this we need to use more than an Optional<bool> to track [[AsyncEvaluation]].
 
     // 11. Assert: All elements of sortedExecList have their [[AsyncEvaluation]] field set to true, [[PendingAsyncDependencies]] field set to 0, and [[EvaluationError]] field set to empty.
-    VERIFY(all_of(exec_list, [&](CyclicModule* module) { return module->m_async_evaluation && module->m_pending_async_dependencies.value() == 0 && !module->m_evaluation_error.is_error(); }));
+    VERIFY(all_of(exec_list, [&](auto module) { return module->m_async_evaluation && module->m_pending_async_dependencies.value() == 0 && !module->m_evaluation_error.is_error(); }));
 
     // 12. For each Cyclic Module Record m of sortedExecList, do
-    for (auto* module : exec_list) {
+    for (auto module : exec_list) {
         // a. If m.[[Status]] is evaluated, then
         if (module->m_status == ModuleStatus::Evaluated) {
             // i. Assert: m.[[EvaluationError]] is not empty.
@@ -868,7 +868,7 @@ GC::Ref<Module> CyclicModule::get_imported_module(ModuleRequest const& request)
 {
     // 1. Let records be a List consisting of each LoadedModuleRequest Record r of referrer.[[LoadedModules]]
     //    such that ModuleRequestsEqual(r, request) is true.
-    Vector<LoadedModuleRequest> records;
+    GC::ConservativeVector<LoadedModuleRequest> records(vm().heap());
     for (auto const& r : m_loaded_modules) {
         if (module_requests_equal(r, request))
             records.append(r);

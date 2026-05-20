@@ -29,6 +29,9 @@ public:
     URL::URL const& url() const { return m_url; }
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
+    [[nodiscard]] bool can_be_pruned_from_memory_cache() const { return m_image_data; }
+    [[nodiscard]] u64 cache_touch_serial() const { return m_cache_touch_serial; }
+    void touch_memory_cache_entry();
 
     [[nodiscard]] GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller();
     void set_fetch_controller(GC::Ptr<Fetch::Infrastructure::FetchController>);
@@ -70,6 +73,7 @@ private:
     URL::URL m_url;
     GC::Ptr<DecodedImageData> m_image_data;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    u64 m_cache_touch_serial { 0 };
 
     GC::Ptr<DOM::Document> m_document;
 

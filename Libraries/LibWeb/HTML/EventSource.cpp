@@ -32,7 +32,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(EventSource);
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm& realm, StringView url, EventSourceInit event_source_init_dict)
+WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm& realm, StringView url, Bindings::EventSourceInit const& event_source_init_dict)
 {
     auto& vm = realm.vm();
 
@@ -442,13 +442,12 @@ void EventSource::dispatch_the_event()
     //    the event source.
     // 6. If the event type buffer has a value other than the empty string, change the type of the newly created event to equal
     //    the value of the event type buffer.
-    MessageEventInit init {};
+    Bindings::MessageEventInit init {};
     init.data = JS::PrimitiveString::create(vm(), data_buffer);
-    init.origin = m_url.origin();
     init.last_event_id = last_event_id;
 
     auto type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;
-    auto event = MessageEvent::create(realm(), type, init);
+    auto event = MessageEvent::create(realm(), type, init, m_url.origin());
 
     // 7. Set the data buffer and the event type buffer to the empty string.
     m_event_type = {};

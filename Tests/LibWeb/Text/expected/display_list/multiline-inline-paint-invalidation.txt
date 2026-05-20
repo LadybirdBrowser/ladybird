@@ -4,6 +4,14 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x93]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x72]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x72]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 69.625x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,26 47.0625x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,44 60x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,62 36.46875x18]
   DrawGlyphRun@1 rect=[8,8 70x18] translation=[8,21.796875] color=rgb(0, 0, 255)
   DrawLine@1 from=[8,25] to=[78,25] color=rgb(0, 0, 255) thickness=2
   DrawGlyphRun@1 rect=[8,26 48x18] translation=[8,39.796875] color=rgb(0, 0, 255)
@@ -20,6 +28,14 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x93]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x72]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 100x72]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 69.625x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,26 47.0625x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,44 60x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,62 36.46875x18]
   DrawGlyphRun@1 rect=[8,8 70x18] translation=[8,21.796875] color=rgb(255, 0, 0)
   DrawLine@1 from=[8,25] to=[78,25] color=rgb(255, 0, 0) thickness=2
   DrawGlyphRun@1 rect=[8,26 48x18] translation=[8,39.796875] color=rgb(255, 0, 0)

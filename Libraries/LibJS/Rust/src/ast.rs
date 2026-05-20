@@ -759,7 +759,7 @@ impl Utf16String {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Position {
     pub line: u32,
     pub column: u32,

@@ -7,6 +7,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringConversions.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -111,13 +112,20 @@ LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_k
     return cache_directory.append(file);
 }
 
-static StringView cache_entry_associated_data_suffix(CacheEntryAssociatedData associated_data)
+static constexpr StringView cache_entry_associated_data_suffix(CacheEntryAssociatedData associated_data)
 {
     switch (associated_data) {
     case CacheEntryAssociatedData::JavaScriptBytecode:
         return "jsbc"sv;
     }
     VERIFY_NOT_REACHED();
+}
+
+static constexpr Optional<CacheEntryAssociatedData> cache_entry_associated_data_from_suffix(StringView suffix)
+{
+    if (suffix == "jsbc"sv)
+        return CacheEntryAssociatedData::JavaScriptBytecode;
+    return {};
 }
 
 LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key, CacheEntryAssociatedData associated_data)
@@ -127,6 +135,39 @@ LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_direct
         : ByteString::formatted("{:016x}_{:016x}.{}", cache_key, vary_key, cache_entry_associated_data_suffix(associated_data));
 
     return cache_directory.append(file);
+}
+
+Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const& cache_file)
+{
+    CacheEntryData result;
+
+    if (auto file_name = cache_file.basename(LexicalPath::StripExtension::Yes); file_name.contains('_')) {
+        auto parts = file_name.split_view('_', SplitBehavior::KeepEmpty);
+        if (parts.size() != 2)
+            return {};
+
+        auto cache_key = AK::parse_number<u64>(parts[0], TrimWhitespace::No, 16);
+        auto vary_key = AK::parse_number<u64>(parts[1], TrimWhitespace::No, 16);
+        if (!cache_key.has_value() || !vary_key.has_value())
+            return {};
+
+        result.cache_key = *cache_key;
+        result.vary_key = *vary_key;
+    } else {
+        auto cache_key = AK::parse_number<u64>(file_name, TrimWhitespace::No, 16);
+        if (!cache_key.has_value())
+            return {};
+
+        result.cache_key = *cache_key;
+    }
+
+    if (auto extension = cache_file.extension(); !extension.is_empty()) {
+        result.associated_data = cache_entry_associated_data_from_suffix(extension);
+        if (!result.associated_data.has_value())
+            return {};
+    }
+
+    return result;
 }
 
 // https://httpwg.org/specs/rfc9111.html#response.cacheability

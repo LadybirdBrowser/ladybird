@@ -11,7 +11,8 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Parser/HTMLTokenizer.h>
+
+struct RustFfiPreloadScannerEntry;
 
 namespace Web::HTML {
 
@@ -32,18 +33,12 @@ private:
     SpeculativeHTMLParser(GC::Ref<DOM::Document>, String pending_input, URL::URL base_url);
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    void process_start_tag(HTMLToken const&);
-    void process_end_tag(HTMLToken const&);
+    void process_preload_scanner_entry(RustFfiPreloadScannerEntry const&);
 
     GC::Ref<DOM::Document> m_document;
-    // m_input must precede m_tokenizer so that m_input.bytes_as_string_view() is valid when the
-    // tokenizer's constructor runs in our initializer list.
     String m_input;
-    HTMLTokenizer m_tokenizer;
     URL::URL m_base_url;
-
-    u32 m_template_depth { 0 };
-    u32 m_foreign_depth { 0 };
+    bool m_stopped { false };
 };
 
 }

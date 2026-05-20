@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/IterationDecision.h>
+#include <LibGC/RootHashTable.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -21,15 +22,15 @@ struct SVGPaintContext {
     Gfx::AffineTransform paint_transform;
 };
 
-inline Painting::SVGGradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)
+inline Painting::GradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)
 {
     switch (spread_method) {
     case SpreadMethod::Pad:
-        return Painting::SVGGradientPaintStyle::SpreadMethod::Pad;
+        return Painting::GradientPaintStyle::SpreadMethod::Pad;
     case SpreadMethod::Reflect:
-        return Painting::SVGGradientPaintStyle::SpreadMethod::Reflect;
+        return Painting::GradientPaintStyle::SpreadMethod::Reflect;
     case SpreadMethod::Repeat:
-        return Painting::SVGGradientPaintStyle::SpreadMethod::Repeat;
+        return Painting::GradientPaintStyle::SpreadMethod::Repeat;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -61,22 +62,22 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ptr<SVGGradientElement const> linked_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const;
+    GC::Ptr<SVGGradientElement const> linked_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
 
     Gfx::AffineTransform gradient_paint_transform(SVGPaintContext const&) const;
 
     template<VoidFunction<SVGStopElement> Callback>
     void for_each_color_stop(Callback const& callback) const
     {
-        HashTable<SVGGradientElement const*> seen_gradients;
+        GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
         return for_each_color_stop_impl(callback, seen_gradients);
     }
 
-    void add_color_stops(Painting::SVGGradientPaintStyle&) const;
+    void add_color_stops(Painting::GradientPaintStyle&) const;
 
 private:
     template<VoidFunction<SVGStopElement> Callback>
-    void for_each_color_stop_impl(Callback const& callback, HashTable<SVGGradientElement const*>& seen_gradients) const
+    void for_each_color_stop_impl(Callback const& callback, GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
     {
         bool color_stops_found = false;
         for_each_child_of_type<SVG::SVGStopElement>([&](auto& stop) {
@@ -90,9 +91,9 @@ private:
         }
     }
 
-    GradientUnits gradient_units_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
-    SpreadMethod spread_method_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
-    Optional<Gfx::AffineTransform> gradient_transform_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
+    GradientUnits gradient_units_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    SpreadMethod spread_method_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    Optional<Gfx::AffineTransform> gradient_transform_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
 
     // https://svgwg.org/svg2-draft/pservers.html#LinearGradientAttributes
     Optional<GradientUnits> m_gradient_units = {};

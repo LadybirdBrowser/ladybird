@@ -1,0 +1,54 @@
+Harness status: OK
+
+Found 49 tests
+
+49 Pass
+Pass	gbk encoder: very basic
+Pass	gbk encoder: Euro
+Pass	gbk encoder: character
+Pass	gbk encoder: PUA
+Pass	gbk encoder: PUA #2
+Pass	gbk encoder: poo
+Pass	gbk encoder: legacy ICU special case 1
+Pass	gbk encoder: legacy ICU special case 2
+Pass	gbk encoder: legacy ICU special case 3
+Pass	gbk encoder: legacy WebKit case 1
+Pass	gbk encoder: legacy WebKit case 2
+Pass	gbk encoder: legacy WebKit case 3
+Pass	gbk encoder: U+10FFFF
+Pass	gbk encoder: GB18030-2022 1
+Pass	gbk encoder: GB18030-2022 2
+Pass	gbk encoder: GB18030-2022 3
+Pass	gbk encoder: GB18030-2022 4
+Pass	gbk encoder: GB18030-2022 5
+Pass	gbk encoder: GB18030-2022 6
+Pass	gbk encoder: GB18030-2022 7
+Pass	gbk encoder: GB18030-2022 8
+Pass	gbk encoder: GB18030-2022 9
+Pass	gbk encoder: GB18030-2022 10
+Pass	gbk encoder: GB18030-2022 11
+Pass	gbk encoder: GB18030-2022 12
+Pass	gbk encoder: GB18030-2022 13
+Pass	gbk encoder: GB18030-2022 14
+Pass	gbk encoder: GB18030-2022 15
+Pass	gbk encoder: GB18030-2022 16
+Pass	gbk encoder: GB18030-2022 17
+Pass	gbk encoder: GB18030-2022 18
+Pass	gbk encoder: GB18030-2022 19
+Pass	gbk encoder: GB18030-2022 20
+Pass	gbk encoder: GB18030-2022 21
+Pass	gbk encoder: GB18030-2022 22
+Pass	gbk encoder: GB18030-2022 23
+Pass	gbk encoder: GB18030-2022 24
+Pass	gbk encoder: GB18030-2022 25
+Pass	gbk encoder: GB18030-2022 26
+Pass	gbk encoder: GB18030-2022 27
+Pass	gbk encoder: GB18030-2022 28
+Pass	gbk encoder: GB18030-2022 29
+Pass	gbk encoder: GB18030-2022 30
+Pass	gbk encoder: GB18030-2022 31
+Pass	gbk encoder: GB18030-2022 32
+Pass	gbk encoder: GB18030-2022 33
+Pass	gbk encoder: GB18030-2022 34
+Pass	gbk encoder: GB18030-2022 35
+Pass	gbk encoder: GB18030-2022 36

@@ -120,7 +120,7 @@ public:
     // https://webidl.spec.whatwg.org/#idl-symbol
     bool is_symbol() const { return is_plain() && m_name == "symbol"; }
 
-    bool is_string() const { return is_plain() && m_name.is_one_of("ByteString", "CSSOMString", "DOMString", "Utf16DOMString", "USVString", "Utf16USVString"); }
+    bool is_string() const { return is_plain() && m_name.is_one_of("ByteString", "DOMString", "Utf16DOMString", "USVString", "Utf16USVString"); }
 
     // https://webidl.spec.whatwg.org/#dfn-integer-type
     bool is_integer() const { return is_plain() && m_name.is_one_of("byte", "octet", "short", "unsigned short", "long", "unsigned long", "long long", "unsigned long long"); }
@@ -352,7 +352,10 @@ public:
 };
 
 struct Module {
+    Context* context { nullptr };
     ByteString module_own_path;
+    OrderedHashTable<ByteString> own_dictionaries;
+    OrderedHashTable<ByteString> own_enumerations;
     Optional<Interface&> interface;
 };
 
@@ -432,6 +435,8 @@ public:
 private:
     Vector<NonnullRefPtr<Type const>> m_member_types;
 };
+
+NonnullRefPtr<Type const> clone_type(Type const&, bool nullable);
 
 class Context {
 public:

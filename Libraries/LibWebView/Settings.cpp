@@ -35,6 +35,7 @@ static auto DEFAULT_LANGUAGE = "en"_string;
 
 static constexpr auto BROWSING_BEHAVIOR_KEY = "browsingBehavior"sv;
 static constexpr auto ENABLE_AUTOSCROLL_KEY = "enableAutoscroll"sv;
+static constexpr auto ENABLE_PRIMARY_PASTE_KEY = "enablePrimaryPaste"sv;
 
 static constexpr auto SEARCH_ENGINE_KEY = "searchEngine"sv;
 static constexpr auto SEARCH_ENGINE_CUSTOM_KEY = "custom"sv;
@@ -182,6 +183,7 @@ JsonValue Settings::serialize_json() const
 
     JsonObject browsing_behavior;
     browsing_behavior.set(ENABLE_AUTOSCROLL_KEY, m_browsing_behavior.enable_autoscroll);
+    browsing_behavior.set(ENABLE_PRIMARY_PASTE_KEY, m_browsing_behavior.enable_primary_paste);
     settings.set(BROWSING_BEHAVIOR_KEY, move(browsing_behavior));
 
     JsonArray custom_search_engines;
@@ -355,6 +357,8 @@ BrowsingBehavior Settings::parse_browsing_behavior(JsonValue const& settings)
 
     if (auto enable_autoscroll = settings.as_object().get_bool(ENABLE_AUTOSCROLL_KEY); enable_autoscroll.has_value())
         browsing_behavior.enable_autoscroll = *enable_autoscroll;
+    if (auto enable_primary_paste = settings.as_object().get_bool(ENABLE_PRIMARY_PASTE_KEY); enable_primary_paste.has_value())
+        browsing_behavior.enable_primary_paste = *enable_primary_paste;
 
     return browsing_behavior;
 }
@@ -609,6 +613,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::BrowsingBehavior const& browsing_behavior)
 {
     TRY(encoder.encode(browsing_behavior.enable_autoscroll));
+    TRY(encoder.encode(browsing_behavior.enable_primary_paste));
 
     return {};
 }
@@ -617,8 +622,9 @@ template<>
 ErrorOr<WebView::BrowsingBehavior> decode(Decoder& decoder)
 {
     auto enable_autoscroll = TRY(decoder.decode<bool>());
+    auto enable_primary_paste = TRY(decoder.decode<bool>());
 
-    return WebView::BrowsingBehavior { enable_autoscroll };
+    return WebView::BrowsingBehavior { enable_autoscroll, enable_primary_paste };
 }
 
 }

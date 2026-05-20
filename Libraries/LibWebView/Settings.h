@@ -23,6 +23,7 @@ namespace WebView {
 
 struct BrowsingBehavior {
     bool enable_autoscroll { true };
+    bool enable_primary_paste { true };
 };
 
 struct SiteSetting {

@@ -31,10 +31,17 @@ else
 fi
 
 if (( ${#files[@]} )); then
+    if ! command -v pyright >/dev/null 2>&1 ; then
+        echo "Please install pyright: pip3 install pyright"
+        exit 1
+    fi
+
     if ! command -v ruff >/dev/null 2>&1 ; then
         echo "Please install ruff: pip3 install ruff"
         exit 1
     fi
+
+    pyright "${files[@]}"
 
     if [[ ${overwrite} -eq 0 ]] ; then
         ruff check "${files[@]}"

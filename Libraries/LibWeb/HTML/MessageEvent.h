@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 
@@ -19,25 +20,18 @@ namespace Web::HTML {
 using MessageEventSource = Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>>;
 using NullableMessageEventSource = Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>, Empty>;
 
-// https://html.spec.whatwg.org/multipage/comms.html#messageeventinit
-struct MessageEventInit : public DOM::EventInit {
-    JS::Value data { JS::js_null() };
-    Variant<URL::Origin, String, Empty> origin {};
-    String last_event_id {};
-    NullableMessageEventSource source { Empty {} };
-    Vector<GC::Root<MessagePort>> ports;
-};
-
 // https://html.spec.whatwg.org/multipage/comms.html#messageevent
 class WEB_API MessageEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(MessageEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(MessageEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Realm&, FlyString const& event_name, MessageEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<MessageEvent>> construct_impl(JS::Realm&, FlyString const& event_name, MessageEventInit const&);
+    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const& = {});
+    [[nodiscard]] static GC::Ref<MessageEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const&, URL::Origin const&);
+    static WebIDL::ExceptionOr<GC::Ref<MessageEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const&);
 
-    MessageEvent(JS::Realm&, FlyString const& event_name, MessageEventInit const& event_init);
+    MessageEvent(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const& event_init);
+    MessageEvent(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const&);
     virtual ~MessageEvent() override;
 
     JS::Value data() const { return m_data; }
@@ -57,6 +51,7 @@ private:
 
     using MessageEventSourceInternal = Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<MessagePort>>;
     static MessageEventSourceInternal to_message_event_source_internal(NullableMessageEventSource const&);
+    MessageEvent(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, String, Empty>);
 
     JS::Value m_data;
 

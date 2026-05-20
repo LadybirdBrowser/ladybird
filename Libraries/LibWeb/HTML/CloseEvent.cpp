@@ -12,17 +12,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CloseEvent);
 
-GC::Ref<CloseEvent> CloseEvent::create(JS::Realm& realm, FlyString const& event_name, CloseEventInit const& event_init)
+GC::Ref<CloseEvent> CloseEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CloseEventInit const& event_init)
 {
     return realm.create<CloseEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<CloseEvent>> CloseEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, CloseEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<CloseEvent>> CloseEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CloseEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
 
-CloseEvent::CloseEvent(JS::Realm& realm, FlyString const& event_name, CloseEventInit const& event_init)
+CloseEvent::CloseEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CloseEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_was_clean(event_init.was_clean)
     , m_code(event_init.code)

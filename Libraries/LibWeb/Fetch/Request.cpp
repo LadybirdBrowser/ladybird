@@ -21,6 +21,25 @@
 
 namespace Web::Fetch {
 
+static bool is_empty(Bindings::RequestInit const& request_init)
+{
+    return !(request_init.method.has_value()
+        || request_init.headers.has_value()
+        || request_init.body.has_value()
+        || request_init.referrer.has_value()
+        || request_init.referrer_policy.has_value()
+        || request_init.mode.has_value()
+        || request_init.credentials.has_value()
+        || request_init.cache.has_value()
+        || request_init.redirect.has_value()
+        || request_init.integrity.has_value()
+        || request_init.keepalive.has_value()
+        || request_init.signal.has_value()
+        || request_init.duplex.has_value()
+        || request_init.priority.has_value()
+        || request_init.window.has_value());
+}
+
 GC_DEFINE_ALLOCATOR(Request);
 
 Request::Request(JS::Realm& realm, GC::Ref<Infrastructure::Request> request)
@@ -99,7 +118,7 @@ GC::Ref<Request> Request::create(JS::Realm& realm, GC::Ref<Infrastructure::Reque
 }
 
 // https://fetch.spec.whatwg.org/#dom-request
-WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, RequestInfo const& input, RequestInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
 {
     auto& vm = realm.vm();
 
@@ -261,7 +280,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     request->set_initiator_type(Infrastructure::Request::InitiatorType::Fetch);
 
     // 13. If init is not empty, then:
-    if (!init.is_empty()) {
+    if (!is_empty(init)) {
         // 1. If request’s mode is "navigate", then set it to "same-origin".
         if (request->mode() == Infrastructure::Request::Mode::Navigate)
             request->set_mode(Infrastructure::Request::Mode::SameOrigin);
@@ -417,7 +436,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     }
 
     // 33. If init is not empty, then:
-    if (!init.is_empty()) {
+    if (!is_empty(init)) {
         // 1. Let headers be a copy of this’s headers and its associated header list.
         // 2. If init["headers"] exists, then set headers to init["headers"].
         auto headers = [&]() -> Variant<HeadersInit, NonnullRefPtr<HTTP::HeaderList>> {

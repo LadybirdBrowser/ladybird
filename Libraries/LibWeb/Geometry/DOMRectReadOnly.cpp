@@ -21,7 +21,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMRectReadOnly>> DOMRectReadOnly::construct_impl(JS
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-domrect-from-the-dictionary
-GC::Ref<DOMRectReadOnly> DOMRectReadOnly::from_rect(JS::VM& vm, Geometry::DOMRectInit const& other)
+GC::Ref<DOMRectReadOnly> DOMRectReadOnly::from_rect(JS::VM& vm, Bindings::DOMRectInit const& other)
 {
     auto& realm = *vm.current_realm();
     return realm.create<DOMRectReadOnly>(realm, other.x, other.y, other.width, other.height);

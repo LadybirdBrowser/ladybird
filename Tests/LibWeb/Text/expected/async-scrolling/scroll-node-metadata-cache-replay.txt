@@ -1,0 +1,7 @@
+window scrollY: 1000
+scroller scrollTop: 80
+wheel target near viewport top: viewport
+upward wheel target over scroller: non-viewport
+scroll metadata:
+  CompositorScrollNode@0 scroll_frame_index=1 parent_scroll_frame_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,2501] is_viewport=true
+  CompositorScrollNode@0 scroll_frame_index=2 parent_scroll_frame_index=1 scrollport_rect=[0,0 100x100] max_scroll_offset=[0,400] is_viewport=false

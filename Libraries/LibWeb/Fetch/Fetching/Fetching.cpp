@@ -21,6 +21,7 @@
 #include <LibTextCodec/Encoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Transformer.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -67,7 +68,6 @@
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamDefaultController.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
-#include <LibWeb/Streams/Transformer.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Fetch::Fetching {
@@ -312,7 +312,10 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //     (`Accept-Language, an appropriate header value) to request’s header list.
     if (!request.header_list()->contains("Accept-Language"sv)) {
         StringBuilder accept_language;
-        accept_language.join(","sv, ResourceLoader::the().preferred_languages());
+        if (ResourceLoader::is_initialized())
+            accept_language.join(","sv, ResourceLoader::the().preferred_languages());
+        else
+            accept_language.append("en-US"sv);
 
         auto header = HTTP::Header::isomorphic_encode("Accept-Language"sv, accept_language.string_view());
         request.header_list()->append(move(header));
@@ -917,28 +920,35 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     }
 
     // 8. If fetchParams’s process response consume body is non-null, then:
-    if (fetch_params.algorithms()->process_response_consume_body()) {
+    auto algorithms = fetch_params.algorithms();
+    if (algorithms->process_response_consume_body()) {
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
-        auto process_body = GC::create_function(vm.heap(), [&fetch_params, &response](ByteBuffer bytes) {
-            (fetch_params.algorithms()->process_response_consume_body())(response, move(bytes));
+        auto process_body = GC::create_function(vm.heap(), [algorithms, &response](ByteBuffer bytes) {
+            if (response.body()) {
+                if (auto const* source_bytes = response.body()->source().get_pointer<Core::ImmutableBytes>()) {
+                    (algorithms->process_response_consume_body())(response, *source_bytes);
+                    return;
+                }
+            }
+            (algorithms->process_response_consume_body())(response, Core::ImmutableBytes::adopt(move(bytes)));
         });
 
         // 2. Let processBodyError be this step: run fetchParams’s process response consume body given response and
         //    failure.
-        auto process_body_error = GC::create_function(vm.heap(), [&fetch_params, &response, setup_report_timing_steps](JS::Value) {
+        auto process_body_error = GC::create_function(vm.heap(), [algorithms, &response, setup_report_timing_steps](JS::Value) {
             // AD-HOC: See comment on setup_report_timing_steps above.
             setup_report_timing_steps();
-            (fetch_params.algorithms()->process_response_consume_body())(response, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
+            (algorithms->process_response_consume_body())(response, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
         });
 
         // 3. If internalResponse's body is null, then queue a fetch task to run processBody given null, with
         //    fetchParams’s task destination.
         if (!internal_response->body()) {
-            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [&fetch_params, &response]() {
+            Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.task_destination(), GC::create_function(vm.heap(), [algorithms, &response]() {
                 // NOTE: We have to provide `fully_read` a callback which accepts a ByteBuffer. Since that is not
                 //       nullable, we just invoke `process_response_consume_body` with a null value manually here.
-                (fetch_params.algorithms()->process_response_consume_body())(response, Empty {});
+                (algorithms->process_response_consume_body())(response, Empty {});
             }));
         }
         // 4. Otherwise, fully read internalResponse body given processBody, processBodyError, and fetchParams’s task
@@ -1533,9 +1543,11 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     if (!request->body().has<Empty>()) {
         auto const& source = request->body().get<GC::Ref<Infrastructure::Body>>()->source();
         // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
-        auto converted_source = source.has<ByteBuffer>()
-            ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
-            : BodyInitOrReadableBytes { source.get<GC::Ref<FileAPI::Blob>>() };
+        auto converted_source = source.visit(
+            [](ByteBuffer const& byte_buffer) -> BodyInitOrReadableBytes { return byte_buffer.bytes(); },
+            [](Core::ImmutableBytes const& bytes) -> BodyInitOrReadableBytes { return bytes; },
+            [](GC::Ref<FileAPI::Blob> const& blob) -> BodyInitOrReadableBytes { return GC::make_root(blob); },
+            [](Empty) -> BodyInitOrReadableBytes { VERIFY_NOT_REACHED(); });
         auto [body, _] = safely_extract_body(realm, converted_source);
         request->set_body(body);
     }
@@ -1793,7 +1805,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         //       more details.
         //
         // https://w3c.github.io/gpc/#the-sec-gpc-header-field-for-http-requests
-        if (ResourceLoader::the().enable_global_privacy_control() && !http_request->header_list()->contains("Sec-GPC"sv))
+        if (ResourceLoader::is_initialized() && ResourceLoader::the().enable_global_privacy_control() && !http_request->header_list()->contains("Sec-GPC"sv))
             http_request->header_list()->append({ "Sec-GPC"sv, "1"sv });
 
         // 21. If includeCredentials is true, then:
@@ -1990,9 +2002,11 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 // 2. Set request’s body to the body of the result of safely extracting request’s body’s source.
                 auto const& source = request->body().get<GC::Ref<Infrastructure::Body>>()->source();
                 // NOTE: BodyInitOrReadableBytes is a superset of Body::SourceType
-                auto converted_source = source.has<ByteBuffer>()
-                    ? BodyInitOrReadableBytes { source.get<ByteBuffer>() }
-                    : BodyInitOrReadableBytes { source.get<GC::Ref<FileAPI::Blob>>() };
+                auto converted_source = source.visit(
+                    [](ByteBuffer const& byte_buffer) -> BodyInitOrReadableBytes { return byte_buffer.bytes(); },
+                    [](Core::ImmutableBytes const& bytes) -> BodyInitOrReadableBytes { return bytes; },
+                    [](GC::Ref<FileAPI::Blob> const& blob) -> BodyInitOrReadableBytes { return GC::make_root(blob); },
+                    [](Empty) -> BodyInitOrReadableBytes { VERIFY_NOT_REACHED(); });
                 auto [body, _] = safely_extract_body(realm, converted_source);
                 request->set_body(body);
             }
@@ -2146,8 +2160,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             [&](ByteBuffer const& byte_buffer) {
                 load_request.set_body(MUST(ByteBuffer::copy(byte_buffer)));
             },
-            [&](GC::Root<FileAPI::Blob> const& blob_handle) {
-                load_request.set_body(MUST(ByteBuffer::copy(blob_handle->raw_bytes())));
+            [&](Core::ImmutableBytes const& bytes) {
+                load_request.set_body(MUST(bytes.copy_to_byte_buffer()));
+            },
+            [&](GC::Ref<FileAPI::Blob> const& blob) {
+                load_request.set_body(MUST(ByteBuffer::copy(blob->raw_bytes())));
             },
             [](Empty) {
             });
@@ -2158,6 +2175,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     if constexpr (WEB_FETCH_DEBUG) {
         dbgln("Fetch: Invoking ResourceLoader");
         log_load_request(load_request);
+    }
+
+    if (!ResourceLoader::is_initialized()) {
+        pending_response->resolve(Infrastructure::Response::network_error(vm, "ResourceLoader is not initialized"_string));
+        return pending_response;
     }
 
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
@@ -2187,7 +2209,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
     stream->set_up_with_byte_reading_support(pull_algorithm, cancel_algorithm);
 
-    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request, fetched_data_receiver](HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key) {
+    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request, fetched_data_receiver](HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2228,8 +2250,12 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     // 16. Run these steps in parallel:
     //     FIXME: 1. Run these steps, but abort when fetchParams is canceled:
-    auto on_data_received = GC::create_function(vm.heap(), [fetched_data_receiver](ReadonlyBytes bytes) {
-        fetched_data_receiver->handle_network_bytes(bytes, FetchedDataReceiver::NetworkState::Ongoing);
+    auto on_data_received = GC::create_function(vm.heap(), [fetched_data_receiver](Requests::ResponseData data) {
+        fetched_data_receiver->handle_network_data(move(data), FetchedDataReceiver::NetworkState::Ongoing);
+    });
+
+    auto on_cached_body_available = GC::create_function(vm.heap(), [fetched_data_receiver](Core::ImmutableBytes data) {
+        fetched_data_receiver->set_cached_response_body(move(data));
     });
 
     auto on_complete = GC::create_function(vm.heap(), [&vm, &realm, pending_response, stream, fetched_data_receiver](bool success, Requests::RequestTimingInfo const&, Optional<StringView> error_message) {
@@ -2237,7 +2263,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         if (success) {
-            fetched_data_receiver->handle_network_bytes({}, FetchedDataReceiver::NetworkState::Complete);
+            fetched_data_receiver->handle_network_data(Requests::ResponseData::from_bytes({}), FetchedDataReceiver::NetworkState::Complete);
         } else {
             // 16.1.2.2. Otherwise, if stream is readable, error stream with a TypeError.
             auto error = MUST(String::formatted("Load failed: {}", error_message.value_or("Unknown error"sv)));
@@ -2250,7 +2276,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_complete);
+    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete);
     fetch_params.controller()->set_pending_request(network_request);
 
     return pending_response;

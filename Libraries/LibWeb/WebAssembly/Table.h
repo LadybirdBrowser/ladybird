@@ -18,18 +18,12 @@
 
 namespace Web::WebAssembly {
 
-struct TableDescriptor {
-    Bindings::TableKind element;
-    u32 initial { 0 };
-    Optional<u32> maximum;
-};
-
 class Table : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Table, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Table);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Table>> construct_impl(JS::Realm&, TableDescriptor& descriptor, JS::Value value);
+    static WebIDL::ExceptionOr<GC::Ref<Table>> construct_impl(JS::Realm&, Bindings::TableDescriptor& descriptor, JS::Value value);
 
     WebIDL::ExceptionOr<u32> grow(u32 delta, JS::Value value);
 

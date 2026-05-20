@@ -19,7 +19,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<DOMRect>> construct_impl(JS::Realm&, double x = 0, double y = 0, double width = 0, double height = 0);
     [[nodiscard]] static GC::Ref<DOMRect> create(JS::Realm&, Gfx::FloatRect const&);
     [[nodiscard]] static GC::Ref<DOMRect> create(JS::Realm&);
-    [[nodiscard]] static GC::Ref<DOMRect> from_rect(JS::VM&, DOMRectInit const&);
+    [[nodiscard]] static GC::Ref<DOMRect> from_rect(JS::VM&, Bindings::DOMRectInit const&);
 
     virtual ~DOMRect() override;
 

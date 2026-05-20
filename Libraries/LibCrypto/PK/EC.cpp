@@ -8,6 +8,9 @@
 #include <AK/StringView.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Certificate/Certificate.h>
+#include <LibCrypto/OpenSSL.h>
+
+#include <openssl/ec.h>
 
 namespace Crypto::PK {
 
@@ -50,16 +53,14 @@ static ErrorOr<ECPublicKey> read_ec_public_key(ReadonlyBytes bytes, Vector<Strin
     }
 
     if (bytes[0] == 0x04) {
-        auto half_size = (bytes.size() - 1) / 2;
-        if (1 + half_size * 2 != bytes.size()) {
-            ERROR_WITH_SCOPE("Invalid public key length");
-        }
+        auto point = TRY(Curves::SECPxxxr1Point::from_uncompressed(bytes));
+        return ECPublicKey { move(point) };
+    }
 
-        return ::Crypto::PK::ECPublicKey {
-            UnsignedBigInteger::import_data(bytes.slice(1, half_size)),
-            UnsignedBigInteger::import_data(bytes.slice(1 + half_size, half_size)),
-            half_size,
-        };
+    // Compressed point format: 0x02 (y even) or 0x03 (y odd)
+    if (bytes[0] == 0x02 || bytes[0] == 0x03) {
+        auto point = TRY(Curves::SECPxxxr1Point::from_compressed(bytes));
+        return ECPublicKey { move(point) };
     }
 
     if (bytes.size() % 2 == 0) {

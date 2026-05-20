@@ -25,17 +25,6 @@ bool requires_off_thread_vector_font_preparation(ByteBuffer const& data, Optiona
     return signature == woff2_signature;
 }
 
-static ErrorOr<PreparedVectorFontData> prepare_vector_font_data(ByteBuffer data, Optional<ByteString> mime_type_essence)
-{
-    if (!requires_off_thread_vector_font_preparation(data, mime_type_essence))
-        return PreparedVectorFontData { .data = move(data), .mime_type_essence = move(mime_type_essence) };
-
-    return PreparedVectorFontData {
-        .data = TRY(WOFF2::convert_to_ttf(data)),
-        .mime_type_essence = ByteString { "font/ttf"sv }
-    };
-}
-
 ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer const& data, Optional<ByteString> const& mime_type_essence)
 {
     auto try_ttf = [&]() -> ErrorOr<NonnullRefPtr<Gfx::Typeface const>> {
@@ -67,16 +56,16 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer cons
     return Error::from_string_literal("Automatic format detection failed");
 }
 
-void prepare_vector_font_data_off_thread(ByteBuffer data, Function<void(ErrorOr<PreparedVectorFontData>)>&& on_complete, Optional<ByteString> mime_type_essence)
+void prepare_vector_font_data_off_thread(ByteBuffer data, Function<void(ErrorOr<Core::AnonymousBuffer>)>&& on_complete)
 {
     // Keep the callback on the origin thread so any GC roots it captures are
     // also destroyed there.
-    auto* callback = new Function<void(ErrorOr<PreparedVectorFontData>)>(move(on_complete));
+    auto* callback = new Function<void(ErrorOr<Core::AnonymousBuffer>)>(move(on_complete));
     auto event_loop_weak = Core::EventLoop::current_weak();
 
     Threading::ThreadPool::the().submit(
-        [data = move(data), callback, event_loop_weak = move(event_loop_weak), mime_type_essence = move(mime_type_essence)]() mutable {
-            auto result = prepare_vector_font_data(move(data), move(mime_type_essence));
+        [data = move(data), callback, event_loop_weak = move(event_loop_weak)]() mutable {
+            auto result = WOFF2::convert_to_ttf(data);
 
             auto origin = event_loop_weak->take();
             if (!origin)

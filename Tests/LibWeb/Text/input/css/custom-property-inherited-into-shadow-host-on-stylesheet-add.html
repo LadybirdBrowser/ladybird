@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        class MyIcon extends HTMLElement {
+            constructor() {
+                super();
+                const shadow = this.attachShadow({ mode: "open" });
+                const style = document.createElement("style");
+                style.textContent = `
+                    :host {
+                        display: var(--my-display);
+                        width: 24px;
+                        height: 24px;
+                    }
+                `;
+                shadow.appendChild(style);
+            }
+        }
+        customElements.define("my-icon", MyIcon);
+
+        const icon = document.createElement("my-icon");
+        document.body.appendChild(icon);
+        const initialDisplay = getComputedStyle(icon).display;
+
+        const iconStyleElement = document.createElement("style");
+        iconStyleElement.textContent = `html { --my-display: inline-flex; }`;
+        document.head.appendChild(iconStyleElement);
+
+        const iconRect = icon.getBoundingClientRect();
+        println(`case 1 initial display: ${initialDisplay}`);
+        println(`case 1 final display: ${getComputedStyle(icon).display}`);
+        println(`case 1 final size: ${iconRect.width}x${iconRect.height}`);
+        icon.remove();
+        iconStyleElement.remove();
+
+
+        const combo = document.createElement("div");
+        combo.style.width = "var(--size)";
+        document.body.appendChild(combo);
+        getComputedStyle(combo).width;
+
+        const comboStyleElement = document.createElement("style");
+        comboStyleElement.textContent = `html { --size: 20px; color: green; }`;
+        document.head.appendChild(comboStyleElement);
+
+        println(`case 2 width: ${getComputedStyle(combo).width}`);
+        println(`case 2 color: ${getComputedStyle(combo).color}`);
+        combo.remove();
+        comboStyleElement.remove();
+    });
+</script>

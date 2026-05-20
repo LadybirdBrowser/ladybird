@@ -29,6 +29,7 @@ public:
     StringTableIndex insert(Utf16String);
     Utf16String const& get(StringTableIndex) const;
     void dump() const;
+    void ensure_capacity(size_t capacity) { m_strings.ensure_capacity(capacity); }
     bool is_empty() const { return m_strings.is_empty(); }
     size_t size() const { return m_strings.size(); }
     size_t external_memory_size() const

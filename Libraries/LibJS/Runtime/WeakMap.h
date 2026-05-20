@@ -31,6 +31,7 @@ public:
     bool weak_map_remove(GC::Ptr<Cell>);
     size_t weak_map_size() const { return m_values.size(); }
 
+    virtual Cell const& owner_cell(Badge<GC::Heap>) const override { return *this; }
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
     virtual size_t external_memory_size() const override;
 

@@ -17,33 +17,33 @@
 namespace Web::MediaCapabilitiesAPI {
 
 // https://w3c.github.io/media-capabilities/#valid-mediaconfiguration
-bool MediaConfiguration::is_valid_media_configuration() const
+bool is_valid_media_configuration(Bindings::MediaConfiguration const& configuration)
 {
     //  For a MediaConfiguration to be a valid MediaConfiguration, all of the following conditions MUST be true:
 
     // 1. audio and/or video MUST exist.
-    if (!audio.has_value() && !video.has_value())
+    if (!configuration.audio.has_value() && !configuration.video.has_value())
         return false;
 
     // 2. audio MUST be a valid audio configuration if it exists.
-    if (audio.has_value() && !audio.value().is_valid_audio_configuration())
+    if (configuration.audio.has_value() && !is_valid_audio_configuration(configuration.audio.value()))
         return false;
 
     // 3. video MUST be a valid video configuration if it exists.
-    if (video.has_value() && !video.value().is_valid_video_configuration())
+    if (configuration.video.has_value() && !is_valid_video_configuration(configuration.video.value()))
         return false;
 
     return true;
 }
 
 // https://w3c.github.io/media-capabilities/#valid-mediadecodingconfiguration
-bool MediaDecodingConfiguration::is_valid_media_decoding_configuration() const
+bool is_valid_media_decoding_configuration(Bindings::MediaDecodingConfiguration const& configuration)
 {
     // For a MediaDecodingConfiguration to be a valid MediaDecodingConfiguration, all of the following
     // conditions MUST be true:
 
     // 1. It MUST be a valid MediaConfiguration.
-    if (!is_valid_media_configuration())
+    if (!is_valid_media_configuration(configuration))
         return false;
 
     // 2. If keySystemConfiguration exists:
@@ -75,17 +75,17 @@ bool is_valid_video_mime_type(StringView string)
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-configuration
-bool VideoConfiguration::is_valid_video_configuration() const
+bool is_valid_video_configuration(Bindings::VideoConfiguration const& configuration)
 {
     // To check if a VideoConfiguration configuration is a valid video configuration, the following steps MUST be
     // run:
 
     // 1. If configuration’s contentType is not a valid video MIME type, return false and abort these steps.
-    if (!is_valid_video_mime_type(content_type))
+    if (!is_valid_video_mime_type(configuration.content_type))
         return false;
 
     // 2. If framerate is not finite or is not greater than 0, return false and abort these steps.
-    if (!isfinite(framerate) || framerate <= 0)
+    if (!isfinite(configuration.framerate) || configuration.framerate <= 0)
         return false;
 
     // 3. If an optional member is specified for a MediaDecodingType or MediaEncodingType to which it’s not
@@ -97,13 +97,13 @@ bool VideoConfiguration::is_valid_video_configuration() const
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-configuration
-bool AudioConfiguration::is_valid_audio_configuration() const
+bool is_valid_audio_configuration(Bindings::AudioConfiguration const& configuration)
 {
     // To check if a AudioConfiguration configuration is a valid audio configuration, the following steps MUST be
     // run:
 
     // 1. If configuration’s contentType is not a valid audio MIME type, return false and abort these steps.
-    if (!is_valid_audio_mime_type(content_type))
+    if (!is_valid_audio_mime_type(configuration.content_type))
         return false;
 
     // 2. Return true.
@@ -137,14 +137,14 @@ void queue_a_media_capabilities_task(JS::VM& vm, Function<void()> steps)
 }
 
 // https://w3c.github.io/media-capabilities/#dom-mediacapabilities-decodinginfo
-GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(MediaDecodingConfiguration const& configuration)
+GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(Bindings::MediaDecodingConfiguration const& configuration)
 {
     auto& realm = this->realm();
     // The decodingInfo() method MUST run the following steps:
 
     // 1. If configuration is not a valid MediaDecodingConfiguration, return a Promise rejected with a newly created
     //    TypeError.
-    if (!configuration.is_valid_media_decoding_configuration()) {
+    if (!is_valid_media_decoding_configuration(configuration)) {
         return WebIDL::create_rejected_promise_from_exception(realm, vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"sv));
     }
 
@@ -159,7 +159,7 @@ GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(MediaDecodingConfigura
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, p, configuration]() mutable {
         HTML::TemporaryExecutionContext context(realm);
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.
-        auto result = create_a_media_capabilities_decoding_info(configuration).to_object(realm);
+        auto result = to_object(realm, create_a_media_capabilities_decoding_info(configuration));
 
         // Queue a Media Capabilities task to resolve p with its result.
         queue_a_media_capabilities_task(vm, [&realm, p, result] {
@@ -173,15 +173,20 @@ GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(MediaDecodingConfigura
 }
 
 // https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
-MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration configuration)
+Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(Bindings::MediaDecodingConfiguration configuration)
 {
     // 1. Let info be a new MediaCapabilitiesDecodingInfo instance. Unless stated otherwise, reading and
     //    writing apply to info for the next steps.
-    MediaCapabilitiesDecodingInfo info = {};
+    Bindings::MediaCapabilitiesDecodingInfo info = {};
 
     // 2. Set configuration to be a new MediaDecodingConfiguration. For every property in configuration create
     //    a new property with the same name and value in configuration.
-    info.configuration = { { configuration.video, configuration.audio }, configuration.type, configuration.key_system_configuration };
+    Bindings::MediaDecodingConfiguration info_configuration {};
+    info_configuration.audio = configuration.audio;
+    info_configuration.video = configuration.video;
+    info_configuration.type = configuration.type;
+    info_configuration.key_system_configuration = configuration.key_system_configuration;
+    info.configuration.emplace(move(info_configuration));
 
     // 3. If configuration.keySystemConfiguration exists:
     if (false) {
@@ -211,7 +216,7 @@ MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDec
     return info;
 }
 
-bool is_able_to_decode_media(MediaDecodingConfiguration configuration)
+bool is_able_to_decode_media(Bindings::MediaDecodingConfiguration configuration)
 {
     if (configuration.type != Bindings::MediaDecodingType::MediaSource)
         return false;
@@ -231,15 +236,15 @@ bool is_able_to_decode_media(MediaDecodingConfiguration configuration)
     return true;
 }
 
-GC::Ref<JS::Object> MediaCapabilitiesDecodingInfo::to_object(JS::Realm& realm)
+GC::Ref<JS::Object> to_object(JS::Realm& realm, Bindings::MediaCapabilitiesDecodingInfo const& info)
 {
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
     // FIXME: Also include configuration in this object.
 
-    MUST(object->create_data_property("supported"_utf16_fly_string, JS::BooleanObject::create(realm, supported)));
-    MUST(object->create_data_property("smooth"_utf16_fly_string, JS::BooleanObject::create(realm, smooth)));
-    MUST(object->create_data_property("powerEfficient"_utf16_fly_string, JS::BooleanObject::create(realm, power_efficient)));
+    MUST(object->create_data_property("supported"_utf16_fly_string, JS::BooleanObject::create(realm, info.supported)));
+    MUST(object->create_data_property("smooth"_utf16_fly_string, JS::BooleanObject::create(realm, info.smooth)));
+    MUST(object->create_data_property("powerEfficient"_utf16_fly_string, JS::BooleanObject::create(realm, info.power_efficient)));
 
     return object;
 }

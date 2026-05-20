@@ -76,15 +76,28 @@ static bool can_selector_use_fast_matches(Selector const& selector)
 Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     : m_compound_selectors(move(compound_selectors))
 {
-    // FIXME: This assumes that only one pseudo-element is allowed in a selector, and that it appears at the end.
-    //        This is not true in Selectors-4!
+    for (auto const& compound_selector : m_compound_selectors) {
+        if (compound_selector.combinator == Combinator::PseudoElement)
+            m_contains_pseudo_element_transition = true;
+
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type != SimpleSelector::Type::PseudoElement)
+                continue;
+
+            if (simple_selector.pseudo_element().type() == PseudoElement::Slotted)
+                m_contains_slotted_pseudo_element = true;
+            if (simple_selector.pseudo_element().type() == PseudoElement::Part)
+                m_contains_part_pseudo_element = true;
+        }
+    }
+
     if (!m_compound_selectors.is_empty()) {
-        for (auto const& simple_selector : m_compound_selectors.last().simple_selectors) {
-            if (simple_selector.type == SimpleSelector::Type::PseudoElement) {
-                if (simple_selector.pseudo_element().type() == PseudoElement::Part)
-                    m_contains_part_pseudo_element = true;
-                m_target_pseudo_element = simple_selector.pseudo_element();
-            }
+        auto const& rightmost_compound = m_compound_selectors.last();
+        if (!rightmost_compound.simple_selectors.is_empty()
+            && rightmost_compound.simple_selectors.first().type == SimpleSelector::Type::PseudoElement) {
+            auto pseudo_element = rightmost_compound.simple_selectors.first().pseudo_element().type();
+            if (!first_is_one_of(pseudo_element, PseudoElement::Slotted, PseudoElement::Part))
+                m_target_pseudo_element = pseudo_element;
         }
     }
 
@@ -186,7 +199,9 @@ void Selector::collect_ancestor_hashes()
         switch (combinator_to_right) {
         case Combinator::Descendant:
         case Combinator::ImmediateChild:
-            // This compound is on the ancestor axis (directly, or as a shared ancestor past a sibling boundary).
+        case Combinator::PseudoElement:
+            // This compound is on the ancestor axis (directly, as the originating element for a pseudo-element,
+            // or as a shared ancestor past a sibling boundary).
             if (append_hashes_from_compound(compound_selector)) {
                 m_can_use_ancestor_filter = (next_hash_index > 0);
                 return;
@@ -584,18 +599,34 @@ String Selector::serialize() const
         case Combinator::Column:
             s.append("|| "sv);
             break;
+        case Combinator::PseudoElement:
         default:
             break;
         }
     }
 
-    // To serialize a selector let s be the empty string, run the steps below for each part of the chain of the selector, and finally return s:
+    // To serialize a selector let s be the empty string, run the steps below for each part of the chain of the
+    // selector, and finally return s:
     for (size_t i = 0; i < compound_selectors().size(); ++i) {
         auto const& compound_selector = compound_selectors()[i];
-        // 1. If there is only one simple selector in the compound selectors which is a universal selector, append the result of serializing the universal selector to s.
+        // 1. If there is only one simple selector in the compound selectors which is a universal selector, append the
+        //    result of serializing the universal selector to s.
         if (compound_selector.simple_selectors.size() == 1
-            && compound_selector.simple_selectors.first().type == Selector::SimpleSelector::Type::Universal) {
-            s.append(compound_selector.simple_selectors.first().serialize());
+            && compound_selector.simple_selectors.first().type == SimpleSelector::Type::Universal) {
+            // NB: Because we've split any compound selectors that contain pseudo-elements, eg `*::before` becomes two
+            //     CompoundSelectors, we have to include the following CompoundSelector as well.
+            bool should_serialize_universal = !compound_selector.is_implicit_universal_anchor;
+            if (should_serialize_universal
+                && i != compound_selectors().size() - 1
+                && compound_selectors()[i + 1].combinator == Combinator::PseudoElement) {
+                auto qualified_name = compound_selector.simple_selectors.first().qualified_name();
+                if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default
+                    || qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Any) {
+                    should_serialize_universal = false;
+                }
+            }
+            if (should_serialize_universal)
+                s.append(compound_selector.simple_selectors.first().serialize());
         }
         // 2. Otherwise, for each simple selector in the compound selectors that is not a universal selector
         //    of which the namespace prefix maps to a namespace that is not the default namespace
@@ -603,6 +634,8 @@ String Selector::serialize() const
         else {
             for (auto& simple_selector : compound_selector.simple_selectors) {
                 if (simple_selector.type == SimpleSelector::Type::Universal) {
+                    if (compound_selector.is_implicit_universal_anchor)
+                        continue;
                     auto qualified_name = simple_selector.qualified_name();
                     if (qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Default
                         || qualified_name.namespace_type == SimpleSelector::QualifiedName::NamespaceType::Any)
@@ -641,6 +674,7 @@ String Selector::serialize() const
             case Combinator::Column:
                 s.append(" || "sv);
                 break;
+            case Combinator::PseudoElement:
             default:
                 break;
             }
@@ -750,6 +784,7 @@ Optional<Selector::CompoundSelector> Selector::CompoundSelector::absolutized(Sel
 
     return CompoundSelector {
         .combinator = this->combinator,
+        .is_implicit_universal_anchor = this->is_implicit_universal_anchor,
         .simple_selectors = absolutized_simple_selectors,
     };
 }
@@ -846,7 +881,7 @@ size_t Selector::sibling_invalidation_distance() const
     m_sibling_invalidation_distance = 0;
     size_t current_distance = 0;
     for (auto const& compound_selector : compound_selectors()) {
-        if (compound_selector.combinator == Combinator::None)
+        if (compound_selector.combinator == Combinator::None || compound_selector.combinator == Combinator::PseudoElement)
             continue;
 
         if (compound_selector.combinator == Combinator::SubsequentSibling) {

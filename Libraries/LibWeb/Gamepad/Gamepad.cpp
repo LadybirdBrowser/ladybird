@@ -579,7 +579,7 @@ void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
                 //    to fire an event named gamepadconnected at gamepad's relevant global object using GamepadEvent
                 //    with its gamepad attribute initialized to connectedGamepad.
                 if (document.is_fully_active()) {
-                    auto gamepad_connected_event_init = GamepadEventInit {
+                    auto gamepad_connected_event_init = Bindings::GamepadEventInit {
                         {
                             .bubbles = false,
                             .cancelable = false,

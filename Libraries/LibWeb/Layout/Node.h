@@ -121,6 +121,7 @@ public:
     virtual bool is_inline_node() const { return false; }
     virtual bool is_break_node() const { return false; }
     virtual bool is_text_node() const { return false; }
+    virtual bool is_text_slice_node() const { return false; }
     virtual bool is_viewport() const { return false; }
     virtual bool is_svg_box() const { return false; }
     virtual bool is_svg_geometry_box() const { return false; }
@@ -234,8 +235,13 @@ public:
     [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
 
+    enum class AttachToDOMNode {
+        No,
+        Yes,
+    };
+
 protected:
-    Node(DOM::Document&, DOM::Node*);
+    Node(DOM::Document&, DOM::Node*, AttachToDOMNode = AttachToDOMNode::Yes);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -278,6 +284,8 @@ class WEB_API NodeWithStyle : public Node {
 
 public:
     virtual ~NodeWithStyle() override = default;
+
+    static constexpr bool OVERRIDES_FINALIZE = true;
 
     class ImageObserver final : public CSS::ImageStyleValue::Client {
     public:
@@ -322,6 +330,7 @@ protected:
 
 private:
     virtual bool is_node_with_style() const final { return true; }
+    virtual void finalize() override;
 
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_non_inherit_values(NodeWithStyle& target_node) const;

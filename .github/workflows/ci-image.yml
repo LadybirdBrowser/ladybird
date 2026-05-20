@@ -94,10 +94,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and publish image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: Meta/Docker/ci
           file: Meta/Docker/ci/Dockerfile
@@ -125,7 +125,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Publish multi-arch manifests
         shell: bash

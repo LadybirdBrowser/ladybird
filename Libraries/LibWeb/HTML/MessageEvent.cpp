@@ -17,12 +17,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(MessageEvent);
 
-GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
+GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
 {
     return realm.create<MessageEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
+GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin)
+{
+    return realm.create<MessageEvent>(realm, event_name, event_init, origin);
+}
+
+WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
@@ -34,12 +39,23 @@ MessageEvent::MessageEventSourceInternal MessageEvent::to_message_event_source_i
         [](auto const& root) -> MessageEventSourceInternal { return GC::Ref { *root }; });
 }
 
-MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
+MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
+    : MessageEvent(realm, event_name, event_init, String { event_init.origin })
+{
+}
+
+MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin)
+    : MessageEvent(realm, event_name, event_init, Variant<URL::Origin, String, Empty> { origin })
+{
+}
+
+MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, String, Empty> origin)
     : DOM::Event(realm, event_name, event_init)
     , m_data(event_init.data)
-    , m_origin(event_init.origin)
+    , m_origin(move(origin))
     , m_last_event_id(event_init.last_event_id)
     , m_source(to_message_event_source_internal(event_init.source))
+
 {
     m_ports.ensure_capacity(event_init.ports.size());
     for (auto const& port : event_init.ports) {
@@ -62,9 +78,7 @@ void MessageEvent::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_data);
     visitor.visit(m_ports_array);
     visitor.visit(m_ports);
-    m_source.visit(
-        [](Empty) {},
-        [&](auto const& ref) { visitor.visit(ref); });
+    visitor.visit(m_source);
 }
 
 // https://html.spec.whatwg.org/multipage/comms.html#dom-messageevent-origin

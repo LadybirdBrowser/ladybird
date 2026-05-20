@@ -934,6 +934,9 @@ void Parser::parse_enumeration(HashMap<ByteString, ByteString> extended_attribut
     for (auto& entry : enumeration.values)
         enumeration.translated_cpp_names.set(entry, convert_enumeration_value_to_cpp_enum_member(entry, names_already_seen));
 
+    auto* module = interface.context.find_parsed_module(interface.module_own_path);
+    VERIFY(module);
+    module->own_enumerations.set(name);
     interface.own_enumerations.set(name);
     interface.context.enumerations.set(name, move(enumeration));
     consume_whitespace();
@@ -1043,6 +1046,9 @@ void Parser::parse_dictionary(HashMap<ByteString, ByteString> extended_attribute
         auto& it = interface.context.partial_dictionaries.ensure(name);
         it.append(move(dictionary));
     } else {
+        auto* module = interface.context.find_parsed_module(interface.module_own_path);
+        VERIFY(module);
+        module->own_dictionaries.set(name);
         interface.own_dictionaries.set(name);
         interface.context.dictionaries.set(name, move(dictionary));
     }
@@ -1162,27 +1168,6 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
 
 static void resolve_union_typedefs(Interface& interface, UnionType& union_);
 
-static NonnullRefPtr<Type const> clone_type(Type const& type, bool nullable)
-{
-    if (is<ParameterizedType>(type)) {
-        Vector<NonnullRefPtr<Type const>> parameters;
-        for (auto& parameter : type.as_parameterized().parameters())
-            parameters.append(clone_type(parameter, parameter->is_nullable()));
-
-        return adopt_ref(*new ParameterizedType(type.name(), nullable, move(parameters)));
-    }
-
-    if (is<UnionType>(type)) {
-        Vector<NonnullRefPtr<Type const>> member_types;
-        for (auto& member_type : type.as_union().member_types())
-            member_types.append(clone_type(member_type, member_type->is_nullable()));
-
-        return adopt_ref(*new UnionType(type.name(), nullable, move(member_types)));
-    }
-
-    return adopt_ref(*new Type(type.name(), nullable));
-}
-
 static void resolve_typedef(Interface& interface, NonnullRefPtr<Type const>& type, HashMap<ByteString, ByteString>* extended_attributes = {})
 {
     if (is<ParameterizedType>(*type)) {
@@ -1202,7 +1187,7 @@ static void resolve_typedef(Interface& interface, NonnullRefPtr<Type const>& typ
     auto it = interface.context.typedefs.find(type->name());
     if (it == interface.context.typedefs.end())
         return;
-    type = clone_type(it->value.type, type->is_nullable());
+    type = clone_type(it->value.type, type->is_nullable() || it->value.type->is_nullable());
     if (extended_attributes) {
         for (auto& attribute : it->value.extended_attributes)
             extended_attributes->set(attribute.key, attribute.value);
@@ -1263,6 +1248,12 @@ static void resolve_typedefs(Interface& interface)
         resolve_typedef(interface, interface.pair_iterator_types->get<0>());
         resolve_typedef(interface, interface.pair_iterator_types->get<1>());
     }
+    if (interface.set_entry_type.has_value())
+        resolve_typedef(interface, *interface.set_entry_type);
+    if (interface.map_key_type.has_value())
+        resolve_typedef(interface, *interface.map_key_type);
+    if (interface.map_value_type.has_value())
+        resolve_typedef(interface, *interface.map_value_type);
     if (interface.named_property_getter.has_value())
         resolve_function_typedefs(interface, *interface.named_property_getter);
     if (interface.named_property_setter.has_value())
@@ -1387,6 +1378,7 @@ Module& Parser::parse()
 
     auto module_ptr = make<Module>();
     auto& module = *module_ptr;
+    module.context = &context;
     module.module_own_path = this_module;
     context.add_module(move(module_ptr));
 

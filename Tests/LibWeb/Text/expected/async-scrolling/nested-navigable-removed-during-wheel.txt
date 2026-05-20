@@ -1,0 +1,4 @@
+wheel promise: resolved
+wheel event count: 1
+wheel event cancelable: false
+frame removed: true

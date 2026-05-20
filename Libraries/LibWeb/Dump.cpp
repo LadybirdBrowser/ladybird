@@ -482,10 +482,16 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
         case CSS::Selector::Combinator::Column:
             relation_description = "Column";
             break;
+        case CSS::Selector::Combinator::PseudoElement:
+            relation_description = "PseudoElement";
+            break;
         }
 
         if (*relation_description)
             builder.appendff("{{{}}} ", relation_description);
+
+        if (relative_selector.is_implicit_universal_anchor)
+            builder.append("(implicit-universal) "sv);
 
         for (size_t i = 0; i < relative_selector.simple_selectors.size(); ++i) {
             auto& simple_selector = relative_selector.simple_selectors[i];

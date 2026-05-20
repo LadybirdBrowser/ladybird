@@ -89,6 +89,7 @@ public:
     }
 
     IntrusiveListNode<HeapBlock> m_list_node;
+    IntrusiveListNode<HeapBlock> m_sweep_list_node;
 
     CellAllocator& cell_allocator() { return m_cell_allocator; }
 

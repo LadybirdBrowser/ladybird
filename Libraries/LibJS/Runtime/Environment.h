@@ -50,6 +50,7 @@ public:
     [[nodiscard]] bool is_declarative_environment() const { return m_declarative; }
     virtual bool is_global_environment() const { return false; }
     virtual bool is_function_environment() const { return false; }
+    virtual bool is_catch_environment() const { return false; }
 
     template<typename T>
     bool fast_is() const = delete;

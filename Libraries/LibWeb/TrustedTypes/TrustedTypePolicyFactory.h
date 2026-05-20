@@ -22,7 +22,7 @@ class TrustedTypePolicyFactory final : public Bindings::PlatformObject {
 public:
     virtual ~TrustedTypePolicyFactory() override { }
 
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_policy(Utf16String const&, TrustedTypePolicyOptions const&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_policy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
 
     bool is_html(JS::Value);
     bool is_script(JS::Value);
@@ -45,7 +45,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(Utf16String const&, TrustedTypePolicyOptions const&, JS::Object&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&, JS::Object&);
     ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object&, Utf16String const&, Vector<Utf16String> const&);
 
     // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory-created-policy-names

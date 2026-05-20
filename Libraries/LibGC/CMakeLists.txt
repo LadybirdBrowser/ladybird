@@ -5,16 +5,18 @@ set(SOURCES
     ConservativeVector.cpp
     Root.cpp
     RootHashMap.cpp
+    RootHashTable.cpp
     RootVector.cpp
     Heap.cpp
     HeapBlock.cpp
+    Timer.cpp
     WeakBlock.cpp
     WeakContainer.cpp
 )
 
 ladybird_lib(LibGC gc EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibGC PRIVATE LibCore)
-target_link_libraries(LibGC PUBLIC LibThreading)
+target_link_libraries(LibGC PUBLIC LibSync LibThreading)
 
 if(cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
     target_link_libraries(LibGC PRIVATE cpptrace::cpptrace)

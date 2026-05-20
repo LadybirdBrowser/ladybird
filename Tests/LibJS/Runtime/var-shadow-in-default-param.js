@@ -90,6 +90,20 @@ describe("var shadowing in default parameter expressions", () => {
         expect(f()).toBe(42);
     });
 
+    test("Annex B function binding with parameter and body lexical scopes", () => {
+        function f(x = 1) {
+            let y = 2;
+            if (true) {
+                function g() {
+                    return x + y;
+                }
+            }
+            return g();
+        }
+        expect(f()).toBe(3);
+        expect(f(10)).toBe(12);
+    });
+
     test("nested function scope with shadowed default", () => {
         var v = "outer";
         function outer() {
@@ -112,5 +126,20 @@ describe("var shadowing in default parameter expressions", () => {
             return x[0];
         }
         expect(f()).toBe(1);
+    });
+
+    test("repeated calls keep captured vars in default-parameter var environment", () => {
+        function f(x = 1) {
+            var y;
+            function readY() {
+                return y;
+            }
+            y = x;
+            return readY();
+        }
+
+        expect(f()).toBe(1);
+        expect(f(2)).toBe(2);
+        expect(f(3)).toBe(3);
     });
 });

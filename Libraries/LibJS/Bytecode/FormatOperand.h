@@ -23,11 +23,9 @@ inline ByteString format_label(StringView name, Label const& label, Bytecode::Ex
         builder.appendff("\033[32m{}\033[0m:", name);
 
     auto address = label.address();
-    for (size_t i = 0; i < executable.basic_block_start_offsets.size(); ++i) {
-        if (executable.basic_block_start_offsets[i] == address) {
-            builder.appendff("\033[35mblock{}\033[0m", i);
-            return builder.to_byte_string();
-        }
+    if (auto basic_block_index = executable.basic_block_index_for_offset(address); basic_block_index.has_value()) {
+        builder.appendff("\033[35mblock{}\033[0m", basic_block_index.value());
+        return builder.to_byte_string();
     }
     builder.appendff("@{:x}", address);
     return builder.to_byte_string();

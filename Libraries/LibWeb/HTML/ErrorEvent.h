@@ -7,18 +7,10 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
-
-// https://html.spec.whatwg.org/multipage/webappapis.html#erroreventinit
-struct ErrorEventInit : public DOM::EventInit {
-    String message;
-    String filename;
-    u32 lineno { 0 };
-    u32 colno { 0 };
-    JS::Value error { JS::js_undefined() };
-};
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 class ErrorEvent final : public DOM::Event {
@@ -26,8 +18,8 @@ class ErrorEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(ErrorEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ErrorEvent> create(JS::Realm&, FlyString const& event_name, ErrorEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> construct_impl(JS::Realm&, FlyString const& event_name, ErrorEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<ErrorEvent> create(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
 
     virtual ~ErrorEvent() override;
 
@@ -47,7 +39,7 @@ public:
     JS::Value error() const { return m_error; }
 
 private:
-    ErrorEvent(JS::Realm&, FlyString const& event_name, ErrorEventInit const& event_init);
+    ErrorEvent(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

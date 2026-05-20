@@ -1,46 +1,44 @@
-$3a924082 this-base-identifier.js:16:1
+$fc88b9ef this-base-identifier.js:16:1
   Registers: 10
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] GetGlobal dst:reg6, `get_from_this`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, get_from_this
-  [  40] GetGlobal dst:reg7, `set_on_this`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, set_on_this
-  [  78] Jump target:block3
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, get_from_this
+  [  38] GetGlobal dst:reg7, `set_on_this`
+  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, set_on_this
+  [  68] Jump target:block2
 
 block1:
-  [  80] Catch dst:reg5
-  [  88] SetLexicalEnvironment environment:reg4
-  [  90] Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
+  [  70] Catch dst:reg5
+  [  78] SetLexicalEnvironment environment:reg4
+  [  80] Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
+  [  98] End value:reg7
 
 block2:
-  [  a8] End value:reg7
-
-block3:
-  [  b0] Mov dst:reg5, src:Undefined
-  [  c0] GetGlobal dst:reg9, `chained_this_access`
-  [  d8] Call dst:reg7, callee:reg9, this_value:Undefined, chained_this_access
-  [  f8] Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
-  [ 110] End value:reg7
+  [  a0] Mov dst:reg5, src:Undefined
+  [  b0] GetGlobal dst:reg9, `chained_this_access`
+  [  c0] Call dst:reg7, callee:reg9, this_value:Undefined, chained_this_access
+  [  e0] Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
+  [  f8] End value:reg7
 
 Exception handlers:
-  [  b0 ..  118] => handler block1
+  [  a0 ..  100] => handler block1
 
 
-get_from_this$4bb390c8 this-base-identifier.js:5:5
+get_from_this$fcaf59fb this-base-identifier.js:5:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] GetById dst:reg5, base:this, `foo` (this.foo)
-  [  20] Return value:reg5
+  [  18] Return value:reg5
 
 
-set_on_this$453a2d11 this-base-identifier.js:9:14
+set_on_this$997a7c27 this-base-identifier.js:9:14
   Registers: 5
   Blocks:    1
   Constants:
@@ -49,14 +47,14 @@ set_on_this$453a2d11 this-base-identifier.js:9:14
 
 block0:
   [   0] PutById base:this, `bar`, src:Int32(1), kind:Normal (this.bar)
-  [  28] End value:Undefined
+  [  20] End value:Undefined
 
 
-chained_this_access$48ebed63 this-base-identifier.js:13:5
+chained_this_access$39eea63b this-base-identifier.js:13:5
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] GetById dst:reg5, base:this, `a` (this.a)
-  [  20] GetById dst:reg6, base:reg5, `b` (this.a.b)
-  [  40] Return value:reg6
+  [  18] GetById dst:reg6, base:reg5, `b` (this.a.b)
+  [  30] Return value:reg6

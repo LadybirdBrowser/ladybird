@@ -1,4 +1,4 @@
-$d8d3a626 numeric-getter-no-lhs-name.js:1:1
+$7f6ce915 numeric-getter-no-lhs-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,12 +10,12 @@ block0:
   [  20] NewFunction dst:reg6, shared_function_data_index:0, home_object:reg5
   [  38] PutByValue base:reg5, property:Int32(0), src:reg6, kind:Getter
   [  50] SetGlobal `obj`, src:reg5
-  [  68] GetGlobal dst:reg5, `obj`
-  [  80] GetByValue dst:reg6, base:reg5, property:Int32(0) (obj[Int32(0)])
-  [  98] End value:reg6
+  [  60] GetGlobal dst:reg5, `obj`
+  [  70] GetByValue dst:reg6, base:reg5, property:Int32(0) (obj[Int32(0)])
+  [  88] End value:reg6
 
 
-get 0$52a40bc0 numeric-getter-no-lhs-name.js:3:9
+get 0$4c2eeb71 numeric-getter-no-lhs-name.js:3:9
   Registers: 5
   Blocks:    1
   Constants:

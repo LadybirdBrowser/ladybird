@@ -1,4 +1,4 @@
-$1faa0c14 for-in-block-order.js:5:1
+$100bdb91 for-in-block-order.js:5:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,12 +6,12 @@ $1faa0c14 for-in-block-order.js:5:1
 
 block0:
   [   0] GetGlobal dst:reg6, `foo`
-  [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
-  [  50] End value:reg5
+  [  10] NewObject dst:reg7
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  48] End value:reg5
 
 
-foo$ad9db83a for-in-block-order.js:2:16
+foo$b9d28371 for-in-block-order.js:2:16
   Registers: 8
   Blocks:    6
   Locals:    k~0
@@ -34,8 +34,8 @@ block3:
 
 block4:
   [  50] GetObjectPropertyIterator dst_iterator:reg5, object:arg0
-  [  68] Jump target:block2
+  [  60] Jump target:block2
 
 block5:
-  [  70] Mov dst:k~0, src:reg6
-  [  80] Jump target:block2
+  [  68] Mov dst:k~0, src:reg6
+  [  78] Jump target:block2

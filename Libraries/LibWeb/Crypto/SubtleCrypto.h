@@ -37,7 +37,7 @@ public:
     GC::Ref<WebIDL::Promise> derive_bits(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, Optional<u32> length_optional);
     GC::Ref<WebIDL::Promise> derive_key(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages);
 
-    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> import_key(Bindings::KeyFormat format, Variant<GC::Root<WebIDL::BufferSource>, Bindings::JsonWebKey> key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
     GC::Ref<WebIDL::Promise> export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key);
 
     GC::Ref<WebIDL::Promise> wrap_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier wrap_algorithm);

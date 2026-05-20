@@ -1,0 +1,49 @@
+<!doctype html>
+<title>@container queries with aspect-ratio</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#aspect-ratio">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  .container {
+    width: 100px;
+    height: 100px;
+  }
+  #inline-size { container-type: inline-size; }
+  #size { container-type: size; }
+  span { color: red }
+  @container (min-aspect-ratio: 1 / 1000) {
+    span { color: green; }
+  }
+  @container (min-aspect-ratio: 2 / 1) {
+    span { background-color: lime; }
+  }
+</style>
+<div id="inline-size" class="container"><span></span></div>
+<div id="size" class="container"><span></span></div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  const red = "rgb(255, 0, 0)";
+  const green = "rgb(0, 128, 0)";
+  const lime = "rgb(0, 255, 0)";
+  const transparent = "rgba(0, 0, 0, 0)";
+
+  const inline_span = document.querySelector("#inline-size > span");
+  const size_span = document.querySelector("#size > span");
+
+  test(() => {
+    assert_equals(getComputedStyle(inline_span).color, red,
+                  "Should not match for inline-size containment");
+    assert_equals(getComputedStyle(size_span).color, green,
+                  "Should match for block-size containment");
+    assert_equals(getComputedStyle(size_span).backgroundColor, transparent,
+                  "Square should not match 2/1 min-ratio");
+  }, "@container queries with aspect-ratio and size containment");
+
+  test(() => {
+    document.querySelector("#size").style.width = "200px";
+    assert_equals(getComputedStyle(size_span).backgroundColor, lime,
+                  "Should match 2/1 min-ratio");
+  }, "@container query with aspect-ratio change after resize");
+</script>

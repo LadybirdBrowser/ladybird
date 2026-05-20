@@ -12,14 +12,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(BeforeUnloadEvent);
 
-GC::Ref<BeforeUnloadEvent> BeforeUnloadEvent::create(JS::Realm& realm, FlyString const& event_name, DOM::EventInit const& event_init)
+GC::Ref<BeforeUnloadEvent> BeforeUnloadEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::EventInit const& event_init)
 {
     auto event = realm.create<BeforeUnloadEvent>(realm, event_name, event_init);
     event->set_is_trusted(true);
     return event;
 }
 
-BeforeUnloadEvent::BeforeUnloadEvent(JS::Realm& realm, FlyString const& event_name, DOM::EventInit const& event_init)
+BeforeUnloadEvent::BeforeUnloadEvent(JS::Realm& realm, FlyString const& event_name, Bindings::EventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
 {
 }

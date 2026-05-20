@@ -275,11 +275,17 @@ i64 asm_try_inline_call(VM*, u32 pc);
 i64 asm_try_put_by_id_cache(VM*, u32 pc);
 i64 asm_try_get_by_id_cache(VM*, u32 pc);
 i64 asm_slow_path_initialize_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_initialize_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_initialize_variable_binding(VM*, u32 pc);
 
 i64 asm_try_get_by_value_typed_array(VM*, u32 pc);
 i64 asm_slow_path_get_initialized_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_get_initialized_binding(VM*, u32 pc);
 i64 asm_slow_path_get_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_get_binding(VM*, u32 pc);
 i64 asm_slow_path_set_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_set_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_dynamic_set_variable_binding(VM*, u32 pc);
 i64 asm_slow_path_bitwise_not(VM*, u32 pc);
 i64 asm_slow_path_unary_plus(VM*, u32 pc);
 i64 asm_slow_path_throw_if_tdz(VM*, u32 pc);
@@ -288,6 +294,7 @@ i64 asm_slow_path_throw_if_nullish(VM*, u32 pc);
 i64 asm_slow_path_loosely_equals(VM*, u32 pc);
 i64 asm_slow_path_loosely_inequals(VM*, u32 pc);
 i64 asm_slow_path_get_callee_and_this(VM*, u32 pc);
+i64 asm_slow_path_dynamic_get_callee_and_this(VM*, u32 pc);
 i64 asm_try_put_by_value_typed_array(VM*, u32 pc);
 i64 asm_slow_path_get_private_by_id(VM*, u32 pc);
 i64 asm_slow_path_put_private_by_id(VM*, u32 pc);
@@ -411,6 +418,12 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         return execute_throwing<Op::EnterObjectEnvironment>(*vm, pc);
     case Instruction::Type::Exp:
         return execute_throwing<Op::Exp>(*vm, pc);
+    case Instruction::Type::DynamicGetCalleeAndThisFromEnvironment:
+        return execute_throwing<Op::DynamicGetCalleeAndThisFromEnvironment>(*vm, pc);
+    case Instruction::Type::DynamicGetBinding:
+        return execute_throwing<Op::DynamicGetBinding>(*vm, pc);
+    case Instruction::Type::DynamicGetInitializedBinding:
+        return execute_throwing<Op::DynamicGetInitializedBinding>(*vm, pc);
     case Instruction::Type::GetByIdWithThis:
         return execute_throwing<Op::GetByIdWithThis>(*vm, pc);
     case Instruction::Type::GetByValueWithThis:
@@ -431,6 +444,10 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         return execute_throwing<Op::ImportCall>(*vm, pc);
     case Instruction::Type::In:
         return execute_throwing<Op::In>(*vm, pc);
+    case Instruction::Type::DynamicInitializeLexicalBinding:
+        return execute_throwing<Op::DynamicInitializeLexicalBinding>(*vm, pc);
+    case Instruction::Type::DynamicInitializeVariableBinding:
+        return execute_throwing<Op::DynamicInitializeVariableBinding>(*vm, pc);
     case Instruction::Type::InitializeVariableBinding:
         return execute_throwing<Op::InitializeVariableBinding>(*vm, pc);
     case Instruction::Type::IteratorClose:
@@ -453,6 +470,10 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         return execute_throwing<Op::PutByValueWithThis>(*vm, pc);
     case Instruction::Type::ResolveSuperBase:
         return execute_throwing<Op::ResolveSuperBase>(*vm, pc);
+    case Instruction::Type::DynamicSetLexicalBinding:
+        return execute_throwing<Op::DynamicSetLexicalBinding>(*vm, pc);
+    case Instruction::Type::DynamicSetVariableBinding:
+        return execute_throwing<Op::DynamicSetVariableBinding>(*vm, pc);
     case Instruction::Type::SetVariableBinding:
         return execute_throwing<Op::SetVariableBinding>(*vm, pc);
     case Instruction::Type::SuperCallWithArgumentArray:
@@ -465,6 +486,8 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         return execute_throwing<Op::ToObject>(*vm, pc);
     case Instruction::Type::TypeofBinding:
         return execute_throwing<Op::TypeofBinding>(*vm, pc);
+    case Instruction::Type::DynamicTypeofBinding:
+        return execute_throwing<Op::DynamicTypeofBinding>(*vm, pc);
 
     default:
         VERIFY_NOT_REACHED();
@@ -603,6 +626,11 @@ i64 asm_slow_path_get_initialized_binding(VM* vm, u32 pc)
     return slow_path_throwing<Op::GetInitializedBinding>(*vm, pc);
 }
 
+i64 asm_slow_path_dynamic_get_initialized_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicGetInitializedBinding>(*vm, pc);
+}
+
 i64 asm_slow_path_loosely_equals(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::LooselyEquals>(*vm, pc);
@@ -616,6 +644,11 @@ i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc)
 i64 asm_slow_path_get_callee_and_this(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::GetCalleeAndThisFromEnvironment>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_get_callee_and_this(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicGetCalleeAndThisFromEnvironment>(*vm, pc);
 }
 
 i64 asm_slow_path_postfix_increment(VM* vm, u32 pc)
@@ -647,7 +680,7 @@ i64 asm_try_get_global_env_binding(VM* vm, u32 pc)
 {
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetGlobal const*>(&bytecode[pc]);
-    auto& cache = *bit_cast<GlobalVariableCache*>(insn.cache());
+    auto& cache = vm->current_executable().global_variable_caches[insn.cache()];
 
     if (!cache.has_environment_binding_index) [[unlikely]]
         return 1;
@@ -677,7 +710,7 @@ i64 asm_try_set_global_env_binding(VM* vm, u32 pc)
 {
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetGlobal const*>(&bytecode[pc]);
-    auto& cache = *bit_cast<GlobalVariableCache*>(insn.cache());
+    auto& cache = vm->current_executable().global_variable_caches[insn.cache()];
 
     if (!cache.has_environment_binding_index) [[unlikely]]
         return 1;
@@ -897,11 +930,10 @@ i64 asm_try_put_by_id_cache(VM* vm, u32 pc)
         return 1;
     auto& object = base.as_object();
     auto value = vm->get(insn.src());
-    auto& cache = *bit_cast<PropertyLookupCache*>(insn.cache());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
 
-    for (size_t i = 0; i < cache.entries.size(); ++i) {
-        auto& entry = cache.entries[i];
-        switch (cache.types[i]) {
+    for (auto& entry : cache.entries()) {
+        switch (entry.type) {
         case PropertyLookupCache::Entry::Type::ChangeOwnProperty: {
             auto cached_shape = entry.shape.ptr();
             if (cached_shape != &object.shape()) [[unlikely]]
@@ -952,9 +984,14 @@ i64 asm_try_get_by_id_cache(VM* vm, u32 pc)
         return 1;
     auto& object = base.as_object();
     auto& shape = object.shape();
-    auto& cache = *bit_cast<PropertyLookupCache*>(insn.cache());
+    auto& cache = vm->current_executable().property_lookup_caches[insn.cache()];
 
-    for (auto& entry : cache.entries) {
+    for (auto& entry : cache.entries()) {
+        if (entry.type != PropertyLookupCache::Entry::Type::GetOwnProperty
+            && entry.type != PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
+            continue;
+        }
+
         auto cached_prototype = entry.prototype.ptr();
         if (cached_prototype) {
             if (&shape != entry.shape) [[unlikely]]
@@ -989,14 +1026,39 @@ i64 asm_slow_path_get_binding(VM* vm, u32 pc)
     return slow_path_throwing<Op::GetBinding>(*vm, pc);
 }
 
+i64 asm_slow_path_dynamic_get_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicGetBinding>(*vm, pc);
+}
+
 i64 asm_slow_path_initialize_lexical_binding(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::InitializeLexicalBinding>(*vm, pc);
 }
 
+i64 asm_slow_path_dynamic_initialize_lexical_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicInitializeLexicalBinding>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_initialize_variable_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicInitializeVariableBinding>(*vm, pc);
+}
+
 i64 asm_slow_path_set_lexical_binding(VM* vm, u32 pc)
 {
     return slow_path_throwing<Op::SetLexicalBinding>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_set_lexical_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicSetLexicalBinding>(*vm, pc);
+}
+
+i64 asm_slow_path_dynamic_set_variable_binding(VM* vm, u32 pc)
+{
+    return slow_path_throwing<Op::DynamicSetVariableBinding>(*vm, pc);
 }
 
 i64 asm_slow_path_bitwise_not(VM* vm, u32 pc)
@@ -1063,7 +1125,7 @@ i64 asm_try_get_by_value_typed_array(VM* vm, u32 pc)
     }
 
     auto* buffer = typed_array.viewed_array_buffer();
-    auto const* data = buffer->buffer().data() + typed_array.byte_offset();
+    auto const* data = buffer->data() + typed_array.byte_offset();
 
     Value result;
     switch (typed_array.kind()) {
@@ -1133,7 +1195,7 @@ i64 asm_try_put_by_value_typed_array(VM* vm, u32 pc)
         return 0;
 
     auto* buffer = typed_array.viewed_array_buffer();
-    auto* data = buffer->buffer().data() + typed_array.byte_offset();
+    auto* data = buffer->data() + typed_array.byte_offset();
     auto value = vm->get(insn.src());
 
     if (value.is_int32()) {

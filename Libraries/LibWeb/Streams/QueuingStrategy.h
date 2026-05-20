@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::Streams {

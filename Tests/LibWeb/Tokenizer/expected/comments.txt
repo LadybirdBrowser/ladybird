@@ -1,0 +1,10 @@
+Comment " simple comment " @0:0-0:23
+Character U+000A @1:0
+Comment "" @1:0-1:7
+Character U+000A @2:0
+Comment "-" @2:0-2:8
+Character U+000A @3:0
+Comment " multi
+line comment " @3:0-4:16
+Character U+000A @5:0
+EndOfFile @5:0

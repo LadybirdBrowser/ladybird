@@ -28,8 +28,7 @@ def parse_bytecode_def(path: str) -> List[OpDef]:
         lines = f.readlines()
 
     ops: List[OpDef] = []
-    current: Optional[OpDef] = None
-    in_op = False
+    current_op: Optional[OpDef] = None
 
     for raw_line in lines:
         stripped = raw_line.strip()
@@ -39,9 +38,8 @@ def parse_bytecode_def(path: str) -> List[OpDef]:
             continue
 
         if stripped.startswith("op "):
-            if in_op:
+            if current_op is not None:
                 raise RuntimeError("Nested op blocks are not allowed")
-            in_op = True
 
             rest = stripped[len("op ") :].strip()
             if "<" in rest:
@@ -52,25 +50,24 @@ def parse_bytecode_def(path: str) -> List[OpDef]:
                 name = rest.strip()
                 base = "Instruction"
 
-            current = OpDef(name=name, base=base)
+            current_op = OpDef(name=name, base=base)
             continue
 
         if stripped == "endop":
-            if not in_op or current is None:
+            if current_op is None:
                 raise RuntimeError("endop without corresponding op")
-            ops.append(current)
-            current = None
-            in_op = False
+            ops.append(current_op)
+            current_op = None
             continue
 
-        if not in_op:
+        if current_op is None:
             continue
 
         if stripped.startswith("@"):
             if stripped == "@terminator":
-                current.is_terminator = True
+                current_op.is_terminator = True
             elif stripped == "@nothrow":
-                current.is_nothrow = True
+                current_op.is_nothrow = True
             continue
 
         if ":" not in stripped:
@@ -82,9 +79,9 @@ def parse_bytecode_def(path: str) -> List[OpDef]:
         if field_type.endswith("[]"):
             is_array = True
             field_type = field_type[:-2].strip()
-        current.fields.append(Field(name=field_name, type=field_type, is_array=is_array))
+        current_op.fields.append(Field(name=field_name, type=field_type, is_array=is_array))
 
-    if in_op or current is not None:
+    if current_op is not None:
         raise RuntimeError("Unclosed op block at end of file")
 
     return ops

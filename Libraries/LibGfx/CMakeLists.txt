@@ -7,10 +7,10 @@ set(SOURCES
     Color.cpp
     ColorConversion.cpp
     ColorSpace.cpp
+    CornerRadii.cpp
     Cursor.cpp
     Filter.cpp
     Font/Font.cpp
-    Font/FontData.cpp
     Font/FontDatabase.cpp
     Font/FontSupport.cpp
     Font/PathFontProvider.cpp
@@ -75,7 +75,7 @@ endif()
 
 ladybird_lib(LibGfx gfx)
 
-target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibTextCodec LibIPC LibUnicode)
+target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibTextCodec LibIPC LibSync LibUnicode)
 
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")

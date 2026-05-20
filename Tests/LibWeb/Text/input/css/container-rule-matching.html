@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+.target {
+    background-color: white;
+    color: black;
+}
+
+#matching-container {
+    container-name: matching;
+}
+
+#non-matching-container {
+    container-name: other;
+}
+
+#outer-container {
+    container-name: outer;
+}
+
+#inner-container {
+    container-name: inner;
+}
+
+@container matching {
+    #matching-child {
+        color: green;
+    }
+
+    #non-matching-child {
+        color: red;
+    }
+}
+
+@container outer {
+    @container inner {
+        #nested-child {
+            color: green;
+        }
+    }
+}
+
+@container inner {
+    #outer-missing-inner-matching-child {
+        color: green;
+    }
+}
+
+@container missing {
+    @container inner {
+        #nested-child {
+            background-color: red;
+        }
+
+        #outer-missing-inner-matching-child {
+            color: red;
+        }
+    }
+}
+</style>
+<div id="matching-container">
+    <div id="matching-child" class="target"></div>
+</div>
+<div id="non-matching-container">
+    <div id="non-matching-child" class="target"></div>
+</div>
+<div id="outer-container">
+    <div id="inner-container">
+        <div id="nested-child" class="target"></div>
+        <div id="outer-missing-inner-matching-child" class="target"></div>
+    </div>
+</div>
+<script>
+test(() => {
+    for (const id of ["matching-child", "non-matching-child", "nested-child", "outer-missing-inner-matching-child"]) {
+        const style = getComputedStyle(document.getElementById(id));
+        println(`${id} color: ${style.color}`);
+        println(`${id} background-color: ${style.backgroundColor}`);
+    }
+});
+</script>

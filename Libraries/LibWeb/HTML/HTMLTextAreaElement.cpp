@@ -9,6 +9,7 @@
 
 #include <AK/Utf16View.h>
 #include <LibWeb/Bindings/HTMLTextAreaElement.h>
+#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -128,7 +129,7 @@ void HTMLTextAreaElement::clear_algorithm()
     // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
     // changes caused by the user (and thus, e.g. do cause input events to fire).
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
-        UIEvents::InputEventInit input_event_init;
+        Bindings::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
         auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
@@ -430,10 +431,10 @@ void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type, Option
     // interaction task source given the textarea element to fire an event named input at the textarea element, with the
     // bubbles and composed attributes initialized to true.
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this, input_type, data]() {
-        UIEvents::InputEventInit input_event_init;
+        Bindings::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
-        input_event_init.input_type = input_type;
+        input_event_init.input_type = input_type.to_string();
         input_event_init.data = data;
         auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
         dispatch_event(input_event);

@@ -12,22 +12,22 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PromiseRejectionEvent);
 
-GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Realm& realm, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
 {
     auto event = realm.create<PromiseRejectionEvent>(realm, event_name, event_init);
     event->set_is_trusted(true);
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    return realm.create<PromiseRejectionEvent>(realm, event_name, event_init);
 }
 
-PromiseRejectionEvent::PromiseRejectionEvent(JS::Realm& realm, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
+PromiseRejectionEvent::PromiseRejectionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_promise(*event_init.promise)
-    , m_reason(event_init.reason)
+    , m_reason(event_init.reason.value_or(JS::js_undefined()))
 {
 }
 

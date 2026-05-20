@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 ARG GCC_VERSION=14
 ARG LLVM_VERSION=21
@@ -20,12 +20,11 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         lsb-release \
         software-properties-common \
     && UBUNTU_RELEASE="$(lsb_release -cs)" \
-    && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/${UBUNTU_RELEASE}/ llvm-toolchain-${UBUNTU_RELEASE}-${LLVM_VERSION} main" > /etc/apt/sources.list.d/llvm.list \
     && curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ ${UBUNTU_RELEASE} main" > /etc/apt/sources.list.d/kitware.list \
     && apt-get update -o APT::Update::Error-Mode=any \
     && apt-get install -y --no-install-recommends \
+        at-spi2-core \
         autoconf \
         autoconf-archive \
         automake \
@@ -33,15 +32,16 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         build-essential \
         ccache \
         clang-${LLVM_VERSION} \
-        clang++-${LLVM_VERSION} \
         clang-format-${LLVM_VERSION} \
         clang-tools-${LLVM_VERSION} \
         cmake \
+        dbus-x11 \
         file \
         fonts-liberation2 \
         g++-${GCC_VERSION} \
         gcc-${GCC_VERSION} \
         generate-ninja \
+        gir1.2-atspi-2.0 \
         git \
         jq \
         libcurl4-openssl-dev \
@@ -64,9 +64,13 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         npm \
         openssl \
         optipng \
+        orca \
         pkg-config \
         pulseaudio \
         python3 \
+        python3-dasbus \
+        python3-gi \
+        python3-psutil \
         python3-venv \
         qt6-base-dev \
         qt6-tools-dev-tools \
@@ -74,6 +78,7 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
         shellcheck \
         tar \
         unzip \
+        xvfb \
         xz-utils \
         zip \
         zstd \

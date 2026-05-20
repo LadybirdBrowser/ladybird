@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	non-error event handler
+Pass	error event handler not on body
+Pass	error event handler on disconnected body
+Pass	error event handler on disconnected frameset
+Pass	error event handler on connected body, reflected to Window

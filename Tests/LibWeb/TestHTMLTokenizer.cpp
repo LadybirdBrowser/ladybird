@@ -199,6 +199,19 @@ TEST_CASE(character_reference_in_attribute)
     END_ENUMERATION();
 }
 
+TEST_CASE(duplicate_attributes_are_reported)
+{
+    auto tokens = run_tokenizer("<script nonce=x nonce=y></script>"sv);
+    auto& token = tokens.first();
+    EXPECT_EQ(token.type(), Token::Type::StartTag);
+    EXPECT(token.had_duplicate_attribute());
+    EXPECT_EQ(token.attribute_count(), 1u);
+
+    auto nonce = token.raw_attribute("nonce"_fly_string);
+    VERIFY(nonce.has_value());
+    EXPECT_EQ(nonce->value, "x");
+}
+
 TEST_CASE(named_character_reference)
 {
     auto tokens = run_tokenizer("&notinvc;&notit;&cz"sv);
@@ -274,4 +287,74 @@ TEST_CASE(ambiguous_ampersand_offset)
     EXPECT_EQ(token.type(), Token::Type::Character);
     EXPECT_EQ(token.start_position().line, 0u);
     EXPECT_EQ(token.start_position().column, 1u);
+}
+
+TEST_CASE(insertion_point_inside_fast_tag_name)
+{
+    Tokenizer tokenizer;
+    tokenizer.update_insertion_point();
+    tokenizer.insert_input_at_insertion_point("<abc"sv);
+    tokenizer.append_to_input_stream("def>"sv);
+
+    EXPECT(!tokenizer.next_token(Tokenizer::StopAtInsertionPoint::Yes).has_value());
+    EXPECT(tokenizer.is_insertion_point_reached());
+    EXPECT_EQ(tokenizer.unparsed_input(), "def>"sv);
+
+    tokenizer.insert_input_at_insertion_point("x"sv);
+    tokenizer.undefine_insertion_point();
+    tokenizer.close_input_stream();
+
+    auto token = tokenizer.next_token();
+    VERIFY(token.has_value());
+    EXPECT_EQ(token->type(), Token::Type::StartTag);
+    EXPECT_EQ(token->tag_name(), "abcxdef");
+}
+
+TEST_CASE(insertion_point_inside_fast_attribute_name)
+{
+    Tokenizer tokenizer;
+    tokenizer.update_insertion_point();
+    tokenizer.insert_input_at_insertion_point("<p abc"sv);
+    tokenizer.append_to_input_stream("def=value>"sv);
+
+    EXPECT(!tokenizer.next_token(Tokenizer::StopAtInsertionPoint::Yes).has_value());
+    EXPECT(tokenizer.is_insertion_point_reached());
+    EXPECT_EQ(tokenizer.unparsed_input(), "def=value>"sv);
+
+    tokenizer.insert_input_at_insertion_point("x"sv);
+    tokenizer.undefine_insertion_point();
+    tokenizer.close_input_stream();
+
+    auto token = tokenizer.next_token();
+    VERIFY(token.has_value());
+    EXPECT_EQ(token->type(), Token::Type::StartTag);
+    EXPECT_EQ(token->attribute_count(), 1u);
+
+    auto attribute = token->raw_attribute("abcxdef"_fly_string);
+    VERIFY(attribute.has_value());
+    EXPECT_EQ(attribute->value, "value");
+}
+
+TEST_CASE(insertion_point_inside_fast_quoted_attribute_value)
+{
+    Tokenizer tokenizer;
+    tokenizer.update_insertion_point();
+    tokenizer.insert_input_at_insertion_point("<p a=\"abc"sv);
+    tokenizer.append_to_input_stream("def\">"sv);
+
+    EXPECT(!tokenizer.next_token(Tokenizer::StopAtInsertionPoint::Yes).has_value());
+    EXPECT(tokenizer.is_insertion_point_reached());
+    EXPECT_EQ(tokenizer.unparsed_input(), "def\">"sv);
+
+    tokenizer.insert_input_at_insertion_point("x"sv);
+    tokenizer.undefine_insertion_point();
+    tokenizer.close_input_stream();
+
+    auto token = tokenizer.next_token();
+    VERIFY(token.has_value());
+    EXPECT_EQ(token->type(), Token::Type::StartTag);
+
+    auto attribute = token->raw_attribute("a"_fly_string);
+    VERIFY(attribute.has_value());
+    EXPECT_EQ(attribute->value, "abcxdef");
 }

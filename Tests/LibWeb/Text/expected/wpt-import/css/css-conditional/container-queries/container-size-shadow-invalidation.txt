@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Host container child invalidated with container in shadow tree
+Pass	Non-host container child invalidated with container in shadow tree

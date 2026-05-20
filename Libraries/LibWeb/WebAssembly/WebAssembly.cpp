@@ -256,7 +256,7 @@ Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function
     };
 }
 
-JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
+JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
 {
     Wasm::Linker linker { module };
     auto& cache = get_cache(*vm.current_realm());

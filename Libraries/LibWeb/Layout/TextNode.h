@@ -16,8 +16,9 @@
 namespace Web::Layout {
 
 class LineBoxFragment;
+class TextSliceNode;
 
-class TextNode final : public Node {
+class TextNode : public Node {
     GC_CELL(TextNode, Node);
     GC_DECLARE_ALLOCATOR(TextNode);
 
@@ -26,6 +27,10 @@ public:
     virtual ~TextNode() override;
 
     DOM::Text const& dom_node() const { return static_cast<DOM::Text const&>(*Node::dom_node()); }
+
+    virtual size_t dom_start_offset() const { return 0; }
+
+    virtual size_t dom_length() const { return dom_node().data().length_in_code_units(); }
 
     Utf16String const& text_for_rendering() const;
 
@@ -85,6 +90,9 @@ public:
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
+protected:
+    TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode);
+
 private:
     virtual bool is_text_node() const final { return true; }
 
@@ -95,7 +103,37 @@ private:
     mutable OwnPtr<Unicode::Segmenter> m_line_segmenter;
 };
 
+class TextSliceNode final : public TextNode {
+    GC_CELL(TextSliceNode, TextNode);
+    GC_DECLARE_ALLOCATOR(TextSliceNode);
+
+public:
+    TextSliceNode(DOM::Document&, DOM::Text&, AttachToDOMNode, size_t dom_start_offset, size_t dom_length);
+    virtual ~TextSliceNode() override;
+
+    virtual size_t dom_start_offset() const override { return m_dom_start_offset; }
+    virtual size_t dom_length() const override { return m_dom_length_in_code_units; }
+
+    // Only meaningful on a remainder slice. Returns the first-letter slice that renders the leading
+    // sub-range of the same DOM::Text, or nullptr if first-letter is not active for this DOM::Text.
+    TextSliceNode const* first_letter_slice() const { return m_first_letter_slice; }
+    TextSliceNode* first_letter_slice() { return m_first_letter_slice; }
+
+    void set_first_letter_slice(TextSliceNode& slice) { m_first_letter_slice = slice; }
+
+private:
+    virtual bool is_text_slice_node() const override { return true; }
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    size_t m_dom_start_offset { 0 };
+    size_t m_dom_length_in_code_units { 0 };
+    GC::Ptr<TextSliceNode> m_first_letter_slice;
+};
+
 template<>
 inline bool Node::fast_is<TextNode>() const { return is_text_node(); }
+
+template<>
+inline bool Node::fast_is<TextSliceNode>() const { return is_text_slice_node(); }
 
 }

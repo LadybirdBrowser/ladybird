@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: First-letter pseudo-element</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/selector.html#first-letter" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/selectors/first-letter-selector-001-ref.html" />
+        <meta name="assert" content="The :first-letter pseudo-element matches the first letter in a given element." />
+        <style type="text/css">
+            div:first-letter
+            {
+                color: green;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the letter "F" below is green.</p>
+        <div>Filler Text</div>
+    </body>
+</html>

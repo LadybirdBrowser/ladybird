@@ -23,34 +23,11 @@ void FinalizationRegistryPrototype::initialize(Realm& realm)
     Base::initialize(realm);
     u8 attr = Attribute::Writable | Attribute::Configurable;
 
-    define_native_function(realm, vm.names.cleanupSome, cleanup_some, 0, attr);
     define_native_function(realm, vm.names.register_, register_, 2, attr);
     define_native_function(realm, vm.names.unregister, unregister, 1, attr);
 
     // 26.2.3.4 FinalizationRegistry.prototype [ @@toStringTag ], https://tc39.es/ecma262/#sec-finalization-registry.prototype-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, vm.names.FinalizationRegistry.as_string()), Attribute::Configurable);
-}
-
-// @STAGE 2@ FinalizationRegistry.prototype.cleanupSome ( [ callback ] ), https://github.com/tc39/proposal-cleanup-some/blob/master/spec/finalization-registry.html
-JS_DEFINE_NATIVE_FUNCTION(FinalizationRegistryPrototype::cleanup_some)
-{
-    auto callback = vm.argument(0);
-
-    // 1. Let finalizationRegistry be the this value.
-    // 2. Perform ? RequireInternalSlot(finalizationRegistry, [[Cells]]).
-    auto finalization_registry = TRY(typed_this_object(vm));
-
-    // 3. If callback is present and IsCallable(callback) is false, throw a TypeError exception.
-    if (vm.argument_count() > 0 && !callback.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, callback);
-
-    // IMPLEMENTATION DEFINED: The specification for this function hasn't been updated to accommodate for JobCallback records.
-    //                         This just follows how the constructor immediately converts the callback to a JobCallback using HostMakeJobCallback.
-    // 4. Perform ? CleanupFinalizationRegistry(finalizationRegistry, callback).
-    TRY(finalization_registry->cleanup(callback.is_undefined() ? GC::Ptr<JobCallback> {} : vm.host_make_job_callback(callback.as_function())));
-
-    // 5. Return undefined.
-    return js_undefined();
 }
 
 // 26.2.3.2 FinalizationRegistry.prototype.register ( target, heldValue [ , unregisterToken ] ), https://tc39.es/ecma262/#sec-finalization-registry.prototype.register

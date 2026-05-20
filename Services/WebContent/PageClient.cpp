@@ -47,6 +47,7 @@ namespace WebContent {
 
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 static bool s_is_headless { false };
+static bool s_async_scrolling_enabled { false };
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
@@ -65,6 +66,11 @@ void PageClient::set_is_headless(bool is_headless)
     s_is_headless = is_headless;
 }
 
+void PageClient::set_async_scrolling_enabled(bool enabled)
+{
+    s_async_scrolling_enabled = enabled;
+}
+
 GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
 {
     return vm.heap().allocate<PageClient>(page_host, id);
@@ -75,6 +81,7 @@ PageClient::PageClient(PageHost& owner, u64 id)
     , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))
     , m_id(id)
 {
+    m_page->set_async_scrolling_enabled(s_async_scrolling_enabled);
     setup_palette();
 
     m_frame_timer = Core::Timer::create_single_shot(0, [this] {
@@ -186,11 +193,6 @@ void PageClient::set_window_position(Web::DevicePixelPoint position)
 void PageClient::set_window_size(Web::DevicePixelSize size)
 {
     page().set_window_size(size);
-}
-
-void PageClient::ready_to_paint()
-{
-    page().top_level_traversable()->ready_to_paint();
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
@@ -681,6 +683,8 @@ void PageClient::page_did_request_activate_tab()
 
 void PageClient::page_did_close_top_level_traversable()
 {
+    page().top_level_traversable()->compositor_context().stop_presenting_to_client();
+
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
 
@@ -729,14 +733,14 @@ void PageClient::page_did_request_clipboard_entries(u64 request_id)
     client().async_did_request_clipboard_entries(m_id, request_id);
 }
 
+void PageClient::page_did_request_paste()
+{
+    client().async_did_request_paste(m_id);
+}
+
 void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
 {
     client().async_did_change_audio_play_state(m_id, play_state);
-}
-
-void PageClient::page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
-{
-    client().async_did_allocate_backing_stores(m_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
 }
 
 Web::PageClient::WorkerAgentResponse PageClient::request_worker_agent(Web::Bindings::AgentType type)
@@ -786,11 +790,6 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     auto serialized_target = MUST(builder.to_string());
 
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
-}
-
-void PageClient::page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id)
-{
-    client().async_did_paint(m_id, content_rect, bitmap_id);
 }
 
 void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot)
@@ -1012,6 +1011,21 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+void PageClient::ensure_compositor_thread()
+{
+    m_owner.ensure_compositor_thread(display_list_player_type());
+}
+
+Web::Compositor::CompositorThread* PageClient::compositor_thread()
+{
+    return m_owner.compositor_thread();
+}
+
+Web::Compositor::CompositorThread const* PageClient::compositor_thread() const
+{
+    return m_owner.compositor_thread();
 }
 
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)

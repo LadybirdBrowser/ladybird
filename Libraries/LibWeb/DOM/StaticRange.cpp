@@ -25,7 +25,7 @@ StaticRange::StaticRange(Node& start_container, u32 start_offset, Node& end_cont
 StaticRange::~StaticRange() = default;
 
 // https://dom.spec.whatwg.org/#dom-staticrange-staticrange
-WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::construct_impl(JS::Realm& realm, StaticRangeInit& init)
+WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::construct_impl(JS::Realm& realm, Bindings::StaticRangeInit const& init)
 {
     // 1. If init["startContainer"] or init["endContainer"] is a DocumentType or Attr node, then throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*init.start_container) || is<Attr>(*init.start_container))

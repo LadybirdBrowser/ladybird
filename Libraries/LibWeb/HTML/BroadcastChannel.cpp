@@ -208,9 +208,8 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
             //    origin initialized to sourceOrigin, and then abort these steps.
             auto data_or_error = structured_deserialize(vm, message.serialized_message, target_realm);
             if (data_or_error.is_exception()) {
-                MessageEventInit event_init {};
-                event_init.origin = message.source_origin.serialize();
-                auto event = MessageEvent::create(target_realm, HTML::EventNames::messageerror, event_init);
+                Bindings::MessageEventInit event_init {};
+                auto event = MessageEvent::create(target_realm, HTML::EventNames::messageerror, event_init, message.source_origin);
                 event->set_is_trusted(true);
                 destination->dispatch_event(event);
                 return;
@@ -218,10 +217,9 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
 
             // 4. Fire an event named message at destination, using MessageEvent, with the data attribute initialized to data and
             //    its origin initialized to sourceOrigin.
-            MessageEventInit event_init {};
+            Bindings::MessageEventInit event_init {};
             event_init.data = data_or_error.release_value();
-            event_init.origin = message.source_origin.serialize();
-            auto event = MessageEvent::create(target_realm, HTML::EventNames::message, event_init);
+            auto event = MessageEvent::create(target_realm, HTML::EventNames::message, event_init, message.source_origin);
             event->set_is_trusted(true);
             destination->dispatch_event(event);
         }));

@@ -6,16 +6,21 @@
  */
 
 #include <AK/JsonObject.h>
+#include <LibCore/TimeZone.h>
 #include <LibGfx/Cursor.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibURL/Parser.h>
-#include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Compositor/AsyncScrollTree.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -35,9 +40,12 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Internals {
@@ -172,11 +180,36 @@ GC::Ref<WebIDL::Promise> Internals::gc_async()
     return promise;
 }
 
+WebIDL::ExceptionOr<void> Internals::mark_as_garbage(StringView variable_name)
+{
+    auto& vm = this->vm();
+
+    // This helper is intentionally limited to real environment bindings. It cannot
+    // find values that the bytecode generator stored only in optimized locals.
+    // In native functions we don't have a lexical environment so get the outer via the execution stack.
+    auto outer_environment = vm.last_execution_context_matching([&](auto* execution_context) {
+        return execution_context->lexical_environment != nullptr;
+    });
+    if (!outer_environment.has_value())
+        return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name);
+
+    auto reference = TRY(vm.resolve_binding(Utf16FlyString::from_utf8(variable_name), JS::Strict::No, outer_environment.value()->lexical_environment));
+    auto value = TRY(reference.get_value(vm));
+
+    if (!JS::can_be_held_weakly(value))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::CannotBeHeldWeakly, value);
+
+    TRY(reference.put_value(vm, JS::js_undefined()));
+    (void)TRY(reference.delete_(vm));
+    vm.heap().uproot_cell(&value.as_cell());
+    return {};
+}
+
 WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
 {
-    auto current_time_zone = Unicode::current_time_zone();
+    auto current_time_zone = Core::TimeZone::current_time_zone();
 
-    if (auto result = Unicode::set_current_time_zone(time_zone); result.is_error())
+    if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
         return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
 
     JS::clear_system_time_zone_cache();
@@ -328,12 +361,23 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
 }
 
-void Internals::wheel(double x, double y, double delta_x, double delta_y)
+GC::Ref<WebIDL::Promise> Internals::wheel(double x, double y, double delta_x, double delta_y)
 {
+    auto& realm = this->realm();
+    auto promise = WebIDL::create_promise(realm);
     auto& page = this->page();
 
     auto position = page.css_to_device_point({ x, y });
-    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y);
+    Optional<AsyncScrollOperation> async_scroll_operation;
+    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, false, &async_scroll_operation);
+
+    if (async_scroll_operation.has_value() && async_scroll_operation->navigable) {
+        async_scroll_operation->navigable->wait_for_async_scroll_operation(async_scroll_operation->operation_id, promise);
+        return promise;
+    }
+
+    WebIDL::resolve_promise(realm, promise);
+    return promise;
 }
 
 void Internals::pinch(double x, double y, double scale_delta)
@@ -380,7 +424,7 @@ void Internals::spoof_current_url(String const& url_string)
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
     auto& realm = this->realm();
-    return realm.create<InternalAnimationTimeline>(realm);
+    return realm.create<InternalAnimationTimeline>(realm, as<HTML::Window>(realm.global_object()).associated_document());
 }
 
 void Internals::simulate_drag_start(double x, double y, String const& name, String const& contents)
@@ -619,6 +663,149 @@ JS::Object* Internals::get_style_invalidation_counters()
 void Internals::reset_style_invalidation_counters()
 {
     window().associated_document().reset_style_invalidation_counters();
+}
+
+struct AsyncScrollingStateSnapshot {
+    Compositor::AsyncScrollingState state;
+    RefPtr<Painting::DisplayList> display_list;
+    RefPtr<Painting::ViewportPaintable> document_paintable;
+};
+
+static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::Document& document)
+{
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+    auto navigable = document.navigable();
+    auto document_paintable = document.paintable();
+    if (!navigable || !document_paintable)
+        return {};
+    Painting::DisplayListResourceStorage resource_storage;
+    auto display_list = document.record_display_list(HTML::PaintConfig {}, resource_storage);
+    if (!display_list)
+        return {};
+    return AsyncScrollingStateSnapshot {
+        .state = Compositor::async_scrolling_state_from_display_list(*display_list),
+        .display_list = display_list,
+        .document_paintable = document_paintable,
+    };
+}
+
+JS::Object* Internals::async_scrolling_state()
+{
+    auto object = JS::Object::create(realm(), nullptr);
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    Compositor::AsyncScrollingState empty_state;
+    auto const& state = snapshot.has_value() ? snapshot->state : empty_state;
+
+    auto scroll_nodes = MUST(JS::Array::create(realm(), state.scroll_nodes.size()));
+    for (size_t i = 0; i < state.scroll_nodes.size(); ++i) {
+        auto const& scroll_node = state.scroll_nodes[i];
+        auto node = JS::Object::create(realm(), nullptr);
+        node->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(scroll_node.node_id.document_id.value())), JS::default_attributes);
+        node->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.node_id.scroll_frame_index.value()), JS::default_attributes);
+        node->define_direct_property("parentDocumentID"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? static_cast<double>(scroll_node.parent_node_id->document_id.value()) : 0), JS::default_attributes);
+        node->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(scroll_node.parent_node_id.has_value() ? scroll_node.parent_node_id->scroll_frame_index.value() : 0), JS::default_attributes);
+        node->define_direct_property("isViewport"_utf16_fly_string, JS::Value(scroll_node.is_viewport), JS::default_attributes);
+        MUST(scroll_nodes->create_data_property_or_throw(i, node));
+    }
+
+    auto sticky_areas = MUST(JS::Array::create(realm(), state.sticky_areas.size()));
+    for (size_t i = 0; i < state.sticky_areas.size(); ++i) {
+        auto const& sticky_area = state.sticky_areas[i];
+        auto area = JS::Object::create(realm(), nullptr);
+        area->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(sticky_area.document_id.value())), JS::default_attributes);
+        area->define_direct_property("scrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.scroll_frame_index.value()), JS::default_attributes);
+        area->define_direct_property("parentScrollFrameIndex"_utf16_fly_string, JS::Value(sticky_area.parent_scroll_frame_index.value()), JS::default_attributes);
+        area->define_direct_property("nearestScrollingAncestorIndex"_utf16_fly_string, JS::Value(sticky_area.nearest_scrolling_ancestor_index.value()), JS::default_attributes);
+        area->define_direct_property("hasTopInset"_utf16_fly_string, JS::Value(sticky_area.inset_top.has_value()), JS::default_attributes);
+        area->define_direct_property("hasRightInset"_utf16_fly_string, JS::Value(sticky_area.inset_right.has_value()), JS::default_attributes);
+        area->define_direct_property("hasBottomInset"_utf16_fly_string, JS::Value(sticky_area.inset_bottom.has_value()), JS::default_attributes);
+        area->define_direct_property("hasLeftInset"_utf16_fly_string, JS::Value(sticky_area.inset_left.has_value()), JS::default_attributes);
+        MUST(sticky_areas->create_data_property_or_throw(i, area));
+    }
+
+    object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(state.scroll_nodes.size()), JS::default_attributes);
+    object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
+    object->define_direct_property("stickyAreaCount"_utf16_fly_string, JS::Value(state.sticky_areas.size()), JS::default_attributes);
+    object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
+    object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
+    object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
+    object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(state.main_thread_wheel_event_regions.size()), JS::default_attributes);
+    object->define_direct_property("wheelEventListenerStateGeneration"_utf16_fly_string, JS::Value(state.wheel_event_listener_state_generation), JS::default_attributes);
+    object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
+    object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
+    return object;
+}
+
+bool Internals::async_scrolling_state_blocks_wheel_event_at(double x, double y)
+{
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    if (!snapshot.has_value())
+        return false;
+    return Compositor::blocks_wheel_event_at_position(snapshot->state, snapshot->display_list, snapshot->document_paintable->scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
+}
+
+bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
+{
+    return async_scrolling_state_wheel_scroll_admission_at(x, y, delta_x, delta_y, force_stale_wheel_event_regions) == "accepted"sv;
+}
+
+String Internals::async_scrolling_state_wheel_routing_admission()
+{
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    auto admission = snapshot.has_value() ? Compositor::wheel_routing_admission_for(snapshot->state) : Compositor::WheelRoutingAdmission::NoAsyncScrollingState;
+    return String::from_utf8_without_validation(Compositor::wheel_routing_admission_to_string(admission).bytes());
+}
+
+static String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmission admission)
+{
+    switch (admission) {
+    case Compositor::WheelScrollAdmission::Accepted:
+        return "accepted"_string;
+    case Compositor::WheelScrollAdmission::NoScrollableTarget:
+        return "no-scrollable-target"_string;
+    case Compositor::WheelScrollAdmission::BlockedByMainThreadRegion:
+        return "blocked-by-main-thread-region"_string;
+    case Compositor::WheelScrollAdmission::StaleBlockingWheelEventRegions:
+        return "stale-blocking-wheel-event-regions"_string;
+    case Compositor::WheelScrollAdmission::BlockedByWheelEventRegion:
+        return "blocked-by-wheel-event-region"_string;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
+{
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    if (!snapshot.has_value())
+        return "no-scrollable-target"_string;
+    auto admission = Compositor::admit_wheel_scroll(
+        snapshot->state,
+        snapshot->display_list,
+        snapshot->document_paintable->scroll_state_snapshot(),
+        { static_cast<float>(x), static_cast<float>(y) },
+        { static_cast<float>(delta_x), static_cast<float>(delta_y) },
+        snapshot->state.has_blocking_wheel_event_listeners && !force_stale_wheel_event_regions);
+    return wheel_scroll_admission_to_string(admission);
+}
+
+String Internals::async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y)
+{
+    auto snapshot = capture_async_scrolling_state(window().associated_document());
+    if (!snapshot.has_value())
+        return "none"_string;
+
+    Compositor::AsyncScrollTree scroll_tree;
+    scroll_tree.set_state(move(snapshot->state));
+    scroll_tree.rebuild_wheel_hit_test_targets(snapshot->display_list, snapshot->document_paintable->scroll_state_snapshot());
+
+    auto target = scroll_tree.hit_test_scroll_node_for_wheel(
+        { static_cast<float>(x), static_cast<float>(y) },
+        { static_cast<float>(delta_x), static_cast<float>(delta_y) });
+    if (target.blocked_by_main_thread_region || target.blocked_by_wheel_event_region || !target.node_id.has_value())
+        return "none"_string;
+    if (scroll_tree.scroll_node_is_viewport(*target.node_id))
+        return "viewport"_string;
+    return "non-viewport"_string;
 }
 
 }

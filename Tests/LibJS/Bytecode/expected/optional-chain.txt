@@ -1,4 +1,4 @@
-$b53b3a59 optional-chain.js:25:1
+$78a7573a optional-chain.js:25:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,21 +7,41 @@ $b53b3a59 optional-chain.js:25:1
 
 block0:
   [   0] GetGlobal dst:reg6, `member`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, member, arguments:[Null]
-  [  40] GetGlobal dst:reg7, `nested_member`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, nested_member, arguments:[Null]
-  [  80] GetGlobal dst:reg7, `call_no_args`
-  [  98] Call dst:reg5, callee:reg7, this_value:Undefined, call_no_args, arguments:[Null]
-  [  c0] GetGlobal dst:reg7, `call_with_args`
-  [  d8] Call dst:reg6, callee:reg7, this_value:Undefined, call_with_args, arguments:[Null]
-  [ 100] GetGlobal dst:reg7, `computed`
-  [ 118] Call dst:reg5, callee:reg7, this_value:Undefined, computed, arguments:[Null]
-  [ 140] GetGlobal dst:reg7, `member_then_call`
-  [ 158] Call dst:reg6, callee:reg7, this_value:Undefined, member_then_call, arguments:[Null]
-  [ 180] End value:reg6
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, member, arguments:[Null]
+  [  38] GetGlobal dst:reg7, `nested_member`
+  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, nested_member, arguments:[Null]
+  [  70] GetGlobal dst:reg7, `call_no_args`
+  [  80] Call dst:reg5, callee:reg7, this_value:Undefined, call_no_args, arguments:[Null]
+  [  a8] GetGlobal dst:reg7, `call_with_args`
+  [  b8] Call dst:reg6, callee:reg7, this_value:Undefined, call_with_args, arguments:[Null]
+  [  e0] GetGlobal dst:reg7, `computed`
+  [  f0] Call dst:reg5, callee:reg7, this_value:Undefined, computed, arguments:[Null]
+  [ 118] GetGlobal dst:reg7, `member_then_call`
+  [ 128] Call dst:reg6, callee:reg7, this_value:Undefined, member_then_call, arguments:[Null]
+  [ 150] End value:reg6
 
 
-member$f8fa6898 optional-chain.js:7:5
+member$36eb39cf optional-chain.js:7:5
+  Registers: 7
+  Blocks:    3
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Mov2 dst1:reg5, src1:Undefined, dst2:reg6, src2:arg0
+  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block2
+
+block1:
+  [  28] Mov dst:reg6, src:Undefined
+  [  38] Return value:reg6
+
+block2:
+  [  40] Mov dst:reg5, src:reg6
+  [  50] GetById dst:reg6, base:reg6, `x`
+  [  68] Return value:reg6
+
+
+nested_member$85d10998 optional-chain.js:10:5
   Registers: 7
   Blocks:    4
   Constants:
@@ -29,75 +49,49 @@ member$f8fa6898 optional-chain.js:7:5
 
 block0:
   [   0] Mov2 dst1:reg5, src1:Undefined, dst2:reg6, src2:arg0
-  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
   [  28] Mov dst:reg6, src:Undefined
-
-block2:
   [  38] Return value:reg6
 
-block3:
-  [  40] Mov dst:reg5, src:reg6
-  [  50] GetById dst:reg6, base:reg6, `x`
-  [  70] Return value:reg6
-
-
-nested_member$1108ab88 optional-chain.js:10:5
-  Registers: 7
-  Blocks:    5
-  Constants:
-    [0] = Undefined
-
-block0:
-  [   0] Mov2 dst1:reg5, src1:Undefined, dst2:reg6, src2:arg0
-  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block3
-
-block1:
-  [  28] Mov dst:reg6, src:Undefined
-
 block2:
-  [  38] Return value:reg6
-
-block3:
   [  40] Mov dst:reg5, src:reg6
   [  50] GetById dst:reg6, base:reg6, `x`
-  [  70] JumpNullish condition:reg6, true_target:block1, false_target:block4
+  [  68] JumpNullish condition:reg6, true_target:block1, false_target:block3
 
-block4:
-  [  80] Mov dst:reg5, src:reg6
-  [  90] GetById dst:reg6, base:reg6, `y`
-  [  b0] Return value:reg6
+block3:
+  [  78] Mov dst:reg5, src:reg6
+  [  88] GetById dst:reg6, base:reg6, `y`
+  [  a0] Return value:reg6
 
 
-call_no_args$4730b337 optional-chain.js:13:5
+call_no_args$70a09739 optional-chain.js:13:5
   Registers: 8
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Mov2 dst1:reg5, src1:Undefined, dst2:reg6, src2:arg0
-  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
   [  28] Mov dst:reg6, src:Undefined
-
-block2:
   [  38] Return value:reg6
 
-block3:
+block2:
   [  40] Mov dst:reg5, src:reg6
   [  50] GetById dst:reg6, base:reg6, `foo`
-  [  70] NewArray dst:reg7
-  [  80] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  98] Mov dst:reg5, src:Undefined
-  [  a8] Return value:reg6
+  [  68] NewArray dst:reg7
+  [  78] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+  [  90] Mov dst:reg5, src:Undefined
+  [  a0] Return value:reg6
 
 
-call_with_args$880276bf optional-chain.js:16:5
+call_with_args$b7c2071f optional-chain.js:16:5
   Registers: 11
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
     [1] = Int32(1)
@@ -106,69 +100,63 @@ call_with_args$880276bf optional-chain.js:16:5
 
 block0:
   [   0] Mov2 dst1:reg5, src1:Undefined, dst2:reg6, src2:arg0
-  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
   [  28] Mov dst:reg6, src:Undefined
-
-block2:
   [  38] Return value:reg6
 
-block3:
+block2:
   [  40] Mov dst:reg5, src:reg6
   [  50] GetById dst:reg6, base:reg6, `foo`
-  [  70] Mov3 dst1:reg8, src1:Int32(1), dst2:reg9, src2:Int32(2), dst3:reg10, src3:Int32(3)
-  [  90] NewArray dst:reg7, elements:[reg8, reg9, reg10]
-  [  b0] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  c8] Mov dst:reg5, src:Undefined
-  [  d8] Return value:reg6
+  [  68] Mov3 dst1:reg8, src1:Int32(1), dst2:reg9, src2:Int32(2), dst3:reg10, src3:Int32(3)
+  [  88] NewArray dst:reg7, elements:[reg8, reg9, reg10]
+  [  a8] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+  [  c0] Mov dst:reg5, src:Undefined
+  [  d0] Return value:reg6
 
 
-computed$ae9e607c optional-chain.js:19:5
+computed$9ef8515a optional-chain.js:19:5
   Registers: 7
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
     [1] = String("hello")
 
 block0:
   [   0] Mov2 dst1:reg5, src1:Undefined, dst2:reg6, src2:arg0
-  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
   [  28] Mov dst:reg6, src:Undefined
-
-block2:
   [  38] Return value:reg6
 
-block3:
+block2:
   [  40] Mov dst:reg5, src:reg6
   [  50] GetById dst:reg6, base:reg6, `hello`
-  [  70] Return value:reg6
+  [  68] Return value:reg6
 
 
-member_then_call$4f64d681 optional-chain.js:22:5
+member_then_call$b60035e3 optional-chain.js:22:5
   Registers: 8
-  Blocks:    4
+  Blocks:    3
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Mov2 dst1:reg5, src1:Undefined, dst2:reg6, src2:arg0
-  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [  18] JumpNullish condition:reg6, true_target:block1, false_target:block2
 
 block1:
   [  28] Mov dst:reg6, src:Undefined
-
-block2:
   [  38] Return value:reg6
 
-block3:
+block2:
   [  40] Mov dst:reg5, src:reg6
   [  50] GetById dst:reg6, base:reg6, `x`
-  [  70] Mov dst:reg5, src:reg6
-  [  80] GetById dst:reg6, base:reg6, `foo`
-  [  a0] NewArray dst:reg7
-  [  b0] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  c8] Mov dst:reg5, src:Undefined
-  [  d8] Return value:reg6
+  [  68] Mov dst:reg5, src:reg6
+  [  78] GetById dst:reg6, base:reg6, `foo`
+  [  90] NewArray dst:reg7
+  [  a0] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+  [  b8] Mov dst:reg5, src:Undefined
+  [  c8] Return value:reg6

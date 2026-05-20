@@ -13,6 +13,8 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -113,7 +115,7 @@ GC::Ptr<HTML::Navigable> Paintable::navigable() const
     return document().navigable();
 }
 
-bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int, int)
+bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double, double)
 {
     return false;
 }
@@ -167,7 +169,8 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
                     [](TransformData const&) { return true; },
                     [](PerspectiveData const&) { return true; },
                     [](ClipPathData const&) { return false; },
-                    [](EffectsData const&) { return false; });
+                    [](EffectsData const&) { return false; },
+                    [](ScrollCompensation const&) { return true; });
                 if (should_keep)
                     relevant_indices.append(i);
             }
@@ -364,35 +367,47 @@ void Paintable::set_selection_state(SelectionState state)
 
 void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
 {
-    // Walk up to find the containing PaintableWithLines.
-    RefPtr<PaintableWithLines const> paintable_with_lines;
-    for (RefPtr<Paintable> ancestor = *this; ancestor; ancestor = ancestor->parent()) {
-        if (auto* ancestor_lines = as_if<PaintableWithLines>(*ancestor)) {
-            paintable_with_lines = *ancestor_lines;
-            break;
-        }
-    }
-    if (!paintable_with_lines)
-        return;
-
-    // Find the fragment containing the offset and compute a cursor rect.
-    for (auto const& fragment : paintable_with_lines->fragments()) {
-        if (&fragment.paintable() != this)
-            continue;
-        if (offset < fragment.start_offset() || offset > fragment.start_offset() + fragment.length_in_code_units())
-            continue;
-
+    auto scroll_to_cursor = [&](PaintableFragment const& fragment, Paintable const& fragment_paintable) {
         auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
-
-        // Walk up the containing block chain to find the nearest scrollable ancestor.
-        for (auto ancestor = containing_block(); ancestor; ancestor = ancestor->containing_block()) {
+        for (auto ancestor = fragment_paintable.containing_block(); ancestor; ancestor = ancestor->containing_block()) {
             if (ancestor->has_scrollable_overflow()) {
                 ancestor->scroll_into_view(cursor_rect);
-                break;
+                return;
             }
         }
+    };
+
+    // Find the paintable fragment containing the cursor offset and scroll it into view.
+    auto scan_layout_fragment = [&](Paintable const& slice_paintable) -> bool {
+        auto paintable_with_lines = slice_paintable.first_ancestor_of_type<PaintableWithLines>();
+        if (!paintable_with_lines)
+            return false;
+        for (auto const& fragment : paintable_with_lines->fragments()) {
+            if (&fragment.paintable() != &slice_paintable)
+                continue;
+            if (offset < fragment.dom_start_offset_in_node() || offset > fragment.dom_end_offset_in_node())
+                continue;
+            scroll_to_cursor(fragment, slice_paintable);
+            return true;
+        }
+        return false;
+    };
+
+    if (auto const* text = as_if<DOM::Text>(dom_node().ptr())) {
+        Layout::TextOffsetMapping mapping { *text };
+        bool scrolled = false;
+        mapping.for_each_fragment([&](Layout::TextNode const& slice) {
+            if (scrolled)
+                return;
+            if (auto slice_paintable = slice.first_paintable()) {
+                if (scan_layout_fragment(*slice_paintable))
+                    scrolled = true;
+            }
+        });
         return;
     }
+
+    scan_layout_fragment(*this);
 }
 
 }

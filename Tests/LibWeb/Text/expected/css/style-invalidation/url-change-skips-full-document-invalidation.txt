@@ -1,0 +1,3 @@
+no :local-link rule: fullStyleInvalidations=0, styleInvalidations=0, elementStyleRecomputations=0
+:local-link rule, anchor flips: fullStyleInvalidations=0, styleInvalidations=1, elementStyleRecomputations=1
+shadow-only :local-link rule, shadow anchor flips: fullStyleInvalidations=0, styleInvalidations=1, elementStyleRecomputations=1

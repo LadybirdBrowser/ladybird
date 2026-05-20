@@ -34,6 +34,9 @@ public:
     virtual void append_path(Gfx::Path const&) override;
     virtual void intersect(Gfx::Path const&) override;
 
+    [[nodiscard]] virtual Vector<u8> serialize_to_bytes() const override;
+    virtual void deserialize_from_bytes(ReadonlyBytes) override;
+
     [[nodiscard]] virtual bool is_empty() const override;
     virtual Gfx::FloatPoint last_point() const override;
     virtual Gfx::FloatRect bounding_box() const override;

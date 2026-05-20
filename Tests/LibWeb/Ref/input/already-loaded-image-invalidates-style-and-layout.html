@@ -1,0 +1,28 @@
+<!doctype html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/already-loaded-image-invalidates-style-and-layout-ref.html" />
+
+<p>There should be a green square and no red!</p>
+<img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' width='100' height='100'><rect width='100' height='100' fill='%23ff0000'/></svg>"
+     data-src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' width='100' height='100'><rect width='100' height='100' fill='%23008000'/></svg>" />
+
+<script>
+const element = document.querySelector("img");
+const actualUrl = element.getAttribute("data-src");
+const detachedImage = new Image();
+const onLoadHandler = function() {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      setTimeout(() => {
+        element.src = actualUrl;
+        detachedImage.removeEventListener('load', onLoadHandler);
+        document.documentElement.classList.remove("reftest-wait");
+      }, 0);
+    });
+  });
+};
+
+detachedImage.addEventListener("load", onLoadHandler);
+detachedImage.src = actualUrl;
+</script>
+</html>

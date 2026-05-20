@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Permissions API - Test invalid permission name</title>
+<link rel="help" href="https://www.w3.org/TR/permissions/" />
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+
+<body>
+    <script>
+        "use strict";
+
+        promise_test(async (t) => {
+            await promise_rejects_js(
+                t,
+                TypeError,
+                navigator.permissions.query({ name: "not-a-real-permission" }),
+                "Unsupported permission name should reject with TypeError"
+            );
+        }, "Query with an unsupported name rejects with TypeError");
+    </script>
+</body>

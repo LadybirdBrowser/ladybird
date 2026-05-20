@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<title>CSSOM View - scrollIntoView container option</title>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1">
+<link rel="author" title="Rob Flack" href="mailto:flackr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.scroller {
+  overflow: auto;
+  height: 200px;
+}
+.spacer {
+  height: 400px;
+}
+#target {
+  height: 200px;
+}
+</style>
+<script>
+let setFrameLoaded = null;
+let frameLoaded = new Promise(resolve => {
+  setFrameLoaded = resolve;
+});
+</script>
+<div id="outer" class="scroller">
+  <div class="spacer"></div>
+  <div id="inner" class="scroller">
+    <div class="spacer"></div>
+    <div id="target"></div>
+    <iframe id="frame" height="200" src="resources/scrollIntoView-frame.html" onload="setFrameLoaded()"></iframe>
+  </div>
+</div>
+<script>
+const outer = document.getElementById('outer');
+const inner = document.getElementById('inner');
+const target = document.getElementById('target');
+
+function reset() {
+  outer.scrollTop = 0;
+  inner.scrollTop = 0;
+}
+
+test(() => {
+  reset();
+  target.scrollIntoView();
+  assert_equals(inner.scrollTop, 400, '#inner scrollTop');
+  assert_equals(outer.scrollTop, 400, '#outer scrollTop');
+}, `scrollIntoView() defaults to scrolling ancestors`);
+
+test(() => {
+  reset();
+  target.scrollIntoView({container: 'all'});
+  assert_equals(inner.scrollTop, 400, '#inner scrollTop');
+  assert_equals(outer.scrollTop, 400, '#outer scrollTop');
+}, `scrollIntoView({container: 'all'}) scrolls ancestors`);
+
+test(() => {
+  reset();
+  target.scrollIntoView({container: 'nearest'});
+  assert_equals(inner.scrollTop, 400, '#inner scrollTop');
+  assert_equals(outer.scrollTop, 0, '#outer scrollTop');
+}, `scrollIntoView({container: 'nearest'}) only scrolls nearest scroll container`);
+
+test(() => {
+  reset();
+  inner.scrollIntoView({container: 'nearest'});
+  assert_equals(outer.scrollTop, 400, '#outer scrollTop');
+  assert_equals(inner.scrollTop, 0, '#inner scrollTop');
+}, `scrollIntoView({container: 'nearest'}) doesn't stop at itself`);
+
+promise_test(async () => {
+  reset();
+  await frameLoaded;
+  const frameDoc = document.getElementById("frame").contentDocument;
+  const frameTarget = frameDoc.getElementById("target");
+  frameTarget.scrollIntoView({container: 'nearest'});
+  assert_equals(frameDoc.scrollingElement.scrollTop, 400, 'frame scrollingElement scrollTop');
+  assert_equals(inner.scrollTop, 0, '#inner scrollTop');
+  assert_equals(outer.scrollTop, 0, '#outer scrollTop');
+}, `scrollIntoView({container: 'nearest'}) doesn't propagate to outer frames`);
+
+</script>

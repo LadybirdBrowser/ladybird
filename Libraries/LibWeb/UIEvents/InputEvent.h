@@ -11,19 +11,13 @@
 
 namespace Web::UIEvents {
 
-struct InputEventInit : public UIEventInit {
-    Optional<Utf16String> data;
-    bool is_composing { false };
-    FlyString input_type {};
-};
-
 class InputEvent final : public UIEvent {
     WEB_PLATFORM_OBJECT(InputEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(InputEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<InputEvent> create_from_platform_event(JS::Realm&, FlyString const& type, InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {});
-    static WebIDL::ExceptionOr<GC::Ref<InputEvent>> construct_impl(JS::Realm&, FlyString const& event_name, InputEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<InputEvent> create_from_platform_event(JS::Realm&, FlyString const& type, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {});
+    static WebIDL::ExceptionOr<GC::Ref<InputEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::InputEventInit const&);
 
     virtual ~InputEvent() override;
 
@@ -39,7 +33,7 @@ public:
     ReadonlySpan<GC::Ref<DOM::StaticRange>> get_target_ranges() const;
 
 private:
-    InputEvent(JS::Realm&, FlyString const& event_name, InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {});
+    InputEvent(JS::Realm&, FlyString const& event_name, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;

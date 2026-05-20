@@ -5,8 +5,13 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/NeverDestroyed.h>
+#include <AK/WeakPtr.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
@@ -15,10 +20,61 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
+#include <WebContent/CompositorClientEndpoint.h>
+#include <WebContent/CompositorServerEndpoint.h>
 
 namespace WebView {
 
 HashTable<WebContentClient*> WebContentClient::s_clients;
+
+class CompositorConnectionToServer final
+    : public IPC::ConnectionToServer<CompositorClientEndpoint, CompositorServerEndpoint>
+    , public CompositorClientEndpoint {
+    C_OBJECT(CompositorConnectionToServer)
+
+public:
+    CompositorConnectionToServer(WebContentClient& web_content_client, NonnullOwnPtr<IPC::Transport> transport)
+        : IPC::ConnectionToServer<CompositorClientEndpoint, CompositorServerEndpoint>(*this, move(transport))
+        , m_web_content_client(web_content_client.make_weak_ptr<WebContentClient>())
+    {
+    }
+
+private:
+    virtual void die() override { }
+
+    virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) override
+    {
+        if (auto web_content_client = m_web_content_client.strong_ref())
+            web_content_client->did_present_backing_stores(page_id, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+    }
+
+    virtual void did_paint(u64 page_id, Gfx::IntRect content_rect, i32 bitmap_id) override
+    {
+        if (auto web_content_client = m_web_content_client.strong_ref())
+            web_content_client->did_present_bitmap(page_id, content_rect, bitmap_id);
+    }
+
+    WeakPtr<WebContentClient> m_web_content_client;
+};
+
+static HashMap<WebContentClient*, NonnullRefPtr<CompositorConnectionToServer>>& compositor_connections()
+{
+    static NeverDestroyed<HashMap<WebContentClient*, NonnullRefPtr<CompositorConnectionToServer>>> connections;
+    return *connections;
+}
+
+static void initialize_compositor_connection(WebContentClient& web_content_client)
+{
+    auto paired_transport = IPC::Transport::create_paired();
+    if (paired_transport.is_error()) {
+        dbgln("Failed to create compositor IPC transport: {}", paired_transport.error());
+        return;
+    }
+
+    auto connection = CompositorConnectionToServer::construct(web_content_client, move(paired_transport.value().local));
+    compositor_connections().set(&web_content_client, connection);
+    web_content_client.async_connect_to_compositor(move(paired_transport.value().remote_handle));
+}
 
 static Optional<String> history_title(Utf16String const& title, URL::URL const& url)
 {
@@ -37,16 +93,19 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, View
 {
     s_clients.set(this);
     m_views.set(0, view);
+    initialize_compositor_connection(*this);
 }
 
 WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
 {
     s_clients.set(this);
+    initialize_compositor_connection(*this);
 }
 
 WebContentClient::~WebContentClient()
 {
+    compositor_connections().remove(this);
     s_clients.remove(this);
 }
 
@@ -103,10 +162,62 @@ void WebContentClient::notify_all_views_of_crash()
     }
 }
 
-void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
+bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    auto connection = compositor_connections().get(this);
+    if (!connection.has_value() || !connection.value()->is_open()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC unavailable for page {} (connection={}, open={})",
+            page_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
+        return false;
+    }
+
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+    auto handled = connection.value()->async_scroll_by(page_id, position, delta_in_device_pixels);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC async_scroll_by page {} returned {} in {} us",
+        page_id, handled, timer.elapsed_time().to_microseconds());
+    return handled;
+}
+
+bool WebContentClient::send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const& event)
+{
+    auto connection = compositor_connections().get(this);
+    if (!connection.has_value() || !connection.value()->is_open()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC unavailable for page {} (connection={}, open={})",
+            page_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
+        return false;
+    }
+
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+    auto handled = connection.value()->mouse_event(page_id, event.clone_without_browser_data());
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
+        page_id, handled, timer.elapsed_time().to_microseconds());
+    return handled;
+}
+
+void WebContentClient::notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)
+{
+    auto connection = compositor_connections().get(this);
+    if (!connection.has_value() || !connection.value()->is_open()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC unavailable for ready_to_paint page {} bitmap {} (connection={}, open={})",
+            page_id, bitmap_id, connection.has_value(), connection.has_value() && connection.value()->is_open());
+        return;
+    }
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI sending compositor ready_to_paint for page {} bitmap {}",
+        page_id, bitmap_id);
+    connection.value()->async_ready_to_paint(page_id, bitmap_id);
+}
+
+void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
+{
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC did_paint for page {} bitmap {} rect={}x{} at {},{}",
+        page_id, bitmap_id, rect.width(), rect.height(), rect.x(), rect.y());
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->server_did_paint({}, bitmap_id, rect.size());
+    } else {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view",
+            page_id, bitmap_id);
+        notify_presented_bitmap_ready_to_paint(page_id, bitmap_id);
+    }
 }
 
 void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url)
@@ -834,6 +945,12 @@ void WebContentClient::did_request_clipboard_entries(u64 page_id, u64 request_id
     }
 }
 
+void WebContentClient::did_request_paste(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->paste_text_from_clipboard();
+}
+
 void WebContentClient::did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
@@ -846,10 +963,16 @@ void WebContentClient::did_update_navigation_buttons_state(u64 page_id, bool bac
         view->did_update_navigation_buttons_state({}, back_enabled, forward_enabled);
 }
 
-void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
+void WebContentClient::did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received backing stores for page {} front={} back={}",
+        page_id, front_bitmap_id, back_bitmap_id);
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->did_allocate_backing_stores({}, front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
+    } else {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping backing stores for page {} front={} back={}: no view",
+            page_id, front_bitmap_id, back_bitmap_id);
+    }
 }
 
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)

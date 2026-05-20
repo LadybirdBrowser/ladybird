@@ -15,10 +15,6 @@
 
 namespace Web::HTML {
 
-struct ImageDataSettings {
-    Bindings::PredefinedColorSpace color_space;
-};
-
 class ImageData final
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
@@ -27,11 +23,11 @@ class ImageData final
 
 public:
     [[nodiscard]] static GC::Ref<ImageData> create(JS::Realm&);
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh = {}, Optional<ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
 
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh = {}, Optional<ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
 
     virtual ~ImageData() override;
 
@@ -50,7 +46,7 @@ public:
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 private:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> initialize(JS::Realm&, u32 rows, u32 pixels_per_row, Optional<ImageDataSettings> const&, GC::Ptr<JS::Uint8ClampedArray> = {}, Optional<Bindings::PredefinedColorSpace> = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> initialize(JS::Realm&, u32 rows, u32 pixels_per_row, Optional<Bindings::ImageDataSettings> const&, GC::Ptr<JS::Uint8ClampedArray> = {}, Optional<Bindings::PredefinedColorSpace> = {});
 
     explicit ImageData(JS::Realm&);
     ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>, Bindings::PredefinedColorSpace);

@@ -22,17 +22,6 @@ namespace Web::IndexedDB {
 using KeyPath = Variant<String, Vector<String>>;
 using NullableKeyPath = Variant<String, Vector<String>, Empty>;
 
-// https://w3c.github.io/IndexedDB/#dictdef-idbobjectstoreparameters
-struct IDBObjectStoreParameters {
-    NullableKeyPath key_path { Empty {} };
-    bool auto_increment { false };
-};
-
-// https://w3c.github.io/IndexedDB/#dictdef-idbtransactionoptions
-struct IDBTransactionOptions {
-    Bindings::IDBTransactionDurability durability = Bindings::IDBTransactionDurability::Default;
-};
-
 // https://w3c.github.io/IndexedDB/#IDBDatabase-interface
 // https://www.w3.org/TR/IndexedDB/#database-connection
 class IDBDatabase : public DOM::EventTarget {
@@ -68,10 +57,10 @@ public:
     void add_transaction(GC::Ref<IDBTransaction> transaction) { m_transactions.append(transaction); }
 
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
-    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(String const&, IDBObjectStoreParameters const&);
+    WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(String const&, Bindings::IDBObjectStoreParameters const&);
     WebIDL::ExceptionOr<void> delete_object_store(String const&);
 
-    WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> transaction(Variant<String, Vector<String>>, Bindings::IDBTransactionMode = Bindings::IDBTransactionMode::Readonly, IDBTransactionOptions = { .durability = Bindings::IDBTransactionDurability::Default });
+    WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> transaction(Variant<String, Vector<String>>, Bindings::IDBTransactionMode = Bindings::IDBTransactionMode::Readonly, Bindings::IDBTransactionOptions = { .durability = Bindings::IDBTransactionDurability::Default });
 
     void close();
 

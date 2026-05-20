@@ -25,7 +25,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(SharedWorker);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions>& options_value)
+WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, Bindings::WorkerOptions>& options_value)
 {
     // 1. Let compliantScriptURL be the result of invoking the get trusted type compliant string algorithm with
     //    TrustedScriptURL, this's relevant global object, scriptURL, "SharedWorker constructor", and "script".
@@ -40,9 +40,9 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
     //    value of options and whose other members are set to their default values.
     auto options = options_value.visit(
         [&](String& options) {
-            return WorkerOptions { .name = move(options) };
+            return Bindings::WorkerOptions { .name = move(options) };
         },
-        [&](WorkerOptions& options) {
+        [&](Bindings::WorkerOptions& options) {
             return move(options);
         });
 
@@ -148,10 +148,10 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
             queue_global_task(Task::Source::DOMManipulation, *worker_global_scope, GC::create_function(worker->heap(), [worker_global_scope, inside_port]() {
                 auto& realm = worker_global_scope->realm();
 
-                MessageEventInit init;
+                Bindings::MessageEventInit init;
                 init.data = JS::PrimitiveString::create(realm.vm(), String {});
                 init.ports.append(inside_port);
-                init.source = NullableMessageEventSource { inside_port };
+                init.source = GC::Root { inside_port };
 
                 worker_global_scope->dispatch_event(MessageEvent::create(realm, EventNames::connect, init));
             }));
@@ -168,7 +168,7 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
     return worker;
 }
 
-SharedWorker::SharedWorker(JS::Realm& realm, URL::URL script_url, WorkerOptions options, MessagePort& port)
+SharedWorker::SharedWorker(JS::Realm& realm, URL::URL script_url, Bindings::WorkerOptions options, MessagePort& port)
     : DOM::EventTarget(realm)
     , m_script_url(move(script_url))
     , m_options(move(options))

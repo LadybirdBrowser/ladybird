@@ -1,4 +1,4 @@
-$2e768d79 logical-or-in-if-condition.js:12:1
+$c7fd0018 logical-or-in-if-condition.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,11 +7,11 @@ $2e768d79 logical-or-in-if-condition.js:12:1
 
 block0:
   [   0] GetGlobal dst:reg6, `blocked`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
-  [  40] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+  [  38] End value:reg5
 
 
-blocked$d90bf4bd logical-or-in-if-condition.js:7:9
+blocked$f2600453 logical-or-in-if-condition.js:7:9
   Registers: 6
   Blocks:    6
   Constants:

@@ -97,6 +97,8 @@ public:
     virtual void clear() override;
     virtual void remove(String const&) override;
 
+    void copy_map_from(SessionStorageBottle const&);
+
 private:
     explicit SessionStorageBottle(Optional<u64> quota)
         : StorageBottle(quota)

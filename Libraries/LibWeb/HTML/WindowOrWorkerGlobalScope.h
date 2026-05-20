@@ -38,9 +38,9 @@ public:
     String origin() const;
     bool is_secure_context() const;
     bool cross_origin_isolated() const;
-    GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options = {}) const;
-    GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options = {}) const;
-    GC::Ref<WebIDL::Promise> fetch(Fetch::RequestInfo const&, Fetch::RequestInit const&) const;
+    GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, Optional<Bindings::ImageBitmapOptions> options = {}) const;
+    GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<Bindings::ImageBitmapOptions> options = {}) const;
+    GC::Ref<WebIDL::Promise> fetch(Fetch::RequestInfo const&, Bindings::RequestInit const&) const;
 
     i32 set_timeout(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
     i32 set_interval(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
@@ -122,7 +122,7 @@ private:
     i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
     void run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
 
-    GC::Ref<WebIDL::Promise> create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const;
+    GC::Ref<WebIDL::Promise> create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<Bindings::ImageBitmapOptions>& options) const;
 
     size_t resource_timing_buffer_current_size();
     bool can_add_resource_timing_entry();

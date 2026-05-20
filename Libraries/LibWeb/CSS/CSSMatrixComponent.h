@@ -6,14 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/CSSMatrixComponent.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
 
 namespace Web::CSS {
-
-// https://drafts.css-houdini.org/css-typed-om-1/#dictdef-cssmatrixcomponentoptions
-struct CSSMatrixComponentOptions {
-    Optional<bool> is2d;
-};
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmatrixcomponent
 class CSSMatrixComponent final : public CSSTransformComponent {
@@ -22,7 +18,7 @@ class CSSMatrixComponent final : public CSSTransformComponent {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMatrixComponent> create(JS::Realm&, Is2D, GC::Ref<Geometry::DOMMatrix>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> construct_impl(JS::Realm&, GC::Ref<Geometry::DOMMatrixReadOnly>, Optional<CSSMatrixComponentOptions> = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> construct_impl(JS::Realm&, GC::Ref<Geometry::DOMMatrixReadOnly>, Optional<Bindings::CSSMatrixComponentOptions> = {});
 
     virtual ~CSSMatrixComponent() override;
 

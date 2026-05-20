@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibTextCodec/Decoder.h>
@@ -392,8 +393,15 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
 // https://html.spec.whatwg.org/multipage/semantics.html#fetch-and-process-the-linked-resource
 void HTMLLinkElement::fetch_and_process_linked_resource()
 {
+    auto fetch_generation = ++m_current_fetch_generation;
+
+    if (m_fetch_controller) {
+        m_fetch_controller->stop_fetch();
+        document().script_blocking_style_sheet_set().remove(*this);
+    }
+
     if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload))
-        default_fetch_and_process_linked_resource();
+        default_fetch_and_process_linked_resource(fetch_generation);
     else if (m_relationship & Relationship::Preload)
         fetch_and_process_linked_preload_resource();
     else if (m_relationship & Relationship::Preconnect)
@@ -403,7 +411,7 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#default-fetch-and-process-the-linked-resource
-void HTMLLinkElement::default_fetch_and_process_linked_resource()
+void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_generation)
 {
     // https://html.spec.whatwg.org/multipage/semantics.html#the-link-element:attr-link-href-4
     // If both the href and imagesrcset attributes are absent, then the element does not define a link.
@@ -437,23 +445,28 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
 
     // 7. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response_consume_body = [this](auto response, auto body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [this, fetch_generation](auto response, auto body_bytes) {
+        // "if, since the resource in question was fetched, it has become appropriate to fetch it again"
+        if (fetch_generation != m_current_fetch_generation)
+            return;
+        m_fetch_controller = nullptr;
+
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
         // 1. Let success be true.
         bool success = true;
-        ByteBuffer successful_body_bytes;
+        Core::ImmutableBytes const* successful_body_bytes = nullptr;
 
         // 2. If either of the following conditions are met:
         // - bodyBytes is null or failure; or
         // - response's status is not an ok status,
         // then set success to false.
         body_bytes.visit(
-            [&](ByteBuffer& body_bytes) {
+            [&](Core::ImmutableBytes& body_bytes) {
                 if (Fetch::Infrastructure::is_ok_status(response->status()))
-                    successful_body_bytes = move(body_bytes);
+                    successful_body_bytes = &body_bytes;
                 else
                     success = false;
             },
@@ -462,11 +475,9 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
         // FIXME: 3. Otherwise, wait for the link resource's critical subresources to finish loading.
 
         // 4. Process the linked resource given el, success, response, and bodyBytes.
-        process_linked_resource(success, response, move(successful_body_bytes));
+        process_linked_resource(success, response, successful_body_bytes);
     };
 
-    if (m_fetch_controller)
-        m_fetch_controller->abort(realm(), {});
     m_fetch_controller = Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input)));
 }
 
@@ -489,6 +500,8 @@ void HTMLLinkElement::fetch_and_process_linked_dns_prefetch_resource()
 
     // 4. The user agent should resolve an origin given partitionKey and url's origin.
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#resolve-an-origin
+    if (!ResourceLoader::is_initialized())
+        return;
     ResourceLoader::the().prefetch_dns(url.value());
 }
 
@@ -519,13 +532,20 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
     options->destination = destination.get<Optional<Fetch::Infrastructure::Request::Destination>>();
 
     // 6. Preload options, with the following steps given a response response:
-    preload(options, GC::Function<void(Fetch::Infrastructure::Response&)>::create(heap(), [this](Fetch::Infrastructure::Response& response) {
+    GC::Weak weak_this { *this };
+    auto fetch_generation = m_current_fetch_generation;
+    preload(options, [weak_this, fetch_generation](Fetch::Infrastructure::Response& response) {
         // 1. If response is a network error, fire an event named error at el. Otherwise, fire an event named load at el.
-        if (response.is_network_error())
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
-        else
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
-    }));
+        if (auto link_element = weak_this.ptr()) {
+            if (fetch_generation != link_element->m_current_fetch_generation)
+                return;
+            link_element->m_fetch_controller = nullptr;
+            if (response.is_network_error())
+                link_element->dispatch_event(DOM::Event::create(link_element->realm(), HTML::EventNames::error));
+            else
+                link_element->dispatch_event(DOM::Event::create(link_element->realm(), HTML::EventNames::load));
+        }
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#linked-resource-fetch-setup-steps
@@ -605,6 +625,8 @@ void HTMLLinkElement::preconnect(LinkProcessingOptions const& options)
 
     // 8. The user agent should obtain a connection given partitionKey, url's origin, and useCredentials.
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#concept-connection-obtain
+    if (!ResourceLoader::is_initialized())
+        return;
     ResourceLoader::the().preconnect(*url);
 }
 
@@ -662,7 +684,7 @@ static bool type_matches_destination(StringView type, Optional<Fetch::Infrastruc
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#preload
-void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Function<void(Fetch::Infrastructure::Response&)>> process_response)
+void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetch::Infrastructure::Response&)> process_response)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -707,14 +729,14 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
     // 11. Set controller to the result of fetching request, with processResponseConsumeBody set to the following steps
     //     given a response response and null, failure, or a byte sequence bodyBytes:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response_consume_body = [&realm, options = GC::Ref { options }, process_response, entry, report_timing](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    fetch_algorithms_input.process_response_consume_body = [&realm, options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
         // 1. If bodyBytes is a byte sequence, then set response's body to bodyBytes as a body.
-        if (auto* byte_sequence = body_bytes.get_pointer<ByteBuffer>())
-            response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, *byte_sequence));
+        if (auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>())
+            response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, byte_sequence->bytes()));
         // 2. Otherwise, set response to a network error.
         else
             response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Expected preload response to contain a body"_string);
@@ -734,7 +756,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
 
         // 6. If processResponse is given, then call processResponse with response.
         if (process_response)
-            process_response->function()(response);
+            process_response(response);
     };
 
     m_fetch_controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
@@ -759,12 +781,19 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#process-the-linked-resource
-void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
+void HTMLLinkElement::process_linked_resource(bool success, Fetch::Infrastructure::Response const& response, Core::ImmutableBytes const* body_bytes)
 {
-    if (m_relationship & Relationship::Icon)
-        process_icon_resource(success, response, move(body_bytes));
-    else if (m_relationship & Relationship::Stylesheet)
-        process_stylesheet_resource(success, response, move(body_bytes));
+    if (success)
+        VERIFY(body_bytes);
+
+    if (m_relationship & Relationship::Icon) {
+        ByteBuffer icon_bytes;
+        if (success)
+            icon_bytes = body_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+        process_icon_resource(success, response, move(icon_bytes));
+    } else if (m_relationship & Relationship::Stylesheet) {
+        process_stylesheet_resource(success, response, success ? body_bytes->bytes() : ReadonlyBytes {});
+    }
 }
 
 // AD-HOC: The spec is underspecified for fetching and processing rel="icon" See:
@@ -779,7 +808,7 @@ void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure:
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
-void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ByteBuffer body_bytes)
+void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, ReadonlyBytes body_bytes)
 {
     if (!document().is_fully_active())
         return;
@@ -798,8 +827,10 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     if (mime_type_string.has_value() && mime_type_string != "text/css"sv)
         success = false;
 
-    // FIXME: 2. If el no longer creates an external resource link that contributes to the styling processing model,
-    //           or if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
+    // 2. If el no longer creates an external resource link that contributes to the styling processing model, or
+    //    if, since the resource in question was fetched, it has become appropriate to fetch it again, then return.
+    // NB: The "fetch it again" case is handled by the fetch generation check in
+    //     default_fetch_and_process_linked_resource().
 
     // 3. If el has an associated CSS style sheet, remove the CSS style sheet.
     if (m_loaded_style_sheet) {

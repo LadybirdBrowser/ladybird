@@ -22,6 +22,7 @@ class TEXTCODEC_API Decoder {
 public:
     virtual bool validate(StringView);
     virtual ErrorOr<String> to_utf8(StringView);
+    ErrorOr<void> process_code_points(StringView, Function<ErrorOr<void>(u32)>);
 
     // Returns the number of trailing bytes that form an incomplete sequence and must be buffered
     // until more input arrives. Used by StreamingDecoder for chunked decoding.
@@ -47,7 +48,7 @@ public:
     virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 
 private:
-    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override { VERIFY_NOT_REACHED(); }
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override;
 };
 
 class TEXTCODEC_API UTF16LEDecoder final : public Decoder {
@@ -57,7 +58,7 @@ public:
     virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 
 private:
-    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override { VERIFY_NOT_REACHED(); }
+    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)>) override;
 };
 
 template<Integral ArrayType = u32>

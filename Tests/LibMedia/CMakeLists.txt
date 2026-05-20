@@ -1,9 +1,9 @@
 include(audio)
 
 set(TEST_SOURCES
-    TestAudioDataProvider.cpp
     TestCICP.cpp
-    TestDataProviders.cpp
+    TestDataProducers.cpp
+    TestDecodedAudioProducer.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
     TestH264Decode.cpp
@@ -18,7 +18,7 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem)
+    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem LibSync)
 endforeach()
 
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)

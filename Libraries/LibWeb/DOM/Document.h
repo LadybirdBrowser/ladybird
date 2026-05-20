@@ -25,10 +25,12 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibUnicode/Forward.h>
+#include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
+#include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
@@ -36,7 +38,6 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
-#include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
@@ -165,18 +166,6 @@ struct DocumentUnloadTimingInfo {
     double unload_event_end_time { 0 };
 };
 
-// https://dom.spec.whatwg.org/#dictdef-elementcreationoptions
-struct ElementCreationOptions {
-    Optional<GC::Ptr<HTML::CustomElementRegistry>> custom_element_registry;
-    Optional<String> is;
-};
-
-// https://dom.spec.whatwg.org/#dictdef-importnodeoptions
-struct ImportNodeOptions {
-    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry;
-    bool self_only = false;
-};
-
 enum class PolicyControlledFeature : u8 {
     Autoplay,
     Camera,
@@ -269,7 +258,7 @@ public:
     void update_base_element(Badge<HTML::HTMLBaseElement>);
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_href_in_tree_order() const;
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_target_in_tree_order() const;
-    void respond_to_base_url_changes();
+    void respond_to_base_url_changes(URL::URL const& old_document_url, URL::URL const& old_base_url);
 
     String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }
@@ -302,7 +291,7 @@ public:
 
     virtual FlyString node_name() const override { return "#document"_fly_string; }
 
-    void set_hovered_node(GC::Ptr<Node>);
+    void set_hovered_node(GC::Ptr<Node>, Optional<HoverEventData> = {});
     Node* hovered_node() { return m_hovered_node.ptr(); }
     Node const* hovered_node() const { return m_hovered_node.ptr(); }
 
@@ -382,6 +371,7 @@ public:
 
     void update_style();
     void update_style_if_needed_for_element(AbstractElement const&);
+    void update_style_for_element(AbstractElement const&);
     [[nodiscard]] bool element_needs_style_update(AbstractElement const&) const;
     void update_layout(UpdateLayoutReason);
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
@@ -430,8 +420,8 @@ public:
 
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
 
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(String const& local_name, Variant<String, ElementCreationOptions> const& options);
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, ElementCreationOptions> const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(String const& local_name, Variant<String, Bindings::ElementCreationOptions> const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<FlyString> const& namespace_, String const& qualified_name, Variant<String, Bindings::ElementCreationOptions> const& options);
     GC::Ref<DocumentFragment> create_document_fragment();
     GC::Ref<Text> create_text_node(Utf16String data);
     WebIDL::ExceptionOr<GC::Ref<CDATASection>> create_cdata_section(Utf16String data);
@@ -485,7 +475,7 @@ public:
     // https://dom.spec.whatwg.org/#xml-document
     bool is_xml_document() const { return m_type == Type::XML; }
 
-    WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions>);
+    WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, Variant<bool, Bindings::ImportNodeOptions>);
     void adopt_node(Node&);
     WebIDL::ExceptionOr<GC::Ref<Node>> adopt_node_binding(GC::Ref<Node>);
 
@@ -656,6 +646,7 @@ public:
 
     bool needs_full_style_update() const { return m_needs_full_style_update; }
     void set_needs_full_style_update(bool b) { m_needs_full_style_update = b; }
+    void set_needs_container_query_evaluation_after_layout(Element const& query_container);
 
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
@@ -807,6 +798,7 @@ public:
     void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
+    void prune_image_resource_caches();
 
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
 
@@ -824,9 +816,11 @@ public:
     };
     void append_pending_animation_event(PendingAnimationEvent const&);
     void update_animations_and_send_events(double timestamp);
+    void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
     void remove_replaced_animations();
 
     WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
+    HashTable<GC::Ref<Animations::AnimationTimeline>> const& associated_animation_timelines() const { return m_associated_animation_timelines; }
 
     bool ready_to_run_scripts() const { return m_ready_to_run_scripts; }
     void set_ready_to_run_scripts();
@@ -969,10 +963,9 @@ public:
         set_needs_repaint(should_invalidate_display_list);
     }
 
-    RefPtr<Painting::DisplayList> cached_display_list() const;
-    RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig);
+    RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig, Painting::DisplayListResourceStorage&);
 
-    void invalidate_display_list();
+    void set_needs_to_record_display_list();
 
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& line_segmenter() const;
@@ -1146,7 +1139,6 @@ private:
     Element* find_a_potential_indicated_element(FlyString const& fragment) const;
 
     void dispatch_events_for_transition(GC::Ref<CSS::CSSTransition>);
-    void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
 
     template<typename GetNotifier, typename... Args>
     void notify_each_document_observer(GetNotifier&& get_notifier, Args&&... args)
@@ -1174,7 +1166,7 @@ private:
         GC::Ptr<HTML::CustomElementRegistry> registry;
         Optional<String> is;
     };
-    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(Variant<String, ElementCreationOptions> const&) const;
+    WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(Variant<String, Bindings::ElementCreationOptions> const&) const;
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
@@ -1310,6 +1302,7 @@ private:
     Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_needs_full_style_update { false };
+    HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
     bool m_needs_full_layout_tree_update { false };
 
     bool m_is_decoded_svg { false };
@@ -1488,7 +1481,7 @@ private:
 
     GC::Ptr<JS::ConsoleClient> m_console_client;
 
-    RefPtr<Core::Timer> m_cursor_blink_timer;
+    GC::Ptr<GC::Timer> m_cursor_blink_timer;
     bool m_cursor_blink_state { false };
 
     // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
@@ -1497,9 +1490,6 @@ private:
     Core::SharedVersion m_cookie_version { Core::INVALID_SHARED_VERSION };
     Optional<Core::SharedVersionIndex> m_cookie_version_index;
     String m_cookie;
-
-    Optional<HTML::PaintConfig> m_cached_display_list_paint_config;
-    RefPtr<Painting::DisplayList> m_cached_display_list;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
     mutable OwnPtr<Unicode::Segmenter> m_line_segmenter;

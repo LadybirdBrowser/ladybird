@@ -92,10 +92,8 @@ void FormData::initialize(JS::Realm& realm)
 void FormData::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    for (auto const& entry : m_entry_list) {
-        entry.value.visit([&](GC::Ref<FileAPI::File> const& file) { visitor.visit(file); },
-            [&](auto const&) {});
-    }
+    for (auto const& entry : m_entry_list)
+        visitor.visit(entry.value);
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append

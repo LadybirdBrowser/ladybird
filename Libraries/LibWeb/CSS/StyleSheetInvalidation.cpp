@@ -33,9 +33,14 @@ bool selector_may_match_light_dom_under_shadow_host(Selector const& selector)
     if (!selector.contains_pseudo_class(PseudoClass::Host))
         return false;
 
-    // A bare :host selector only targets the host itself, but once a shadow rule keeps walking to another compound it
-    // can match light-DOM nodes in the host tree instead of staying confined to the shadow subtree.
-    return selector.compound_selectors().size() > 1;
+    // A bare :host selector only targets the host itself, and pseudo-element transitions such as :host::part() stay
+    // anchored on that same host. We only escape to light-DOM once the selector keeps walking through a real DOM
+    // combinator after matching :host.
+    for (size_t i = 1; i < selector.compound_selectors().size(); ++i) {
+        if (selector.compound_selectors()[i].combinator != Selector::Combinator::PseudoElement)
+            return true;
+    }
+    return false;
 }
 
 static bool selector_may_match_shadow_host(Selector const&);
@@ -144,15 +149,10 @@ static bool is_universal_only_compound(Selector::CompoundSelector const& compoun
     return true;
 }
 
-static bool is_pseudo_element_only_compound(Selector::CompoundSelector const& compound_selector)
+static bool is_pseudo_element_targeting_compound(Selector::CompoundSelector const& compound_selector)
 {
-    if (compound_selector.simple_selectors.is_empty())
-        return false;
-    for (auto const& simple_selector : compound_selector.simple_selectors) {
-        if (simple_selector.type != Selector::SimpleSelector::Type::PseudoElement)
-            return false;
-    }
-    return true;
+    return !compound_selector.simple_selectors.is_empty()
+        && compound_selector.simple_selectors.first().type == Selector::SimpleSelector::Type::PseudoElement;
 }
 
 // :has() in the rightmost set filters by an element's previously recorded "affected by :has()" flags. Those flags
@@ -179,30 +179,48 @@ struct AnchorInvalidationRule {
     GC::Ptr<CSSStyleSheet const> style_sheet_for_rule;
 };
 
+enum class AllowSkippingUntargetablePseudoElementCompounds {
+    No,
+    Yes,
+};
+
 // If the leading compounds (everything except the rightmost) of `compound_selectors` produce a usable invalidation
 // set, return an anchor rule built from them.
-static Optional<AnchorInvalidationRule> try_build_anchor_for_leading_compounds(Vector<Selector::CompoundSelector> const& compound_selectors, StyleInvalidationData& throwaway_data, GC::Ptr<CSSStyleSheet const> style_sheet_for_rule)
+static Optional<AnchorInvalidationRule> try_build_anchor_for_leading_compounds(Vector<Selector::CompoundSelector> const& compound_selectors, StyleInvalidationData& throwaway_data, GC::Ptr<CSSStyleSheet const> style_sheet_for_rule, AllowSkippingUntargetablePseudoElementCompounds allow_skipping_untargetable_pseudo_element_compounds = AllowSkippingUntargetablePseudoElementCompounds::No)
 {
     if (compound_selectors.size() < 2)
         return {};
 
-    Vector<Selector::CompoundSelector> anchor_compound_selectors;
-    anchor_compound_selectors.ensure_capacity(compound_selectors.size() - 1);
-    for (size_t i = 0; i < compound_selectors.size() - 1; ++i)
-        anchor_compound_selectors.append(compound_selectors[i]);
+    auto anchor_compound_count = compound_selectors.size() - 1;
+    while (anchor_compound_count > 0) {
+        auto const& rightmost_anchor = compound_selectors[anchor_compound_count - 1];
 
-    auto const& rightmost_anchor = anchor_compound_selectors.last();
-    InvalidationSet anchor_set;
-    for (auto const& simple : rightmost_anchor.simple_selectors)
-        build_invalidation_sets_for_simple_selector(simple, anchor_set, ExcludePropertiesNestedInNotPseudoClass::No, throwaway_data, InsideNthChildPseudoClass::No);
-    if (!anchor_set.has_properties())
-        return {};
+        InvalidationSet anchor_set;
+        for (auto const& simple : rightmost_anchor.simple_selectors)
+            build_invalidation_sets_for_simple_selector(simple, anchor_set, ExcludePropertiesNestedInNotPseudoClass::No, throwaway_data, InsideNthChildPseudoClass::No);
 
-    RefPtr<Selector> anchor_selector;
-    if (anchor_compound_selectors.size() > 1)
-        anchor_selector = Selector::create(move(anchor_compound_selectors));
+        if (anchor_set.has_properties()) {
+            Vector<Selector::CompoundSelector> anchor_compound_selectors;
+            anchor_compound_selectors.ensure_capacity(anchor_compound_count);
+            for (size_t i = 0; i < anchor_compound_count; ++i)
+                anchor_compound_selectors.append(compound_selectors[i]);
 
-    return AnchorInvalidationRule { move(anchor_set), move(anchor_selector), style_sheet_for_rule };
+            RefPtr<Selector> anchor_selector;
+            if (anchor_compound_selectors.size() > 1)
+                anchor_selector = Selector::create(move(anchor_compound_selectors));
+
+            return AnchorInvalidationRule { move(anchor_set), move(anchor_selector), style_sheet_for_rule };
+        }
+
+        if (allow_skipping_untargetable_pseudo_element_compounds == AllowSkippingUntargetablePseudoElementCompounds::No
+            || !is_pseudo_element_targeting_compound(rightmost_anchor)) {
+            return {};
+        }
+
+        --anchor_compound_count;
+    }
+
+    return {};
 }
 
 void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationSet& result, CSSStyleRule const& style_rule)
@@ -265,8 +283,11 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
 
         // The rightmost compound has no targetable properties on its own, but we can still avoid a whole-subtree
         // invalidation if the leading compounds carry an anchor invalidation set that we can match against.
-        if (is_pseudo_element_only_compound(rightmost)) {
-            if (auto anchor = try_build_anchor_for_leading_compounds(compound_selectors, throwaway_data, style_sheet_for_rule); anchor.has_value()) {
+        if (is_pseudo_element_targeting_compound(rightmost)) {
+            // Pseudo-element normalization can leave untargetable pseudo-element-transition compounds before the
+            // final pseudo-element, e.g. `x-host::part(foo):dir(rtl)::before`. Anchor those rules on the nearest
+            // targetable leading compound instead of broadening to the whole subtree.
+            if (auto anchor = try_build_anchor_for_leading_compounds(compound_selectors, throwaway_data, style_sheet_for_rule, AllowSkippingUntargetablePseudoElementCompounds::Yes); anchor.has_value()) {
                 result.pseudo_element_rules.append({
                     .anchor_set = move(anchor->anchor_set),
                     .anchor_selector = move(anchor->anchor_selector),
@@ -354,6 +375,8 @@ static void apply_trailing_universal_combinator(Selector::Combinator combinator,
         }
         break;
     case Selector::Combinator::None:
+        break;
+    case Selector::Combinator::PseudoElement:
         break;
     }
 }
@@ -495,6 +518,89 @@ void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidat
             }
         }
     }
+}
+
+static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
+{
+    switch (rule.type()) {
+    case CSSRule::Type::Property:
+    case CSSRule::Type::CounterStyle:
+    case CSSRule::Type::LayerBlock:
+    case CSSRule::Type::LayerStatement:
+    // @font-feature-values changes how font-variant-alternates resolves at computed-style time, so
+    // a declaration-time mutation still requires a whole-subtree restyle.
+    case CSSRule::Type::FontFeatureValues:
+        return true;
+    // OPTIMIZATION: @font-face declares a resource whose effect on computed style is deferred until
+    //               the font actually loads (handled by CSSFontLoaded). Adding or removing the
+    //               at-rule itself doesn't change any element's computed style.
+    case CSSRule::Type::FontFace:
+    // OPTIMIZATION: @keyframes rules only matter for elements that already reference the named
+    //               animation. Sheet add/remove handles each contained @keyframes rule with a
+    //               targeted invalidation (see invalidate_root_for_keyframes_rules_in_sheet)
+    //               instead of forcing a whole-subtree restyle here.
+    case CSSRule::Type::Keyframes:
+    default:
+        break;
+    }
+
+    return false;
+}
+
+void invalidate_style_for_stylesheet_change(DOM::Node& document_or_shadow_root, CSSStyleSheet const& sheet, DOM::StyleInvalidationReason reason)
+{
+    if (sheet.rules().length() == 0) {
+        // NOTE: If the added sheet has no rules, we don't have to invalidate anything.
+        return;
+    }
+
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root)) {
+        shadow_root->style_scope().invalidate_rule_cache();
+    } else {
+        document_or_shadow_root.document().style_scope().invalidate_rule_cache();
+    }
+
+    if (!document_or_shadow_root.is_shadow_root() && document_or_shadow_root.entire_subtree_needs_style_update()) {
+        // NOTE: If the entire subtree is already marked for style update,
+        //       there's no point spending time building invalidation sets.
+        //       Shadow roots are special: :host(...) and ::slotted(...) can
+        //       still require follow-up invalidation outside that subtree.
+        return;
+    }
+
+    // OPTIMIZATION: Build the targeted invalidation set and check for broad-invalidation-triggering rule kinds in
+    //               a single walk over the sheet's effective rules, so the sheet's @media gates evaluate once and
+    //               every rule is visited once instead of twice.
+    StyleSheetInvalidationSet invalidation_set_result;
+    bool sheet_contains_broad_invalidation_rule = false;
+    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+        // Add/remove invalidation still has to look at effective non-style rules such as @keyframes or @layer, but
+        // inactive top-level media sheets should contribute nothing at all here.
+        if (!sheet_contains_broad_invalidation_rule && rule_requires_broad_add_or_remove_invalidation(rule))
+            sheet_contains_broad_invalidation_rule = true;
+        if (invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree())
+            return;
+        if (auto const* style_rule = as_if<CSSStyleRule>(rule))
+            extend_style_sheet_invalidation_set_with_style_rule(invalidation_set_result, *style_rule);
+    });
+
+    bool requires_broad_invalidation = invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree()
+        || sheet_contains_broad_invalidation_rule;
+    if (requires_broad_invalidation) {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root)) {
+            auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
+            invalidation_set_result.may_match_shadow_host |= effects.may_match_shadow_host;
+            invalidation_set_result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
+            invalidation_set_result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
+        }
+    }
+
+    invalidate_root_for_style_sheet_change(document_or_shadow_root, invalidation_set_result, reason, requires_broad_invalidation);
+
+    // OPTIMIZATION: Walk @keyframes rules in the new sheet and dirty only the elements that already
+    //               reference each animation-name, so a sheet add carrying @keyframes does not have
+    //               to escalate to a whole-subtree restyle.
+    invalidate_root_for_keyframes_rules_in_sheet(document_or_shadow_root, sheet);
 }
 
 void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet, CSSStyleRule const& style_rule, DOM::StyleInvalidationReason reason)

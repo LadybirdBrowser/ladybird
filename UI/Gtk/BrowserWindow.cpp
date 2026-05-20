@@ -282,6 +282,8 @@ void BrowserWindow::on_tab_switched()
     }
 
     bind_navigation_actions(tab->view());
+    update_location_favicon(tab->favicon());
+    update_location_loading(tab->is_loading());
     update_zoom_label();
 }
 
@@ -427,6 +429,16 @@ void BrowserWindow::update_location_entry(StringView url)
     }
     auto byte_url = ByteString(url);
     ladybird_location_entry_set_url(m_location_entry, byte_url.characters());
+}
+
+void BrowserWindow::update_location_favicon(GdkPaintable* favicon)
+{
+    ladybird_location_entry_set_favicon(m_location_entry, favicon);
+}
+
+void BrowserWindow::update_location_loading(bool is_loading)
+{
+    ladybird_location_entry_set_loading(m_location_entry, is_loading);
 }
 
 void BrowserWindow::show_find_bar()

@@ -8,10 +8,10 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
-#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
@@ -25,7 +25,7 @@ class TransformStream final
 public:
     virtual ~TransformStream() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> construct_impl(JS::Realm&, Optional<GC::Root<JS::Object>> transformer_object = {}, QueuingStrategy const& writable_strategy = {}, QueuingStrategy const& readable_strategy = {});
+    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> construct_impl(JS::Realm&, Optional<GC::Root<JS::Object>> transformer_object = {}, Bindings::QueuingStrategy const& writable_strategy = {}, Bindings::QueuingStrategy const& readable_strategy = {});
 
     // https://streams.spec.whatwg.org/#ts-readable
     GC::Ref<ReadableStream> readable() { return *m_readable; }

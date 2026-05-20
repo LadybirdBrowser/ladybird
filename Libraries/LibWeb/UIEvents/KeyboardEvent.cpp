@@ -705,7 +705,7 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& real
     auto key_code = determine_key_code(platform_key, code_point);
     auto char_code = determine_char_code(event_name, code_point);
 
-    KeyboardEventInit event_init {};
+    Bindings::KeyboardEventInit event_init {};
     event_init.key = move(event_key);
     event_init.code = move(event_code);
     event_init.location = to_underlying(get_event_location(platform_key, modifiers));
@@ -782,17 +782,17 @@ void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool c
     m_meta_key = meta_key;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
+GC::Ref<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
 {
     return realm.create<KeyboardEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
 
-KeyboardEvent::KeyboardEvent(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
+KeyboardEvent::KeyboardEvent(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
     : UIEvent(realm, event_name, event_init)
     , m_key(event_init.key)
     , m_code(event_init.code)

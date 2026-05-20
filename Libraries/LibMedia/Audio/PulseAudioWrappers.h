@@ -8,6 +8,7 @@
 
 #include "Forward.h"
 #include "PlaybackStream.h"
+#include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
@@ -128,6 +129,8 @@ public:
 
     ErrorOr<void> set_volume(double volume);
 
+    void notify_data_available();
+
     PulseAudioContext& context() { return *m_context; }
 
 private:
@@ -139,6 +142,7 @@ private:
     ErrorOr<void> wait_for_operation(pa_operation*, StringView error_message);
 
     void on_write_requested(size_t bytes_to_write);
+    void queue_a_write_while_locked();
 
     NonnullRefPtr<PulseAudioContext> m_context;
     pa_stream* m_stream { nullptr };
@@ -148,6 +152,14 @@ private:
     // Determines whether we will allow the write callback to run. This should only be true
     // if the stream is becoming or is already corked.
     bool m_suspended { false };
+
+    enum CallbackState : u8 {
+        Parked,
+        Active,
+        ActiveWithFutureData,
+    };
+
+    Atomic<CallbackState> m_callback_state { CallbackState::Parked };
 
     Function<void()> m_underrun_callback;
 };

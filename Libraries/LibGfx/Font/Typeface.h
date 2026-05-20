@@ -7,10 +7,13 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <AK/OwnPtr.h>
+#include <AK/Optional.h>
 #include <AK/QuickSort.h>
 #include <AK/RefCounted.h>
-#include <LibGfx/Font/FontData.h>
+#include <AK/RefPtr.h>
+#include <AK/Variant.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibCore/Resource.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShapeFeature.h>
@@ -25,18 +28,6 @@ struct hb_face_t;
 namespace Gfx {
 
 class Font;
-
-struct ScaledFontMetrics {
-    float ascender { 0 };
-    float descender { 0 };
-    float line_gap { 0 };
-    float x_height { 0 };
-
-    float height() const
-    {
-        return ascender + descender;
-    }
-};
 
 struct FontCacheKey {
     float point_size;
@@ -61,7 +52,7 @@ struct FontCacheKey {
 class Typeface : public RefCounted<Typeface> {
 public:
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, u32 ttc_index = 0);
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullOwnPtr<Gfx::FontData>, u32 ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_anonymous_buffer(Core::AnonymousBuffer, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
 
@@ -78,6 +69,9 @@ public:
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
 
     hb_face_t* harfbuzz_typeface() const;
+    ReadonlyBytes font_data_bytes() const;
+    Optional<Core::AnonymousBuffer> anonymous_font_data() const;
+    u32 font_data_ttc_index() const { return ttc_index(); }
 
     template<typename T>
     bool fast_is() const = delete;
@@ -90,8 +84,13 @@ protected:
     virtual ReadonlyBytes buffer() const = 0;
     virtual u32 ttc_index() const = 0;
 
+    void set_anonymous_font_data(Core::AnonymousBuffer);
+    void set_resource_font_data(Core::Resource const&);
+    void copy_font_data_from(Typeface const&);
+
 private:
-    OwnPtr<FontData> m_font_data;
+    using FontDataBacking = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>>;
+    Optional<FontDataBacking> m_font_data;
 
     mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #scroller-spacer {
+        height: 500px;
+    }
+
+    #page-spacer {
+        height: 2000px;
+    }
+</style>
+<div id="scroller"><div id="scroller-spacer"></div></div>
+<div id="page-spacer"></div>
+<script>
+    function printOutputAndDisplayList(output) {
+        const displayList = internals.dumpDisplayList();
+        for (const line of output)
+            println(line);
+        println("display list:");
+        println(displayList);
+    }
+
+    test(() => {
+        const state = internals.asyncScrollingState();
+
+        printOutputAndDisplayList([
+            `scroll nodes: ${state.scrollNodeCount}`,
+            `wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`,
+            `viewport wheel target: ${internals.asyncScrollingStateWheelTargetAt(150, 150, 0, 100)}`,
+            `scroller wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`,
+        ]);
+    });
+</script>

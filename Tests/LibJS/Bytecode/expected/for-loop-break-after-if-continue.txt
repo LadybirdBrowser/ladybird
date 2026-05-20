@@ -1,4 +1,4 @@
-$1eaa9a1f for-loop-break-after-if-continue.js:11:1
+$ba9d77cf for-loop-break-after-if-continue.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,11 +7,11 @@ $1eaa9a1f for-loop-break-after-if-continue.js:11:1
 
 block0:
   [   0] GetGlobal dst:reg6, `bok`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
-  [  40] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
+  [  38] End value:reg5
 
 
-bok$e37018c9 for-loop-break-after-if-continue.js:6:9
+bok$3c12db64 for-loop-break-after-if-continue.js:6:9
   Registers: 5
   Blocks:    4
   Constants:

@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Color.h>
+#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -3785,7 +3786,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString 
         return element;
 
     // 3. Let replacement element be the result of calling createElement(new name) on the ownerDocument of element.
-    auto replacement_element = MUST(element->owner_document()->create_element(new_name.to_string(), DOM::ElementCreationOptions {}));
+    auto replacement_element = MUST(element->owner_document()->create_element(new_name.to_string(), Bindings::ElementCreationOptions {}));
 
     // 4. Insert replacement element into element's parent immediately before element.
     element->parent()->insert_before(replacement_element, element);

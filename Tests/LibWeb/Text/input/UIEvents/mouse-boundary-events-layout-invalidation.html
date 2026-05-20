@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+html,
+body {
+    margin: 0;
+    width: 300px;
+    height: 300px;
+}
+
+#target {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    width: 80px;
+    height: 80px;
+    transform: translate(20px, 20px);
+}
+
+#out {
+    pointer-events: none;
+}
+</style>
+<body>
+<div id="target"></div>
+<div id="popover" popover></div>
+</body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        document.body.addEventListener("pointerout", () => {
+            popover.showPopover();
+            println("showed popover from pointerout");
+        }, { once: true });
+
+        target.addEventListener("pointerover", () => {
+            println("received pointerover after layout invalidation");
+        });
+
+        internals.mouseMove(200, 200);
+        internals.mouseMove(60, 60);
+        println("Didn't crash after layout invalidation during boundary events");
+    });
+</script>

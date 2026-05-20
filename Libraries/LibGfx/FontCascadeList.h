@@ -23,7 +23,6 @@ public:
         return adopt_ref(*new FontCascadeList());
     }
 
-    size_t size() const { return m_fonts.size(); }
     bool is_empty() const { return m_fonts.is_empty() && m_pending_faces.is_empty() && !m_last_resort_font; }
     Font const& first() const { return !m_fonts.is_empty() ? *m_fonts.first().font : *m_last_resort_font; }
 
@@ -96,14 +95,6 @@ public:
 
     void set_last_resort_font(NonnullRefPtr<Font> font) { m_last_resort_font = move(font); }
     void set_system_font_fallback_callback(SystemFontFallbackCallback callback) { m_system_font_fallback_callback = move(callback); }
-
-    Font const& first_text_face() const
-    {
-        for (auto const& entry : m_fonts)
-            if (!entry.font->is_emoji_font())
-                return *entry.font;
-        return first();
-    }
 
 private:
     RefPtr<Font const> m_last_resort_font;

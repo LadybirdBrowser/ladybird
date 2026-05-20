@@ -89,7 +89,12 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
 
     auto& shape = base_obj->shape();
 
-    for (auto& cache_entry : cache.entries) {
+    for (auto& cache_entry : cache.entries()) {
+        if (cache_entry.type != PropertyLookupCache::Entry::Type::GetOwnProperty
+            && cache_entry.type != PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
+            continue;
+        }
+
         auto cached_prototype = cache_entry.prototype.ptr();
         if (cached_prototype) {
             // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
@@ -145,31 +150,26 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
     // that collected metadata is valid, e.g. if getter in prototype chain added
     // property with the same name into the object itself.
     if (&shape == &base_obj->shape()) {
-        auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
-            for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
-                cache.entries[i] = cache.entries[i - 1];
-            }
-            cache.entries[0] = {};
-            return cache.entries[0];
-        };
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
-            auto& entry = get_cache_slot();
-            entry.shape = shape;
-            entry.property_offset = cacheable_metadata.property_offset.value();
+            cache.update(PropertyLookupCache::Entry::Type::GetOwnProperty, [&](auto& entry) {
+                entry.shape = shape;
+                entry.property_offset = cacheable_metadata.property_offset.value();
 
-            if (shape.is_dictionary()) {
-                entry.shape_dictionary_generation = shape.dictionary_generation();
-            }
+                if (shape.is_dictionary()) {
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+                }
+            });
         } else if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain) {
-            auto& entry = get_cache_slot();
-            entry.shape = &base_obj->shape();
-            entry.property_offset = cacheable_metadata.property_offset.value();
-            entry.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
-            entry.prototype_chain_validity = prototype_chain_validity;
+            cache.update(PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain, [&](auto& entry) {
+                entry.shape = &base_obj->shape();
+                entry.property_offset = cacheable_metadata.property_offset.value();
+                entry.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
+                entry.prototype_chain_validity = prototype_chain_validity;
 
-            if (shape.is_dictionary()) {
-                entry.shape_dictionary_generation = shape.dictionary_generation();
-            }
+                if (shape.is_dictionary()) {
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+                }
+            });
         }
     }
 
@@ -233,12 +233,11 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         auto this_value_object = MUST(this_value.to_object(vm));
         auto& from_shape = this_value_object->shape();
         if (caches) [[likely]] {
-            for (size_t i = 0; i < caches->entries.size(); ++i) {
-                switch (caches->types[i]) {
+            for (auto& cache : caches->entries()) {
+                switch (cache.type) {
                 case PropertyLookupCache::Entry::Type::Empty:
                     break;
                 case PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain: {
-                    auto& cache = caches->entries[i];
                     auto cached_prototype = cache.prototype.ptr();
                     if (!cached_prototype) [[unlikely]]
                         break;
@@ -270,7 +269,6 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     break;
                 }
                 case PropertyLookupCache::Entry::Type::ChangeOwnProperty: {
-                    auto& cache = caches->entries[i];
                     auto cached_shape = cache.shape.ptr();
                     if (cached_shape != &object->shape()) [[unlikely]]
                         break;
@@ -289,7 +287,6 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     return {};
                 }
                 case PropertyLookupCache::Entry::Type::AddOwnProperty: {
-                    auto& cache = caches->entries[i];
                     // OPTIMIZATION: If the object's shape is the same as the one cached before adding the new property, we can
                     //               reuse the resulting shape from the cache.
                     if (cache.from_shape != &object->shape()) [[unlikely]]
@@ -315,8 +312,9 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     object->put_direct(cache.property_offset, value);
                     return {};
                 }
-                default:
-                    VERIFY_NOT_REACHED();
+                case PropertyLookupCache::Entry::Type::GetOwnProperty:
+                case PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain:
+                    break;
                 }
             }
         }
@@ -385,9 +383,8 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     }
     case PutKind::Own: {
         if (caches) [[likely]] {
-            for (size_t i = 0; i < caches->entries.size(); ++i) {
-                if (caches->types[i] == PropertyLookupCache::Entry::Type::AddOwnProperty) {
-                    auto& cache = caches->entries[i];
+            for (auto& cache : caches->entries()) {
+                if (cache.type == PropertyLookupCache::Entry::Type::AddOwnProperty) {
                     if (cache.from_shape != &object->shape()) [[unlikely]]
                         continue;
                     auto cached_shape = cache.shape.ptr();

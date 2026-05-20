@@ -15,13 +15,6 @@
 
 namespace Web::Geometry {
 
-struct DOMPointInit {
-    double x { 0 };
-    double y { 0 };
-    double z { 0 };
-    double w { 1 };
-};
-
 // https://drafts.fxtf.org/geometry/#dompointreadonly
 class DOMPointReadOnly
     : public Bindings::PlatformObject
@@ -33,7 +26,7 @@ public:
     static GC::Ref<DOMPointReadOnly> construct_impl(JS::Realm&, double x = 0, double y = 0, double z = 0, double w = 1);
     static GC::Ref<DOMPointReadOnly> create(JS::Realm&);
 
-    static GC::Ref<DOMPointReadOnly> from_point(JS::VM&, DOMPointInit const&);
+    static GC::Ref<DOMPointReadOnly> from_point(JS::VM&, Bindings::DOMPointInit const&);
 
     virtual ~DOMPointReadOnly() override;
 
@@ -42,7 +35,7 @@ public:
     double z() const { return m_z; }
     double w() const { return m_w; }
 
-    WebIDL::ExceptionOr<GC::Ref<DOMPoint>> matrix_transform(DOMMatrixInit&) const;
+    WebIDL::ExceptionOr<GC::Ref<DOMPoint>> matrix_transform(Bindings::DOMMatrixInit&) const;
 
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;

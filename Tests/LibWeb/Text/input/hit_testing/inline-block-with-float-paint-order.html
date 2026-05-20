@@ -1,0 +1,29 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #inline-block {
+        background: white;
+        display: inline-block;
+        padding: 10px;
+    }
+
+    #float {
+        background: orange;
+        float: left;
+        height: 40px;
+        width: 40px;
+    }
+</style>
+<div id="inline-block">
+    <div id="float"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rect = document.getElementById("float").getBoundingClientRect();
+        printElement(internals.hitTest(rect.left + 20, rect.top + 20).node);
+    });
+</script>

@@ -199,6 +199,30 @@ ErrorOr<void> munmap(void* address, size_t size)
     return {};
 }
 
+ErrorOr<void*> reserve_address_space(size_t size)
+{
+    void* ptr = VirtualAlloc(nullptr, size, MEM_RESERVE, PAGE_NOACCESS);
+    if (!ptr)
+        return Error::from_windows_error();
+    return ptr;
+}
+
+ErrorOr<void> commit_memory(void* address, size_t size)
+{
+    if (!VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE))
+        return Error::from_windows_error();
+    return {};
+}
+
+ErrorOr<void> release_address_space(void* address, size_t size)
+{
+    // VirtualFree with MEM_RELEASE requires size == 0 and frees the entire reservation.
+    (void)size;
+    if (!VirtualFree(address, 0, MEM_RELEASE))
+        return Error::from_windows_error();
+    return {};
+}
+
 int getpid()
 {
     return GetCurrentProcessId();

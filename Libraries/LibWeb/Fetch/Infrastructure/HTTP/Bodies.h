@@ -11,6 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Variant.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Export.h>
@@ -30,8 +31,8 @@ class WEB_API Body final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Body);
 
 public:
-    using SourceType = Variant<Empty, ByteBuffer, GC::Root<FileAPI::Blob>>;
-    using SourceTypeInternal = Variant<Empty, ByteBuffer, GC::Ref<FileAPI::Blob>>;
+    using SourceType = Variant<Empty, ByteBuffer, Core::ImmutableBytes, GC::Root<FileAPI::Blob>>;
+    using SourceTypeInternal = Variant<Empty, ByteBuffer, Core::ImmutableBytes, GC::Ref<FileAPI::Blob>>;
     // processBody must be an algorithm accepting a byte sequence.
     using ProcessBodyCallback = GC::Ref<GC::Function<void(ByteBuffer)>>;
     // processBodyError must be an algorithm optionally accepting an exception.
@@ -48,6 +49,7 @@ public:
     [[nodiscard]] GC::Ref<Streams::ReadableStream> stream() const { return *m_stream; }
     void set_stream(GC::Ref<Streams::ReadableStream> value) { m_stream = value; }
     [[nodiscard]] SourceTypeInternal const& source() const { return m_source; }
+    void set_source(Core::ImmutableBytes, Optional<u64> length);
     [[nodiscard]] Optional<u64> const& length() const { return m_length; }
 
     // https://mimesniff.spec.whatwg.org/#reading-the-resource-header

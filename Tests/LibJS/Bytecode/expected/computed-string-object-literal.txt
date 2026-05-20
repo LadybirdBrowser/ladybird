@@ -1,4 +1,4 @@
-$2d41d92c computed-string-object-literal.js:15:1
+$7d035d6b computed-string-object-literal.js:15:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,15 +7,15 @@ $2d41d92c computed-string-object-literal.js:15:1
 
 block0:
   [   0] GetGlobal dst:reg6, `simple_computed`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
-  [  38] GetGlobal dst:reg7, `mixed`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, mixed
-  [  70] GetGlobal dst:reg7, `dynamic`
-  [  88] Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
-  [  b0] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
+  [  30] GetGlobal dst:reg7, `mixed`
+  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, mixed
+  [  60] GetGlobal dst:reg7, `dynamic`
+  [  70] Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
+  [  98] End value:reg5
 
 
-simple_computed$4b41b515 computed-string-object-literal.js:6:5
+simple_computed$ee1d99de computed-string-object-literal.js:6:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -28,7 +28,7 @@ block0:
   [  38] Return value:reg5
 
 
-mixed$5c18a76a computed-string-object-literal.js:9:5
+mixed$9f3e333c computed-string-object-literal.js:9:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -43,7 +43,7 @@ block0:
   [  50] Return value:reg5
 
 
-dynamic$ae7fe9ae computed-string-object-literal.js:12:5
+dynamic$fd0d2731 computed-string-object-literal.js:12:5
   Registers: 7
   Blocks:    1
   Constants:

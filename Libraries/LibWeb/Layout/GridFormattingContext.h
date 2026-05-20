@@ -183,6 +183,8 @@ private:
     void resolve_items_box_metrics(GridDimension dimension);
 
     CSSPixels m_automatic_content_height { 0 };
+    CSSPixels m_row_track_alignment_grid_container_height { 0 };
+    bool m_use_row_track_alignment_grid_container_height { false };
 
     bool is_auto_positioned_track(CSS::GridTrackPlacement const&, CSS::GridTrackPlacement const&) const;
 
@@ -309,6 +311,7 @@ private:
     void resolve_grid_item_sizes(GridDimension dimension);
 
     void resolve_track_spacing(GridDimension dimension);
+    CSSPixels grid_container_size_for_track_alignment(GridDimension dimension) const;
 
     AvailableSize get_free_space(AvailableSpace const&, GridDimension) const;
 
@@ -364,6 +367,7 @@ private:
 
     bool should_treat_grid_container_maximum_size_as_none(GridDimension) const;
     CSSPixels calculate_grid_container_maximum_size(GridDimension) const;
+    bool should_treat_preferred_size_as_auto_for_intrinsic_contribution(GridItem const&, GridDimension) const;
 
     CSSPixels calculate_min_content_size(GridItem const&, GridDimension) const;
     CSSPixels calculate_max_content_size(GridItem const&, GridDimension) const;
@@ -376,6 +380,9 @@ private:
     CSSPixels calculate_limited_max_content_contribution(GridItem const&, GridDimension) const;
 
     CSSPixels containing_block_size_for_item(GridItem const&, GridDimension) const;
+    Box const& table_box_inside_table_wrapper(GridItem const&) const;
+    void resolve_table_wrapper_grid_item_width(GridItem&, CSSPixels containing_block_width);
+    CSSPixels non_cyclic_containing_block_width_for_table_wrapper(GridItem const&, CSSPixels containing_block_width) const;
 
     CSSPixelRect get_grid_area_rect(GridItem const&) const;
 

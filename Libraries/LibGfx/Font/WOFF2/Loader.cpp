@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
+#include <AK/Checked.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <woff2/decode.h>
@@ -17,30 +19,23 @@ public:
     {
     }
 
-    // Append n bytes of data from buf.
-    // Return true if all written, false otherwise.
     virtual bool Write(void const* data, size_t size) override
     {
-        auto result = m_buffer.try_append(static_cast<u8 const*>(data), size);
-        if (result.is_error()) {
-            VERIFY_NOT_REACHED();
-        }
+        if (m_buffer.try_append(static_cast<u8 const*>(data), size).is_error())
+            return false;
         return true;
     }
 
-    // Write n bytes of data from buf at offset.
-    // Return true if all written, false otherwise.
     virtual bool Write(void const* data, size_t offset, size_t n) override
     {
-        if (Checked<size_t>::addition_would_overflow(offset, n)) {
+        if (Checked<size_t>::addition_would_overflow(offset, n))
             return false;
-        }
         if (offset + n > m_buffer.size()) {
-            if (m_buffer.try_resize(offset + n).is_error()) {
+            if (m_buffer.try_resize(offset + n).is_error())
                 return false;
-            }
         }
-        memcpy(m_buffer.offset_pointer(offset), data, n);
+        if (n > 0)
+            memcpy(m_buffer.offset_pointer(offset), data, n);
         return true;
     }
 
@@ -53,24 +48,22 @@ private:
     ByteBuffer& m_buffer;
 };
 
-ErrorOr<ByteBuffer> convert_to_ttf(ReadonlyBytes bytes)
+ErrorOr<Core::AnonymousBuffer> convert_to_ttf(ReadonlyBytes bytes)
 {
     auto ttf_buffer = TRY(ByteBuffer::create_uninitialized(0));
     auto output = WOFF2ByteBufferOut { ttf_buffer };
-    auto result = woff2::ConvertWOFF2ToTTF(bytes.data(), bytes.size(), &output);
-    if (!result) {
+    if (!woff2::ConvertWOFF2ToTTF(bytes.data(), bytes.size(), &output))
         return Error::from_string_literal("Failed to convert the WOFF2 font to TTF");
-    }
 
-    return ttf_buffer;
+    auto anonymous_buffer = TRY(Core::AnonymousBuffer::create_with_size(ttf_buffer.size()));
+    if (!ttf_buffer.is_empty())
+        memcpy(anonymous_buffer.data<void>(), ttf_buffer.data(), ttf_buffer.size());
+    return anonymous_buffer;
 }
 
 ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes bytes)
 {
-    auto ttf_buffer = TRY(convert_to_ttf(bytes));
-    auto font_data = Gfx::FontData::create_from_byte_buffer(move(ttf_buffer));
-    auto input_font = TRY(Gfx::Typeface::try_load_from_font_data(move(font_data)));
-    return input_font;
+    return Gfx::Typeface::try_load_from_anonymous_buffer(TRY(convert_to_ttf(bytes)));
 }
 
 }

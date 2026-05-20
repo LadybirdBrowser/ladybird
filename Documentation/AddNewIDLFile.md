@@ -14,9 +14,7 @@ interface HTMLDetailsElement : HTMLElement {
 };
 ```
 
-2. Add the IDL file to [`LibWeb/idl_files.cmake`](../Libraries/LibWeb/idl_files.cmake):
-    - Use `libweb_js_bindings(HTML/HTMLDetailsElement)` for top-level interfaces.
-    - Use `libweb_support_idl(...)` for support IDL files that do not generate a top-level bindings class.
+2. Add the IDL file to [`LibWeb/idl_files.cmake`](../Libraries/LibWeb/idl_files.cmake).
 
 3. Forward declare the generated class in [`LibWeb/Forward.h`](../Libraries/LibWeb/Forward.h):
     - `HTMLDetailsElement` in its namespace.

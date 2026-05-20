@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/RustIntegration.h>
+#include <LibJS/SourceCode.h>
 
 namespace JS {
 
@@ -48,6 +49,8 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_executable);
+    visitor.visit(m_function_environment_shape);
+    visitor.visit(m_var_environment_shape);
     for (auto& function : m_functions_to_initialize)
         visitor.visit(function.shared_data);
     m_class_field_initializer_name.visit([&](PropertyKey const& key) { key.visit_edges(visitor); }, [](auto&) {});
@@ -64,6 +67,38 @@ size_t SharedFunctionInstanceData::external_memory_size() const
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_function_names_to_initialize_binding));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(m_lexical_bindings));
     return size;
+}
+
+Utf16String SharedFunctionInstanceData::source_text() const
+{
+    if (!m_source_text_owner.is_empty())
+        return m_source_text_owner;
+
+    if (!m_source_code)
+        return {};
+
+    auto old_external_memory_size = utf16_string_external_memory_size(m_source_text_owner);
+    m_source_text_owner = m_source_code->source_text_from_offsets(m_source_text_offset, m_source_text_length);
+    auto new_external_memory_size = utf16_string_external_memory_size(m_source_text_owner);
+    if (new_external_memory_size > old_external_memory_size)
+        heap().did_allocate_external_memory(new_external_memory_size - old_external_memory_size);
+    return m_source_text_owner;
+}
+
+void SharedFunctionInstanceData::set_source_text(Utf16View source_text)
+{
+    m_source_text_owner = Utf16String::from_utf16(source_text);
+    m_source_code = nullptr;
+    m_source_text_offset = 0;
+    m_source_text_length = 0;
+}
+
+void SharedFunctionInstanceData::set_source_text_range(SourceCode const& source_code, size_t source_text_offset, size_t source_text_length)
+{
+    m_source_text_owner = {};
+    m_source_code = &source_code;
+    m_source_text_offset = source_text_offset;
+    m_source_text_length = source_text_length;
 }
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;
@@ -98,6 +133,10 @@ void SharedFunctionInstanceData::finalize()
     Base::finalize();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
+    RustIntegration::free_cached_bytecode_executable(m_cached_bytecode_executable);
+    m_cached_bytecode_executable = nullptr;
+    RustIntegration::free_precompiled_bytecode_executable(m_precompiled_bytecode_executable);
+    m_precompiled_bytecode_executable = nullptr;
 }
 
 void SharedFunctionInstanceData::clear_compile_inputs()
@@ -108,6 +147,10 @@ void SharedFunctionInstanceData::clear_compile_inputs()
     m_lexical_bindings.clear();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
+    RustIntegration::free_cached_bytecode_executable(m_cached_bytecode_executable);
+    m_cached_bytecode_executable = nullptr;
+    RustIntegration::free_precompiled_bytecode_executable(m_precompiled_bytecode_executable);
+    m_precompiled_bytecode_executable = nullptr;
 }
 
 void SharedFunctionInstanceData::update_can_inline_call()

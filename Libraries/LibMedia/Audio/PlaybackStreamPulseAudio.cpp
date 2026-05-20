@@ -138,6 +138,12 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::discard_buf
     return promise;
 }
 
+void PlaybackStreamPulseAudio::notify_data_available()
+{
+    if (m_state->stream() != nullptr)
+        m_state->stream()->notify_data_available();
+}
+
 AK::Duration PlaybackStreamPulseAudio::total_time_played() const
 {
     if (m_state->stream() != nullptr)
@@ -175,7 +181,7 @@ RefPtr<PulseAudioStream> const& PlaybackStreamPulseAudio::InternalState::stream(
 
 void PlaybackStreamPulseAudio::InternalState::enqueue(Function<void()>&& task)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_tasks.enqueue(forward<Function<void()>>(task));
     m_wake_condition.signal();
 }
@@ -184,7 +190,7 @@ void PlaybackStreamPulseAudio::InternalState::thread_loop()
 {
     while (true) {
         auto task = [this]() -> Function<void()> {
-            Threading::MutexLocker locker { m_mutex };
+            Sync::MutexLocker locker { m_mutex };
 
             while (m_tasks.is_empty() && !m_exit)
                 m_wake_condition.wait();

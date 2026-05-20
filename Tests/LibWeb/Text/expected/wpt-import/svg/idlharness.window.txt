@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1098 Pass
-682 Fail
+1101 Pass
+679 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1644,9 +1644,9 @@ Pass	SVGAnimationElement interface: existence and properties of interface protot
 Pass	SVGAnimationElement interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGAnimationElement interface: existence and properties of interface prototype object's @@unscopables property
 Fail	SVGAnimationElement interface: attribute targetElement
-Fail	SVGAnimationElement interface: attribute onbegin
-Fail	SVGAnimationElement interface: attribute onend
-Fail	SVGAnimationElement interface: attribute onrepeat
+Pass	SVGAnimationElement interface: attribute onbegin
+Pass	SVGAnimationElement interface: attribute onend
+Pass	SVGAnimationElement interface: attribute onrepeat
 Fail	SVGAnimationElement interface: operation getStartTime()
 Fail	SVGAnimationElement interface: operation getCurrentTime()
 Fail	SVGAnimationElement interface: operation getSimpleDuration()

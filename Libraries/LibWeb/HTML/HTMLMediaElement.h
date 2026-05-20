@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
@@ -21,7 +22,7 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/MediaControls.h>
-#include <LibWeb/Painting/VideoFrameSource.h>
+#include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -170,9 +171,10 @@ public:
 
     RefPtr<Media::DisplayingVideoSink> const& selected_video_track_sink() const { return m_selected_video_track_sink; }
 
-    Painting::VideoFrameSource& ensure_video_frame_source();
+    Painting::VideoFrameResourceId ensure_video_frame_resource_id();
+    Optional<Painting::VideoFrameResourceId> video_frame_resource_id() const { return m_video_frame_resource_id; }
 
-    virtual void update_intrinsic_video_dimensions() { }
+    virtual bool update_intrinsic_video_dimensions() { return false; }
     virtual void update_natural_dimensions() { }
 
 protected:
@@ -245,6 +247,9 @@ private:
 
     void volume_or_muted_attribute_changed();
     void update_volume();
+    void update_compositor_video_frame(NonnullRefPtr<Media::VideoFrame const>);
+    void clear_compositor_video_frame();
+    void update_current_video_frame();
 
     bool is_eligible_for_autoplay() const;
 
@@ -380,7 +385,7 @@ private:
     bool m_has_enabled_preferred_audio_track { false };
     bool m_has_selected_preferred_video_track { false };
 
-    RefPtr<Painting::VideoFrameSource> m_video_frame_source;
+    Optional<Painting::VideoFrameResourceId> m_video_frame_resource_id;
 };
 
 }

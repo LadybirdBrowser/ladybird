@@ -11,13 +11,13 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/CornerRadii.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -34,9 +34,9 @@ struct ScrollData {
 
 struct ClipData {
     DevicePixelRect rect;
-    CornerRadii corner_radii;
+    Gfx::CornerRadii corner_radii;
 
-    ClipData(DevicePixelRect r, CornerRadii radii)
+    ClipData(DevicePixelRect r, Gfx::CornerRadii radii)
         : rect(r)
         , corner_radii(radii)
     {
@@ -73,7 +73,13 @@ struct EffectsData {
     }
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData>;
+// Negates a scroll frame's offset during display list replay. Used to keep fixed backgrounds stationary relative to
+// the viewport regardless of scroll position.
+struct ScrollCompensation {
+    ScrollFrameIndex scroll_frame_index;
+};
+
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation>;
 
 struct AccumulatedVisualContextNode {
     VisualContextData data;

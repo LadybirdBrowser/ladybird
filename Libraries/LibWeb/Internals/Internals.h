@@ -42,6 +42,7 @@ public:
 
     void gc();
     GC::Ref<WebIDL::Promise> gc_async();
+    WebIDL::ExceptionOr<void> mark_as_garbage(StringView variable_name);
     JS::Object* hit_test(double x, double y);
 
     void send_text(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
@@ -57,7 +58,7 @@ public:
     // High-level mouse conveniences
     void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
-    void wheel(double x, double y, double delta_x, double delta_y);
+    GC::Ref<WebIDL::Promise> wheel(double x, double y, double delta_x, double delta_y);
     void pinch(double x, double y, double scale_delta);
 
     String current_cursor();
@@ -111,6 +112,12 @@ public:
 
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
+    JS::Object* async_scrolling_state();
+    bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
+    bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
+    String async_scrolling_state_wheel_routing_admission();
+    String async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
+    String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y);
 
 private:
     explicit Internals(JS::Realm&);

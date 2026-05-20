@@ -3,6 +3,10 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_frame_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x74.59375]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x53.59375]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[10,8 780x53.59375]
   Save@1
     AddClipRect@1 rect=[10,16 780x46]
     FillRect@1 rect=[10,8 780x54] color=rgb(0, 0, 255)
@@ -23,6 +27,9 @@ SaveLayer@0
     FillPath@1 path_bounding_rect=[10,16 780x1]
     FillPath@1 path_bounding_rect=[9,17 782x1]
   Restore@1
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[24,8 57.328125x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[24,31.59375 752x18]
+  CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[24,31.59375 752x18]
   DrawGlyphRun@1 rect=[26,8 54x18] translation=[26,21.796875] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[24,31 63x18] translation=[24,45.390625] color=rgb(0, 0, 0)
 Restore@0

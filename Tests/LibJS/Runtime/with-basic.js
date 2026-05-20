@@ -43,3 +43,18 @@ test("restores lexical environment even when exception is thrown", () => {
     }
     expect(() => foo).toThrowWithMessage(ReferenceError, "'foo' is not defined");
 });
+
+test("with object changes can shadow an outer binding", () => {
+    let outer = "outer";
+    let object = {};
+    let seen = [];
+
+    with (object) {
+        for (let i = 0; i < 2; ++i) {
+            seen.push(outer);
+            object.outer = "object";
+        }
+    }
+
+    expect(seen).toEqual(["outer", "object"]);
+});

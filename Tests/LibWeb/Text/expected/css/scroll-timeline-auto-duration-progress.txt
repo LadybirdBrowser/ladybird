@@ -1,0 +1,2 @@
+animation duration: auto
+scale at 25% scroll: 0.25

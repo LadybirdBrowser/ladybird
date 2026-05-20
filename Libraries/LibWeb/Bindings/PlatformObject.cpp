@@ -432,16 +432,16 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
 
     // 4. For each P of O’s own property keys that is a String, in ascending chronological order of property creation, append P to keys.
     // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
-    for (auto& it : shape().property_table()) {
-        if (it.key.is_string() || it.key.is_number())
-            keys.append(it.key.to_value(vm));
-    }
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+        if (property_key.is_string() || property_key.is_number())
+            keys.append(property_key.to_value(vm));
+    });
 
     // 5. For each P of O’s own property keys that is a Symbol, in ascending chronological order of property creation, append P to keys.
-    for (auto& it : shape().property_table()) {
-        if (it.key.is_symbol())
-            keys.append(it.key.to_value(vm));
-    }
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+        if (property_key.is_symbol())
+            keys.append(property_key.to_value(vm));
+    });
 
     // FIXME: 6. Assert: keys has no duplicate items.
 

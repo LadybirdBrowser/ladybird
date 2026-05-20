@@ -213,6 +213,8 @@ pub enum SimpleMatch {
     BuiltinClass(BuiltinCharacterClass),
     /// Unicode property (\p{...}, \P{...}).
     UnicodeProperty(Box<UnicodePropertyData>),
+    /// Union of two matchers: matches if either alternative matches.
+    Union(Box<SimpleMatch>, Box<SimpleMatch>),
 }
 
 /// A character range for CharClass instructions (u32 code points).

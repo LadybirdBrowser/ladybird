@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGfx/Path.h>
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -26,7 +27,7 @@ public:
     void bezier_curve_to(double cp1x, double cp1y, double cp2x, double cp2y, double x, double y);
     WebIDL::ExceptionOr<void> arc_to(double x1, double y1, double x2, double y2, double radius);
     void rect(double x, double y, double w, double h);
-    WebIDL::ExceptionOr<void> round_rect(double x, double y, double w, double h, Variant<double, Geometry::DOMPointInit, Vector<Variant<double, Geometry::DOMPointInit>>> radii = { 0 });
+    WebIDL::ExceptionOr<void> round_rect(double x, double y, double w, double h, Variant<double, Bindings::DOMPointInit, Vector<Variant<double, Bindings::DOMPointInit>>> radii = { 0 });
     WebIDL::ExceptionOr<void> arc(float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise);
     WebIDL::ExceptionOr<void> ellipse(float x, float y, float radius_x, float radius_y, float rotation, float start_angle, float end_angle, bool counter_clockwise);
 

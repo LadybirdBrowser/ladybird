@@ -71,7 +71,7 @@ void SVGPatternElement::attribute_changed(FlyString const& name, Optional<String
     }
 }
 
-GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(HashTable<SVGPatternElement const*>& seen_patterns) const
+GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     // FIXME: This can only resolve same-document references. The spec allows cross-document references.
     auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute("xlink:href"_fly_string);
@@ -105,11 +105,11 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(HashTable<SVG
 
 GC::Ptr<SVGPatternElement const> SVGPatternElement::pattern_content_element() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_content_element_impl(seen_patterns);
 }
 
-GC::Ptr<SVGPatternElement const> SVGPatternElement::pattern_content_element_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+GC::Ptr<SVGPatternElement const> SVGPatternElement::pattern_content_element_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (child_element_count() > 0)
         return this;
@@ -121,11 +121,11 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::pattern_content_element_impl
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternUnitsAttribute
 SVGUnits SVGPatternElement::pattern_units() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_units_impl(seen_patterns);
 }
 
-SVGUnits SVGPatternElement::pattern_units_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+SVGUnits SVGPatternElement::pattern_units_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (m_pattern_units.has_value())
         return *m_pattern_units;
@@ -138,11 +138,11 @@ SVGUnits SVGPatternElement::pattern_units_impl(HashTable<SVGPatternElement const
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternContentUnitsAttribute
 SVGUnits SVGPatternElement::pattern_content_units() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_content_units_impl(seen_patterns);
 }
 
-SVGUnits SVGPatternElement::pattern_content_units_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+SVGUnits SVGPatternElement::pattern_content_units_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (m_pattern_content_units.has_value())
         return *m_pattern_content_units;
@@ -155,11 +155,11 @@ SVGUnits SVGPatternElement::pattern_content_units_impl(HashTable<SVGPatternEleme
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternTransformAttribute
 Optional<Gfx::AffineTransform> SVGPatternElement::pattern_transform() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_transform_impl(seen_patterns);
 }
 
-Optional<Gfx::AffineTransform> SVGPatternElement::pattern_transform_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+Optional<Gfx::AffineTransform> SVGPatternElement::pattern_transform_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (m_pattern_transform.has_value())
         return m_pattern_transform;
@@ -171,11 +171,11 @@ Optional<Gfx::AffineTransform> SVGPatternElement::pattern_transform_impl(HashTab
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementXAttribute
 NumberPercentage SVGPatternElement::pattern_x() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_x_impl(seen_patterns);
 }
 
-NumberPercentage SVGPatternElement::pattern_x_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+NumberPercentage SVGPatternElement::pattern_x_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (m_x.has_value())
         return *m_x;
@@ -187,11 +187,11 @@ NumberPercentage SVGPatternElement::pattern_x_impl(HashTable<SVGPatternElement c
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementYAttribute
 NumberPercentage SVGPatternElement::pattern_y() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_y_impl(seen_patterns);
 }
 
-NumberPercentage SVGPatternElement::pattern_y_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+NumberPercentage SVGPatternElement::pattern_y_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (m_y.has_value())
         return *m_y;
@@ -203,11 +203,11 @@ NumberPercentage SVGPatternElement::pattern_y_impl(HashTable<SVGPatternElement c
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementWidthAttribute
 NumberPercentage SVGPatternElement::pattern_width() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_width_impl(seen_patterns);
 }
 
-NumberPercentage SVGPatternElement::pattern_width_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+NumberPercentage SVGPatternElement::pattern_width_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (m_width.has_value())
         return *m_width;
@@ -219,11 +219,11 @@ NumberPercentage SVGPatternElement::pattern_width_impl(HashTable<SVGPatternEleme
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementHeightAttribute
 NumberPercentage SVGPatternElement::pattern_height() const
 {
-    HashTable<SVGPatternElement const*> seen_patterns;
+    GC::RootHashTable<SVGPatternElement const*> seen_patterns(heap());
     return pattern_height_impl(seen_patterns);
 }
 
-NumberPercentage SVGPatternElement::pattern_height_impl(HashTable<SVGPatternElement const*>& seen_patterns) const
+NumberPercentage SVGPatternElement::pattern_height_impl(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
 {
     if (m_height.has_value())
         return *m_height;
@@ -290,7 +290,7 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     tile_rect.translate_by(svg_offset);
 
     auto display_list = Painting::DisplayList::create(Painting::AccumulatedVisualContextTree::create());
-    Painting::DisplayListRecorder display_list_recorder(*display_list);
+    Painting::DisplayListRecorder display_list_recorder(*display_list, recording_context.display_list_recorder().resource_storage());
     auto content_origin = paint_context.paint_transform.map(Gfx::FloatPoint { 0, 0 }) + svg_offset;
     display_list_recorder.translate(-Gfx::IntPoint(content_origin.to_type<int>()));
     auto paint_context_copy = recording_context.clone(display_list_recorder);
@@ -334,7 +334,7 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
         }
     }
 
-    return Painting::SVGPatternPaintStyle::create(display_list, tile_rect, device_pattern_transform);
+    return Painting::PaintStyle { Painting::PatternPaintStyle { display_list, tile_rect, device_pattern_transform } };
 }
 
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementXAttribute

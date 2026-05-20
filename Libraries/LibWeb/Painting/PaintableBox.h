@@ -31,6 +31,7 @@ class ResizeHandle;
 class Scrollbar;
 
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
+bool should_paint_viewport_scrollbars();
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box);
 
 class WEB_API PaintableBox : public Paintable {
@@ -78,7 +79,7 @@ public:
 
     CSSPixelPoint scroll_offset() const;
     ScrollHandled set_scroll_offset(CSSPixelPoint);
-    ScrollHandled scroll_by(int delta_x, int delta_y);
+    ScrollHandled scroll_by(double delta_x, double delta_y);
     void scroll_into_view(CSSPixelRect);
 
     void set_offset(CSSPixelPoint);
@@ -92,6 +93,17 @@ public:
     void set_content_height(CSSPixels height) { set_content_size(content_width(), height); }
     CSSPixels content_width() const { return m_content_size.width(); }
     CSSPixels content_height() const { return m_content_size.height(); }
+
+    enum class FragmentationState {
+        Unfragmented,
+        HorizontalStart,
+        HorizontalMiddle,
+        HorizontalEnd,
+        VerticalStart,
+        VerticalMiddle,
+        VerticalEnd
+    };
+    void set_fragmentation_state(FragmentationState);
 
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
@@ -156,7 +168,7 @@ public:
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
 
-    virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, int wheel_delta_x, int wheel_delta_y) override;
+    virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y) override;
 
     struct ScrollbarData {
         CSSPixelRect gutter_rect;
@@ -167,11 +179,17 @@ public:
         Horizontal,
         Vertical,
     };
+    enum class ScrollbarSizing {
+        Current,
+        Regular,
+        Enlarged,
+    };
 
     Optional<ScrollbarData> compute_scrollbar_data(
         ScrollDirection direction,
         ChromeMetrics const& chrome_metrics,
-        ScrollStateSnapshot const* = nullptr) const;
+        ScrollStateSnapshot const* = nullptr,
+        ScrollbarSizing = ScrollbarSizing::Current) const;
     Optional<CSSPixelRect> absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter, ChromeMetrics const& chrome_metrics) const;
 
     RefPtr<Scrollbar> scrollbar(ScrollDirection) const;
@@ -254,6 +272,7 @@ public:
     void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
 
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
+    [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
     void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
     RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
@@ -283,15 +302,18 @@ public:
         return m_cached_phase_commands[to_underlying(phase)].has_value();
     }
 
-    Vector<DisplayListCommand> const& cached_commands(PaintPhase phase) const
+    DisplayListCommandSequence const& cached_commands(PaintPhase phase) const
     {
         return m_cached_phase_commands[to_underlying(phase)].value();
     }
 
-    void set_cached_commands(PaintPhase phase, Vector<DisplayListCommand> commands) const
+    void set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const
     {
         m_cached_phase_commands[to_underlying(phase)] = move(commands);
     }
+
+    void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
+    [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const { return m_fixed_background_visual_context; }
 
     [[nodiscard]] ScrollFrameIndex enclosing_scroll_frame_index() const { return m_enclosing_scroll_frame_index; }
 
@@ -316,7 +338,6 @@ protected:
 
     CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
     Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
-    bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
@@ -338,6 +359,7 @@ private:
     ScrollFrameIndex m_own_scroll_frame_index {};
     VisualContextIndex m_accumulated_visual_context_index {};
     VisualContextIndex m_accumulated_visual_context_for_descendants_index {};
+    Optional<VisualContextIndex> m_fixed_background_visual_context;
 
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;
@@ -356,7 +378,15 @@ private:
 
     BoxModelMetrics m_box_model;
 
-    mutable Array<Optional<Vector<DisplayListCommand>>, paint_phase_count> m_cached_phase_commands;
+    // FIXME: This is not how this is meant to work in the spec. The box needs to be drawn in full and then sliced
+    //        visually, in case something like border-radius is in effect.
+    //        ( see https://drafts.csswg.org/css-break/#valdef-box-decoration-break-slice )
+    bool m_fragment_top_edge_away { false };
+    bool m_fragment_left_edge_away { false };
+    bool m_fragment_right_edge_away { false };
+    bool m_fragment_bottom_edge_away { false };
+
+    mutable Array<Optional<DisplayListCommandSequence>, paint_phase_count> m_cached_phase_commands;
 };
 
 }

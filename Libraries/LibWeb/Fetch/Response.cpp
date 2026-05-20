@@ -98,7 +98,7 @@ static bool is_valid_status_text(String const& status_text)
 }
 
 // https://fetch.spec.whatwg.org/#initialize-a-response
-WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body)
+WebIDL::ExceptionOr<void> Response::initialize_response(Bindings::ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body)
 {
     // 1. If init["status"] is not in the range 200 to 599, inclusive, then throw a RangeError.
     if (init.status < 200 || init.status > 599)
@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
 }
 
 // https://fetch.spec.whatwg.org/#dom-response
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm, NullableBodyInit const& body, ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm, NullableBodyInit const& body, Bindings::ResponseInit const& init)
 {
     auto& vm = realm.vm();
 
@@ -208,7 +208,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-json
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::VM& vm, JS::Value data, ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::VM& vm, JS::Value data, Bindings::ResponseInit const& init)
 {
     auto& realm = *vm.current_realm();
 

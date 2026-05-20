@@ -7,6 +7,7 @@
 #define AK_DONT_REPLACE_STD
 #define SK_SUPPORT_UNSPANNED_APIS
 
+#include <AK/Span.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
@@ -206,6 +207,21 @@ void PathImplSkia::append_path(Gfx::Path const& other)
 void PathImplSkia::intersect(Gfx::Path const& other)
 {
     Op(*m_path, static_cast<PathImplSkia const&>(other.impl()).sk_path(), SkPathOp::kIntersect_SkPathOp, m_path.ptr());
+}
+
+Vector<u8> PathImplSkia::serialize_to_bytes() const
+{
+    auto path_data_size = m_path->writeToMemory(nullptr);
+    Vector<u8> path_data;
+    path_data.resize(path_data_size);
+    m_path->writeToMemory(path_data.data());
+    return path_data;
+}
+
+void PathImplSkia::deserialize_from_bytes(ReadonlyBytes bytes)
+{
+    m_path = adopt_own(*new SkPath(SkPath::ReadFromMemory(bytes.data(), bytes.size()).value_or(SkPath {})));
+    m_last_move_to = {};
 }
 
 bool PathImplSkia::is_empty() const

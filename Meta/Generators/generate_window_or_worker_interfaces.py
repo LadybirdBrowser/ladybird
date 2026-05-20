@@ -11,6 +11,7 @@ import sys
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Set
@@ -19,6 +20,7 @@ from typing import TextIO
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Utils.webidl_parser import Interface
+from Utils.webidl_parser import Module
 from Utils.webidl_parser import parse_module
 
 ALL_WORKERS_EXPOSURE = {
@@ -153,6 +155,30 @@ def should_have_interface_object(interface: Interface) -> bool:
     return True
 
 
+def can_use_shared_interface_constructor(interface: Interface) -> bool:
+    return not interface.is_namespace and not interface.is_callback_interface
+
+
+def can_use_shared_interface_prototype(interface: Interface) -> bool:
+    return (
+        not interface.is_namespace
+        and not interface.is_callback_interface
+        and "Global" not in interface.extended_attributes
+        and not interface.has_special_member
+        and interface.named_property_getter is None
+        and interface.indexed_property_getter is None
+    )
+
+
+def interface_prototype_has_immutable_prototype(interface: Interface) -> bool:
+    # NB: This currently assumes only Workers and Window can be globals.
+    return (
+        "Global" in interface.extended_attributes
+        or interface.name == "WorkerGlobalScope"
+        or interface.name == "EventTarget"
+    )
+
+
 def lookup_legacy_constructor(interface: Interface) -> Optional[LegacyConstructor]:
     legacy_factory_function = interface.extended_attributes.get("LegacyFactoryFunction")
     if not legacy_factory_function:
@@ -202,6 +228,7 @@ def write_intrinsic_definitions_implementation(out: TextIO, interface_sets: Inte
     out.write(
         """#include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibWeb/Bindings/InterfaceObject.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Export.h>
@@ -375,6 +402,108 @@ void Intrinsics::create_web_namespace<{interface.namespace_class}>(JS::Realm& re
 
 
 def write_interface_creation(out: TextIO, interface: Interface) -> None:
+    if can_use_shared_interface_prototype(interface):
+        out.write(
+            f"""template<>
+WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
+{{
+"""
+        )
+
+        ensure_parent_prototype = "nullptr"
+        ensure_parent_constructor = "nullptr"
+        if interface.parent_name:
+            ensure_parent_prototype = f"""[](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
+            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
+
+        out.write(
+            f"""    static constexpr InterfaceObjectMetadata metadata {{
+        .name = "{interface.name}"sv,
+        .namespaced_name = "{interface.namespaced_name}"sv,
+        .ensure_parent_prototype = {ensure_parent_prototype},
+        .ensure_parent_constructor = {ensure_parent_constructor},
+        .initialize_constructor = &{interface.constructor_class}::initialize,
+        .initialize_prototype = &{interface.prototype_class}::initialize,
+        .define_unforgeable_attributes = &{interface.prototype_class}::define_unforgeable_attributes,
+        .construct = &{interface.constructor_class}::construct,
+        .has_immutable_prototype = {str(interface_prototype_has_immutable_prototype(interface)).lower()},
+    }};
+    create_web_prototype_and_constructor(realm, metadata);
+"""
+        )
+
+        legacy_constructor = lookup_legacy_constructor(interface)
+        if legacy_constructor is not None:
+            out.write(
+                f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
+    m_constructors.set("{legacy_constructor.name}"_fly_string, legacy_constructor.ptr());
+"""
+            )
+
+        out.write(
+            """}
+"""
+        )
+        return
+
+    if can_use_shared_interface_constructor(interface):
+        out.write(
+            f"""template<>
+WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
+{{
+"""
+        )
+
+        ensure_parent_constructor = "nullptr"
+        if interface.parent_name:
+            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_fly_string); }}"""
+
+        out.write(
+            f"""    static constexpr InterfaceObjectMetadata metadata {{
+        .name = "{interface.name}"sv,
+        .namespaced_name = "{interface.namespaced_name}"sv,
+        .ensure_parent_constructor = {ensure_parent_constructor},
+        .initialize_constructor = &{interface.constructor_class}::initialize,
+        .construct = &{interface.constructor_class}::construct,
+    }};
+
+"""
+        )
+
+        named_properties_class = ""
+        if "Global" in interface.extended_attributes and interface.supports_named_properties():
+            named_properties_class = f"{interface.name}Properties"
+
+        if named_properties_class:
+            out.write(
+                f"""    auto named_properties_object = realm.create<{named_properties_class}>(realm);
+    m_prototypes.set("{named_properties_class}"_fly_string, named_properties_object);
+
+"""
+            )
+
+        out.write(
+            f"""    auto prototype = realm.create<{interface.prototype_class}>(realm);
+    m_prototypes.set("{interface.namespaced_name}"_fly_string, prototype);
+
+    create_web_constructor(realm, metadata, prototype);
+"""
+        )
+
+        legacy_constructor = lookup_legacy_constructor(interface)
+        if legacy_constructor is not None:
+            out.write(
+                f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
+    m_constructors.set("{legacy_constructor.name}"_fly_string, legacy_constructor.ptr());
+"""
+            )
+
+        out.write(
+            """}
+"""
+        )
+        return
+
     named_properties_class = ""
     if "Global" in interface.extended_attributes and interface.supports_named_properties():
         named_properties_class = f"{interface.name}Properties"
@@ -549,6 +678,63 @@ def write_namespace_global_accessor(out: TextIO, interface: Interface) -> None:
     )
 
 
+def cpp_namespace_for_module_path(path: Path) -> str:
+    """A path of Libraries/LibWeb/<namespace>/... should have a namespace of Web::<namespace>."""
+    parts = path.parts
+    return parts[parts.index("LibWeb") + 1]
+
+
+def write_forward_header(out: TextIO, modules: List[Module]) -> None:
+    out.write(
+        """#pragma once
+
+"""
+    )
+
+    interface_names_by_namespace: Dict[str, Set[str]] = {}
+
+    for module in modules:
+        interface = module.interface
+        if interface is None or interface.is_namespace:
+            continue
+
+        namespace_name = cpp_namespace_for_module_path(interface.path)
+        if not namespace_name:
+            continue
+
+        interface_names_by_namespace.setdefault(namespace_name, set()).add(interface.implemented_name)
+
+    for namespace_name in sorted(interface_names_by_namespace):
+        out.write(f"namespace Web::{namespace_name} {{\n\n")
+
+        for class_name in sorted(interface_names_by_namespace[namespace_name]):
+            out.write(f"class {class_name};\n")
+
+        out.write(
+            """
+}
+
+"""
+        )
+
+    dictionary_names = {dictionary.name for module in modules for dictionary in module.dictionaries}
+
+    out.write(
+        """namespace Web::Bindings {
+
+"""
+    )
+
+    for dictionary_name in sorted(dictionary_names):
+        out.write(f"struct {dictionary_name};\n")
+
+    out.write(
+        """
+}
+"""
+    )
+
+
 def write_generated_file(path: Path, writer, *args) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as output_file:
         writer(output_file, *args)
@@ -560,11 +746,17 @@ def main() -> int:
     output_directory.mkdir(parents=True, exist_ok=True)
 
     interface_sets = InterfaceSets()
+    modules: List[Module] = []
 
     for path in read_input_paths(arguments.paths):
-        interface = parse_module(path, path.read_text(encoding="utf-8")).interface
+        module = parse_module(path, path.read_text(encoding="utf-8"))
+        modules.append(module)
+
+        interface = module.interface
         if interface is None:
-            raise RuntimeError(f"Interface for file {path} missing")
+            continue
+        if not should_have_interface_object(interface):
+            continue
         interface_sets.add_interface(interface)
 
     write_generated_file(
@@ -601,6 +793,7 @@ def main() -> int:
         "SharedWorker",
         interface_sets.shared_worker_exposed,
     )
+    write_generated_file(output_directory / "Forward.h", write_forward_header, modules)
 
     return 0
 

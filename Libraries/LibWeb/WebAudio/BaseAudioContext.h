@@ -10,6 +10,7 @@
 
 #include <AK/Function.h>
 #include <LibWeb/Bindings/BaseAudioContext.h>
+#include <LibWeb/Bindings/PeriodicWave.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebAudio/AudioListener.h>
@@ -81,7 +82,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create_dynamics_compressor();
     WebIDL::ExceptionOr<GC::Ref<GainNode>> create_gain();
     WebIDL::ExceptionOr<GC::Ref<PannerNode>> create_panner();
-    WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> create_periodic_wave(Vector<float> const& real, Vector<float> const& imag, Optional<PeriodicWaveConstraints> const& constraints = {});
+    WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> create_periodic_wave(Vector<float> const& real, Vector<float> const& imag, Optional<Bindings::PeriodicWaveConstraints> const& constraints = {});
     WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> create_script_processor(
         WebIDL::UnsignedLong buffer_size,
         WebIDL::UnsignedLong number_of_input_channels,

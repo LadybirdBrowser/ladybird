@@ -120,11 +120,10 @@ NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
     return event_loop;
 }
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, parent_tab, move(page_index));
     set_active_window(*window);
-    window->show();
     if (initial_urls.is_empty()) {
         auto* tab = window->current_tab();
         if (tab) {
@@ -132,6 +131,13 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Bro
             tab->focus_location_editor();
         }
     }
+
+    window->set_window_rect(configuration.x, configuration.y, configuration.width, configuration.height);
+    if (configuration.maximized == true)
+        window->showMaximized();
+    else
+        window->show();
+
     window->activateWindow();
     window->raise();
     return *window;
@@ -148,6 +154,11 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
 {
     auto& tab = active_window().create_new_tab(activate_tab);
     return tab.view();
+}
+
+void Application::open_url_in_new_window(URL::URL const& url)
+{
+    this->new_window({ url });
 }
 
 Optional<ByteString> Application::ask_user_for_download_path(StringView file) const
@@ -246,6 +257,14 @@ void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
     for (auto* widget : QApplication::topLevelWidgets()) {
         if (auto* window = as_if<BrowserWindow>(widget))
             window->update_bookmarks_bar_display(show_bookmarks_bar);
+    }
+}
+
+void Application::update_reopen_recently_closed_actions() const
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->update_reopen_recently_closed_action();
     }
 }
 
@@ -416,6 +435,11 @@ void Application::on_devtools_disabled() const
 
     if (m_active_window)
         m_active_window->on_devtools_disabled();
+}
+
+void Application::on_recently_closed_entries_changed() const
+{
+    update_reopen_recently_closed_actions();
 }
 
 }

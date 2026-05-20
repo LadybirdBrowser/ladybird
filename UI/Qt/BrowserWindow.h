@@ -104,11 +104,14 @@ public:
 
     void rebuild_bookmarks_menu();
     void update_bookmarks_bar_display(bool show_bookmarks_bar);
+    void update_reopen_recently_closed_action();
 
     double refresh_rate() const { return m_refresh_rate; }
 
     void on_devtools_enabled();
     void on_devtools_disabled();
+
+    void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
 
 public slots:
     void device_pixel_ratio_changed(qreal dpi);
@@ -156,8 +159,6 @@ private:
     QString tool_tip_for_page_mute_state(Tab&) const;
     QTabBar::ButtonPosition audio_button_position_for_tab(int tab_index) const;
 
-    void set_window_rect(Optional<Web::DevicePixels> x, Optional<Web::DevicePixels> y, Optional<Web::DevicePixels> width, Optional<Web::DevicePixels> height);
-
     QScreen* m_current_screen { nullptr };
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
@@ -170,6 +171,7 @@ private:
 
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };
+    QAction* m_reopen_recently_closed_tab_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
@@ -178,6 +180,7 @@ private:
     FullscreenMode* m_fullscreen_mode { nullptr };
     // Determine if window should restore to maximized or normal, when exiting fullscreen.
     bool m_restore_to_maximized { false };
+    bool m_should_record_closed_window_on_close { true };
 };
 
 }

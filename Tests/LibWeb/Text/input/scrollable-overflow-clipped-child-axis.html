@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        padding-bottom: 8px;
+        overflow: auto;
+    }
+
+    #child {
+        width: 200px;
+        height: 100px;
+        overflow-x: visible;
+        overflow-y: clip;
+    }
+
+    #grandchild {
+        width: 200px;
+        height: 200px;
+    }
+</style>
+<div id="scroller"><div id="child"><div id="grandchild"></div></div></div>
+<script>
+    test(() => {
+        println(`client width: ${scroller.clientWidth}`);
+        println(`scroll width: ${scroller.scrollWidth}`);
+        println(`client height: ${scroller.clientHeight}`);
+        println(`scroll height: ${scroller.scrollHeight}`);
+    });
+</script>

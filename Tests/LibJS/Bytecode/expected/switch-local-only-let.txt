@@ -1,4 +1,4 @@
-$a1c3db73 switch-local-only-let.js:15:1
+$3e1caa20 switch-local-only-let.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -9,24 +9,24 @@ $a1c3db73 switch-local-only-let.js:15:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `switchLocalOnly`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
-  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg6, `console`
-  [  b8] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  d8] GetGlobal dst:reg10, `switchLocalOnly`
-  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
-  [ 118] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 140] GetGlobal dst:reg8, `console`
-  [ 158] GetById dst:reg6, base:reg8, `log` (console.log)
-  [ 178] GetGlobal dst:reg10, `switchLocalOnly`
-  [ 190] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
-  [ 1b8] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
-  [ 1e0] End value:reg5
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `switchLocalOnly`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
+  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  88] GetGlobal dst:reg6, `console`
+  [  98] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  b0] GetGlobal dst:reg10, `switchLocalOnly`
+  [  c0] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
+  [  e8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 110] GetGlobal dst:reg8, `console`
+  [ 120] GetById dst:reg6, base:reg8, `log` (console.log)
+  [ 138] GetGlobal dst:reg10, `switchLocalOnly`
+  [ 148] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
+  [ 170] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [ 198] End value:reg5
 
 
-switchLocalOnly$c70bcd58 switch-local-only-let.js:4:5
+switchLocalOnly$fc47fb27 switch-local-only-let.js:4:5
   Registers: 6
   Blocks:    7
   Locals:    a~0, b~1

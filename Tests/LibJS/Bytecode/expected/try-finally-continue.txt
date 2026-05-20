@@ -1,4 +1,4 @@
-$e54891d8 try-finally-continue.js:13:1
+$f9fa6696 try-finally-continue.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -6,19 +6,19 @@ $e54891d8 try-finally-continue.js:13:1
 
 block0:
   [   0] GetGlobal dst:reg6, `console`
-  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg9, `continueThroughFinally`
-  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, continueThroughFinally
-  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] GetGlobal dst:reg6, `console`
-  [  b0] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  d0] GetGlobal dst:reg10, `breakThroughFinally`
-  [  e8] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughFinally
-  [ 108] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 130] End value:reg7
+  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  28] GetGlobal dst:reg9, `continueThroughFinally`
+  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, continueThroughFinally
+  [  58] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  80] GetGlobal dst:reg6, `console`
+  [  90] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  a8] GetGlobal dst:reg10, `breakThroughFinally`
+  [  b8] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughFinally
+  [  d8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 100] End value:reg7
 
 
-continueThroughFinally$8372c35a try-finally-continue.js:2:5
+continueThroughFinally$49ed363e try-finally-continue.js:2:5
   Registers: 9
   Blocks:    15
   Locals:    i~0, result~1
@@ -90,7 +90,7 @@ Exception handlers:
   [  c8 ..  138] => handler block5
 
 
-breakThroughFinally$9e814d0d try-finally-continue.js:16:5
+breakThroughFinally$d975d962 try-finally-continue.js:16:5
   Registers: 9
   Blocks:    15
   Locals:    i~0, result~1

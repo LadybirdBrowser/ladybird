@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/Error.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
@@ -147,16 +148,22 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
 
 void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size)
 {
+    bool did_swap_bitmap = false;
     if (m_client_state.back_bitmap.id == bitmap_id) {
         m_client_state.has_usable_bitmap = true;
         m_client_state.back_bitmap.last_painted_size = size.to_type<Web::DevicePixels>();
         swap(m_client_state.back_bitmap, m_client_state.front_bitmap);
         m_backup_shared_image_buffer = nullptr;
-        if (on_ready_to_paint)
-            on_ready_to_paint();
+        did_swap_bitmap = true;
     }
 
-    client().async_ready_to_paint(page_id());
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received presented bitmap {} for page {} size={}x{} did_swap={} front={} back={}",
+        bitmap_id, page_id(), size.width(), size.height(), did_swap_bitmap, m_client_state.front_bitmap.id, m_client_state.back_bitmap.id);
+
+    client().notify_presented_bitmap_ready_to_paint(page_id(), bitmap_id);
+
+    if (did_swap_bitmap && on_ready_to_paint)
+        on_ready_to_paint();
 }
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)
@@ -246,6 +253,35 @@ void ViewImplementation::reset_zoom()
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
+    if (auto* mouse_event = event.get_pointer<Web::MouseEvent>();
+        Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
+        && m_client_state.has_usable_bitmap
+        && mouse_event) {
+        if (mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
+            auto wheel_delta_x = mouse_event->wheel_delta_x;
+            auto wheel_delta_y = mouse_event->wheel_delta_y;
+            if (mouse_event->modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
+                swap(wheel_delta_x, wheel_delta_y);
+
+            auto device_pixels_per_css_pixel = static_cast<float>(device_pixel_ratio() * zoom_level());
+            auto position = Gfx::FloatPoint {
+                static_cast<float>(mouse_event->position.x().value()),
+                static_cast<float>(mouse_event->position.y().value()),
+            };
+            auto delta_in_device_pixels = Gfx::FloatPoint { wheel_delta_x, wheel_delta_y }.scaled(device_pixels_per_css_pixel);
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} device delta {},{}",
+                m_client_state.page_index, position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
+            if (client().send_async_scroll_to_compositor(m_client_state.page_index, position, delta_in_device_pixels))
+                mouse_event->async_scroll_performed_default_action = true;
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
+                m_client_state.page_index, mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
+        } else if (client().send_mouse_event_to_compositor(m_client_state.page_index, *mouse_event)) {
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor handled mouse event for page {} at {},{}",
+                m_client_state.page_index, mouse_event->position.x().value(), mouse_event->position.y().value());
+            return;
+        }
+    }
+
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS
     // prevented the default event behavior, at which point we either discard or handle that event, and then try to
     // process the next one.
@@ -616,6 +652,8 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
 
 void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
 {
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing backing stores for page {} front={} back={} had_usable_bitmap={}",
+        page_id(), front_bitmap_id, back_bitmap_id, m_client_state.has_usable_bitmap);
     if (m_client_state.has_usable_bitmap) {
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
         m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
@@ -1006,6 +1044,9 @@ void ViewImplementation::initialize_context_menus()
     m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
         Application::the().open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
     });
+    m_open_in_new_window_action = Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, [this]() {
+        Application::the().open_url_in_new_window(m_context_menu_url);
+    });
     m_copy_url_action = Action::create("Copy URL"sv, ActionID::CopyURL, [this]() {
         Application::the().insert_clipboard_entry({ url_text_to_copy(m_context_menu_url), "text/plain"_string });
     });
@@ -1088,6 +1129,7 @@ void ViewImplementation::initialize_context_menus()
 
     m_link_context_menu = Menu::create("Link Context Menu"sv);
     m_link_context_menu->add_action(*m_open_in_new_tab_action);
+    m_link_context_menu->add_action(*m_open_in_new_window_action);
     m_link_context_menu->add_action(*m_copy_url_action);
 
     m_image_context_menu = Menu::create("Image Context Menu"sv);

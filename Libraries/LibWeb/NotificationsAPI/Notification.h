@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/Notification.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HighResolutionTime/EpochTimeStamp.h>
@@ -22,24 +23,6 @@ struct NotificationAction {
     String title;
     Optional<String> navigate;
     Optional<String> icon;
-};
-
-struct NotificationOptions {
-    Bindings::NotificationDirection dir = Bindings::NotificationDirection::Auto;
-    String lang = ""_string;
-    String body = ""_string;
-    Optional<String> navigate;
-    String tag = ""_string;
-    Optional<String> image;
-    Optional<String> icon;
-    Optional<String> badge;
-    // VibratePattern vibrate;  // FIXME: properly implement vibrate pattern
-    Optional<HighResolutionTime::EpochTimeStamp> timestamp;
-    bool renotify = false;
-    Optional<bool> silent;
-    bool require_interaction = false;
-    JS::Value data;
-    Vector<NotificationAction> actions;
 };
 
 // https://notifications.spec.whatwg.org/#concept-notification
@@ -87,20 +70,20 @@ public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Notification>> construct_impl(
         JS::Realm& realm,
         String const& title,
-        NotificationOptions const& options);
+        Bindings::NotificationOptions const& options);
 
     // https://notifications.spec.whatwg.org/#create-a-notification-with-a-settings-object
     static WebIDL::ExceptionOr<ConceptNotification> create_a_notification_with_a_settings_object(
         JS::Realm& realm,
         String const& title,
-        NotificationOptions const& options,
+        Bindings::NotificationOptions const& options,
         GC::Ref<HTML::EnvironmentSettingsObject> settings);
 
     // https://notifications.spec.whatwg.org/#create-a-notification
     static WebIDL::ExceptionOr<ConceptNotification> create_a_notification(
         JS::Realm& realm,
         String const& title,
-        NotificationOptions const& options,
+        Bindings::NotificationOptions const& options,
         URL::Origin origin,
         URL::URL base_url,
         HighResolutionTime::EpochTimeStamp fallback_timestamp);

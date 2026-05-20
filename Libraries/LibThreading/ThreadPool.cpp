@@ -36,7 +36,7 @@ intptr_t ThreadPool::worker_thread_func()
         Function<void()> work;
 
         {
-            MutexLocker locker(m_mutex);
+            Sync::MutexLocker locker(m_mutex);
             m_condition.wait_while([this] { return m_work_queue.is_empty(); });
             work = m_work_queue.dequeue();
         }
@@ -47,7 +47,7 @@ intptr_t ThreadPool::worker_thread_func()
 
 void ThreadPool::submit(Function<void()> work)
 {
-    MutexLocker locker(m_mutex);
+    Sync::MutexLocker locker(m_mutex);
     m_work_queue.enqueue(move(work));
     m_condition.signal();
 }

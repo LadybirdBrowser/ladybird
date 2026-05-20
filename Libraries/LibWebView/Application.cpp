@@ -35,6 +35,10 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
 
+#if !defined(AK_OS_WINDOWS)
+#    include <sys/wait.h>
+#endif
+
 namespace WebView {
 
 Application* Application::s_the = nullptr;
@@ -165,6 +169,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
     bool disable_scrollbar_painting = false;
+    bool disable_async_scrolling = false;
     bool file_scheme_urls_have_tuple_origins = false;
     Optional<u64> style_invalidation_counter_dump_interval;
 
@@ -205,7 +210,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
     args_parser.add_option(Core::ArgsParser::Option {
-        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)",
         .long_name = "debug-process",
         .value_name = "process-name",
@@ -236,6 +241,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation", 'g');
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical scrollbars on the main viewport", "disable-scrollbar-painting");
+    args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
     args_parser.add_option(dns_server_address, "Set the DNS server address", "dns-server", 0, "host|address");
     args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
@@ -363,6 +369,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .enable_autoplay = enable_autoplay ? EnableAutoplay::Yes : EnableAutoplay::No,
         .collect_garbage_on_every_allocation = collect_garbage_on_every_allocation ? CollectGarbageOnEveryAllocation::Yes : CollectGarbageOnEveryAllocation::No,
         .paint_viewport_scrollbars = disable_scrollbar_painting ? PaintViewportScrollbars::No : PaintViewportScrollbars::Yes,
+        .enable_async_scrolling = disable_async_scrolling ? EnableAsyncScrolling::No : EnableAsyncScrolling::Yes,
         .file_scheme_urls_have_tuple_origins = file_scheme_urls_have_tuple_origins ? FileSchemeUrlsHaveTupleOrigins::Yes : FileSchemeUrlsHaveTupleOrigins::No,
         .default_time_zone = default_time_zone,
         .style_invalidation_counter_dump_interval = style_invalidation_counter_dump_interval,
@@ -398,6 +405,11 @@ void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML:
 {
     if (auto bookmark = m_bookmark_store.find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
         open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
+}
+
+void Application::open_url_in_new_window(URL::URL const& url)
+{
+    dbgln("open_url_in_new_window() is unsupported on this platform (url: {})", url);
 }
 
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
@@ -469,8 +481,8 @@ ErrorOr<void> Application::launch_services()
     m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
 
     m_process_manager = make<ProcessManager>();
-    m_process_manager->on_process_exited = [this](Process&& process) {
-        process_did_exit(move(process));
+    m_process_manager->on_process_exited = [this](Process&& process, Optional<int> exit_status) {
+        process_did_exit(move(process), exit_status);
     };
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
@@ -724,8 +736,12 @@ Optional<Process&> Application::find_process(pid_t pid)
     return m_process_manager->find_process(pid);
 }
 
-void Application::process_did_exit(Process&& process)
+void Application::process_did_exit(Process&& process, Optional<int> exit_status)
 {
+#if defined(AK_OS_WINDOWS)
+    (void)exit_status;
+#endif
+
     if (m_event_loop->was_exit_requested())
         return;
 
@@ -748,8 +764,13 @@ void Application::process_did_exit(Process&& process)
         }
         break;
     case ProcessType::WebContent:
-        if (auto client = process.client<WebContentClient>(); client.has_value())
+        if (auto client = process.client<WebContentClient>(); client.has_value()) {
+#if !defined(AK_OS_WINDOWS)
+            if (exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0 && !client->has_views())
+                break;
+#endif
             client->notify_all_views_of_crash();
+        }
         break;
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
@@ -839,6 +860,8 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
 
 void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
 {
+    bool did_change_history = false;
+
     if (options.delete_cached_files == ClearBrowsingDataOptions::Delete::Yes) {
         m_request_server_client->async_remove_cache_entries_accessed_since(options.since);
 
@@ -851,13 +874,18 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
         });
     }
 
-    if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes)
+    if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes) {
         m_history_store->remove_entries_accessed_since(options.since);
+        did_change_history = true;
+    }
 
     if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
         m_cookie_jar->expire_cookies_accessed_since(options.since);
         m_storage_jar->remove_items_accessed_since(options.since);
     }
+
+    if (did_change_history)
+        on_recently_closed_entries_changed();
 }
 
 void Application::clear_history()
@@ -865,6 +893,7 @@ void Application::clear_history()
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing browsing history");
 
     m_history_store->clear();
+    on_recently_closed_entries_changed();
 }
 
 void Application::initialize_actions()

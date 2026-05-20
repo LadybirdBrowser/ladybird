@@ -50,7 +50,7 @@ void fire_a_selectionchange_event(T& target, Document& document)
     //    cancelable, at target.
     // 3. Otherwise, if target is a document, fire an event named selectionchange, which does not
     //    bubble and not cancelable, at target.
-    EventInit event_init;
+    Bindings::EventInit event_init;
     event_init.bubbles = DerivedFrom<T, Element>;
     event_init.cancelable = false;
 

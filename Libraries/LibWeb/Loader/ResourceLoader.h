@@ -10,11 +10,12 @@
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/HashTable.h>
-#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGC/Function.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Forward.h>
+#include <LibRequests/Request.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
@@ -32,11 +33,12 @@ public:
 
     void set_client(NonnullRefPtr<Requests::RequestClient>);
 
-    using OnHeadersReceived = GC::Function<void(HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::AnonymousBuffer> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)>;
-    using OnDataReceived = GC::Function<void(ReadonlyBytes data)>;
+    using OnHeadersReceived = GC::Function<void(HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key)>;
+    using OnDataReceived = GC::Function<void(Requests::ResponseData data)>;
+    using OnCachedBodyAvailable = GC::Function<void(Core::ImmutableBytes data)>;
     using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
 
-    RefPtr<Requests::Request> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnComplete>);
+    RefPtr<Requests::Request> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnCachedBodyAvailable>, GC::Root<OnComplete>);
 
     RefPtr<Requests::RequestClient>& request_client() { return m_request_client; }
 

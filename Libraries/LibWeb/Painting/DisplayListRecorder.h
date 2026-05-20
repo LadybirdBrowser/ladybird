@@ -8,8 +8,10 @@
 
 #include <AK/Forward.h>
 #include <AK/Vector.h>
+#include <LibGfx/AntiAliasing.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/CornerRadii.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/LineStyle.h>
 #include <LibGfx/PaintStyle.h>
@@ -18,15 +20,14 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibMedia/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
-#include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/ShouldAntiAlias.h>
 
 namespace Web::Painting {
 
@@ -43,7 +44,7 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         Gfx::WindingRule winding_rule = Gfx::WindingRule::EvenOdd;
-        ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
+        Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
     };
     void fill_path(FillPathParams params);
 
@@ -57,7 +58,7 @@ public:
         float opacity = 1.0f;
         PaintStyleOrColor paint_style_or_color;
         float thickness;
-        ShouldAntiAlias should_anti_alias { ShouldAntiAlias::Yes };
+        Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
     };
     void stroke_path(StrokePathParams);
 
@@ -72,8 +73,8 @@ public:
     void draw_rect(Gfx::IntRect const& rect, Color color, bool rough = false);
 
     void draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
-    void draw_external_content(Gfx::IntRect const& dst_rect, NonnullRefPtr<ExternalContentSource>, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
-    void draw_video_frame_source(Gfx::IntRect const& dst_rect, NonnullRefPtr<VideoFrameSource>, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
+    void draw_compositor_surface(Gfx::IntRect const& dst_rect, CompositorSurfaceId, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
+    void draw_video_frame(Gfx::IntRect const& dst_rect, VideoFrameResourceId, RefPtr<Media::VideoFrame const>, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
 
     void draw_repeated_decoded_image_frame(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, bool repeat_x, bool repeat_y);
 
@@ -91,7 +92,7 @@ public:
     void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
     VisualContextIndex accumulated_visual_context() const { return m_accumulated_visual_context_index; }
 
-    void replay_cached_commands(ReadonlySpan<DisplayListCommand> commands);
+    void replay_cached_commands(DisplayListCommandSequence const& commands);
 
     class CommandCapture {
         AK_MAKE_NONCOPYABLE(CommandCapture);
@@ -102,7 +103,7 @@ public:
         {
         }
         ~CommandCapture();
-        Vector<DisplayListCommand> take();
+        DisplayListCommandSequence take();
 
     private:
         friend class DisplayListRecorder;
@@ -118,7 +119,7 @@ public:
 
     void paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
 
-    void add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip);
+    void add_rounded_rect_clip(Gfx::CornerRadii corner_radii, Gfx::IntRect border_rect, Gfx::CornerClip corner_clip);
 
     struct MaskInfo {
         RefPtr<DisplayList> display_list;
@@ -128,33 +129,53 @@ public:
     void begin_masks(ReadonlySpan<MaskInfo>);
     void end_masks(ReadonlySpan<MaskInfo>);
 
-    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter);
+    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, Gfx::CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter);
 
     void paint_outer_box_shadow(PaintOuterBoxShadow);
     void paint_inner_box_shadow(PaintInnerBoxShadow);
     void paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const&, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location);
 
-    void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadii const&);
+    void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::CornerRadii const&);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int top_left_radius, int top_right_radius, int bottom_right_radius, int bottom_left_radius);
 
     void paint_scrollbar(ScrollFrameIndex scroll_frame_index, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, double scroll_size, Color thumb_color, Color track_color, bool vertical);
 
+    void compositor_scroll_node(CompositorScrollNode const&);
+    void compositor_sticky_area(CompositorStickyArea const&);
+    void compositor_wheel_hit_test_target(CompositorWheelHitTestTarget const&);
+    void set_async_scrolling_metadata(DisplayList::AsyncScrollingMetadata);
+    void compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&);
+    void compositor_viewport_scrollbar(CompositorViewportScrollbar const&);
+    void compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&);
+
     void apply_effects(float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Gfx::Filter> filter = {}, Optional<Gfx::MaskKind> mask_kind = {});
 
-    DisplayListRecorder(DisplayList&);
+    DisplayListRecorder(DisplayList&, DisplayListResourceStorage&);
     ~DisplayListRecorder();
+
+    DisplayList& display_list() { return m_display_list; }
+    DisplayList const& display_list() const { return m_display_list; }
+    DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
 
     int m_save_nesting_level { 0 };
 
 private:
     void end_capture();
 
+    template<DisplayListCommand Command>
+    void append_command(Command const& command, ReadonlyBytes inline_data = {})
+    {
+        m_save_nesting_level += display_list_command_nesting_level_change<Command>();
+        m_display_list.append(command, m_accumulated_visual_context_index, inline_data);
+    }
+
     VisualContextIndex m_accumulated_visual_context_index {};
     Vector<size_t> m_push_sc_index_stack;
     DisplayList& m_display_list;
+    DisplayListResourceStorage& m_resource_storage;
     bool m_is_capturing { false };
-    Vector<DisplayListCommand> m_captured_commands;
+    size_t m_capture_start_command_offset { 0 };
 };
 
 class DisplayListRecorderStateSaver {

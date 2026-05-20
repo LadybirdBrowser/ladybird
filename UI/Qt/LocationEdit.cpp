@@ -11,9 +11,11 @@
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Autocomplete.h>
+#include <UI/Qt/Icon.h>
 #include <UI/Qt/LocationEdit.h>
 #include <UI/Qt/StringUtils.h>
 
+#include <QAction>
 #include <QApplication>
 #include <QKeyEvent>
 #include <QLatin1String>
@@ -131,7 +133,18 @@ LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
     , m_autocomplete(new Autocomplete(this))
 {
+    m_leading_icon_action = addAction(create_tvg_icon_with_theme_colors("search", palette()), QLineEdit::LeadingPosition);
+    m_leading_icon_action->setToolTip("Search");
+
+    m_loading_animation_timer = new QTimer(this);
+    m_loading_animation_timer->setInterval(80);
+    connect(m_loading_animation_timer, &QTimer::timeout, this, [this] {
+        m_loading_animation_frame = (m_loading_animation_frame + 1) % 12;
+        update_loading_icon();
+    });
+
     update_placeholder();
+    update_location_icon();
 
     m_autocomplete->on_query_complete = [this](auto suggestions, WebView::AutocompleteResultKind result_kind) {
         int selected_row = apply_inline_autocomplete(suggestions);
@@ -207,7 +220,17 @@ LocationEdit::LocationEdit(QWidget* parent)
         m_autocomplete->query_autocomplete_engine(ak_string_from_qstring(query));
     });
 
-    connect(this, &QLineEdit::textChanged, this, &LocationEdit::highlight_location);
+    connect(this, &QLineEdit::textChanged, this, [this] {
+        highlight_location();
+        update_location_icon();
+    });
+}
+
+void LocationEdit::changeEvent(QEvent* event)
+{
+    QLineEdit::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange)
+        update_location_icon();
 }
 
 void LocationEdit::focusInEvent(QFocusEvent* event)
@@ -291,6 +314,35 @@ void LocationEdit::update_placeholder()
     }
 }
 
+void LocationEdit::update_location_icon()
+{
+    if (!m_leading_icon_action)
+        return;
+
+    if (m_is_loading) {
+        update_loading_icon();
+        return;
+    }
+
+    if (text_matches_current_url()) {
+        m_leading_icon_action->setIcon(m_favicon.isNull() ? create_tvg_icon_with_theme_colors("globe", palette()) : m_favicon);
+        m_leading_icon_action->setToolTip("Page icon");
+        return;
+    }
+
+    m_leading_icon_action->setIcon(create_tvg_icon_with_theme_colors("search", palette()));
+    m_leading_icon_action->setToolTip("Search");
+}
+
+void LocationEdit::update_loading_icon()
+{
+    if (!m_leading_icon_action)
+        return;
+
+    m_leading_icon_action->setIcon(loading_spinner_icon(palette(), m_loading_animation_frame));
+    m_leading_icon_action->setToolTip("Loading");
+}
+
 void LocationEdit::highlight_location()
 {
     auto url = ak_string_from_qstring(text());
@@ -342,6 +394,37 @@ void LocationEdit::set_url(Optional<URL::URL> url)
         setText(qstring_from_ak_string(m_url->serialize()));
         setCursorPosition(0);
     }
+
+    update_location_icon();
+}
+
+void LocationEdit::set_loading(bool is_loading)
+{
+    if (m_is_loading == is_loading)
+        return;
+
+    m_is_loading = is_loading;
+    m_loading_animation_frame = 0;
+
+    if (m_is_loading)
+        m_loading_animation_timer->start();
+    else
+        m_loading_animation_timer->stop();
+
+    update_location_icon();
+}
+
+void LocationEdit::set_favicon(QIcon const& favicon)
+{
+    m_favicon = favicon;
+    update_location_icon();
+}
+
+bool LocationEdit::text_matches_current_url() const
+{
+    return m_url.has_value()
+        && !m_url_is_hidden
+        && text() == qstring_from_ak_string(m_url->serialize());
 }
 
 QString LocationEdit::current_query() const

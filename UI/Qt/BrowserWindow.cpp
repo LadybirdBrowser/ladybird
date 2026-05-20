@@ -3,7 +3,7 @@
  * Copyright (c) 2022, Matthew Costa <ucosty@gmail.com>
  * Copyright (c) 2022, Filiph Sandström <filiph.sandstrom@filfatstudios.com>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2025, Simon Farre <simon.farre.cx@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/HistoryStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
@@ -41,6 +42,25 @@
 #include <QWindow>
 
 namespace Ladybird {
+
+static QString reopen_recently_closed_action_text(Optional<WebView::RecentlyClosedEntry const&> entry)
+{
+    if (entry.has_value() && entry->was_window)
+        return "&Reopen Recently Closed Window";
+
+    return "&Reopen Recently Closed Tab";
+}
+
+static Vector<URL::URL> recently_closed_urls_for_window(TabWidget const& tabs_container)
+{
+    Vector<URL::URL> urls;
+    urls.ensure_capacity(tabs_container.count());
+
+    for (int index = 0; index < tabs_container.count(); ++index)
+        urls.append(tabs_container.tab(index)->view().url());
+
+    return urls;
+}
 
 FullscreenMode::FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit_button)
     : QObject(window)
@@ -216,6 +236,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_hamburger_menu->addAction(m_new_window_action);
     file_menu->addAction(m_new_window_action);
 
+    m_reopen_recently_closed_tab_action = new QAction("&Reopen Recently Closed Tab", this);
+    m_reopen_recently_closed_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
+    m_hamburger_menu->addAction(m_reopen_recently_closed_tab_action);
+    file_menu->addAction(m_reopen_recently_closed_tab_action);
+    update_reopen_recently_closed_action();
+
     auto* close_current_tab_action = new QAction("&Close Current Tab", this);
     close_current_tab_action->setIcon(load_icon_from_uri("resource://icons/16x16/close-tab.png"sv));
     close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
@@ -326,7 +352,25 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         tab.focus_location_editor();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        (void)Application::the().new_window({ WebView::Application::settings().new_tab_page_url() });
+        auto const& previous_active_window = Application::the().active_window();
+        WindowConfiguration configuration {
+            .width = previous_active_window.width(),
+            .height = previous_active_window.height(),
+            .maximized = previous_active_window.isMaximized(),
+        };
+        Application::the().new_window({ WebView::Application::settings().new_tab_page_url() }, configuration);
+    });
+    QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, [this] {
+        auto recently_closed_entry = Application::history_store().pop_most_recently_closed_entry();
+        if (recently_closed_entry.has_value()) {
+            if (recently_closed_entry->was_window) {
+                auto& window = Application::the().new_window(recently_closed_entry->urls);
+                window.activate_tab(static_cast<int>(recently_closed_entry->active_tab_index));
+            } else if (!recently_closed_entry->urls.is_empty()) {
+                new_tab_from_url(recently_closed_entry->urls[0], Web::HTML::ActivateTab::Yes);
+            }
+        }
+        Application::the().update_reopen_recently_closed_actions();
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
 
@@ -491,15 +535,20 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
         if (hints.popup) {
-            auto& window = Application::the().new_window({}, IsPopupWindow::Yes, tab, AK::move(page_index));
-            window.set_window_rect(hints.screen_x, hints.screen_y, hints.width, hints.height);
+            WindowConfiguration configuration {
+                .x = hints.screen_x,
+                .y = hints.screen_y,
+                .width = hints.width,
+                .height = hints.height,
+            };
+            auto& window = Application::the().new_window({}, configuration, IsPopupWindow::Yes, tab, AK::move(page_index));
             return window.current_tab()->view().handle();
         }
         auto& new_tab = new_child_tab(activate_tab, *tab, page_index);
         return new_tab.view().handle();
     };
 
-    m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->favicon());
+    m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->tab_icon());
     create_close_button_for_tab(tab);
 }
 
@@ -520,11 +569,26 @@ void BrowserWindow::activate_tab(int index)
 void BrowserWindow::definitely_close_tab(int index)
 {
     auto* tab = m_tabs_container->tab(index);
+    auto url = tab->view().url();
     m_tabs_container->remove_tab(index);
+    Application::history_store().record_closed_tab(url);
+    Application::the().update_reopen_recently_closed_actions();
     tab->deleteLater();
 
-    if (m_tabs_container->count() == 0)
+    if (m_tabs_container->count() == 0) {
+        m_should_record_closed_window_on_close = false;
         close();
+    }
+}
+
+void BrowserWindow::update_reopen_recently_closed_action()
+{
+    if (!m_reopen_recently_closed_tab_action)
+        return;
+
+    auto recently_closed_entry = Application::history_store().most_recently_closed_entry();
+    m_reopen_recently_closed_tab_action->setText(reopen_recently_closed_action_text(recently_closed_entry));
+    m_reopen_recently_closed_tab_action->setEnabled(recently_closed_entry.has_value());
 }
 
 void BrowserWindow::move_tab(int old_index, int new_index)
@@ -584,15 +648,19 @@ void BrowserWindow::tab_title_changed(int index, QString const& title)
 
 void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)
 {
+    if (index < 0)
+        return;
     m_tabs_container->set_tab_icon(index, icon);
 }
 
 void BrowserWindow::create_close_button_for_tab(Tab* tab)
 {
     auto index = m_tabs_container->index_of(tab);
-    m_tabs_container->set_tab_icon(index, tab->favicon());
+    m_tabs_container->set_tab_icon(index, tab->tab_icon());
 
     auto* button = new TabBarButton(create_tvg_icon_with_theme_colors("close", palette()));
+    button->setToolTip("Close Tab");
+
     auto position = audio_button_position_for_tab(index) == QTabBar::LeftSide ? QTabBar::RightSide : QTabBar::LeftSide;
 
     connect(button, &QPushButton::clicked, this, [this, tab]() {
@@ -802,6 +870,13 @@ void BrowserWindow::wheelEvent(QWheelEvent* event)
 
 void BrowserWindow::closeEvent(QCloseEvent* event)
 {
+    Optional<Vector<URL::URL>> recently_closed_window_urls;
+    size_t recently_closed_window_active_tab_index { 0 };
+    if (m_should_record_closed_window_on_close && m_tabs_container->count() > 0) {
+        recently_closed_window_urls = recently_closed_urls_for_window(*m_tabs_container);
+        recently_closed_window_active_tab_index = static_cast<size_t>(m_tabs_container->current_index());
+    }
+
     if (m_is_popup_window == IsPopupWindow::No) {
         Settings::the()->set_last_position(pos());
         Settings::the()->set_last_size(size());
@@ -811,6 +886,11 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     QObject::deleteLater();
 
     QMainWindow::closeEvent(event);
+
+    if (event->isAccepted() && recently_closed_window_urls.has_value()) {
+        Application::history_store().record_closed_window(recently_closed_window_urls.release_value(), recently_closed_window_active_tab_index);
+        Application::the().update_reopen_recently_closed_actions();
+    }
 }
 
 }

@@ -11,6 +11,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/Bindings/Animatable.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
@@ -20,18 +21,6 @@ class CSSTransition;
 }
 
 namespace Web::Animations {
-
-// https://drafts.csswg.org/web-animations-1/#dictdef-keyframeanimationoptions
-struct KeyframeAnimationOptions : public KeyframeEffectOptions {
-    FlyString id { ""_fly_string };
-    Optional<GC::Ptr<AnimationTimeline>> timeline;
-};
-
-// https://drafts.csswg.org/web-animations-1/#dictdef-getanimationsoptions
-struct GetAnimationsOptions {
-    bool subtree { false };
-    Optional<String> pseudo_element {};
-};
 
 // https://drafts.csswg.org/web-animations-1/#animatable
 class WEB_API Animatable {
@@ -50,9 +39,9 @@ public:
         Yes
     };
 
-    WebIDL::ExceptionOr<GC::Ref<Animation>> animate(Optional<GC::Root<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options = {});
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Optional<GetAnimationsOptions> options = {});
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, Optional<GetAnimationsOptions> options = {});
+    WebIDL::ExceptionOr<GC::Ref<Animation>> animate(Optional<GC::Root<JS::Object>> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options = {});
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Optional<Bindings::GetAnimationsOptions> const& options = {});
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options = {});
 
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);

@@ -1,6 +1,6 @@
-$2915e894 delete-super-property.js:1:1
+$6fa5e397 delete-super-property.js:1:1
   Registers: 11
-  Blocks:    7
+  Blocks:    6
   Locals:    e~0, e~1
   Constants:
     [0] = String("foo")
@@ -9,11 +9,11 @@ $2915e894 delete-super-property.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("foo"), element_keys:String("baz")]
-  [  58] InitializeLexicalBinding `A`, src:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("foo"), element_keys:String("baz")]
+  [  60] DynamicInitializeLexicalBinding `A`, src:reg6
   [  70] Jump target:block3
 
 block1:
@@ -22,40 +22,38 @@ block1:
   [  88] Mov3 dst1:e~0, src1:reg6, dst2:reg5, src2:Undefined, dst3:reg7, src3:reg5
 
 block2:
-  [  a8] Jump target:block6
+  [  a8] Jump target:block5
 
 block3:
   [  b0] Mov dst:reg6, src:Undefined
   [  c0] GetGlobal dst:reg9, `A`
-  [  d8] CallConstruct dst:reg8, callee:reg9, A
-  [  f0] GetById dst:reg9, base:reg8, `foo`
-  [ 110] Call dst:reg5, callee:reg9, this_value:reg8, <object>.foo
-  [ 130] Mov2 dst1:reg6, src1:reg5, dst2:reg5, src2:reg6
-  [ 148] Jump target:block2
+  [  d0] CallConstruct dst:reg8, callee:reg9, A
+  [  e8] GetById dst:reg9, base:reg8, `foo`
+  [ 100] Call dst:reg5, callee:reg9, this_value:reg8, <object>.foo
+  [ 120] Mov2 dst1:reg6, src1:reg5, dst2:reg5, src2:reg6
+  [ 138] Jump target:block2
 
 block4:
-  [ 150] Catch dst:reg6
-  [ 158] SetLexicalEnvironment environment:reg4
-  [ 160] Mov3 dst1:e~1, src1:reg6, dst2:reg7, src2:Undefined, dst3:reg9, src3:reg7
+  [ 140] Catch dst:reg6
+  [ 148] SetLexicalEnvironment environment:reg4
+  [ 150] Mov3 dst1:e~1, src1:reg6, dst2:reg7, src2:Undefined, dst3:reg9, src3:reg7
+  [ 170] End value:reg7
 
 block5:
-  [ 180] End value:reg7
-
-block6:
-  [ 188] Mov dst:reg6, src:Undefined
-  [ 198] GetGlobal dst:reg10, `A`
-  [ 1b0] CallConstruct dst:reg8, callee:reg10, A
-  [ 1c8] GetById dst:reg10, base:reg8, `baz`
-  [ 1e8] Call dst:reg7, callee:reg10, this_value:reg8, <object>.baz
-  [ 208] Mov2 dst1:reg6, src1:reg7, dst2:reg7, src2:reg6
-  [ 220] End value:reg7
+  [ 178] Mov dst:reg6, src:Undefined
+  [ 188] GetGlobal dst:reg10, `A`
+  [ 198] CallConstruct dst:reg8, callee:reg10, A
+  [ 1b0] GetById dst:reg10, base:reg8, `baz`
+  [ 1c8] Call dst:reg7, callee:reg10, this_value:reg8, <object>.baz
+  [ 1e8] Mov2 dst1:reg6, src1:reg7, dst2:reg7, src2:reg6
+  [ 200] End value:reg7
 
 Exception handlers:
-  [  b0 ..  150] => handler block1
-  [ 188 ..  228] => handler block4
+  [  b0 ..  140] => handler block1
+  [ 178 ..  208] => handler block4
 
 
-A$811c9dc5
+A$ef0589ec
   Registers: 5
   Blocks:    1
   Constants:
@@ -65,7 +63,7 @@ block0:
   [   0] End value:Undefined
 
 
-foo$7dff3f72 delete-super-property.js:3:9
+foo$7707d509 delete-super-property.js:3:9
   Registers: 7
   Blocks:    2
   Constants:
@@ -81,7 +79,7 @@ block1:
   [  28] End value:Undefined
 
 
-baz$cb4e52e2 delete-super-property.js:6:9
+baz$8acb3acb delete-super-property.js:6:9
   Registers: 7
   Blocks:    2
   Constants:

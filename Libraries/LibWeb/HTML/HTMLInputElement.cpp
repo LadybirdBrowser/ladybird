@@ -19,6 +19,7 @@
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLInputElement.h>
+#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -638,7 +639,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, Multi
         auto file_name = MUST(String::from_byte_string(selected_file.name()));
 
         // FIXME: Fill in other fields (e.g. last_modified).
-        FileAPI::FilePropertyBag options {};
+        Bindings::FilePropertyBag options {};
         options.type = mime_type.essence();
 
         auto file = MUST(FileAPI::File::create(realm(), { GC::make_root(blob) }, file_name, move(options)));
@@ -1199,7 +1200,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
             },
             0, Utf16FlyString {}, &realm());
         auto mouseup_callback = realm().heap().allocate<WebIDL::CallbackType>(*mouseup_callback_function, realm());
-        DOM::AddEventListenerOptions mouseup_listener_options;
+        Bindings::AddEventListenerOptions mouseup_listener_options;
         mouseup_listener_options.once = true;
 
         auto up_callback_function = JS::NativeFunction::create(
@@ -1445,7 +1446,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
                 },
                 0, Utf16FlyString {}, &realm());
             auto mouseup_callback = realm().heap().allocate<WebIDL::CallbackType>(*mouseup_callback_function, realm());
-            DOM::AddEventListenerOptions mouseup_listener_options;
+            Bindings::AddEventListenerOptions mouseup_listener_options;
             mouseup_listener_options.once = true;
             window.add_event_listener(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback), mouseup_listener_options);
 
@@ -1465,10 +1466,10 @@ void HTMLInputElement::user_interaction_did_change_input_value(FlyString const& 
     // given the input element to fire an event named input at the input element, with the bubbles and composed attributes initialized to true
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this, input_type, data] {
         // https://w3c.github.io/uievents/#event-type-input
-        UIEvents::InputEventInit input_event_init;
+        Bindings::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
-        input_event_init.input_type = input_type;
+        input_event_init.input_type = input_type.to_string();
         input_event_init.data = data;
         auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
         dispatch_event(*input_event);

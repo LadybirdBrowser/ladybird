@@ -198,8 +198,9 @@ ThrowCompletionOr<Value> get_legacy_regexp_static_property(VM& vm, RegExpConstru
     auto val = (constructor.legacy_static_properties().*property_getter)();
 
     // 4. If val is empty, throw a TypeError exception.
+    // NOTE: The spec says to throw here, but all major browsers return "" instead.
     if (!val)
-        return vm.throw_completion<TypeError>(ErrorType::GetLegacyRegExpStaticPropertyValueEmpty);
+        return &vm.empty_string();
 
     // 5. Return val.
     return val;

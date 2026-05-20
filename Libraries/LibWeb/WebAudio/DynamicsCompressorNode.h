@@ -6,18 +6,10 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/DynamicsCompressorNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
 namespace Web::WebAudio {
-
-// https://webaudio.github.io/web-audio-api/#DynamicsCompressorOptions
-struct DynamicsCompressorOptions : AudioNodeOptions {
-    float attack { 0.003 };
-    float knee { 30 };
-    float ratio { 12 };
-    float release { 0.25 };
-    float threshold { -24 };
-};
 
 // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
 class DynamicsCompressorNode : public AudioNode {
@@ -27,8 +19,8 @@ class DynamicsCompressorNode : public AudioNode {
 public:
     virtual ~DynamicsCompressorNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, DynamicsCompressorOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, DynamicsCompressorOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::DynamicsCompressorOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::DynamicsCompressorOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -44,7 +36,7 @@ public:
     WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
 
 protected:
-    DynamicsCompressorNode(JS::Realm&, GC::Ref<BaseAudioContext>, DynamicsCompressorOptions const& = {});
+    DynamicsCompressorNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::DynamicsCompressorOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

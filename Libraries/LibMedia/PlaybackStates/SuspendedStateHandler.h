@@ -9,8 +9,9 @@
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/SeekingStateHandler.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
-#include <LibMedia/Providers/VideoDataProvider.h>
+#include <LibMedia/Processors/AudioMixer.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
+#include <LibMedia/Producers/DecodedVideoProducer.h>
 
 namespace Media {
 
@@ -25,17 +26,17 @@ public:
     virtual void on_enter() override
     {
         for (auto& video_track_data : manager().m_video_track_datas)
-            video_track_data.provider->suspend();
+            video_track_data.producer->suspend();
         for (auto& audio_track_data : manager().m_audio_track_datas)
-            audio_track_data.provider->suspend();
+            audio_track_data.producer->suspend();
     }
 
     virtual void on_exit() override
     {
         for (auto& video_track_data : manager().m_video_track_datas)
-            video_track_data.provider->resume();
+            video_track_data.producer->resume();
         for (auto& audio_track_data : manager().m_audio_track_datas)
-            audio_track_data.provider->resume();
+            audio_track_data.producer->resume();
     }
 
     virtual void play() override
@@ -65,37 +66,6 @@ public:
 
     virtual void enter_buffering() override { }
     virtual void exit_buffering() override { }
-
-    virtual void on_track_enabled(Track const& track) override
-    {
-        if (track.type() == TrackType::Video) {
-            auto& track_data = manager().get_video_data_for_track(track);
-            VERIFY(track_data.display != nullptr);
-            track_data.display->pause_updates();
-            track_data.provider->resume();
-            track_data.provider->seek(manager().current_time(), SeekMode::Accurate, [manager = manager().weak(), provider = track_data.provider, display = track_data.display](AK::Duration) {
-                if (!manager)
-                    return;
-                display->resume_updates();
-                if (manager->state() != PlaybackState::Buffering)
-                    provider->suspend();
-            });
-            return;
-        }
-
-        VERIFY(track.type() == TrackType::Audio);
-        auto& track_data = manager().get_audio_data_for_track(track);
-        if (!manager().m_audio_sink)
-            return;
-        track_data.provider->resume();
-        track_data.provider->seek(manager().current_time(), [manager = manager().weak(), track, provider = track_data.provider, sink = manager().m_audio_sink] {
-            if (!manager)
-                return;
-            sink->clear_track_data(track);
-            if (manager->state() == PlaybackState::Suspended)
-                provider->suspend();
-        });
-    }
 };
 
 }

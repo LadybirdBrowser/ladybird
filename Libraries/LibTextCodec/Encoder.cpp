@@ -578,10 +578,106 @@ ErrorOr<void> GB18030Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)
             continue;
         }
 
-        // 5. Let pointer be the index pointer for code point in index gb18030.
+        // 5. If there is a row in the table below whose first column is codePoint, then return the two bytes on the same row listed in the second column:
+        // Code point	Bytes
+        // U+E78D		0xA6 0xD9
+        // U+E78E		0xA6 0xDA
+        // U+E78F		0xA6 0xDB
+        // U+E790		0xA6 0xDC
+        // U+E791		0xA6 0xDD
+        // U+E792		0xA6 0xDE
+        // U+E793		0xA6 0xDF
+        // U+E794		0xA6 0xEC
+        // U+E795		0xA6 0xED
+        // U+E796		0xA6 0xF3
+        // U+E81E		0xFE 0x59
+        // U+E826		0xFE 0x61
+        // U+E82B		0xFE 0x66
+        // U+E82C		0xFE 0x67
+        // U+E832		0xFE 0x6D
+        // U+E843		0xFE 0x7E
+        // U+E854		0xFE 0x90
+        // U+E864		0xFE 0xA0
+
+        switch (item) {
+        case 0xE78D:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xD9));
+            continue;
+        case 0xE78E:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xDA));
+            continue;
+        case 0xE78F:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xDB));
+            continue;
+        case 0xE790:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xDC));
+            continue;
+        case 0xE791:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xDD));
+            continue;
+        case 0xE792:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xDE));
+            continue;
+        case 0xE793:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xDF));
+            continue;
+        case 0xE794:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xEC));
+            continue;
+        case 0xE795:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xED));
+            continue;
+        case 0xE796:
+            TRY(on_byte(0xA6));
+            TRY(on_byte(0xF3));
+            continue;
+        case 0xE81E:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0x59));
+            continue;
+        case 0xE826:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0x61));
+            continue;
+        case 0xE82B:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0x66));
+            continue;
+        case 0xE82C:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0x67));
+            continue;
+        case 0xE832:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0x6D));
+            continue;
+        case 0xE843:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0x7E));
+            continue;
+        case 0xE854:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0x90));
+            continue;
+        case 0xE864:
+            TRY(on_byte(0xFE));
+            TRY(on_byte(0xA0));
+            continue;
+        }
+
+        // 6. Let pointer be the index pointer for code point in index gb18030.
         auto pointer = code_point_gb18030_index(item);
 
-        // 6. If pointer is non-null, then:
+        // 7. If pointer is non-null, then:
         if (pointer.has_value()) {
             // 1. Let lead be pointer / 190 + 0x81.
             auto lead = *pointer / 190 + 0x81;
@@ -600,34 +696,34 @@ ErrorOr<void> GB18030Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)
             continue;
         }
 
-        // 7. If is GBK is true, return error with code point.
+        // 8. If is GBK is true, return error with code point.
         if (gbk) {
             TRY(on_error(item));
             continue;
         }
 
-        // 8. Set pointer to the index gb18030 ranges pointer for code point.
+        // 9. Set pointer to the index gb18030 ranges pointer for code point.
         pointer = index_gb18030_ranges_pointer(item);
 
-        // 9. Let byte1 be pointer / (10 × 126 × 10).
+        // 10. Let byte1 be pointer / (10 × 126 × 10).
         auto byte1 = *pointer / (10 * 126 * 10);
 
-        // 10. Set pointer to pointer % (10 × 126 × 10).
+        // 11. Set pointer to pointer % (10 × 126 × 10).
         pointer = *pointer % (10 * 126 * 10);
 
-        // 11. Let byte2 be pointer / (10 × 126).
+        // 12. Let byte2 be pointer / (10 × 126).
         auto byte2 = *pointer / (10 * 126);
 
-        // 12. Set pointer to pointer % (10 × 126).
+        // 13. Set pointer to pointer % (10 × 126).
         pointer = *pointer % (10 * 126);
 
-        // 13. Let byte3 be pointer / 10.
+        // 14. Let byte3 be pointer / 10.
         auto byte3 = *pointer / 10;
 
-        // 14. Let byte4 be pointer % 10.
+        // 15. Let byte4 be pointer % 10.
         auto byte4 = *pointer % 10;
 
-        // 15. Return four bytes whose values are byte1 + 0x81, byte2 + 0x30, byte3 + 0x81, byte4 + 0x30.
+        // 16. Return four bytes whose values are byte1 + 0x81, byte2 + 0x30, byte3 + 0x81, byte4 + 0x30.
         TRY(on_byte(static_cast<u8>(byte1 + 0x81)));
         TRY(on_byte(static_cast<u8>(byte2 + 0x30)));
         TRY(on_byte(static_cast<u8>(byte3 + 0x81)));

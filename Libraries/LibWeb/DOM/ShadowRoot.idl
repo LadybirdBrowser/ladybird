@@ -20,4 +20,5 @@ interface ShadowRoot : DocumentFragment {
 ShadowRoot includes DocumentOrShadowRoot;
 
 enum ShadowRootMode { "open", "closed" };
+[MissingValueDefault=named, InvalidValueDefault=named]
 enum SlotAssignmentMode { "manual", "named" };

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/CharacterTypes.h>
 #include <AK/Utf16FlyString.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -75,8 +76,9 @@ public:
 
     PropertyKey(Utf16FlyString string, StringMayBeNumber string_may_be_number = StringMayBeNumber::Yes)
     {
-        if (string_may_be_number == StringMayBeNumber::Yes) {
-            if (!string.is_empty() && !(string.code_unit_at(0) == '0' && string.length_in_code_units() > 1)) {
+        if (string_may_be_number == StringMayBeNumber::Yes && !string.is_empty()) {
+            auto first_code_unit = string.code_unit_at(0);
+            if (is_ascii_digit(first_code_unit) && !(first_code_unit == '0' && string.length_in_code_units() > 1)) {
                 auto property_index = string.to_number<u32>(TrimWhitespace::No);
                 if (property_index.has_value() && property_index.value() < NumericLimits<u32>::max()) {
                     m_number = static_cast<u64>(property_index.release_value()) << 2 | NUMBER_FLAG;

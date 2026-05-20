@@ -52,6 +52,7 @@ namespace TestWeb {
 
 static Vector<ViewDisplayState> s_view_display_states;
 static Vector<Function<void()>> s_view_run_next_test;
+static HashMap<WebView::ViewImplementation const*, size_t> s_view_index_by_view;
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
@@ -146,6 +147,17 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     return {};
 }
 
+static ErrorOr<void> skip_async_scrolling_tests_unless_enabled(Application const& app)
+{
+    if (WebView::Application::web_content_options().enable_async_scrolling == WebView::EnableAsyncScrolling::Yes)
+        return {};
+
+    auto path = LexicalPath::join(app.test_root_path, "Text/input/async-scrolling/"sv).string();
+    if (!FileSystem::exists(path))
+        return {};
+    return enumerate_test_files_recursively(path, s_skipped_tests);
+}
+
 static ErrorOr<void> collect_dump_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail, TestMode mode)
 {
     Core::DirIterator it(ByteString::formatted("{}/input/{}", path, trail), Core::DirIterator::Flags::SkipDots);
@@ -190,6 +202,80 @@ static ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tes
     }
 
     return {};
+}
+
+static void log_active_test_views(StringView reason)
+{
+    outln();
+    outln("test-web: {}", reason);
+    outln("test-web: active views:");
+
+    auto now = UnixDateTime::now();
+    WebView::ViewImplementation::for_each_view([&](WebView::ViewImplementation const& view) {
+        pid_t pid = 0;
+        if (auto view_index = s_view_index_by_view.get(&view); view_index.has_value() && *view_index < s_view_display_states.size())
+            pid = s_view_display_states[*view_index].pid;
+
+        out("  - View {} (pid {}): ", view.view_id(), pid);
+
+        auto maybe_index = s_current_test_index_by_view.get(&view);
+        if (maybe_index.has_value() && s_run_context) {
+            auto const& test = s_run_context->tests[*maybe_index];
+            outln("{} (duration: {})", test.relative_path, human_readable_time(now - test.start_time));
+        } else {
+            outln("{} (no active test)", view.url());
+        }
+
+        return IterationDecision::Continue;
+    });
+    outln();
+}
+
+static ErrorOr<void> write_harness_status(StringView reason)
+{
+    auto& app = Application::the();
+    auto& display = Display::the();
+    auto status_path = LexicalPath::join(app.results_directory, "harness-status.txt"sv).string();
+    auto status_file = TRY(Core::File::open(status_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+
+    TRY(status_file->write_formatted("reason: {}\n", reason));
+    TRY(status_file->write_formatted("completed: {}/{}\n", display.completed_tests, total_tests()));
+    TRY(status_file->write_formatted("pass: {}\n", display.pass_count));
+    TRY(status_file->write_formatted("fail: {}\n", display.fail_count));
+    TRY(status_file->write_formatted("timeout: {}\n", display.timeout_count));
+    TRY(status_file->write_formatted("crashed: {}\n", display.crashed_count));
+    TRY(status_file->write_formatted("skipped: {}\n", display.skipped_count));
+    if (s_run_context)
+        TRY(status_file->write_formatted("remaining: {}\n", s_run_context->tests_remaining));
+
+    TRY(status_file->write_until_depleted("active views:\n"sv.bytes()));
+
+    auto now = UnixDateTime::now();
+    WebView::ViewImplementation::for_each_view([&](WebView::ViewImplementation const& view) {
+        pid_t pid = 0;
+        if (auto view_index = s_view_index_by_view.get(&view); view_index.has_value() && *view_index < s_view_display_states.size())
+            pid = s_view_display_states[*view_index].pid;
+
+        (void)status_file->write_formatted("  - View {} (pid {}): ", view.view_id(), pid);
+
+        auto maybe_index = s_current_test_index_by_view.get(&view);
+        if (maybe_index.has_value() && s_run_context) {
+            auto const& test = s_run_context->tests[*maybe_index];
+            (void)status_file->write_formatted("{} (duration: {})\n", test.relative_path, human_readable_time(now - test.start_time));
+        } else {
+            (void)status_file->write_formatted("{} (no active test)\n", view.url());
+        }
+
+        return IterationDecision::Continue;
+    });
+
+    return {};
+}
+
+static void try_write_harness_status(StringView reason)
+{
+    if (auto result = write_harness_status(reason); result.is_error())
+        warnln("Failed to write test-web harness status: {}", result.error());
 }
 
 static ErrorOr<void> collect_screenshot_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail)
@@ -1064,6 +1150,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto& display = Display::the();
 
     TRY(load_test_config(app.test_root_path));
+    TRY(skip_async_scrolling_tests_unless_enabled(app));
 
     Vector<Test> tests;
 
@@ -1182,6 +1269,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     for (auto [i, view] : enumerate(views)) {
         s_view_display_states[i].pid = view->web_content_pid();
         s_view_display_states[i].active = false;
+        s_view_index_by_view.set(view.ptr(), i);
     }
 
     display.begin_run();
@@ -1253,6 +1341,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             // Mark this view as active (for variant wake-up tracking)
             display.on_test_started(view_id, test, view->web_content_pid());
+            try_write_harness_status(ByteString::formatted("running {}", test.relative_path));
 
             // Reset promise and attach completion callback
             view->reset_test_promise();
@@ -1279,11 +1368,13 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                     non_passing_tests.append(result);
 
                 Display::the().on_test_finished(view_id, test, result.result);
+                try_write_harness_status(ByteString::formatted("finished {}: {}", test.relative_path, test_result_to_string(result.result)));
 
                 if (app.fail_fast && !fail_fast_triggered && should_trigger_fail_fast) {
                     fail_fast_triggered = true;
                     auto const pid = view->web_content_pid();
                     Display::the().on_fail_fast(test, result.result, pid);
+                    try_write_harness_status(ByteString::formatted("fail-fast after {}: {}", test.relative_path, test_result_to_string(result.result)));
 
                     if (s_all_tests_complete)
                         s_all_tests_complete->reject(Error::from_string_literal("Fail-fast"));
@@ -1330,7 +1421,21 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto result_or_rejection
         = s_all_tests_complete->await();
     display.clear_live_display();
-    display.print_run_complete(tests, non_passing_tests, result_or_rejection.is_error() ? tests_remaining : 0);
+
+    bool const test_run_stopped_early = result_or_rejection.is_error() || tests_remaining > 0;
+    if (result_or_rejection.is_error()) {
+        auto reason = ByteString::formatted("test run stopped early: {}", result_or_rejection.error());
+        log_active_test_views(reason);
+        try_write_harness_status(reason);
+    } else if (tests_remaining > 0) {
+        auto reason = ByteString::formatted("event loop stopped with {} unfinished tests", tests_remaining);
+        log_active_test_views(reason);
+        try_write_harness_status(reason);
+    } else {
+        try_write_harness_status("completed"sv);
+    }
+
+    display.print_run_complete(tests, non_passing_tests, tests_remaining);
 
     if (app.dump_gc_graph) {
         for (auto& view : views) {
@@ -1346,7 +1451,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     bool has_helper_output = test_run_capture.write_helper_process_output();
 
     // Generate result files (JSON data and HTML index)
-    if (app.quiet || app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty() || has_helper_output) {
+    if (app.quiet || app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty() || has_helper_output || test_run_stopped_early) {
         if (auto result = generate_result_files(tests, non_passing_tests); result.is_error())
             warnln("Failed to generate result files: {}", result.error());
         else
@@ -1358,37 +1463,29 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
 static void handle_signal(int signal)
 {
-    VERIFY(signal == SIGINT || signal == SIGTERM);
-
     // Quit our event loop. This makes `::exec()` return as soon as possible, and signals to WebView::Application that
     // we should no longer automatically restart processes in `::process_did_exit()`.
     Core::EventLoop::current().quit(0);
 
-    // Report current view statuses
-    dbgln();
-    dbgln("{} received. Active test views:", signal == SIGINT ? "SIGINT"sv : "SIGTERM"sv);
-    dbgln();
+    StringView signal_name = "signal received"sv;
+    if (signal == SIGINT)
+        signal_name = "SIGINT received"sv;
+    else if (signal == SIGTERM)
+        signal_name = "SIGTERM received"sv;
 
-    auto now = UnixDateTime::now();
-    WebView::ViewImplementation::for_each_view([&](WebView::ViewImplementation const& view) {
-        dbg("- View {}: ", view.view_id());
-
-        auto maybe_index = s_current_test_index_by_view.get(&view);
-        if (maybe_index.has_value() && s_run_context) {
-            auto const& test = s_run_context->tests[*maybe_index];
-            dbgln("{} (duration: {})", test.relative_path, human_readable_time(now - test.start_time));
-        } else {
-            dbgln("{} (no active test)", view.url());
-        }
-
-        return IterationDecision::Continue;
-    });
-    dbgln();
+    if (signal == SIGINT || signal == SIGTERM)
+        log_active_test_views(signal_name);
+    else
+        log_active_test_views(ByteString::formatted("signal {} received", signal));
+    try_write_harness_status(signal_name);
 
     // Stop running tests
-    s_all_tests_complete->reject(signal == SIGINT
-            ? Error::from_string_view("SIGINT received"sv)
-            : Error::from_string_view("SIGTERM received"sv));
+    if (signal == SIGINT)
+        s_all_tests_complete->reject(Error::from_string_view("SIGINT received"sv));
+    else if (signal == SIGTERM)
+        s_all_tests_complete->reject(Error::from_string_view("SIGTERM received"sv));
+    else
+        s_all_tests_complete->reject(Error::from_string_literal("Unexpected signal received"));
 }
 
 }

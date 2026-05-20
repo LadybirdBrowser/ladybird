@@ -5,6 +5,11 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/NumericLimits.h>
+#include <AK/QuickSort.h>
+#include <AK/StdLibExtras.h>
+#include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/FormatOperand.h>
@@ -21,6 +26,193 @@ namespace JS::Bytecode {
 
 GC_DEFINE_ALLOCATOR(Executable);
 GC_DEFINE_ALLOCATOR(ObjectPropertyIteratorCacheData);
+
+InstructionStream::InstructionStream(Vector<u8> bytecode)
+    : m_storage(move(bytecode))
+{
+    update_view_from_storage();
+}
+
+InstructionStream::InstructionStream(Core::ImmutableBytes bytecode, size_t offset, size_t size)
+    : m_storage(move(bytecode))
+{
+    update_view_from_storage(offset, size);
+}
+
+void InstructionStream::update_view_from_storage(size_t offset, Optional<size_t> size)
+{
+    auto bytes = m_storage.visit(
+        [](Vector<u8> const& bytecode) -> ReadonlyBytes {
+            return bytecode.span();
+        },
+        [](Core::ImmutableBytes const& bytecode) -> ReadonlyBytes {
+            return bytecode.bytes();
+        });
+
+    VERIFY(offset <= bytes.size());
+    m_size = size.value_or(bytes.size() - offset);
+    VERIFY(m_size <= bytes.size() - offset);
+    m_data = bytes.is_empty() ? nullptr : bytes.data() + offset;
+}
+
+size_t InstructionStream::external_memory_size() const
+{
+    return m_storage.visit(
+        [](Vector<u8> const& bytecode) -> size_t {
+            return vector_external_memory_size(bytecode);
+        },
+        [](Core::ImmutableBytes const& bytecode) -> size_t {
+            if (bytecode.is_file_backed())
+                return 0;
+            return bytecode.size();
+        });
+}
+
+static_assert(alignof(PropertyLookupCache::MonomorphicData) > PropertyLookupCache::polymorphic_data_tag);
+static_assert(alignof(PropertyLookupCache::PolymorphicData) > PropertyLookupCache::polymorphic_data_tag);
+static_assert(offsetof(PropertyLookupCache::MonomorphicData, entry) == 0);
+static_assert(offsetof(PropertyLookupCache::PolymorphicData, entries) == 0);
+
+PropertyLookupCache::PropertyLookupCache(PropertyLookupCache&& other)
+    : m_data(exchange(other.m_data, 0))
+{
+}
+
+PropertyLookupCache& PropertyLookupCache::operator=(PropertyLookupCache&& other)
+{
+    if (this != &other) {
+        clear();
+        m_data = exchange(other.m_data, 0);
+    }
+    return *this;
+}
+
+PropertyLookupCache::~PropertyLookupCache()
+{
+    clear();
+}
+
+PropertyLookupCache::MonomorphicData* PropertyLookupCache::monomorphic_data()
+{
+    if (!m_data || (m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<MonomorphicData*>(m_data);
+}
+
+PropertyLookupCache::MonomorphicData const* PropertyLookupCache::monomorphic_data() const
+{
+    if (!m_data || (m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<MonomorphicData const*>(m_data);
+}
+
+PropertyLookupCache::PolymorphicData* PropertyLookupCache::polymorphic_data()
+{
+    if (!(m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<PolymorphicData*>(m_data & ~polymorphic_data_tag);
+}
+
+PropertyLookupCache::PolymorphicData const* PropertyLookupCache::polymorphic_data() const
+{
+    if (!(m_data & polymorphic_data_tag))
+        return nullptr;
+    return reinterpret_cast<PolymorphicData const*>(m_data & ~polymorphic_data_tag);
+}
+
+void PropertyLookupCache::set_monomorphic_data(MonomorphicData* data)
+{
+    VERIFY(data);
+    VERIFY(!(reinterpret_cast<FlatPtr>(data) & polymorphic_data_tag));
+    m_data = reinterpret_cast<FlatPtr>(data);
+}
+
+void PropertyLookupCache::set_polymorphic_data(PolymorphicData* data)
+{
+    VERIFY(data);
+    VERIFY(!(reinterpret_cast<FlatPtr>(data) & polymorphic_data_tag));
+    m_data = reinterpret_cast<FlatPtr>(data) | polymorphic_data_tag;
+}
+
+PropertyLookupCache::Entry* PropertyLookupCache::first_entry()
+{
+    if (auto* data = monomorphic_data())
+        return &data->entry;
+    if (auto* data = polymorphic_data())
+        return &data->entries[0];
+    return nullptr;
+}
+
+PropertyLookupCache::Entry const* PropertyLookupCache::first_entry() const
+{
+    if (auto* data = monomorphic_data())
+        return &data->entry;
+    if (auto* data = polymorphic_data())
+        return &data->entries[0];
+    return nullptr;
+}
+
+Span<PropertyLookupCache::Entry> PropertyLookupCache::entries()
+{
+    if (auto* data = monomorphic_data())
+        return { &data->entry, 1 };
+    if (auto* data = polymorphic_data())
+        return data->entries.span();
+    return {};
+}
+
+ReadonlySpan<PropertyLookupCache::Entry> PropertyLookupCache::entries() const
+{
+    if (auto* data = monomorphic_data())
+        return { &data->entry, 1 };
+    if (auto* data = polymorphic_data())
+        return data->entries.span();
+    return {};
+}
+
+size_t PropertyLookupCache::external_memory_size() const
+{
+    if (monomorphic_data())
+        return sizeof(MonomorphicData);
+    if (polymorphic_data())
+        return sizeof(PolymorphicData);
+    return 0;
+}
+
+void PropertyLookupCache::clear()
+{
+    if (auto* data = monomorphic_data()) {
+        delete data;
+        m_data = 0;
+        return;
+    }
+    if (auto* data = polymorphic_data()) {
+        delete data;
+        m_data = 0;
+    }
+}
+
+bool PropertyLookupCache::entries_have_same_cache_key(Entry const& a, Entry const& b)
+{
+    if (a.type == Entry::Type::Empty || b.type == Entry::Type::Empty)
+        return false;
+    if (a.type != b.type)
+        return false;
+
+    switch (a.type) {
+    case Entry::Type::AddOwnProperty:
+        return a.from_shape == b.from_shape && a.shape == b.shape;
+    case Entry::Type::ChangeOwnProperty:
+    case Entry::Type::GetOwnProperty:
+        return a.shape == b.shape;
+    case Entry::Type::ChangePropertyInPrototypeChain:
+    case Entry::Type::GetPropertyInPrototypeChain:
+        return a.shape == b.shape && a.prototype == b.prototype;
+    case Entry::Type::Empty:
+        VERIFY_NOT_REACHED();
+    }
+    VERIFY_NOT_REACHED();
+}
 
 ObjectPropertyIteratorCacheData::ObjectPropertyIteratorCacheData(VM& vm, Vector<PropertyKey> properties, ObjectPropertyIteratorFastPath fast_path, u32 indexed_property_count, bool receiver_has_magical_length_property, GC::Ref<Shape> shape, GC::Ptr<PrototypeChainValidity> prototype_chain_validity)
     : m_properties(move(properties))
@@ -61,7 +253,7 @@ size_t ObjectPropertyIteratorCacheData::external_memory_size() const
 }
 
 Executable::Executable(
-    Vector<u8> bytecode,
+    InstructionStream bytecode,
     NonnullOwnPtr<IdentifierTable> identifier_table,
     NonnullOwnPtr<PropertyKeyTable> property_key_table,
     NonnullOwnPtr<StringTable> string_table,
@@ -70,6 +262,7 @@ Executable::Executable(
     NonnullRefPtr<SourceCode const> source_code,
     size_t number_of_property_lookup_caches,
     size_t number_of_global_variable_caches,
+    size_t number_of_environment_coordinate_caches,
     size_t number_of_template_object_caches,
     size_t number_of_object_shape_caches,
     size_t number_of_object_property_iterator_caches,
@@ -88,6 +281,7 @@ Executable::Executable(
 {
     property_lookup_caches.resize(number_of_property_lookup_caches);
     global_variable_caches.resize(number_of_global_variable_caches);
+    environment_coordinate_caches.resize(number_of_environment_coordinate_caches);
     template_object_caches.resize(number_of_template_object_caches);
     object_shape_caches.resize(number_of_object_shape_caches);
     object_property_iterator_caches.resize(number_of_object_property_iterator_caches);
@@ -97,49 +291,46 @@ Executable::Executable(
 
 Executable::~Executable() = default;
 
-void Executable::fixup_cache_pointers()
+static SourceMapEntry const* first_real_source_map_entry(Executable const& executable)
 {
-    for (auto it = InstructionStreamIterator(bytecode); !it.at_end(); ++it) {
-        fixup_instruction_cache(
-            const_cast<Instruction&>(*it),
-            property_lookup_caches.span(),
-            global_variable_caches.span(),
-            template_object_caches.span(),
-            object_shape_caches.span(),
-            object_property_iterator_caches.span());
+    SourceMapEntry const* first_entry = nullptr;
+    for (auto const& entry : executable.source_map) {
+        if (entry.line == 0 && entry.column == 0)
+            continue;
+        if (!first_entry || entry.line < first_entry->line || (entry.line == first_entry->line && entry.column < first_entry->column))
+            first_entry = &entry;
     }
+    return first_entry;
 }
 
 static void dump_header(StringBuilder& output, Executable const& executable, bool use_color)
 {
     auto const white_bold = use_color ? "\033[37;1m"sv : ""sv;
     auto const reset = use_color ? "\033[0m"sv : ""sv;
-
-    // Generate a stable hash from the source text for identification.
-    // We hash source code rather than bytecode so the ID is stable
-    // across changes to bytecode generation.
-    // Find the overall source range covered by this executable.
-    u32 source_start = NumericLimits<u32>::max();
-    u32 source_end = 0;
-    Optional<Position> first_position;
-    for (auto const& entry : executable.source_map) {
-        if (entry.source_record.start.offset < entry.source_record.end.offset) {
-            source_start = min(source_start, entry.source_record.start.offset);
-            source_end = max(source_end, entry.source_record.end.offset);
-            if (!first_position.has_value() || entry.source_record.start.offset < first_position->offset)
-                first_position = entry.source_record.start;
-        }
-    }
+    auto const* first_source_map_entry = first_real_source_map_entry(executable);
 
     u32 hash = 2166136261u; // FNV-1a offset basis
-    auto code_view = executable.source_code->code_view();
-    for (auto i = source_start; i < source_end && i < code_view.length_in_code_units(); ++i) {
-        auto code_unit = code_view.code_unit_at(i);
+    auto update_hash = [&](u32 value) {
+        for (size_t i = 0; i < sizeof(value); ++i) {
+            hash ^= (value >> (i * 8)) & 0xFF;
+            hash *= 16777619u;
+        }
+    };
+    auto update_hash_with_code_unit = [&](u16 code_unit) {
         hash ^= code_unit & 0xFF;
         hash *= 16777619u;
         hash ^= (code_unit >> 8) & 0xFF;
         hash *= 16777619u;
+    };
+
+    auto name_view = executable.name.view();
+    for (size_t i = 0; i < name_view.length_in_code_units(); ++i)
+        update_hash_with_code_unit(name_view.code_unit_at(i));
+    if (first_source_map_entry) {
+        update_hash(first_source_map_entry->line);
+        update_hash(first_source_map_entry->column);
     }
+    update_hash(static_cast<u32>(min(executable.bytecode.size(), static_cast<size_t>(NumericLimits<u32>::max()))));
 
     if (executable.name.is_empty())
         output.appendff("{}${:08x}{}", white_bold, hash, reset);
@@ -147,19 +338,84 @@ static void dump_header(StringBuilder& output, Executable const& executable, boo
         output.appendff("{}{}${:08x}{}", white_bold, executable.name, hash, reset);
 
     // Show source location if available.
-    if (source_start < source_end && first_position.has_value()) {
+    if (first_source_map_entry) {
         auto filename = executable.source_code->filename();
         if (!filename.is_empty()) {
             // Show just the basename to keep output portable across machines.
             auto last_slash = filename.bytes_as_string_view().find_last('/');
             if (last_slash.has_value())
                 filename = MUST(filename.substring_from_byte_offset(last_slash.value() + 1));
-            output.appendff(" {}:{}:{}", filename, first_position->line, first_position->column);
+            output.appendff(" {}:{}:{}", filename, first_source_map_entry->line, first_source_map_entry->column);
         } else {
-            output.appendff(" line {}, column {}", first_position->line, first_position->column);
+            output.appendff(" line {}, column {}", first_source_map_entry->line, first_source_map_entry->column);
         }
     }
     output.append('\n');
+}
+
+static bool instruction_is_terminator(Instruction const& instruction)
+{
+#define __BYTECODE_OP(op)       \
+    case Instruction::Type::op: \
+        return Op::op::IsTerminator;
+
+    switch (instruction.type()) {
+        ENUMERATE_BYTECODE_OPS(__BYTECODE_OP)
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+#undef __BYTECODE_OP
+}
+
+static Vector<u32> collect_basic_block_start_offsets(Executable const& executable)
+{
+    Vector<u32> offsets;
+
+    auto append_offset = [&](size_t offset) {
+        VERIFY(offset <= NumericLimits<u32>::max());
+        auto offset32 = static_cast<u32>(offset);
+        if (!offsets.contains_slow(offset32))
+            offsets.append(offset32);
+    };
+    auto append_instruction_offset = [&](size_t offset) {
+        if (offset < executable.bytecode.size())
+            append_offset(offset);
+    };
+
+    append_offset(0);
+
+    for (InstructionStreamIterator it(executable.bytecode, &executable); !it.at_end(); ++it) {
+        auto const& instruction = *it;
+        auto next_offset = it.offset() + instruction.length();
+
+        const_cast<Instruction&>(instruction).visit_labels([&](Label& label) {
+            append_offset(label.address());
+        });
+
+        if (instruction_is_terminator(instruction) && next_offset < executable.bytecode.size())
+            append_offset(next_offset);
+    }
+
+    for (auto const& handler : executable.exception_handlers) {
+        append_instruction_offset(handler.start_offset);
+        append_instruction_offset(handler.end_offset);
+        append_instruction_offset(handler.handler_offset);
+    }
+
+    quick_sort(offsets);
+    return offsets;
+}
+
+Optional<size_t> Executable::basic_block_index_for_offset(size_t offset) const
+{
+    VERIFY(offset <= NumericLimits<u32>::max());
+    auto basic_block_start_offsets = collect_basic_block_start_offsets(*this);
+
+    size_t index = 0;
+    if (binary_search(basic_block_start_offsets, static_cast<u32>(offset), &index))
+        return index;
+    return {};
 }
 
 static void dump_metadata(StringBuilder& output, Executable const& executable, bool use_color)
@@ -171,7 +427,7 @@ static void dump_metadata(StringBuilder& output, Executable const& executable, b
     auto const reset = use_color ? "\033[0m"sv : ""sv;
 
     output.appendff("  {}Registers{}: {}\n", green, reset, executable.number_of_registers);
-    output.appendff("  {}Blocks{}:    {}\n", green, reset, executable.basic_block_start_offsets.size());
+    output.appendff("  {}Blocks{}:    {}\n", green, reset, collect_basic_block_start_offsets(executable).size());
 
     if (!executable.local_variable_names.is_empty()) {
         output.appendff("  {}Locals{}:    ", green, reset);
@@ -220,12 +476,13 @@ static void dump_bytecode(StringBuilder& output, Executable const& executable, b
     auto const reset = use_color ? "\033[0m"sv : ""sv;
 
     InstructionStreamIterator it(executable.bytecode, &executable);
+    auto basic_block_start_offsets = collect_basic_block_start_offsets(executable);
 
     size_t basic_block_offset_index = 0;
 
     while (!it.at_end()) {
-        if (basic_block_offset_index < executable.basic_block_start_offsets.size()
-            && it.offset() == executable.basic_block_start_offsets[basic_block_offset_index]) {
+        if (basic_block_offset_index < basic_block_start_offsets.size()
+            && it.offset() == basic_block_start_offsets[basic_block_offset_index]) {
             if (basic_block_offset_index > 0)
                 output.append('\n');
             output.appendff("{}block{}{}:\n", magenta, basic_block_offset_index, reset);
@@ -303,9 +560,12 @@ void Executable::visit_edges(Visitor& visitor)
 
 size_t Executable::external_memory_size() const
 {
-    size_t size = vector_external_memory_size(bytecode);
+    size_t size = bytecode.external_memory_size();
     size = saturating_add_external_memory_size(size, vector_external_memory_size(property_lookup_caches));
+    for (auto const& cache : property_lookup_caches)
+        size = saturating_add_external_memory_size(size, cache.external_memory_size());
     size = saturating_add_external_memory_size(size, vector_external_memory_size(global_variable_caches));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(environment_coordinate_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(template_object_caches));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(object_shape_caches));
     for (auto const& cache : object_shape_caches)
@@ -321,7 +581,6 @@ size_t Executable::external_memory_size() const
     for (auto const& blueprint : class_blueprints)
         size = saturating_add_external_memory_size(size, vector_external_memory_size(blueprint.elements));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(exception_handlers));
-    size = saturating_add_external_memory_size(size, vector_external_memory_size(basic_block_start_offsets));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(source_map));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(local_variable_names));
     size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_source_range_cache));
@@ -339,22 +598,30 @@ StaticPropertyLookupCache::StaticPropertyLookupCache()
     static_property_lookup_caches().append(this);
 }
 
+static bool cell_is_dead(Cell const* cell)
+{
+    auto* block = GC::HeapBlock::from_cell(cell);
+    if (!GC::Heap::the().is_live_heap_block(block))
+        return true;
+    return cell->state() != Cell::State::Live || !cell->is_marked();
+}
+
 static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
 {
-    if (entry.from_shape && entry.from_shape->state() != Cell::State::Live)
+    if (entry.from_shape && cell_is_dead(entry.from_shape))
         entry.from_shape = nullptr;
-    if (entry.shape && entry.shape->state() != Cell::State::Live)
+    if (entry.shape && cell_is_dead(entry.shape))
         entry.shape = nullptr;
-    if (entry.prototype && entry.prototype->state() != Cell::State::Live)
+    if (entry.prototype && cell_is_dead(entry.prototype))
         entry.prototype = nullptr;
-    if (entry.prototype_chain_validity && entry.prototype_chain_validity->state() != Cell::State::Live)
+    if (entry.prototype_chain_validity && cell_is_dead(entry.prototype_chain_validity))
         entry.prototype_chain_validity = nullptr;
 }
 
 void StaticPropertyLookupCache::sweep_all()
 {
     for (auto* cache : static_property_lookup_caches()) {
-        for (auto& entry : cache->entries)
+        for (auto& entry : cache->entries())
             clear_cache_entry_if_dead(entry);
     }
 }
@@ -362,15 +629,14 @@ void StaticPropertyLookupCache::sweep_all()
 void Executable::remove_dead_cells(Badge<GC::Heap>)
 {
     for (auto& cache : property_lookup_caches) {
-        for (auto& entry : cache.entries)
+        for (auto& entry : cache.entries())
             clear_cache_entry_if_dead(entry);
     }
-    for (auto& cache : global_variable_caches) {
-        for (auto& entry : cache.entries)
-            clear_cache_entry_if_dead(entry);
-    }
+    for (auto& cache : global_variable_caches)
+        clear_cache_entry_if_dead(cache.entry);
     for (auto& cache : object_shape_caches) {
-        if (cache.shape && cache.shape->state() != Cell::State::Live)
+        auto* shape = cache.shape.ptr();
+        if (shape && cell_is_dead(shape))
             cache.shape = nullptr;
     }
 }
@@ -394,19 +660,23 @@ Optional<SourceRange> Executable::source_range_at(size_t offset) const
 {
     if (offset >= bytecode.size())
         return {};
-    auto* entry = binary_search(source_map, offset, nullptr, [](size_t needle, SourceMapEntry const& entry) -> int {
-        if (needle < entry.bytecode_offset)
-            return -1;
-        if (needle > entry.bytecode_offset)
-            return 1;
-        return 0;
-    });
-    if (!entry)
+    if (source_map.is_empty())
         return {};
+    size_t low = 0;
+    size_t high = source_map.size();
+    while (low < high) {
+        auto middle = low + (high - low) / 2;
+        if (source_map[middle].bytecode_offset <= offset)
+            low = middle + 1;
+        else
+            high = middle;
+    }
+    if (low == 0)
+        return {};
+    auto& entry = source_map[low - 1];
     return SourceRange {
         .code = source_code,
-        .start = entry->source_record.start,
-        .end = entry->source_record.end,
+        .start = { .line = entry.line, .column = entry.column },
     };
 }
 
@@ -415,7 +685,7 @@ SourceRange const& Executable::get_source_range(u32 program_counter)
     return m_source_range_cache.ensure(program_counter, [&] {
         if (auto source_range = source_range_at(program_counter); source_range.has_value())
             return *source_range;
-        static SourceRange dummy { SourceCode::create({}, {}), {}, {} };
+        static SourceRange dummy { SourceCode::create({}, Utf16String {}), {} };
         return dummy;
     });
 }

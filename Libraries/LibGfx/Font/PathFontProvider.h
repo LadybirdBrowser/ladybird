@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/Typeface.h>
 
@@ -32,6 +33,12 @@ public:
 
 private:
     HashMap<FlyString, Vector<NonnullRefPtr<Typeface>>, AK::ASCIICaseInsensitiveFlyStringTraits> m_typeface_by_family;
+
+    // Tracks files we've already loaded, to avoid mmap'ing the same .ttf/.otf/.ttc
+    // multiple times when overlapping font directories are walked (fontconfig commonly
+    // returns nested entries like /usr/share/fonts and /usr/share/fonts/truetype).
+    HashTable<String> m_loaded_paths;
+
     String m_name { "Path"_string };
 };
 

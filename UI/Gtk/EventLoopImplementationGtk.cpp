@@ -10,7 +10,7 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 #include <UI/Gtk/EventLoopImplementationGtk.h>
 
 #include <glib-unix.h>
@@ -19,7 +19,7 @@
 namespace Ladybird {
 
 static HashMap<Core::Notifier*, guint> s_notifiers;
-static Threading::Mutex s_notifiers_mutex;
+static Sync::Mutex s_notifiers_mutex;
 
 // Signal handling for signals not supported by g_unix_signal_add
 // (which only handles SIGHUP, SIGINT, SIGTERM, SIGUSR1, SIGUSR2, SIGWINCH).
@@ -144,13 +144,13 @@ void EventLoopManagerGtk::register_notifier(Core::Notifier& notifier)
     auto weak_notifier = new WeakPtr<Core::EventReceiver>(notifier.make_weak_ptr());
     auto source_id = g_unix_fd_add_full(G_PRIORITY_DEFAULT, notifier.fd(), condition, notifier_callback, weak_notifier, notifier_destroy);
 
-    Threading::MutexLocker locker(s_notifiers_mutex);
+    Sync::MutexLocker locker(s_notifiers_mutex);
     s_notifiers.set(&notifier, source_id);
 }
 
 void EventLoopManagerGtk::unregister_notifier(Core::Notifier& notifier)
 {
-    Threading::MutexLocker locker(s_notifiers_mutex);
+    Sync::MutexLocker locker(s_notifiers_mutex);
     auto it = s_notifiers.find(&notifier);
     if (it == s_notifiers.end())
         return;

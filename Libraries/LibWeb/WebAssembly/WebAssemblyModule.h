@@ -25,7 +25,7 @@ public:
 
     Vector<Utf16FlyString> export_name_list();
 
-    virtual Vector<Utf16FlyString> get_exported_names(JS::VM& vm, HashTable<Module const*>& export_star_set) override;
+    virtual Vector<Utf16FlyString> get_exported_names(JS::VM& vm, GC::RootHashTable<GC::Ref<Module const>>& export_star_set) override;
     virtual JS::ResolvedBinding resolve_export(JS::VM& vm, Utf16FlyString const& export_name, Vector<JS::ResolvedBinding> resolve_set = {}) override;
 
 protected:

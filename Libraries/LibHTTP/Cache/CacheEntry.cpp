@@ -119,6 +119,7 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& response_headers)
 {
     if (m_marked_for_deletion) {
+        remove_incomplete_temporary_file();
         close_and_destroy_cache_entry();
         return Error::from_string_literal("Cache entry has been deleted");
     }
@@ -137,6 +138,7 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
 
         m_vary_key = create_vary_key(request_headers, response_headers);
         m_path = path_for_cache_entry(m_disk_cache.cache_directory(), m_cache_key, m_vary_key);
+        m_temporary_path = LexicalPath::join(m_disk_cache.cache_directory().string(), ByteString::formatted("{}.tmp", m_path->basename()));
 
         auto freshness_lifetime = calculate_freshness_lifetime(status_code, response_headers, m_current_time_offset_for_testing);
         auto current_age = calculate_age(response_headers, m_request_time, m_response_time, m_current_time_offset_for_testing);
@@ -146,13 +148,15 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         if (cache_lifetime_status(request_headers, response_headers, freshness_lifetime, current_age) == CacheLifetimeStatus::Expired)
             return Error::from_string_literal("Response has already expired");
 
-        auto unbuffered_file = TRY(Core::File::open(m_path->string(), Core::File::OpenMode::Write));
+        (void)FileSystem::remove(m_temporary_path->string(), FileSystem::RecursionMode::Disallowed);
+        auto unbuffered_file = TRY(Core::File::open(m_temporary_path->string(), Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew));
         m_file = TRY(Core::OutputBufferedFile::create(move(unbuffered_file)));
 
         TRY(m_file->write_value(m_cache_header));
         TRY(m_file->write_until_depleted(m_url));
         if (reason_phrase.has_value())
             TRY(m_file->write_until_depleted(*reason_phrase));
+        m_data_offset = TRY(m_file->tell());
 
         return {};
     }();
@@ -160,7 +164,7 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
     if (result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to write status/reason to cache entry for\033[0m {}: {}", m_url, result.error());
 
-        remove();
+        remove_incomplete_temporary_file();
         close_and_destroy_cache_entry();
 
         return result.release_error();
@@ -172,6 +176,7 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
 ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
 {
     if (m_marked_for_deletion) {
+        remove_incomplete_temporary_file();
         close_and_destroy_cache_entry();
         return Error::from_string_literal("Cache entry has been deleted");
     }
@@ -179,7 +184,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     if (auto result = m_file->write_until_depleted(data); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to write data to cache entry for\033[0m {}: {}", m_url, result.error());
 
-        remove();
+        remove_incomplete_temporary_file();
         close_and_destroy_cache_entry();
 
         return result.release_error();
@@ -191,18 +196,55 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
 
 ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
 {
+    return flush_impl(move(request_headers), move(response_headers), nullptr);
+}
+
+ErrorOr<CacheEntryBodyFile> CacheEntryWriter::flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
+{
+    CacheEntryBodyFile body_file;
+    TRY(flush_impl(move(request_headers), move(response_headers), &body_file));
+    return body_file;
+}
+
+ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, CacheEntryBodyFile* body_file)
+{
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
-    if (m_marked_for_deletion)
+    if (m_marked_for_deletion) {
+        remove_incomplete_temporary_file();
         return Error::from_string_literal("Cache entry has been deleted");
+    }
+    VERIFY(m_path.has_value());
+    VERIFY(m_temporary_path.has_value());
+
+    ArmedScopeGuard remove_temporary_file = [&]() {
+        remove_incomplete_temporary_file();
+    };
 
     m_cache_footer.header_hash = m_cache_header.hash();
 
     if (auto result = m_file->write_value(m_cache_footer); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to flush cache entry for\033[0m {}: {}", m_url, result.error());
-        remove();
 
         return result.release_error();
+    }
+
+    TRY(m_file->flush_buffer());
+    m_file.clear();
+    TRY(Core::System::rename(m_temporary_path->string(), m_path->string()));
+    remove_temporary_file.disarm();
+
+    int body_fd = -1;
+    ArmedScopeGuard close_body_fd = [&] {
+        if (body_fd != -1)
+            (void)Core::System::close(body_fd);
+    };
+    if (body_file) {
+        auto opened_body_file = TRY(Core::File::open(m_path->string(), Core::File::OpenMode::Read));
+        body_fd = TRY(Core::System::dup(opened_body_file->fd()));
+        body_file->fd = body_fd;
+        body_file->offset = m_data_offset;
+        body_file->size = m_cache_footer.data_size;
     }
 
     // Drop any sidecars left over from an older entry at the same (cache_key, vary_key). They are tied to the previous
@@ -220,13 +262,21 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
     m_disk_cache.remove_entries_exceeding_cache_limit();
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
+    close_body_fd.disarm();
     return {};
 }
 
 void CacheEntryWriter::remove_incomplete_entry()
 {
-    remove();
+    remove_incomplete_temporary_file();
     close_and_destroy_cache_entry();
+}
+
+void CacheEntryWriter::remove_incomplete_temporary_file()
+{
+    if (!m_temporary_path.has_value())
+        return;
+    (void)FileSystem::remove(m_temporary_path->string(), FileSystem::RecursionMode::Disallowed);
 }
 
 ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers, u64 data_size)
@@ -329,6 +379,29 @@ void CacheEntryReader::send_to(int socket_fd, Function<void(u64)> on_complete, F
     };
 
     send_without_blocking();
+}
+
+ErrorOr<CacheEntryBodyFile> CacheEntryReader::take_body_file()
+{
+    ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
+
+    if (m_marked_for_deletion)
+        return Error::from_string_literal("Cache entry has been deleted");
+
+    if (auto result = read_and_validate_footer(); result.is_error()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mError validating cache entry for\033[0m {}: {}", m_url, result.error());
+        remove();
+        return result.release_error();
+    }
+
+    auto fd = TRY(Core::System::dup(m_fd));
+    m_index.update_last_access_time(m_cache_key, m_vary_key);
+
+    return CacheEntryBodyFile {
+        .fd = fd,
+        .offset = m_data_offset,
+        .size = m_data_size,
+    };
 }
 
 void CacheEntryReader::send_without_blocking()

@@ -40,7 +40,7 @@ GC::Ref<QuotaExceededError> QuotaExceededError::create(JS::Realm& realm, Utf16St
 }
 
 // https://webidl.spec.whatwg.org/#dom-quotaexceedederror-quotaexceedederror
-ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::construct_impl(JS::Realm& realm, Utf16String const& message, QuotaExceededErrorOptions const& options)
+ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::construct_impl(JS::Realm& realm, Utf16String const& message, Bindings::QuotaExceededErrorOptions const& options)
 {
     auto& vm = realm.vm();
 

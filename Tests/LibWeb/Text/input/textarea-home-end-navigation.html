@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="textarea">alpha
+bravo charlie
+delta</textarea>
+<script>
+test(() => {
+    const reportSelection = label => {
+        println(`${label}: start=${textarea.selectionStart} end=${textarea.selectionEnd}`);
+    };
+
+    textarea.focus();
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "Home");
+    reportSelection("Home from middle line");
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "End");
+    reportSelection("End from middle line");
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "Home", internals.MOD_SHIFT);
+    reportSelection("Shift+Home from middle line");
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "End", internals.MOD_SHIFT);
+    reportSelection("Shift+End from middle line");
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "Home", internals.MOD_CTRL);
+    reportSelection("Ctrl+Home from middle line");
+
+    textarea.setSelectionRange(12, 12);
+    internals.sendKey(textarea, "End", internals.MOD_CTRL);
+    reportSelection("Ctrl+End from middle line");
+});
+</script>

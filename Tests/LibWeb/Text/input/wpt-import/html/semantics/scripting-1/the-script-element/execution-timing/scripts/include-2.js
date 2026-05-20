@@ -1,0 +1,1 @@
+log('external script #2');

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/IDBObjectStore.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
@@ -33,7 +34,7 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_key(JS::Value);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_keys(Optional<JS::Value>, Optional<WebIDL::UnsignedLong>);
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(IDBGetAllOptions const&);
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> get_all_records(Bindings::IDBGetAllOptions const&);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> count(JS::Value);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<IDBRequest>> open_key_cursor(JS::Value, Bindings::IDBCursorDirection = Bindings::IDBCursorDirection::Next);

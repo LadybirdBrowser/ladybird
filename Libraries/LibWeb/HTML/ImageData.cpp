@@ -30,7 +30,7 @@ GC::Ref<ImageData> ImageData::create(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (sw == 0 || sh == 0)
@@ -41,13 +41,13 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 
     return initialize(realm, sh, sw, settings);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
     return ImageData::create(realm, sw, sh, settings);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata-with-data
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& uint8_clamped_array_data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& uint8_clamped_array_data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
     // 1. Let length be the number of bytes in data.
     auto length = uint8_clamped_array_data->byte_length().length();
@@ -77,13 +77,13 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::
     return initialize(realm, height, sw, settings, *uint8_clamped_array_data);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
     return ImageData::create(realm, data, sw, move(sh), settings);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::initialize(JS::Realm& realm, u32 rows, u32 pixels_per_row, Optional<ImageDataSettings> const& settings, GC::Ptr<JS::Uint8ClampedArray> source, Optional<Bindings::PredefinedColorSpace> default_color_space)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::initialize(JS::Realm& realm, u32 rows, u32 pixels_per_row, Optional<Bindings::ImageDataSettings> const& settings, GC::Ptr<JS::Uint8ClampedArray> source, Optional<Bindings::PredefinedColorSpace> default_color_space)
 {
     auto data = TRY([&]() -> WebIDL::ExceptionOr<GC::Ref<JS::Uint8ClampedArray>> {
         // 1. If source was given, then initialize the data attribute of imageData to source.
@@ -113,8 +113,8 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::initialize(JS::Realm& realm, 
 
     // 6. If settings was given and settings["colorSpace"] exists, then initialize the colorSpace attribute of imageData to settings["colorSpace"].
     Bindings::PredefinedColorSpace color_space {};
-    if (settings.has_value())
-        color_space = settings->color_space;
+    if (settings.has_value() && settings->color_space.has_value())
+        color_space = *settings->color_space;
     // 7. Otherwise, if defaultColorSpace was given, then initialize the colorSpace attribute of imageData to defaultColorSpace.
     else if (default_color_space.has_value())
         color_space = *default_color_space;

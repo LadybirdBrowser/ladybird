@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+    <style>
+        #wrapper {
+            width: 100px;
+            height: 200px;
+            overflow-y: auto;
+            scroll-padding-top: 10%;
+        }
+
+        #wrapper div {
+            height: 400px;
+        }
+    </style>
+    <div id="wrapper">
+        <div></div>
+        <div id="target"></div>
+    </div>
+    <script>
+        document.getElementById("target").scrollIntoView();
+    </script>
+</html>

@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 19 tests
+
+1 Pass
+18 Fail
+Fail	Query "camera" permission
+Pass	Query "geolocation" permission
+Fail	Query "microphone" permission
+Fail	Query "notifications" permission
+Fail	Query "persistent-storage" permission
+Fail	Query "push" permission
+Fail	Query "accelerometer" permission
+Fail	Query "ambient-light-sensor" permission
+Fail	Query "background-fetch" permission
+Fail	Query "background-sync" permission
+Fail	Query "bluetooth" permission
+Fail	Query "gyroscope" permission
+Fail	Query "magnetometer" permission
+Fail	Query "midi" permission
+Fail	Query "nfc" permission
+Fail	Query "screen-wake-lock" permission
+Fail	Query "display-capture" permission
+Fail	Query "speaker-selection" permission
+Fail	Query "xr-spatial-tracking" permission

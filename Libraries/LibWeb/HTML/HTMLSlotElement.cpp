@@ -34,13 +34,11 @@ void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Slot::visit_edges(visitor);
-
-    for (auto const& node : m_manually_assigned_nodes)
-        node.visit([&](auto const& slottable) { visitor.visit(slottable); });
+    visitor.visit(m_manually_assigned_nodes);
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignednodes
-Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesOptions options) const
+Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(Bindings::AssignedNodesOptions options) const
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes.
     if (!options.flatten) {
@@ -70,7 +68,7 @@ Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesOptions
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignedelements
-Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(AssignedNodesOptions options) const
+Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(Bindings::AssignedNodesOptions options) const
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes, filtered to contain only Element nodes.
     if (!options.flatten) {

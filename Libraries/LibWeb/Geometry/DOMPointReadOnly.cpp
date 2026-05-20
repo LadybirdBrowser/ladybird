@@ -43,7 +43,7 @@ DOMPointReadOnly::DOMPointReadOnly(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dompointreadonly-frompoint
-GC::Ref<DOMPointReadOnly> DOMPointReadOnly::from_point(JS::VM& vm, DOMPointInit const& other)
+GC::Ref<DOMPointReadOnly> DOMPointReadOnly::from_point(JS::VM& vm, Bindings::DOMPointInit const& other)
 {
     // The fromPoint(other) static method on DOMPointReadOnly must create a DOMPointReadOnly from the dictionary other.
     return construct_impl(*vm.current_realm(), other.x, other.y, other.z, other.w);
@@ -52,7 +52,7 @@ GC::Ref<DOMPointReadOnly> DOMPointReadOnly::from_point(JS::VM& vm, DOMPointInit 
 DOMPointReadOnly::~DOMPointReadOnly() = default;
 
 // https://drafts.fxtf.org/geometry/#dom-dompointreadonly-matrixtransform
-WebIDL::ExceptionOr<GC::Ref<DOMPoint>> DOMPointReadOnly::matrix_transform(DOMMatrixInit& matrix) const
+WebIDL::ExceptionOr<GC::Ref<DOMPoint>> DOMPointReadOnly::matrix_transform(Bindings::DOMMatrixInit& matrix) const
 {
     // 1. Let matrixObject be the result of invoking create a DOMMatrix from the dictionary matrix.
     auto matrix_object = TRY(DOMMatrix::create_from_dom_matrix_init(realm(), matrix));

@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/Bindings/DOMPoint.h>
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 
@@ -34,7 +35,7 @@ DOMPoint::DOMPoint(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dompoint-frompoint
-GC::Ref<DOMPoint> DOMPoint::from_point(JS::VM& vm, DOMPointInit const& other)
+GC::Ref<DOMPoint> DOMPoint::from_point(JS::VM& vm, Bindings::DOMPointInit const& other)
 {
     // The fromPoint(other) static method on DOMPoint must create a DOMPoint from the dictionary other.
     return construct_impl(*vm.current_realm(), other.x, other.y, other.z, other.w);

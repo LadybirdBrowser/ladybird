@@ -86,7 +86,7 @@ void HTMLDialogElement::queue_a_dialog_toggle_event_task(AK::String old_state, A
     auto task_id = queue_an_element_task(Task::Source::DOMManipulation, [this, old_state, new_state = move(new_state), source]() {
         // 1. Fire an event named toggle at element, using ToggleEvent, with the oldState attribute initialized to
         //    oldState, the newState attribute initialized to newState, and the source attribute initialized to source.
-        ToggleEventInit event_init {};
+        Bindings::ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
         event_init.source = source;
@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     // 3. If the result of firing an event named beforetoggle, using ToggleEvent,
     //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
     //    and the newState attribute initialized to "open" at this is false, then return.
-    ToggleEventInit event_init {};
+    Bindings::ToggleEventInit event_init {};
     event_init.cancelable = true;
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
@@ -201,7 +201,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
     //    the newState attribute initialized to "open", and the source attribute initialized to source at subject is
     //    false, then return.
-    ToggleEventInit event_init {};
+    Bindings::ToggleEventInit event_init {};
     event_init.cancelable = true;
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
@@ -336,7 +336,7 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
 
     // 2. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the
     //    newState attribute initialized to "closed", and the source attribute initialized to source at subject.
-    ToggleEventInit event_init {};
+    Bindings::ToggleEventInit event_init {};
     event_init.old_state = "open"_string;
     event_init.new_state = "closed"_string;
     event_init.source = source;

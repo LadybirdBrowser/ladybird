@@ -14,6 +14,7 @@ from typing import TextIO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Utils.css_dimensions import load_css_dimensions
 from Utils.CSSGrammar.generator import generate_css_parser_expression_for_grammar
 from Utils.utils import snake_casify
 
@@ -94,7 +95,10 @@ def generate_implementation_file(out: TextIO, value_type_data: dict[str, Any]) -
 #include <LibWeb/CSS/Parser/Parser.h>
 
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/EmptyOptionalStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 
 namespace Web::CSS::Parser {
 
@@ -135,7 +139,10 @@ def main() -> int:
         help="Path to the GeneratedValueTypesParsing implementation file to generate",
     )
     parser.add_argument("-j", "--json", required=True, help="Path to the JSON file to read from")
+    parser.add_argument("-u", "--units-json", required=True, help="Path to Units.json")
     args = parser.parse_args()
+
+    load_css_dimensions(args.units_json)
 
     with open(args.json, "r", encoding="utf-8") as json_file:
         value_type_data = json.load(json_file)

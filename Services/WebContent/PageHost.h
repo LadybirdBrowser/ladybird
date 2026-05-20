@@ -11,8 +11,21 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/OwnPtr.h>
 #include <LibGC/Root.h>
 #include <WebContent/Forward.h>
+
+namespace Web {
+
+enum class DisplayListPlayerType;
+
+namespace Compositor {
+
+class CompositorThread;
+
+}
+
+}
 
 namespace WebContent {
 
@@ -29,11 +42,15 @@ public:
     void remove_page(Badge<PageClient>, u64 index);
 
     ConnectionFromClient& client() const { return m_client; }
+    void ensure_compositor_thread(Web::DisplayListPlayerType);
+    Web::Compositor::CompositorThread* compositor_thread() { return m_compositor_thread.ptr(); }
+    Web::Compositor::CompositorThread const* compositor_thread() const { return m_compositor_thread.ptr(); }
 
 private:
     explicit PageHost(ConnectionFromClient&);
 
     ConnectionFromClient& m_client;
+    OwnPtr<Web::Compositor::CompositorThread> m_compositor_thread;
     HashMap<u64, GC::Root<PageClient>> m_pages;
     u64 m_next_id { 0 };
 };

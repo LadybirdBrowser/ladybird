@@ -1,4 +1,4 @@
-$5af00ff4 for-in-object-property-iterator-next.js:8:1
+$2c4e495c for-in-object-property-iterator-next.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,17 +11,17 @@ $5af00ff4 for-in-object-property-iterator-next.js:8:1
 
 block0:
   [   0] GetGlobal dst:reg6, `collect`
-  [  18] NewObject dst:reg7
-  [  28] ToPrimitiveWithStringHint dst:Int32(2), value:Int32(2)
-  [  38] PutByValue base:reg7, property:Int32(2), src:String("two"), kind:Own
-  [  50] PutById base:reg7, `foo`, src:String("foo"), kind:Own
-  [  78] ToPrimitiveWithStringHint dst:Int32(7), value:Int32(7)
-  [  88] PutByValue base:reg7, property:Int32(7), src:String("seven"), kind:Own
-  [  a0] Call dst:reg5, callee:reg6, this_value:Undefined, collect, arguments:[reg7]
-  [  c8] End value:reg5
+  [  10] NewObject dst:reg7
+  [  20] ToPrimitiveWithStringHint dst:Int32(2), value:Int32(2)
+  [  30] PutByValue base:reg7, property:Int32(2), src:String("two"), kind:Own
+  [  48] PutById base:reg7, `foo`, src:String("foo"), kind:Own
+  [  68] ToPrimitiveWithStringHint dst:Int32(7), value:Int32(7)
+  [  78] PutByValue base:reg7, property:Int32(7), src:String("seven"), kind:Own
+  [  90] Call dst:reg5, callee:reg6, this_value:Undefined, collect, arguments:[reg7]
+  [  b8] End value:reg5
 
 
-collect$4195dbe6 for-in-object-property-iterator-next.js:2:18
+collect$aa10966b for-in-object-property-iterator-next.js:2:18
   Registers: 12
   Blocks:    6
   Locals:    key~0, keys~1
@@ -42,13 +42,13 @@ block3:
 
 block4:
   [  50] GetObjectPropertyIterator dst_iterator:reg5, object:arg0
-  [  68] Jump target:block2
+  [  60] Jump target:block2
 
 block5:
-  [  70] Mov dst:key~0, src:reg6
-  [  80] GetById dst:reg9, base:keys~1, `push` (keys.push)
-  [  a0] Mov dst:reg10, src:keys~1
-  [  b0] ThrowIfTDZ src:key~0
-  [  b8] Mov dst:reg11, src:key~0
-  [  c8] Call dst:reg8, callee:reg9, this_value:reg10, keys.push, arguments:[reg11]
-  [  f0] Jump target:block2
+  [  68] Mov dst:key~0, src:reg6
+  [  78] GetById dst:reg9, base:keys~1, `push` (keys.push)
+  [  90] Mov dst:reg10, src:keys~1
+  [  a0] ThrowIfTDZ src:key~0
+  [  a8] Mov dst:reg11, src:key~0
+  [  b8] Call dst:reg8, callee:reg9, this_value:reg10, keys.push, arguments:[reg11]
+  [  e0] Jump target:block2

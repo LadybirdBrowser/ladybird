@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+2 Pass
+4 Fail
+Pass	Size queries with content-box sizing
+Pass	Size queries with border-box sizing
+Fail	Size queries with content-box sizing and overflow:scroll
+Fail	Size queries with border-box sizing and overflow:scroll
+Fail	Size queries with content-box sizing and scrollbar-gutter:stable
+Fail	Size queries with border-box sizing and scrollbar-gutter:stable

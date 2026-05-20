@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <video id="video" src="nonexistent-video.webm"></video>
 <script>
     // The video must exist before DOMContentLoaded can fire, so that the load event is
     // delayed. Therefore, we must attach handlers to the events and cache all the events
     // outside the async test.
     const video = document.getElementById("video");
-    const events = [];
 
     function logEvent(name) {
-        let entry = `${name}: readyState=${video.readyState}`;
+        let entry = `${name}: ${formatReadyStateExpectation(video, name)}`;
         if (name === "durationchange")
             entry += ` duration=${video.duration}`;
-        events.push(entry);
+        println(entry);
     }
 
     for (const name of [
@@ -24,9 +24,9 @@
     }
 
     video.addEventListener("error", () => {
-        logEvent("error handler: setting good src");
+        println("error handler: setting good src");
         video.src = "../../../Assets/test-webm.webm";
-        logEvent("error handler: src setter returned");
+        println("error handler: src setter returned");
     });
 
     let documentLoaded = false;
@@ -35,17 +35,12 @@
     let triggerCompletion = null;
 
     function checkCompletion() {
-        if (documentLoaded && videoLoaded && videoCanPlayThrough) {
-            println("Events:");
-            for (const e of events)
-                println(`  ${e}`);
-            println(`Final: readyState=${video.readyState} duration=${video.duration}`);
+        if (documentLoaded && videoLoaded && videoCanPlayThrough)
             triggerCompletion();
-        }
     }
 
     window.addEventListener("load", () => {
-        logEvent("document load");
+        println("document loaded");
         documentLoaded = true;
         checkCompletion();
     });

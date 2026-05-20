@@ -10,9 +10,9 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/UnderlyingSink.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Streams/AbstractOperations.h>
-#include <LibWeb/Streams/UnderlyingSink.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultController.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
@@ -954,7 +954,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStre
 }
 
 // https://streams.spec.whatwg.org/#set-up-writable-stream-default-controller-from-underlying-sink
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(WritableStream& stream, JS::Value underlying_sink_value, UnderlyingSink& underlying_sink, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(WritableStream& stream, JS::Value underlying_sink_value, Bindings::UnderlyingSink& underlying_sink, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
     auto& realm = stream.realm();
 

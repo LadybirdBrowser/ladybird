@@ -1,0 +1,26 @@
+<!doctype html>
+<title>style is invalidated properly as a result of attribute changes in display: none subtrees</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<style>
+div {
+  color: red
+}
+.foo {
+  color: lime;
+}
+</style>
+<div style="display: none">
+  <div id="undisplayed"></div>
+</div>
+<script>
+  test(function() {
+    let undisplayed_style = getComputedStyle(undisplayed);
+    assert_equals(undisplayed_style.color, "rgb(255, 0, 0)");
+    undisplayed.classList.add("foo");
+    assert_equals(undisplayed_style.color, "rgb(0, 255, 0)");
+  }, "getComputedStyle gets invalidated in display: none subtrees due to attribute mutations");
+</script>

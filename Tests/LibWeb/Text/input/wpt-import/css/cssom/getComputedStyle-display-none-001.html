@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSOM: getComputedStyle gets invalidated for display: none elements (inheritance)</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle">
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=186882">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<style>
+#undisplayed, #host {
+  display: none;
+  color: red;
+}
+</style>
+<div id="undisplayed"><div id="child"></div></div>
+<div id="host"></div>
+<script>
+  test(function() {
+    let undisplayed_style = getComputedStyle(undisplayed);
+    let undisplayed_child_style = getComputedStyle(child);
+    assert_equals(undisplayed_style.color, "rgb(255, 0, 0)");
+    assert_equals(undisplayed_child_style.color, "rgb(255, 0, 0)");
+    undisplayed.style.color = "green";
+    assert_equals(undisplayed_style.color, "rgb(0, 128, 0)");
+    assert_equals(undisplayed_child_style.color, "rgb(0, 128, 0)");
+  }, "getComputedStyle gets invalidated in display: none subtrees due to inherited changes to an ancestor");
+  test(function() {
+    host.attachShadow({ mode: 'open' }).innerHTML = `
+      <div></div>
+    `;
+    let host_style = getComputedStyle(host);
+    let shadow_style = getComputedStyle(host.shadowRoot.firstElementChild);
+    assert_equals(host_style.color, "rgb(255, 0, 0)");
+    assert_equals(shadow_style.color, "rgb(255, 0, 0)");
+    host.style.color = "green";
+    assert_equals(host_style.color, "rgb(0, 128, 0)");
+    assert_equals(shadow_style.color, "rgb(0, 128, 0)");
+  }, "getComputedStyle gets invalidated in display: none subtrees due to inherited changes to an ancestor shadow host");
+</script>

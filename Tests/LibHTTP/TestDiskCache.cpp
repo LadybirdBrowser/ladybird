@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -74,6 +75,11 @@ TEST_CASE(associated_data_round_trips_with_cache_entry)
     VERIFY(retrieved_bytecode.has_value());
     EXPECT_EQ(retrieved_bytecode->bytes(), bytecode.bytes());
 
+    auto retrieved_bytecode_file = TRY_OR_FAIL(disk_cache.retrieve_associated_data_file(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
+    VERIFY(retrieved_bytecode_file.has_value());
+    auto mapped_bytecode = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(retrieved_bytecode_file->fd, "bytecode"sv, retrieved_bytecode_file->offset, retrieved_bytecode_file->size));
+    EXPECT_EQ(mapped_bytecode.bytes(), bytecode.bytes());
+
     disk_cache.remove_entries_accessed_since(UnixDateTime::earliest());
 
     retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
@@ -109,6 +115,51 @@ TEST_CASE(replacing_cache_entry_removes_associated_data)
 
     retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     EXPECT(!retrieved_bytecode.has_value());
+}
+
+TEST_CASE(flush_returns_mappable_body_file)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing));
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/script.js"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data("console.log('hello');"sv.bytes()));
+
+    auto body_file = TRY_OR_FAIL(writer.flush_and_take_body_file(request_headers, response_headers));
+    auto body = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(body_file.fd, "cache body"sv, body_file.offset, body_file.size));
+    EXPECT_EQ(body.bytes(), "console.log('hello');"sv.bytes());
+}
+
+TEST_CASE(replacing_cache_entry_keeps_existing_body_mapping_stable)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing));
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/script.js"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data("console.log('old');"sv.bytes()));
+
+    auto old_body_file = TRY_OR_FAIL(writer.flush_and_take_body_file(request_headers, response_headers));
+    auto old_body = TRY_OR_FAIL(Core::ImmutableBytes::map_from_fd_range_and_close(old_body_file.fd, "old cache body"sv, old_body_file.offset, old_body_file.size));
+    EXPECT_EQ(old_body.bytes(), "console.log('old');"sv.bytes());
+
+    auto replacement_request_headers = create_cacheable_request_headers();
+    auto replacement_response_headers = create_cacheable_response_headers();
+    auto& replacement_writer = create_cache_entry(disk_cache, request, url, *replacement_request_headers);
+    TRY_OR_FAIL(replacement_writer.write_status_and_reason(200, "OK"_string, *replacement_request_headers, *replacement_response_headers));
+    TRY_OR_FAIL(replacement_writer.write_data("console.log('new');"sv.bytes()));
+    TRY_OR_FAIL(replacement_writer.flush(replacement_request_headers, replacement_response_headers));
+
+    EXPECT_EQ(old_body.bytes(), "console.log('old');"sv.bytes());
 }
 
 TEST_CASE(associated_data_round_trips_with_explicit_vary_key)

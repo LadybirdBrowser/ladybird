@@ -23,7 +23,7 @@ class TextDecoderStream final
     GC_DECLARE_ALLOCATOR(TextDecoderStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> construct_impl(JS::Realm&, FlyString label, TextDecoderOptions const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> construct_impl(JS::Realm&, FlyString label, Bindings::TextDecoderOptions const&);
     virtual ~TextDecoderStream() override;
 
 private:

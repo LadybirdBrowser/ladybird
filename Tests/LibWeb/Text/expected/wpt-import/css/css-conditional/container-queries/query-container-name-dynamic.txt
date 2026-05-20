@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Initially selects #couter as --foo container, both match
+Pass	Remove #couter --foo container-name, none match
+Pass	Make #cinner a --foo container, #inner starts matching

@@ -445,7 +445,7 @@ MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multip
 
             // 3. Let value be a new File object with name filename, type contentType, and body body.
             auto blob = FileAPI::Blob::create(realm, MUST(ByteBuffer::copy(body.bytes())), header.content_type.release_value());
-            FileAPI::FilePropertyBag options {};
+            Bindings::FilePropertyBag options {};
             options.type = blob->type();
             value = MUST(FileAPI::File::create(realm, { GC::make_root(blob) }, header.filename.release_value(), move(options)));
         }

@@ -36,7 +36,7 @@ private:
     // A base element that is the first base element with an href content attribute in a document tree has a frozen base URL.
     URL::URL m_frozen_base_url;
 
-    void set_the_frozen_base_url();
+    void set_the_frozen_base_url(URL::URL const& old_base_url);
 };
 
 }

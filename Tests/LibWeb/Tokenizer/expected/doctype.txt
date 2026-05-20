@@ -1,0 +1,5 @@
+DOCTYPE name="html" @0:11-0:15
+Character U+000A @1:0
+DOCTYPE name="html" public_id="-//W3C//DTD HTML 4.01//EN" system_id="http://www.w3.org/TR/html4/strict.dtd" @1:11-1:90
+Character U+000A @2:0
+EndOfFile @2:0

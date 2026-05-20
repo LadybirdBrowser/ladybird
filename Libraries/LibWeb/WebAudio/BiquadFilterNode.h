@@ -12,15 +12,6 @@
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#BiquadFilterOptions
-struct BiquadFilterOptions : AudioNodeOptions {
-    Bindings::BiquadFilterType type { Bindings::BiquadFilterType::Lowpass };
-    float q { 1 };
-    float detune { 0 };
-    float frequency { 350 };
-    float gain { 0 };
-};
-
 // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
 class BiquadFilterNode : public AudioNode {
     WEB_PLATFORM_OBJECT(BiquadFilterNode, AudioNode);
@@ -40,11 +31,11 @@ public:
     GC::Ref<AudioParam> gain() const;
     WebIDL::ExceptionOr<void> get_frequency_response(GC::Root<JS::Float32Array> const&, GC::Root<JS::Float32Array> const&, GC::Root<JS::Float32Array> const&);
 
-    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
 
 protected:
-    BiquadFilterNode(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
+    BiquadFilterNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

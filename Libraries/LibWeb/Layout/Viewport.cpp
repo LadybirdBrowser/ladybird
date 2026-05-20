@@ -65,7 +65,10 @@ void Viewport::update_text_blocks()
         if (layout_node.display().is_none() || !layout_node.first_paintable() || !layout_node.first_paintable()->is_visible())
             return TraversalDecision::Continue;
 
-        if (layout_node.is_box() || layout_node.is_generated_for_pseudo_element()) {
+        auto const pseudo = layout_node.generated_for_pseudo_element();
+        auto const wraps_dom_text = pseudo == CSS::PseudoElement::FirstLetter;
+
+        if (layout_node.is_box() || (pseudo.has_value() && !wraps_dom_text)) {
             if (!builder.is_empty()) {
                 text_blocks.append({ builder.to_utf16_string(), text_positions });
                 current_start_position = 0;
@@ -80,11 +83,9 @@ void Viewport::update_text_blocks()
             // When a node is inert:
             // - The user agent should ignore the node for the purposes of find-in-page.
             if (auto& dom_node = const_cast<DOM::Text&>(text_node->dom_node()); !dom_node.is_inert()) {
-                if (text_positions.is_empty()) {
-                    text_positions.empend(dom_node);
-                } else {
-                    text_positions.empend(dom_node, current_start_position);
-                }
+                auto const dom_offset = text_node->dom_start_offset();
+                auto const builder_offset = text_positions.is_empty() ? size_t { 0 } : current_start_position;
+                text_positions.empend(dom_node, builder_offset, dom_offset);
 
                 auto const& current_node_text = text_node->text_for_rendering();
                 current_start_position += current_node_text.length_in_code_units();

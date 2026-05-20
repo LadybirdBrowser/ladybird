@@ -8,6 +8,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/IntegralMath.h>
 #include <LibCompress/Zlib.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Resource.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/FourCC.h>
@@ -135,7 +136,8 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
         return Error::from_string_literal("Invalid WOFF total sfnt size");
     if (header.total_sfnt_size > 10 * MiB)
         return Error::from_string_literal("Uncompressed font is more than 10 MiB");
-    auto font_buffer = TRY(ByteBuffer::create_zeroed(header.total_sfnt_size));
+    auto font_buffer = TRY(Core::AnonymousBuffer::create_with_size(header.total_sfnt_size));
+    auto* font_buffer_data = font_buffer.data<u8>();
 
     u16 search_range = pow_2_less_than_or_equal(header.num_tables);
     TableDirectory table_directory {
@@ -145,7 +147,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
         .entry_selector = AK::log2(search_range),
         .range_shift = header.num_tables * 16 - search_range * 16,
     };
-    font_buffer.overwrite(0, &table_directory, sizeof(table_directory));
+    memcpy(font_buffer_data, &table_directory, sizeof(table_directory));
 
     size_t font_buffer_offset = sizeof(TableDirectory) + header.num_tables * sizeof(TableRecord);
     for (size_t i = 0; i < header.num_tables; ++i) {
@@ -164,11 +166,11 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
             auto decompressed = TRY(decompressor->read_until_eof());
             if (entry.orig_length != decompressed.size())
                 return Error::from_string_literal("Invalid decompressed WOFF table length");
-            font_buffer.overwrite(font_buffer_offset, decompressed.data(), entry.orig_length);
+            memcpy(font_buffer_data + font_buffer_offset, decompressed.data(), entry.orig_length);
         } else {
             if (entry.comp_length != entry.orig_length)
                 return Error::from_string_literal("Invalid uncompressed WOFF table length");
-            font_buffer.overwrite(font_buffer_offset, buffer.data() + entry.offset, entry.orig_length);
+            memcpy(font_buffer_data + font_buffer_offset, buffer.data() + entry.offset, entry.orig_length);
         }
 
         size_t table_directory_offset = sizeof(TableDirectory) + i * sizeof(TableRecord);
@@ -178,7 +180,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
             .offset = font_buffer_offset,
             .length = entry.orig_length,
         };
-        font_buffer.overwrite(table_directory_offset, &table_record, sizeof(table_record));
+        memcpy(font_buffer_data + table_directory_offset, &table_record, sizeof(table_record));
 
         font_buffer_offset += entry.orig_length;
     }
@@ -186,8 +188,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
     if (header.total_sfnt_size != expected_total_sfnt_size)
         return Error::from_string_literal("Invalid WOFF total sfnt size");
 
-    auto font_data = Gfx::FontData::create_from_byte_buffer(move(font_buffer));
-    return TRY(Gfx::Typeface::try_load_from_font_data(move(font_data), index));
+    return TRY(Gfx::Typeface::try_load_from_anonymous_buffer(move(font_buffer), index));
 }
 
 }

@@ -21,6 +21,30 @@
 
 namespace Web::Painting {
 
+using ColorStopList = Vector<Gfx::ColorStop, 4>;
+
+struct ResolvedColorStopData {
+    ColorStopList list;
+    Optional<float> repeat_length;
+    bool repeating { false };
+};
+
+static ColorStopData to_color_stop_data(ColorStopList const& color_stop_list, bool repeating, auto to_position)
+{
+    ColorStopData data;
+    data.colors.ensure_capacity(color_stop_list.size());
+    data.positions.ensure_capacity(color_stop_list.size());
+    for (auto const& color_stop : color_stop_list) {
+        auto position = to_position(color_stop.position);
+        if (!data.colors.is_empty() && data.colors.last() == color_stop.color && data.positions.last() == position)
+            continue;
+        data.colors.unchecked_append(color_stop.color);
+        data.positions.unchecked_append(position);
+    }
+    data.repeating = repeating;
+    return data;
+}
+
 static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopList const& color_stop_list)
 {
     ColorStopList stops_with_replaced_transition_hints;
@@ -125,7 +149,7 @@ static ColorStopList expand_color_stops_for_painting(ColorStopList const& color_
     return replace_transition_hints_with_normal_color_stops(expanded);
 }
 
-static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& node, Vector<CSS::ColorStopListElement> const& color_stop_list, auto resolve_position_to_float, bool repeating)
+static ResolvedColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& node, Vector<CSS::ColorStopListElement> const& color_stop_list, auto resolve_position_to_float, bool repeating)
 {
     VERIFY(!color_stop_list.is_empty());
     ColorStopList resolved_color_stops;
@@ -234,7 +258,12 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
     // Replace transition hints for painting; keep repeat_length for Skia's native tiling
     resolved_color_stops.list = replace_transition_hints_with_normal_color_stops(resolved_color_stops.list);
 
-    return { gradient_angle, resolved_color_stops, linear_gradient.interpolation_method() };
+    auto repeat_length = resolved_color_stops.repeat_length.value_or(1);
+    auto first_stop_position = resolved_color_stops.repeat_length.has_value() ? resolved_color_stops.list.first().position : 0.f;
+    auto color_stop_data = to_color_stop_data(resolved_color_stops.list, resolved_color_stops.repeating, [&](float position) {
+        return (position - first_stop_position) / repeat_length;
+    });
+    return { gradient_angle, first_stop_position, repeat_length, move(color_stop_data), linear_gradient.interpolation_method() };
 }
 
 ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node, CSS::ConicGradientStyleValue const& conic_gradient)
@@ -250,7 +279,10 @@ ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node,
     resolved_color_stops.list = expand_color_stops_for_painting(resolved_color_stops.list, resolved_color_stops.repeat_length);
     resolved_color_stops.repeat_length = {};
 
-    return { conic_gradient.angle_degrees(), resolved_color_stops, conic_gradient.interpolation_method() };
+    auto color_stop_data = to_color_stop_data(resolved_color_stops.list, resolved_color_stops.repeating, [](float position) {
+        return position;
+    });
+    return { conic_gradient.angle_degrees(), move(color_stop_data), conic_gradient.interpolation_method() };
 }
 
 RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)
@@ -266,7 +298,10 @@ RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& nod
     resolved_color_stops.list = expand_color_stops_for_painting(resolved_color_stops.list, resolved_color_stops.repeat_length);
     resolved_color_stops.repeat_length = {};
 
-    return { resolved_color_stops, radial_gradient.interpolation_method() };
+    auto color_stop_data = to_color_stop_data(resolved_color_stops.list, resolved_color_stops.repeating, [](float position) {
+        return position;
+    });
+    return { move(color_stop_data), radial_gradient.interpolation_method() };
 }
 
 }

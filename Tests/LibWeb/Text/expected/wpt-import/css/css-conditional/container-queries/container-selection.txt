@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	(width: 16px) for .size > .inline > span
+Pass	(height: 16px) for .inline > .size > span
+Pass	(width: 16px) for .inline > .size > span
+Pass	(height: 32px) for .size > .inline > span
+Pass	(height: 16px) for .size > .inline > span
+Pass	a (width: 32px) for .a-size > .b-size > span
+Pass	b (width: 16px) for .a-size > .b-size > span
+Pass	c (width) for .a-size > .b-size > span
+Pass	a (width: 16px) for .a-size > .a-size > span
+Pass	a (width: 32px) for .a-size > .a > span
+Pass	a (width: 32px) for .ab-size > .size > span
+Pass	b (width: 32px) for .ab-size > .size > span
+Pass	c (width) for .ab-size > .size > span
+Pass	a (width: 8px) for .a-size > .b-size > .a-inline > span
+Pass	b (width: 16px) for .a-size > .b-size > .a-inline > span
+Pass	a (height: 32px) for .a-size > .b-size > .a-inline > span
+Pass	a (height) for .a-inline > .b-size
+Pass	a (inline-size: 8px) for .a-size > .b-size > .a-inline > span
+Pass	b (inline-size: 16px) for .a-size > .b-size > .a-inline > span
+Pass	a (block-size: 32px) for .a-size > .b-size > .a-inline > span
+Pass	a (block-size) for .a-inline > .b-size

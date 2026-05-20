@@ -115,6 +115,8 @@ static ContainsGCPtrResult record_contains_gc_ptr(clang::CXXRecordDecl const* re
         "GC::CellAllocator",
         "GC::TypeIsolatingCellAllocator",
         "GC::RootVector",
+        "GC::RootHashTable",
+        "GC::RootHashTableBase",
         "GC::Heap",
         "GC::MarkedVector",
         "GC::ConservativeVector",
@@ -189,7 +191,7 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
             return ContainsGCPtrResult::No;
 
         // Root types handle their own visiting
-        if (template_name == "GC::Root" || template_name == "GC::RootVector")
+        if (template_name == "GC::Root" || template_name == "GC::RootVector" || template_name == "GC::RootHashTable")
             return ContainsGCPtrResult::No;
 
         // Check template arguments recursively for containers
@@ -229,6 +231,7 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
             "GC::RawPtr",
             "GC::RawRef",
             "GC::RootVector",
+            "GC::RootHashTable",
             "GC::Root",
         };
 
@@ -944,6 +947,7 @@ void LibJSPPCallbacks::MacroExpands(clang::Token const& name_token, clang::Macro
         static llvm::StringMap<LibJSCellMacro::Type> libjs_macro_types {
             { "GC_CELL", LibJSCellMacro::Type::GCCell },
             { "JS_OBJECT", LibJSCellMacro::Type::JSObject },
+            { "JS_OBJECT_WITH_CUSTOM_CLASS_NAME", LibJSCellMacro::Type::JSObject },
             { "JS_ENVIRONMENT", LibJSCellMacro::Type::JSEnvironment },
             { "JS_PROTOTYPE_OBJECT", LibJSCellMacro::Type::JSPrototypeObject },
             { "WEB_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },

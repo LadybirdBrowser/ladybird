@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
+#include <LibWeb/Compositor/CompositorThread.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
@@ -45,6 +46,33 @@ Page::Page(GC::Ref<PageClient> client)
 }
 
 Page::~Page() = default;
+
+bool Page::has_compositor_thread() const
+{
+    return m_client->compositor_thread();
+}
+
+void Page::ensure_compositor_thread()
+{
+    if (!m_client->supports_compositor())
+        return;
+
+    m_client->ensure_compositor_thread();
+}
+
+Compositor::CompositorThread& Page::compositor_thread()
+{
+    auto* compositor_thread = m_client->compositor_thread();
+    VERIFY(compositor_thread);
+    return *compositor_thread;
+}
+
+Compositor::CompositorThread const& Page::compositor_thread() const
+{
+    auto const* compositor_thread = m_client->compositor_thread();
+    VERIFY(compositor_thread);
+    return *compositor_thread;
+}
 
 void Page::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -267,9 +295,9 @@ EventResult Page::handle_mouseleave()
     return top_level_traversable()->event_handler().handle_mouseleave();
 }
 
-EventResult Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, DevicePixels wheel_delta_x, DevicePixels wheel_delta_y)
+EventResult Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
-    return top_level_traversable()->event_handler().handle_mousewheel(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, wheel_delta_x.value(), wheel_delta_y.value());
+    return top_level_traversable()->event_handler().handle_mousewheel(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action, async_scroll_operation);
 }
 
 EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files)
@@ -295,6 +323,16 @@ EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 co
 void Page::handle_sdl_input_events()
 {
     top_level_traversable()->event_handler().handle_sdl_input_events();
+}
+
+void Page::invalidate_compositor_wheel_event_listener_state()
+{
+    ++m_wheel_event_listener_state_generation;
+
+    if (!m_async_scrolling_enabled || !top_level_traversable_is_initialized() || !top_level_traversable()->has_compositor_context())
+        return;
+
+    top_level_traversable()->compositor_context().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
 }
 
 void Page::set_top_level_traversable(GC::Ref<HTML::TraversableNavigable> navigable)
@@ -861,7 +899,7 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
     selection->add_range(*current_range);
 
     if (auto element = common_ancestor_container->parent_element()) {
-        DOM::ScrollIntoViewOptions scroll_options;
+        Bindings::ScrollIntoViewOptions scroll_options;
         scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
         scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
         scroll_options.behavior = Bindings::ScrollBehavior::Instant;

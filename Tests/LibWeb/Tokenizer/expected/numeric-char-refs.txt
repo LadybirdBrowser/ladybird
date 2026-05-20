@@ -1,0 +1,12 @@
+Character U+0009 @0:4
+Character U+000A @0:9
+Character U+000D @0:14
+Character U+0020 ' ' @0:19
+Character U+007F @0:25
+Character U+20AC @0:31
+Character U+0178 @0:37
+Character U+FFFD @0:41
+Character U+10FFFF @0:51
+Character U+FFFD @0:61
+Character U+000A @1:0
+EndOfFile @1:0

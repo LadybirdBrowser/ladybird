@@ -10,32 +10,16 @@
 #include <AK/String.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Weak.h>
+#include <LibWeb/Bindings/ElementInternals.h>
 #include <LibWeb/Bindings/HTMLFormElement.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
 namespace Web::HTML {
-
-struct ValidityStateFlags {
-    bool value_missing = false;
-    bool type_mismatch = false;
-    bool pattern_mismatch = false;
-    bool too_long = false;
-    bool too_short = false;
-    bool range_underflow = false;
-    bool range_overflow = false;
-    bool step_mismatch = false;
-    bool bad_input = false;
-    bool custom_error = false;
-
-    bool has_one_or_more_true_values() const
-    {
-        return value_missing || type_mismatch || pattern_mismatch || too_long || too_short || range_underflow || range_overflow || step_mismatch || bad_input || custom_error;
-    }
-};
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selection-direction
 enum class SelectionDirection {
@@ -147,8 +131,8 @@ public:
 
     void update_face_disabled_state();
 
-    ValidityStateFlags const& face_validity_flags() const { return m_face_validity_flags; }
-    void set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value);
+    Bindings::ValidityStateFlags const& face_validity_flags() const { return m_face_validity_flags; }
+    void set_face_validity_flags(Badge<ElementInternals>, Bindings::ValidityStateFlags const& value);
 
     String const& face_validation_message() const { return m_face_validation_message; }
     void set_face_validation_message(Badge<ElementInternals>, String const& value);
@@ -185,7 +169,7 @@ private:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
 
-    ValidityStateFlags m_face_validity_flags {};
+    Bindings::ValidityStateFlags m_face_validity_flags {};
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-message
     // Each form-associated custom element has a validation message string. It is the empty string initially.
@@ -279,6 +263,8 @@ public:
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;
     virtual void move_cursor_to_start(CollapseSelection) override;
     virtual void move_cursor_to_end(CollapseSelection) override;
+    void move_cursor_to_start_of_current_line(CollapseSelection);
+    void move_cursor_to_end_of_current_line(CollapseSelection);
     virtual void increment_cursor_position_offset(CollapseSelection) override;
     virtual void decrement_cursor_position_offset(CollapseSelection) override;
     virtual void increment_cursor_position_to_next_word(CollapseSelection) override;
@@ -307,5 +293,17 @@ private:
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool m_has_scheduled_selectionchange_event { false };
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::FormAssociatedTextControlElement>() const { return is_html_input_element() || is_html_textarea_element(); }
+
+template<>
+HTML::FormAssociatedTextControlElement* Node::fast_as<HTML::FormAssociatedTextControlElement>();
+template<>
+HTML::FormAssociatedTextControlElement const* Node::fast_as<HTML::FormAssociatedTextControlElement>() const;
 
 }

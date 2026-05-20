@@ -17,6 +17,12 @@
 #include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/PixelUnits.h>
 
+namespace Web::Painting {
+
+class ScrollState;
+
+}
+
 namespace Web {
 
 class WEB_API DisplayListRecordingContext {
@@ -84,6 +90,25 @@ public:
     ChromeMetrics const& chrome_metrics() const { return m_chrome_metrics; }
     u64 paint_generation_id() const { return m_paint_generation_id; }
 
+    void set_async_scrolling_metadata_context(
+        UniqueNodeID document_id,
+        Painting::ScrollState const& scroll_state,
+        bool has_blocking_wheel_event_listeners,
+        bool has_blocking_wheel_event_region_covering_viewport)
+    {
+        m_async_scrolling_document_id = document_id;
+        m_async_scrolling_scroll_state = &scroll_state;
+        m_has_blocking_wheel_event_listeners = has_blocking_wheel_event_listeners;
+        m_has_blocking_wheel_event_region_covering_viewport = has_blocking_wheel_event_region_covering_viewport;
+    }
+
+    bool is_recording_async_scrolling_metadata() const { return m_async_scrolling_scroll_state != nullptr; }
+    UniqueNodeID async_scrolling_document_id() const { return m_async_scrolling_document_id; }
+    Painting::ScrollState const& async_scrolling_scroll_state() const { return *m_async_scrolling_scroll_state; }
+    bool has_blocking_wheel_event_listeners() const { return m_has_blocking_wheel_event_listeners; }
+    void set_has_blocking_wheel_event_listeners(bool value) { m_has_blocking_wheel_event_listeners = value; }
+    bool has_blocking_wheel_event_region_covering_viewport() const { return m_has_blocking_wheel_event_region_covering_viewport; }
+
 private:
     Painting::DisplayListRecorder& m_display_list_recorder;
     Palette m_palette;
@@ -95,6 +120,10 @@ private:
     bool m_draw_svg_geometry_for_clip_path { false };
     Gfx::AffineTransform m_svg_transform;
     u64 m_paint_generation_id { 0 };
+    UniqueNodeID m_async_scrolling_document_id {};
+    Painting::ScrollState const* m_async_scrolling_scroll_state { nullptr };
+    bool m_has_blocking_wheel_event_listeners { false };
+    bool m_has_blocking_wheel_event_region_covering_viewport { false };
 };
 
 }

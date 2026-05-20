@@ -45,6 +45,15 @@ class Tokenizer:
         if peeked == "|":
             self.lexer.consume()
             return Token.create(TokenType.SINGLE_BAR)
+        if peeked == "[":
+            self.lexer.consume()
+            return Token.create(TokenType.OPEN_SQUARE_BRACKET)
+        if peeked == "]":
+            self.lexer.consume()
+            return Token.create(TokenType.CLOSE_SQUARE_BRACKET)
+        if peeked == "?":
+            self.lexer.consume()
+            return Token.create(TokenType.QUESTION_MARK)
         if peeked == "<":
             return self.consume_a_non_terminal_token()
 

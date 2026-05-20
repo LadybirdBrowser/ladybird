@@ -9,16 +9,12 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Bindings/Clipboard.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Clipboard {
-
-struct ClipboardUnsanitizedFormats {
-    // FIXME: This should not actually be an Optional, but the IDL generator creates it as such.
-    Optional<Vector<String>> unsanitized;
-};
 
 class Clipboard final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(Clipboard, DOM::EventTarget);
@@ -28,7 +24,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<Clipboard>> construct_impl(JS::Realm&);
     virtual ~Clipboard() override;
 
-    GC::Ref<WebIDL::Promise> read(ClipboardUnsanitizedFormats formats = {});
+    GC::Ref<WebIDL::Promise> read(Bindings::ClipboardUnsanitizedFormats formats = {});
     GC::Ref<WebIDL::Promise> read_text();
 
     GC::Ref<WebIDL::Promise> write(Vector<GC::Root<ClipboardItem>> const&);

@@ -40,6 +40,11 @@ MediaControls::~MediaControls()
         m_media_element->set_shadow_root(nullptr);
 }
 
+void MediaControls::visit_edges(GC::Cell::Visitor& visitor)
+{
+    visitor.visit(m_request_animation_frame_callback);
+}
+
 void MediaControls::create_shadow_tree()
 {
     auto& media_element = *m_media_element;
@@ -86,7 +91,7 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
     auto callback = realm.heap().allocate<WebIDL::CallbackType>(*callback_function, realm);
     auto listener = DOM::IDLEventListener::create(realm, callback);
 
-    DOM::AddEventListenerOptions options;
+    Bindings::AddEventListenerOptions options;
     options.once = listen_once == ListenOnce::Yes;
     target.add_event_listener(event_name, listener, options);
 
@@ -141,7 +146,6 @@ void MediaControls::set_up_event_listeners()
 {
     auto& media_element = *m_media_element;
     auto& realm = media_element.realm();
-    auto& window = as<HTML::Window>(realm.global_object());
 
     // Media element state events
     add_event_listener(realm, media_element, HTML::EventNames::play, [this]() {
@@ -157,6 +161,7 @@ void MediaControls::set_up_event_listeners()
     add_event_listener(realm, media_element, HTML::EventNames::playing, [this] {
         update_play_pause_icon();
         update_placeholder_visibility();
+        request_timeline_update();
         return true;
     });
     add_event_listener(realm, media_element, HTML::EventNames::seeked, [this] {
@@ -418,17 +423,14 @@ void MediaControls::set_up_event_listeners()
     // Use requestAnimationFrame to update the timeline, since timeupdate only fires every 250ms.
     auto request_animation_frame_callback_function = JS::NativeFunction::create(
         realm, [this](JS::VM&) {
+            m_request_animation_frame_id = 0;
             update_timeline();
-
-            auto& realm = m_media_element->realm();
-            auto& window = as<HTML::Window>(realm.global_object());
-            m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
-
+            request_timeline_update();
             return JS::js_undefined();
         },
         0, Utf16FlyString {}, &realm);
     m_request_animation_frame_callback = realm.heap().allocate<WebIDL::CallbackType>(request_animation_frame_callback_function, realm);
-    m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
+    request_timeline_update();
 }
 
 void MediaControls::toggle_playback()
@@ -497,6 +499,18 @@ void MediaControls::update_timeline()
 
     MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
     m_last_timeline_percentage = percentage;
+}
+
+void MediaControls::request_timeline_update()
+{
+    if (m_request_animation_frame_id != 0)
+        return;
+    if (!m_media_element->potentially_playing())
+        return;
+
+    auto& realm = m_media_element->realm();
+    auto& window = as<HTML::Window>(realm.global_object());
+    m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
 }
 
 void MediaControls::update_timestamp()

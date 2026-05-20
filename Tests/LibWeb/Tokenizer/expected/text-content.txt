@@ -1,0 +1,17 @@
+StartTag <p> [] @0:1-0:2
+Character U+0048 'H' @0:4
+Character U+0065 'e' @0:5
+Character U+006C 'l' @0:6
+Character U+006C 'l' @0:7
+Character U+006F 'o' @0:8
+Character U+002C ',' @0:9
+Character U+0020 ' ' @0:10
+Character U+0077 'w' @0:11
+Character U+006F 'o' @0:12
+Character U+0072 'r' @0:13
+Character U+006C 'l' @0:14
+Character U+0064 'd' @0:15
+Character U+0021 '!' @0:16
+EndTag </p> @0:18-0:19
+Character U+000A @1:0
+EndOfFile @1:0

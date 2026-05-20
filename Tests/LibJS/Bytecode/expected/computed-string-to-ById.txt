@@ -1,4 +1,4 @@
-$90ad3082 computed-string-to-ById.js:17:1
+$e1cbb7d2 computed-string-to-ById.js:17:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -6,21 +6,21 @@ $90ad3082 computed-string-to-ById.js:17:1
 
 block0:
   [   0] GetGlobal dst:reg6, `get_string_prop`
-  [  18] NewObject dst:reg7
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, get_string_prop, arguments:[reg7]
-  [  50] GetGlobal dst:reg7, `set_string_prop`
-  [  68] NewObject dst:reg8
-  [  78] Call dst:reg6, callee:reg7, this_value:Undefined, set_string_prop, arguments:[reg8]
-  [  a0] GetGlobal dst:reg7, `get_index_prop`
-  [  b8] NewArray dst:reg8
-  [  c8] Call dst:reg5, callee:reg7, this_value:Undefined, get_index_prop, arguments:[reg8]
-  [  f0] GetGlobal dst:reg7, `get_length_prop`
-  [ 108] NewArray dst:reg8
-  [ 118] Call dst:reg6, callee:reg7, this_value:Undefined, get_length_prop, arguments:[reg8]
-  [ 140] End value:reg6
+  [  10] NewObject dst:reg7
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, get_string_prop, arguments:[reg7]
+  [  48] GetGlobal dst:reg7, `set_string_prop`
+  [  58] NewObject dst:reg8
+  [  68] Call dst:reg6, callee:reg7, this_value:Undefined, set_string_prop, arguments:[reg8]
+  [  90] GetGlobal dst:reg7, `get_index_prop`
+  [  a0] NewArray dst:reg8
+  [  b0] Call dst:reg5, callee:reg7, this_value:Undefined, get_index_prop, arguments:[reg8]
+  [  d8] GetGlobal dst:reg7, `get_length_prop`
+  [  e8] NewArray dst:reg8
+  [  f8] Call dst:reg6, callee:reg7, this_value:Undefined, get_length_prop, arguments:[reg8]
+  [ 120] End value:reg6
 
 
-get_string_prop$fa843635 computed-string-to-ById.js:5:5
+get_string_prop$5816262b computed-string-to-ById.js:5:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -29,10 +29,10 @@ get_string_prop$fa843635 computed-string-to-ById.js:5:5
 block0:
   [   0] Mov dst:reg5, src:arg0
   [  10] GetById dst:reg6, base:reg5, `hello` (o.hello)
-  [  30] Return value:reg6
+  [  28] Return value:reg6
 
 
-set_string_prop$5b793bae computed-string-to-ById.js:8:16
+set_string_prop$d240471f computed-string-to-ById.js:8:16
   Registers: 6
   Blocks:    1
   Constants:
@@ -43,10 +43,10 @@ set_string_prop$5b793bae computed-string-to-ById.js:8:16
 block0:
   [   0] Mov dst:reg5, src:arg0
   [  10] PutById base:reg5, `hello`, src:Int32(42), kind:Normal (o.hello)
-  [  38] End value:Undefined
+  [  30] End value:Undefined
 
 
-get_index_prop$f6a04ecf computed-string-to-ById.js:11:5
+get_index_prop$a54df54e computed-string-to-ById.js:11:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -58,7 +58,7 @@ block0:
   [  28] Return value:reg6
 
 
-get_length_prop$2983fb9b computed-string-to-ById.js:14:5
+get_length_prop$813e14f1 computed-string-to-ById.js:14:5
   Registers: 7
   Blocks:    1
   Constants:

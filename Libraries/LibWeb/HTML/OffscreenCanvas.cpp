@@ -263,7 +263,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
     return image;
 }
 
-static Tuple<FlyString, Optional<double>> options_convert_or_default(Optional<ImageEncodeOptions> options)
+static Tuple<FlyString, Optional<double>> options_convert_or_default(Optional<Bindings::ImageEncodeOptions> options)
 {
 
     if (!options.has_value()) {
@@ -274,7 +274,7 @@ static Tuple<FlyString, Optional<double>> options_convert_or_default(Optional<Im
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-offscreencanvas-converttoblob
-GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOptions> maybe_options)
+GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<Bindings::ImageEncodeOptions> maybe_options)
 {
     // FIXME: 1. If the value of this's [[Detached]] internal slot is true, then return a promise rejected with an "InvalidStateError" DOMException.
 
@@ -378,18 +378,7 @@ void OffscreenCanvas::initialize(JS::Realm& realm)
 void OffscreenCanvas::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_context.visit(
-        [&](GC::Ref<OffscreenCanvasRenderingContext2D>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [](Empty) {
-        });
+    visitor.visit(m_context);
 }
 
 JS::ThrowCompletionOr<OffscreenCanvas::HasOrCreatedContext> OffscreenCanvas::create_2d_context(JS::Value options)

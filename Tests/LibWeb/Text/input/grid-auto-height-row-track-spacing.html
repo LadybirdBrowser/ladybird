@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.grid {
+    display: grid;
+    width: 100px;
+}
+
+.align-end {
+    align-content: end;
+    grid-template-rows: 100px;
+}
+
+.percentage-gap {
+    grid-template-rows: 100px 100px;
+    row-gap: 10%;
+}
+
+.definite-height {
+    height: 300px;
+}
+
+.min-height {
+    min-height: 300px;
+}
+
+.max-height {
+    align-content: end;
+    grid-template-rows: 100px 100px;
+    max-height: 150px;
+}
+
+.centered-rows {
+    align-content: center;
+    grid-template-rows: 50px 50px;
+    height: 300px;
+    row-gap: 10%;
+}
+
+.min-height-space-between {
+    align-content: space-between;
+    grid-template-rows: 50px 50px;
+    min-height: 300px;
+    row-gap: 10%;
+}
+
+.min-height-space-around {
+    align-content: space-around;
+    grid-template-rows: 50px 50px;
+    min-height: 300px;
+    row-gap: 10%;
+}
+
+.framed-end {
+    align-content: end;
+    border: 5px solid black;
+    grid-template-rows: 50px;
+    height: 150px;
+    padding: 10px;
+}
+
+.stretch-parent {
+    display: grid;
+    grid-template-rows: 300px;
+    width: 100px;
+}
+
+.stretched-overflowing-grid {
+    align-content: end;
+    display: grid;
+    grid-template-rows: 200px 200px;
+    width: 100px;
+}
+
+.item {
+    height: 100px;
+    width: 20px;
+}
+
+.short-item {
+    height: 50px;
+    width: 20px;
+}
+</style>
+<div id="auto-end-grid" class="grid align-end">
+    <div id="auto-end-item" class="item"></div>
+</div>
+<div id="auto-gap-grid" class="grid percentage-gap">
+    <div id="auto-gap-first" class="item"></div>
+    <div id="auto-gap-second" class="item"></div>
+</div>
+<div id="definite-gap-grid" class="grid percentage-gap definite-height">
+    <div id="definite-gap-first" class="item"></div>
+    <div id="definite-gap-second" class="item"></div>
+</div>
+<div id="min-height-end-grid" class="grid align-end min-height">
+    <div id="min-height-end-item" class="item"></div>
+</div>
+<div id="min-height-gap-grid" class="grid percentage-gap min-height">
+    <div id="min-height-gap-first" class="item"></div>
+    <div id="min-height-gap-second" class="item"></div>
+</div>
+<div id="max-height-end-grid" class="grid max-height">
+    <div id="max-height-end-first" class="item"></div>
+    <div id="max-height-end-second" class="item"></div>
+</div>
+<div id="centered-rows-grid" class="grid centered-rows">
+    <div id="centered-rows-first" class="short-item"></div>
+    <div id="centered-rows-second" class="short-item"></div>
+</div>
+<div id="min-height-space-between-grid" class="grid min-height-space-between">
+    <div id="min-height-space-between-first" class="short-item"></div>
+    <div id="min-height-space-between-second" class="short-item"></div>
+</div>
+<div id="min-height-space-around-grid" class="grid min-height-space-around">
+    <div id="min-height-space-around-first" class="short-item"></div>
+    <div id="min-height-space-around-second" class="short-item"></div>
+</div>
+<div id="framed-end-grid" class="grid framed-end">
+    <div id="framed-end-item" class="short-item"></div>
+</div>
+<div id="stretch-parent" class="stretch-parent">
+    <div id="stretched-overflowing-grid" class="stretched-overflowing-grid">
+        <div id="stretched-overflowing-first" class="item"></div>
+        <div id="stretched-overflowing-second" class="item"></div>
+    </div>
+</div>
+<script>
+test(() => {
+    const relativeRect = (selector, containingBlockSelector) => {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        const containingBlockRect = document.querySelector(containingBlockSelector).getBoundingClientRect();
+        return {
+            top: rect.top - containingBlockRect.top,
+            bottom: rect.bottom - containingBlockRect.top,
+            height: rect.height,
+        };
+    };
+
+    const printRect = (name, selector, containingBlockSelector) => {
+        const rect = relativeRect(selector, containingBlockSelector);
+        println(`${name} top: ${rect.top.toFixed(1)}`);
+        println(`${name} bottom: ${rect.bottom.toFixed(1)}`);
+        println(`${name} height: ${rect.height.toFixed(1)}`);
+    };
+
+    const printGap = (name, gridSelector, firstSelector, secondSelector) => {
+        const gridRect = document.querySelector(gridSelector).getBoundingClientRect();
+        const firstRect = document.querySelector(firstSelector).getBoundingClientRect();
+        const secondRect = document.querySelector(secondSelector).getBoundingClientRect();
+        println(`${name} grid height: ${gridRect.height.toFixed(1)}`);
+        println(`${name} gap: ${(secondRect.top - firstRect.bottom).toFixed(1)}`);
+        println(`${name} second top: ${(secondRect.top - gridRect.top).toFixed(1)}`);
+    };
+
+    printRect("auto end item", "#auto-end-item", "#auto-end-grid");
+    printGap("auto height percentage", "#auto-gap-grid", "#auto-gap-first", "#auto-gap-second");
+    printGap("definite height percentage", "#definite-gap-grid", "#definite-gap-first", "#definite-gap-second");
+    printRect("min-height end item", "#min-height-end-item", "#min-height-end-grid");
+    printGap("min-height percentage", "#min-height-gap-grid", "#min-height-gap-first", "#min-height-gap-second");
+    printRect("max-height end first", "#max-height-end-first", "#max-height-end-grid");
+    printGap("centered definite percentage", "#centered-rows-grid", "#centered-rows-first", "#centered-rows-second");
+    printGap("min-height space-between", "#min-height-space-between-grid", "#min-height-space-between-first", "#min-height-space-between-second");
+    printGap("min-height space-around", "#min-height-space-around-grid", "#min-height-space-around-first", "#min-height-space-around-second");
+    printRect("framed end item", "#framed-end-item", "#framed-end-grid");
+    printRect("stretched overflowing first", "#stretched-overflowing-first", "#stretched-overflowing-grid");
+});
+</script>

@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/OfflineAudioCompletionEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -22,7 +23,7 @@ namespace Web::WebAudio {
 GC_DEFINE_ALLOCATOR(OfflineAudioContext);
 
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-offlineaudiocontext
-WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct_impl(JS::Realm& realm, OfflineAudioContextOptions const& context_options)
+WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct_impl(JS::Realm& realm, Bindings::OfflineAudioContextOptions const& context_options)
 {
     // AD-HOC: This spec text is currently only mentioned in the constructor overload that takes separate arguments,
     //         but these parameters should be validated for both constructors.
@@ -60,7 +61,11 @@ WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct
     WebIDL::UnsignedLong length,
     float sample_rate)
 {
-    return construct_impl(realm, { number_of_channels, length, sample_rate });
+    Bindings::OfflineAudioContextOptions options {};
+    options.number_of_channels = number_of_channels;
+    options.length = length;
+    options.sample_rate = sample_rate;
+    return construct_impl(realm, options);
 }
 
 OfflineAudioContext::~OfflineAudioContext() = default;
@@ -143,7 +148,7 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
         // 4.2: Queue a media element task to fire an event named complete at the OfflineAudioContext using OfflineAudioCompletionEvent
         //      whose renderedBuffer property is set to [[rendered buffer]].
         queue_a_media_element_task(GC::create_function(heap(), [this]() {
-            auto event_init = OfflineAudioCompletionEventInit {
+            auto event_init = Bindings::OfflineAudioCompletionEventInit {
                 {
                     .bubbles = false,
                     .cancelable = false,

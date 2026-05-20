@@ -1,4 +1,4 @@
-$3230d765 local-variables.js:20:1
+$dd76a6f8 local-variables.js:20:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,15 +6,15 @@ $3230d765 local-variables.js:20:1
 
 block0:
   [   0] GetGlobal dst:reg6, `simple_let`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, simple_let
-  [  38] GetGlobal dst:reg7, `simple_const`
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, simple_const
-  [  70] GetGlobal dst:reg7, `multiple_locals`
-  [  88] Call dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
-  [  a8] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, simple_let
+  [  30] GetGlobal dst:reg7, `simple_const`
+  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, simple_const
+  [  60] GetGlobal dst:reg7, `multiple_locals`
+  [  70] Call dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
+  [  90] End value:reg5
 
 
-simple_let$92bdb436 local-variables.js:5:5
+simple_let$40478631 local-variables.js:5:5
   Registers: 5
   Blocks:    1
   Locals:    x~0
@@ -26,7 +26,7 @@ block0:
   [  10] Return value:x~0
 
 
-simple_const$0a9e10fd local-variables.js:10:5
+simple_const$80d5d79e local-variables.js:10:5
   Registers: 5
   Blocks:    1
   Locals:    y~0
@@ -38,7 +38,7 @@ block0:
   [  10] Return value:y~0
 
 
-multiple_locals$37fee39e local-variables.js:15:5
+multiple_locals$77559ec6 local-variables.js:15:5
   Registers: 6
   Blocks:    1
   Locals:    a~0, b~1

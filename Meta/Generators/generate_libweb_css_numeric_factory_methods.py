@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
-import json
 import sys
 
 from pathlib import Path
@@ -14,6 +13,8 @@ from typing import TextIO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Utils.css_dimensions import get_css_dimensions
+from Utils.css_dimensions import load_css_dimensions
 from Utils.utils import make_name_acceptable_cpp
 from Utils.utils import snake_casify
 
@@ -130,8 +131,8 @@ def main():
     parser.add_argument("-j", "--json", required=True, help="Path to the JSON file to read from")
     args = parser.parse_args()
 
-    with open(args.json, "r", encoding="utf-8") as input_file:
-        units_data = json.load(input_file)
+    load_css_dimensions(args.json)
+    units_data = get_css_dimensions()
 
     with open(args.header, "w", encoding="utf-8") as output_file:
         write_header_file(output_file, units_data)

@@ -91,8 +91,12 @@ public:
     Object* home_object() const { return m_home_object; }
     void set_home_object(Object* home_object) { m_home_object = home_object; }
 
-    [[nodiscard]] Utf16View source_text() const { return shared_data().m_source_text; }
-    void set_source_text(Utf16View source_text) { const_cast<SharedFunctionInstanceData&>(shared_data()).m_source_text = move(source_text); }
+    [[nodiscard]] Utf16String source_text() const { return shared_data().source_text(); }
+    void set_source_text(Utf16View source_text) { const_cast<SharedFunctionInstanceData&>(shared_data()).set_source_text(source_text); }
+    void set_source_text_range(SourceCode const& source_code, size_t source_text_offset, size_t source_text_length)
+    {
+        const_cast<SharedFunctionInstanceData&>(shared_data()).set_source_text_range(source_code, source_text_offset, source_text_length);
+    }
 
     Vector<ClassFieldDefinition> const& fields() const { return ensure_class_data().fields; }
     void add_field(ClassFieldDefinition field) { ensure_class_data().fields.append(move(field)); }
@@ -137,6 +141,7 @@ private:
     ThrowCompletionOr<Value> ordinary_call_evaluate_body(VM&, ExecutionContext&);
 
     [[nodiscard]] bool function_environment_needed() const { return shared_data().m_function_environment_needed; }
+    SharedFunctionInstanceData& shared_data() { return m_shared_data; }
     SharedFunctionInstanceData const& shared_data() const { return m_shared_data; }
 
     virtual void visit_edges(Visitor&) override;

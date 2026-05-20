@@ -163,7 +163,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         // 6. Let shouldContinue be the result of firing an event named submit at form using SubmitEvent, with the
         //    submitter attribute initialized to submitterButton, the bubbles attribute initialized to true, and the
         //    cancelable attribute initialized to true.
-        SubmitEventInit event_init {};
+        Bindings::SubmitEventInit event_init {};
         event_init.submitter = submitter_button;
         auto submit_event = SubmitEvent::create(realm, EventNames::submit, event_init);
         submit_event->set_bubbles(true);
@@ -613,7 +613,7 @@ bool HTMLFormElement::interactively_validate_constraints()
     if (first_invalid_control.has_value()) {
         auto control = first_invalid_control.release_value();
         run_focusing_steps(control);
-        DOM::ScrollIntoViewOptions scroll_options;
+        Bindings::ScrollIntoViewOptions scroll_options;
         scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
         scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
         scroll_options.behavior = Bindings::ScrollBehavior::Instant;

@@ -16,9 +16,9 @@ class BeforeUnloadEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(BeforeUnloadEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(JS::Realm&, FlyString const& event_name, DOM::EventInit const& = {});
+    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& = {});
 
-    BeforeUnloadEvent(JS::Realm&, FlyString const& event_name, DOM::EventInit const&);
+    BeforeUnloadEvent(JS::Realm&, FlyString const& event_name, Bindings::EventInit const&);
 
     virtual ~BeforeUnloadEvent() override;
 

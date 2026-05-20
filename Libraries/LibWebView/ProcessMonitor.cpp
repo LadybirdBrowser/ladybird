@@ -12,7 +12,7 @@
 
 namespace WebView {
 
-ProcessMonitor::ProcessMonitor(Function<void(pid_t)> exit_handler)
+ProcessMonitor::ProcessMonitor(Function<void(pid_t, Optional<int> exit_status)> exit_handler)
     : m_on_process_exit(move(exit_handler))
 {
 #if !defined(AK_OS_WINDOWS)
@@ -23,7 +23,7 @@ ProcessMonitor::ProcessMonitor(Function<void(pid_t)> exit_handler)
             if (m_monitored_processes.contains(pid)) {
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
                     m_monitored_processes.remove(pid);
-                    m_on_process_exit(pid);
+                    m_on_process_exit(pid, status);
                 }
             }
             result = Core::System::waitpid(-1, WNOHANG);
@@ -51,7 +51,7 @@ void ProcessMonitor::add_process(pid_t pid)
 #if defined(AK_OS_WINDOWS)
     Core::EventLoop::register_process(pid, [this](pid_t pid) {
         m_monitored_processes.remove(pid);
-        m_on_process_exit(pid);
+        m_on_process_exit(pid, {});
     });
 #endif
 }

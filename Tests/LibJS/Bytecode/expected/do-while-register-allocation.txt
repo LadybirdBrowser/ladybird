@@ -1,4 +1,4 @@
-$d99dc022 do-while-register-allocation.js:15:1
+$e2bdeb53 do-while-register-allocation.js:15:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,13 +6,13 @@ $d99dc022 do-while-register-allocation.js:15:1
 
 block0:
   [   0] GetGlobal dst:reg6, `test`
-  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  38] End value:reg5
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  30] End value:reg5
 
 
-test$21b235ef do-while-register-allocation.js:9:5
+test$e6d8239f do-while-register-allocation.js:9:5
   Registers: 9
-  Blocks:    4
+  Blocks:    3
   Locals:    i~0
   Constants:
     [0] = Undefined
@@ -22,23 +22,21 @@ test$21b235ef do-while-register-allocation.js:9:5
 block0:
   [   0] Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
   [  18] GetGlobal dst:reg6, `foo`
-  [  30] NewArray dst:reg7
-  [  40] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  28] NewArray dst:reg7
+  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
 
 block1:
-  [  68] GetGlobal dst:reg7, `bar`
-  [  80] Mov dst:reg8, src:i~0
-  [  90] Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
-  [  b8] PostfixIncrement dst:reg6, src:i~0
+  [  60] GetGlobal dst:reg7, `bar`
+  [  70] Mov dst:reg8, src:i~0
+  [  80] Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
+  [  a8] PostfixIncrement dst:reg6, src:i~0
+  [  b8] JumpLessThan lhs:i~0, rhs:Int32(7), true_target:block1, false_target:block2
 
 block2:
-  [  c8] JumpLessThan lhs:i~0, rhs:Int32(7), true_target:block1, false_target:block3
-
-block3:
-  [  e0] End value:Undefined
+  [  d0] End value:Undefined
 
 
-foo$7176ad76 do-while-register-allocation.js:2:5
+foo$93622fcc do-while-register-allocation.js:2:5
   Registers: 5
   Blocks:    1
 
@@ -46,7 +44,7 @@ block0:
   [   0] Return value:arg0
 
 
-bar$7176ad76 do-while-register-allocation.js:5:5
+bar$cbf37924 do-while-register-allocation.js:5:5
   Registers: 5
   Blocks:    1
 

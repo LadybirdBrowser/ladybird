@@ -146,6 +146,22 @@ private:
 
 using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefined>;
 
+struct OverflowClipMarginSide {
+    Optional<BackgroundBox> visual_box {};
+    Length offset { Length::make_px(0) };
+
+    bool operator==(OverflowClipMarginSide const&) const = default;
+};
+
+struct OverflowClipMarginData {
+    OverflowClipMarginSide left;
+    OverflowClipMarginSide top;
+    OverflowClipMarginSide right;
+    OverflowClipMarginSide bottom;
+
+    bool operator==(OverflowClipMarginData const&) const = default;
+};
+
 using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, String>;
 
 class InitialValues {
@@ -228,7 +244,7 @@ public:
     static LengthBox inset() { return {}; }
     static LengthBox margin() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
     static LengthBox padding() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
-    static LengthBox overflow_clip_margin() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
+    static OverflowClipMarginData overflow_clip_margin() { return {}; }
     static Size width() { return Size::make_auto(); }
     static Size min_width() { return Size::make_auto(); }
     static Size max_width() { return Size::make_none(); }
@@ -251,7 +267,6 @@ public:
     static BorderCollapse border_collapse() { return BorderCollapse::Separate; }
     static EmptyCells empty_cells() { return EmptyCells::Show; }
     static GridTemplateAreas grid_template_areas() { return {}; }
-    static Time transition_delay() { return Time::make_seconds(0); }
     static ObjectFit object_fit() { return ObjectFit::Fill; }
     static Position object_position() { return {}; }
     static Color outline_color() { return Color::Black; }
@@ -319,8 +334,10 @@ public:
         if (style_value->is_value_list()) {
             auto const& values = style_value->as_value_list().values();
 
-            if (values.size() == 1)
-                return { values[0]->as_url().url(), {} };
+            VERIFY(values.size() == 2);
+
+            if (values[1]->is_empty_optional())
+                return values[0]->as_url().url();
 
             return { values[0]->as_url().url(), values[1]->to_color(color_resolution_context) };
         }
@@ -667,7 +684,7 @@ public:
     LengthBox const& inset() const { return m_noninherited.inset; }
     LengthBox const& margin() const { return m_noninherited.margin; }
     LengthBox const& padding() const { return m_noninherited.padding; }
-    LengthBox const& overflow_clip_margin() const { return m_noninherited.overflow_clip_margin; }
+    OverflowClipMarginData const& overflow_clip_margin() const { return m_noninherited.overflow_clip_margin; }
 
     BorderData const& border_left() const { return m_noninherited.border_left; }
     BorderData const& border_top() const { return m_noninherited.border_top; }
@@ -740,7 +757,6 @@ public:
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
     HashMap<FlyString, double> font_variation_settings() const { return m_inherited.font_variation_settings; }
     CSSPixels line_height() const { return m_inherited.line_height; }
-    Time transition_delay() const { return m_noninherited.transition_delay; }
 
     Color outline_color() const { return m_noninherited.outline_color; }
     Length outline_offset() const { return m_noninherited.outline_offset; }
@@ -863,7 +879,7 @@ protected:
         LengthBox inset { InitialValues::inset() };
         LengthBox margin { InitialValues::margin() };
         LengthBox padding { InitialValues::padding() };
-        LengthBox overflow_clip_margin { InitialValues::overflow_clip_margin() };
+        OverflowClipMarginData overflow_clip_margin { InitialValues::overflow_clip_margin() };
         Filter backdrop_filter { InitialValues::backdrop_filter() };
         Filter filter { InitialValues::filter() };
         BorderData border_left;
@@ -920,7 +936,6 @@ protected:
         GridTemplateAreas grid_template_areas { InitialValues::grid_template_areas() };
         Gfx::Color stop_color { InitialValues::stop_color() };
         float stop_opacity { InitialValues::stop_opacity() };
-        Time transition_delay { InitialValues::transition_delay() };
         Color outline_color { InitialValues::outline_color() };
         CSSPixels outline_width { InitialValues::outline_width() };
         Length outline_offset { InitialValues::outline_offset() };
@@ -1051,7 +1066,7 @@ public:
     void set_inset(LengthBox const& inset) { m_noninherited.inset = inset; }
     void set_margin(LengthBox const& margin) { m_noninherited.margin = margin; }
     void set_padding(LengthBox const& padding) { m_noninherited.padding = padding; }
-    void set_overflow_clip_margin(LengthBox const& overflow_clip_margin) { m_noninherited.overflow_clip_margin = overflow_clip_margin; }
+    void set_overflow_clip_margin(OverflowClipMarginData const& overflow_clip_margin) { m_noninherited.overflow_clip_margin = overflow_clip_margin; }
     void set_overflow_x(Overflow value) { m_noninherited.overflow_x = value; }
     void set_overflow_y(Overflow value) { m_noninherited.overflow_y = value; }
     void set_list_style_type(ListStyleType value) { m_inherited.list_style_type = move(value); }
@@ -1138,7 +1153,6 @@ public:
     void set_empty_cells(EmptyCells const empty_cells) { m_inherited.empty_cells = empty_cells; }
     void set_grid_template_areas(GridTemplateAreas grid_template_areas) { m_noninherited.grid_template_areas = move(grid_template_areas); }
     void set_grid_auto_flow(GridAutoFlow grid_auto_flow) { m_noninherited.grid_auto_flow = grid_auto_flow; }
-    void set_transition_delay(Time const& transition_delay) { m_noninherited.transition_delay = transition_delay; }
     void set_table_layout(TableLayout value) { m_noninherited.table_layout = value; }
     void set_quotes(QuotesData value) { m_inherited.quotes = move(value); }
     void set_object_fit(ObjectFit value) { m_noninherited.object_fit = value; }

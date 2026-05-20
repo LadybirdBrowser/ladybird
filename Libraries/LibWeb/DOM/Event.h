@@ -7,18 +7,13 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibWeb/Bindings/Event.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::DOM {
-
-struct EventInit {
-    bool bubbles { false };
-    bool cancelable { false };
-    bool composed { false };
-};
 
 class WEB_API Event : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Event, Bindings::PlatformObject);
@@ -48,11 +43,11 @@ public:
 
     using Path = Vector<PathEntry>;
 
-    [[nodiscard]] static GC::Ref<Event> create(JS::Realm&, FlyString const& event_name, EventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<Event>> construct_impl(JS::Realm&, FlyString const& event_name, EventInit const& event_init);
+    [[nodiscard]] static GC::Ref<Event> create(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Event>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& event_init);
 
     Event(JS::Realm&, FlyString const& type);
-    Event(JS::Realm&, FlyString const& type, EventInit const& event_init);
+    Event(JS::Realm&, FlyString const& type, Bindings::EventInit const& event_init);
 
     virtual ~Event() = default;
 

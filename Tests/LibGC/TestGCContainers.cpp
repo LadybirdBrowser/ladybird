@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/ConservativeVector.h>
@@ -12,6 +13,7 @@
 #include <LibGC/HeapVector.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootHashMap.h>
+#include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
 #include <LibTest/TestCase.h>
 
@@ -27,8 +29,8 @@ GC_DEFINE_ALLOCATOR(TestCell);
 
 static GC::Heap& test_heap()
 {
-    static GC::Heap heap([](auto&) { });
-    return heap;
+    static AK::NeverDestroyed<GC::Heap> heap([](auto&) { });
+    return *heap;
 }
 
 class TestVisitor : public GC::Cell::Visitor {
@@ -217,4 +219,34 @@ TEST_CASE(empty_heap_hash_table_visit_edges_reports_nothing)
     table->visit_edges(visitor);
 
     EXPECT_EQ(visitor.visited_cells.size(), 0u);
+}
+
+TEST_CASE(root_hash_table_reports_roots)
+{
+    auto& heap = test_heap();
+    GC::RootHashTable<GC::Ref<TestCell>> table(heap);
+
+    auto cell = heap.allocate<TestCell>();
+    table.set(cell);
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    table.gather_roots(roots);
+
+    EXPECT(roots.contains(cell.ptr()));
+    EXPECT_EQ(roots.size(), 1u);
+}
+
+TEST_CASE(empty_containers_report_no_roots)
+{
+    auto& heap = test_heap();
+    GC::RootVector<GC::Ref<TestCell>> vector(heap);
+    GC::RootHashTable<GC::Ref<TestCell>> table(heap);
+    GC::RootHashMap<int, GC::Ref<TestCell>> map(heap);
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    vector.gather_roots(roots);
+    table.gather_roots(roots);
+    map.gather_roots(roots);
+
+    EXPECT_EQ(roots.size(), 0u);
 }

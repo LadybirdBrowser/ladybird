@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    #target {
+        width: 100px;
+        height: 100px;
+    }
+
+    #spacer {
+        width: 1000px;
+        height: 1000px;
+    }
+
+    #not-scrollable {
+        position: absolute;
+        left: 250px;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="scroller">
+    <div id="target"></div>
+    <div id="spacer"></div>
+</div>
+<div id="not-scrollable"></div>
+<script>
+    function printOutputAndDisplayList(output, displayList, label = "display list:") {
+        for (const line of output)
+            println(line);
+        println(label);
+        println(displayList);
+    }
+
+    function canWheel(output, label, x, y, forceStaleWheelEventRegions = false) {
+        const canScroll = internals.asyncScrollingStateCanWheelScrollAt(x, y, 0, 100, forceStaleWheelEventRegions);
+        output.push(`${label}: ${canScroll}`);
+    }
+
+    test(() => {
+        const output = [];
+        output.push(`initial routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        canWheel(output, "no listener over scroller", 150, 150);
+        canWheel(output, "no scrollable target", 275, 50);
+
+        target.addEventListener("wheel", event => {}, { passive: true });
+        canWheel(output, "passive listener over target", 50, 50);
+
+        const blockingElementListener = event => {};
+        target.addEventListener("wheel", blockingElementListener, { passive: false });
+        output.push(`blocking element routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        canWheel(output, "blocking element listener inside", 50, 50);
+        canWheel(output, "blocking element listener outside", 150, 150);
+        canWheel(output, "stale blocking element regions", 150, 150, true);
+        const displayList = internals.dumpDisplayList();
+
+        target.removeEventListener("wheel", blockingElementListener);
+        const blockingWindowListener = event => {};
+        window.addEventListener("wheel", blockingWindowListener, { passive: false });
+        output.push(`blocking window routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        canWheel(output, "blocking window listener", 150, 150);
+        canWheel(output, "stale blocking window regions", 150, 150, true);
+        printOutputAndDisplayList(output, displayList, "display list after blocking element listener:");
+    });
+</script>

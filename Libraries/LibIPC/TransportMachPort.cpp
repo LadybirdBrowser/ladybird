@@ -9,6 +9,7 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
 #include <LibIPC/TransportMachPort.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include <mach/mach.h>
@@ -24,9 +25,13 @@ static void set_mach_port_queue_limit(mach_port_t port)
         reinterpret_cast<mach_port_info_t>(&limits), MACH_PORT_LIMITS_INFO_COUNT);
 }
 
-static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
+static ErrorOr<Attachment> attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
 {
-    VERIFY(descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
+    if (descriptor.type != MACH_MSG_PORT_DESCRIPTOR)
+        return Error::from_string_literal("Invalid Mach message descriptor type");
+
+    if (!MACH_PORT_VALID(descriptor.name))
+        return Error::from_string_literal("Invalid Mach port descriptor name");
 
     switch (descriptor.disposition) {
     case MACH_MSG_TYPE_MOVE_SEND:
@@ -42,7 +47,7 @@ static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& d
             Core::MachPort::adopt_right(descriptor.name, Core::MachPort::PortRight::SendOnce),
             Core::MachPort::MessageRight::MoveSendOnce);
     default:
-        VERIFY_NOT_REACHED();
+        return Error::from_string_literal("Invalid Mach port descriptor disposition");
     }
 }
 
@@ -145,7 +150,7 @@ void TransportMachPort::notify_read_available()
 void TransportMachPort::mark_peer_eof()
 {
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
     }
     m_incoming_cv.broadcast();
@@ -164,14 +169,14 @@ intptr_t TransportMachPort::io_thread_loop()
 
         Vector<PendingMessage> messages_to_send;
         {
-            Threading::MutexLocker locker(m_send_mutex);
+            Sync::MutexLocker locker(m_send_mutex);
             messages_to_send = move(m_pending_send_messages);
         }
         for (auto& message : messages_to_send)
             send_mach_message(message);
 
         if (m_io_thread_state.load() == IOThreadState::SendPendingMessagesAndStop) {
-            Threading::MutexLocker locker(m_send_mutex);
+            Sync::MutexLocker locker(m_send_mutex);
             if (!m_pending_send_messages.is_empty())
                 continue;
             m_io_thread_state = IOThreadState::Stopped;
@@ -293,8 +298,18 @@ void TransportMachPort::process_received_message(u8* buffer)
     auto const* payload = reinterpret_cast<mach_msg_ool_descriptor_t const*>(&descriptors[attachment_count]);
 
     auto message = make<Message>();
-    for (unsigned int i = 0; i < attachment_count; ++i)
-        message->attachments.enqueue(attachment_from_descriptor(descriptors[i]));
+    for (unsigned int i = 0; i < attachment_count; ++i) {
+        auto attachment = attachment_from_descriptor(descriptors[i]);
+        if (attachment.is_error()) {
+            dbgln("TransportMachPort: dropping message with invalid port descriptor {} of {}: {} (name={:x}, disposition={}, type={})",
+                i + 1, attachment_count, attachment.error(), descriptors[i].name, descriptors[i].disposition, descriptors[i].type);
+            if (payload->type == MACH_MSG_OOL_DESCRIPTOR && payload->size > 0)
+                vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(payload->address), payload->size);
+            mark_peer_eof();
+            return;
+        }
+        message->attachments.enqueue(attachment.release_value());
+    }
 
     VERIFY(payload->type == MACH_MSG_OOL_DESCRIPTOR);
     if (payload->size > 0) {
@@ -308,7 +323,7 @@ void TransportMachPort::process_received_message(u8* buffer)
         return;
 
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         m_incoming_messages.append(move(message));
     }
     m_incoming_cv.signal();
@@ -327,7 +342,7 @@ void TransportMachPort::set_up_read_hook(Function<void()> hook)
     };
 
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         if (!m_incoming_messages.is_empty())
             notify_read_available();
     }
@@ -352,7 +367,7 @@ void TransportMachPort::close_after_sending_all_pending_messages()
 
 void TransportMachPort::wait_until_readable()
 {
-    Threading::MutexLocker lock(m_incoming_mutex);
+    Sync::MutexLocker lock(m_incoming_mutex);
     while (m_incoming_messages.is_empty() && !m_peer_eof)
         m_incoming_cv.wait();
 }
@@ -360,7 +375,7 @@ void TransportMachPort::wait_until_readable()
 void TransportMachPort::post_message(Vector<u8> const& bytes, Vector<Attachment>& attachments)
 {
     {
-        Threading::MutexLocker locker(m_send_mutex);
+        Sync::MutexLocker locker(m_send_mutex);
         m_pending_send_messages.append(PendingMessage { bytes, move(attachments) });
     }
     wake_io_thread();
@@ -370,7 +385,7 @@ TransportMachPort::ShouldShutdown TransportMachPort::read_as_many_messages_as_po
 {
     Vector<NonnullOwnPtr<Message>> messages;
     {
-        Threading::MutexLocker locker(m_incoming_mutex);
+        Sync::MutexLocker locker(m_incoming_mutex);
         messages = move(m_incoming_messages);
     }
     for (auto& message : messages)

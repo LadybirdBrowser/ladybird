@@ -16,44 +16,6 @@
 
 namespace Web::Animations {
 
-// https://www.w3.org/TR/web-animations-1/#the-effecttiming-dictionaries
-// https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
-struct OptionalEffectTiming {
-    Optional<double> delay {};
-    Optional<double> end_delay {};
-    Optional<Bindings::FillMode> fill {};
-    Optional<double> iteration_start {};
-    Optional<double> iterations {};
-    Optional<Variant<double, String>> duration;
-    Optional<Bindings::PlaybackDirection> direction {};
-    Optional<String> easing {};
-};
-
-// https://www.w3.org/TR/web-animations-1/#the-effecttiming-dictionaries
-// https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
-struct EffectTiming {
-    double delay { 0 };
-    double end_delay { 0 };
-    Bindings::FillMode fill { Bindings::FillMode::Auto };
-    double iteration_start { 0.0 };
-    double iterations { 1.0 };
-    FlattenVariant<CSS::CSSNumberish, Variant<String>> duration { "auto"_string };
-    Bindings::PlaybackDirection direction { Bindings::PlaybackDirection::Normal };
-    String easing { "linear"_string };
-
-    OptionalEffectTiming to_optional_effect_timing() const;
-};
-
-// https://www.w3.org/TR/web-animations-1/#the-computedeffecttiming-dictionary
-// https://drafts.csswg.org/web-animations-2/#the-computedeffecttiming-dictionary
-struct ComputedEffectTiming : public EffectTiming {
-    CSS::CSSNumberish end_time;
-    CSS::CSSNumberish active_duration;
-    Optional<NullableCSSNumberish> local_time;
-    Optional<double> progress;
-    Optional<double> current_iteration;
-};
-
 enum class AnimationDirection {
     Forwards,
     Backwards,
@@ -61,6 +23,7 @@ enum class AnimationDirection {
 
 Bindings::FillMode css_fill_mode_to_bindings_fill_mode(CSS::AnimationFillMode mode);
 Bindings::PlaybackDirection css_animation_direction_to_bindings_playback_direction(CSS::AnimationDirection direction);
+Bindings::OptionalEffectTiming to_optional_effect_timing(Bindings::EffectTiming const&);
 
 // This object lives for the duration of an animation update, and is used to store per-element data about animated CSS properties.
 struct AnimationUpdateContext {
@@ -84,9 +47,9 @@ class AnimationEffect : public Bindings::PlatformObject {
 public:
     static Optional<CSS::EasingFunction> parse_easing_string(StringView value);
 
-    EffectTiming get_timing() const;
-    ComputedEffectTiming get_computed_timing() const;
-    WebIDL::ExceptionOr<void> update_timing(OptionalEffectTiming timing = {});
+    Bindings::EffectTiming get_timing() const;
+    Bindings::ComputedEffectTiming get_computed_timing() const;
+    WebIDL::ExceptionOr<void> update_timing(Bindings::OptionalEffectTiming const& timing = {});
 
     TimeValue start_delay() const { return m_start_delay; }
     void set_specified_start_delay(double start_delay) { m_specified_start_delay = start_delay; }

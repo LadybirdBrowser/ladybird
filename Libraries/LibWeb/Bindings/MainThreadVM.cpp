@@ -46,6 +46,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
+#include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Bindings {
@@ -189,8 +190,8 @@ void initialize_main_thread_vm(AgentType type)
                 // FIXME: This currently assumes that global is a WindowObject.
                 auto& window = as<HTML::Window>(global);
 
-                HTML::PromiseRejectionEventInit event_init {
-                    {}, // Initialize the inherited DOM::EventInit
+                Bindings::PromiseRejectionEventInit event_init {
+                    {}, // Initialize the inherited Bindings::EventInit
                     /* .promise = */ promise,
                     /* .reason = */ promise.result(),
                 };
@@ -731,7 +732,7 @@ void queue_mutation_observer_microtask()
 
         // 7. For each slot of signalSet, fire an event named slotchange, with its bubbles attribute set to true, at slot.
         for (auto& slot : signal_set) {
-            DOM::EventInit event_init;
+            Bindings::EventInit event_init;
             event_init.bubbles = true;
             slot->dispatch_event(DOM::Event::create(slot->realm(), HTML::EventNames::slotchange, event_init));
         }

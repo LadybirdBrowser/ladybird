@@ -1,0 +1,5 @@
+StartTag <br/> [] @0:1-0:4
+StartTag <hr/> [] @0:6-0:10
+StartTag <img/> [src="x.png"] @0:12-0:28
+Character U+000A @1:0
+EndOfFile @1:0

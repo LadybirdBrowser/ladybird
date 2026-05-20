@@ -12,17 +12,17 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognitionEvent);
 
-GC::Ref<SpeechRecognitionEvent> SpeechRecognitionEvent::create(JS::Realm& realm, FlyString const& event_name, SpeechRecognitionEventInit event_init)
+GC::Ref<SpeechRecognitionEvent> SpeechRecognitionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init)
 {
     return realm.create<SpeechRecognitionEvent>(realm, event_name, move(event_init));
 }
 
-WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> SpeechRecognitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, SpeechRecognitionEventInit event_init)
+WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> SpeechRecognitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init)
 {
     return create(realm, event_name, move(event_init));
 }
 
-SpeechRecognitionEvent::SpeechRecognitionEvent(JS::Realm& realm, FlyString const& event_name, SpeechRecognitionEventInit event_init)
+SpeechRecognitionEvent::SpeechRecognitionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_result_index(event_init.result_index)
     , m_results(event_init.results)

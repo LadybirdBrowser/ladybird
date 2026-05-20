@@ -22,45 +22,6 @@ namespace Web::Fetch {
 // https://fetch.spec.whatwg.org/#requestinfo
 using RequestInfo = Variant<GC::Root<Request>, String>;
 
-// https://fetch.spec.whatwg.org/#requestinit
-struct RequestInit {
-    Optional<String> method;
-    Optional<HeadersInit> headers;
-    Optional<NullableBodyInit> body;
-    Optional<String> referrer;
-    Optional<Bindings::ReferrerPolicy> referrer_policy;
-    Optional<Bindings::RequestMode> mode;
-    Optional<Bindings::RequestCredentials> credentials;
-    Optional<Bindings::RequestCache> cache;
-    Optional<Bindings::RequestRedirect> redirect;
-    Optional<String> integrity;
-    Optional<bool> keepalive;
-    Optional<GC::Ptr<DOM::AbortSignal>> signal;
-    Optional<Bindings::RequestDuplex> duplex;
-    Optional<Bindings::RequestPriority> priority;
-    Optional<JS::Value> window;
-
-    // https://infra.spec.whatwg.org/#map-is-empty
-    bool is_empty() const
-    {
-        return !(method.has_value()
-            || headers.has_value()
-            || body.has_value()
-            || referrer.has_value()
-            || referrer_policy.has_value()
-            || mode.has_value()
-            || credentials.has_value()
-            || cache.has_value()
-            || redirect.has_value()
-            || integrity.has_value()
-            || keepalive.has_value()
-            || signal.has_value()
-            || duplex.has_value()
-            || priority.has_value()
-            || window.has_value());
-    }
-};
-
 // https://fetch.spec.whatwg.org/#request
 class Request final
     : public Bindings::PlatformObject
@@ -70,7 +31,7 @@ class Request final
 
 public:
     [[nodiscard]] static GC::Ref<Request> create(JS::Realm&, GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
-    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(JS::Realm&, RequestInfo const& input, RequestInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
 
     virtual ~Request() override;
 

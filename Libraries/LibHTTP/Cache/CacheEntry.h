@@ -49,6 +49,12 @@ struct CacheFooter {
     u32 header_hash { 0 };
 };
 
+struct CacheEntryBodyFile {
+    int fd { -1 };
+    u64 offset { 0 };
+    u64 size { 0 };
+};
+
 // A cache entry is an amalgamation of all information needed to reconstruct HTTP responses. It is created once we have
 // received the response headers for a request. The body is streamed into the entry as it is received. The cache format
 // on disk is:
@@ -60,6 +66,7 @@ public:
 
     u64 cache_key() const { return m_cache_key; }
     u64 vary_key() const { return m_vary_key; }
+    u64 body_size() const { return m_cache_footer.data_size; }
 
     void remove();
 
@@ -93,12 +100,18 @@ public:
     ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& response_headers);
     ErrorOr<void> write_data(ReadonlyBytes);
     ErrorOr<void> flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers);
+    ErrorOr<CacheEntryBodyFile> flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers);
     void remove_incomplete_entry();
 
 private:
     CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, CacheHeader, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);
 
+    ErrorOr<void> flush_impl(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, CacheEntryBodyFile*);
+    void remove_incomplete_temporary_file();
+
     OwnPtr<Core::OutputBufferedFile> m_file;
+    Optional<LexicalPath> m_temporary_path;
+    u64 m_data_offset { 0 };
 
     UnixDateTime m_request_time;
     UnixDateTime m_response_time;
@@ -123,6 +136,10 @@ public:
     void revalidation_failed();
 
     void send_to(int socket_fd, Function<void(u64 bytes_sent)> on_complete, Function<void(u64 bytes_sent)> on_error);
+
+    ErrorOr<CacheEntryBodyFile> take_body_file();
+
+    u64 body_size() const { return m_data_size; }
 
     u32 status_code() const { return m_cache_header.status_code; }
     Optional<String> const& reason_phrase() const { return m_reason_phrase; }

@@ -27,6 +27,9 @@ public:
     size_t start_offset() const { return m_start_offset; }
     size_t length_in_code_units() const { return m_length_in_code_units; }
 
+    size_t dom_start_offset_in_node() const { return m_dom_start_offset_in_node; }
+    size_t dom_end_offset_in_node() const { return m_dom_start_offset_in_node + m_length_in_code_units; }
+
     CSSPixels baseline() const { return m_baseline; }
     CSSPixelPoint offset() const { return m_offset; }
     void set_offset(CSSPixelPoint offset) { m_offset = offset; }
@@ -87,6 +90,7 @@ private:
     CSSPixelSize m_size;
     size_t m_start_offset { 0 };
     size_t m_length_in_code_units { 0 };
+    size_t m_dom_start_offset_in_node { 0 };
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     Vector<ShadowData> m_shadows;
     CSSPixels m_baseline;

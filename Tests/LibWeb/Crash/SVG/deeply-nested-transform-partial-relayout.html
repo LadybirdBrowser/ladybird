@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+<svg width="100" height="100">
+    <g transform="translate(10, 10)">
+        <svg width="80" height="80">
+            <svg id="inner" width="50" height="50">
+                <rect id="target" width="30" height="30" fill="blue"/>
+            </svg>
+        </svg>
+    </g>
+</svg>
+<script>
+    document.body.offsetWidth;
+    target.setAttribute("transform", "translate(5, 5)");
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("test-wait");
+        });
+    });
+</script>
+</body>
+</html>

@@ -5,9 +5,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -260,6 +262,10 @@ void EventLoop::process_input_events() const
                     case MouseEvent::Type::MouseLeave:
                         return page.handle_mouseleave();
                     case MouseEvent::Type::MouseWheel:
+                        if (mouse_event.async_scroll_performed_default_action) {
+                            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread handling DOM wheel after async default action");
+                            return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, true);
+                        }
                         return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y);
                     }
                     VERIFY_NOT_REACHED();
@@ -352,10 +358,6 @@ void EventLoop::update_the_rendering()
     for (auto& document : docs)
         document->page().update_all_media_element_video_sinks();
 
-    // AD-HOC: Present all canvas element surfaces in documents' pages.
-    for (auto& document : docs)
-        document->page().present_all_canvas_element_surfaces();
-
     // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
 
     // FIXME: 5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.
@@ -375,8 +377,11 @@ void EventLoop::update_the_rendering()
     }
 
     // 9. For each doc of docs, run the scroll steps for doc. [CSSOMVIEW]
-    for (auto& document : docs)
+    for (auto& document : docs) {
+        if (auto navigable = document->navigable())
+            navigable->adopt_pending_async_scroll_offsets();
         document->run_the_scroll_steps();
+    }
 
     // 10. For each doc of docs, evaluate media queries and report changes for doc. [CSSOMVIEW]
     for (auto& document : docs) {
@@ -465,6 +470,37 @@ void EventLoop::update_the_rendering()
         if (document->has_skipped_resize_observations()) {
             // FIXME: Deliver resize loop error.
         }
+
+        // https://drafts.csswg.org/scroll-animations-1/#event-loop
+        // During step 7.14.1 of the HTML Processing Model, any created scroll progress timelines or view progress
+        // timelines are collected into a stale timelines set. After step 7.14 if any timelines' named timeline ranges
+        // have changed, these timelines are added to the stale timelines set. If there are any stale timelines they now
+        // update their current time and associated ranges, the set of stale timelines is cleared and we run an additional
+        // step to recalculate styles and update layout.
+
+        // AD-HOC: This was step 7.14.1 at the time the CSS web-animations spec was written, but it has since been
+        //         moved, see https://github.com/w3c/csswg-drafts/issues/12120
+
+        bool requires_style_and_layout_update = false;
+
+        TemporaryExecutionContext context { document->realm() };
+
+        for (auto const& timeline : document->associated_animation_timelines()) {
+            auto* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline);
+
+            if (!scroll_timeline)
+                continue;
+
+            if (!scroll_timeline->is_stale())
+                continue;
+
+            // NB: The passed timestamp is ignored for ScrollTimelines so we can just use 0.
+            timeline->update_current_time(0);
+            requires_style_and_layout_update = true;
+        }
+
+        if (requires_style_and_layout_update)
+            document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
     }
 
     // FIXME: 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.
@@ -487,6 +523,11 @@ void EventLoop::update_the_rendering()
     // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.
 
     // FIXME: 21. For each doc of docs, mark paint timing for doc.
+
+    // AD-HOC: Present all canvas element surfaces in documents' pages after callbacks
+    // have had a chance to update them, and before painting snapshots the frame.
+    for (auto& document : docs)
+        document->page().present_all_canvas_element_surfaces();
 
     // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
     for (auto& doc : docs.in_reverse()) {

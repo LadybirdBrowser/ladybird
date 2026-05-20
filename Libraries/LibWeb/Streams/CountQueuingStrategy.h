@@ -9,8 +9,8 @@
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/QueuingStrategyInit.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Streams/QueuingStrategyInit.h>
 
 namespace Web::Streams {
 
@@ -20,7 +20,7 @@ class CountQueuingStrategy final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CountQueuingStrategy);
 
 public:
-    static GC::Ref<CountQueuingStrategy> construct_impl(JS::Realm&, QueuingStrategyInit const&);
+    static GC::Ref<CountQueuingStrategy> construct_impl(JS::Realm&, Bindings::QueuingStrategyInit const&);
 
     virtual ~CountQueuingStrategy() override;
 

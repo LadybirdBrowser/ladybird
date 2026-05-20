@@ -18,11 +18,8 @@
 namespace JS {
 
 struct JS_API SourceRange {
-    [[nodiscard]] bool contains(Position const& position) const { return position.offset <= end.offset && position.offset >= start.offset; }
-
     NonnullRefPtr<SourceCode const> code;
     Position start;
-    Position end;
 
     ByteString filename() const { return code->filename().to_byte_string(); }
 };

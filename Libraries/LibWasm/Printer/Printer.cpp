@@ -510,22 +510,22 @@ void Printer::print(Wasm::Instruction const& instruction)
                 TemporaryChange change { m_indent, m_indent + 1 };
                 print(args.block_type);
                 print_indent();
-                print("(else {}) (end {})", args.else_ip.has_value() ? ByteString::number(args.else_ip->value()) : "(none)", args.end_ip.value());
-                if (args.meta.has_value())
-                    print(" (meta arity {} params {})", args.meta->arity, args.meta->parameter_count);
+                print("(else {}) (end {})", args.else_ip().has_value() ? ByteString::number(args.else_ip()->value()) : "(none)", args.end_ip.value());
+                if (args.meta.arity != 0 || args.meta.parameter_count != 0)
+                    print(" (meta arity {} params {})", args.meta.arity, args.meta.parameter_count);
                 else
                     print(" (meta none)");
                 print(")");
             },
             [&](Instruction::TryTableArgs const& args) {
                 print("(try_table ");
-                print(args.try_.block_type);
+                print(args.block_type);
                 print(" (catches\n");
                 TemporaryChange change { m_indent, m_indent + 1 };
-                for (auto& catch_ : args.catches)
+                for (auto& catch_ : args.catches())
                     print(catch_);
                 print_indent();
-                print(") (end {}))", args.try_.end_ip.value());
+                print(") (end {}))", args.end_ip.value());
             },
             [&](Instruction::TableBranchArgs const& args) {
                 print("(table_branch");

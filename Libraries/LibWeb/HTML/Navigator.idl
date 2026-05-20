@@ -35,6 +35,9 @@ interface Navigator {
 
     // https://immersive-web.github.io/webxr/#navigator-xr-attribute
     [SecureContext, SameObject] readonly attribute XRSystem xr;
+
+    // https://w3c.github.io/permissions/#navigator-and-workernavigator-extension
+    [SameObject, Experimental] readonly attribute Permissions permissions;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation

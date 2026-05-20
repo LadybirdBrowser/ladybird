@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-311371">
+<html class="reftest-wait">
+<video id="video" src="../../Assets/test-webm.webm"></video>
+<script>
+    addEventListener('load', () => {
+        video.currentTime = 5;
+        video.addEventListener('seeked', () => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

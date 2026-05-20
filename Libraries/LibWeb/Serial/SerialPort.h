@@ -14,38 +14,6 @@
 
 namespace Web::Serial {
 
-// https://wicg.github.io/serial/#serialoptions-dictionary
-struct SerialOptions {
-    Optional<WebIDL::UnsignedLong> baud_rate = {};
-    Optional<WebIDL::Octet> data_bits = 8;
-    Optional<WebIDL::Octet> stop_bits = 1;
-    Optional<Bindings::ParityType> parity = Bindings::ParityType::None;
-    Optional<WebIDL::UnsignedLong> buffer_size = 255;
-    Optional<Bindings::FlowControlType> flow_control = Bindings::FlowControlType::None;
-};
-
-// https://wicg.github.io/serial/#serialoutputsignals-dictionary
-struct SerialOutputSignals {
-    Optional<WebIDL::Boolean> data_terminal_ready;
-    Optional<WebIDL::Boolean> request_to_send;
-    Optional<WebIDL::Boolean> break_;
-};
-
-// https://wicg.github.io/serial/#serialinputsignals-dictionary
-struct SerialInputSignals {
-    WebIDL::Boolean data_carrier_detect;
-    WebIDL::Boolean clear_to_send;
-    WebIDL::Boolean ring_indicator;
-    WebIDL::Boolean data_set_ready;
-};
-
-// https://wicg.github.io/serial/#serialportinfo-dictionary
-struct SerialPortInfo {
-    Optional<WebIDL::UnsignedShort> usb_vendor_id;
-    Optional<WebIDL::UnsignedShort> usb_product_id;
-    Optional<String> bluetooth_service_class_id;
-};
-
 enum SerialPortState : u8 {
     Closed,
     Opening,
@@ -61,11 +29,11 @@ class SerialPort : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SerialPort);
 
     // https://wicg.github.io/serial/#getinfo-method
-    SerialPortInfo get_info() const;
+    Bindings::SerialPortInfo get_info() const;
     // https://wicg.github.io/serial/#open-method
-    GC::Ref<WebIDL::Promise> open(SerialOptions);
+    GC::Ref<WebIDL::Promise> open(Bindings::SerialOptions const&);
     // https://wicg.github.io/serial/#setsignals-method
-    GC::Ref<WebIDL::Promise> set_signals(SerialOutputSignals = {});
+    GC::Ref<WebIDL::Promise> set_signals(Bindings::SerialOutputSignals const& = {});
     // https://wicg.github.io/serial/#getsignals-method
     GC::Ref<WebIDL::Promise> get_signals() const;
     // https://wicg.github.io/serial/#close-method

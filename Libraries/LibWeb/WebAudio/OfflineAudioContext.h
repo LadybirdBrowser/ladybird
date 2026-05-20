@@ -14,20 +14,13 @@
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#OfflineAudioContextOptions
-struct OfflineAudioContextOptions {
-    WebIDL::UnsignedLong number_of_channels { 1 };
-    WebIDL::UnsignedLong length {};
-    float sample_rate {};
-};
-
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
 class OfflineAudioContext final : public BaseAudioContext {
     WEB_PLATFORM_OBJECT(OfflineAudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(OfflineAudioContext);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(JS::Realm&, OfflineAudioContextOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(JS::Realm&, Bindings::OfflineAudioContextOptions const&);
     static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(
         JS::Realm&,
         WebIDL::UnsignedLong number_of_channels,

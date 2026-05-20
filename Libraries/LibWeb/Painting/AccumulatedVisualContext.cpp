@@ -124,6 +124,10 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
             [&](EffectsData const&) -> Optional<Gfx::FloatPoint> {
                 // Effects don't affect coordinate transforms
                 return point;
+            },
+            [&](ScrollCompensation const& compensation) -> Optional<Gfx::FloatPoint> {
+                point.translate_by(scroll_state.device_offset_for_index(compensation.scroll_frame_index));
+                return point;
             });
 
         if (!result.has_value())
@@ -188,6 +192,10 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
             [&](ScrollData const& scroll) {
                 rect.translate_by(scroll_state.device_offset_for_index(scroll.scroll_frame_index));
             },
+            [&](ScrollCompensation const& compensation) {
+                auto offset = scroll_state.device_offset_for_index(compensation.scroll_frame_index);
+                rect.translate_by(-offset);
+            },
             [&](ClipData const&) { /* clips don't affect rect coordinates */ },
             [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
             [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
@@ -249,6 +257,9 @@ void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder&
                 has_content = true;
             }
             builder.append("]"sv);
+        },
+        [&](ScrollCompensation const& compensation) {
+            builder.appendff("scroll_compensation(frame_id={})", compensation.scroll_frame_index.value());
         });
 }
 

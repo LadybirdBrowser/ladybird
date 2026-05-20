@@ -10,7 +10,7 @@
 namespace Web::CredentialManagement {
 
 // https://www.w3.org/TR/credential-management-1/#abstract-opdef-create-a-federatedcredential-from-federatedcredentialinit
-WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS::Realm& realm, FederatedCredentialInit const& init)
+WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS::Realm& realm, Bindings::FederatedCredentialInit const& init)
 {
     // 1. Let c be a new FederatedCredential object.
     // 2. If any of the following are the empty string, throw a TypeError exception:

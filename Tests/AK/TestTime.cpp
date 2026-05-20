@@ -991,3 +991,51 @@ TEST_CASE(time_units)
     EXPECT_DEATH("From time units with zero numerator", (void)Duration::from_time_units(1, 0, 1));
     EXPECT_DEATH("From time units with zero denominator", (void)Duration::from_time_units(1, 1, 0));
 }
+
+TEST_CASE(scaled_by)
+{
+    // Identity and trivial cases.
+    EXPECT_EQ(Duration::zero().scaled_by(5, 7), Duration::zero());
+    EXPECT_EQ(Duration::from_seconds(7).scaled_by(0, 1), Duration::zero());
+    EXPECT_EQ(Duration::from_seconds(7).scaled_by(1, 1), Duration::from_seconds(7));
+    EXPECT_EQ(Duration::from_milliseconds(2'500).scaled_by(5, 5), Duration::from_milliseconds(2'500));
+
+    // Halving and doubling.
+    EXPECT_EQ(Duration::from_seconds(2).scaled_by(1, 2), Duration::from_seconds(1));
+    EXPECT_EQ(Duration::from_seconds(1).scaled_by(2, 1), Duration::from_seconds(2));
+    EXPECT_EQ(Duration::from_milliseconds(500).scaled_by(2, 1), Duration::from_seconds(1));
+    EXPECT_EQ(Duration::from_seconds(1).scaled_by(1, 2), Duration::from_milliseconds(500));
+
+    // Fractional scales using both seconds and nanoseconds parts.
+    EXPECT_EQ(Duration::from_milliseconds(2'500).scaled_by(1, 3), Duration::from_nanoseconds(833'333'333));
+    EXPECT_EQ(Duration::from_milliseconds(2'500).scaled_by(2, 3), Duration::from_nanoseconds(1'666'666'667));
+    EXPECT_EQ(Duration::from_seconds(3).scaled_by(7, 2), Duration::from_milliseconds(10'500));
+    EXPECT_EQ(Duration::from_milliseconds(1).scaled_by(48'000, 1'000), Duration::from_milliseconds(48));
+
+    // Negative durations: -1.5s × 2/3 → -1s exactly.
+    EXPECT_EQ(Duration::from_milliseconds(-1'500).scaled_by(2, 3), Duration::from_seconds(-1));
+    EXPECT_EQ(Duration::from_seconds(-3).scaled_by(2, 3), Duration::from_seconds(-2));
+    EXPECT_EQ(Duration::from_milliseconds(-500).scaled_by(3, 2), Duration::from_milliseconds(-750));
+    EXPECT_EQ(Duration::from_nanoseconds(-1).scaled_by(1, 1), Duration::from_nanoseconds(-1));
+
+    // Round-to-nearest at the nanosecond boundary.
+    EXPECT_EQ(Duration::from_nanoseconds(1).scaled_by(1, 2), Duration::from_nanoseconds(1)); // 0.5 ns rounds up
+    EXPECT_EQ(Duration::from_nanoseconds(1).scaled_by(1, 3), Duration::from_nanoseconds(0)); // 0.333 ns rounds down
+    EXPECT_EQ(Duration::from_nanoseconds(2).scaled_by(1, 3), Duration::from_nanoseconds(1)); // 0.667 ns rounds up
+    EXPECT_EQ(Duration::from_nanoseconds(3).scaled_by(2, 3), Duration::from_nanoseconds(2)); // 2.0 exact
+    EXPECT_EQ(Duration::from_nanoseconds(-1).scaled_by(1, 2), Duration::from_nanoseconds(0));
+
+    // Carrying nanoseconds past 1e9 into seconds.
+    EXPECT_EQ(Duration::from_nanoseconds(999'999'999).scaled_by(1, 1), Duration::from_nanoseconds(999'999'999));
+    EXPECT_EQ((Duration::from_seconds(0) + Duration::from_nanoseconds(999'999'999)).scaled_by(2, 1),
+        Duration::from_seconds(1) + Duration::from_nanoseconds(999'999'998));
+
+    // Saturation on m_seconds × numerator overflow.
+    EXPECT_EQ(Duration::from_seconds(NumericLimits<i64>::max()).scaled_by(2, 1),
+        Duration::from_seconds(NumericLimits<i64>::max()));
+    EXPECT_EQ(Duration::from_seconds(NumericLimits<i64>::min()).scaled_by(2, 1),
+        Duration::from_seconds(NumericLimits<i64>::min()));
+
+    // Death on zero denominator.
+    EXPECT_DEATH("Scaled by with zero denominator", (void)Duration::from_seconds(1).scaled_by(1, 0));
+}

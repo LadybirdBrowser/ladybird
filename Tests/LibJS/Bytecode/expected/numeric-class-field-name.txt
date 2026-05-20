@@ -1,4 +1,4 @@
-$dffca61b numeric-class-field-name.js:1:1
+$745d24d5 numeric-class-field-name.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,19 +7,19 @@ $dffca61b numeric-class-field-name.js:1:1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:Int32(42)]
-  [  58] InitializeLexicalBinding `C`, src:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:Int32(42)]
+  [  60] DynamicInitializeLexicalBinding `C`, src:reg6
   [  70] GetGlobal dst:reg5, `C`
-  [  88] CallConstruct dst:reg6, callee:reg5, C
-  [  a0] GetByValue dst:reg5, base:reg6, property:Int32(42)
-  [  b8] GetById dst:reg6, base:reg5, `name` ([42].name)
-  [  d8] End value:reg6
+  [  80] CallConstruct dst:reg6, callee:reg5, C
+  [  98] GetByValue dst:reg5, base:reg6, property:Int32(42)
+  [  b0] GetById dst:reg6, base:reg5, `name` ([42].name)
+  [  c8] End value:reg6
 
 
-C$811c9dc5
+C$e7b179de
   Registers: 5
   Blocks:    1
   Constants:
@@ -29,13 +29,13 @@ block0:
   [   0] End value:Undefined
 
 
-field$a798f2fd numeric-class-field-name.js:2:10
+field$b1dc4a8f numeric-class-field-name.js:2:10
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-  [  18] SetLexicalEnvironment environment:reg4
-  [  20] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (42)
-  [  40] Return value:reg6
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] SetLexicalEnvironment environment:reg4
+  [  28] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (42)
+  [  48] Return value:reg6

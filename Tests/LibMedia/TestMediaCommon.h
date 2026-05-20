@@ -15,7 +15,8 @@
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/Providers/AudioDataProvider.h>
+#include <LibMedia/PipelineStatus.h>
+#include <LibMedia/Producers/DecodedAudioProducer.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibTest/TestCase.h>
@@ -68,7 +69,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     VERIFY_NOT_REACHED();
 }
 
-static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_sample_count, Optional<Audio::ChannelMap> expected_channel_map = {})
+static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_count, size_t expected_frame_count, Optional<Audio::ChannelMap> expected_channel_map = {})
 {
     Core::EventLoop loop;
 
@@ -82,39 +83,39 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     }());
     auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
     VERIFY(!tracks.is_empty());
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
-    auto reached_end = false;
-    provider->set_error_handler([&](Media::DecoderError&& error) {
-        if (error.category() == Media::DecoderErrorCategory::EndOfStream) {
-            reached_end = true;
-            return;
-        }
+    producer->set_error_handler([&](Media::DecoderError&&) {
         FAIL("An error occurred while decoding.");
     });
-    provider->start();
+    producer->start();
 
     auto time_limit = AK::Duration::from_seconds(1);
     auto start_time = MonotonicTime::now_coarse();
 
-    i64 last_sample = 0;
-    size_t sample_count = 0;
+    i64 last_frame = 0;
+    size_t frame_count = 0;
+    auto reached_end = false;
 
     while (true) {
-        auto block = provider->retrieve_block();
-        if (block.is_empty()) {
-            if (reached_end)
-                break;
-        } else {
+        Media::AudioBlock block;
+        auto status = producer->status();
+        if (status == Media::PipelineStatus::HaveData)
+            producer->pull(block);
+        if (status == Media::PipelineStatus::HaveData) {
+            EXPECT(!block.is_empty());
             EXPECT_EQ(block.sample_rate(), sample_rate);
             EXPECT_EQ(block.channel_count(), channel_count);
             if (expected_channel_map.has_value())
                 EXPECT_EQ(block.sample_specification().channel_map(), expected_channel_map.value());
 
-            VERIFY(sample_count == 0 || last_sample <= block.timestamp_in_samples());
-            last_sample = block.timestamp_in_samples() + static_cast<i64>(block.sample_count());
+            VERIFY(frame_count == 0 || last_frame <= block.timestamp_in_frames());
+            last_frame = block.timestamp_in_frames() + static_cast<i64>(block.frame_count());
 
-            sample_count += block.sample_count();
+            frame_count += block.frame_count();
+        } else if (status == Media::PipelineStatus::EndOfStream) {
+            reached_end = true;
+            break;
         }
 
         if (MonotonicTime::now_coarse() - start_time >= time_limit) {
@@ -126,5 +127,5 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     }
 
     VERIFY(reached_end);
-    EXPECT_EQ(sample_count, expected_sample_count);
+    EXPECT_EQ(frame_count, expected_frame_count);
 }

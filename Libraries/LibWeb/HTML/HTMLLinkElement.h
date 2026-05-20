@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -151,7 +152,7 @@ private:
     GC::Ptr<Fetch::Infrastructure::Request> create_link_request(LinkProcessingOptions const&);
 
     void fetch_and_process_linked_resource();
-    void default_fetch_and_process_linked_resource();
+    void default_fetch_and_process_linked_resource(u64 fetch_generation);
     void fetch_and_process_linked_dns_prefetch_resource();
     void fetch_and_process_linked_preconnect_resource();
     void fetch_and_process_linked_preload_resource();
@@ -161,11 +162,11 @@ private:
     bool stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
 
     void preconnect(LinkProcessingOptions const&);
-    void preload(LinkProcessingOptions&, GC::Ptr<GC::Function<void(Fetch::Infrastructure::Response&)>> process_response = {});
+    void preload(LinkProcessingOptions&, Function<void(Fetch::Infrastructure::Response&)> process_response = {});
 
-    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
+    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, Core::ImmutableBytes const*);
     void process_icon_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
-    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
+    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ReadonlyBytes);
 
     bool should_fetch_and_process_resource_type() const;
 
@@ -194,6 +195,7 @@ private:
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
     GC::Ptr<DOM::DOMTokenList> m_sizes;
     unsigned m_relationship { 0 };
+    u64 m_current_fetch_generation { 0 };
 
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };

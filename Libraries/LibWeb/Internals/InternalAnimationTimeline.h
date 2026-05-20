@@ -17,12 +17,14 @@ public:
 
     virtual Optional<Animations::TimeValue> duration() const override { return {}; }
 
+    virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<Animations::TimeValue>) override { return {}; }
+
     virtual void update_current_time(double timestamp) override;
 
     void set_time(Optional<double> time);
 
 private:
-    explicit InternalAnimationTimeline(JS::Realm&);
+    explicit InternalAnimationTimeline(JS::Realm&, GC::Ref<DOM::Document>);
     virtual ~InternalAnimationTimeline() override = default;
 
     virtual void initialize(JS::Realm&) override;

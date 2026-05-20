@@ -12,13 +12,6 @@
 
 namespace Web::Animations {
 
-// https://drafts.csswg.org/scroll-animations-1/#dictdef-scrolltimelineoptions
-struct ScrollTimelineOptions {
-    // NB: We use Optional here to distinguish between "undefined" and "null"
-    Optional<GC::Ptr<DOM::Element>> source;
-    Bindings::ScrollAxis axis;
-};
-
 // https://drafts.csswg.org/scroll-animations-1/#scrolltimeline
 class ScrollTimeline : public AnimationTimeline {
     WEB_PLATFORM_OBJECT(ScrollTimeline, AnimationTimeline);
@@ -35,7 +28,7 @@ public:
     using Source = Variant<GC::Ptr<DOM::Element const>, AnonymousSource>;
 
     static GC::Ref<ScrollTimeline> create(JS::Realm&, DOM::Document&, Source source, Bindings::ScrollAxis axis);
-    static GC::Ref<ScrollTimeline> construct_impl(JS::Realm&, ScrollTimelineOptions options = {});
+    static GC::Ref<ScrollTimeline> construct_impl(JS::Realm&, Bindings::ScrollTimelineOptions options = {});
 
     virtual Optional<TimeValue> duration() const override { return TimeValue { TimeValue::Type::Percentage, 100 }; }
 
@@ -44,6 +37,7 @@ public:
 
     Source source_internal() const { return m_source; }
 
+    bool is_stale() const;
     virtual void update_current_time(double timestamp) override;
 
     virtual bool is_progress_based() const override { return true; }
@@ -63,6 +57,8 @@ private:
 
     // https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-axis
     Bindings::ScrollAxis m_axis { Bindings::ScrollAxis::Block };
+
+    Optional<double> m_last_max_scroll_offset;
 };
 
 Bindings::ScrollAxis css_axis_to_bindings_scroll_axis(CSS::Axis);

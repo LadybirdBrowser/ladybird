@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/WorkerNavigator.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
+#include <LibWeb/PermissionsAPI/Permissions.h>
 
 namespace Web::HTML {
 
@@ -39,6 +40,7 @@ void WorkerNavigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_media_capabilities);
     visitor.visit(m_serial);
     visitor.visit(m_service_worker_container);
+    visitor.visit(m_permissions);
 }
 
 GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media_capabilities()
@@ -60,6 +62,13 @@ GC::Ref<ServiceWorker::ServiceWorkerContainer> WorkerNavigator::service_worker()
     if (!m_service_worker_container)
         m_service_worker_container = realm().create<ServiceWorker::ServiceWorkerContainer>(realm());
     return *m_service_worker_container;
+}
+
+GC::Ref<PermissionsAPI::Permissions> WorkerNavigator::permissions()
+{
+    if (!m_permissions)
+        m_permissions = realm().create<PermissionsAPI::Permissions>(realm());
+    return *m_permissions;
 }
 
 }

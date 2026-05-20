@@ -20,7 +20,7 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AnalyserNode);
 
-AnalyserNode::AnalyserNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
+AnalyserNode::AnalyserNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AnalyserOptions const& options)
     : AudioNode(realm, context)
     , m_fft_size(options.fft_size)
     , m_max_decibels(options.max_decibels)
@@ -31,7 +31,7 @@ AnalyserNode::AnalyserNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, 
 
 AnalyserNode::~AnalyserNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AnalyserOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
@@ -291,7 +291,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_smoothing_time_constant(double smoot
     return {};
 }
 
-WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::AnalyserOptions const& options)
 {
     if (options.min_decibels >= options.max_decibels)
         return WebIDL::IndexSizeError::create(realm, "Analyser node minDecibels greater than maxDecibels"_utf16);

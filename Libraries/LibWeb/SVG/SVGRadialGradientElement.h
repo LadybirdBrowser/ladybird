@@ -36,7 +36,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
-    GC::Ptr<SVGRadialGradientElement const> linked_radial_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
+    GC::Ptr<SVGRadialGradientElement const> linked_radial_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
     {
         if (auto gradient = linked_gradient(seen_gradients); gradient && is<SVGRadialGradientElement>(*gradient))
             return &as<SVGRadialGradientElement>(*gradient);
@@ -50,12 +50,12 @@ private:
     NumberPercentage end_circle_y() const;
     NumberPercentage end_circle_radius() const;
 
-    NumberPercentage start_circle_x_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage start_circle_y_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage start_circle_radius_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_circle_x_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_circle_y_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_circle_radius_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
+    NumberPercentage start_circle_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    NumberPercentage start_circle_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    NumberPercentage start_circle_radius_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    NumberPercentage end_circle_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    NumberPercentage end_circle_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    NumberPercentage end_circle_radius_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
 
     Optional<NumberPercentage> m_cx;
     Optional<NumberPercentage> m_cy;
@@ -63,8 +63,6 @@ private:
     Optional<NumberPercentage> m_fy;
     Optional<NumberPercentage> m_fr;
     Optional<NumberPercentage> m_r;
-
-    mutable RefPtr<Painting::SVGRadialGradientPaintStyle> m_paint_style;
 };
 
 }

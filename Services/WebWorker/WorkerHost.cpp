@@ -275,7 +275,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                 auto& vm = realm.vm();
                 Web::HTML::TemporaryExecutionContext const context(realm);
 
-                Web::HTML::MessageEventInit event_init {};
+                Web::Bindings::MessageEventInit event_init {};
                 event_init.data = GC::Ref { vm.empty_string() };
                 event_init.ports = { inside_port };
                 event_init.source = Web::HTML::NullableMessageEventSource { inside_port };

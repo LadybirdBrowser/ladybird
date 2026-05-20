@@ -6,9 +6,14 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
+#include <AK/Error.h>
+#include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Types.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
@@ -43,6 +48,8 @@ class Filter {
 public:
     Filter(Filter const&);
     Filter& operator=(Filter const&);
+    Filter(Filter&&);
+    Filter& operator=(Filter&&);
 
     ~Filter();
 
@@ -71,5 +78,8 @@ private:
     Filter(NonnullOwnPtr<FilterImpl>&&);
     NonnullOwnPtr<FilterImpl> m_impl;
 };
+
+ByteBuffer serialize_filter(Filter const&, Function<u64(Gfx::DecodedImageFrame const&)> const& encode_image);
+Filter deserialize_filter(ReadonlyBytes, Function<Gfx::DecodedImageFrame(u64)> const& decode_image);
 
 }

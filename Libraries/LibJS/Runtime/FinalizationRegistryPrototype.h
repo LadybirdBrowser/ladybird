@@ -22,7 +22,6 @@ public:
 private:
     explicit FinalizationRegistryPrototype(Realm&);
 
-    JS_DECLARE_NATIVE_FUNCTION(cleanup_some);
     JS_DECLARE_NATIVE_FUNCTION(register_);
     JS_DECLARE_NATIVE_FUNCTION(unregister);
 };

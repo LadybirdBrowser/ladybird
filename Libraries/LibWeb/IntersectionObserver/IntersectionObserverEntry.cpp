@@ -13,7 +13,7 @@ namespace Web::IntersectionObserver {
 
 GC_DEFINE_ALLOCATOR(IntersectionObserverEntry);
 
-WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> IntersectionObserverEntry::construct_impl(JS::Realm& realm, Web::IntersectionObserver::IntersectionObserverEntryInit const& options)
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> IntersectionObserverEntry::construct_impl(JS::Realm& realm, Bindings::IntersectionObserverEntryInit const& options)
 {
     auto& vm = realm.vm();
 

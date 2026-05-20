@@ -10,26 +10,21 @@
 
 namespace Web::WebXR {
 
-// https://immersive-web.github.io/webxr/#dictdef-xrsessioneventinit
-struct XRSessionEventInit : public DOM::EventInit {
-    GC::Ptr<XRSession> session;
-};
-
 // https://immersive-web.github.io/webxr/#xrsessionevent
 class XRSessionEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(XRSessionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(XRSessionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<XRSessionEvent> create(JS::Realm&, FlyString const&, XRSessionEventInit const&);
-    static GC::Ref<XRSessionEvent> construct_impl(JS::Realm&, FlyString const&, XRSessionEventInit const&);
+    [[nodiscard]] static GC::Ref<XRSessionEvent> create(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
+    static GC::Ref<XRSessionEvent> construct_impl(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
 
     virtual ~XRSessionEvent() override = default;
 
     GC::Ptr<XRSession> session() const { return m_session; }
 
 private:
-    XRSessionEvent(JS::Realm&, FlyString const&, XRSessionEventInit const&);
+    XRSessionEvent(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
     virtual void initialize(JS::Realm&) override;
 
     virtual void visit_edges(JS::Cell::Visitor&) override;

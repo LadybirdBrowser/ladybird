@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(JS::Realm& rea
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-2d-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_init(JS::Realm& realm, DOMMatrix2DInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_init(JS::Realm& realm, Bindings::DOMMatrix2DInit& init)
 {
     // 1. Validate and fixup (2D) other.
     TRY(validate_and_fixup_dom_matrix_2d_init(init));
@@ -96,7 +96,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_ini
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-dictionary
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_init(JS::Realm& realm, DOMMatrixInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_init(JS::Realm& realm, Bindings::DOMMatrixInit& init)
 {
     // 1. Validate and fixup other.
     TRY(validate_and_fixup_dom_matrix_init(init));
@@ -153,7 +153,7 @@ void DOMMatrix::initialize(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-frommatrix
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, Bindings::DOMMatrixInit other)
 {
     return create_from_dom_matrix_init(*vm.current_realm(), other);
 }
@@ -375,7 +375,7 @@ void DOMMatrix::set_f(double value)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-multiplyself
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(Bindings::DOMMatrixInit other)
 {
     // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
     auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(realm(), other));
@@ -400,7 +400,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(GC::Ref<DOMMatr
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-premultiplyself
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(Bindings::DOMMatrixInit other)
 {
     // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
     auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(realm(), other));
@@ -526,7 +526,11 @@ GC::Ref<DOMMatrix> DOMMatrix::rotate_from_vector_self(Optional<double> x, Option
 GC::Ref<DOMMatrix> DOMMatrix::rotate_axis_angle_self(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle)
 {
     // 1. Post-multiply a rotation transformation on the current matrix around the specified vector x, y, z by the specified rotation angle in degrees. The 3D rotation matrix is described in CSS Transforms with alpha = angle in degrees. [CSS3-TRANSFORMS]
-    m_matrix = m_matrix * Gfx::rotation_matrix<double>(Vector3<double> { x.value_or(0), y.value_or(0), z.value_or(0) }.normalized(), AK::to_radians(angle.value()));
+    auto axis = Vector3<double> { x.value_or(0), y.value_or(0), z.value_or(0) };
+    // https://drafts.csswg.org/css-transforms-2/#funcdef-rotate3d
+    // "A direction vector that cannot be normalized, such as [0,0,0], will cause the rotation to not be applied."
+    if (axis.length() != 0)
+        m_matrix = m_matrix * Gfx::rotation_matrix<double>(axis.normalized(), AK::to_radians(angle.value()));
 
     // 2. If x or y are not 0 or -0, set is 2D of the current matrix to false.
     if ((x != 0 && x != -0) || (y != 0 && y != -0))

@@ -93,6 +93,8 @@ function (generate_css_implementation)
         "CSS/Parser/GeneratedValueTypesParsing.h"
         "CSS/Parser/GeneratedValueTypesParsing.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/ValueTypes.json"
+                  -u "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
+        dependencies "${LIBWEB_INPUT_FOLDER}/CSS/Units.json"
     )
 
     invoke_py_generator(
@@ -246,7 +248,7 @@ function (generate_js_bindings target)
     set(LIBWEB_ALL_BINDINGS_SOURCES)
     set(LIBWEB_ALL_IDL_FILES)
     set(LIBWEB_ALL_PARSED_IDL_FILES)
-    function(libweb_js_bindings class)
+    macro(libweb_add_bindings_source class)
         get_filename_component(basename "${class}" NAME)
 
         set(BINDINGS_HEADER "${CMAKE_CURRENT_BINARY_DIR}/Bindings/${basename}.h")
@@ -263,21 +265,21 @@ function (generate_js_bindings target)
 
         list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${BINDINGS_SOURCES})
         set(LIBWEB_ALL_BINDINGS_SOURCES ${LIBWEB_ALL_BINDINGS_SOURCES} PARENT_SCOPE)
+    endmacro()
 
-        list(APPEND LIBWEB_ALL_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
+    function(libweb_js_bindings class)
+        get_filename_component(basename "${class}" NAME)
+        set(idl_path "${LIBWEB_INPUT_FOLDER}/${class}.idl")
+        if ("${basename}.idl" IN_LIST LIBWEB_ALL_GENERATED_IDL)
+            set(idl_path "${CMAKE_CURRENT_BINARY_DIR}/${class}.idl")
+        endif()
+
+        libweb_add_bindings_source(${class})
+
+        list(APPEND LIBWEB_ALL_IDL_FILES "${idl_path}")
         set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
 
-        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
-        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
-    endfunction()
-
-    function(libweb_support_idl class)
-        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
-        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
-    endfunction()
-
-    function(libweb_generated_support_idl class)
-        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${CMAKE_CURRENT_BINARY_DIR}/${class}.idl")
+        list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${idl_path}")
         set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
     endfunction()
 
@@ -290,6 +292,7 @@ function (generate_js_bindings target)
             "${LADYBIRD_SOURCE_DIR}/Meta/Utils/webidl_parser.py")
 
         set(exposed_interface_sources
+            Forward.h
             IntrinsicDefinitions.cpp IntrinsicDefinitions.h
             DedicatedWorkerExposedInterfaces.cpp DedicatedWorkerExposedInterfaces.h
             SharedWorkerExposedInterfaces.cpp SharedWorkerExposedInterfaces.h
@@ -299,6 +302,7 @@ function (generate_js_bindings target)
             OUTPUT  ${exposed_interface_sources}
             COMMAND "${CMAKE_COMMAND}" -E make_directory "tmp"
             COMMAND "${Python3_EXECUTABLE}" "${window_or_worker_generator}" -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/Forward.h "Bindings/Forward.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.h "Bindings/IntrinsicDefinitions.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.cpp "Bindings/IntrinsicDefinitions.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.h "Bindings/DedicatedWorkerExposedInterfaces.h"

@@ -185,7 +185,7 @@ Optional<StyleProperty const&> CSSStyleProperties::custom_property(FlyString con
         auto& element = owner_node()->element();
         auto pseudo_element = owner_node()->pseudo_element();
 
-        element.document().update_style();
+        element.document().update_style_for_element(*owner_node());
 
         auto data = element.custom_property_data(pseudo_element);
         if (!data)
@@ -584,9 +584,21 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             // always need update_layout() to ensure both style and layout tree are up to date.
             abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
             layout_node = abstract_element.layout_node();
-        } else if (abstract_element.document().element_needs_style_update(abstract_element)) {
-            // Just ensure styles are up to date.
-            abstract_element.document().update_style();
+        }
+        // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
+        // so the leaf and its inheritance ancestors may still be stale at this point.
+        if (abstract_element.document().element_needs_style_update(abstract_element))
+            abstract_element.document().update_style_for_element(abstract_element);
+
+        // Size container queries need layout to resolve. Avoid forcing layout for every getComputedStyle() call in
+        // a scope with size queries; only elements that actually matched a potentially relevant rule need the
+        // post-layout style.
+        bool const needs_layout_for_container_queries = abstract_element.style_scope().have_size_container_queries()
+            && abstract_element.element().style_depends_on_size_container_query()
+            && !abstract_element.document().layout_is_up_to_date();
+        if (needs_layout_for_container_queries) {
+            abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+            layout_node = abstract_element.layout_node();
         }
 
         // FIXME: Somehow get custom properties if there's no layout node.
@@ -596,6 +608,20 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     .property_id = property_id,
                     .value = maybe_value.release_nonnull(),
                 };
+            }
+            // Pseudo-elements may have no own custom-property data if the matching rule targeted the originating
+            // element rather than the pseudo-element itself (for example `::slotted(...)`).
+            // In that case, getComputedStyle(..., "::before") still needs to expose inherited custom properties from
+            // the originating element.
+            if (abstract_element.pseudo_element().has_value()) {
+                if (auto inherit_from = abstract_element.element_to_inherit_style_from(); inherit_from.has_value()) {
+                    if (auto maybe_value = inherit_from->get_custom_property(property_name_and_id.name())) {
+                        return StyleProperty {
+                            .property_id = property_id,
+                            .value = maybe_value.release_nonnull(),
+                        };
+                    }
+                }
             }
             // FIXME: Currently, to get the initial value for a registered custom property we have to look at the document.
             //        These should be cascaded like other properties.

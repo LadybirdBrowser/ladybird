@@ -348,9 +348,8 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
         // try_table block_type (catch*) (instruction*) end
         auto block_type = TRY(BlockType::parse(stream));
         auto catch_types = TRY(parse_vector<Catch>(stream));
-        auto structured_args = StructuredInstructionArgs { block_type, {}, {} };
         return Instruction {
-            opcode, TryTableArgs { move(structured_args), move(catch_types) }
+            opcode, TryTableArgs { block_type, {}, catch_types.span() }
         };
     }
     case Instructions::throw_.value(): {
@@ -639,7 +638,10 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
     case 0xfd: {
         // These are multibyte instructions.
         auto selector = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
-        OpCode full_opcode = static_cast<u64>(opcode.value()) << 56 | selector;
+        if (selector > 0xffffff)
+            return ParseError::UnknownInstruction;
+
+        OpCode full_opcode = static_cast<u32>(opcode.value()) << 24 | selector;
 
         switch (full_opcode.value()) {
         case Instructions::i32_trunc_sat_f32_s.value():
@@ -1157,11 +1159,11 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
             auto entry = stack.take_last();
             bool valid_type = instructions[entry.value()].arguments().visit(
                 [&](Instruction::StructuredInstructionArgs& args) {
-                    args.end_ip = ip + (args.else_ip.has_value() ? 1 : 0);
+                    args.end_ip = ip + (args.else_ip().has_value() ? 1 : 0);
                     return true;
                 },
                 [&](Instruction::TryTableArgs& args) {
-                    args.try_.end_ip = ip + 1;
+                    args.end_ip = ip + 1;
                     return true;
                 },
                 [](auto&) { return false; });
@@ -1179,7 +1181,7 @@ ParseResult<Expression> Expression::parse(ConstrainedStream& stream, Optional<si
             if (!args)
                 return ParseError::InvalidType;
 
-            args->else_ip = ip + 1;
+            args->else_ip() = ip + 1;
             break;
         }
         }
@@ -1197,14 +1199,14 @@ ParseResult<GlobalSection::Global> GlobalSection::Global::parse(ConstrainedStrea
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("Global"sv);
     auto type = TRY(GlobalType::parse(stream));
     auto exprs = TRY(Expression::parse(stream));
-    return Global { type, exprs };
+    return Global { type, move(exprs) };
 }
 
 ParseResult<GlobalSection> GlobalSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("GlobalSection"sv);
     auto result = TRY(parse_vector<Global>(stream));
-    return GlobalSection { result };
+    return GlobalSection { move(result) };
 }
 
 ParseResult<ExportSection::Export> ExportSection::Export::parse(ConstrainedStream& stream)
@@ -1276,7 +1278,7 @@ ParseResult<ElementSection::Element> ElementSection::Element::parse(ConstrainedS
         if (has_explicit_index)
             table_index = TRY(GenericIndexParser<TableIndex>::parse(stream));
         auto expression = TRY(Expression::parse(stream));
-        mode = Active { table_index, expression };
+        mode = Active { table_index, move(expression) };
     }
 
     auto type = ValueType(ValueType::FunctionReference);
@@ -1315,7 +1317,7 @@ ParseResult<ElementSection> ElementSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("ElementSection"sv);
     auto result = TRY(parse_vector<Element>(stream));
-    return ElementSection { result };
+    return ElementSection { move(result) };
 }
 
 ParseResult<Locals> Locals::parse(ConstrainedStream& stream)
@@ -1369,17 +1371,17 @@ ParseResult<DataSection::Data> DataSection::Data::parse(ConstrainedStream& strea
     if (tag == 0x00) {
         auto expr = TRY(Expression::parse(stream));
         auto init = TRY(parse_vector<u8>(stream));
-        return Data { Active { init, { 0 }, expr } };
+        return Data { Active { move(init), { 0 }, move(expr) } };
     }
     if (tag == 0x01) {
         auto init = TRY(parse_vector<u8>(stream));
-        return Data { Passive { init } };
+        return Data { Passive { move(init) } };
     }
     if (tag == 0x02) {
         auto index = TRY(GenericIndexParser<MemoryIndex>::parse(stream));
         auto expr = TRY(Expression::parse(stream));
         auto init = TRY(parse_vector<u8>(stream));
-        return Data { Active { init, index, expr } };
+        return Data { Active { move(init), index, move(expr) } };
     }
     VERIFY_NOT_REACHED();
 }
@@ -1388,7 +1390,7 @@ ParseResult<DataSection> DataSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("DataSection"sv);
     auto data = TRY(parse_vector<Data>(stream));
-    return DataSection { data };
+    return DataSection { move(data) };
 }
 
 ParseResult<DataCountSection> DataCountSection::parse(ConstrainedStream& stream)

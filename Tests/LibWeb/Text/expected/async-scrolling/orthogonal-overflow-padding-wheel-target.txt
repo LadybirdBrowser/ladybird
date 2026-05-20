@@ -1,0 +1,3 @@
+client width: 100
+scroll width: 100
+horizontal wheel target: none

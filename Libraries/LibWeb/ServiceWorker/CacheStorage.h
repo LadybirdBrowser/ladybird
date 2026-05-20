@@ -14,17 +14,13 @@
 
 namespace Web::ServiceWorker {
 
-struct MultiCacheQueryOptions : public CacheQueryOptions {
-    Optional<String> cache_name;
-};
-
 // https://w3c.github.io/ServiceWorker/#cachestorage-interface
 class CacheStorage : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CacheStorage, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(CacheStorage);
 
 public:
-    GC::Ref<WebIDL::Promise> match(Fetch::RequestInfo, MultiCacheQueryOptions);
+    GC::Ref<WebIDL::Promise> match(Fetch::RequestInfo, Bindings::MultiCacheQueryOptions);
     GC::Ref<WebIDL::Promise> has(String const& cache_name);
     GC::Ref<WebIDL::Promise> open(String const& cache_name);
     GC::Ref<WebIDL::Promise> delete_(String const& cache_name);

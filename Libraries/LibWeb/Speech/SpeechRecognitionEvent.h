@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/SpeechRecognitionEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Speech/SpeechRecognitionResultList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -15,18 +16,13 @@
 
 namespace Web::Speech {
 
-struct SpeechRecognitionEventInit : public DOM::EventInit {
-    WebIDL::UnsignedLong result_index { 0 };
-    GC::Ptr<SpeechRecognitionResultList> results;
-};
-
 class SpeechRecognitionEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(SpeechRecognitionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(SpeechRecognitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechRecognitionEvent> create(JS::Realm&, FlyString const& event_name, SpeechRecognitionEventInit = {});
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, SpeechRecognitionEventInit);
+    [[nodiscard]] static GC::Ref<SpeechRecognitionEvent> create(JS::Realm&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionevent-resultindex
     WebIDL::UnsignedLong result_index() const { return m_result_index; }
@@ -35,7 +31,7 @@ public:
     GC::Ptr<SpeechRecognitionResultList> results() const { return m_results; }
 
 private:
-    SpeechRecognitionEvent(JS::Realm&, FlyString const& event_name, SpeechRecognitionEventInit);
+    SpeechRecognitionEvent(JS::Realm&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

@@ -25,7 +25,7 @@ public:
     ThrowCompletionOr<void> set_synthetic_module_export(Utf16FlyString const& export_name, Value export_value);
 
     virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) override;
-    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, HashTable<Module const*>& export_star_set) override;
+    virtual Vector<Utf16FlyString> get_exported_names(VM& vm, GC::RootHashTable<GC::Ref<Module const>>& export_star_set) override;
     virtual ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
     virtual ThrowCompletionOr<void> link(VM& vm) override;
     virtual ThrowCompletionOr<GC::Ref<PromiseCapability>> evaluate(VM& vm) override;

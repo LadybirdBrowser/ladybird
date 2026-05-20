@@ -447,12 +447,14 @@ OwnPtr<Supports::Declaration> Parser::parse_supports_declaration(TokenStream<Com
 
 OwnPtr<BooleanExpression> Parser::parse_container_query_condition(TokenStream<ComponentValue>& tokens)
 {
-    return parse_boolean_expression(tokens, MatchResult::False, [this](auto& tokens) {
+    // https://drafts.csswg.org/css-conditional-5/#container-rule
+    // As with media queries, <general-enclosed> evaluates to unknown.
+    return parse_boolean_expression(tokens, MatchResult::Unknown, [this](auto& tokens) {
         return parse_container_query_feature(tokens);
     });
 }
 
-OwnPtr<BooleanExpression> Parser::parse_container_query_feature(TokenStream<ComponentValue>&)
+OwnPtr<BooleanExpression> Parser::parse_container_query_feature(TokenStream<ComponentValue>& tokens)
 {
     // https://drafts.csswg.org/css-conditional-5/#typedef-query-in-parens
     // <query-in-parens> = ( <container-query> )
@@ -468,7 +470,23 @@ OwnPtr<BooleanExpression> Parser::parse_container_query_feature(TokenStream<Comp
     // NB: Spec isn't yet in terms of `<boolean-condition>`, so this is the closest definition to what we want.
     //     `( <container-query> )` and `<general-enclosed>` are handled by parse_boolean_expression() already.
 
-    // FIXME: `( <size-feature> )`
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    // `( <size-feature> )`
+    if (tokens.next_token().is_block() && tokens.next_token().block().is_paren()) {
+        auto const& block = tokens.consume_a_token().block();
+        TokenStream inner_tokens { block.value };
+        if (auto size_feature = parse_size_feature(inner_tokens)) {
+            inner_tokens.discard_whitespace();
+            if (inner_tokens.has_next_token())
+                return nullptr;
+
+            transaction.commit();
+            return size_feature;
+        }
+    }
+
     // FIXME: `style( <style-query> )`
     // FIXME: `scroll-state( <scroll-state-query> )`
     // FIXME: `anchored( <anchored-query> )`
@@ -2100,7 +2118,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
         // "If the result of any of the above productions is used in any
         // context that expects a two-valued boolean, 'unknown' must be
         // converted to 'false'."
-        if (m_document && !media_condition->evaluate_to_boolean(m_document))
+        if (m_document && !media_condition->evaluate_to_boolean({ .document = m_document }))
             continue;
 
         // 5. If size is not auto, then return size. Otherwise, continue.

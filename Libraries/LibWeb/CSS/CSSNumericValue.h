@@ -15,17 +15,6 @@
 
 namespace Web::CSS {
 
-struct CSSNumericType {
-    Optional<WebIDL::Long> length;
-    Optional<WebIDL::Long> angle;
-    Optional<WebIDL::Long> time;
-    Optional<WebIDL::Long> frequency;
-    Optional<WebIDL::Long> resolution;
-    Optional<WebIDL::Long> flex;
-    Optional<WebIDL::Long> percent;
-    Optional<Bindings::CSSNumericBaseType> percent_hint;
-};
-
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-sum-value
 struct SumValueItem {
     double value;
@@ -64,7 +53,7 @@ public:
 
     virtual Optional<SumValue> create_a_sum_value() const = 0;
 
-    CSSNumericType type_for_bindings() const;
+    Bindings::CSSNumericType type_for_bindings() const;
     NumericType const& type() const { return m_type; }
 
     virtual WebIDL::ExceptionOr<String> to_string() const final override { return to_string({}); }

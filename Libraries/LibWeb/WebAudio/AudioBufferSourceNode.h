@@ -13,16 +13,6 @@
 
 namespace Web::WebAudio {
 
-// https://webaudio.github.io/web-audio-api/#AudioBufferSourceOptions
-struct AudioBufferSourceOptions : AudioNodeOptions {
-    GC::Ptr<AudioBuffer> buffer;
-    float detune { 0 };
-    bool loop { false };
-    double loop_end { 0 };
-    double loop_start { 0 };
-    float playback_rate { 1 };
-};
-
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioScheduledSourceNode {
     WEB_PLATFORM_OBJECT(AudioBufferSourceNode, AudioScheduledSourceNode);
@@ -46,11 +36,11 @@ public:
 
     WebIDL::ExceptionOr<void> start(Optional<double>, Optional<double>, Optional<double>);
 
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
 
 protected:
-    AudioBufferSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
+    AudioBufferSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

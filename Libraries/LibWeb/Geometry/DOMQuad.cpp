@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/DOMQuad.h>
+#include <LibWeb/Bindings/DOMRectReadOnly.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -13,7 +14,7 @@ namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMQuad);
 
-GC::Ref<DOMQuad> DOMQuad::construct_impl(JS::Realm& realm, DOMPointInit const& p1, DOMPointInit const& p2, DOMPointInit const& p3, DOMPointInit const& p4)
+GC::Ref<DOMQuad> DOMQuad::construct_impl(JS::Realm& realm, Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4)
 {
     return realm.create<DOMQuad>(realm, p1, p2, p3, p4);
 }
@@ -23,7 +24,7 @@ GC::Ref<DOMQuad> DOMQuad::create(JS::Realm& realm)
     return realm.create<DOMQuad>(realm);
 }
 
-DOMQuad::DOMQuad(JS::Realm& realm, DOMPointInit const& p1, DOMPointInit const& p2, DOMPointInit const& p3, DOMPointInit const& p4)
+DOMQuad::DOMQuad(JS::Realm& realm, Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4)
     : PlatformObject(realm)
     , m_p1(DOMPoint::from_point(realm.vm(), p1))
     , m_p2(DOMPoint::from_point(realm.vm(), p2))
@@ -44,20 +45,32 @@ DOMQuad::DOMQuad(JS::Realm& realm)
 DOMQuad::~DOMQuad() = default;
 
 // https://drafts.fxtf.org/geometry/#dom-domquad-fromrect
-GC::Ref<DOMQuad> DOMQuad::from_rect(JS::VM& vm, DOMRectInit const& other)
+GC::Ref<DOMQuad> DOMQuad::from_rect(JS::VM& vm, Bindings::DOMRectInit const& other)
 {
     // The fromRect(other) static method on DOMQuad must create a DOMQuad from the DOMRectInit dictionary other.
-    return construct_impl(*vm.current_realm(), { other.x, other.y },
-        { other.x + other.width, other.y },
-        { other.x + other.width, other.y + other.height },
-        { other.x, other.y + other.height });
+    auto make_point = [](double x, double y) {
+        Bindings::DOMPointInit point {};
+        point.x = x;
+        point.y = y;
+        return point;
+    };
+
+    return construct_impl(*vm.current_realm(),
+        make_point(other.x, other.y),
+        make_point(other.x + other.width, other.y),
+        make_point(other.x + other.width, other.y + other.height),
+        make_point(other.x, other.y + other.height));
 }
 
 // https://drafts.fxtf.org/geometry/#dom-domquad-fromquad
-GC::Ref<DOMQuad> DOMQuad::from_quad(JS::VM& vm, DOMQuadInit const& other)
+GC::Ref<DOMQuad> DOMQuad::from_quad(JS::VM& vm, Bindings::DOMQuadInit const& other)
 {
     // The fromQuad(other) static method on DOMQuad must create a DOMQuad from the DOMQuadInit dictionary other.
-    return construct_impl(*vm.current_realm(), other.p1, other.p2, other.p3, other.p4);
+    return construct_impl(*vm.current_realm(),
+        other.p1.value_or(Bindings::DOMPointInit {}),
+        other.p2.value_or(Bindings::DOMPointInit {}),
+        other.p3.value_or(Bindings::DOMPointInit {}),
+        other.p4.value_or(Bindings::DOMPointInit {}));
 }
 
 // https://drafts.fxtf.org/geometry/#dom-domquad-getbounds

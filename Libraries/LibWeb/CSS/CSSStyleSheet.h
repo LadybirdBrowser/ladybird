@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
@@ -27,12 +28,6 @@ class CSSImportRule;
 class StyleScope;
 struct ShadowRootStylesheetEffects;
 struct StyleCache;
-
-struct CSSStyleSheetInit {
-    Optional<String> base_url {};
-    Variant<GC::Root<MediaList>, String> media { String {} };
-    bool disabled { false };
-};
 
 // https://drafts.csswg.org/cssom-1/#cssstylesheet
 class WEB_API CSSStyleSheet final : public StyleSheet {
@@ -63,7 +58,7 @@ public:
     };
 
     [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<CSSStyleSheetInit> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<Bindings::CSSStyleSheetInit> const& options = {});
 
     virtual ~CSSStyleSheet() override;
 
