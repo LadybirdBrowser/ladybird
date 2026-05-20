@@ -44,6 +44,12 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
     virtual bool is_listed() const override { return true; }
 
+    // ^EventTarget
+    virtual bool is_focusable() const override
+    {
+        return meets_focusable_area_rendering_requirements();
+    }
+
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

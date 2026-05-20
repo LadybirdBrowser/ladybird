@@ -28,3 +28,11 @@ window received focusin event, target: DIV#1, currentTarget: window
 DIV#1 received blur event, target: DIV#1, currentTarget: DIV#1
 DIV#1 received focusout event, target: DIV#1, currentTarget: DIV#1
 window received focusout event, target: DIV#1, currentTarget: window
+== div1 focus after window
+DIV#1 received focus event, target: DIV#1, currentTarget: DIV#1
+DIV#1 received focusin event, target: DIV#1, currentTarget: DIV#1
+window received focusin event, target: DIV#1, currentTarget: window
+== documentElement focus
+DIV#1 received blur event, target: DIV#1, currentTarget: DIV#1
+DIV#1 received focusout event, target: DIV#1, currentTarget: DIV#1
+window received focusout event, target: DIV#1, currentTarget: window

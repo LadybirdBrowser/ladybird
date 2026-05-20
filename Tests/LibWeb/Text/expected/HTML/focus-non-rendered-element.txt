@@ -3,6 +3,8 @@ after hidden ancestor input.focus() with computed style: visible
 after display none input.focus(): visible
 after display contents div.focus(): display-contents
 after unhidden input.focus(): hidden-ancestor
+after documentElement.focus(): BODY
+after focusable documentElement.focus(): HTML
 after slotted input in hidden slot subtree focus(): visible
 after slotted input in visible slot subtree focus(): slotted-hidden-focus-target
 after focused input display none then blur(): BODY

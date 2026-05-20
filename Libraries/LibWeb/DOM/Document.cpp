@@ -3778,8 +3778,7 @@ void Document::scroll_to_the_fragment()
         (void)target->scroll_into_view(scroll_options);
 
         // 6. Run the focusing steps for target, with the Document's viewport as the fallback target.
-        // FIXME: Pass the Document's viewport somehow.
-        HTML::run_focusing_steps(target);
+        HTML::run_focusing_steps(target, this);
 
         // FIXME: 7. Move the sequential focus navigation starting point to target.
     }

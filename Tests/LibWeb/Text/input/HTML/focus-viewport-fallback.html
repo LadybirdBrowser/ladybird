@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #fragment-target {
+        margin-top: 500px;
+        height: 50px;
+        margin-bottom: 1000px;
+    }
+</style>
+<input id="before">
+<div id="navigation-target"></div>
+<div id="fragment-target"></div>
+<script>
+    function activeElementName() {
+        return document.activeElement.id || document.activeElement.localName;
+    }
+
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await timeout(0);
+
+        const before = document.getElementById("before");
+        const fragmentTarget = document.getElementById("fragment-target");
+
+        navigation.addEventListener("navigate", event => {
+            event.intercept({
+                scroll: "manual",
+            });
+        }, { once: true });
+
+        before.focus();
+        navigation.navigate("#navigation-target", { history: "push" });
+        await timeout(0);
+        println(`after intercepted navigation focus reset: ${activeElementName()}`);
+
+        before.focus();
+        const scrolled = new Promise(resolve => {
+            document.addEventListener("scroll", () => resolve(), { once: true });
+        });
+
+        location.hash = fragmentTarget.id;
+        await scrolled;
+        println(`after fragment focus fallback: ${activeElementName()}`);
+
+        done();
+    });
+</script>

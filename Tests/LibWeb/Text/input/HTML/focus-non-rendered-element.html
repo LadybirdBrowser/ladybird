@@ -46,6 +46,15 @@
         hiddenAncestor.focus();
         println(`after unhidden input.focus(): ${document.activeElement.id}`);
 
+        document.documentElement.focus();
+        println(`after documentElement.focus(): ${document.activeElement.tagName}`);
+
+        visible.focus();
+        document.documentElement.tabIndex = 0;
+        document.documentElement.focus();
+        println(`after focusable documentElement.focus(): ${document.activeElement.tagName}`);
+        document.documentElement.removeAttribute("tabindex");
+
         visible.focus();
         slottedHiddenFocusTarget.focus();
         println(`after slotted input in hidden slot subtree focus(): ${document.activeElement.id}`);
