@@ -365,6 +365,9 @@ public:
     [[nodiscard]] bool entire_subtree_needs_style_update() const { return m_entire_subtree_needs_style_update; }
     void set_entire_subtree_needs_style_update(bool b) { m_entire_subtree_needs_style_update = b; }
 
+    [[nodiscard]] bool subtree_may_depend_on_non_inherited_property_inheritance() const { return m_subtree_may_depend_on_non_inherited_property_inheritance; }
+    void set_subtree_may_depend_on_non_inherited_property_inheritance();
+
     void invalidate_style(StyleInvalidationReason);
     void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, StyleInvalidationOptions);
     CSS::StyleScope& style_scope();
@@ -509,6 +512,7 @@ protected:
     bool m_needs_style_update { false };
     bool m_child_needs_style_update { false };
     bool m_entire_subtree_needs_style_update { false };
+    bool m_subtree_may_depend_on_non_inherited_property_inheritance { false };
     bool m_in_editable_subtree { false };
     bool m_is_connected { false };
 

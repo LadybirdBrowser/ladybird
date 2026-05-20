@@ -1930,6 +1930,8 @@ bool Document::layout_is_up_to_date() const
     }
 
     bool children_need_inherited_style_update = !invalidation.is_none();
+    if (!node.is_element())
+        children_need_inherited_style_update |= needs_inherited_style_update;
     // NB: When display changes to/from flex/grid/contents, children may need to be blockified or un-blockified.
     //     This requires a full style recompute, not just inherited style update.
     bool children_need_full_style_recompute = node_invalidation.rebuild_layout_tree;
@@ -1951,17 +1953,19 @@ bool Document::layout_is_up_to_date() const
             || descendant_style_recompute_needed)) {
         if (node.is_element()) {
             if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
+                bool shadow_tree_children_need_inherited_style_update = node_invalidation.inherited_style_changed
+                    || (!node_invalidation.is_none() && shadow_root->subtree_may_depend_on_non_inherited_property_inheritance());
                 if (needs_full_style_update
                     || shadow_root->needs_style_update()
                     || shadow_root->child_needs_style_update()
-                    || children_need_inherited_style_update
+                    || shadow_tree_children_need_inherited_style_update
                     || recompute_elements_depending_on_custom_properties
                     || children_need_full_style_recompute
                     || descendant_style_recompute_needed) {
                     auto subtree_invalidation = update_style_recursively(
                         *shadow_root,
                         style_computer,
-                        children_need_inherited_style_update,
+                        shadow_tree_children_need_inherited_style_update,
                         recompute_elements_depending_on_custom_properties,
                         children_need_full_style_recompute,
                         descendant_style_recompute_needed);

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    x-class-host.red {
+        color: rgb(255, 0, 0);
+    }
+
+    x-class-host.green {
+        color: rgb(0, 128, 0);
+    }
+
+    #relative-container {
+        font-size: 10px;
+    }
+
+    x-relative-host {
+        font-size: 2em;
+    }
+
+    x-explicit-inherit-host {
+        margin-left: 11px;
+    }
+</style>
+
+<x-inline-host id="inline-host" style="color: rgb(255, 0, 0)"></x-inline-host>
+<x-class-host id="class-host" class="red"></x-class-host>
+<div id="relative-container">
+    <x-relative-host id="relative-host"></x-relative-host>
+</div>
+<x-explicit-inherit-host id="explicit-inherit-host"></x-explicit-inherit-host>
+
+<script>
+    customElements.define("x-inline-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <span id="child"><span id="grandchild">inline</span></span>
+            `;
+        }
+    });
+
+    customElements.define("x-class-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <span id="child">class</span>
+            `;
+        }
+    });
+
+    customElements.define("x-relative-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <span id="child">relative</span>
+            `;
+        }
+    });
+
+    customElements.define("x-explicit-inherit-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <style>
+                    #child {
+                        margin-left: inherit;
+                    }
+                </style>
+                <span id="child">explicit inherit</span>
+            `;
+        }
+    });
+
+    test(() => {
+        const inlineHost = document.getElementById("inline-host");
+        const inlineChild = inlineHost.shadowRoot.getElementById("child");
+        const inlineGrandchild = inlineHost.shadowRoot.getElementById("grandchild");
+
+        println(`inline initial child color: ${getComputedStyle(inlineChild).color}`);
+        println(`inline initial grandchild color: ${getComputedStyle(inlineGrandchild).color}`);
+
+        inlineHost.style.color = "rgb(0, 128, 0)";
+
+        println(`inline changed child color: ${getComputedStyle(inlineChild).color}`);
+        println(`inline changed grandchild color: ${getComputedStyle(inlineGrandchild).color}`);
+
+        const classHost = document.getElementById("class-host");
+        const classChild = classHost.shadowRoot.getElementById("child");
+
+        println(`class initial child color: ${getComputedStyle(classChild).color}`);
+
+        classHost.className = "green";
+
+        println(`class changed child color: ${getComputedStyle(classChild).color}`);
+
+        const relativeContainer = document.getElementById("relative-container");
+        const relativeHost = document.getElementById("relative-host");
+        const relativeChild = relativeHost.shadowRoot.getElementById("child");
+
+        println(`relative initial child font-size: ${getComputedStyle(relativeChild).fontSize}`);
+
+        relativeContainer.style.fontSize = "20px";
+
+        println(`relative changed child font-size: ${getComputedStyle(relativeChild).fontSize}`);
+
+        const explicitInheritHost = document.getElementById("explicit-inherit-host");
+        const explicitInheritChild = explicitInheritHost.shadowRoot.getElementById("child");
+
+        println(`explicit inherit initial child margin-left: ${getComputedStyle(explicitInheritChild).marginLeft}`);
+
+        explicitInheritHost.style.marginLeft = "27px";
+
+        println(`explicit inherit changed child margin-left: ${getComputedStyle(explicitInheritChild).marginLeft}`);
+    });
+</script>

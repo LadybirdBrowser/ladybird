@@ -866,6 +866,13 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<S
     }
 }
 
+static bool style_value_changed(CSS::StyleValue const& old_value, CSS::StyleValue const& new_value)
+{
+    if (&old_value == &new_value)
+        return false;
+    return !old_value.equals(new_value);
+}
+
 static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style, CSS::FontComputer const& font_computer, Layout::NodeWithStyle const* old_layout_node, DOM::AbstractElement& abstract_element)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -877,8 +884,10 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto const& old_value = old_style.property(property_id);
         auto const& new_value = new_style.property(property_id);
-        if (&old_value == &new_value)
+        if (!style_value_changed(old_value, new_value))
             continue;
+        if (CSS::is_inherited_property(property_id))
+            invalidation.inherited_style_changed = true;
         invalidation |= CSS::compute_property_invalidation(property_id, &old_value, &new_value);
     }
 
@@ -1086,6 +1095,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
         RefPtr new_value = CSS::StyleComputer::get_non_animated_inherit_value(property_id, { *this });
         computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
+        if (style_value_changed(*old_value, computed_properties->property(property_id)))
+            invalidation.inherited_style_changed = true;
         invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &computed_properties->property(property_id));
     }
 
@@ -1098,9 +1109,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
     document().style_computer().compute_property_values(*computed_properties, abstract_element);
 
-    for (auto const& [property_id, old_value] : property_values_affected_by_inherited_style) {
-        auto const& new_value = computed_properties->property(static_cast<CSS::PropertyID>(property_id));
-        invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value.ptr(), &new_value);
+    for (auto const& [property_id_value, old_value] : property_values_affected_by_inherited_style) {
+        auto property_id = static_cast<CSS::PropertyID>(property_id_value);
+        auto const& new_value = computed_properties->property(property_id);
+        if (CSS::is_inherited_property(property_id) && style_value_changed(*old_value, new_value))
+            invalidation.inherited_style_changed = true;
+        invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &new_value);
     }
 
     if (invalidation.is_none()) {
