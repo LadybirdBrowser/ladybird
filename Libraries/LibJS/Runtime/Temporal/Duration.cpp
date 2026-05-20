@@ -955,8 +955,8 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
     Crypto::SignedBigInteger start_epoch_ns;
     Crypto::SignedBigInteger end_epoch_ns;
 
-    // 7. If r1 = 0, then
-    if (r1 == 0) {
+    // 7. If DateDurationSign(startDateDuration) = 0, then
+    if (date_duration_sign(start_date_duration) == 0) {
         // a. Let startEpochNs be originEpochNs.
         start_epoch_ns = origin_epoch_ns;
     }

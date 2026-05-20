@@ -128,6 +128,14 @@ describe("correct behavior", () => {
         const result = duration.round({ smallestUnit: "years", relativeTo });
         expect(result.toString()).toBe("P1Y");
     });
+
+    test("mixed smallest and largest unit", () => {
+        const duration = Temporal.Duration.from("P7D");
+        const relativeTo = new Temporal.ZonedDateTime(0n, "UTC");
+
+        const result = duration.round({ smallestUnit: "days", largestUnit: "weeks", relativeTo });
+        expect(result.toString()).toBe("P1W");
+    });
 });
 
 describe("errors", () => {
