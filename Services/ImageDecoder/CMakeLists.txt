@@ -19,6 +19,12 @@ endif()
 
 add_executable(ImageDecoder main.cpp)
 
+if (LINUX)
+    target_sources(ImageDecoder PRIVATE SandboxLinux.cpp)
+else()
+    target_sources(ImageDecoder PRIVATE SandboxUnimplemented.cpp)
+endif()
+
 target_include_directories(imagedecoderservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(imagedecoderservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 

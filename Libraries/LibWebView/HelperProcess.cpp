@@ -146,7 +146,11 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(u64
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()
 {
+    auto const& browser_options = WebView::Application::browser_options();
+
     Vector<ByteString> arguments;
+    if (browser_options.enable_sandbox == EnableSandbox::Yes)
+        arguments.append("--enable-sandbox"sv);
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
