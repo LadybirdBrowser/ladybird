@@ -1,0 +1,4 @@
+Home from middle line: start=0 end=0
+End from middle line: start=25 end=25
+Shift+Home from middle line: start=0 end=12
+Shift+End from middle line: start=12 end=25
