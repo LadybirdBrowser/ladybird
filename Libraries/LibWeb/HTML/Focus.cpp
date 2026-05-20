@@ -41,6 +41,23 @@ static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC:
     focus_event_target->dispatch_event(focus_event);
 }
 
+static void designate_document_viewport_as_focused_area(DOM::Document& document)
+{
+    if (document.focused_area() == nullptr)
+        return;
+
+    as<Window>(relevant_global_object(document)).navigation()->set_focus_changed_during_ongoing_navigation(true);
+
+    // AD-HOC: null focused_area indicates "viewport focus".
+    document.set_focused_area(nullptr);
+}
+
+static bool is_top_level_document_viewport(DOM::Node const* node)
+{
+    auto const* document = as_if<DOM::Document>(node);
+    return document && document->navigable() && !document->navigable()->parent();
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-update-steps
 static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Root<DOM::Node>> new_chain, DOM::Node* new_focus_target)
 {
@@ -54,6 +71,8 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         (void)old_chain.take_last();
         (void)new_chain.take_last();
     }
+
+    auto new_focus_target_is_document_viewport = new_focus_target && new_focus_target->is_document();
 
     // 2. For each entry entry in old chain, in order, run these substeps:
     for (auto& entry : old_chain) {
@@ -111,18 +130,18 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
 
     // FIXME: 3. Apply any relevant platform-specific conventions for focusing new focus target. (For example, some platforms
     //    select the contents of a text control when that control is focused.)
-    (void)new_focus_target;
+    //
+    // If new focus target is the Document's viewport, its surrogate Document entry might have
+    // already been popped from new chain as the common focus-chain tail. Still designate the
+    // viewport as focused so focusing documentElement clears any previously focused element.
+    if (new_focus_target_is_document_viewport)
+        designate_document_viewport_as_focused_area(as<DOM::Document>(*new_focus_target));
 
     // 4. For each entry entry in new chain, in reverse order, run these substeps:
     for (auto& entry : new_chain.in_reverse()) {
         // 1. If entry is a focusable area, and the focused area of the document is not entry:
         if (entry->is_document()) {
-            if (entry->document().focused_area() != nullptr) {
-                as<Window>(relevant_global_object(*entry)).navigation()->set_focus_changed_during_ongoing_navigation(true);
-
-                // AD-HOC: null focused_area indicates "viewport focus".
-                entry->document().set_focused_area(nullptr);
-            }
+            designate_document_viewport_as_focused_area(entry->document());
         } else if (entry->is_focusable() && entry->document().focused_area() != entry.ptr()) {
             as<Window>(relevant_global_object(*entry)).navigation()->set_focus_changed_during_ongoing_navigation(true);
 
@@ -134,10 +153,13 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         //    If entry is a Document object, let focus event target be that Document object's relevant global object.
         //    Otherwise, let focus event target be null.
         GC::Ptr<DOM::EventTarget> focus_event_target;
-        if (is<DOM::Document>(*entry))
+        if (entry.ptr() == new_focus_target && is_top_level_document_viewport(new_focus_target)) {
+            // The viewport does not fire a focus event. The Document object is only its surrogate.
+        } else if (is<DOM::Document>(*entry)) {
             focus_event_target = as<Window>(relevant_global_object(*entry));
-        else if (is<DOM::Element>(*entry))
+        } else if (is<DOM::Element>(*entry)) {
             focus_event_target = *entry;
+        }
 
         // 3. If entry is the last entry in new chain, and entry is an Element, and the last entry in old chain is also
         //    an Element, then let related focus target be the last entry in old chain. Otherwise, let related focus
@@ -205,12 +227,53 @@ static Vector<GC::Root<DOM::Node>> focus_chain(DOM::Node* subject)
     return output;
 }
 
+static bool document_has_focusable_viewport(DOM::Document& document)
+{
+    return document.browsing_context() && !document.is_inert();
+}
+
+static bool is_focusable_area(DOM::Node& node)
+{
+    if (node.is_document())
+        return document_has_focusable_viewport(node.document());
+
+    return node.is_focusable();
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#get-the-focusable-area
+static DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger)
+{
+    (void)focus_trigger;
+
+    // FIXME: Implement the rest of the get the focusable area algorithm.
+
+    // If focus target is the document element of its Document, return the Document's viewport.
+    if (auto* element = as_if<DOM::Element>(&focus_target); element && element == element->document().document_element()) {
+        auto& document = element->document();
+        if (document_has_focusable_viewport(document))
+            return &document;
+    }
+
+    // If focus target is a navigable container with a non-null content navigable, return the
+    // navigable container's content navigable's active document.
+    if (auto* navigable_container = as_if<NavigableContainer>(&focus_target)) {
+        if (navigable_container->meets_focusable_area_rendering_requirements()) {
+            if (auto content_navigable = navigable_container->content_navigable())
+                return content_navigable->active_document();
+        }
+    }
+
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#focusing-steps
 // FIXME: This should accept more types.
 void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target, FocusTrigger focus_trigger)
 {
-    // FIXME: 1. If new focus target is not a focusable area, then set new focus target to the result of getting the focusable
+    // 1. If new focus target is not a focusable area, then set new focus target to the result of getting the focusable
     //    area for new focus target, given focus trigger if it was passed.
+    if (new_focus_target && !is_focusable_area(*new_focus_target))
+        new_focus_target = get_focusable_area(*new_focus_target, focus_trigger);
 
     // 2. If new focus target is null, then:
     if (!new_focus_target) {
@@ -221,13 +284,6 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
         // 2. Otherwise, set new focus target to the fallback target.
         new_focus_target = fallback_target;
     }
-
-    auto is_focusable_area = [](DOM::Node& node) {
-        if (node.is_document())
-            return true;
-
-        return node.is_focusable();
-    };
 
     if (!is_focusable_area(*new_focus_target)) {
         if (!fallback_target)
@@ -320,9 +376,11 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
 
     // 6. If old focus target is not a focusable area, then return.
     //
-    // The currently focused area remains the focused area until the focus update steps run, even if
-    // its DOM anchor is no longer eligible to be focused again.
-    if (old_focus_target != currently_focused_area.ptr() && !old_focus_target->is_focusable())
+    // The currently focused area, and each Document's designated focused area in its focus chain,
+    // remain focused until the focus update steps run, even if they are no longer eligible to be
+    // focused again.
+    auto old_focus_target_is_designated_focused_area = old_focus_target->document().focused_area().ptr() == old_focus_target;
+    if (!old_focus_target_is_designated_focused_area && old_focus_target != currently_focused_area.ptr() && !old_focus_target->is_focusable())
         return;
 
     // 7. Let topDocument be old chain's last entry.

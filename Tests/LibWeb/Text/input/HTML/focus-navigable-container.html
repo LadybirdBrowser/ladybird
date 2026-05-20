@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="before">
+<input id="after">
+<script>
+    function activeElementName() {
+        return document.activeElement.id || document.activeElement.localName;
+    }
+
+    function createIframe(id, style = "") {
+        return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            iframe.id = id;
+            iframe.srcdoc = "<!DOCTYPE html><body>frame</body>";
+            if (style)
+                iframe.setAttribute("style", style);
+            iframe.onload = () => resolve(iframe);
+            document.body.appendChild(iframe);
+        });
+    }
+
+    function createObject() {
+        return new Promise(resolve => {
+            const object = document.createElement("object");
+            object.type = "text/html";
+            object.data = "about:srcdoc";
+            object.onload = () => resolve(object);
+            document.body.appendChild(object);
+        });
+    }
+
+    function createFallbackObject(id, style = "") {
+        const object = document.createElement("object");
+        object.id = id;
+        object.innerHTML = "<span>fallback</span>";
+        if (style)
+            object.setAttribute("style", style);
+        document.body.appendChild(object);
+        return object;
+    }
+
+    asyncTest(async done => {
+        const before = document.getElementById("before");
+        const after = document.getElementById("after");
+        const object = await createObject();
+
+        let blurredByObject = false;
+        before.addEventListener("blur", () => {
+            blurredByObject = true;
+        }, { once: true });
+
+        before.focus();
+        object.focus();
+        println(`before blurred after object.focus(): ${blurredByObject}`);
+
+        const fallbackObject = createFallbackObject("fallback-object");
+        let changeCommittedByFallbackObject = false;
+        before.addEventListener("change", () => {
+            changeCommittedByFallbackObject = true;
+        }, { once: true });
+
+        internals.sendText(before, "typed");
+        fallbackObject.focus();
+        println(`fallback object focus: active=${activeElementName()}, changeCommitted=${changeCommittedByFallbackObject}`);
+
+        const hiddenFallbackObject = createFallbackObject("hidden-fallback-object", "display: none");
+        let beforeBlurredByHiddenFallbackObject = false;
+        before.addEventListener("blur", () => {
+            beforeBlurredByHiddenFallbackObject = true;
+        }, { once: true });
+
+        before.focus();
+        hiddenFallbackObject.focus();
+        println(`hidden fallback object focus attempt: active=${activeElementName()}, beforeBlurred=${beforeBlurredByHiddenFallbackObject}`);
+
+        const frame = await createIframe("frame");
+        let frameFocusCount = 0;
+        let frameBlurCount = 0;
+        let frameWindowFocusCount = 0;
+        let frameWindowBlurCount = 0;
+        frame.addEventListener("focus", () => ++frameFocusCount);
+        frame.addEventListener("blur", () => ++frameBlurCount);
+        frame.contentWindow.addEventListener("focus", () => ++frameWindowFocusCount);
+        frame.contentWindow.addEventListener("blur", () => ++frameWindowBlurCount);
+
+        before.focus();
+        frame.focus();
+        after.focus();
+        println(`iframe focus/blur events: frame=${frameFocusCount}/${frameBlurCount}, window=${frameWindowFocusCount}/${frameWindowBlurCount}`);
+
+        const hiddenFrame = await createIframe("hidden-frame", "display: none");
+        let beforeBlurredByHiddenFrame = false;
+        let hiddenFrameFocusCount = 0;
+        let hiddenFrameWindowFocusCount = 0;
+        before.addEventListener("blur", () => {
+            beforeBlurredByHiddenFrame = true;
+        }, { once: true });
+        hiddenFrame.addEventListener("focus", () => ++hiddenFrameFocusCount);
+        hiddenFrame.contentWindow.addEventListener("focus", () => ++hiddenFrameWindowFocusCount);
+
+        before.focus();
+        hiddenFrame.focus();
+        println(`hidden iframe focus attempt: active=${activeElementName()}, beforeBlurred=${beforeBlurredByHiddenFrame}, frameFocus=${hiddenFrameFocusCount}, windowFocus=${hiddenFrameWindowFocusCount}`);
+
+        const hideAfterFocusFrame = await createIframe("hide-after-focus-frame");
+        let hideAfterFocusFrameBlurCount = 0;
+        let hideAfterFocusFrameWindowBlurCount = 0;
+        hideAfterFocusFrame.addEventListener("blur", () => ++hideAfterFocusFrameBlurCount);
+        hideAfterFocusFrame.contentWindow.addEventListener("blur", () => ++hideAfterFocusFrameWindowBlurCount);
+
+        hideAfterFocusFrame.focus();
+        hideAfterFocusFrame.style.display = "none";
+        hideAfterFocusFrame.blur();
+        println(`hidden focused iframe blur: active=${activeElementName()}, frameBlur=${hideAfterFocusFrameBlurCount}, windowBlur=${hideAfterFocusFrameWindowBlurCount}`);
+
+        done();
+    });
+</script>

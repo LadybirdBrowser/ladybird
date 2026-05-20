@@ -267,8 +267,8 @@ void NavigateEvent::potentially_reset_the_focus()
     if (focus_target == nullptr)
         focus_target = document.document_element();
 
-    // FIXME: 11. Run the focusing steps for focusTarget, with document's viewport as the fallback target.
-    run_focusing_steps(focus_target, nullptr);
+    // 11. Run the focusing steps for focusTarget, with document's viewport as the fallback target.
+    run_focusing_steps(focus_target, &document);
 
     // FIXME: 12. Move the sequential focus navigation starting point to focusTarget.
 }

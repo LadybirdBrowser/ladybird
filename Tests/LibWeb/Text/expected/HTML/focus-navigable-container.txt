@@ -1,0 +1,6 @@
+before blurred after object.focus(): true
+fallback object focus: active=fallback-object, changeCommitted=true
+hidden fallback object focus attempt: active=before, beforeBlurred=false
+iframe focus/blur events: frame=1/1, window=1/1
+hidden iframe focus attempt: active=before, beforeBlurred=false, frameFocus=0, windowFocus=0
+hidden focused iframe blur: active=body, frameBlur=1, windowBlur=1
