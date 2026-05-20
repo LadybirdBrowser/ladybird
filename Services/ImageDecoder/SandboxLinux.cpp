@@ -211,6 +211,10 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #    undef IF_DEFINED_pipe2
 #    define IF_DEFINED_pipe2(if_defined, if_not_defined) if_not_defined
 #endif
+#ifndef __NR_poll
+#    undef IF_DEFINED_poll
+#    define IF_DEFINED_poll(if_defined, if_not_defined) if_not_defined
+#endif
 #ifndef __NR_ppoll
 #    undef IF_DEFINED_ppoll
 #    define IF_DEFINED_ppoll(if_defined, if_not_defined) if_not_defined
