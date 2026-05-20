@@ -42,6 +42,26 @@ DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr
     return { id };
 }
 
+void DisplayListResourceStorage::set_font(FontResourceId id, NonnullRefPtr<Gfx::Font const> font)
+{
+    m_fonts.set(id.value(), move(font));
+}
+
+void DisplayListResourceStorage::set_image_frame(ImageFrameResourceId id, Gfx::DecodedImageFrame frame)
+{
+    m_image_frames.set(id.value(), move(frame));
+}
+
+void DisplayListResourceStorage::set_video_frame(VideoFrameResourceId id, RefPtr<Media::VideoFrame const> frame)
+{
+    m_video_frames.set(id.value(), move(frame));
+}
+
+void DisplayListResourceStorage::set_display_list(DisplayListResourceId id, NonnullRefPtr<DisplayList const> display_list)
+{
+    m_display_lists.set(id.value(), move(display_list));
+}
+
 static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
 {
     VERIFY(static_cast<size_t>(span.offset) + span.size <= payload.size());
@@ -133,11 +153,11 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
 
     for (auto id : current.fonts) {
         if (!previous.fonts.contains(id))
-            transaction.fonts.append(font(id));
+            transaction.fonts.append({ id, font(id) });
     }
     for (auto id : current.image_frames) {
         if (!previous.image_frames.contains(id))
-            transaction.image_frames.append(image_frame(id));
+            transaction.image_frames.append({ id, image_frame(id) });
     }
     for (auto id : current.video_frames) {
         if (!previous.video_frames.contains(id))
@@ -169,10 +189,10 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
 
 void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransaction&& transaction)
 {
-    for (auto const& font : transaction.fonts)
-        add_font(*font);
-    for (auto const& frame : transaction.image_frames)
-        add_image_frame(frame);
+    for (auto& font : transaction.fonts)
+        set_font(font.id, move(font.font));
+    for (auto& frame : transaction.image_frames)
+        set_image_frame(frame.id, move(frame.frame));
     for (auto& video_frame : transaction.video_frames)
         add_video_frame(video_frame.id, move(video_frame.frame));
     for (auto& display_list : transaction.display_lists)

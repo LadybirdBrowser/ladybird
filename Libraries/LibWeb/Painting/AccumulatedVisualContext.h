@@ -18,6 +18,8 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
+#include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -95,6 +97,7 @@ public:
     VisualContextIndex append(VisualContextData data, VisualContextIndex parent_index);
 
     AccumulatedVisualContextNode const& node_at(VisualContextIndex index) const { return m_nodes[index.value()]; }
+    ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }
 
     VisualContextIndex find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const;
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
@@ -110,6 +113,60 @@ private:
     Vector<size_t, 8> build_ancestor_chain(VisualContextIndex index) const;
 
     Vector<AccumulatedVisualContextNode> m_nodes;
+
+    template<typename T>
+    friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);
+    template<typename T>
+    friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
+
+}
+
+namespace IPC {
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ScrollData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::ScrollData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ClipData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::ClipData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::TransformData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::TransformData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::PerspectiveData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::PerspectiveData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ClipPathData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::ClipPathData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::EffectsData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::EffectsData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ScrollCompensation const&);
+template<>
+WEB_API ErrorOr<Web::Painting::ScrollCompensation> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AccumulatedVisualContextNode const&);
+template<>
+WEB_API ErrorOr<Web::Painting::AccumulatedVisualContextNode> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AccumulatedVisualContextTree const&);
+template<>
+WEB_API ErrorOr<NonnullRefPtr<Web::Painting::AccumulatedVisualContextTree>> decode(Decoder&);
 
 }
