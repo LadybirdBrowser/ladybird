@@ -21,6 +21,7 @@
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -149,6 +150,11 @@ void HTMLLinkElement::finished_loading_critical_style_subresources(AnyFailed)
 bool HTMLLinkElement::has_loaded_icon() const
 {
     return m_relationship & Relationship::Icon && m_loaded_icon.has_value();
+}
+
+bool HTMLLinkElement::has_icon_keyword() const
+{
+    return m_relationship & Relationship::Icon;
 }
 
 void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -992,6 +998,14 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
     if (document->has_active_favicon())
         return;
     if (!document->url().scheme().is_one_of("http"sv, "https"sv))
+        return;
+    auto icon_link_elements = DOM::HTMLCollection::create(*document, DOM::HTMLCollection::Scope::Descendants, [](DOM::Element const& element) {
+        if (!is<HTMLLinkElement>(element))
+            return false;
+
+        return static_cast<HTMLLinkElement const&>(element).has_icon_keyword();
+    });
+    if (icon_link_elements->length() != 0)
         return;
 
     // AD-HOC: Don't load fallback favicon for auxiliary browsing contexts (popup windows).

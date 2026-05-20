@@ -16,6 +16,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -126,6 +128,31 @@ void Page::load_html(StringView html)
         .source_document = *top_level_traversable()->active_document(),
         .document_resource = String::from_utf8(html).release_value_but_fixme_should_propagate_errors(),
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
+}
+
+void Page::load_html(StringView html, URL::URL const& url)
+{
+    // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
+    heap().collect_garbage();
+
+    auto document = top_level_traversable()->active_document();
+    auto& realm = document->realm();
+    auto html_string = String::from_utf8(html).release_value_but_fixme_should_propagate_errors();
+
+    auto response = Fetch::Infrastructure::Response::create(realm.vm());
+    response->url_list().append(url);
+    response->header_list()->append({ "Content-Type"sv, "text/html"sv });
+    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, html_string.bytes()));
+
+    HTML::Navigable::NavigateParams params { .url = url,
+        .source_document = *document,
+        .response = response,
+        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI };
+
+    if (url == URL::about_srcdoc())
+        params.document_resource = move(html_string);
+
+    (void)top_level_traversable()->navigate(move(params));
 }
 
 void Page::reload()

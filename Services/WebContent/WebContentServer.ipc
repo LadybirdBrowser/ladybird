@@ -41,6 +41,7 @@ endpoint WebContentServer
 
     load_url(u64 page_id, URL::URL url) =|
     load_html(u64 page_id, ByteString html) =|
+    load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
     reload(u64 page_id) =|
     traverse_the_history_by_delta(u64 page_id, i32 delta) =|
 

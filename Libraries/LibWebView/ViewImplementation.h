@@ -297,6 +297,7 @@ protected:
     void apply_zoom_for_current_host();
 
     void handle_resize();
+    void load_crash_page_html(StringView, URL::URL const& crashed_url);
 
     enum class CreateNewClient {
         No,
@@ -392,6 +393,8 @@ protected:
     OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
     Web::DevicePixelSize m_backup_bitmap_size;
 
+    bool m_should_suppress_history_for_current_load { false };
+    bool m_should_suppress_history_for_next_load { false };
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;
 

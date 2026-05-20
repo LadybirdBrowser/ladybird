@@ -18,6 +18,7 @@ constexpr inline auto ERROR_HTML_HEADER = R"~~~(
     <head>
         <meta charset="UTF-8" />
         <title>Error!</title>
+{}
         <style>
             :root {{
                 color-scheme: light dark;
@@ -65,6 +66,12 @@ constexpr inline auto ERROR_HTML_HEADER = R"~~~(
             {}
             <h1>{}</h1>
         </header>
+)~~~"sv;
+
+// Declaring an icon prevents the spec's fallback /favicon.ico fetch. The empty
+// data URL is local and intentionally does not decode as an icon.
+constexpr inline auto NO_FALLBACK_FAVICON_LINK = R"~~~(
+        <link rel="icon" href="data:," />
 )~~~"sv;
 
 constexpr inline auto ERROR_HTML_FOOTER = R"~~~(

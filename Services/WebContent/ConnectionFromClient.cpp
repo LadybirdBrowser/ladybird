@@ -276,6 +276,12 @@ void ConnectionFromClient::load_html(u64 page_id, ByteString html)
         page->page().load_html(html);
 }
 
+void ConnectionFromClient::load_html_with_url(u64 page_id, ByteString html, URL::URL url)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().load_html(html, url);
+}
+
 void ConnectionFromClient::reload(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

@@ -71,6 +71,7 @@ private:
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL) override;
     virtual void load_html(u64 page_id, ByteString) override;
+    virtual void load_html_with_url(u64 page_id, ByteString, URL::URL) override;
     virtual void reload(u64 page_id) override;
     virtual void traverse_the_history_by_delta(u64 page_id, i32 delta) override;
     virtual void set_viewport(u64 page_id, Web::DevicePixelSize, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) override;
