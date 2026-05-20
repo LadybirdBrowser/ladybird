@@ -827,7 +827,7 @@ void HTMLSelectElement::update_selectedness()
 
 bool HTMLSelectElement::is_focusable() const
 {
-    return enabled();
+    return enabled() && meets_focusable_area_rendering_requirements();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#placeholder-label-option

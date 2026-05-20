@@ -552,6 +552,8 @@ public:
     // https://drafts.csswg.org/css-images-4/#element-not-rendered
     bool not_rendered() const;
 
+    bool meets_focusable_area_rendering_requirements() const;
+
     // https://drafts.csswg.org/css-view-transitions-1/#document-scoped-view-transition-name
     Optional<FlyString> document_scoped_view_transition_name();
 

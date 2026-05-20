@@ -222,6 +222,22 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
         new_focus_target = fallback_target;
     }
 
+    auto is_focusable_area = [](DOM::Node& node) {
+        if (node.is_document())
+            return true;
+
+        return node.is_focusable();
+    };
+
+    if (!is_focusable_area(*new_focus_target)) {
+        if (!fallback_target)
+            return;
+
+        new_focus_target = fallback_target;
+        if (!is_focusable_area(*new_focus_target))
+            return;
+    }
+
     // 3. If new focus target is a navigable container with non-null content navigable, then set new focus target to the content navigable's active document.
     if (auto* navigable_container = as_if<NavigableContainer>(*new_focus_target)) {
         if (auto content_navigable = navigable_container->content_navigable())
@@ -294,7 +310,8 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
 
     // 4. Let old chain be the current focus chain of the top-level browsing context in which old focus target finds itself.
     auto top_level_traversable = old_focus_target->document().browsing_context()->top_level_traversable();
-    auto old_chain = focus_chain(top_level_traversable->currently_focused_area());
+    auto currently_focused_area = top_level_traversable->currently_focused_area();
+    auto old_chain = focus_chain(currently_focused_area);
 
     // 5. If old focus target is not one of the entries in old chain, then return.
     auto it = old_chain.find_if([&](auto const& node) { return old_focus_target == node; });
@@ -302,7 +319,10 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
         return;
 
     // 6. If old focus target is not a focusable area, then return.
-    if (!old_focus_target->is_focusable())
+    //
+    // The currently focused area remains the focused area until the focus update steps run, even if
+    // its DOM anchor is no longer eligible to be focused again.
+    if (old_focus_target != currently_focused_area.ptr() && !old_focus_target->is_focusable())
         return;
 
     // 7. Let topDocument be old chain's last entry.

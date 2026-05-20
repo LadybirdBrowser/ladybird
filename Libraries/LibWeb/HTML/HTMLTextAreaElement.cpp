@@ -454,7 +454,7 @@ EventResult HTMLTextAreaElement::handle_return_key(FlyString const& input_type)
 
 bool HTMLTextAreaElement::is_focusable() const
 {
-    return enabled();
+    return enabled() && meets_focusable_area_rendering_requirements();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Asuffering-from-being-missing

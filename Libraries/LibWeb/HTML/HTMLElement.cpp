@@ -123,7 +123,8 @@ void HTMLElement::set_dir(String const& dir)
 
 bool HTMLElement::is_focusable() const
 {
-    return Base::is_focusable() || is_editing_host();
+    return (Base::is_focusable() || is_editing_host())
+        && meets_focusable_area_rendering_requirements();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-iscontenteditable

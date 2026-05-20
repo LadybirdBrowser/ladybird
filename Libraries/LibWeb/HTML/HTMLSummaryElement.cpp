@@ -68,7 +68,8 @@ bool HTMLSummaryElement::is_summary_for_its_parent_details() const
 bool HTMLSummaryElement::is_focusable() const
 {
     // summary elements that are the first summary element child of a details element
-    return Base::is_focusable() || is_summary_for_its_parent_details();
+    return (Base::is_focusable() || is_summary_for_its_parent_details())
+        && meets_focusable_area_rendering_requirements();
 }
 
 HTMLSummaryElement::~HTMLSummaryElement() = default;
