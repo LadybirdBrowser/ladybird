@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Time.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -35,19 +36,49 @@ struct YUVDataImpl {
 
 }
 
+static ErrorOr<size_t> checked_plane_size(Gfx::IntSize size, size_t component_size)
+{
+    Checked<size_t> plane_size = static_cast<size_t>(size.width());
+    plane_size *= static_cast<size_t>(size.height());
+    plane_size *= component_size;
+    if (plane_size.has_overflow())
+        return Error::from_string_literal("YUVData plane size overflow");
+    return plane_size.value();
+}
+
+ErrorOr<YUVData::PlaneSizes> YUVData::plane_sizes(IntSize size, u8 bit_depth, Media::Subsampling subsampling)
+{
+    if (size.is_empty())
+        return Error::from_string_literal("YUVData size is empty");
+    if (bit_depth == 0 || bit_depth > 16)
+        return Error::from_string_literal("Invalid YUVData bit depth");
+
+    auto component_size = bit_depth <= 8 ? 1 : 2;
+    auto y_buffer_size = TRY(checked_plane_size(size, component_size));
+    auto uv_size = subsampling.subsampled_size(size);
+    auto uv_buffer_size = TRY(checked_plane_size(uv_size, component_size));
+
+    Checked<size_t> total_size = y_buffer_size;
+    total_size += uv_buffer_size;
+    total_size += uv_buffer_size;
+    if (total_size.has_overflow())
+        return Error::from_string_literal("YUVData total size overflow");
+
+    return PlaneSizes {
+        .y = y_buffer_size,
+        .u = uv_buffer_size,
+        .v = uv_buffer_size,
+        .total = total_size.value(),
+    };
+}
+
 ErrorOr<NonnullOwnPtr<YUVData>> YUVData::create(IntSize size, u8 bit_depth, Media::Subsampling subsampling, Media::CodingIndependentCodePoints cicp)
 {
-    VERIFY(bit_depth <= 16);
-    auto component_size = bit_depth <= 8 ? 1 : 2;
+    auto sizes = TRY(plane_sizes(size, bit_depth, subsampling));
 
-    auto y_buffer_size = static_cast<size_t>(size.width()) * size.height() * component_size;
-
-    auto uv_size = subsampling.subsampled_size(size);
-    auto uv_buffer_size = static_cast<size_t>(uv_size.width()) * uv_size.height() * component_size;
-
-    auto y_buffer = TRY(FixedArray<u8>::create(y_buffer_size));
-    auto u_buffer = TRY(FixedArray<u8>::create(uv_buffer_size));
-    auto v_buffer = TRY(FixedArray<u8>::create(uv_buffer_size));
+    auto y_buffer = TRY(FixedArray<u8>::create(sizes.y));
+    auto u_buffer = TRY(FixedArray<u8>::create(sizes.u));
+    auto v_buffer = TRY(FixedArray<u8>::create(sizes.v));
 
     auto impl = TRY(try_make<Details::YUVDataImpl>(Details::YUVDataImpl {
         .size = size,
@@ -60,6 +91,19 @@ ErrorOr<NonnullOwnPtr<YUVData>> YUVData::create(IntSize size, u8 bit_depth, Medi
     }));
 
     return adopt_nonnull_own_or_enomem(new (nothrow) YUVData(move(impl)));
+}
+
+ErrorOr<NonnullOwnPtr<YUVData>> YUVData::create_from_data(IntSize size, u8 bit_depth, Media::Subsampling subsampling, Media::CodingIndependentCodePoints cicp, ReadonlyBytes y_data, ReadonlyBytes u_data, ReadonlyBytes v_data)
+{
+    auto sizes = TRY(plane_sizes(size, bit_depth, subsampling));
+    if (y_data.size() != sizes.y || u_data.size() != sizes.u || v_data.size() != sizes.v)
+        return Error::from_string_literal("YUVData plane data size mismatch");
+
+    auto yuv_data = TRY(create(size, bit_depth, subsampling, cicp));
+    y_data.copy_to(yuv_data->y_data());
+    u_data.copy_to(yuv_data->u_data());
+    v_data.copy_to(yuv_data->v_data());
+    return yuv_data;
 }
 
 YUVData::YUVData(NonnullOwnPtr<Details::YUVDataImpl> impl)
@@ -100,6 +144,21 @@ Bytes YUVData::u_data()
 }
 
 Bytes YUVData::v_data()
+{
+    return m_impl->v_buffer.span();
+}
+
+ReadonlyBytes YUVData::y_data() const
+{
+    return m_impl->y_buffer.span();
+}
+
+ReadonlyBytes YUVData::u_data() const
+{
+    return m_impl->u_buffer.span();
+}
+
+ReadonlyBytes YUVData::v_data() const
 {
     return m_impl->v_buffer.span();
 }
