@@ -247,6 +247,11 @@ void CSSStyleRule::dump(StringBuilder& builder, int indent_levels) const
     for (auto& selector : selectors()) {
         dump_selector(builder, selector, indent_levels + 1);
     }
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Absolutized selectors:\n");
+    for (auto& selector : absolutized_selectors()) {
+        dump_selector(builder, selector, indent_levels + 2);
+    }
     dump_style_properties(builder, declaration(), indent_levels + 1);
 
     dump_indent(builder, indent_levels + 1);
