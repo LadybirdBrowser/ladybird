@@ -11,6 +11,7 @@
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/landlock.h>
+#include <linux/sched.h>
 #include <linux/seccomp.h>
 #include <stddef.h>
 #include <sys/ioctl.h>
@@ -32,15 +33,20 @@ namespace {
 static constexpr u32 audit_architecture = AUDIT_ARCH_X86_64;
 #elif defined(__aarch64__)
 static constexpr u32 audit_architecture = AUDIT_ARCH_AARCH64;
-#elif defined(__arm__)
-static constexpr u32 audit_architecture = AUDIT_ARCH_ARM;
-#elif defined(__i386__)
-static constexpr u32 audit_architecture = AUDIT_ARCH_I386;
 #elif defined(__riscv) && __riscv_xlen == 64
 static constexpr u32 audit_architecture = AUDIT_ARCH_RISCV64;
 #else
-#    error "Add seccomp audit architecture for this Linux architecture"
+#    error "Add 64-bit seccomp audit architecture for this Linux architecture"
 #endif
+
+static constexpr u32 thread_clone_required_flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;
+static constexpr u32 thread_clone_allowed_flags = thread_clone_required_flags
+    | CLONE_SYSVSEM
+    | CLONE_SETTLS
+    | CLONE_PARENT_SETTID
+    | CLONE_CHILD_CLEARTID
+    | CLONE_DETACHED
+    | CLONE_CHILD_SETTID;
 
 #define SECCOMP_LOAD_SYSCALL_NR BPF_STMT(BPF_LD | BPF_W | BPF_ABS, static_cast<unsigned int>(offsetof(seccomp_data, nr)))
 #define SECCOMP_LOAD_ARCHITECTURE BPF_STMT(BPF_LD | BPF_W | BPF_ABS, static_cast<unsigned int>(offsetof(seccomp_data, arch)))
@@ -57,6 +63,12 @@ static constexpr u32 audit_architecture = AUDIT_ARCH_RISCV64;
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_##name, 0, 5),                                                      \
         SECCOMP_LOAD_ARGUMENT(flags_argument_index), BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~read_only_open_flags), \
         BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1), SECCOMP_ERRNO(EACCES), SECCOMP_LOAD_SYSCALL_NR
+#define SECCOMP_ALLOW_THREAD_CLONE_SYSCALL(name)                                                          \
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_##name, 0, 8),                                               \
+        SECCOMP_LOAD_ARGUMENT(0), BPF_STMT(BPF_ALU | BPF_AND | BPF_K, thread_clone_required_flags),       \
+        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, thread_clone_required_flags, 0, 4), SECCOMP_LOAD_ARGUMENT(0), \
+        BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~thread_clone_allowed_flags),                                 \
+        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1), SECCOMP_ALLOW, SECCOMP_LOAD_SYSCALL_NR
 
 #ifdef O_LARGEFILE
 static constexpr unsigned read_only_open_flags = O_CLOEXEC | O_LARGEFILE;
@@ -403,8 +415,13 @@ ErrorOr<void> install_seccomp_filter()
         SECCOMP_ALLOW_FCNTL_COMMAND(F_SETFL),
         SECCOMP_ALLOW_IOCTL_COMMAND(FIONBIO),
 
-        SECCOMP_ALLOW_SYSCALL_IF_DEFINED(clone),
-        SECCOMP_ALLOW_SYSCALL_IF_DEFINED(clone3),
+#ifdef __NR_clone
+        SECCOMP_ALLOW_THREAD_CLONE_SYSCALL(clone),
+#endif
+#ifdef __NR_clone3
+        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_clone3, 0, 1),
+        SECCOMP_ERRNO(ENOSYS),
+#endif
         SECCOMP_ALLOW_SYSCALL_IF_DEFINED(futex),
         SECCOMP_ALLOW_SYSCALL_IF_DEFINED(futex_time64),
         SECCOMP_ALLOW_SYSCALL_IF_DEFINED(set_tid_address),
