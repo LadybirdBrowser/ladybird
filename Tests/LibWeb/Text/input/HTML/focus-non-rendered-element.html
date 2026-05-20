@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="visible">
+<div id="hidden-container" hidden>
+    <input id="hidden-ancestor">
+</div>
+<input id="display-none" style="display: none">
+<div id="display-contents" style="display: contents" tabindex="0">display contents</div>
+<div id="slotted-focus-host">
+    <input id="slotted-hidden-focus-target">
+</div>
+<input id="focused-then-display-none">
+<div id="ancestor-hidden-after-focus">
+    <input id="focused-then-ancestor-hidden">
+</div>
+<script>
+    test(() => {
+        const visible = document.getElementById("visible");
+        const hiddenAncestor = document.getElementById("hidden-ancestor");
+        const hiddenContainer = document.getElementById("hidden-container");
+        const displayNone = document.getElementById("display-none");
+        const displayContents = document.getElementById("display-contents");
+        const slottedFocusHost = document.getElementById("slotted-focus-host");
+        const slottedHiddenFocusTarget = document.getElementById("slotted-hidden-focus-target");
+        const focusedThenDisplayNone = document.getElementById("focused-then-display-none");
+        const ancestorHiddenAfterFocus = document.getElementById("ancestor-hidden-after-focus");
+        const focusedThenAncestorHidden = document.getElementById("focused-then-ancestor-hidden");
+        const slottedShadowRoot = slottedFocusHost.attachShadow({ mode: "open" });
+        slottedShadowRoot.innerHTML = `<div id="slot-container" style="display: none"><slot></slot></div>`;
+        const slotContainer = slottedShadowRoot.getElementById("slot-container");
+
+        visible.focus();
+        println(`after visible.focus(): ${document.activeElement.id}`);
+
+        getComputedStyle(hiddenAncestor).display;
+        hiddenAncestor.focus();
+        println(`after hidden ancestor input.focus() with computed style: ${document.activeElement.id}`);
+
+        displayNone.focus();
+        println(`after display none input.focus(): ${document.activeElement.id}`);
+
+        displayContents.focus();
+        println(`after display contents div.focus(): ${document.activeElement.id}`);
+
+        hiddenContainer.hidden = false;
+        hiddenAncestor.focus();
+        println(`after unhidden input.focus(): ${document.activeElement.id}`);
+
+        visible.focus();
+        slottedHiddenFocusTarget.focus();
+        println(`after slotted input in hidden slot subtree focus(): ${document.activeElement.id}`);
+
+        slotContainer.style.display = "block";
+        slottedHiddenFocusTarget.focus();
+        println(`after slotted input in visible slot subtree focus(): ${document.activeElement.id}`);
+
+        focusedThenDisplayNone.focus();
+        focusedThenDisplayNone.style.display = "none";
+        focusedThenDisplayNone.blur();
+        println(`after focused input display none then blur(): ${document.activeElement.tagName}`);
+
+        focusedThenAncestorHidden.focus();
+        ancestorHiddenAfterFocus.hidden = true;
+        focusedThenAncestorHidden.blur();
+        println(`after focused input ancestor hidden then blur(): ${document.activeElement.tagName}`);
+    });
+</script>

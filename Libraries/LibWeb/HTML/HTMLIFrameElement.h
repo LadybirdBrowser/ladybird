@@ -27,7 +27,10 @@ public:
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     // ^EventTarget
-    virtual bool is_focusable() const override { return true; }
+    virtual bool is_focusable() const override
+    {
+        return meets_focusable_area_rendering_requirements();
+    }
 
     void set_current_navigation_was_lazy_loaded(bool value);
 

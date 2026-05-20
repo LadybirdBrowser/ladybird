@@ -1,0 +1,9 @@
+after visible.focus(): visible
+after hidden ancestor input.focus() with computed style: visible
+after display none input.focus(): visible
+after display contents div.focus(): display-contents
+after unhidden input.focus(): hidden-ancestor
+after slotted input in hidden slot subtree focus(): visible
+after slotted input in visible slot subtree focus(): slotted-hidden-focus-target
+after focused input display none then blur(): BODY
+after focused input ancestor hidden then blur(): BODY

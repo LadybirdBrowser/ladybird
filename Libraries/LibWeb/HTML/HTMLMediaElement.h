@@ -45,7 +45,10 @@ public:
 
     virtual ~HTMLMediaElement() override;
 
-    virtual bool is_focusable() const override { return true; }
+    virtual bool is_focusable() const override
+    {
+        return meets_focusable_area_rendering_requirements();
+    }
 
     virtual void adjust_computed_style(CSS::ComputedProperties& style) override;
 

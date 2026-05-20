@@ -299,7 +299,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 
 bool HTMLButtonElement::is_focusable() const
 {
-    return enabled();
+    return enabled() && meets_focusable_area_rendering_requirements();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-command
