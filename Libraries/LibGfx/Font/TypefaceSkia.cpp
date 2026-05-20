@@ -24,7 +24,9 @@
 #endif
 
 #ifdef AK_OS_MACOS
+#    include <CoreText/CoreText.h>
 #    include <ports/SkFontMgr_mac_ct.h>
+#    include <ports/SkTypeface_mac.h>
 #endif
 
 namespace Gfx {
@@ -76,33 +78,8 @@ static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
     }
 }
 
-ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<SkTypeface> skia_typeface)
 {
-    auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
-
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
-    // TrueType Collection files bundle multiple fonts (often different weights of the same
-    // family). We use SkFontArguments to specify which font to load from the collection.
-    SkFontArguments font_args;
-    font_args.setCollectionIndex(static_cast<int>(ttc_index));
-
-    auto stream = std::make_unique<SkMemoryStream>(data);
-    auto skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
-
-    if (!skia_typeface) {
-        return Error::from_string_literal("Failed to load typeface from buffer");
-    }
-
-    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
-}
-
-ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope)
-{
-    SkFontStyle style(weight, width, slope_to_skia_slant(slope));
-
-    auto skia_typeface = font_manager().matchFamilyStyleCharacter(
-        nullptr, style, nullptr, 0, code_point);
-
     if (!skia_typeface)
         return RefPtr<TypefaceSkia> {};
 
@@ -127,9 +104,130 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     if (data->size() > 0)
         memcpy(anonymous_buffer.data<void>(), data->data(), data->size());
 
-    auto result = TRY(load_from_buffer(anonymous_buffer.bytes(), ttc_index));
+    auto result = TRY(TypefaceSkia::load_from_buffer(anonymous_buffer.bytes(), ttc_index));
     result->set_anonymous_font_data(move(anonymous_buffer));
     return result;
+}
+
+ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
+{
+    auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
+
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
+    // TrueType Collection files bundle multiple fonts (often different weights of the same
+    // family). We use SkFontArguments to specify which font to load from the collection.
+    SkFontArguments font_args;
+    font_args.setCollectionIndex(static_cast<int>(ttc_index));
+
+    auto stream = std::make_unique<SkMemoryStream>(data);
+    auto skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
+
+    if (!skia_typeface) {
+        return Error::from_string_literal("Failed to load typeface from buffer");
+    }
+
+    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
+}
+
+#ifdef AK_OS_MACOS
+// NB: These are the CoreText string values behind the public AppKit NSFontDescriptorSystemDesign constants.
+// Keeping them here avoids pulling Objective-C headers into this C++ file.
+static CFStringRef core_text_ui_font_design(SystemUIFontKind kind)
+{
+    switch (kind) {
+    case SystemUIFontKind::System:
+        return CFSTR("NSCTFontUIFontDesignDefault");
+    case SystemUIFontKind::Serif:
+        return CFSTR("NSCTFontUIFontDesignSerif");
+    case SystemUIFontKind::Monospace:
+        return CFSTR("NSCTFontUIFontDesignMonospaced");
+    case SystemUIFontKind::Rounded:
+        return CFSTR("NSCTFontUIFontDesignRounded");
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static CTFontDescriptorRef create_system_ui_font_descriptor(SystemUIFontKind kind, u8 slope)
+{
+    CGFloat core_text_slant = slope == 0 ? 0.0f : 1.0f;
+    auto slant_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberCGFloatType, &core_text_slant);
+    if (!slant_number)
+        return nullptr;
+
+    CFTypeRef trait_keys[] = { kCTFontSlantTrait, CFSTR("NSCTFontUIFontDesignTrait") };
+    CFTypeRef trait_values[] = { slant_number, core_text_ui_font_design(kind) };
+    auto traits = CFDictionaryCreate(kCFAllocatorDefault, trait_keys, trait_values, array_size(trait_keys), &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFRelease(slant_number);
+    if (!traits)
+        return nullptr;
+
+    CFTypeRef attribute_keys[] = { kCTFontTraitsAttribute };
+    CFTypeRef attribute_values[] = { traits };
+    auto attributes = CFDictionaryCreate(kCFAllocatorDefault, attribute_keys, attribute_values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFRelease(traits);
+    if (!attributes)
+        return nullptr;
+
+    auto descriptor = CTFontDescriptorCreateWithAttributes(attributes);
+    CFRelease(attributes);
+    return descriptor;
+}
+
+static CTFontRef create_system_ui_font(SystemUIFontKind kind, float point_size, u8 slope)
+{
+    auto base_font = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, point_size, nullptr);
+    if (!base_font)
+        return nullptr;
+
+    auto descriptor = create_system_ui_font_descriptor(kind, slope);
+    if (!descriptor) {
+        CFRelease(base_font);
+        return nullptr;
+    }
+
+    auto font = CTFontCreateCopyWithAttributes(base_font, point_size, nullptr, descriptor);
+    if (!font)
+        font = CTFontCreateWithFontDescriptor(descriptor, point_size, nullptr);
+    CFRelease(base_font);
+    CFRelease(descriptor);
+    return font;
+}
+#endif
+
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_system_ui(SystemUIFontKind kind, float point_size, u16 weight, double width, u8 slope)
+{
+#ifdef AK_OS_MACOS
+    (void)weight;
+    (void)width;
+    auto ct_font = create_system_ui_font(kind, point_size, slope);
+    if (!ct_font)
+        return RefPtr<TypefaceSkia> {};
+
+    auto skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
+    auto typeface = typeface_from_skia_typeface(move(skia_typeface));
+    CFRelease(ct_font);
+    return typeface;
+#else
+    (void)kind;
+    (void)point_size;
+    (void)weight;
+    (void)width;
+    (void)slope;
+    return RefPtr<TypefaceSkia> {};
+#endif
+}
+
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope)
+{
+    SkFontStyle style(weight, width, slope_to_skia_slant(slope));
+
+    auto skia_typeface = font_manager().matchFamilyStyleCharacter(
+        nullptr, style, nullptr, 0, code_point);
+
+    if (!skia_typeface)
+        return RefPtr<TypefaceSkia> {};
+
+    return typeface_from_skia_typeface(move(skia_typeface));
 }
 
 Optional<FlyString> TypefaceSkia::resolve_generic_family(StringView family_name, u16 weight, u8 slope)

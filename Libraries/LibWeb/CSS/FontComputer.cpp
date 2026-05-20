@@ -9,8 +9,10 @@
  */
 
 #include "FontComputer.h"
+#include <AK/Platform.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -256,6 +258,21 @@ static unsigned font_width_bucket_from_percentage(double percentage)
     }
     return best.width;
 }
+
+#ifdef AK_OS_MACOS
+static Optional<Gfx::SystemUIFontKind> macos_system_ui_font_kind_from_family_name(StringView family)
+{
+    if (family.is_one_of("-apple-system"sv, "-apple-system-font"sv, "-webkit-system-font"sv, "system-ui"sv, "ui-sans-serif"sv))
+        return Gfx::SystemUIFontKind::System;
+    if (family == "ui-serif"sv)
+        return Gfx::SystemUIFontKind::Serif;
+    if (family == "ui-monospace"sv)
+        return Gfx::SystemUIFontKind::Monospace;
+    if (family == "ui-rounded"sv)
+        return Gfx::SystemUIFontKind::Rounded;
+    return {};
+}
+#endif
 
 struct FontComputer::MatchingFontCandidate {
     FontFaceKey key;
@@ -523,6 +540,20 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
     float const font_size_in_pt = font_size_used_value * 0.75f;
 
+#ifdef AK_OS_MACOS
+    auto find_macos_system_ui_font = [&](Gfx::SystemUIFontKind kind, FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
+        auto const& font_feature_values = font_feature_values_for_family(family);
+        auto shape_features = font_feature_data.to_shape_features(font_feature_values);
+        auto typeface = Gfx::TypefaceSkia::match_system_ui(kind, font_size_used_value, weight, font_width.value(), slope);
+        if (typeface.is_error() || !typeface.value())
+            return {};
+
+        auto font_list = Gfx::FontCascadeList::create();
+        font_list->add(typeface.value()->font(font_size_in_pt, variation, shape_features));
+        return font_list;
+    };
+#endif
+
     auto find_font = [&](FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
         auto const& font_feature_values = font_feature_values_for_family(family);
 
@@ -545,6 +576,13 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
                 return result;
         }
 
+#ifdef AK_OS_MACOS
+        if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(family.bytes_as_string_view()); system_ui_font_kind.has_value()) {
+            if (auto system_font = find_macos_system_ui_font(system_ui_font_kind.value(), family))
+                return system_font;
+        }
+#endif
+
         if (auto found_font = font_matching_algorithm(family, weight, font_width, slope, font_size_in_pt, variation, font_feature_data, font_feature_values); found_font && !found_font->is_empty())
             return found_font;
 
@@ -552,11 +590,21 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     };
 
     auto find_generic_font = [&](Keyword font_id) -> RefPtr<Gfx::FontCascadeList const> {
+#ifdef AK_OS_MACOS
+        if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(string_from_keyword(font_id)); system_ui_font_kind.has_value()) {
+            auto family = MUST(FlyString::from_utf8(string_from_keyword(font_id)));
+            if (auto system_font = find_macos_system_ui_font(system_ui_font_kind.value(), family))
+                return system_font;
+        }
+#endif
+
         Platform::GenericFont generic_font {};
         switch (font_id) {
         case Keyword::Monospace:
-        case Keyword::UiMonospace:
             generic_font = Platform::GenericFont::Monospace;
+            break;
+        case Keyword::UiMonospace:
+            generic_font = Platform::GenericFont::UiMonospace;
             break;
         case Keyword::Serif:
             generic_font = Platform::GenericFont::Serif;
@@ -567,17 +615,18 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         case Keyword::SansSerif:
             generic_font = Platform::GenericFont::SansSerif;
             break;
-        case Keyword::Cursive:
-            generic_font = Platform::GenericFont::Cursive;
-            break;
         case Keyword::UiSerif:
             generic_font = Platform::GenericFont::UiSerif;
             break;
+        case Keyword::UiRounded:
+            generic_font = Platform::GenericFont::UiRounded;
+            break;
+        case Keyword::SystemUi:
         case Keyword::UiSansSerif:
             generic_font = Platform::GenericFont::UiSansSerif;
             break;
-        case Keyword::UiRounded:
-            generic_font = Platform::GenericFont::UiRounded;
+        case Keyword::Cursive:
+            generic_font = Platform::GenericFont::Cursive;
             break;
         default:
             return {};
