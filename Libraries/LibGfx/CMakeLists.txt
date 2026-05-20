@@ -53,6 +53,7 @@ set(SOURCES
     SharedImage.cpp
     SharedImageBuffer.cpp
     ShareableBitmap.cpp
+    ShapeFeature.cpp
     Size.cpp
     SkiaBackendContext.cpp
     SkiaUtils.cpp
