@@ -307,17 +307,10 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     auto css_transformations = computed_properties()->transformations();
     if (!css_transformations.is_empty()) {
         auto matrix = Gfx::FloatMatrix4x4::identity();
-        bool transform_valid = true;
-        for (auto const& css_transform : css_transformations) {
-            auto result = css_transform->to_matrix(*pattern_paintable);
-            if (result.is_error()) {
-                transform_valid = false;
-                break;
-            }
-            matrix = matrix * result.release_value();
-        }
-        if (transform_valid)
-            user_space_pattern_transform = extract_2d_affine_transform(matrix);
+        for (auto const& css_transform : css_transformations)
+            matrix = matrix * css_transform->to_matrix(*pattern_paintable);
+
+        user_space_pattern_transform = extract_2d_affine_transform(matrix);
     } else {
         user_space_pattern_transform = pattern_transform();
     }

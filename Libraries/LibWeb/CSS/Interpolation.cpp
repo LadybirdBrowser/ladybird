@@ -1244,7 +1244,7 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
                     return *box;
                 return {};
             }();
-            parameters = matrix_to_style_value_vector(MUST(transform->to_matrix(paintable_box)));
+            parameters = matrix_to_style_value_vector(transform->to_matrix(paintable_box));
         }
         return TransformationStyleValue::create(PropertyID::Transform, generic_function, move(parameters));
     };
@@ -1349,12 +1349,9 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
 
     auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) -> Optional<FloatMatrix4x4> {
         FloatMatrix4x4 result = FloatMatrix4x4::identity();
-        for (auto index = start_index; index < transformations.size(); ++index) {
-            auto transformation_matrix = transformations[index]->to_matrix(paintable_box);
-            if (transformation_matrix.is_error())
-                return {};
-            result = result * transformation_matrix.value();
-        }
+        for (auto index = start_index; index < transformations.size(); ++index)
+            result = result * transformations[index]->to_matrix(paintable_box);
+
         return result;
     };
     auto from_matrix = post_multiply_remaining_transformations(index, from_transformations);
