@@ -168,50 +168,7 @@ SelectorList const& CSSStyleRule::absolutized_selectors() const
     if (m_cached_absolutized_selectors.has_value())
         return m_cached_absolutized_selectors.value();
 
-    // Replace all occurrences of `&` with the nearest ancestor style rule's selector list wrapped in `:is(...)`,
-    // or if we have no such ancestor, with `:scope`.
-
-    // If we don't have any nesting selectors, we can just use our selectors as they are.
-    bool has_any_nesting = false;
-    for (auto const& selector : selectors()) {
-        if (selector->contains_the_nesting_selector()) {
-            has_any_nesting = true;
-            break;
-        }
-    }
-
-    if (!has_any_nesting) {
-        m_cached_absolutized_selectors = m_selectors;
-        return m_cached_absolutized_selectors.value();
-    }
-
-    // Otherwise, build up a new list of selectors with the `&` replaced.
-
-    // First, figure out what we should replace `&` with.
-    // "When used in the selector of a nested style rule, the nesting selector represents the elements matched by the parent rule.
-    // When used in any other context, it represents the same elements as :scope in that context (unless otherwise defined)."
-    // https://drafts.csswg.org/css-nesting-1/#nest-selector
-    if (auto const* parent_style_rule = this->parent_style_rule()) {
-        // TODO: If there's only 1, we don't have to use `:is()` for it
-        Selector::SimpleSelector parent_selector = {
-            .type = Selector::SimpleSelector::Type::PseudoClass,
-            .value = Selector::SimpleSelector::PseudoClassSelector {
-                .type = PseudoClass::Is,
-                .argument_selector_list = parent_style_rule->absolutized_selectors(),
-            },
-        };
-        SelectorList absolutized_selectors;
-        for (auto const& selector : selectors()) {
-            if (auto absolutized = selector->absolutized(parent_selector))
-                absolutized_selectors.append(absolutized.release_nonnull());
-        }
-        m_cached_absolutized_selectors = move(absolutized_selectors);
-    } else {
-        // NOTE: We can't actually replace & with :scope, because & has to have 0 specificity.
-        //       So we leave it, and treat & like :scope during matching.
-        m_cached_absolutized_selectors = m_selectors;
-    }
-
+    m_cached_absolutized_selectors = absolutize_selectors_relative_to(selectors(), parent_style_rule());
     return m_cached_absolutized_selectors.value();
 }
 

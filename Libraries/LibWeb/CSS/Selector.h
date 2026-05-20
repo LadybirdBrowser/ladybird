@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/PseudoClass.h>
@@ -263,6 +264,8 @@ bool is_legacy_single_colon_pseudo_element(PseudoElement);
 String serialize_a_group_of_selectors(SelectorList const& selectors);
 
 SelectorList adapt_nested_relative_selector_list(SelectorList const&);
+
+SelectorList absolutize_selectors_relative_to(SelectorList const&, GC::Ptr<CSSRule const> parent);
 
 }
 
