@@ -1,0 +1,6 @@
+after delegatesFocus host.focus(): document=host, shadow=delegate
+after delegatesFocus already focused host.focus(): document=host, shadow=delegate
+after delegatesFocus tabindex host.focus(): document=tabindex-host, shadow=tabindex-delegate
+after delegatesFocus inert host.focus(): document=before, shadow=null
+after direct inert host delegate.focus(): document=before, shadow=null
+after delegatesFocus empty host.focus(): before

@@ -232,19 +232,71 @@ static bool document_has_focusable_viewport(DOM::Document& document)
     return document.browsing_context() && !document.is_inert();
 }
 
+static bool is_inert_for_focus(DOM::Node const& node)
+{
+    return node.find_in_shadow_including_ancestry([](auto const& ancestor) {
+        return ancestor.is_inert();
+    });
+}
+
 static bool is_focusable_area(DOM::Node& node)
 {
     if (node.is_document())
         return document_has_focusable_viewport(node.document());
 
+    if (is_inert_for_focus(node))
+        return false;
+
+    if (auto* element = as_if<DOM::Element>(&node); element && element->is_shadow_host() && element->shadow_root()->delegates_focus())
+        return false;
+
     return node.is_focusable();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#get-the-focusable-area
+static DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger);
+
+// https://html.spec.whatwg.org/multipage/interaction.html#focus-delegate
+static DOM::Node* focus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger)
+{
+    auto* where_to_look = &focus_target;
+
+    // 1. If focusTarget is a shadow host and its shadow root's delegates focus is false, then return null.
+    // 2. Let whereToLook be focusTarget.
+    // 3. If whereToLook is a shadow host, then set whereToLook to whereToLook's shadow root.
+    if (auto* element = as_if<DOM::Element>(&focus_target); element && element->is_shadow_host()) {
+        auto shadow_root = element->shadow_root();
+        if (!shadow_root->delegates_focus())
+            return nullptr;
+        where_to_look = shadow_root;
+    }
+
+    // FIXME: 4. Let autofocusDelegate be the autofocus delegate for whereToLook given focusTrigger.
+    // FIXME: 5. If autofocusDelegate is not null, then return autofocusDelegate.
+
+    // 6. For each descendant of whereToLook's descendants, in tree order:
+    for (auto* descendant = where_to_look->first_child(); descendant; descendant = descendant->next_in_pre_order(where_to_look)) {
+        // FIXME: 1. Let focusableArea be null.
+        // FIXME: 2. If focusTarget is a dialog element and descendant is sequentially focusable, then
+        //           set focusableArea to descendant.
+
+        // 3. Otherwise, if focusTarget is not a dialog and descendant is a focusable area, set
+        //    focusableArea to descendant.
+        if (is_focusable_area(*descendant))
+            return descendant;
+
+        // 4. Otherwise, set focusableArea to the result of getting the focusable area for descendant
+        //    given focusTrigger.
+        if (auto* focusable_area = get_focusable_area(*descendant, focus_trigger))
+            return focusable_area;
+    }
+
+    // 7. Return null.
+    return nullptr;
+}
+
 static DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger)
 {
-    (void)focus_trigger;
-
     // FIXME: Implement the rest of the get the focusable area algorithm.
 
     // If focus target is the document element of its Document, return the Document's viewport.
@@ -257,10 +309,29 @@ static DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus
     // If focus target is a navigable container with a non-null content navigable, return the
     // navigable container's content navigable's active document.
     if (auto* navigable_container = as_if<NavigableContainer>(&focus_target)) {
-        if (navigable_container->meets_focusable_area_rendering_requirements()) {
+        if (!is_inert_for_focus(*navigable_container) && navigable_container->meets_focusable_area_rendering_requirements()) {
             if (auto content_navigable = navigable_container->content_navigable())
                 return content_navigable->active_document();
         }
+    }
+
+    // If focus target is a shadow host whose shadow root's delegates focus is true:
+    if (auto* element = as_if<DOM::Element>(&focus_target); element && element->is_shadow_host() && element->shadow_root()->delegates_focus()) {
+        if (is_inert_for_focus(*element))
+            return nullptr;
+
+        // 1. Let focusedElement be the currently focused area of a top-level traversable's DOM anchor.
+        if (auto browsing_context = element->document().browsing_context()) {
+            if (auto focused_element = browsing_context->top_level_traversable()->currently_focused_area()) {
+                // 2. If focus target is a shadow-including inclusive ancestor of focusedElement, then
+                //    return focusedElement.
+                if (element->is_shadow_including_inclusive_ancestor_of(*focused_element))
+                    return focused_element;
+            }
+        }
+
+        // 3. Return the focus delegate for focus target given focus trigger.
+        return focus_delegate(focus_target, focus_trigger);
     }
 
     return nullptr;
@@ -301,7 +372,7 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
     }
 
     // 4. If new focus target is a focusable area and its DOM anchor is inert, then return.
-    if (new_focus_target->is_inert())
+    if (is_inert_for_focus(*new_focus_target))
         return;
 
     // 5. If new focus target is the currently focused area of a top-level browsing context, then return.

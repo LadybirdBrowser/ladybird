@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="before">
+<div id="host"></div>
+<div id="tabindex-host" tabindex="0"></div>
+<div id="inert-host" inert></div>
+<div id="empty-host"></div>
+<script>
+    test(() => {
+        const before = document.getElementById("before");
+
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open", delegatesFocus: true });
+        shadowRoot.innerHTML = `
+            <input id="hidden" style="display: none">
+            <input id="inert-delegate" inert>
+            <input id="delegate">
+        `;
+
+        before.focus();
+        host.focus();
+        println(`after delegatesFocus host.focus(): document=${document.activeElement.id}, shadow=${shadowRoot.activeElement.id}`);
+
+        before.focus();
+        shadowRoot.getElementById("delegate").focus();
+        host.focus();
+        println(`after delegatesFocus already focused host.focus(): document=${document.activeElement.id}, shadow=${shadowRoot.activeElement.id}`);
+
+        const tabindexHost = document.getElementById("tabindex-host");
+        const tabindexShadowRoot = tabindexHost.attachShadow({ mode: "open", delegatesFocus: true });
+        tabindexShadowRoot.innerHTML = `<input id="tabindex-delegate">`;
+
+        before.focus();
+        tabindexHost.focus();
+        println(`after delegatesFocus tabindex host.focus(): document=${document.activeElement.id}, shadow=${tabindexShadowRoot.activeElement.id}`);
+
+        const inertHost = document.getElementById("inert-host");
+        const inertShadowRoot = inertHost.attachShadow({ mode: "open", delegatesFocus: true });
+        inertShadowRoot.innerHTML = `<input id="inert-host-delegate">`;
+
+        before.focus();
+        inertHost.focus();
+        println(`after delegatesFocus inert host.focus(): document=${document.activeElement.id}, shadow=${inertShadowRoot.activeElement ? inertShadowRoot.activeElement.id : "null"}`);
+
+        before.focus();
+        inertShadowRoot.getElementById("inert-host-delegate").focus();
+        println(`after direct inert host delegate.focus(): document=${document.activeElement.id}, shadow=${inertShadowRoot.activeElement ? inertShadowRoot.activeElement.id : "null"}`);
+
+        const emptyHost = document.getElementById("empty-host");
+        const emptyShadowRoot = emptyHost.attachShadow({ mode: "open", delegatesFocus: true });
+        emptyShadowRoot.innerHTML = `<span>not focusable</span>`;
+
+        before.focus();
+        emptyHost.focus();
+        println(`after delegatesFocus empty host.focus(): ${document.activeElement.id}`);
+    });
+</script>
