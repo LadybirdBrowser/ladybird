@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -143,7 +143,7 @@ void CSSStyleRule::set_selector_text(StringView selector_text)
         parsing_params.declared_namespaces = m_parent_style_sheet->declared_namespaces();
 
     Optional<SelectorList> parsed_selectors;
-    if (parent_style_rule()) {
+    if (nesting_parent_rule()) {
         // AD-HOC: If we're a nested style rule, then we need to parse the selector as relative and then adapt it with implicit &s.
         parsed_selectors = parse_selector_for_nested_style_rule(parsing_params, selector_text);
     } else {
@@ -168,7 +168,7 @@ SelectorList const& CSSStyleRule::absolutized_selectors() const
     if (m_cached_absolutized_selectors.has_value())
         return m_cached_absolutized_selectors.value();
 
-    m_cached_absolutized_selectors = absolutize_selectors_relative_to(selectors(), parent_style_rule());
+    m_cached_absolutized_selectors = absolutize_selectors_relative_to(selectors(), nesting_parent_rule());
     return m_cached_absolutized_selectors.value();
 }
 
@@ -188,11 +188,11 @@ void CSSStyleRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
     }
 }
 
-CSSStyleRule const* CSSStyleRule::parent_style_rule() const
+GC::Ptr<CSSRule const> CSSStyleRule::nesting_parent_rule() const
 {
-    for (auto* parent = parent_rule(); parent; parent = parent->parent_rule()) {
-        if (parent->type() == CSSStyleRule::Type::Style)
-            return static_cast<CSSStyleRule const*>(parent);
+    for (auto const* parent = parent_rule(); parent; parent = parent->parent_rule()) {
+        if (parent->type() == Type::Style)
+            return parent;
     }
     return nullptr;
 }
