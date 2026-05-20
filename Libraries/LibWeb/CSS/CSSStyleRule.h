@@ -46,7 +46,7 @@ private:
 
     virtual void set_parent_style_sheet(CSSStyleSheet*) override;
 
-    CSSStyleRule const* parent_style_rule() const;
+    GC::Ptr<CSSRule const> nesting_parent_rule() const;
 
     SelectorList m_selectors;
     mutable Optional<SelectorList> m_cached_absolutized_selectors;
