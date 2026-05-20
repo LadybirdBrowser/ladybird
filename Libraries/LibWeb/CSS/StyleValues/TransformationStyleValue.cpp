@@ -571,7 +571,7 @@ void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMo
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-function
-ErrorOr<GC::Ref<CSSTransformComponent>> TransformationStyleValue::reify_a_transform_function(JS::Realm& realm) const
+GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_function(JS::Realm& realm) const
 {
     auto reify_numeric_argument = [&](size_t index) {
         return GC::Ref { as<CSSNumericValue>(*m_properties.values[index]->reify(realm, {})) };
@@ -589,7 +589,10 @@ ErrorOr<GC::Ref<CSSTransformComponent>> TransformationStyleValue::reify_a_transf
     //       same information as func, and whose is2D internal slot is true if func is matrix(), and false otherwise.
     case TransformFunction::Matrix:
     case TransformFunction::Matrix3d: {
-        auto transform_as_matrix = TRY(to_matrix({}));
+        if (!can_be_converted_to_matrix_without_reference_box())
+            return nullptr;
+
+        auto transform_as_matrix = MUST(to_matrix({}));
         auto matrix = Geometry::DOMMatrix::create(realm);
         matrix->set_m11(transform_as_matrix[0, 0]);
         matrix->set_m12(transform_as_matrix[1, 0]);

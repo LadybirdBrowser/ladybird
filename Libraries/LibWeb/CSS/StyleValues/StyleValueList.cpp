@@ -106,12 +106,17 @@ Vector<Parser::ComponentValue> StyleValueList::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-list
-static ErrorOr<GC::Ref<CSSStyleValue>> reify_a_transform_list(JS::Realm& realm, StyleValueVector const& values)
+static GC::Ptr<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, StyleValueVector const& values)
 {
     GC::RootVector<GC::Ref<CSSTransformComponent>> transform_components;
     for (auto const& transform : values) {
+        auto reified_transform = transform->as_transformation().reify_a_transform_function(realm);
+
+        if (!reified_transform)
+            return nullptr;
+
         // NB: Not all transform functions are reifiable, in which case we give up reifying as a transform list.
-        transform_components.append(TRY(transform->as_transformation().reify_a_transform_function(realm)));
+        transform_components.append(reified_transform.as_nonnull());
     }
     return CSSTransformValue::create(realm, move(transform_components));
 }
@@ -121,8 +126,8 @@ GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, FlyString const& 
     // NB: <transform-list> is a StyleValueList that contains TransformStyleValues. If that's what we are, follow the
     //     steps for reifying that.
     if (all_of(m_properties.values, [](auto const& it) { return it->is_transformation(); })) {
-        if (auto transform_list = reify_a_transform_list(realm, m_properties.values); !transform_list.is_error())
-            return transform_list.release_value();
+        if (auto transform_list = reify_a_transform_list(realm, m_properties.values))
+            return transform_list.as_nonnull();
     }
 
     // NB: Otherwise, there isn't an equivalent CSSStyleValue for StyleValueList, so just use the default.
