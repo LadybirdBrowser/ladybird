@@ -98,6 +98,41 @@ ValueComparingNonnullRefPtr<TransformationStyleValue const> TransformationStyleV
     return create(PropertyID::Transform, transform_function, identity_parameters());
 }
 
+bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box() const
+{
+    auto function_metadata = transform_function_metadata(m_properties.transform_function);
+
+    for (size_t i = 0; i < m_properties.values.size(); i++) {
+        auto const& value = m_properties.values[i];
+
+        if (value->is_length() && !value->as_length().length().is_absolute())
+            return false;
+
+        // NB: At time of writing the only calculated values that can't be fully simplified are those which either
+        //     contain relative lengths or length-percentage mixes, both of which are disallowed. This may change
+        //     in the future if transform functions support other dimension percentage mixes (i.e. AnglePercentage).
+        if (value->is_calculated() && !value->as_calculated().is_fully_simplified())
+            return false;
+
+        auto value_type = function_metadata.parameters[i].type;
+
+        if (value_type == CSS::TransformFunctionParameterType::LengthPercentage) {
+            if (value->is_percentage())
+                return false;
+
+            if (value->is_calculated() && value->as_calculated().contains_percentage())
+                return false;
+        }
+
+        if (first_is_one_of(value_type, CSS::TransformFunctionParameterType::Number, CSS::TransformFunctionParameterType::NumberPercentage)) {
+            if (value->is_tree_counting_function())
+                return false;
+        }
+    }
+
+    return true;
+}
+
 ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::PaintableBox const&> paintable_box) const
 {
     auto count = m_properties.values.size();

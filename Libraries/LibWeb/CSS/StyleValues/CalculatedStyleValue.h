@@ -111,6 +111,7 @@ public:
     bool resolves_to_dimension() const { return m_resolved_type.matches_dimension(); }
 
     bool contains_percentage() const;
+    bool is_fully_simplified() const;
 
     String dump() const;
 

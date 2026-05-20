@@ -28,6 +28,7 @@ public:
     TransformFunction transform_function() const { return m_properties.transform_function; }
     StyleValueVector const& values() const { return m_properties.values; }
 
+    bool can_be_converted_to_matrix_without_reference_box() const;
     ErrorOr<FloatMatrix4x4> to_matrix(Optional<Painting::PaintableBox const&>) const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;

@@ -3193,6 +3193,11 @@ bool CalculatedStyleValue::contains_percentage() const
     return m_calculation->contains_percentage();
 }
 
+bool CalculatedStyleValue::is_fully_simplified() const
+{
+    return resolve_value({}).has_value();
+}
+
 String CalculatedStyleValue::dump() const
 {
     StringBuilder builder;
