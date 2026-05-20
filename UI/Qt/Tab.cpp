@@ -9,6 +9,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/Utilities.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
@@ -317,7 +318,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         auto create_selected_file = [&](auto const& qfile_path) {
             auto file_path = ak_byte_string_from_qstring(qfile_path);
 
-            if (auto file = Web::HTML::SelectedFile::from_file_path(file_path); file.is_error())
+            if (auto file = WebView::create_selected_file(file_path); file.is_error())
                 warnln("Unable to open file {}: {}", file_path, file.error());
             else
                 selected_files.append(file.release_value());

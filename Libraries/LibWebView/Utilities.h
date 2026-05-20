@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <LibWeb/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -26,6 +27,8 @@ WEBVIEW_API void set_mach_server_name(ByteString name);
 WEBVIEW_API ByteString mach_server_name_for_process(StringView process_name, pid_t pid);
 
 WEBVIEW_API ErrorOr<void> handle_attached_debugger();
+
+WEBVIEW_API ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const&);
 
 ErrorOr<JsonObject> read_json_file(ByteString const& path);
 ErrorOr<void> write_json_file(ByteString const& path, JsonValue const& value);

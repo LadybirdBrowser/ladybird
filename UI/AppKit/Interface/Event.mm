@@ -9,6 +9,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/UIEvents/KeyCode.h>
+#include <LibWebView/Utilities.h>
 
 #import <Carbon/Carbon.h>
 #import <Interface/Event.h>
@@ -103,7 +104,7 @@ Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type type, id<NSDraggingIn
 
     if (type == Web::DragEvent::Type::DragStart) {
         for_each_file([&](ByteString const& file_path) {
-            if (auto file = Web::HTML::SelectedFile::from_file_path(file_path); file.is_error())
+            if (auto file = WebView::create_selected_file(file_path); file.is_error())
                 warnln("Unable to open file {}: {}", file_path, file.error());
             else
                 files.append(file.release_value());

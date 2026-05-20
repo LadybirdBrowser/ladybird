@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWebView/Utilities.h>
 #include <UI/Gtk/Dialogs.h>
 #include <UI/Gtk/GLibPtr.h>
 #include <UI/Gtk/WebContentView.h>
@@ -175,8 +176,7 @@ void show_file_picker(GtkWindow* parent, WebContentView* view, Web::HTML::FileFi
                     GObjectPtr file { g_list_model_get_item(G_LIST_MODEL(file_list), i) };
                     g_autofree char* path = g_file_get_path(G_FILE(file.ptr()));
                     if (path) {
-                        auto selected_file = Web::HTML::SelectedFile::from_file_path(ByteString(path));
-                        if (!selected_file.is_error())
+                        if (auto selected_file = WebView::create_selected_file(ByteString(path)); !selected_file.is_error())
                             selected.append(selected_file.release_value());
                     }
                 }
@@ -195,8 +195,7 @@ void show_file_picker(GtkWindow* parent, WebContentView* view, Web::HTML::FileFi
                 Vector<Web::HTML::SelectedFile> selected;
                 g_autofree char* path = g_file_get_path(file);
                 if (path) {
-                    auto selected_file = Web::HTML::SelectedFile::from_file_path(ByteString(path));
-                    if (!selected_file.is_error())
+                    if (auto selected_file = WebView::create_selected_file(ByteString(path)); !selected_file.is_error())
                         selected.append(selected_file.release_value());
                 }
                 view->file_picker_closed(move(selected)); }, view);

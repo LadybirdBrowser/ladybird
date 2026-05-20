@@ -9,6 +9,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/Utilities.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Event.h>
@@ -741,7 +742,7 @@ struct HideCursor {
                           auto create_selected_file = [&](NSString* ns_file_path) {
                               auto file_path = Ladybird::ns_string_to_byte_string(ns_file_path);
 
-                              if (auto file = Web::HTML::SelectedFile::from_file_path(file_path); file.is_error())
+                              if (auto file = WebView::create_selected_file(file_path); file.is_error())
                                   warnln("Unable to open file {}: {}", file_path, file.error());
                               else
                                   selected_files.append(file.release_value());

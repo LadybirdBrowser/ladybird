@@ -22,8 +22,6 @@ enum class AllowMultipleFiles {
 
 class WEB_API SelectedFile {
 public:
-    static ErrorOr<SelectedFile> from_file_path(ByteString const& file_path);
-
     SelectedFile(ByteString name, ByteBuffer contents);
     SelectedFile(ByteString name, IPC::File file);
 
