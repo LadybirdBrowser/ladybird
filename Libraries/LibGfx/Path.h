@@ -15,6 +15,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
+#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -138,5 +139,15 @@ private:
 
     NonnullOwnPtr<PathImpl> m_impl { PathImpl::create() };
 };
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::Path const&);
+
+template<>
+ErrorOr<Gfx::Path> decode(Decoder&);
 
 }
