@@ -7,6 +7,8 @@
 
 #include <AK/Math.h>
 #include <LibGfx/CornerRadii.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 
 namespace Gfx {
 
@@ -41,6 +43,48 @@ void CornerRadii::adjust_corners_for_spread_distance(int spread_distance)
     add_spread_distance_to_border_radius(bottom_right.vertical_radius, spread_distance);
     add_spread_distance_to_border_radius(bottom_left.horizontal_radius, spread_distance);
     add_spread_distance_to_border_radius(bottom_left.vertical_radius, spread_distance);
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::CornerRadius const& radius)
+{
+    TRY(encoder.encode(radius.horizontal_radius));
+    TRY(encoder.encode(radius.vertical_radius));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::CornerRadius> decode(Decoder& decoder)
+{
+    return Gfx::CornerRadius {
+        .horizontal_radius = TRY(decoder.decode<int>()),
+        .vertical_radius = TRY(decoder.decode<int>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::CornerRadii const& radii)
+{
+    TRY(encoder.encode(radii.top_left));
+    TRY(encoder.encode(radii.top_right));
+    TRY(encoder.encode(radii.bottom_right));
+    TRY(encoder.encode(radii.bottom_left));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::CornerRadii> decode(Decoder& decoder)
+{
+    return Gfx::CornerRadii {
+        .top_left = TRY(decoder.decode<Gfx::CornerRadius>()),
+        .top_right = TRY(decoder.decode<Gfx::CornerRadius>()),
+        .bottom_right = TRY(decoder.decode<Gfx::CornerRadius>()),
+        .bottom_left = TRY(decoder.decode<Gfx::CornerRadius>()),
+    };
 }
 
 }

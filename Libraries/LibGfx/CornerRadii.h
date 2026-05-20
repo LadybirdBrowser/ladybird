@@ -9,6 +9,7 @@
 
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -88,5 +89,21 @@ struct CornerRadii {
         return true;
     }
 };
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::CornerRadius const&);
+
+template<>
+ErrorOr<Gfx::CornerRadius> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::CornerRadii const&);
+
+template<>
+ErrorOr<Gfx::CornerRadii> decode(Decoder&);
 
 }
