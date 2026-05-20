@@ -4,24 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/LexicalPath.h>
 #include <LibCore/File.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/HTML/SelectedFile.h>
 
 namespace Web::HTML {
-
-ErrorOr<SelectedFile> SelectedFile::from_file_path(ByteString const& file_path)
-{
-    // https://html.spec.whatwg.org/multipage/input.html#file-upload-state-(type=file):concept-input-file-path
-    // Filenames must not contain path components, even in the case that a user has selected an entire directory
-    // hierarchy or multiple files with the same name from different directories.
-    auto name = LexicalPath::basename(file_path);
-
-    auto file = TRY(Core::File::open(file_path, Core::File::OpenMode::Read));
-    return SelectedFile { move(name), IPC::File::adopt_file(move(file)) };
-}
 
 SelectedFile::SelectedFile(ByteString name, ByteBuffer contents)
     : m_name(move(name))

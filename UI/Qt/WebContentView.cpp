@@ -24,6 +24,7 @@
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/StringUtils.h>
@@ -863,7 +864,7 @@ void WebContentView::enqueue_native_event(Web::DragEvent::Type type, QDropEvent 
         for (auto const& url : event.mimeData()->urls()) {
             auto file_path = ak_byte_string_from_qstring(url.toLocalFile());
 
-            if (auto file = Web::HTML::SelectedFile::from_file_path(file_path); file.is_error())
+            if (auto file = WebView::create_selected_file(file_path); file.is_error())
                 warnln("Unable to open file {}: {}", file_path, file.error());
             else
                 files.append(file.release_value());
