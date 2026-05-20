@@ -5,7 +5,9 @@
  */
 
 #include <AK/Function.h>
+#include <AK/StdLibExtras.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Vector.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -16,12 +18,29 @@
 
 namespace Web::CSS::Invalidation {
 
-template<typename StateSlot, typename NewState>
-static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoClass pseudo_class, DOM::Document& document, StateSlot& state_slot, DOM::Node& invalidation_root, NewState new_state)
+enum class RequireAffectedByPseudoClassMetadata : u8 {
+    Yes,
+    No,
+};
+
+static bool pseudo_class_state_can_be_observed_across_style_scopes(CSS::PseudoClass pseudo_class)
+{
+    return first_is_one_of(pseudo_class, CSS::PseudoClass::Focus, CSS::PseudoClass::FocusWithin, CSS::PseudoClass::FocusVisible);
+}
+
+static CSS::StyleScope& style_scope_for_invalidation_root(DOM::Document& document, DOM::Node& invalidation_root)
 {
     auto& root = invalidation_root.root();
-    auto shadow_root = is<DOM::ShadowRoot>(root) ? static_cast<DOM::ShadowRoot const*>(&root) : nullptr;
-    auto& style_scope = shadow_root ? shadow_root->style_scope() : document.style_scope();
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(root))
+        return shadow_root->style_scope();
+    return document.style_scope();
+}
+
+template<typename StateSlot, typename NewState>
+static void invalidate_style_after_pseudo_class_state_change_in_style_scope(CSS::PseudoClass pseudo_class, DOM::Document& document, StateSlot& state_slot, DOM::Node& invalidation_root, NewState new_state, CSS::StyleScope& style_scope, RequireAffectedByPseudoClassMetadata require_metadata)
+{
+    auto rule_shadow_root = as_if<DOM::ShadowRoot>(style_scope.node());
+    GC::Ptr<DOM::Element const> shadow_host = rule_shadow_root ? rule_shadow_root->host() : nullptr;
 
     auto const& rules = style_scope.get_pseudo_class_rule_cache(pseudo_class);
 
@@ -31,15 +50,19 @@ static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoCla
         if (selector.can_use_ancestor_filter() && style_computer.should_reject_with_ancestor_filter(selector))
             return false;
 
-        SelectorEngine::MatchContext context;
+        SelectorEngine::MatchContext context {
+            .style_sheet_for_rule = *rule.sheet,
+            .subject = element,
+            .rule_shadow_root = rule_shadow_root,
+        };
         auto target_pseudo = selector.target_pseudo_element();
-        return SelectorEngine::matches(selector, { element, target_pseudo }, {}, context);
+        return SelectorEngine::matches(selector, { element, target_pseudo }, shadow_host, context);
     };
 
     auto matches_different_set_of_rules_after_state_change = [&](DOM::Element& element) {
         bool result = false;
-        rules.for_each_matching_rules({ element }, [&](auto& rules) {
-            for (auto& rule : rules) {
+        auto check_matching_rules = [&](auto const& matching_rules) {
+            for (auto& rule : matching_rules) {
                 bool before = does_rule_match_on_element(element, rule);
                 TemporaryChange change { state_slot, new_state };
                 bool after = does_rule_match_on_element(element, rule);
@@ -49,15 +72,38 @@ static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoCla
                 }
             }
             return IterationDecision::Continue;
-        });
+        };
+
+        auto check_abstract_element = [&](DOM::AbstractElement abstract_element) {
+            rules.for_each_matching_rules(abstract_element, [&](auto const& matching_rules) {
+                return check_matching_rules(matching_rules);
+            });
+        };
+
+        check_abstract_element({ element });
+
+        for (u8 i = 0; !result && i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); ++i) {
+            auto pseudo_element = static_cast<CSS::PseudoElement>(i);
+            check_abstract_element({ element, pseudo_element });
+        }
+
+        if (!result)
+            (void)check_matching_rules(rules.slotted_rules);
+
         return result;
+    };
+
+    auto should_check_element = [&](DOM::Element const& element) {
+        if (require_metadata == RequireAffectedByPseudoClassMetadata::No)
+            return true;
+        return element.affected_by_pseudo_class(pseudo_class);
     };
 
     Function<void(DOM::Node&)> invalidate_affected_elements_recursively = [&](DOM::Node& node) -> void {
         if (node.is_element()) {
             auto& element = static_cast<DOM::Element&>(node);
             style_computer.push_ancestor(element);
-            if (element.affected_by_pseudo_class(pseudo_class) && matches_different_set_of_rules_after_state_change(element))
+            if (should_check_element(element) && matches_different_set_of_rules_after_state_change(element))
                 element.set_needs_style_update(true);
         }
 
@@ -79,6 +125,39 @@ static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoCla
 
     for (auto* ancestor = invalidation_root.parent_or_shadow_host_element(); ancestor; ancestor = ancestor->parent_or_shadow_host_element())
         style_computer.pop_ancestor(*ancestor);
+}
+
+template<typename StateSlot, typename NewState>
+static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoClass pseudo_class, DOM::Document& document, StateSlot& state_slot, DOM::Node& invalidation_root, NewState new_state)
+{
+    auto& root_style_scope = style_scope_for_invalidation_root(document, invalidation_root);
+    invalidate_style_after_pseudo_class_state_change_in_style_scope(pseudo_class, document, state_slot, invalidation_root, new_state, root_style_scope, RequireAffectedByPseudoClassMetadata::Yes);
+
+    if (!pseudo_class_state_can_be_observed_across_style_scopes(pseudo_class))
+        return;
+
+    Vector<CSS::StyleScope*, 4> observer_style_scopes;
+    auto append_observer_style_scopes = [&](auto node) {
+        if (!node)
+            return;
+        node->for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& style_scope) {
+            if (!observer_style_scopes.contains_slow(&style_scope))
+                observer_style_scopes.append(&style_scope);
+        });
+    };
+    append_observer_style_scopes(state_slot);
+    append_observer_style_scopes(new_state);
+
+    for (auto* observer_style_scope : observer_style_scopes) {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(observer_style_scope->node())) {
+            if (observer_style_scope != &root_style_scope || &invalidation_root != shadow_root)
+                invalidate_style_after_pseudo_class_state_change_in_style_scope(pseudo_class, document, state_slot, *shadow_root, new_state, *observer_style_scope, RequireAffectedByPseudoClassMetadata::No);
+            if (auto* host = shadow_root->host())
+                invalidate_style_after_pseudo_class_state_change_in_style_scope(pseudo_class, document, state_slot, *host, new_state, *observer_style_scope, RequireAffectedByPseudoClassMetadata::No);
+        } else if (observer_style_scope != &root_style_scope) {
+            invalidate_style_after_pseudo_class_state_change_in_style_scope(pseudo_class, document, state_slot, observer_style_scope->node(), new_state, *observer_style_scope, RequireAffectedByPseudoClassMetadata::No);
+        }
+    }
 }
 
 void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_class, DOM::Document& document, GC::Ptr<DOM::Node>& state_slot, DOM::Node& invalidation_root, GC::Ptr<DOM::Node> new_state)
