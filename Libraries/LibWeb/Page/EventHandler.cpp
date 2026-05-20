@@ -832,12 +832,26 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
         if (key == UIEvents::KeyCode::Key_Home) {
             auto collapse = modifiers & UIEvents::Mod_Shift ? InputEventsTarget::CollapseSelection::No : InputEventsTarget::CollapseSelection::Yes;
+            auto const modifiers_without_shift_or_keypad = modifiers & ~(UIEvents::Mod_Shift | UIEvents::Mod_Keypad);
+            if (modifiers_without_shift_or_keypad == UIEvents::Mod_None) {
+                if (auto* textarea_element = as_if<HTML::HTMLTextAreaElement>(document->focused_area().ptr())) {
+                    textarea_element->move_cursor_to_start_of_current_line(collapse);
+                    return EventResult::Handled;
+                }
+            }
             target->move_cursor_to_start(collapse);
             return EventResult::Handled;
         }
 
         if (key == UIEvents::KeyCode::Key_End) {
             auto collapse = modifiers & UIEvents::Mod_Shift ? InputEventsTarget::CollapseSelection::No : InputEventsTarget::CollapseSelection::Yes;
+            auto const modifiers_without_shift_or_keypad = modifiers & ~(UIEvents::Mod_Shift | UIEvents::Mod_Keypad);
+            if (modifiers_without_shift_or_keypad == UIEvents::Mod_None) {
+                if (auto* textarea_element = as_if<HTML::HTMLTextAreaElement>(document->focused_area().ptr())) {
+                    textarea_element->move_cursor_to_end_of_current_line(collapse);
+                    return EventResult::Handled;
+                }
+            }
             target->move_cursor_to_end(collapse);
             return EventResult::Handled;
         }
