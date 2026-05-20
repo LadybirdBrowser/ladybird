@@ -16,7 +16,7 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, DOM::Abst
     if (time.has<double>())
         return { Type::Milliseconds, time.get<double>() };
 
-    auto const& numeric_value = time.get<GC::Root<CSS::CSSNumericValue>>();
+    auto const& numeric_value = time.get<GC::Ref<CSS::CSSNumericValue>>();
 
     // NB: Skip creating a calculation node for simple unit values
     if (auto const* unit_value = as_if<CSS::CSSUnitValue>(*numeric_value)) {
@@ -70,7 +70,7 @@ CSS::CSSNumberish TimeValue::as_css_numberish(JS::Realm& realm) const
         return value;
     case Type::Percentage:
         GC::Ref<CSS::CSSNumericValue> numeric_value = CSS::CSSUnitValue::create(realm, value, "percent"_fly_string);
-        return GC::Root { numeric_value };
+        return numeric_value;
     }
 
     VERIFY_NOT_REACHED();

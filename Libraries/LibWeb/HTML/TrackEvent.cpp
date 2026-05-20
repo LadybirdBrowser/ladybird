@@ -26,16 +26,9 @@ WebIDL::ExceptionOr<GC::Ref<TrackEvent>> TrackEvent::construct_impl(JS::Realm& r
     return create(realm, event_name, move(event_init));
 }
 
-TrackEvent::TrackTypeInternal TrackEvent::to_track_type_internal(NullableTrackType const& track_type)
-{
-    return track_type.visit(
-        [](Empty) -> TrackTypeInternal { return Empty {}; },
-        [](auto const& root) -> TrackTypeInternal { return GC::Ref { *root }; });
-}
-
 TrackEvent::TrackEvent(JS::Realm& realm, FlyString const& event_name, Bindings::TrackEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
-    , m_track(to_track_type_internal(event_init.track))
+    , m_track(event_init.track)
 {
 }
 
@@ -53,9 +46,7 @@ void TrackEvent::visit_edges(Visitor& visitor)
 
 NullableTrackType TrackEvent::track() const
 {
-    return m_track.visit(
-        [](Empty) -> NullableTrackType { return Empty {}; },
-        [](auto const& ref) -> NullableTrackType { return GC::Root { *ref }; });
+    return m_track;
 }
 
 }

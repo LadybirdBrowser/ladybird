@@ -448,7 +448,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get(JS::Value query)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-opencursor
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(JS::Value query, Bindings::IDBCursorDirection direction)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_cursor(Optional<JS::Value> query, Bindings::IDBCursorDirection direction)
 {
     auto& realm = this->realm();
 
@@ -598,11 +598,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all(Optional<JS::Va
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,
     //    "value", queryOrOptions, and count if given. Rethrow any exceptions.
-    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Value, *query_or_options, count);
+    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Value, query_or_options.value_or(JS::js_undefined()), count);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-openkeycursor
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_key_cursor(JS::Value query, Bindings::IDBCursorDirection direction)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::open_key_cursor(Optional<JS::Value> query, Bindings::IDBCursorDirection direction)
 {
     auto& realm = this->realm();
 
@@ -647,7 +647,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBObjectStore::get_all_keys(Optional<J
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this, "key",
     //    queryOrOptions, and count if given. Rethrow any exceptions.
-    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Key, *query_or_options, count);
+    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Key, query_or_options.value_or(JS::js_undefined()), count);
 }
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#dom-idbobjectstore-getallrecords

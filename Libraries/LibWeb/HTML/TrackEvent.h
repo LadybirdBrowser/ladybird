@@ -16,7 +16,7 @@
 
 namespace Web::HTML {
 
-using NullableTrackType = Variant<GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>, Empty>;
+using NullableTrackType = Variant<GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>, Empty>;
 
 class TrackEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(TrackEvent, DOM::Event);
@@ -35,10 +35,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    using TrackTypeInternal = Variant<Empty, GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>>;
-    static TrackTypeInternal to_track_type_internal(NullableTrackType const&);
-
-    TrackTypeInternal m_track;
+    NullableTrackType m_track;
 };
 
 }

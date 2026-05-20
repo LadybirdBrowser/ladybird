@@ -10,12 +10,6 @@
 
 namespace Web::MediaCapture {
 
-static GC::Ref<MediaStreamTrack> require_track(Bindings::MediaStreamTrackEventInit const& event_init)
-{
-    VERIFY(event_init.track);
-    return *event_init.track;
-}
-
 GC_DEFINE_ALLOCATOR(MediaStreamTrackEvent);
 
 GC::Ref<MediaStreamTrackEvent> MediaStreamTrackEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const& event_init)
@@ -30,14 +24,8 @@ GC::Ref<MediaStreamTrackEvent> MediaStreamTrackEvent::construct_impl(JS::Realm& 
 
 // https://w3c.github.io/mediacapture-main/#mediastreamtrackevent
 MediaStreamTrackEvent::MediaStreamTrackEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const& event_init)
-    : DOM::Event(realm, event_name, [&] {
-        Bindings::EventInit base_init {};
-        base_init.bubbles = event_init.bubbles;
-        base_init.cancelable = event_init.cancelable;
-        base_init.composed = event_init.composed;
-        return base_init;
-    }())
-    , m_track(require_track(event_init))
+    : DOM::Event(realm, event_name, event_init)
+    , m_track(event_init.track)
 {
 }
 

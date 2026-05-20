@@ -35,7 +35,7 @@ public:
         GC::Ref<WebIDL::Promise> data; // The actual data for this representation.
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> construct_impl(JS::Realm&, OrderedHashMap<String, GC::Root<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> construct_impl(JS::Realm&, GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options = {});
 
     virtual ~ClipboardItem() override;
 

@@ -154,7 +154,7 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
                     .cancelable = false,
                     .composed = false,
                 },
-                this->m_rendered_buffer,
+                *this->m_rendered_buffer,
             };
             auto event = MUST(OfflineAudioCompletionEvent::construct_impl(this->realm(), HTML::EventNames::complete, event_init));
             this->dispatch_event(event);

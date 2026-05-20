@@ -35,15 +35,15 @@ static constexpr int BROWSER_DEFAULT_WEBGL = 0x9244;
 static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
-using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::ImageData>, GC::Root<HTML::HTMLImageElement>, GC::Root<HTML::HTMLCanvasElement>, GC::Root<HTML::OffscreenCanvas>, GC::Root<HTML::HTMLVideoElement>>;
+using TexImageSource = Variant<GC::Ref<HTML::ImageBitmap>, GC::Ref<HTML::ImageData>, GC::Ref<HTML::HTMLImageElement>, GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>, GC::Ref<HTML::HTMLVideoElement>>;
 
 class WebGLRenderingContextBase : public Bindings::PlatformObject {
     WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
 
 public:
-    using Float32List = Variant<GC::Root<JS::Float32Array>, Vector<float>>;
-    using Int32List = Variant<GC::Root<JS::Int32Array>, Vector<WebIDL::Long>>;
-    using Uint32List = Variant<GC::Root<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
+    using Float32List = Variant<GC::Ref<JS::Float32Array>, Vector<float>>;
+    using Int32List = Variant<GC::Ref<JS::Int32Array>, Vector<WebIDL::Long>>;
+    using Uint32List = Variant<GC::Ref<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
 
     virtual OpenGLContext& context() = 0;
 
@@ -117,7 +117,7 @@ protected:
             auto& vector = float32_list.get<Vector<float>>();
             return get_offset_span(vector.span(), src_offset, src_length_override);
         }
-        auto& buffer = float32_list.get<GC::Root<JS::Float32Array>>();
+        auto& buffer = float32_list.get<GC::Ref<JS::Float32Array>>();
         return get_offset_span(buffer->data(), src_offset, src_length_override);
     }
 
@@ -127,7 +127,7 @@ protected:
             auto& vector = int32_list.get<Vector<int>>();
             return get_offset_span(vector.span(), src_offset, src_length_override);
         }
-        auto& buffer = int32_list.get<GC::Root<JS::Int32Array>>();
+        auto& buffer = int32_list.get<GC::Ref<JS::Int32Array>>();
         return get_offset_span(buffer->data(), src_offset, src_length_override);
     }
 
@@ -137,7 +137,7 @@ protected:
             auto& vector = uint32_list.get<Vector<u32>>();
             return get_offset_span(vector.span(), src_offset, src_length_override);
         }
-        auto& buffer = uint32_list.get<GC::Root<JS::Uint32Array>>();
+        auto& buffer = uint32_list.get<GC::Ref<JS::Uint32Array>>();
         return get_offset_span(buffer->data(), src_offset, src_length_override);
     }
 

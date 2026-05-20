@@ -17,13 +17,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Path2D);
 
-WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<GC::Root<Path2D>, String>> const& path)
+WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
 {
     return realm.create<Path2D>(realm, path);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
-Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Root<Path2D>, String>> const& path)
+Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
     : PlatformObject(realm)
     , CanvasPath(static_cast<Bindings::PlatformObject&>(*this))
 {
@@ -34,8 +34,8 @@ Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Root<Path2D>, String>> con
 
     // 3. If path is a Path2D object, then add all subpaths of path to output and return output.
     //    (In other words, it returns a copy of the argument.)
-    if (path->has<GC::Root<Path2D>>()) {
-        this->path() = path->get<GC::Root<Path2D>>()->path();
+    if (path->has<GC::Ref<Path2D>>()) {
+        this->path() = path->get<GC::Ref<Path2D>>()->path();
         return;
     }
 

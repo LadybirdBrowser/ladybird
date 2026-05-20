@@ -93,7 +93,7 @@ Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(Bindings::Assi
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assign
-void HTMLSlotElement::assign(Vector<SlottableHandle> nodes)
+void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
 {
     // 1. For each node of this's manually assigned nodes, set node's manual slot assignment to null.
     for (auto& node : m_manually_assigned_nodes) {

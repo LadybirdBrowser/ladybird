@@ -127,8 +127,7 @@ void XRSession::shut_down()
 
     // 6. Queue a task that fires an XRSessionEvent named end on session.
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [this, &realm]() {
-        Bindings::XRSessionEventInit init;
-        init.session = this;
+        Bindings::XRSessionEventInit init { Bindings::EventInit {}, *this };
         auto event = XRSessionEvent::create(realm, HTML::EventNames::end, init);
         this->dispatch_event(event);
     }));

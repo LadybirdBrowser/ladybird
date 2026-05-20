@@ -24,7 +24,7 @@ public:
     // https://dom.spec.whatwg.org/#dom-abortcontroller-signal
     GC::Ref<AbortSignal> signal() const { return *m_signal; }
 
-    void abort(JS::Value reason);
+    void abort(Optional<JS::Value> reason);
 
 private:
     AbortController(JS::Realm&, GC::Ref<AbortSignal>);

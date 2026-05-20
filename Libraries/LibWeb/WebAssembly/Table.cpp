@@ -29,14 +29,14 @@ static Wasm::ValueType table_kind_to_value_type(Bindings::TableKind kind)
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bindings::TableDescriptor& descriptor, JS::Value value)
+WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bindings::TableDescriptor& descriptor, Optional<JS::Value> value)
 {
     auto& vm = realm.vm();
 
     auto reference_type = table_kind_to_value_type(descriptor.element);
-    auto reference_value = vm.argument_count() == 1
+    auto reference_value = !value.has_value()
         ? Detail::default_webassembly_value(vm, reference_type)
-        : TRY(Detail::to_webassembly_value(vm, value, reference_type));
+        : TRY(Detail::to_webassembly_value(vm, *value, reference_type));
 
     if (descriptor.maximum.has_value() && descriptor.maximum.value() < descriptor.initial)
         return vm.throw_completion<JS::RangeError>("Maximum should not be less than initial in table type"sv);
@@ -70,7 +70,7 @@ void Table::initialize(JS::Realm& realm)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-grow
-WebIDL::ExceptionOr<u32> Table::grow(u32 delta, JS::Value value)
+WebIDL::ExceptionOr<u32> Table::grow(u32 delta, Optional<JS::Value> value)
 {
     auto& vm = this->vm();
 
@@ -81,9 +81,9 @@ WebIDL::ExceptionOr<u32> Table::grow(u32 delta, JS::Value value)
 
     auto initial_size = table->elements().size();
 
-    auto reference_value = vm.argument_count() == 1
+    auto reference_value = !value.has_value()
         ? Detail::default_webassembly_value(vm, table->type().element_type())
-        : TRY(Detail::to_webassembly_value(vm, value, table->type().element_type()));
+        : TRY(Detail::to_webassembly_value(vm, *value, table->type().element_type()));
     auto const& reference = reference_value.to<Wasm::Reference>();
 
     if (!table->grow(delta, reference))
@@ -112,7 +112,7 @@ WebIDL::ExceptionOr<JS::Value> Table::get(u32 index) const
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-set
-WebIDL::ExceptionOr<void> Table::set(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> Table::set(u32 index, Optional<JS::Value> value)
 {
     auto& vm = this->vm();
 
@@ -124,9 +124,9 @@ WebIDL::ExceptionOr<void> Table::set(u32 index, JS::Value value)
     if (table->elements().size() <= index)
         return vm.throw_completion<JS::RangeError>("Table element index out of range"sv);
 
-    auto reference_value = vm.argument_count() == 1
+    auto reference_value = !value.has_value()
         ? Detail::default_webassembly_value(vm, table->type().element_type())
-        : TRY(Detail::to_webassembly_value(vm, value, table->type().element_type()));
+        : TRY(Detail::to_webassembly_value(vm, *value, table->type().element_type()));
     auto const& reference = reference_value.to<Wasm::Reference>();
 
     table->elements()[index] = reference;

@@ -158,8 +158,8 @@ static FlattenedAddEventListenerOptions flatten_add_event_listener_options(Varia
             passive = add_event_listener_options.passive;
 
         // 3. If options["signal"] exists, then set signal to options["signal"].
-        if (add_event_listener_options.signal.has_value())
-            signal = add_event_listener_options.signal->ptr();
+        if (add_event_listener_options.signal)
+            signal = add_event_listener_options.signal;
     }
 
     // 5. Return capture, passive, once, and signal.

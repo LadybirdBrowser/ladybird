@@ -48,7 +48,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
     GC::Ptr<Fetch::Infrastructure::Body> transmitted_data;
     if (!data.has<Empty>()) {
         // 6.1 Set transmittedData and contentType to the result of extracting data's byte stream with the keepalive flag set.
-        auto body_with_type = TRY(Fetch::extract_body(realm, data.downcast<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String>(), true));
+        auto body_with_type = TRY(Fetch::extract_body(realm, data.downcast<GC::Ref<Streams::ReadableStream>, GC::Ref<FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String>(), true));
         transmitted_data = body_with_type.body;
         auto& content_type = body_with_type.type;
 

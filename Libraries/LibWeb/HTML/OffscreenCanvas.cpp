@@ -214,7 +214,7 @@ JS::ThrowCompletionOr<OffscreenRenderingContext> OffscreenCanvas::get_context(Bi
     // NOTE: See the spec for the full table.
     if (contextId == Bindings::OffscreenRenderingContextId::_2d) {
         if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
-            return GC::make_root(*m_context.get<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>>());
+            return *m_context.get<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>>();
 
         return Empty {};
     }

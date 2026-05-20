@@ -35,7 +35,7 @@ enum class MediaSeekMode : u8 {
 
 class SourceElementSelector;
 
-using OptionalMediaProvider = Variant<Empty, GC::Root<MediaSourceExtensions::MediaSource>, GC::Root<FileAPI::Blob>>;
+using OptionalMediaProvider = Variant<Empty, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
 
 class HTMLMediaElement : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLMediaElement, HTMLElement);

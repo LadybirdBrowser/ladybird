@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, Bindings::Stru
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
-WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on Worker objects act as if,
     // when invoked, they immediately invoked the respective postMessage(message, transfer) and

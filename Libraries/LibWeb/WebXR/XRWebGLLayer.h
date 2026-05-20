@@ -19,7 +19,7 @@ class XRWebGLLayer : public XRLayer {
     GC_DECLARE_ALLOCATOR(XRWebGLLayer);
 
 public:
-    using XRWebGLRenderingContext = Variant<GC::Root<WebGL::WebGLRenderingContext>, GC::Root<WebGL::WebGL2RenderingContext>>;
+    using XRWebGLRenderingContext = Variant<GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>>;
 
     [[nodiscard]] static GC::Ref<XRWebGLLayer> create(JS::Realm&);
     static WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> construct_impl(JS::Realm&, XRSession const& session, XRWebGLRenderingContext const&, Bindings::XRWebGLLayerInit const&);

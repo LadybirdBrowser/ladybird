@@ -93,7 +93,7 @@ IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::Cal
     , m_delay(delay)
     , m_track_visibility(track_visibility)
 {
-    m_root = root.has<Empty>() ? nullptr : root.visit([](GC::Root<DOM::Element> const& value) -> GC::Ptr<DOM::Node> { return *value; }, [](GC::Root<DOM::Document> const& value) -> GC::Ptr<DOM::Node> { return *value; }, [](Empty) -> GC::Ptr<DOM::Node> { return nullptr; });
+    m_root = root.has<Empty>() ? nullptr : root.visit([](GC::Ref<DOM::Element> const& value) -> GC::Ptr<DOM::Node> { return value; }, [](GC::Ref<DOM::Document> const& value) -> GC::Ptr<DOM::Node> { return value; }, [](Empty) -> GC::Ptr<DOM::Node> { return nullptr; });
     intersection_root().visit([this](auto& node) {
         m_document = node->document();
     });
@@ -206,9 +206,9 @@ NullableIntersectionObserverRoot IntersectionObserver::root() const
     if (!m_root)
         return Empty {};
     if (m_root->is_element())
-        return GC::make_root(static_cast<DOM::Element&>(*m_root));
+        return GC::Ref { static_cast<DOM::Element&>(*m_root) };
     if (m_root->is_document())
-        return GC::make_root(static_cast<DOM::Document&>(*m_root));
+        return GC::Ref { static_cast<DOM::Document&>(*m_root) };
     VERIFY_NOT_REACHED();
 }
 
@@ -251,12 +251,12 @@ String IntersectionObserver::scroll_margin() const
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-intersection-root
-Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>> IntersectionObserver::intersection_root() const
+Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::Document>> IntersectionObserver::intersection_root() const
 {
     auto root_node = intersection_root_node();
     if (root_node->is_element())
-        return GC::make_root(static_cast<DOM::Element&>(*root_node));
-    return GC::make_root(static_cast<DOM::Document&>(*root_node));
+        return GC::Ref { static_cast<DOM::Element&>(*root_node) };
+    return GC::Ref { static_cast<DOM::Document&>(*root_node) };
 }
 
 GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
@@ -279,8 +279,8 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
 
     // If the intersection root is a document,
     //    it’s the size of the document's viewport (note that this processing step can only be reached if the document is fully active).
-    if (intersection_root.has<GC::Root<DOM::Document>>()) {
-        auto document = intersection_root.get<GC::Root<DOM::Document>>();
+    if (intersection_root.has<GC::Ref<DOM::Document>>()) {
+        auto document = intersection_root.get<GC::Ref<DOM::Document>>();
 
         // Since the spec says that this is only reach if the document is fully active, that means it must have a navigable.
         VERIFY(document->navigable());
@@ -289,8 +289,8 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         //       as intersections are computed using viewport-relative element rects.
         rect = CSSPixelRect { CSSPixelPoint { 0, 0 }, document->viewport_rect().size() };
     } else {
-        VERIFY(intersection_root.has<GC::Root<DOM::Element>>());
-        auto element = intersection_root.get<GC::Root<DOM::Element>>();
+        VERIFY(intersection_root.has<GC::Ref<DOM::Element>>());
+        auto element = intersection_root.get<GC::Ref<DOM::Element>>();
 
         // FIXME: Otherwise, if the intersection root has a content clip,
         //          it’s the element’s content area.
@@ -306,10 +306,10 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
     // edges, respectively, are offset by, with positive lengths indicating an outward offset. Percentages
     // are resolved relative to the width of the undilated rectangle.
     DOM::Document* document = { nullptr };
-    if (intersection_root.has<GC::Root<DOM::Document>>()) {
-        document = intersection_root.get<GC::Root<DOM::Document>>().cell();
+    if (intersection_root.has<GC::Ref<DOM::Document>>()) {
+        document = intersection_root.get<GC::Ref<DOM::Document>>().ptr();
     } else {
-        document = &intersection_root.get<GC::Root<DOM::Element>>().cell()->document();
+        document = &intersection_root.get<GC::Ref<DOM::Element>>()->document();
     }
     if (m_document && document->origin().is_same_origin(m_document->origin())) {
         if (auto layout_node = intersection_root.visit([&](auto& node) -> GC::Ptr<Layout::Node> { return node->layout_node(); })) {

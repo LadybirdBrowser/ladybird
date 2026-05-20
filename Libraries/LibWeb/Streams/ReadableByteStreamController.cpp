@@ -62,10 +62,10 @@ WebIDL::ExceptionOr<void> ReadableByteStreamController::close()
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-error
-void ReadableByteStreamController::error(JS::Value error)
+void ReadableByteStreamController::error(Optional<JS::Value> error)
 {
     // 1. Perform ! ReadableByteStreamControllerError(this, e).
-    readable_byte_stream_controller_error(*this, error);
+    readable_byte_stream_controller_error(*this, error.value_or(JS::js_undefined()));
 }
 
 ReadableByteStreamController::ReadableByteStreamController(JS::Realm& realm)
@@ -80,7 +80,7 @@ void ReadableByteStreamController::initialize(JS::Realm& realm)
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-enqueue
-WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(GC::Root<WebIDL::ArrayBufferView>& chunk)
+WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(GC::Ref<WebIDL::ArrayBufferView> chunk)
 {
     // 1. If chunk.[[ByteLength]] is 0, throw a TypeError exception.
     // 2. If chunk.[[ViewedArrayBuffer]].[[ByteLength]] is 0, throw a TypeError exception.

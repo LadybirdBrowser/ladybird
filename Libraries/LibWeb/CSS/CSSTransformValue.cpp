@@ -18,13 +18,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSTransformValue);
 
-GC::Ref<CSSTransformValue> CSSTransformValue::create(JS::Realm& realm, Vector<GC::Ref<CSSTransformComponent>> transforms)
+GC::Ref<CSSTransformValue> CSSTransformValue::create(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSTransformComponent>> transforms)
 {
-    return realm.create<CSSTransformValue>(realm, move(transforms));
+    Vector<GC::Ref<CSSTransformComponent>> converted_transforms;
+    converted_transforms.ensure_capacity(transforms.size());
+    for (auto const& transform : transforms)
+        converted_transforms.append(transform);
+    return realm.create<CSSTransformValue>(realm, move(converted_transforms));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformvalue-csstransformvalue
-WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_impl(JS::Realm& realm, Vector<GC::Root<CSSTransformComponent>> const& transforms)
+WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_impl(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSTransformComponent>> const& transforms)
 {
     // The CSSTransformValue(transforms) constructor must, when called, perform the following steps:
 
@@ -33,11 +37,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> CSSTransformValue::construct_imp
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSTransformValue's transforms list cannot be empty."sv };
 
     // 2. Return a new CSSTransformValue whose values to iterate over is transforms.
-    Vector<GC::Ref<CSSTransformComponent>> converted_transforms;
-    converted_transforms.ensure_capacity(transforms.size());
-    for (auto const& transform : transforms)
-        converted_transforms.append(*transform);
-    return CSSTransformValue::create(realm, move(converted_transforms));
+    return CSSTransformValue::create(realm, transforms);
 }
 
 CSSTransformValue::CSSTransformValue(JS::Realm& realm, Vector<GC::Ref<CSSTransformComponent>> transforms)

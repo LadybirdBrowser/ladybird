@@ -26,7 +26,7 @@ struct Animatable::Transition {
 Animatable::Impl::~Impl() = default;
 
 // https://www.w3.org/TR/web-animations-1/#dom-animatable-animate
-WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS::Object>> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(GC::Ptr<JS::Object> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options)
 {
     // 1. Let target be the object on which this method was called.
     GC::Ref target { *static_cast<DOM::Element*>(this) };
@@ -46,7 +46,7 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS
     //    on which this method was called.
     Optional<GC::Ptr<AnimationTimeline>> timeline;
     if (options.has<Bindings::KeyframeAnimationOptions>() && options.get<Bindings::KeyframeAnimationOptions>().timeline.has_value())
-        timeline = options.get<Bindings::KeyframeAnimationOptions>().timeline->ptr();
+        timeline = options.get<Bindings::KeyframeAnimationOptions>().timeline.value();
     if (!timeline.has_value())
         timeline = target->document().timeline();
 

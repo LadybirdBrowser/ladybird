@@ -40,7 +40,7 @@ static Wasm::ValueType to_value_type(Bindings::ValueType type)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-global-global
-WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, Bindings::GlobalDescriptor const& descriptor, JS::Value v)
+WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, Bindings::GlobalDescriptor const& descriptor, Optional<JS::Value> v)
 {
     auto& vm = realm.vm();
 
@@ -61,9 +61,9 @@ WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, Bi
     // 5.1 Let value be ToWebAssemblyValue(v, valuetype).
     // FIXME: https://github.com/WebAssembly/spec/issues/1861
     //        Is there a difference between *missing* and undefined for optional any values?
-    auto value = v.is_undefined()
+    auto value = !v.has_value()
         ? Detail::default_webassembly_value(vm, value_type)
-        : TRY(Detail::to_webassembly_value(vm, v, value_type));
+        : TRY(Detail::to_webassembly_value(vm, *v, value_type));
 
     // 6. If mutable is true, let globaltype be var valuetype; otherwise, let globaltype be const valuetype.
     auto global_type = Wasm::GlobalType { value_type, mutable_ };

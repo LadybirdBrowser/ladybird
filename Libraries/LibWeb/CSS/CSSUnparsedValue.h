@@ -12,7 +12,6 @@
 namespace Web::CSS {
 
 using CSSUnparsedSegment = Variant<String, GC::Ref<CSSVariableReferenceValue>>;
-using GCRootCSSUnparsedSegment = Variant<String, GC::Root<CSSVariableReferenceValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
 class CSSUnparsedValue final : public CSSStyleValue {
@@ -20,8 +19,8 @@ class CSSUnparsedValue final : public CSSStyleValue {
     GC_DECLARE_ALLOCATOR(CSSUnparsedValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(JS::Realm&, Vector<GCRootCSSUnparsedSegment>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(JS::Realm&, Vector<GCRootCSSUnparsedSegment>);
+    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
 
     virtual ~CSSUnparsedValue() override;
 
@@ -34,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSUnparsedValue(JS::Realm&, Vector<CSSUnparsedSegment>);
+    explicit CSSUnparsedValue(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;

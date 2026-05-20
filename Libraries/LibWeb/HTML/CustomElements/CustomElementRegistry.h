@@ -25,8 +25,8 @@ public:
     virtual ~CustomElementRegistry() override;
 
     JS::ThrowCompletionOr<void> define(String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const&);
-    Variant<GC::Root<WebIDL::CallbackType>, Empty> get(String const& name) const;
-    Optional<String> get_name(GC::Root<WebIDL::CallbackType> const& constructor) const;
+    Variant<GC::Ref<WebIDL::CallbackType>, Empty> get(String const& name) const;
+    Optional<String> get_name(GC::Ref<WebIDL::CallbackType> constructor) const;
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> when_defined(String const& name);
     void upgrade(GC::Ref<DOM::Node> root) const;
     WebIDL::ExceptionOr<void> initialize_for_bindings(GC::Ref<DOM::Node> root);

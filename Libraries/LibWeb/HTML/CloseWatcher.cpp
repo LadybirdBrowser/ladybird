@@ -69,9 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Real
     auto close_watcher = establish(window, GC::create_function(realm.heap(), [] { return true; }));
 
     // 3. If options["signal"] exists, then:
-    if (options.signal.has_value()) {
-        auto signal = options.signal->ptr();
-
+    if (auto signal = options.signal) {
         // 3.1 If options["signal"]'s aborted, then destroy closeWatcher.
         if (signal->aborted()) {
             close_watcher->destroy();

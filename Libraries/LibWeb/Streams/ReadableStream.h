@@ -55,14 +55,14 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> construct_impl(JS::Realm&, Optional<GC::Root<JS::Object>> const& underlying_source, Bindings::QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> construct_impl(JS::Realm&, GC::Ptr<JS::Object> underlying_source, Bindings::QueuingStrategy const& = {});
 
     static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> from(JS::VM& vm, JS::Value async_iterable);
 
     virtual ~ReadableStream() override;
 
     bool locked() const;
-    GC::Ref<WebIDL::Promise> cancel(JS::Value reason);
+    GC::Ref<WebIDL::Promise> cancel(Optional<JS::Value> reason);
     WebIDL::ExceptionOr<ReadableStreamReader> get_reader(Bindings::ReadableStreamGetReaderOptions const& = {});
     WebIDL::ExceptionOr<GC::Ref<ReadableStream>> pipe_through(Bindings::ReadableWritablePair transform, Bindings::StreamPipeOptions const& = {});
     GC::Ref<WebIDL::Promise> pipe_to(WritableStream& destination, Bindings::StreamPipeOptions const& = {});

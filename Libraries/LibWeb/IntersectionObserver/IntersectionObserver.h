@@ -7,14 +7,13 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibGC/Root.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::IntersectionObserver {
 
-using NullableIntersectionObserverRoot = Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>, Empty>;
+using NullableIntersectionObserverRoot = Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::Document>, Empty>;
 using IntersectionObserverRoot = NullableIntersectionObserverRoot;
 
 struct ObservationTarget {
@@ -51,7 +50,7 @@ public:
     long delay() const { return m_delay; }
     bool track_visibility() const { return m_track_visibility; }
 
-    Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>> intersection_root() const;
+    Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::Document>> intersection_root() const;
     GC::Ref<DOM::Node> intersection_root_node() const;
     bool is_implicit_root() const { return !m_root; }
     CSSPixelRect root_intersection_rectangle() const;

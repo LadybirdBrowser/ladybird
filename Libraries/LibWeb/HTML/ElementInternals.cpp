@@ -60,13 +60,13 @@ WebIDL::ExceptionOr<void> ElementInternals::set_form_value(ElementInternalsFormV
 
     // 3. Set target element's submission value to value if value is not a FormData object, or to a clone of value's entry list otherwise.
     auto submission_value = value.visit(
-        [](GC::Root<FileAPI::File> const& file) -> FormAssociatedElement::FACESubmissionValue {
-            return GC::Ref { *file };
+        [](GC::Ref<FileAPI::File> file) -> FormAssociatedElement::FACESubmissionValue {
+            return file;
         },
         [](String const& string) -> FormAssociatedElement::FACESubmissionValue {
             return string;
         },
-        [](GC::Root<XHR::FormData> const& form_data) -> FormAssociatedElement::FACESubmissionValue {
+        [](GC::Ref<XHR::FormData> form_data) -> FormAssociatedElement::FACESubmissionValue {
             return form_data->entry_list();
         },
         [](Empty const& empty) -> FormAssociatedElement::FACESubmissionValue {

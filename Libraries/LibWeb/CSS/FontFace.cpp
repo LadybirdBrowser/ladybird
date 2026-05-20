@@ -177,7 +177,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
         font_face->m_urls = ParsedFontFace::sources_from_style_value(*parsed_source);
         font_face->m_urls.remove_all_matching(is_unsupported_source);
     } else {
-        auto buffer_source = source.get<GC::Root<WebIDL::BufferSource>>();
+        auto buffer_source = source.get<GC::Ref<WebIDL::BufferSource>>();
         auto maybe_buffer = WebIDL::get_buffer_source_copy(buffer_source->raw_object());
         if (maybe_buffer.is_error()) {
             VERIFY(maybe_buffer.error().code() == ENOMEM);

@@ -43,7 +43,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::add_all_types_into_math_sum
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathsum-cssmathsum
-WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(JS::Realm& realm, Vector<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(JS::Realm& realm, ReadonlySpan<CSSNumberish> values)
 {
     // The CSSMathSum(...args) constructor must, when called, perform the following steps:
 

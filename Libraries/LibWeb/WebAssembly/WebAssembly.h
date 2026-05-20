@@ -24,13 +24,13 @@ WEB_API void visit_edges(JS::Object&, JS::Cell::Visitor&);
 WEB_API void finalize(JS::Object&);
 WEB_API void initialize(JS::Object&, JS::Realm&);
 
-WEB_API bool validate(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM&, GC::Root<WebIDL::Promise> source);
+WEB_API bool validate(JS::VM&, GC::Ref<WebIDL::BufferSource> bytes);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM&, GC::Ref<WebIDL::BufferSource> bytes);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM&, GC::Ref<WebIDL::Promise> source);
 
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, GC::Root<WebIDL::BufferSource>& bytes, Optional<GC::Root<JS::Object>>& import_object);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, Module const& module_object, Optional<GC::Root<JS::Object>>& import_object);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM&, GC::Root<WebIDL::Promise> source, Optional<GC::Root<JS::Object>>& import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, GC::Ref<WebIDL::BufferSource> bytes, GC::Ptr<JS::Object> import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM&, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object);
 
 namespace Detail {
 

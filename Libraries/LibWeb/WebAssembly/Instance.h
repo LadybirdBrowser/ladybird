@@ -23,7 +23,7 @@ class Instance : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Instance);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Instance>> construct_impl(JS::Realm&, Module& module, Optional<GC::Root<JS::Object>>& import_object);
+    static WebIDL::ExceptionOr<GC::Ref<Instance>> construct_impl(JS::Realm&, Module& module, GC::Ptr<JS::Object> import_object);
 
     Object const* exports() const { return m_exports.ptr(); }
     Wasm::ModuleInstance const* module_instance() const { return m_module_instance.ptr(); }

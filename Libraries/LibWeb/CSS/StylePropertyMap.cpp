@@ -45,10 +45,10 @@ void StylePropertyMap::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-static bool any_have_non_matching_associated_property(FlyString const& property, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+static bool any_have_non_matching_associated_property(FlyString const& property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
 {
-    return any_of(values, [&property](Variant<GC::Root<CSSStyleValue>, String> const& value) {
-        if (auto* style_value = value.get_pointer<GC::Root<CSSStyleValue>>()) {
+    return any_of(values, [&property](Variant<GC::Ref<CSSStyleValue>, String> const& value) {
+        if (auto* style_value = value.get_pointer<GC::Ref<CSSStyleValue>>()) {
             if (auto associated_property = (*style_value)->associated_property();
                 associated_property.has_value() && associated_property != property)
                 return true;
@@ -58,11 +58,11 @@ static bool any_have_non_matching_associated_property(FlyString const& property,
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
-static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(JS::VM& vm, PropertyNameAndID const& property, Variant<GC::Root<CSSStyleValue>, String> const& value)
+static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(JS::VM& vm, PropertyNameAndID const& property, Variant<GC::Ref<CSSStyleValue>, String> const& value)
 {
     // To create an internal representation, given a string property and a string or CSSStyleValue value:
     return value.visit(
-        [&property](GC::Root<CSSStyleValue> const& css_style_value) {
+        [&property](GC::Ref<CSSStyleValue> const& css_style_value) {
             return css_style_value->create_an_internal_representation(property, CSSStyleValue::PerformTypeCheck::Yes);
         },
         [&](String const& css_text) -> WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> {
@@ -77,7 +77,7 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set
-WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
 {
     // The set(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -180,7 +180,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-append
-WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property_name, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
+WebIDL::ExceptionOr<void> StylePropertyMap::append(FlyString property_name, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
 {
     // The append(property, ...values) method, when called on a StylePropertyMap this, must perform the following steps:
 

@@ -63,7 +63,7 @@ void CSSNumericValue::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-static bool all_values_are_css_unit_values_with_the_same_unit(GC::RootVector<GC::Ref<CSSNumericValue>> const& values)
+static bool all_values_are_css_unit_values_with_the_same_unit(ReadonlySpan<GC::Ref<CSSNumericValue>> const& values)
 {
     VERIFY(!values.is_empty());
     return all_of(values, [&](auto& value) {
@@ -74,7 +74,7 @@ static bool all_values_are_css_unit_values_with_the_same_unit(GC::RootVector<GC:
 }
 
 template<typename Operation>
-static GC::Ref<CSSNumericValue> apply_math_operation_on_css_unit_values(JS::Realm& realm, GC::RootVector<GC::Ref<CSSNumericValue>> const& values, Operation&& operation)
+static GC::Ref<CSSNumericValue> apply_math_operation_on_css_unit_values(JS::Realm& realm, ReadonlySpan<GC::Ref<CSSNumericValue>> values, Operation&& operation)
 {
     auto& first_unit_value = as<CSSUnitValue>(*values[0]);
     auto& unit = first_unit_value.unit();
@@ -86,7 +86,7 @@ static GC::Ref<CSSNumericValue> apply_math_operation_on_css_unit_values(JS::Real
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-add
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(Vector<CSSNumberish> const& initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(ReadonlySpan<CSSNumberish> initial_values)
 {
     auto& realm = this->realm();
 
@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(Vector<CSSNum
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-sub
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::sub(Vector<CSSNumberish> const& initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::sub(ReadonlySpan<CSSNumberish> initial_values)
 {
     auto& realm = this->realm();
 
@@ -136,19 +136,19 @@ CSSNumberish CSSNumericValue::negate()
 {
     // 1. If this is a CSSMathNegate object, return this’s value internal slot.
     if (auto* negate = as_if<CSSMathNegate>(*this))
-        return GC::Root<CSSNumericValue> { negate->value().ptr() };
+        return GC::Ref<CSSNumericValue> { negate->value() };
 
     // 2. If this is a CSSUnitValue object, return a new CSSUnitValue with the same unit internal slot as this, and a
     //    value internal slot set to the negation of this’s.
     if (auto* unit_value = as_if<CSSUnitValue>(*this))
-        return GC::Root<CSSNumericValue> { CSSUnitValue::create(realm(), -unit_value->value(), unit_value->unit()).ptr() };
+        return GC::Ref<CSSNumericValue> { CSSUnitValue::create(realm(), -unit_value->value(), unit_value->unit()) };
 
     // 3. Otherwise, return a new CSSMathNegate object whose value internal slot is set to this.
-    return GC::Root<CSSNumericValue> { CSSMathNegate::construct_impl(realm(), GC::Root<CSSNumericValue> { this }).ptr() };
+    return GC::Ref<CSSNumericValue> { CSSMathNegate::construct_impl(realm(), GC::Ref<CSSNumericValue> { *this }) };
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-mul
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(Vector<CSSNumberish> const& initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(ReadonlySpan<CSSNumberish> initial_values)
 {
     auto& realm = this->realm();
     // 1. Replace each item of values with the result of rectifying a numberish value for the item.
@@ -209,7 +209,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(Vector<CSSNum
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-div
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::div(Vector<CSSNumberish> const& initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::div(ReadonlySpan<CSSNumberish> initial_values)
 {
     auto& realm = this->realm();
 
@@ -227,7 +227,7 @@ WebIDL::ExceptionOr<CSSNumberish> CSSNumericValue::invert()
 {
     // 1. If this is a CSSMathInvert object, return this’s value internal slot.
     if (auto* invert = as_if<CSSMathInvert>(*this))
-        return GC::Root<CSSNumericValue> { invert->value().ptr() };
+        return CSSNumberish { GC::Ref<CSSNumericValue> { invert->value() } };
 
     // 2. If this is a CSSUnitValue object with unit internal slot set to "number":
     if (auto* unit_value = as_if<CSSUnitValue>(*this); unit_value && unit_value->unit() == "number"sv) {
@@ -237,15 +237,15 @@ WebIDL::ExceptionOr<CSSNumberish> CSSNumericValue::invert()
 
         // 2. Else return a new CSSUnitValue with the unit internal slot set to "number", and a value internal slot set
         //    to 1 divided by this’s {CSSUnitValue/value}} internal slot.
-        return GC::Root<CSSNumericValue> { CSSUnitValue::create(realm(), 1.0 / unit_value->value(), "number"_fly_string).ptr() };
+        return CSSNumberish { GC::Ref<CSSNumericValue> { CSSUnitValue::create(realm(), 1.0 / unit_value->value(), "number"_fly_string) } };
     }
 
     // 3. Otherwise, return a new CSSMathInvert object whose value internal slot is set to this.
-    return GC::Root<CSSNumericValue> { CSSMathInvert::construct_impl(realm(), GC::Root<CSSNumericValue> { this }).ptr() };
+    return CSSNumberish { GC::Ref<CSSNumericValue> { CSSMathInvert::construct_impl(realm(), GC::Ref<CSSNumericValue> { *this }) } };
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-min
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(Vector<CSSNumberish> const& initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(ReadonlySpan<CSSNumberish> initial_values)
 {
     auto& realm = this->realm();
 
@@ -275,7 +275,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(Vector<CSSNum
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-max
-WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(Vector<CSSNumberish> const& initial_values)
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(ReadonlySpan<CSSNumberish> initial_values)
 {
     auto& realm = this->realm();
 
@@ -305,7 +305,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(Vector<CSSNum
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-equals
-bool CSSNumericValue::equals_for_bindings(Vector<CSSNumberish> values) const
+bool CSSNumericValue::equals_for_bindings(ReadonlySpan<CSSNumberish> values) const
 {
     // The equals(...values) method, when called on a CSSNumericValue this, must perform the following steps:
 
@@ -432,8 +432,8 @@ GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm& realm, CSSNumberis
     // To rectify a numberish value num, optionally to a given unit unit (defaulting to "number"), perform the following steps:
     return numberish.visit(
         // 1. If num is a CSSNumericValue, return num.
-        [](GC::Root<CSSNumericValue> const& num) -> GC::Ref<CSSNumericValue> {
-            return GC::Ref { *num };
+        [](GC::Ref<CSSNumericValue> num) -> GC::Ref<CSSNumericValue> {
+            return num;
         },
         // 2. If num is a double, return a new CSSUnitValue with its value internal slot set to num and its unit
         //    internal slot set to unit.

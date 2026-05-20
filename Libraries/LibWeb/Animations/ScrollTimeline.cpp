@@ -36,7 +36,7 @@ GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, Binding
         // If the source member of options is present,
         // The source member of options.
         if (options.source.has_value())
-            return options.source.value().ptr();
+            return options.source.value();
 
         // Otherwise,
         // The scrollingElement of the Document associated with the Window that is the current global object.

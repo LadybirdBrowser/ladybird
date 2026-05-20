@@ -17,8 +17,8 @@
 
 namespace Web::FileAPI {
 
-using BlobPart = Variant<GC::Root<WebIDL::BufferSource>, GC::Root<Blob>, String>;
-using BlobParts = Vector<BlobPart>;
+using BlobPart = Variant<GC::Ref<WebIDL::BufferSource>, GC::Ref<Blob>, String>;
+using BlobParts = GC::ConservativeVector<BlobPart>;
 using BlobPartsOrByteBuffer = Variant<BlobParts, ByteBuffer>;
 
 [[nodiscard]] ErrorOr<String> convert_line_endings_to_native(StringView string);

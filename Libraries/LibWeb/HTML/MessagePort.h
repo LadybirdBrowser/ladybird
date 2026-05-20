@@ -45,7 +45,7 @@ public:
     GC::Ptr<MessagePort const> entangled_port() const { return m_remote_port; }
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options);

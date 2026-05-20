@@ -76,8 +76,8 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(
         JS::Realm&,
-        GC::Root<DOM::Element> const& target,
-        Optional<GC::Root<JS::Object>> const& keyframes,
+        GC::Ptr<DOM::Element> target,
+        GC::Ptr<JS::Object> keyframes,
         Variant<double, Bindings::KeyframeEffectOptions> options = Bindings::KeyframeEffectOptions {});
 
     static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(JS::Realm&, GC::Ref<KeyframeEffect> source);
@@ -99,7 +99,7 @@ public:
     void set_composite(Bindings::CompositeOperation value);
 
     WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes();
-    WebIDL::ExceptionOr<void> set_keyframes(Optional<GC::Root<JS::Object>> const&);
+    WebIDL::ExceptionOr<void> set_keyframes(GC::Ptr<JS::Object>);
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }

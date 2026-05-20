@@ -20,7 +20,7 @@ namespace Web::FileAPI {
 
 BlobURLStore& blob_url_store()
 {
-    static HashMap<String, BlobURLEntry> store;
+    static GC::ConservativeHashMap<String, BlobURLEntry> store;
     return store;
 }
 

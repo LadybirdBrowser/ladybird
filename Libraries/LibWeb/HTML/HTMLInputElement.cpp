@@ -642,7 +642,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, Multi
         Bindings::FilePropertyBag options {};
         options.type = mime_type.essence();
 
-        auto file = MUST(FileAPI::File::create(realm(), { GC::make_root(blob) }, file_name, move(options)));
+        auto file = MUST(FileAPI::File::create(realm(), { { blob } }, file_name, move(options)));
         files->add_file(file);
     }
 
@@ -2958,22 +2958,22 @@ JS::Object* HTMLInputElement::value_as_date() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-valueasdate
-WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(Optional<GC::Root<JS::Object>> const& value)
+WebIDL::ExceptionOr<void> HTMLInputElement::set_value_as_date(GC::Ptr<JS::Object> value)
 {
     // On setting, if the valueAsDate attribute does not apply, as defined for the input element's type attribute's current state, then throw an "InvalidStateError" DOMException;
     if (!value_as_date_applies())
         return WebIDL::InvalidStateError::create(realm(), "valueAsDate: Invalid input type used"_utf16);
 
     // otherwise, if the new value is not null and not a Date object throw a TypeError exception;
-    if (value.has_value() && !is<JS::Date>(**value))
+    if (value && !is<JS::Date>(*value))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "valueAsDate: input is not a Date"sv };
 
     // otherwise if the new value is null or a Date object representing the NaN time value, then set the value of the element to the empty string;
-    if (!value.has_value()) {
+    if (!value) {
         TRY(set_value({}));
         return {};
     }
-    auto& date = static_cast<JS::Date&>(**value);
+    auto& date = static_cast<JS::Date&>(*value);
     if (!isfinite(date.date_value())) {
         TRY(set_value({}));
         return {};

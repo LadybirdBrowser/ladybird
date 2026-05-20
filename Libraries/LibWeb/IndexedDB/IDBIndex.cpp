@@ -112,7 +112,7 @@ JS::Value IDBIndex::key_path() const
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-opencursor
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(JS::Value query, Bindings::IDBCursorDirection direction)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_cursor(Optional<JS::Value> query, Bindings::IDBCursorDirection direction)
 {
     auto& realm = this->realm();
 
@@ -222,7 +222,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all(Optional<JS::Value> q
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this,
     //    "value", queryOrOptions, and count if given. Rethrow any exceptions.
-    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Value, *query_or_options, count);
+    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Value, query_or_options.value_or(JS::js_undefined()), count);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-getallkeys
@@ -230,11 +230,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::get_all_keys(Optional<JS::Val
 {
     // 1. Return the result of creating a request to retrieve multiple items with the current Realm record, this, "key",
     //    queryOrOptions, and count if given. Rethrow any exceptions.
-    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Key, *query_or_options, count);
+    return create_a_request_to_retrieve_multiple_items(realm(), GC::Ref(*this), RecordKind::Key, query_or_options.value_or(JS::js_undefined()), count);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-count
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::count(JS::Value query)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::count(Optional<JS::Value> query)
 {
     auto& realm = this->realm();
 
@@ -267,7 +267,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::count(JS::Value query)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbindex-openkeycursor
-WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(JS::Value query, Bindings::IDBCursorDirection direction)
+WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBIndex::open_key_cursor(Optional<JS::Value> query, Bindings::IDBCursorDirection direction)
 {
     auto& realm = this->realm();
 

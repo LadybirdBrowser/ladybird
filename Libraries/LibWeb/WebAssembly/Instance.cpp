@@ -22,10 +22,8 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Instance);
 
-WebIDL::ExceptionOr<GC::Ref<Instance>> Instance::construct_impl(JS::Realm& realm, Module& module, Optional<GC::Root<JS::Object>>& import_object_handle)
+WebIDL::ExceptionOr<GC::Ref<Instance>> Instance::construct_impl(JS::Realm& realm, Module& module, GC::Ptr<JS::Object> import_object)
 {
-    GC::Ptr<JS::Object> import_object = import_object_handle.has_value() ? import_object_handle.value().ptr() : nullptr;
-
     auto& vm = realm.vm();
 
     auto module_instance = TRY(Detail::instantiate_module(vm, module.compiled_module()->module, import_object));

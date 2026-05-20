@@ -24,7 +24,7 @@ static WebIDL::ExceptionOr<CSSPerspectiveValueInternal> to_internal(JS::Realm& r
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssperspective-cssperspective
     return value.visit(
         // 1. If length is a CSSNumericValue:
-        [](GC::Root<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<CSSPerspectiveValueInternal> {
+        [](GC::Ref<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<CSSPerspectiveValueInternal> {
             // 1. If length does not match <length>, throw a TypeError.
             if (!numeric_value->type().matches_length({})) {
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "CSSPerspective length component doesn't match <length>"sv };
@@ -135,13 +135,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSPerspective::to_matrix() co
 
 CSSPerspectiveValue CSSPerspective::length() const
 {
-    return m_length.visit(
-        [](GC::Ref<CSSNumericValue> const& numeric_value) -> CSSPerspectiveValue {
-            return GC::Root { numeric_value };
-        },
-        [](GC::Ref<CSSKeywordValue> const& keyword_value) -> CSSPerspectiveValue {
-            return CSSKeywordish { keyword_value };
-        });
+    return m_length;
 }
 
 WebIDL::ExceptionOr<void> CSSPerspective::set_length(CSSPerspectiveValue value)

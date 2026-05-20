@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/Set.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/FontFaceSet.h>
+#include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
@@ -375,7 +376,7 @@ void FontFaceSet::fire_a_font_load_event(FlyString name, Vector<GC::Ref<FontFace
     // event named e using the FontFaceSetLoadEvent interface that also meets these conditions:
     // 1. The fontfaces attribute is initialized to the result of filtering font faces to only contain FontFace
     //    objects contained in target.
-    Bindings::FontFaceSetLoadEventInit load_event_init {};
+    Bindings::FontFaceSetLoadEventInit load_event_init;
     for (auto const& font_face : font_faces) {
         if (set_entries()->set_has(font_face))
             load_event_init.fontfaces.append(font_face);

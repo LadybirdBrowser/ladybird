@@ -124,8 +124,8 @@ GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(JS::Realm& realm, CSSKeyword
     // To rectify a keywordish value val, perform the following steps:
     return keywordish.visit(
         // 1. If val is a CSSKeywordValue, return val.
-        [](GC::Root<CSSKeywordValue> const& value) -> GC::Ref<CSSKeywordValue> {
-            return *value;
+        [](GC::Ref<CSSKeywordValue> const& value) -> GC::Ref<CSSKeywordValue> {
+            return value;
         },
 
         // 2. If val is a DOMString, return a new CSSKeywordValue with its value internal slot set to val.

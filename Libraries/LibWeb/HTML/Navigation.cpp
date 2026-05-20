@@ -146,9 +146,7 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(Bindings::NavigationU
 
     // 5. Fire an event named currententrychange at this using NavigationCurrentEntryChangeEvent,
     //    with its navigationType attribute initialized to null and its from initialized to current.
-    Bindings::NavigationCurrentEntryChangeEventInit event_init = {};
-    event_init.navigation_type = {};
-    event_init.from = current;
+    Bindings::NavigationCurrentEntryChangeEventInit event_init { Bindings::EventInit {}, *current, {} };
     dispatch_event(HTML::NavigationCurrentEntryChangeEvent::construct_impl(realm(), HTML::EventNames::currententrychange, event_init));
 
     return {};
@@ -314,7 +312,7 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::reload(Bindings::Nav
     // NOTE: It is important to perform this step early, since serialization can invoke web developer code, which in
     //       turn might change various things we check in later steps.
     if (options.state.has_value()) {
-        auto serialized_state_or_error = structured_serialize_for_storage(vm, options.state.value());
+        auto serialized_state_or_error = structured_serialize_for_storage(vm, *options.state);
         if (serialized_state_or_error.is_error())
             return early_error_result(serialized_state_or_error.release_error());
         serialized_state = serialized_state_or_error.release_value();
@@ -989,9 +987,13 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     // 8. Let document be navigation's relevant global object's associated Document.
     auto& document = relevant_global_object.associated_document();
 
+    // 19. Set event's abort controller to a new AbortController created in navigation's relevant realm.
+    // AD-HOC: Set on the NavigateEvent later after construction
+    auto abort_controller = MUST(DOM::AbortController::construct_impl(realm));
+
     // Note: We create the Event in this algorithm instead of passing it in,
     //       and have all the following "initialize" steps set up the event init
-    Bindings::NavigateEventInit event_init = {};
+    Bindings::NavigateEventInit event_init { Bindings::EventInit {}, false, destination, {}, {}, false, false, {}, Bindings::NavigationType::Push, abort_controller->signal(), {}, false };
 
     // 9.  If document can have its URL rewritten to destination's URL,
     //     and either destination's is same document is true or navigationType is not "traverse",
@@ -1041,12 +1043,8 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     // 18. Initialize event's sourceElement to sourceElement.
     event_init.source_element = source_element;
 
-    // 19. Set event's abort controller to a new AbortController created in navigation's relevant realm.
-    // AD-HOC: Set on the NavigateEvent later after construction
-    auto abort_controller = MUST(DOM::AbortController::construct_impl(realm));
-
     // 20. Initialize event's signal to event's abort controller's signal.
-    event_init.signal = abort_controller->signal();
+    // AD-HOC: Done when event_init is created.
 
     // 21. Let currentURL be document's URL.
     auto current_url = document.url();
@@ -1543,9 +1541,7 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
 
     // 10. Fire an event named currententrychange at navigation using NavigationCurrentEntryChangeEvent,
     //     with its navigationType attribute initialized to navigationType and its from initialized to oldCurrentNHE.
-    Bindings::NavigationCurrentEntryChangeEventInit event_init = {};
-    event_init.navigation_type = navigation_type;
-    event_init.from = old_current_nhe;
+    Bindings::NavigationCurrentEntryChangeEventInit event_init { Bindings::EventInit {}, *old_current_nhe, navigation_type };
     dispatch_event(NavigationCurrentEntryChangeEvent::construct_impl(realm, EventNames::currententrychange, event_init));
 
     // 11. For each disposedNHE of disposedNHEs:

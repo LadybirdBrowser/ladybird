@@ -355,8 +355,7 @@ bool AudioContext::start_rendering_audio_graph()
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource
 WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> AudioContext::create_media_element_source(GC::Ptr<HTML::HTMLMediaElement> media_element)
 {
-    Bindings::MediaElementAudioSourceOptions options;
-    options.media_element = media_element;
+    Bindings::MediaElementAudioSourceOptions options { .media_element = *media_element };
     return MediaElementAudioSourceNode::create(realm(), *this, options);
 }
 

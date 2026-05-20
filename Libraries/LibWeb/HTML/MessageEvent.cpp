@@ -32,13 +32,6 @@ WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(JS::Real
     return create(realm, event_name, event_init);
 }
 
-MessageEvent::MessageEventSourceInternal MessageEvent::to_message_event_source_internal(NullableMessageEventSource const& source)
-{
-    return source.visit(
-        [](Empty) -> MessageEventSourceInternal { return Empty {}; },
-        [](auto const& root) -> MessageEventSourceInternal { return GC::Ref { *root }; });
-}
-
 MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
     : MessageEvent(realm, event_name, event_init, String { event_init.origin })
 {
@@ -54,13 +47,12 @@ MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindin
     , m_data(event_init.data)
     , m_origin(move(origin))
     , m_last_event_id(event_init.last_event_id)
-    , m_source(to_message_event_source_internal(event_init.source))
+    , m_source(event_init.source)
 
 {
     m_ports.ensure_capacity(event_init.ports.size());
     for (auto const& port : event_init.ports) {
-        VERIFY(port);
-        m_ports.unchecked_append(static_cast<JS::Object&>(*port));
+        m_ports.unchecked_append(port);
     }
 }
 
@@ -101,9 +93,7 @@ String MessageEvent::origin() const
 
 NullableMessageEventSource MessageEvent::source() const
 {
-    return m_source.visit(
-        [](Empty) -> NullableMessageEventSource { return Empty {}; },
-        [](auto const& ref) -> NullableMessageEventSource { return GC::Root { *ref }; });
+    return m_source;
 }
 
 GC::Ref<JS::Object> MessageEvent::ports() const
@@ -120,7 +110,7 @@ GC::Ref<JS::Object> MessageEvent::ports() const
 }
 
 // https://html.spec.whatwg.org/multipage/comms.html#dom-messageevent-initmessageevent
-void MessageEvent::init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, NullableMessageEventSource source, Vector<GC::Root<MessagePort>> const& ports)
+void MessageEvent::init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, NullableMessageEventSource source, GC::RootVector<GC::Ref<MessagePort>> const& ports)
 {
     // The initMessageEvent(type, bubbles, cancelable, data, origin, lastEventId, source, ports) method must initialize the event in a
     // manner analogous to the similarly-named initEvent() method.
@@ -136,13 +126,12 @@ void MessageEvent::init_message_event(String const& type, bool bubbles, bool can
     m_data = data;
     m_origin = origin;
     m_last_event_id = last_event_id;
-    m_source = to_message_event_source_internal(source);
+    m_source = source;
 
     m_ports_array = nullptr;
     m_ports.clear();
     m_ports.ensure_capacity(ports.size());
     for (auto const& port : ports) {
-        VERIFY(port);
         m_ports.unchecked_append(static_cast<JS::Object&>(*port));
     }
 }

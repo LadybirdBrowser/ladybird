@@ -19,26 +19,12 @@ namespace Web::Fetch::Infrastructure {
 
 GC_DEFINE_ALLOCATOR(Body);
 
-static Body::SourceTypeInternal to_source_type_internal(Body::SourceType&& source_type)
-{
-    return source_type.visit(
-        [](Empty) -> Body::SourceTypeInternal { return Empty {}; },
-        [](ByteBuffer& buffer) -> Body::SourceTypeInternal { return move(buffer); },
-        [](Core::ImmutableBytes& bytes) -> Body::SourceTypeInternal { return move(bytes); },
-        [](GC::Root<FileAPI::Blob> const& blob) -> Body::SourceTypeInternal { return GC::Ref { *blob }; });
-}
-
 GC::Ref<Body> Body::create(JS::VM& vm, GC::Ref<Streams::ReadableStream> stream)
 {
     return vm.heap().allocate<Body>(stream);
 }
 
 GC::Ref<Body> Body::create(JS::VM& vm, GC::Ref<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
-{
-    return create(vm, stream, to_source_type_internal(move(source)), length);
-}
-
-GC::Ref<Body> Body::create(JS::VM& vm, GC::Ref<Streams::ReadableStream> stream, SourceTypeInternal source, Optional<u64> length)
 {
     return vm.heap().allocate<Body>(stream, source, length);
 }
@@ -48,7 +34,7 @@ Body::Body(GC::Ref<Streams::ReadableStream> stream)
 {
 }
 
-Body::Body(GC::Ref<Streams::ReadableStream> stream, SourceTypeInternal source, Optional<u64> length)
+Body::Body(GC::Ref<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
     : m_stream(stream)
     , m_source(move(source))
     , m_length(move(length))

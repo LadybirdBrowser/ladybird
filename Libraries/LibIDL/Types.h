@@ -30,16 +30,6 @@ static size_t get_function_shortest_length(FunctionType& function)
     return length;
 }
 
-enum class SequenceStorageType {
-    Vector,     // Used to safely store non-JS values
-    RootVector, // Used to safely store JS::Value and anything that inherits JS::Cell, e.g. JS::Object
-};
-
-struct CppType {
-    ByteString name;
-    SequenceStorageType sequence_storage_type;
-};
-
 class Context;
 class ParameterizedType;
 class UnionType;

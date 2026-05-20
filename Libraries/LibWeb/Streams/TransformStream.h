@@ -25,7 +25,7 @@ class TransformStream final
 public:
     virtual ~TransformStream() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> construct_impl(JS::Realm&, Optional<GC::Root<JS::Object>> transformer_object = {}, Bindings::QueuingStrategy const& writable_strategy = {}, Bindings::QueuingStrategy const& readable_strategy = {});
+    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> construct_impl(JS::Realm&, GC::Ptr<JS::Object> transformer_object = {}, Bindings::QueuingStrategy const& writable_strategy = {}, Bindings::QueuingStrategy const& readable_strategy = {});
 
     // https://streams.spec.whatwg.org/#ts-readable
     GC::Ref<ReadableStream> readable() { return *m_readable; }

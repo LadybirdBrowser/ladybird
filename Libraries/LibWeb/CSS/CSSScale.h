@@ -26,9 +26,9 @@ public:
 
     virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
 
-    CSSNumberish x() const { return GC::Root { m_x }; }
-    CSSNumberish y() const { return GC::Root { m_y }; }
-    CSSNumberish z() const { return GC::Root { m_z }; }
+    CSSNumberish x() const { return m_x; }
+    CSSNumberish y() const { return m_y; }
+    CSSNumberish z() const { return m_z; }
     WebIDL::ExceptionOr<void> set_x(CSSNumberish value);
     WebIDL::ExceptionOr<void> set_y(CSSNumberish value);
     WebIDL::ExceptionOr<void> set_z(CSSNumberish value);

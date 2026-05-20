@@ -22,7 +22,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasimagesource
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
-using CanvasImageSource = Variant<GC::Root<HTMLImageElement>, GC::Root<SVG::SVGImageElement>, GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>, GC::Root<HTMLVideoElement>>;
+using CanvasImageSource = Variant<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>, GC::Ref<HTMLCanvasElement>, GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>, GC::Ref<HTMLVideoElement>>;
 
 Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const&);
 Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource const&);

@@ -41,7 +41,7 @@ double PointerEvent::offset_y() const { return should_have_fractional_coordinate
 
 WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
 {
-    Bindings::PointerEventInit event_init {};
+    Bindings::PointerEventInit event_init;
     event_init.ctrl_key = modifiers & Mod_Ctrl;
     event_init.shift_key = modifiers & Mod_Shift;
     event_init.alt_key = modifiers & Mod_Alt;
@@ -109,7 +109,7 @@ void PointerEvent::visit_edges(Cell::Visitor& visitor)
 
 GC::Ref<MouseEvent> PointerEvent::clone() const
 {
-    Bindings::PointerEventInit init {};
+    Bindings::PointerEventInit init;
     init.screen_x = screen_x();
     init.screen_y = screen_y();
     init.client_x = client_x();

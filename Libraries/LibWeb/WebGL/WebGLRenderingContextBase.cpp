@@ -296,7 +296,7 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
 
     // FIXME: Respect unpackColorSpace
     auto export_flags = 0;
-    if (m_unpack_flip_y && !source.has<GC::Root<HTML::ImageBitmap>>())
+    if (m_unpack_flip_y && !source.has<GC::Ref<HTML::ImageBitmap>>())
         // The first pixel transferred from the source to the WebGL implementation corresponds to the upper left corner of
         // the source. This behavior is modified by the UNPACK_FLIP_Y_WEBGL pixel storage parameter, except for ImageBitmap
         // arguments, as described in the abovementioned section.

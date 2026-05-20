@@ -206,32 +206,14 @@ OptionalMediaProvider HTMLMediaElement::src_object() const
 {
     // The srcObject IDL attribute, on getting, must return the element's assigned media provider
     // object, if any, or null otherwise.
-    return assigned_media_provider_object().visit(
-        [](Empty) -> OptionalMediaProvider {
-            return Empty();
-        },
-        [](GC::Ref<FileAPI::Blob> blob) -> OptionalMediaProvider {
-            return { GC::Root(blob) };
-        },
-        [](GC::Ref<MediaSourceExtensions::MediaSource> media_source) -> OptionalMediaProvider {
-            return { GC::Root(media_source) };
-        });
+    return assigned_media_provider_object();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-srcobject
 WebIDL::ExceptionOr<void> HTMLMediaElement::set_src_object(OptionalMediaProvider src_object)
 {
     // On setting, it must set the element's assigned media provider object to the new value,
-    set_assigned_media_provider_object(src_object.visit(
-        [](Empty) -> MediaProviderObject {
-            return Empty();
-        },
-        [](GC::Root<FileAPI::Blob> const& blob) -> MediaProviderObject {
-            return GC::Ref(*blob);
-        },
-        [](GC::Root<MediaSourceExtensions::MediaSource> const& media_source) -> MediaProviderObject {
-            return GC::Ref(*media_source);
-        }));
+    set_assigned_media_provider_object(src_object);
 
     // and then invoke the element's media element load algorithm.
     return load_element();
@@ -689,7 +671,7 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
     //    text track's TextTrack object.
     queue_a_media_element_task([this, text_track] {
         Bindings::TrackEventInit event_init {};
-        event_init.track = GC::Root { text_track };
+        event_init.track = text_track;
 
         auto event = TrackEvent::create(this->realm(), HTML::EventNames::addtrack, move(event_init));
         m_text_tracks->dispatch_event(event);
@@ -1187,7 +1169,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
 
             // NB: The subsequent steps for local resources are contained in load_local_resource().
             auto const& blob_entry = FileAPI::resolve_a_blob_url(url_record).value();
-            load_local_resource(GC::Ref(*blob_entry.object.get<GC::Root<MediaSourceExtensions::MediaSource>>()), move(failure_callback));
+            load_local_resource(blob_entry.object.get<GC::Ref<MediaSourceExtensions::MediaSource>>(), move(failure_callback));
             return;
         }
     }
@@ -1672,7 +1654,7 @@ void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
 
     // 7. Fire an event named addtrack at this AudioTrackList object, using TrackEvent, with the track attribute initialized to the new AudioTrack object.
     Bindings::TrackEventInit event_init {};
-    event_init.track = GC::make_root(audio_track);
+    event_init.track = audio_track;
 
     auto event = TrackEvent::create(realm, EventNames::addtrack, move(event_init));
     m_audio_tracks->dispatch_event(event);
@@ -1715,7 +1697,7 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
 
     // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
     Bindings::TrackEventInit event_init {};
-    event_init.track = GC::make_root(video_track);
+    event_init.track = video_track;
 
     auto event = TrackEvent::create(realm, HTML::EventNames::addtrack, move(event_init));
     m_video_tracks->dispatch_event(event);

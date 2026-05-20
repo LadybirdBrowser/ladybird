@@ -13,9 +13,9 @@
 
 namespace Web::HTML {
 
-using HTMLOptionOrOptGroupElement = Variant<GC::Root<HTMLOptionElement>, GC::Root<HTMLOptGroupElement>>;
-using HTMLElementOrElementIndex = Variant<GC::Root<HTMLElement>, i32>;
-using NullableHTMLElementOrElementIndex = Variant<GC::Root<HTMLElement>, i32, Empty>;
+using HTMLOptionOrOptGroupElement = Variant<GC::Ref<HTMLOptionElement>, GC::Ref<HTMLOptGroupElement>>;
+using HTMLElementOrElementIndex = Variant<GC::Ref<HTMLElement>, i32>;
+using NullableHTMLElementOrElementIndex = Variant<GC::Ref<HTMLElement>, i32, Empty>;
 
 class HTMLOptionsCollection final : public DOM::HTMLCollection {
     WEB_PLATFORM_OBJECT(HTMLOptionsCollection, DOM::HTMLCollection);

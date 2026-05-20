@@ -22,7 +22,7 @@ class FontFace final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(FontFace);
 
 public:
-    using FontFaceSource = Variant<String, GC::Root<WebIDL::BufferSource>>;
+    using FontFaceSource = Variant<String, GC::Ref<WebIDL::BufferSource>>;
 
     [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
     [[nodiscard]] static GC::Ref<FontFace> create_css_connected(JS::Realm&, CSSFontFaceRule&);

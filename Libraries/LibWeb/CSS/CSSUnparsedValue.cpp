@@ -16,13 +16,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSUnparsedValue);
 
-GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, Vector<GCRootCSSUnparsedSegment> value)
+GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, ReadonlySpan<CSSUnparsedSegment> value)
 {
-    // NB: Convert our GC::Roots into GC::Refs.
+    // NB: Convert our Span into a Vector of Refs.
     Vector<CSSUnparsedSegment> converted_value;
     for (auto const& variant : value) {
         variant.visit(
-            [&](GC::Root<CSSVariableReferenceValue> const& it) { converted_value.append(GC::Ref { *it }); },
+            [&](GC::Ref<CSSVariableReferenceValue> it) { converted_value.append(it); },
             [&](String const& it) { converted_value.append(it); });
     }
 
@@ -30,14 +30,14 @@ GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, Vector<GCRo
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-cssunparsedvalue
-WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> CSSUnparsedValue::construct_impl(JS::Realm& realm, Vector<GCRootCSSUnparsedSegment> value)
+WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> CSSUnparsedValue::construct_impl(JS::Realm& realm, ReadonlySpan<CSSUnparsedSegment> value)
 {
     // AD-HOC: There is no spec for this, see https://github.com/w3c/css-houdini-drafts/issues/1146
 
     return CSSUnparsedValue::create(realm, move(value));
 }
 
-CSSUnparsedValue::CSSUnparsedValue(JS::Realm& realm, Vector<CSSUnparsedSegment> value)
+CSSUnparsedValue::CSSUnparsedValue(JS::Realm& realm, ReadonlySpan<CSSUnparsedSegment> value)
     : CSSStyleValue(realm)
     , m_tokens(move(value))
 {

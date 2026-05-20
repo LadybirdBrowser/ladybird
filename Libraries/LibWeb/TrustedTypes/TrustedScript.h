@@ -12,8 +12,8 @@
 
 namespace Web::TrustedTypes {
 
-using TrustedScriptOrString = Variant<GC::Root<TrustedScript>, Utf16String>;
-using NullableTrustedScriptOrString = Variant<GC::Root<TrustedScript>, Utf16String, Empty>;
+using TrustedScriptOrString = Variant<GC::Ref<TrustedScript>, Utf16String>;
+using NullableTrustedScriptOrString = Variant<GC::Ref<TrustedScript>, Utf16String, Empty>;
 
 class TrustedScript final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TrustedScript, Bindings::PlatformObject);

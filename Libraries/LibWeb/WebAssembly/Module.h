@@ -41,7 +41,7 @@ class Module : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Module);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Module>> construct_impl(JS::Realm&, GC::Root<WebIDL::BufferSource>& bytes);
+    static WebIDL::ExceptionOr<GC::Ref<Module>> construct_impl(JS::Realm&, GC::Ref<WebIDL::BufferSource> bytes);
     static WebIDL::ExceptionOr<Vector<ModuleImportDescriptor>> imports(JS::VM&, GC::Ref<Module>);
     static WebIDL::ExceptionOr<Vector<ModuleExportDescriptor>> exports(JS::VM&, GC::Ref<Module>);
     static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> custom_sections(JS::VM&, GC::Ref<Module>, String section_name);

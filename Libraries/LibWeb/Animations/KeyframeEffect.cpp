@@ -664,8 +664,8 @@ GC::Ref<KeyframeEffect> KeyframeEffect::create(JS::Realm& realm)
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-keyframeeffect
 WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     JS::Realm& realm,
-    GC::Root<DOM::Element> const& target,
-    Optional<GC::Root<JS::Object>> const& keyframes,
+    GC::Ptr<DOM::Element> target,
+    GC::Ptr<JS::Object> keyframes,
     Variant<double, Bindings::KeyframeEffectOptions> options)
 {
     // 1. Create a new KeyframeEffect object, effect.
@@ -711,7 +711,7 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     //       returned as a CSSNumericValue when resolving the duration in getComputedTiming(). Future versions of
     //       the spec may enable setting the duration as a CSSNumeric value, where the unit is a valid time unit or
     //       percent.
-    if (timing_input.duration.has<GC::Root<CSS::CSSNumericValue>>())
+    if (timing_input.duration.has<GC::Ref<CSS::CSSNumericValue>>())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Setting duration as a CSSNumericValue is not supported"sv };
 
     // 5. Call the procedure to update the timing properties of an animation effect of effect from timing input.
@@ -894,10 +894,10 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-setkeyframes
-WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Object>> const& keyframe_object)
+WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(GC::Ptr<JS::Object> keyframe_object)
 {
     m_keyframe_objects.clear();
-    m_keyframes = TRY(process_a_keyframes_argument(realm(), keyframe_object.has_value() ? GC::Ptr { keyframe_object->ptr() } : GC::Ptr<Object> {}));
+    m_keyframes = TRY(process_a_keyframes_argument(realm(), keyframe_object));
     // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
     //        keyframes using the procedure outlined in the second half of
     //        https://www.w3.org/TR/web-animations-1/#calculating-computed-keyframes. For now, just compute the
