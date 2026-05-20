@@ -13,6 +13,7 @@ set(SOURCES
     Font/Font.cpp
     Font/FontDatabase.cpp
     Font/FontSupport.cpp
+    Font/FontVariationSettings.cpp
     Font/PathFontProvider.cpp
     Font/Typeface.cpp
     Font/TypefaceSkia.cpp

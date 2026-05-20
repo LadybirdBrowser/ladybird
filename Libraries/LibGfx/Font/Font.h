@@ -75,6 +75,7 @@ public:
 
     Font const& bold_variant() const;
     hb_font_t* harfbuzz_font() const;
+    FontVariationSettings const& variation_settings() const { return m_font_variation_settings; }
     ShapeFeatures const& features() const { return m_shape_features; }
 
     struct ShapingCache {
