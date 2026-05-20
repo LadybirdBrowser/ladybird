@@ -194,13 +194,13 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
 
     auto matrix = Gfx::FloatMatrix4x4::identity();
     if (auto const& translate = computed_values.translate())
-        matrix = matrix * translate->to_matrix(paintable_box).release_value();
+        matrix = matrix * translate->to_matrix(paintable_box);
     if (auto const& rotate = computed_values.rotate())
-        matrix = matrix * rotate->to_matrix(paintable_box).release_value();
+        matrix = matrix * rotate->to_matrix(paintable_box);
     if (auto const& scale = computed_values.scale())
-        matrix = matrix * scale->to_matrix(paintable_box).release_value();
+        matrix = matrix * scale->to_matrix(paintable_box);
     for (auto const& transform : computed_values.transformations())
-        matrix = matrix * transform->to_matrix(paintable_box).release_value();
+        matrix = matrix * transform->to_matrix(paintable_box);
     auto const& css_transform_origin = computed_values.transform_origin();
     auto reference_box = paintable_box.transform_reference_box();
     CSSPixelPoint origin {
@@ -235,7 +235,7 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox con
     //    length is provided by the value of the perspective property
     // NB: Length values less than 1px being clamped to 1px is handled by the perspective() function already.
     // FIXME: Create the matrix directly.
-    perspective_matrix = perspective_matrix * CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Perspective, CSS::StyleValueVector { CSS::LengthStyleValue::create(CSS::Length::make_px(perspective.value())) })->to_matrix({}).release_value();
+    perspective_matrix = perspective_matrix * CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Perspective, CSS::StyleValueVector { CSS::LengthStyleValue::create(CSS::Length::make_px(perspective.value())) })->to_matrix({});
 
     // 4. Translate by the negated computed X and Y values of 'perspective-origin'
     perspective_matrix = perspective_matrix * Gfx::translation_matrix(Vector3<float>(-computed_x, -computed_y, 0));

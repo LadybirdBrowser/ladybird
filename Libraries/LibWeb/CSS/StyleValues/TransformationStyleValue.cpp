@@ -133,93 +133,27 @@ bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box(
     return true;
 }
 
-ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::PaintableBox const&> paintable_box) const
+FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::PaintableBox const&> paintable_box) const
 {
     auto count = m_properties.values.size();
     auto function_metadata = transform_function_metadata(m_properties.transform_function);
 
-    auto length_to_px = [&](Length const& length) -> ErrorOr<float> {
-        if (paintable_box.has_value())
-            return length.to_px(paintable_box->layout_node()).to_float();
-        if (length.is_absolute())
-            return length.absolute_length_to_px().to_float();
-        return Error::from_string_literal("Transform contains non absolute units");
-    };
+    auto get_value = [&](size_t argument_index, Optional<CSSPixels> reference_length = {}) -> float {
+        auto const& transformation_value = *m_properties.values[argument_index];
 
-    auto get_value = [&](size_t argument_index, Optional<CSSPixels> reference_length = {}) -> ErrorOr<float> {
-        auto& transformation_value = *m_properties.values[argument_index];
-        CalculationResolutionContext context;
-        if (reference_length.has_value())
-            context.percentage_basis = Length::make_px(reference_length.value());
-
-        if (transformation_value.is_calculated()) {
-            auto& calculated = transformation_value.as_calculated();
-            switch (function_metadata.parameters[argument_index].type) {
-            case TransformFunctionParameterType::Angle: {
-                if (!calculated.resolves_to_angle())
-                    return Error::from_string_literal("Calculated angle parameter to transform function doesn't resolve to an angle.");
-                if (auto resolved = calculated.resolve_angle(context); resolved.has_value())
-                    return resolved->to_radians();
-                return Error::from_string_literal("Couldn't resolve calculated angle.");
-            }
-            case TransformFunctionParameterType::Length:
-            case TransformFunctionParameterType::LengthNone: {
-                if (!calculated.resolves_to_length())
-                    return Error::from_string_literal("Calculated length parameter to transform function doesn't resolve to a length.");
-                if (auto resolved = calculated.resolve_length(context); resolved.has_value())
-                    return length_to_px(resolved.value());
-                return Error::from_string_literal("Couldn't resolve calculated length.");
-            }
-            case TransformFunctionParameterType::LengthPercentage: {
-                if (!calculated.resolves_to_length_percentage())
-                    return Error::from_string_literal("Calculated length-percentage parameter to transform function doesn't resolve to a length-percentage.");
-                if (auto resolved = calculated.resolve_length(context); resolved.has_value())
-                    return length_to_px(resolved.value());
-                return Error::from_string_literal("Couldn't resolve calculated length-percentage.");
-            }
-            case TransformFunctionParameterType::Number: {
-                if (!calculated.resolves_to_number())
-                    return Error::from_string_literal("Calculated number parameter to transform function doesn't resolve to a number.");
-                if (auto resolved = calculated.resolve_number(context); resolved.has_value())
-                    return resolved.release_value();
-                return Error::from_string_literal("Couldn't resolve calculated number.");
-            }
-            case TransformFunctionParameterType::NumberPercentage: {
-                if (calculated.resolves_to_number()) {
-                    if (auto resolved = calculated.resolve_number(context); resolved.has_value())
-                        return calculated.resolve_number(context).value();
-                    return Error::from_string_literal("Couldn't resolve calculated number.");
-                }
-                if (calculated.resolves_to_percentage()) {
-                    if (auto resolved = calculated.resolve_percentage(context); resolved.has_value())
-                        return calculated.resolve_percentage(context).value().as_fraction();
-                    return Error::from_string_literal("Couldn't resolve calculated percentage.");
-                }
-                return Error::from_string_literal("Calculated number/percentage parameter to transform function doesn't resolve to a number or percentage.");
-            }
-            }
+        switch (function_metadata.parameters[argument_index].type) {
+        case TransformFunctionParameterType::Angle:
+            return Angle::from_style_value(transformation_value, {}).to_radians();
+        case TransformFunctionParameterType::Length:
+        case TransformFunctionParameterType::LengthNone:
+        case TransformFunctionParameterType::LengthPercentage:
+            return Length::from_style_value(transformation_value, reference_length.map([](CSSPixels px) { return Length::make_px(px); })).absolute_length_to_px().to_float();
+        case TransformFunctionParameterType::Number:
+        case TransformFunctionParameterType::NumberPercentage:
+            return number_from_style_value(transformation_value, 1);
         }
 
-        if (transformation_value.is_length())
-            return length_to_px(transformation_value.as_length().length());
-
-        if (transformation_value.is_percentage()) {
-            if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::NumberPercentage) {
-                return transformation_value.as_percentage().percentage().as_fraction();
-            }
-            if (!reference_length.has_value())
-                return Error::from_string_literal("Can't resolve percentage to length without a reference value.");
-            return length_to_px(Length::make_px(reference_length.value()).percentage_of(transformation_value.as_percentage().percentage()));
-        }
-
-        if (transformation_value.is_number())
-            return transformation_value.as_number().number();
-
-        if (transformation_value.is_angle())
-            return transformation_value.as_angle().angle().to_radians();
-
-        dbgln("FIXME: Unsupported value in transform! {}", transformation_value.to_string(SerializationMode::Normal));
-        return Error::from_string_literal("Unsupported value in transform function");
+        VERIFY_NOT_REACHED();
     };
 
     Optional<CSSPixels> width;
@@ -238,7 +172,7 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
                 return FloatMatrix4x4::identity();
 
             // FIXME: Add support for the 'perspective-origin' CSS property.
-            auto distance = TRY(get_value(0));
+            auto distance = get_value(0);
             // If the depth value is less than '1px', it must be treated as '1px' for the purpose of rendering, for
             // computing the resolved value of 'transform', and when used as the endpoint of interpolation.
             // Note: The intent of the above rules on values less than '1px' is that they cover the cases where
@@ -253,39 +187,39 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
         break;
     case TransformFunction::Matrix:
         if (count == 6)
-            return FloatMatrix4x4(TRY(get_value(0)), TRY(get_value(2)), 0, TRY(get_value(4)),
-                TRY(get_value(1)), TRY(get_value(3)), 0, TRY(get_value(5)),
+            return FloatMatrix4x4(get_value(0), get_value(2), 0, get_value(4),
+                get_value(1), get_value(3), 0, get_value(5),
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         break;
     case TransformFunction::Matrix3d:
         if (count == 16)
-            return FloatMatrix4x4(TRY(get_value(0)), TRY(get_value(4)), TRY(get_value(8)), TRY(get_value(12)),
-                TRY(get_value(1)), TRY(get_value(5)), TRY(get_value(9)), TRY(get_value(13)),
-                TRY(get_value(2)), TRY(get_value(6)), TRY(get_value(10)), TRY(get_value(14)),
-                TRY(get_value(3)), TRY(get_value(7)), TRY(get_value(11)), TRY(get_value(15)));
+            return FloatMatrix4x4(get_value(0), get_value(4), get_value(8), get_value(12),
+                get_value(1), get_value(5), get_value(9), get_value(13),
+                get_value(2), get_value(6), get_value(10), get_value(14),
+                get_value(3), get_value(7), get_value(11), get_value(15));
         break;
     case TransformFunction::Translate:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, TRY(get_value(0, width)),
+            return FloatMatrix4x4(1, 0, 0, get_value(0, width),
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         if (count == 2)
-            return FloatMatrix4x4(1, 0, 0, TRY(get_value(0, width)),
-                0, 1, 0, TRY(get_value(1, height)),
+            return FloatMatrix4x4(1, 0, 0, get_value(0, width),
+                0, 1, 0, get_value(1, height),
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         break;
     case TransformFunction::Translate3d:
-        return FloatMatrix4x4(1, 0, 0, TRY(get_value(0, width)),
-            0, 1, 0, TRY(get_value(1, height)),
-            0, 0, 1, TRY(get_value(2)),
+        return FloatMatrix4x4(1, 0, 0, get_value(0, width),
+            0, 1, 0, get_value(1, height),
+            0, 0, 1, get_value(2),
             0, 0, 0, 1);
         break;
     case TransformFunction::TranslateX:
         if (count == 1)
-            return FloatMatrix4x4(1, 0, 0, TRY(get_value(0, width)),
+            return FloatMatrix4x4(1, 0, 0, get_value(0, width),
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
@@ -293,7 +227,7 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
     case TransformFunction::TranslateY:
         if (count == 1)
             return FloatMatrix4x4(1, 0, 0, 0,
-                0, 1, 0, TRY(get_value(0, height)),
+                0, 1, 0, get_value(0, height),
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         break;
@@ -301,31 +235,31 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
         if (count == 1)
             return FloatMatrix4x4(1, 0, 0, 0,
                 0, 1, 0, 0,
-                0, 0, 1, TRY(get_value(0)),
+                0, 0, 1, get_value(0),
                 0, 0, 0, 1);
         break;
     case TransformFunction::Scale:
         if (count == 1)
-            return FloatMatrix4x4(TRY(get_value(0)), 0, 0, 0,
-                0, TRY(get_value(0)), 0, 0,
+            return FloatMatrix4x4(get_value(0), 0, 0, 0,
+                0, get_value(0), 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         if (count == 2)
-            return FloatMatrix4x4(TRY(get_value(0)), 0, 0, 0,
-                0, TRY(get_value(1)), 0, 0,
+            return FloatMatrix4x4(get_value(0), 0, 0, 0,
+                0, get_value(1), 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         break;
     case TransformFunction::Scale3d:
         if (count == 3)
-            return FloatMatrix4x4(TRY(get_value(0)), 0, 0, 0,
-                0, TRY(get_value(1)), 0, 0,
-                0, 0, TRY(get_value(2)), 0,
+            return FloatMatrix4x4(get_value(0), 0, 0, 0,
+                0, get_value(1), 0, 0,
+                0, 0, get_value(2), 0,
                 0, 0, 0, 1);
         break;
     case TransformFunction::ScaleX:
         if (count == 1)
-            return FloatMatrix4x4(TRY(get_value(0)), 0, 0, 0,
+            return FloatMatrix4x4(get_value(0), 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
@@ -333,7 +267,7 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
     case TransformFunction::ScaleY:
         if (count == 1)
             return FloatMatrix4x4(1, 0, 0, 0,
-                0, TRY(get_value(0)), 0, 0,
+                0, get_value(0), 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         break;
@@ -341,46 +275,46 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
         if (count == 1)
             return FloatMatrix4x4(1, 0, 0, 0,
                 0, 1, 0, 0,
-                0, 0, TRY(get_value(0)), 0,
+                0, 0, get_value(0), 0,
                 0, 0, 0, 1);
         break;
     case TransformFunction::Rotate3d:
         if (count == 4) {
-            auto axis = FloatVector3 { TRY(get_value(0)), TRY(get_value(1)), TRY(get_value(2)) };
+            auto axis = FloatVector3 { get_value(0), get_value(1), get_value(2) };
             auto epsilon = 1e-5f;
             if (axis.length() < epsilon)
                 return FloatMatrix4x4::identity();
-            return Gfx::rotation_matrix(axis.normalized(), TRY(get_value(3)));
+            return Gfx::rotation_matrix(axis.normalized(), get_value(3));
         }
         break;
     case TransformFunction::RotateX:
         if (count == 1)
-            return Gfx::rotation_matrix({ 1.0f, 0.0f, 0.0f }, TRY(get_value(0)));
+            return Gfx::rotation_matrix({ 1.0f, 0.0f, 0.0f }, get_value(0));
         break;
     case TransformFunction::RotateY:
         if (count == 1)
-            return Gfx::rotation_matrix({ 0.0f, 1.0f, 0.0f }, TRY(get_value(0)));
+            return Gfx::rotation_matrix({ 0.0f, 1.0f, 0.0f }, get_value(0));
         break;
     case TransformFunction::Rotate:
     case TransformFunction::RotateZ:
         if (count == 1)
-            return Gfx::rotation_matrix({ 0.0f, 0.0f, 1.0f }, TRY(get_value(0)));
+            return Gfx::rotation_matrix({ 0.0f, 0.0f, 1.0f }, get_value(0));
         break;
     case TransformFunction::Skew:
         if (count == 1)
-            return FloatMatrix4x4(1, tanf(TRY(get_value(0))), 0, 0,
+            return FloatMatrix4x4(1, tanf(get_value(0)), 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         if (count == 2)
-            return FloatMatrix4x4(1, tanf(TRY(get_value(0))), 0, 0,
-                tanf(TRY(get_value(1))), 1, 0, 0,
+            return FloatMatrix4x4(1, tanf(get_value(0)), 0, 0,
+                tanf(get_value(1)), 1, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         break;
     case TransformFunction::SkewX:
         if (count == 1)
-            return FloatMatrix4x4(1, tanf(TRY(get_value(0))), 0, 0,
+            return FloatMatrix4x4(1, tanf(get_value(0)), 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
@@ -388,7 +322,7 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
     case TransformFunction::SkewY:
         if (count == 1)
             return FloatMatrix4x4(1, 0, 0, 0,
-                tanf(TRY(get_value(0))), 1, 0, 0,
+                tanf(get_value(0)), 1, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
         break;
@@ -590,7 +524,7 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
         if (!can_be_converted_to_matrix_without_reference_box())
             return nullptr;
 
-        auto transform_as_matrix = MUST(to_matrix({}));
+        auto transform_as_matrix = to_matrix({});
         auto matrix = Geometry::DOMMatrix::create(realm);
         matrix->set_m11(transform_as_matrix[0, 0]);
         matrix->set_m12(transform_as_matrix[1, 0]);
