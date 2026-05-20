@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #direct-host::part(control):focus {
+        --direct-focus: focus;
+    }
+
+    #direct-host::part(control):focus-visible {
+        --direct-focus-visible: focus-visible;
+    }
+
+    #direct-host::part(panel):focus-within {
+        --direct-focus-within: focus-within;
+    }
+
+    #outer-host::part(forwarded-control):focus {
+        --forwarded-focus: focus;
+    }
+
+    #outer-host::part(forwarded-control):focus-visible {
+        --forwarded-focus-visible: focus-visible;
+    }
+
+    #outer-host::part(forwarded-panel):focus-within {
+        --forwarded-focus-within: focus-within;
+    }
+</style>
+<script>
+    function property(element, name)
+    {
+        return getComputedStyle(element).getPropertyValue(name) || "none";
+    }
+
+    function logState(label, control, panel, prefix)
+    {
+        println(`${label}: focus=${property(control, `--${prefix}-focus`)}, focus-visible=${property(control, `--${prefix}-focus-visible`)}, focus-within=${property(panel, `--${prefix}-focus-within`)}`);
+    }
+
+    test(() => {
+        const directHost = document.createElement("div");
+        directHost.id = "direct-host";
+        document.body.appendChild(directHost);
+
+        const directShadowRoot = directHost.attachShadow({ mode: "open" });
+        directShadowRoot.innerHTML = `
+            <div id="direct-panel" part="panel">
+                <input id="direct-control" part="control">
+            </div>
+        `;
+
+        const directPanel = directShadowRoot.getElementById("direct-panel");
+        const directControl = directShadowRoot.getElementById("direct-control");
+
+        logState("direct before focus", directControl, directPanel, "direct");
+        directControl.focus();
+        logState("direct after focus", directControl, directPanel, "direct");
+        directControl.blur();
+        logState("direct after blur", directControl, directPanel, "direct");
+
+        const outerHost = document.createElement("div");
+        outerHost.id = "outer-host";
+        document.body.appendChild(outerHost);
+
+        const outerShadowRoot = outerHost.attachShadow({ mode: "open" });
+        outerShadowRoot.innerHTML = `
+            <x-inner exportparts="control: forwarded-control, panel: forwarded-panel"></x-inner>
+        `;
+
+        const innerHost = outerShadowRoot.querySelector("x-inner");
+        const innerShadowRoot = innerHost.attachShadow({ mode: "open" });
+        innerShadowRoot.innerHTML = `
+            <div id="forwarded-panel" part="panel">
+                <input id="forwarded-control" part="control">
+            </div>
+        `;
+
+        const forwardedPanel = innerShadowRoot.getElementById("forwarded-panel");
+        const forwardedControl = innerShadowRoot.getElementById("forwarded-control");
+
+        logState("forwarded before focus", forwardedControl, forwardedPanel, "forwarded");
+        forwardedControl.focus();
+        logState("forwarded after focus", forwardedControl, forwardedPanel, "forwarded");
+        forwardedControl.blur();
+        logState("forwarded after blur", forwardedControl, forwardedPanel, "forwarded");
+    });
+</script>

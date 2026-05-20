@@ -1,0 +1,6 @@
+direct before focus: focus=none, focus-visible=none, focus-within=none
+direct after focus: focus=focus, focus-visible=focus-visible, focus-within=focus-within
+direct after blur: focus=none, focus-visible=none, focus-within=none
+forwarded before focus: focus=none, focus-visible=none, focus-within=none
+forwarded after focus: focus=focus, focus-visible=focus-visible, focus-within=focus-within
+forwarded after blur: focus=none, focus-visible=none, focus-within=none
