@@ -24,6 +24,7 @@
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
+#include <LibWeb/Layout/TextInputBox.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 
@@ -123,6 +124,40 @@ static Optional<CSSPixels> max_content_size_for_replaced_element_without_natural
 
     // Otherwise, use 300px for the width and/or 150px for the height as needed.
     return is_width ? CSSPixels(300) : CSSPixels(150);
+}
+
+static bool is_text_control_input(HTML::HTMLInputElement const& input_element)
+{
+    switch (input_element.type_state()) {
+    case HTML::HTMLInputElement::TypeAttributeState::Text:
+    case HTML::HTMLInputElement::TypeAttributeState::Search:
+    case HTML::HTMLInputElement::TypeAttributeState::URL:
+    case HTML::HTMLInputElement::TypeAttributeState::Telephone:
+    case HTML::HTMLInputElement::TypeAttributeState::Email:
+    case HTML::HTMLInputElement::TypeAttributeState::Password:
+    case HTML::HTMLInputElement::TypeAttributeState::Number:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static Optional<CSS::SizeWithAspectRatio> appearance_none_text_input_auto_content_box_size(Box const& box)
+{
+    if (box.computed_values().appearance() != CSS::Appearance::None)
+        return {};
+
+    auto const* input_element = as_if<HTML::HTMLInputElement>(box.dom_node());
+    if (!input_element || !is_text_control_input(*input_element))
+        return {};
+
+    // https://drafts.csswg.org/css-ui/#appearance-switching
+    // "Widgets must not have their native appearance, and instead must have their primitive appearance."
+    //
+    // https://html.spec.whatwg.org/multipage/input.html#the-size-attribute
+    // "The size attribute gives the number of characters that, in a visual rendering, the user agent is to allow the
+    // user to see while editing the element's value."
+    return TextInputBox::auto_content_box_size_for_text_control(*input_element, box);
 }
 
 FormattingContext::FormattingContext(Type type, LayoutMode layout_mode, LayoutState& state, Box const& context_box, FormattingContext* parent)
@@ -2077,6 +2112,22 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
 CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box) const
 {
     auto auto_size = box.auto_content_box_size();
+    if (!auto_size.has_width()) {
+        // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+        // "If the box is non-replaced, then the entire value of any max size property or preferred size property
+        // ('width'/'max-width'/'height'/'max-height') specified as an expression containing a percentage [...] that is
+        // cyclic is treated for the purpose of calculating the box's intrinsic size contributions only as that
+        // property's initial value."
+        //
+        // This means an `appearance: none` text input with a cyclic `width: 100%` still contributes its `width: auto`
+        // size to max-content sizing. Do not use this for min-content sizing: CSS Sizing's "Compressible Replaced
+        // Elements" section considers non-button-like <input> controls replaced for the percentage-sized replaced
+        // element rule, so their cyclic-percentage min-content contribution can still compress toward zero.
+        if (auto appearance_none_text_input_auto_size = appearance_none_text_input_auto_content_box_size(box);
+            appearance_none_text_input_auto_size.has_value()) {
+            auto_size = appearance_none_text_input_auto_size.value();
+        }
+    }
     if (auto_size.has_width())
         return auto_size.width.value();
 
