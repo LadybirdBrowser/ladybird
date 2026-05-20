@@ -17,6 +17,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
+#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -81,5 +82,15 @@ private:
 
 ByteBuffer serialize_filter(Filter const&, Function<u64(Gfx::DecodedImageFrame const&)> const& encode_image);
 Filter deserialize_filter(ReadonlyBytes, Function<Gfx::DecodedImageFrame(u64)> const& decode_image);
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::Filter const&);
+
+template<>
+ErrorOr<Gfx::Filter> decode(Decoder&);
 
 }
