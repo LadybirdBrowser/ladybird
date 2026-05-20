@@ -31,6 +31,12 @@ class HeapHashTable;
 template<class T>
 class Root;
 
+template<class T>
+class Ref;
+
+template<class T>
+class Ptr;
+
 template<class T, size_t inline_capacity = 0>
 class ConservativeVector;
 
