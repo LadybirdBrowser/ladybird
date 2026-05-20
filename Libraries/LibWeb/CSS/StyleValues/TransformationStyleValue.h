@@ -32,7 +32,7 @@ public:
     ErrorOr<FloatMatrix4x4> to_matrix(Optional<Painting::PaintableBox const&>) const;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
-    ErrorOr<GC::Ref<CSSTransformComponent>> reify_a_transform_function(JS::Realm&) const;
+    GC::Ptr<CSSTransformComponent> reify_a_transform_function(JS::Realm&) const;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
