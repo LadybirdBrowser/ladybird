@@ -23,17 +23,18 @@ block0:
   [ 108] End value:reg7
 
 
-Derived$eee8d5da super-constructor-call.js:4:14
-  Registers: 7
+Derived$ec24e4ca super-constructor-call.js:4:14
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] Mov dst:reg6, src:arg0
-  [  10] NewArray dst:reg5, elements:[reg6]
-  [  28] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-  [  38] End value:Undefined
+  [   0] GetSuperConstructor dst:reg5
+  [   8] Mov dst:reg7, src:arg0
+  [  18] NewArray dst:reg6, elements:[reg7]
+  [  30] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [  48] End value:Undefined
 
 
 Base$a461b108

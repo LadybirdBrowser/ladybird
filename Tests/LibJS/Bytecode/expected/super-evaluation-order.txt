@@ -30,17 +30,18 @@ block0:
   [ 1a8] End value:reg7
 
 
-A$3d02c59c super-evaluation-order.js:1:1
-  Registers: 7
+A$3a3ed48c super-evaluation-order.js:1:1
+  Registers: 8
   Blocks:    1
 
 block0:
   [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
   [  10] CreateRestParams dst:arg0, rest_index:0
   [  20] InitializeLexicalBinding `args`, src:arg0
-  [  38] GetBinding dst:reg5, `args`
-  [  50] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
-  [  60] Return value:reg6
+  [  38] GetSuperConstructor dst:reg5
+  [  40] GetBinding dst:reg6, `args`
+  [  58] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
+  [  70] Return value:reg7
 
 
 read$5dc3ca35 super-evaluation-order.js:3:9

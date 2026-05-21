@@ -25,16 +25,17 @@ block0:
   [ 140] End value:reg7
 
 
-Derived$730ebf72 super-computed-eval-order.js:4:14
-  Registers: 7
+Derived$704ace62 super-computed-eval-order.js:4:14
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] NewArray dst:reg5
-  [  10] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-  [  20] End value:Undefined
+  [   0] GetSuperConstructor dst:reg5
+  [   8] NewArray dst:reg6
+  [  18] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [  30] End value:Undefined
 
 
 Base$a461b108

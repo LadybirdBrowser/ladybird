@@ -704,6 +704,7 @@ void VM::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(GetLengthWithThis);
             HANDLE_INSTRUCTION(GetMethod);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNewTarget);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetSuperConstructor);
             HANDLE_INSTRUCTION(GetObjectPropertyIterator);
             HANDLE_INSTRUCTION(GetPrivateById);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetTemplateObject);
@@ -2893,6 +2894,13 @@ void GetNewTarget::execute_impl(VM& vm) const
     vm.set(dst(), vm.get_new_target());
 }
 
+// 13.3.7.2 GetSuperConstructor ( ), https://tc39.es/ecma262/#sec-getsuperconstructor
+void GetSuperConstructor::execute_impl(VM& vm) const
+{
+    auto* super_constructor = get_super_constructor(vm);
+    vm.set(dst(), super_constructor ? Value(super_constructor) : js_null());
+}
+
 void GetImportMeta::execute_impl(VM& vm) const
 {
     vm.set(dst(), vm.get_import_meta());
@@ -3149,17 +3157,18 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(VM& vm) const
     // 2. Assert: Type(newTarget) is Object.
     VERIFY(new_target.is_object());
 
-    // 3. Let func be GetSuperConstructor().
-    auto* func = get_super_constructor(vm);
+    // 3. Let _superConstructor_ be GetSuperConstructor().
+    auto super_constructor = vm.get(m_super_constructor);
 
-    // NON-STANDARD: We're doing this step earlier to streamline control flow.
-    // 5. If IsConstructor(func) is false, throw a TypeError exception.
-    if (!Value(func).is_constructor()) [[unlikely]]
+    // 4. Let _argList_ be ? ArgumentListEvaluation of |Arguments|.
+    // NOTE: The bytecode generator performs this step before emitting this instruction.
+
+    // 5. If IsConstructor(_superConstructor_) is *false*, throw a *TypeError* exception.
+    if (!super_constructor.is_constructor()) [[unlikely]]
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, "Super constructor");
 
-    auto& function = static_cast<FunctionObject&>(*func);
+    auto& function = super_constructor.as_function();
 
-    // 4. Let argList be ? ArgumentListEvaluation of Arguments.
     auto& argument_array = vm.get(m_arguments).as_array_exotic_object();
     size_t argument_array_length = 0;
 

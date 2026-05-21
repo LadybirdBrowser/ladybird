@@ -132,6 +132,36 @@ test("super constructor call from child class with argument", () => {
     expect(c.x).toBe(10);
 });
 
+test("super constructor is resolved before argument evaluation", () => {
+    function Base() {}
+
+    class SwizzlesConstructorPrototype extends Base {
+        constructor() {
+            super(Object.setPrototypeOf(SwizzlesConstructorPrototype, null));
+        }
+    }
+
+    expect(() => {
+        new SwizzlesConstructorPrototype();
+    }).not.toThrow();
+
+    class ThrowsWhileSuperConstructorIsInvalid extends Base {
+        constructor() {
+            function thrower() {
+                throw new RangeError("argument evaluation");
+            }
+
+            super(thrower());
+        }
+    }
+
+    Object.setPrototypeOf(ThrowsWhileSuperConstructorIsInvalid, Math.sin);
+
+    expect(() => {
+        new ThrowsWhileSuperConstructorIsInvalid();
+    }).toThrowWithMessage(RangeError, "argument evaluation");
+});
+
 test("advanced 'extends' RHS", () => {
     const foo = {
         bar() {
