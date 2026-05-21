@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../css/style-invalidation/structural-matrix.js"></script>
 <style>
     x-class-host.red {
         color: rgb(255, 0, 0);
@@ -20,6 +21,10 @@
     x-explicit-inherit-host {
         margin-left: 11px;
     }
+
+    x-descendant-explicit-inherit-host {
+        margin-left: 11px;
+    }
 </style>
 
 <x-inline-host id="inline-host" style="color: rgb(255, 0, 0)"></x-inline-host>
@@ -28,6 +33,7 @@
     <x-relative-host id="relative-host"></x-relative-host>
 </div>
 <x-explicit-inherit-host id="explicit-inherit-host"></x-explicit-inherit-host>
+<x-descendant-explicit-inherit-host id="descendant-explicit-inherit-host"></x-descendant-explicit-inherit-host>
 
 <script>
     customElements.define("x-inline-host", class extends HTMLElement {
@@ -71,6 +77,20 @@
         }
     });
 
+    customElements.define("x-descendant-explicit-inherit-host", class extends HTMLElement {
+        constructor() {
+            super();
+            this.attachShadow({ mode: "open" }).innerHTML = `
+                <style>
+                    #grandchild {
+                        margin-left: inherit;
+                    }
+                </style>
+                <span id="child"><span id="grandchild">descendant explicit inherit</span></span>
+            `;
+        }
+    });
+
     test(() => {
         const inlineHost = document.getElementById("inline-host");
         const inlineChild = inlineHost.shadowRoot.getElementById("child");
@@ -108,8 +128,23 @@
 
         println(`explicit inherit initial child margin-left: ${getComputedStyle(explicitInheritChild).marginLeft}`);
 
+        document.body.offsetWidth;
+        resetStyleCounters();
         explicitInheritHost.style.marginLeft = "27px";
 
         println(`explicit inherit changed child margin-left: ${getComputedStyle(explicitInheritChild).marginLeft}`);
+        printPassWithCounters("explicit inherit only marks direct shadow-root children");
+
+        const descendantExplicitInheritHost = document.getElementById("descendant-explicit-inherit-host");
+        const descendantExplicitInheritGrandchild = descendantExplicitInheritHost.shadowRoot.getElementById("grandchild");
+
+        println(`descendant explicit inherit initial grandchild margin-left: ${getComputedStyle(descendantExplicitInheritGrandchild).marginLeft}`);
+
+        document.body.offsetWidth;
+        resetStyleCounters();
+        descendantExplicitInheritHost.style.marginLeft = "27px";
+
+        println(`descendant explicit inherit changed grandchild margin-left: ${getComputedStyle(descendantExplicitInheritGrandchild).marginLeft}`);
+        printPassWithCounters("descendant explicit inherit does not mark all ancestors");
     });
 </script>

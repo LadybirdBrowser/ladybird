@@ -1956,7 +1956,7 @@ bool Document::layout_is_up_to_date() const
         if (node.is_element()) {
             if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
                 bool shadow_tree_children_need_inherited_style_update = node_invalidation.inherited_style_changed
-                    || (!node_invalidation.is_none() && shadow_root->subtree_may_depend_on_non_inherited_property_inheritance());
+                    || (!node_invalidation.is_none() && shadow_root->children_may_depend_on_non_inherited_property_inheritance());
                 if (needs_full_style_update
                     || shadow_root->needs_style_update()
                     || shadow_root->child_needs_style_update()
