@@ -8,11 +8,14 @@ Program (script) @1:1
       └─ elements
          └─ StaticInitializer @2:12
             └─ FunctionBody @1:1
-               └─ ExpressionStatement @3:9
-                  └─ FunctionExpression "" [strict] [arrow] @3:9
-                     ├─ parameters
-                     │  └─ Identifier "await" [argument:0] @3:9
-                     └─ body
-                        └─ FunctionBody @3:9
-                           └─ ReturnStatement @3:9
-                              └─ NumericLiteral 0 @3:18
+               └─ FunctionDeclaration "f" [strict] @3:9
+                  └─ body
+                     └─ FunctionBody @4:13
+                        └─ ExpressionStatement @4:13
+                           └─ FunctionExpression "" [strict] [arrow] @4:13
+                              ├─ parameters
+                              │  └─ Identifier "await" [argument:0] @4:13
+                              └─ body
+                                 └─ FunctionBody @4:13
+                                    └─ ReturnStatement @4:13
+                                       └─ NumericLiteral 0 @4:22

@@ -89,3 +89,26 @@ test("declaring variables", () => {
         }
     }
 });
+
+test("await binding names in nested functions", () => {
+    class A {
+        static {
+            const makeGenerator = function* await(await) {
+                yield await;
+            };
+
+            const generator = makeGenerator(42);
+            expect(generator.next()).toEqual({ value: 42, done: false });
+            expect(generator.next()).toEqual({ value: undefined, done: true });
+
+            (function await(await) {
+                expect(await).toBe(42);
+            })(42);
+        }
+    }
+});
+
+test("await binding names in static blocks without a function boundary", () => {
+    expect(`class A { static { await => 0; } }`).not.toEval();
+    expect(`class A { static { async function await() {} } }`).not.toEval();
+});

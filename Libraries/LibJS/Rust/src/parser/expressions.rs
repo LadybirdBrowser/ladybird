@@ -2300,8 +2300,10 @@ impl Parser<'_> {
         } else if self.match_identifier() || self.match_token(TokenType::Await) {
             let token = self.consume();
             let value = self.token_value(&token).to_vec();
-            if is_async && value == utf16!("await") {
-                self.syntax_error("'await' is a reserved identifier in async functions");
+            if value == utf16!("await")
+                && (is_async || self.program_type == ProgramType::Module || self.flags.in_class_static_init_block)
+            {
+                self.syntax_error("'await' is not allowed as an identifier in this context");
             }
             // C++ uses rule_start (arrow function start, which is `async` for async arrows).
             let value_id = self.arena.strings.intern(&value);

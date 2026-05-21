@@ -1,5 +1,7 @@
 class C {
     static {
-        await => 0;
+        function f() {
+            await => 0;
+        }
     }
 }

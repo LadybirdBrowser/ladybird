@@ -72,6 +72,23 @@ test("initializer has correct this value", () => {
     expect(a.this_name).toBe(a);
 });
 
+test("field initializers do not inherit await expressions", () => {
+    var await = 42;
+
+    async function getClass() {
+        return class {
+            field = await;
+        };
+    }
+
+    expect("async () => class { [await] = 1 };").not.toEval();
+    expect("async () => class { field = await 1 };").not.toEval();
+
+    return getClass().then(A => {
+        expect(new A().field).toBe(42);
+    });
+});
+
 test("static fields", () => {
     class A {
         static simple = 1;
