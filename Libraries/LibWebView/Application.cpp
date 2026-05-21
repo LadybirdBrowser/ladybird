@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/Time.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZoneWatcher.h>
@@ -161,6 +164,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
+    Vector<StringView> content_blocker_list_paths;
     Optional<StringView> resource_substitution_map_path;
     bool enable_autoplay = false;
     bool expose_experimental_interfaces = false;
@@ -234,6 +238,19 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(disable_content_blocker, "Disable content blocker", "disable-content-blocker");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Path to a content blocker list. May be specified multiple times.",
+        .long_name = "content-blocker-list",
+        .value_name = "path",
+        .accept_value = [&](StringView value) {
+            if (value.is_empty())
+                return false;
+
+            content_blocker_list_paths.append(value);
+            return true;
+        },
+    });
     args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
     args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
@@ -309,6 +326,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (profile_process.has_value())
         profile_process_type = process_type_from_name(*profile_process);
 
+    Vector<ByteString> content_blocker_list_paths_as_byte_strings;
+    TRY(content_blocker_list_paths_as_byte_strings.try_ensure_capacity(content_blocker_list_paths.size()));
+    for (auto path : content_blocker_list_paths)
+        content_blocker_list_paths_as_byte_strings.unchecked_append(path);
+
     // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
     if (debug_process_types.contains_slow(ProcessType::WebContent))
         disable_site_isolation = true;
@@ -331,6 +353,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
                 : OptionalNone()),
         .devtools_port = devtools_port,
         .enable_content_blocker = disable_content_blocker ? EnableContentBlocker::No : EnableContentBlocker::Yes,
+        .content_blocker_list_paths = move(content_blocker_list_paths_as_byte_strings),
     };
 
     if (screenshot_delay.has_value())
@@ -387,10 +410,45 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         URL::set_file_scheme_urls_have_tuple_origins();
 
+    TRY(load_content_blocker_lists());
+
     initialize_actions();
 
     m_event_loop = create_platform_event_loop();
     TRY(launch_services());
+
+    return {};
+}
+
+ErrorOr<void> Application::load_content_blocker_lists()
+{
+    if (m_browser_options.content_blocker_list_paths.is_empty())
+        return {};
+
+    Checked<size_t> total_size = 0;
+    for (auto const& path : m_browser_options.content_blocker_list_paths) {
+        auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
+        total_size += TRY(file->size());
+        total_size += 1;
+    }
+
+    if (total_size.has_overflow())
+        return Error::from_string_literal("Content blocker lists are too large");
+
+    auto blocker_list_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_size.value()));
+    auto bytes = Bytes { blocker_list_buffer.data<u8>(), blocker_list_buffer.size() };
+    size_t offset = 0;
+
+    for (auto const& path : m_browser_options.content_blocker_list_paths) {
+        auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
+        auto file_size = TRY(file->size());
+        TRY(file->read_until_filled(bytes.slice(offset, file_size)));
+        offset += file_size;
+        bytes[offset++] = '\n';
+    }
+    VERIFY(offset == bytes.size());
+
+    m_content_blocker_list_buffer = move(blocker_list_buffer);
 
     return {};
 }
@@ -1242,6 +1300,8 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     view.debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
     view.debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
     view.debug_request("content-blocking"sv, m_enable_content_blocking_action->checked() ? "on"sv : "off"sv);
+    if (m_content_blocker_list_buffer.has_value())
+        view.set_content_blockers(*m_content_blocker_list_buffer);
     view.debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     view.debug_request("spoof-user-agent"sv, m_user_agent_string);
     view.debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);

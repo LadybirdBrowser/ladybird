@@ -92,6 +92,7 @@ struct BrowserOptions {
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
     EnableContentBlocker enable_content_blocker { EnableContentBlocker::Yes };
+    Vector<ByteString> content_blocker_list_paths {};
 };
 
 enum class HTTPDiskCacheMode {

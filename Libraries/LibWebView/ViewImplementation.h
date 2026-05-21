@@ -15,6 +15,7 @@
 #include <AK/Queue.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibCore/SharedVersion.h>
@@ -143,6 +144,7 @@ public:
     void request_style_sheet_source(Web::CSS::StyleSheetIdentifier const&);
 
     void debug_request(ByteString const& request, ByteString const& argument = {});
+    void set_content_blockers(Core::AnonymousBuffer const& patterns);
 
     void run_javascript(String const&);
     void js_console_input(String const&);

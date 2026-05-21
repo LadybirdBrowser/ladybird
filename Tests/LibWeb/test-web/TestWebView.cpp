@@ -6,6 +6,7 @@
 
 #include "TestWebView.h"
 
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
 
@@ -27,7 +28,7 @@ TestWebView::TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewp
 
 void TestWebView::clear_content_blockers()
 {
-    client().async_set_content_blockers(m_client_state.page_index, {});
+    client().async_set_content_blockers(m_client_state.page_index, MUST(Core::AnonymousBuffer::create_with_size(0)));
 }
 
 pid_t TestWebView::web_content_pid() const
