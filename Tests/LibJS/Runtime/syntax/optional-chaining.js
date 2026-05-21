@@ -37,3 +37,18 @@ test("evaluate optional-chaining", () => {
         return a.foo?.baz.nonExistentProperty;
     }).toThrow();
 });
+
+test("delete optional-chaining property references", () => {
+    let object = { value: 1, computed: 2 };
+    expect(delete object?.value).toBeTrue();
+    expect(object.value).toBeUndefined();
+
+    expect(delete object?.["computed"]).toBeTrue();
+    expect(object.computed).toBeUndefined();
+
+    let keyEvaluations = 0;
+    expect(delete undefined?.[keyEvaluations++]).toBeTrue();
+    expect(keyEvaluations).toBe(0);
+
+    expect(delete { inner: null }?.inner?.value).toBeTrue();
+});

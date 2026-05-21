@@ -4462,6 +4462,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
             }
             dst
         }
+        ExpressionKind::OptionalChain(data) => emit_delete_optional_chain_reference(generator, data),
         _ => {
             // delete on non-reference: evaluate for side effects, return true
             generate_expression(operand, generator, None);
@@ -5719,6 +5720,221 @@ fn generate_optional_chain_inner(
 
     generator.switch_to_basic_block(end_block);
     Some(())
+}
+
+fn generate_optional_chain_start(
+    generator: &mut Generator,
+    base: &Expression,
+    current_value: &ScopedOperand,
+    current_base: &ScopedOperand,
+) -> Option<()> {
+    let new_current_value = match &base.inner {
+        ExpressionKind::Member(member_data) => {
+            let is_super = matches!(member_data.object.inner, ExpressionKind::Super);
+            // For super property access, resolve this binding first (before
+            // ResolveSuperBase) per spec evaluation order.
+            let this_value = if is_super {
+                Some(emit_resolve_this_binding(generator))
+            } else {
+                None
+            };
+            let obj = generate_expression(&member_data.object, generator, None)?;
+            let val = generator.allocate_register();
+            if is_super {
+                let this_value = this_value.unwrap();
+                emit_super_get(
+                    generator,
+                    &val,
+                    &obj,
+                    &member_data.property,
+                    member_data.computed,
+                    &this_value,
+                );
+                generator.emit_mov(current_base, &this_value);
+            } else if member_data.computed {
+                let property = generate_expression(&member_data.property, generator, None)?;
+                emit_get_by_value(generator, &val, &obj, &property, None);
+                generator.emit_mov(current_base, &obj);
+            } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
+                let base_id = intern_base_identifier(generator, &member_data.object);
+                let arena = generator.arena.clone();
+                emit_get_by_id(generator, &val, &obj, arena.name_slice(*ident), base_id);
+                generator.emit_mov(current_base, &obj);
+            } else if let ExpressionKind::PrivateIdentifier(name) = &member_data.property.inner {
+                let id = generator.intern_identifier(&name.name);
+                generator.emit(Instruction::GetPrivateById {
+                    dst: val.operand(),
+                    base: obj.operand(),
+                    property: id,
+                });
+                generator.emit_mov(current_base, &obj);
+            } else {
+                let property = generate_expression(&member_data.property, generator, None)?;
+                emit_get_by_value(generator, &val, &obj, &property, None);
+                generator.emit_mov(current_base, &obj);
+            }
+            val
+        }
+        ExpressionKind::OptionalChain(oc_data) => {
+            generate_optional_chain_inner(
+                generator,
+                &oc_data.base,
+                &oc_data.references,
+                current_value,
+                current_base,
+            )?;
+            current_value.clone()
+        }
+        _ => generate_expression(base, generator, None)?,
+    };
+
+    generator.emit_mov(current_value, &new_current_value);
+    Some(())
+}
+
+fn is_optional_chain_reference_optional(reference: &OptionalChainReference) -> bool {
+    match reference {
+        OptionalChainReference::Call { mode, .. }
+        | OptionalChainReference::ComputedReference { mode, .. }
+        | OptionalChainReference::MemberReference { mode, .. }
+        | OptionalChainReference::PrivateMemberReference { mode, .. } => *mode == OptionalChainMode::Optional,
+    }
+}
+
+fn generate_optional_chain_reference(
+    generator: &mut Generator,
+    reference: &OptionalChainReference,
+    current_value: &ScopedOperand,
+    current_base: &ScopedOperand,
+) -> Option<()> {
+    match reference {
+        OptionalChainReference::MemberReference { identifier, .. } => {
+            generator.emit_mov(current_base, current_value);
+            let arena = generator.arena.clone();
+            emit_get_by_id(
+                generator,
+                current_value,
+                current_value,
+                arena.name_slice(*identifier),
+                None,
+            );
+        }
+        OptionalChainReference::ComputedReference { expression, .. } => {
+            generator.emit_mov(current_base, current_value);
+            let property = generate_expression(expression, generator, None)?;
+            emit_get_by_value(generator, current_value, current_value, &property, None);
+        }
+        OptionalChainReference::Call { arguments, .. } => {
+            let arguments_array = generate_arguments_array(generator, arguments);
+            generator.emit(Instruction::CallWithArgumentArray {
+                dst: current_value.operand(),
+                callee: current_value.operand(),
+                this_value: current_base.operand(),
+                arguments: arguments_array.operand(),
+                expression_string: None,
+            });
+            let undef = generator.add_constant_undefined();
+            generator.emit_mov(current_base, &undef);
+        }
+        OptionalChainReference::PrivateMemberReference { private_identifier, .. } => {
+            generator.emit_mov(current_base, current_value);
+            let id = generator.intern_identifier(&private_identifier.name);
+            generator.emit(Instruction::GetPrivateById {
+                dst: current_value.operand(),
+                base: current_value.operand(),
+                property: id,
+            });
+        }
+    }
+
+    Some(())
+}
+
+fn emit_delete_optional_chain_reference(generator: &mut Generator, data: &OptionalChainData) -> ScopedOperand {
+    // https://tc39.es/ecma262/#sec-delete-operator-runtime-semantics-evaluation
+    // `delete` needs the final optional-chain property reference so it can perform [[Delete]]. If an optional hop
+    // short-circuits, the operand evaluates to a non-reference value and `delete` returns true.
+    let Some((last_reference, prefix_references)) = data.references.split_last() else {
+        generate_expression(&data.base, generator, None);
+        return generator.add_constant_boolean(true);
+    };
+
+    if !matches!(
+        last_reference,
+        OptionalChainReference::MemberReference { .. } | OptionalChainReference::ComputedReference { .. }
+    ) {
+        let current_base = generator.allocate_register();
+        let current_value = generator.allocate_register();
+        let undef = generator.add_constant_undefined();
+        generator.emit_mov(&current_base, &undef);
+        generate_optional_chain_inner(generator, &data.base, &data.references, &current_value, &current_base);
+        return generator.add_constant_boolean(true);
+    }
+
+    let dst = generator.allocate_register();
+    let current_base = generator.allocate_register();
+    let current_value = generator.allocate_register();
+    let undef = generator.add_constant_undefined();
+    generator.emit_mov(&current_base, &undef);
+
+    let short_circuit_block = generator.make_block();
+    let end_block = generator.make_block();
+
+    generate_optional_chain_start(generator, &data.base, &current_value, &current_base);
+
+    for reference in prefix_references {
+        if is_optional_chain_reference_optional(reference) {
+            let not_nullish_block = generator.make_block();
+            generator.emit(Instruction::JumpNullish {
+                condition: current_value.operand(),
+                true_target: short_circuit_block,
+                false_target: not_nullish_block,
+            });
+            generator.switch_to_basic_block(not_nullish_block);
+        }
+
+        generate_optional_chain_reference(generator, reference, &current_value, &current_base);
+    }
+
+    if is_optional_chain_reference_optional(last_reference) {
+        let not_nullish_block = generator.make_block();
+        generator.emit(Instruction::JumpNullish {
+            condition: current_value.operand(),
+            true_target: short_circuit_block,
+            false_target: not_nullish_block,
+        });
+        generator.switch_to_basic_block(not_nullish_block);
+    }
+
+    match last_reference {
+        OptionalChainReference::MemberReference { identifier, .. } => {
+            let arena = generator.arena.clone();
+            let key = generator.intern_property_key_id(arena.identifiers[*identifier].name);
+            generator.emit(Instruction::DeleteById {
+                dst: dst.operand(),
+                base: current_value.operand(),
+                property: key,
+            });
+        }
+        OptionalChainReference::ComputedReference { expression, .. } => {
+            let property = generate_expression_or_undefined(expression, generator, None);
+            generator.emit(Instruction::DeleteByValue {
+                dst: dst.operand(),
+                base: current_value.operand(),
+                property: property.operand(),
+            });
+        }
+        _ => unreachable!("non-property optional chain references were handled above"),
+    }
+    generator.emit(Instruction::Jump { target: end_block });
+
+    generator.switch_to_basic_block(short_circuit_block);
+    let true_value = generator.add_constant_boolean(true);
+    generator.emit_mov(&dst, &true_value);
+    generator.emit(Instruction::Jump { target: end_block });
+
+    generator.switch_to_basic_block(end_block);
+    dst
 }
 
 /// Convert arguments to an array for CallWithArgumentArray.
