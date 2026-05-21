@@ -12,53 +12,98 @@ block0:
   [  38] End value:reg5
 
 
-f$bd59b03f destructuring-assignment-in-logical-and.js:2:5
-  Registers: 12
-  Blocks:    10
+f$e8e4cc1a destructuring-assignment-in-logical-and.js:2:5
+  Registers: 14
+  Blocks:    21
   Locals:    a~0, b~1
   Constants:
     [0] = Undefined
     [1] = Bool(false)
+    [2] = Int32(1)
+    [3] = Int32(2)
 
 block0:
-  [   0] Mov3 dst1:a~0, src1:Undefined, dst2:b~1, src2:Undefined, dst3:reg5, src3:arg0
-  [  20] JumpFalse condition:arg0, target:block2
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov3 dst1:a~0, src1:Undefined, dst2:b~1, src2:Undefined, dst3:reg5, src3:arg0
+  [  28] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  30] Mov2 dst1:reg7, src1:arg0, dst2:reg8, src2:arg1
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
-  [  70] Mov dst:reg7, src:Bool(false)
-  [  80] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
-  [  98] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [  b0] JumpIf condition:reg7, true_target:block3, false_target:block4
+  [  38] Mov2 dst1:reg7, src1:arg0, dst2:reg8, src2:arg1
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
+  [  78] Mov dst:reg7, src:Bool(false)
+  [  88] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
+  [  a0] Jump target:block5
 
 block2:
-  [  c0] End value:Undefined
+  [  a8] End value:Undefined
 
 block3:
-  [  c8] Mov dst:reg11, src:Undefined
-  [  d8] Jump target:block4
+  [  b0] Catch dst:reg12
+  [  b8] SetLexicalEnvironment environment:reg4
+  [  c0] Mov dst:reg11, src:Int32(1)
+  [  d0] JumpIf condition:reg10, true_target:block16, false_target:block15
 
 block4:
-  [  e0] Mov dst:a~0, src:reg11
-  [  f0] JumpFalse condition:reg7, target:block6
+  [  e0] Mov dst:reg5, src:reg6
+  [  f0] Jump target:block2
 
 block5:
-  [ 100] Mov dst:reg11, src:Undefined
-  [ 110] Jump target:block7
+  [  f8] Jump target:block7
 
 block6:
-  [ 118] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 130] JumpTrue condition:reg7, target:block5
+  [ 100] Mov dst:reg13, src:Undefined
+  [ 110] Jump target:block8
 
 block7:
-  [ 140] Mov dst:b~1, src:reg11
-  [ 150] JumpFalse condition:reg7, target:block9
+  [ 118] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [ 130] JumpTrue condition:reg7, target:block6
 
 block8:
-  [ 160] Mov dst:reg5, src:reg6
-  [ 170] Jump target:block2
+  [ 140] Mov dst:a~0, src:reg13
+  [ 150] JumpFalse condition:reg7, target:block10
 
 block9:
-  [ 178] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 190] Jump target:block8
+  [ 160] Mov dst:reg13, src:Undefined
+  [ 170] Jump target:block11
+
+block10:
+  [ 178] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [ 190] JumpTrue condition:reg7, target:block9
+
+block11:
+  [ 1a0] Mov dst:b~1, src:reg13
+
+block12:
+  [ 1b0] JumpFalse condition:reg10, target:block14
+
+block13:
+  [ 1c0] Jump target:block4
+
+block14:
+  [ 1c8] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [ 1e0] Jump target:block13
+
+block15:
+  [ 1e8] JumpStrictlyEquals lhs:reg11, rhs:Int32(1), true_target:block17, false_target:block18
+
+block16:
+  [ 200] JumpStrictlyEquals lhs:reg11, rhs:Int32(2), true_target:block19, false_target:block20
+
+block17:
+  [ 218] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg12
+  [ 230] Throw src:reg12
+
+block18:
+  [ 238] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [ 250] Jump target:block16
+
+block19:
+  [ 258] Return value:reg12
+
+block20:
+  [ 260] Throw src:reg12
+
+Exception handlers:
+  [  f8 ..  118] => handler block3
+  [ 140 ..  178] => handler block3
+  [ 1a0 ..  1b0] => handler block3

@@ -1,31 +1,75 @@
-$ae8c96e2 destructuring-no-base-identifier.js:1:1
-  Registers: 12
-  Blocks:    5
+$b6d86a12 destructuring-no-base-identifier.js:1:1
+  Registers: 14
+  Blocks:    16
   Constants:
     [0] = Bool(false)
     [1] = Undefined
+    [2] = Int32(1)
+    [3] = Int32(2)
 
 block0:
-  [   0] NewObject dst:reg5
-  [  10] SetGlobal `x`, src:reg5
-  [  20] NewPrimitiveArray dst:reg5, elements:[42]
-  [  38] Mov dst:reg6, src:Bool(false)
-  [  48] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-  [  60] GetGlobal dst:reg10, `x`
-  [  70] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  88] JumpFalse condition:reg6, target:block2
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewObject dst:reg5
+  [  18] SetGlobal `x`, src:reg5
+  [  28] NewPrimitiveArray dst:reg5, elements:[42]
+  [  40] Mov dst:reg6, src:Bool(false)
+  [  50] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  68] Jump target:block3
 
 block1:
-  [  98] Mov dst:reg11, src:Undefined
-  [  a8] Jump target:block2
+  [  70] Catch dst:reg11
+  [  78] SetLexicalEnvironment environment:reg4
+  [  80] Mov dst:reg10, src:Int32(1)
+  [  90] JumpIf condition:reg9, true_target:block11, false_target:block10
 
 block2:
-  [  b0] PutById base:reg10, `y`, src:reg11, kind:Normal
-  [  d0] JumpFalse condition:reg6, target:block4
+  [  a0] End value:reg5
 
 block3:
-  [  e0] End value:reg5
+  [  a8] GetGlobal dst:reg12, `x`
+  [  b8] Jump target:block5
 
 block4:
-  [  e8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 100] End value:reg5
+  [  c0] Mov dst:reg13, src:Undefined
+  [  d0] Jump target:block6
+
+block5:
+  [  d8] IteratorNextUnpack dst_value:reg13, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  f0] JumpTrue condition:reg6, target:block4
+
+block6:
+  [ 100] PutById base:reg12, `y`, src:reg13, kind:Normal
+
+block7:
+  [ 120] JumpFalse condition:reg9, target:block9
+
+block8:
+  [ 130] End value:reg5
+
+block9:
+  [ 138] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 150] Jump target:block8
+
+block10:
+  [ 158] JumpStrictlyEquals lhs:reg10, rhs:Int32(1), true_target:block12, false_target:block13
+
+block11:
+  [ 170] JumpStrictlyEquals lhs:reg10, rhs:Int32(2), true_target:block14, false_target:block15
+
+block12:
+  [ 188] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
+  [ 1a0] Throw src:reg11
+
+block13:
+  [ 1a8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 1c0] Jump target:block11
+
+block14:
+  [ 1c8] Return value:reg11
+
+block15:
+  [ 1d0] Throw src:reg11
+
+Exception handlers:
+  [  a8 ..   d8] => handler block1
+  [ 100 ..  120] => handler block1

@@ -231,3 +231,114 @@ describe("evaluating", () => {
         expect(b).toBe(1);
     });
 });
+
+describe("array iterator closing", () => {
+    test("target evaluation throwing closes without stepping", () => {
+        let nextCount = 0;
+        let returnCount = 0;
+        let thrown = new Error("target");
+        let iterator = {
+            next() {
+                ++nextCount;
+                return { done: true };
+            },
+            return() {
+                ++returnCount;
+                return {};
+            },
+        };
+        let iterable = {
+            [Symbol.iterator]() {
+                return iterator;
+            },
+        };
+        let thrower = () => {
+            throw thrown;
+        };
+
+        expect(() => {
+            (0, ([{}[thrower()]] = iterable));
+        }).toThrow(thrown);
+        expect(nextCount).toBe(0);
+        expect(returnCount).toBe(1);
+    });
+
+    test("iterator next throwing is not closed", () => {
+        let returnCount = 0;
+        let thrown = new Error("next");
+        let iterator = {
+            next() {
+                throw thrown;
+            },
+            return() {
+                ++returnCount;
+                return {};
+            },
+        };
+        let iterable = {
+            [Symbol.iterator]() {
+                return iterator;
+            },
+        };
+
+        expect(() => {
+            let [value] = iterable;
+        }).toThrow(thrown);
+        expect(returnCount).toBe(0);
+    });
+
+    test("default initializer throwing closes and preserves the original throw completion", () => {
+        let returnCount = 0;
+        let thrown = new Error("default");
+        let iterator = {
+            next() {
+                return { done: false, value: undefined };
+            },
+            return() {
+                ++returnCount;
+                return null;
+            },
+        };
+        let iterable = {
+            [Symbol.iterator]() {
+                return iterator;
+            },
+        };
+        let thrower = () => {
+            throw thrown;
+        };
+
+        expect(() => {
+            [{} = thrower()] = iterable;
+        }).toThrow(thrown);
+        expect(returnCount).toBe(1);
+    });
+
+    test("generator return through rest target closes the iterator", () => {
+        let returnCount = 0;
+        let iterator = {
+            next() {
+                throw new Error("unreachable");
+            },
+            return() {
+                ++returnCount;
+                return {};
+            },
+        };
+        let iterable = {
+            [Symbol.iterator]() {
+                return iterator;
+            },
+        };
+        function* generator() {
+            [...{}[yield]] = iterable;
+        }
+
+        let it = generator();
+        it.next();
+        let result = it.return(444);
+        expect(returnCount).toBe(1);
+        expect(result.value).toBe(444);
+        expect(result.done).toBe(true);
+    });
+});
