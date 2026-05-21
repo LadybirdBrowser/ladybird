@@ -674,7 +674,16 @@ impl Parser<'_> {
 
         let super_class = if self.match_token(TokenType::Extends) {
             self.consume();
-            Some(Box::new(self.parse_expression_any()))
+            let heritage_start = self.position();
+            let expression = self.parse_expression_any();
+            // ClassHeritage[Yield, Await] : `extends` LeftHandSideExpression[?Yield, ?Await]
+            if expression.range.start.offset == heritage_start.offset
+                && let ExpressionKind::Function(function_id) = &expression.inner
+                && self.function_table.get(*function_id).is_arrow_function
+            {
+                self.syntax_error("Arrow function is not allowed in class heritage");
+            }
+            Some(Box::new(expression))
         } else {
             None
         };

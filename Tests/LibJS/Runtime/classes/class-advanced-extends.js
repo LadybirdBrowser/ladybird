@@ -47,3 +47,19 @@ test("class extends value has invalid prototype", () => {
         class A extends f {}
     }).toThrowWithMessage(TypeError, "Class extends value has an invalid prototype 123");
 });
+
+test("class heritage rejects unparenthesized arrows", () => {
+    expect(() => eval("class A extends () => {} {}")).toThrow(SyntaxError);
+    expect(() => eval("class A extends async () => {} {}")).toThrow(SyntaxError);
+    expect(() => eval("const A = class extends () => {} {};")).toThrow(SyntaxError);
+    expect(() => eval("const A = class extends async () => {} {};")).toThrow(SyntaxError);
+
+    expect(() => eval("class A extends (() => {}) {}")).toThrow(TypeError);
+
+    function mixin(callback) {
+        expect(callback()).toBe(1);
+        return class {};
+    }
+    class A extends mixin(() => 1) {}
+    expect(new A()).toBeInstanceOf(A);
+});
