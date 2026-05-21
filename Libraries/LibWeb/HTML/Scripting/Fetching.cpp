@@ -16,6 +16,7 @@
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
@@ -60,6 +61,48 @@ struct BytecodeCacheContext {
     ByteString method;
     NonnullRefPtr<HTTP::HeaderList> request_headers;
     u64 vary_key { 0 };
+};
+
+struct BytecodeCacheInstallTarget {
+    GC::Weak<JS::Script> script;
+    GC::Weak<JS::SourceTextModule> module;
+
+    void begin_generation()
+    {
+        if (auto script_record = script.ptr())
+            script_record->begin_bytecode_cache_generation();
+        if (auto module_record = module.ptr())
+            module_record->begin_bytecode_cache_generation();
+    }
+
+    void finish_generation_without_install()
+    {
+        if (auto script_record = script.ptr())
+            script_record->finish_bytecode_cache_generation_without_install();
+        if (auto module_record = module.ptr())
+            module_record->finish_bytecode_cache_generation_without_install();
+    }
+
+    void install_generated_bytecode_cache(JS::RustIntegration::ProgramType type, NonnullRefPtr<JS::SourceCode const> source_code, ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8> const& source_hash, Core::ImmutableBytes blob)
+    {
+        switch (type) {
+        case JS::RustIntegration::ProgramType::Script:
+            if (auto script_record = script.ptr()) {
+                auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(move(blob), type, source_hash.bytes());
+                VERIFY(bytecode_cache);
+                script_record->install_generated_bytecode_cache(bytecode_cache, move(source_code));
+            }
+            return;
+        case JS::RustIntegration::ProgramType::Module:
+            if (auto module_record = module.ptr()) {
+                auto* bytecode_cache = JS::RustIntegration::decode_bytecode_cache_blob(move(blob), type, source_hash.bytes());
+                VERIFY(bytecode_cache);
+                module_record->install_generated_bytecode_cache(bytecode_cache, move(source_code));
+            }
+            return;
+        }
+        VERIFY_NOT_REACHED();
+    }
 };
 
 static ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8> bytecode_cache_source_hash(JS::SourceCode const& source_code)
@@ -191,46 +234,57 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
     };
 }
 
-// Schedule a fresh, fully off-thread compile of the script source for the sole purpose of producing a bytecode cache
-// blob to hand to RequestServer. The execution path has already received its (latency-trimmed) compile artifact and is
-// running, so this work happens entirely on a background thread and never blocks the main thread on cache generation.
+// Schedule a fresh, fully off-thread compile of the script source for the purpose of producing a bytecode cache blob.
+// The execution path has already received its (latency-trimmed) compile artifact and is running, so this work happens
+// entirely on a background thread and never blocks the main thread on cache generation.
 // Reparsing here is intentional: the execution-path compile only eagerly generates top-level bytecode plus direct
-// IIFEs, while the cache wants every nested function compiled so that warm loads avoid lazy compile work entirely.
-static void schedule_bytecode_cache_generation(JS::SourceCode const& original_source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, BytecodeCacheContext cache_context)
+// IIFEs, while the cache wants every nested function compiled so that warm loads avoid lazy compile work entirely. Once
+// the blob is back on the main thread, try to install that same blob into the live script/module before storing it.
+static void schedule_bytecode_cache_generation(NonnullRefPtr<JS::SourceCode const> original_source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, BytecodeCacheContext cache_context, BytecodeCacheInstallTarget install_target)
 {
-    auto filename = original_source_code.filename();
-    auto source_code = original_source_code.code();
+    auto filename = original_source_code->filename();
+    auto source_code = original_source_code->code();
     auto event_loop_weak = Core::EventLoop::current_weak();
+    auto* callback = new Function<void(ByteBuffer, ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8>)>(
+        [cache_context = move(cache_context), install_target = move(install_target), original_source_code = move(original_source_code), type](ByteBuffer blob, auto source_hash) mutable {
+            if (blob.is_empty()) {
+                install_target.finish_generation_without_install();
+                return;
+            }
 
-    Threading::ThreadPool::the().submit([filename = move(filename), source_code = move(source_code), type, line_number_offset, cache_context = move(cache_context), event_loop_weak = move(event_loop_weak)]() mutable {
+            auto immutable_blob = Core::ImmutableBytes::adopt(move(blob));
+            install_target.install_generated_bytecode_cache(type, original_source_code, source_hash, immutable_blob);
+
+            if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
+                return;
+            (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, immutable_blob.bytes());
+        });
+
+    Threading::ThreadPool::the().submit([filename = move(filename), source_code = move(source_code), type, line_number_offset, callback, event_loop_weak = move(event_loop_weak)]() mutable {
         auto source = JS::SourceCode::create(move(filename), move(source_code));
-        auto* parsed = JS::RustIntegration::parse_program(source->utf16_data(), source->length_in_code_units(), type, line_number_offset);
-        if (!parsed)
-            return;
-
-        if (JS::RustIntegration::parsed_program_has_errors(parsed)) {
-            JS::RustIntegration::free_parsed_program(parsed);
-            return;
-        }
-
-        auto* compiled = JS::RustIntegration::compile_parsed_program_fully_off_thread(parsed, source->length_in_code_units());
-        if (!compiled)
-            return;
-
         auto source_hash = bytecode_cache_source_hash(*source);
-        auto blob = JS::RustIntegration::serialize_compiled_program_for_bytecode_cache(*compiled, type, source_hash.bytes());
-        JS::RustIntegration::free_compiled_program(compiled);
-        if (blob.is_empty())
-            return;
+        ByteBuffer blob;
+
+        auto* parsed = JS::RustIntegration::parse_program(source->utf16_data(), source->length_in_code_units(), type, line_number_offset);
+        if (parsed) {
+            if (JS::RustIntegration::parsed_program_has_errors(parsed)) {
+                JS::RustIntegration::free_parsed_program(parsed);
+            } else {
+                auto* compiled = JS::RustIntegration::compile_parsed_program_fully_off_thread(parsed, source->length_in_code_units());
+                if (compiled) {
+                    blob = JS::RustIntegration::serialize_compiled_program_for_bytecode_cache(*compiled, type, source_hash.bytes());
+                    JS::RustIntegration::free_compiled_program(compiled);
+                }
+            }
+        }
 
         auto origin = event_loop_weak->take();
         if (!origin)
             return;
 
-        origin->deferred_invoke([cache_context = move(cache_context), blob = move(blob)]() mutable {
-            if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
-                return;
-            (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, blob.bytes());
+        origin->deferred_invoke([blob = move(blob), source_hash, callback]() mutable {
+            (*callback)(move(blob), source_hash);
+            delete callback;
         });
     });
 }
@@ -268,6 +322,12 @@ static void compile_remaining_functions_off_thread(JS::Bytecode::Executable& exe
                 auto& shared_data = *shared_data_roots[i];
                 if (shared_data.m_executable) {
                     compile_remaining_functions_off_thread(*shared_data.m_executable, source_code);
+                    JS::RustIntegration::free_compiled_function(compiled_function);
+                    continue;
+                }
+
+                // Bytecode-cache installation may have cleared this while the worker compiled an AST clone.
+                if (!shared_data.m_rust_function_ast) {
                     JS::RustIntegration::free_compiled_function(compiled_function);
                     continue;
                 }
@@ -748,18 +808,24 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                     bytecode_cache_context = move(bytecode_cache_context),
                     muted_errors, on_complete_root = move(on_complete_root),
                     settings_root = move(settings_root)](auto result, auto source_code) mutable {
-                    auto source_code_for_background_compile = source_code;
                     auto source_code_for_cache = source_code;
+                    auto should_generate_bytecode_cache = result.compiled && bytecode_cache_context.has_value();
                     auto script = result.compiled
                         ? ClassicScript::create_from_pre_compiled(move(response_url_string), move(source_code), *settings_root, move(response_url), result.compiled, muted_errors)
                         : ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), result.parsed, muted_errors);
+                    BytecodeCacheInstallTarget install_target;
                     if (auto* script_record = script->script_record()) {
-                        if (auto* executable = script_record->cached_executable())
-                            compile_remaining_functions_off_thread(*executable, move(source_code_for_background_compile));
+                        install_target.script = *script_record;
+                        if (!should_generate_bytecode_cache) {
+                            if (auto* executable = script_record->cached_executable())
+                                compile_remaining_functions_off_thread(*executable, source_code_for_cache);
+                        }
                     }
                     on_complete_root->function()(script);
-                    if (result.compiled && bytecode_cache_context.has_value())
-                        schedule_bytecode_cache_generation(*source_code_for_cache, JS::RustIntegration::ProgramType::Script, 1, bytecode_cache_context.release_value());
+                    if (should_generate_bytecode_cache) {
+                        install_target.begin_generation();
+                        schedule_bytecode_cache_generation(move(source_code_for_cache), JS::RustIntegration::ProgramType::Script, 1, bytecode_cache_context.release_value(), move(install_target));
+                    }
                 });
         } else {
             auto source_text = decode_source_text(*fallback_decoder, body_bytes_view(body_bytes)).release_value_but_fixme_should_propagate_errors();
@@ -1145,17 +1211,27 @@ void fetch_single_module_script(JS::Realm& realm,
                             bytecode_cache_context = move(bytecode_cache_context),
                             on_complete_root = move(on_complete_root),
                             settings_root = move(settings_root)](auto result, auto source_code) mutable {
-                            auto source_code_for_background_compile = source_code;
                             auto source_code_for_cache = source_code;
+                            auto should_generate_bytecode_cache = result.compiled && bytecode_cache_context.has_value();
                             auto module_script = result.compiled
                                 ? ModuleScript::create_from_pre_compiled(url_string, move(source_code), *settings_root, move(response_url), result.compiled).release_value_but_fixme_should_propagate_errors()
                                 : ModuleScript::create_from_pre_parsed(url_string, move(source_code), *settings_root, move(response_url), result.parsed).release_value_but_fixme_should_propagate_errors();
-                            if (module_script)
-                                compile_remaining_module_functions_off_thread(*module_script, move(source_code_for_background_compile));
+                            BytecodeCacheInstallTarget install_target;
+                            if (module_script) {
+                                module_script->record().visit(
+                                    [](Empty) {},
+                                    [&](GC::Ref<JS::SourceTextModule> module) { install_target.module = module; },
+                                    [](GC::Ref<JS::SyntheticModule>) {},
+                                    [](GC::Ref<WebAssembly::WebAssemblyModule>) {});
+                                if (!should_generate_bytecode_cache)
+                                    compile_remaining_module_functions_off_thread(*module_script, source_code_for_cache);
+                            }
                             settings_root->module_map().set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
                             on_complete_root->function()(module_script);
-                            if (result.compiled && bytecode_cache_context.has_value())
-                                schedule_bytecode_cache_generation(*source_code_for_cache, JS::RustIntegration::ProgramType::Module, 0, bytecode_cache_context.release_value());
+                            if (should_generate_bytecode_cache) {
+                                install_target.begin_generation();
+                                schedule_bytecode_cache_generation(move(source_code_for_cache), JS::RustIntegration::ProgramType::Module, 0, bytecode_cache_context.release_value(), move(install_target));
+                            }
                         });
                     return;
                 }
