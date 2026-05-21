@@ -52,12 +52,15 @@ WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index
 
     // AD-HOC: The spec doesn't say where to set the parent rule, so we'll do it here.
     m_rules->item(index)->set_parent_rule(this);
+    m_parent_style_sheet->invalidate_owners(DOM::StyleInvalidationReason::StyleSheetInsertRule);
     return index;
 }
 
 WebIDL::ExceptionOr<void> CSSGroupingRule::delete_rule(u32 index)
 {
-    return m_rules->remove_a_css_rule(index);
+    TRY(m_rules->remove_a_css_rule(index));
+    m_parent_style_sheet->invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule);
+    return {};
 }
 
 void CSSGroupingRule::for_each_effective_rule(TraversalOrder order, Function<void(Web::CSS::CSSRule const&)> const& callback) const
