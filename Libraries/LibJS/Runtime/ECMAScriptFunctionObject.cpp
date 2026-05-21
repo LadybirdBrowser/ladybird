@@ -84,8 +84,13 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(
     , m_private_environment(private_environment)
 {
     set_is_ecmascript_function_object();
-    if (!is_arrow_function() && kind() == FunctionKind::Normal)
-        unsafe_set_shape(realm()->intrinsics().normal_function_shape());
+    if (!is_arrow_function() && kind() == FunctionKind::Normal) {
+        auto normal_function_shape = realm()->intrinsics().normal_function_shape();
+        if (normal_function_shape->prototype() == &prototype)
+            unsafe_set_shape(normal_function_shape);
+        else
+            unsafe_set_shape(*normal_function_shape->create_prototype_transition(&prototype));
+    }
 
     // 15. Set F.[[ScriptOrModule]] to GetActiveScriptOrModule().
     m_script_or_module = vm().get_active_script_or_module();

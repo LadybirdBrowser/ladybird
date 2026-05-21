@@ -165,6 +165,26 @@ describe("bound function constructors", () => {
     test("bound functions do not have a prototype property", () => {
         expect(BoundBar).not.toHaveProperty("prototype");
     });
+
+    test("bound subclassed functions retain subclass instances", () => {
+        class Subclass extends Function {}
+
+        const sub = new Subclass("x", "return this.base + x");
+        const bound = sub.bind({ base: 3 }, 4);
+
+        expect(bound).toBeInstanceOf(Subclass);
+        expect(bound()).toBe(7);
+    });
+
+    test("bound function super calls preserve new.target", () => {
+        function Target() {}
+
+        const bound = Target.bind(undefined, 1, 2, 3);
+        bound.prototype = {};
+
+        class Subclass extends bound {}
+        expect(Object.getPrototypeOf(new Subclass())).toBe(Subclass.prototype);
+    });
 });
 
 describe("errors", () => {

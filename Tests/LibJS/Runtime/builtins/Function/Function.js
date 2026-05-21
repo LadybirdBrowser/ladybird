@@ -31,6 +31,16 @@ describe("correct behavior", () => {
         expect(new Function().name).toBe("anonymous");
         expect(new Function().toString()).toBe("function anonymous(\n) {\n\n}");
     });
+
+    test("subclassed constructor returns a function with the subclass prototype", () => {
+        class Subclass extends Function {}
+
+        const sub = new Subclass("return 42");
+        expect(sub()).toBe(42);
+        expect(Object.getPrototypeOf(sub)).toBe(Subclass.prototype);
+        expect(sub).toBeInstanceOf(Subclass);
+        expect(sub).toBeInstanceOf(Function);
+    });
 });
 
 describe("errors", () => {
