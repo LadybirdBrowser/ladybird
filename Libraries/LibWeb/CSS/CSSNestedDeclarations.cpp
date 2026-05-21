@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -45,6 +45,27 @@ void CSSNestedDeclarations::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_parent_style_rule);
 }
 
+static SelectorList absolutize_parent_selectors(CSSNestedDeclarations const& nested_declarations)
+{
+    for (auto const* parent_rule = nested_declarations.parent_rule(); parent_rule; parent_rule = parent_rule->parent_rule()) {
+        if (auto const* parent_style_rule = as_if<CSSStyleRule>(parent_rule))
+            return parent_style_rule->absolutized_selectors();
+    }
+
+    // NB: CSSNestedDeclarations can only exist inside an ancestor rule that provides selectors, so we cannot get here
+    //     unless something has gone very wrong.
+    VERIFY_NOT_REACHED();
+}
+
+SelectorList const& CSSNestedDeclarations::absolutized_selectors() const
+{
+    if (m_cached_absolutized_selectors.has_value())
+        return m_cached_absolutized_selectors.value();
+
+    m_cached_absolutized_selectors = absolutize_parent_selectors(*this);
+    return m_cached_absolutized_selectors.value();
+}
+
 GC::Ref<CSSStyleProperties> CSSNestedDeclarations::style()
 {
     return m_declaration;
@@ -79,6 +100,7 @@ void CSSNestedDeclarations::clear_caches()
 {
     Base::clear_caches();
     m_parent_style_rule = nullptr;
+    m_cached_absolutized_selectors.clear();
 }
 
 void CSSNestedDeclarations::dump(StringBuilder& builder, int indent_levels) const

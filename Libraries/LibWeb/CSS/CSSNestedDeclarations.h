@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,6 +22,8 @@ public:
 
     virtual ~CSSNestedDeclarations() override = default;
 
+    SelectorList const& absolutized_selectors() const;
+    [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
     CSSStyleProperties const& declaration() const { return m_declaration; }
 
     GC::Ref<CSSStyleProperties> style();
@@ -39,6 +41,7 @@ private:
 
     GC::Ref<CSSStyleProperties> m_declaration;
     GC::Ptr<CSSStyleRule const> mutable m_parent_style_rule;
+    mutable Optional<SelectorList> m_cached_absolutized_selectors;
 };
 
 template<>

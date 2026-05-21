@@ -364,7 +364,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                 if (rule.type() == CSSRule::Type::Style)
                     return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
                 if (rule.type() == CSSRule::Type::NestedDeclarations)
-                    return static_cast<CSSNestedDeclarations const&>(rule).parent_style_rule().absolutized_selectors();
+                    return static_cast<CSSNestedDeclarations const&>(rule).absolutized_selectors();
                 VERIFY_NOT_REACHED();
             }();
 

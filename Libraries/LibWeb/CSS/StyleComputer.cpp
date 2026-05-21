@@ -109,7 +109,7 @@ SelectorList const& MatchingRule::absolutized_selectors() const
     if (rule->type() == CSSRule::Type::Style)
         return static_cast<CSSStyleRule const&>(*rule).absolutized_selectors();
     if (rule->type() == CSSRule::Type::NestedDeclarations)
-        return static_cast<CSSNestedDeclarations const&>(*rule).parent_style_rule().absolutized_selectors();
+        return static_cast<CSSNestedDeclarations const&>(*rule).absolutized_selectors();
     VERIFY_NOT_REACHED();
 }
 
@@ -118,7 +118,7 @@ FlyString const& MatchingRule::qualified_layer_name() const
     if (rule->type() == CSSRule::Type::Style)
         return static_cast<CSSStyleRule const&>(*rule).qualified_layer_name();
     if (rule->type() == CSSRule::Type::NestedDeclarations)
-        return static_cast<CSSNestedDeclarations const&>(*rule).parent_style_rule().qualified_layer_name();
+        return static_cast<CSSNestedDeclarations const&>(*rule).qualified_layer_name();
     VERIFY_NOT_REACHED();
 }
 
