@@ -129,6 +129,17 @@ test("parameter with an arrow function default value", () => {
     expect(arrowFunc(() => 10)).toBe(10);
 });
 
+test("parameter with an arrow function default value allows in in the body", () => {
+    function func(a = x => x in { present: true }) {
+        return a("present");
+    }
+
+    const arrowFunc = (a = x => x in { present: true }) => a("present");
+
+    expect(func()).toBeTrue();
+    expect(arrowFunc()).toBeTrue();
+});
+
 test("parameter default value infers anonymous function names", () => {
     function func(
         a = function () {},

@@ -172,7 +172,7 @@ impl Parser<'_> {
 
         let lhs_start = self.position();
         self.last_primary_was_parenthesized = false;
-        let (expression, should_continue) = self.parse_primary_expression(min_precedence);
+        let (expression, should_continue) = self.parse_primary_expression(min_precedence, forbidden);
 
         // C++ checks for freestanding `arguments` references here (after
         // parse_primary_expression), NOT during consume(). This avoids
@@ -281,7 +281,7 @@ impl Parser<'_> {
     /// Parse a primary expression (literal, identifier, `this`, etc.).
     /// Returns `(expression, should_continue)` — `false` means the caller
     /// should not attempt to parse a secondary expression (e.g. arrow).
-    fn parse_primary_expression(&mut self, min_precedence: i32) -> (Expression, bool) {
+    fn parse_primary_expression(&mut self, min_precedence: i32, forbidden: ForbiddenTokens) -> (Expression, bool) {
         let start = self.position();
         let token = self.current_token().clone();
 
@@ -289,7 +289,8 @@ impl Parser<'_> {
             TokenType::ParenOpen => {
                 let paren_start = self.position();
                 self.consume_token(TokenType::ParenOpen);
-                if let Some(arrow) = self.try_parse_arrow_function_expression(true, false, Some(paren_start)) {
+                if let Some(arrow) = self.try_parse_arrow_function_expression(true, false, Some(paren_start), forbidden)
+                {
                     return (arrow, false);
                 }
                 if self.match_token(TokenType::ParenClose) {
@@ -437,15 +438,18 @@ impl Parser<'_> {
                     let expression = self.parse_function_expression();
                     return (expression, true);
                 }
-                if let Some(arrow) =
-                    self.try_parse_arrow_function_expression(next.token_type == TokenType::ParenOpen, true, None)
-                {
+                if let Some(arrow) = self.try_parse_arrow_function_expression(
+                    next.token_type == TokenType::ParenOpen,
+                    true,
+                    None,
+                    forbidden,
+                ) {
                     return (arrow, false);
                 }
                 self.arrow_function_failed_positions.remove(&(start.offset as usize));
                 // `async => ...` is a regular arrow function with parameter name `async`
                 // (not an async arrow function).
-                if let Some(arrow) = self.try_parse_arrow_function_expression(false, false, None) {
+                if let Some(arrow) = self.try_parse_arrow_function_expression(false, false, None, forbidden) {
                     return (arrow, false);
                 }
                 let token = self.consume_and_check_identifier();
@@ -579,7 +583,7 @@ impl Parser<'_> {
                 // parsing and identifier consumption (with appropriate errors).
                 // This matches C++'s "goto read_as_identifier" pattern.
                 if self.match_identifier() || self.match_token(TokenType::Await) || self.match_token(TokenType::Yield) {
-                    if let Some(arrow) = self.try_parse_arrow_function_expression(false, false, None) {
+                    if let Some(arrow) = self.try_parse_arrow_function_expression(false, false, None, forbidden) {
                         return (arrow, false);
                     }
                     if self.match_token(TokenType::Await)
@@ -2206,12 +2210,14 @@ impl Parser<'_> {
         expect_parens: bool,
         is_async: bool,
         source_start_override: Option<Position>,
+        forbidden: ForbiddenTokens,
     ) -> Option<Expression> {
         let offset = source_start_override.map_or(self.current_token.offset, |p| p.offset) as usize;
         if self.arrow_function_failed_positions.contains(&offset) {
             return None;
         }
-        let result = self.try_parse_arrow_function_expression_impl(expect_parens, is_async, source_start_override);
+        let result =
+            self.try_parse_arrow_function_expression_impl(expect_parens, is_async, source_start_override, forbidden);
         if result.is_none() {
             self.arrow_function_failed_positions.insert(offset);
         }
@@ -2223,6 +2229,7 @@ impl Parser<'_> {
         expect_parens: bool,
         is_async: bool,
         source_start_override: Option<Position>,
+        forbidden: ForbiddenTokens,
     ) -> Option<Expression> {
         let start = source_start_override.unwrap_or_else(|| self.position());
 
@@ -2400,7 +2407,15 @@ impl Parser<'_> {
             });
             Some(self.expression(start, ExpressionKind::Function(function_id)))
         } else {
-            let expression = self.parse_assignment_expression();
+            let body_forbidden = if saved_formal_parameter_ctx {
+                ForbiddenTokens::none()
+            } else {
+                forbidden
+            };
+            // https://tc39.es/ecma262/#prod-ArrowFunction
+            // ArrowFunction[In, Yield, Await] :
+            //   ArrowParameters[?Yield, ?Await] [no LineTerminator here] `=>` ConciseBody[?In]
+            let expression = self.parse_expression(PRECEDENCE_ASSIGNMENT, Associativity::Right, body_forbidden);
             // C++ uses rule_start (function start) for ReturnStatement and FunctionBody.
             let return_statement = Statement::new(
                 self.range_from(start),
