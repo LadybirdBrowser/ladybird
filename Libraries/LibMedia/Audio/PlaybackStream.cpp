@@ -15,7 +15,7 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState,
 #endif
 {
     auto promise = CreatePromise::construct();
-    promise->reject(Error::from_string_literal("Audio output is not available for this platform"));
+    promise->reject(Error::from_string_literal("Could not find audio backend on this platform"));
     return promise;
 }
 
