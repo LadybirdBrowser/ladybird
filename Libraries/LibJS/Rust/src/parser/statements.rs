@@ -512,6 +512,11 @@ impl Parser<'_> {
                 }
             }
         }
+        if is_await {
+            // https://tc39.es/ecma262/#prod-ForInOfStatement
+            // `for await` only has `of` productions.
+            self.syntax_error("for-await-of statement must use 'of'");
+        }
         self.consume_token(TokenType::Semicolon);
         let for_init = match init {
             LocalForInit::Declaration(declaration) => Some(ForInit::Declaration(Box::new(declaration))),

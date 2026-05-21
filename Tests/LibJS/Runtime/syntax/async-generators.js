@@ -25,6 +25,13 @@ describe("parsing freestanding generators", () => {
         expect(`async function foo() { yield
             *bar; }`).toEval();
     });
+    test("for await only allows for-of syntax", () => {
+        expect(`async function* foo() { for await (value of []) ; }`).toEval();
+
+        expect(`async function* foo() { for await (;;) ; }`).not.toEval();
+        expect(`async function* foo() { for await (value ;;) ; }`).not.toEval();
+        expect(`async function* foo() { for await (value in []) ; }`).not.toEval();
+    });
 });
 
 describe("parsing object literal generator functions", () => {
