@@ -267,6 +267,11 @@ describe("loops", () => {
         evaluateModule("./modules/entry-self-import.mjs");
     });
 
+    test("entry module can dynamically import itself during evaluation", () => {
+        evaluateModule("./modules/dynamic-self-import-default-export.mjs");
+        expect(globalThis.dynamicSelfImportDefaultExportPassed).toBeTrue();
+    });
+
     test("import something which imports a cycle", () => {
         expectModulePassed("./loop-entry.mjs");
     });

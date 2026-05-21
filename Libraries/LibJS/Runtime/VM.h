@@ -84,6 +84,14 @@ public:
         return run_executable(context, executable, entry_point);
     }
 
+    void enter_module_execution() { ++m_module_execution_depth; }
+    void leave_module_execution()
+    {
+        VERIFY(m_module_execution_depth > 0);
+        --m_module_execution_depth;
+    }
+    [[nodiscard]] bool is_executing_module() const { return m_module_execution_depth > 0; }
+
     ALWAYS_INLINE Value& accumulator() { return reg(Bytecode::Register::accumulator()); }
     Value& reg(Bytecode::Register const& r)
     {
@@ -564,6 +572,7 @@ private:
 
     u32 m_execution_generation { 0 };
     u32 m_run_executable_depth { 0 };
+    u32 m_module_execution_depth { 0 };
 
     OwnPtr<Agent> m_agent;
 

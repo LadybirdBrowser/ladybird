@@ -889,7 +889,7 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         }
     }
 
-    if (is_outermost_bytecode_execution)
+    if (is_outermost_bytecode_execution && !vm().is_executing_module())
         vm().run_queued_promise_jobs();
     vm().finish_execution_generation();
 
