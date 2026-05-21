@@ -848,7 +848,10 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, EvalDeclarationDa
     //         i. If privateIdentifiers does not contain binding.[[Description]], append binding.[[Description]] to privateIdentifiers.
     //     b. Set pointer to pointer.[[OuterPrivateEnvironment]].
     // 7. If AllPrivateIdentifiersValid of body with argument privateIdentifiers is false, throw a SyntaxError exception.
-    // FIXME: Add Private identifiers check here.
+    for (auto const& name : data.referenced_private_names) {
+        if (!private_environment || !private_environment->contains_private_identifier(name))
+            return vm.throw_completion<SyntaxError>(ErrorType::PrivateFieldNotDeclared, name);
+    }
 
     // 8. Let functionsToInitialize be a new empty List.
     // 9. Let declaredFunctionNames be a new empty List.

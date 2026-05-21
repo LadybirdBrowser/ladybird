@@ -313,6 +313,7 @@ unsafe extern "C" {
     pub fn eval_gdi_push_var_scoped_name(ctx: *mut c_void, name: *const u16, len: usize);
     pub fn eval_gdi_push_annex_b_name(ctx: *mut c_void, name: *const u16, len: usize);
     pub fn eval_gdi_push_lexical_binding(ctx: *mut c_void, name: *const u16, len: usize, is_constant: bool);
+    pub fn eval_gdi_push_private_name(ctx: *mut c_void, name: *const u16, len: usize);
 
     pub fn rust_compile_regex(
         pattern_data: *const u16,

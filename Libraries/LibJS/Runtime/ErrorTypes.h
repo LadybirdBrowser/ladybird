@@ -137,6 +137,7 @@
     M(OutOfMemory, "Out of memory")                                                                                                 \
     M(OverloadResolutionFailed, "Overload resolution failed")                                                                       \
     M(PrivateFieldAlreadyDeclared, "Private field '{}' has already been declared")                                                  \
+    M(PrivateFieldNotDeclared, "Reference to undeclared private field or method '{}'")                                              \
     M(PrivateFieldDoesNotExistOnObject, "Private field '{}' does not exist on object")                                              \
     M(PrivateFieldGetAccessorWithoutGetter, "Cannot get private field '{}' as accessor without getter")                             \
     M(PrivateFieldSetAccessorWithoutSetter, "Cannot set private field '{}' as accessor without setter")                             \

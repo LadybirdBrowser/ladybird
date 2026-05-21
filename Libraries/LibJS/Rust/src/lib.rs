@@ -1254,6 +1254,8 @@ pub unsafe extern "C" fn rust_compile_eval(
                 return std::ptr::null_mut();
             }
 
+            let eval_referenced_private_names = parser.eval_referenced_private_names().to_vec();
+
             parser.scope_collector.analyze(
                 true,
                 &mut parser.arena.identifiers,
@@ -1292,6 +1294,7 @@ pub unsafe extern "C" fn rust_compile_eval(
                 gdi_context,
                 &mut generator.function_table,
                 &arena_arc,
+                &eval_referenced_private_names,
             );
 
             exec_ptr
@@ -2499,6 +2502,7 @@ fn extract_gdi_common(
 
 /// Extract EDI metadata from a program-level ScopeData and populate
 /// the C++ EvalGdiBuilder via callbacks.
+#[allow(clippy::too_many_arguments)]
 unsafe fn extract_eval_gdi(
     scope: &ast::ScopeData,
     is_strict: bool,
@@ -2507,11 +2511,12 @@ unsafe fn extract_eval_gdi(
     ctx: *mut c_void,
     function_table: &mut ast::FunctionTable,
     arena: &std::sync::Arc<ast::AstArena>,
+    referenced_private_names: &[ast::Utf16String],
 ) {
     unsafe {
         use bytecode::ffi::{
-            eval_gdi_push_annex_b_name, eval_gdi_push_function, eval_gdi_push_lexical_binding, eval_gdi_push_var_name,
-            eval_gdi_push_var_scoped_name, eval_gdi_set_strict,
+            eval_gdi_push_annex_b_name, eval_gdi_push_function, eval_gdi_push_lexical_binding,
+            eval_gdi_push_private_name, eval_gdi_push_var_name, eval_gdi_push_var_scoped_name, eval_gdi_set_strict,
         };
 
         eval_gdi_set_strict(ctx, is_strict);
@@ -2531,6 +2536,10 @@ unsafe fn extract_eval_gdi(
             function_table,
             arena,
         );
+
+        for name in referenced_private_names {
+            eval_gdi_push_private_name(ctx, name.as_ptr(), name.len());
+        }
     }
 }
 
