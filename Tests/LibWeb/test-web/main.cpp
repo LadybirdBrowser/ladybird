@@ -1305,6 +1305,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             // Don't try to reset state if WebContent crashed - it's gone
             if (test_result != TestResult::Crashed) {
+                view->clear_content_blockers();
                 view->reset_zoom();
                 view->reset_viewport_size(window_size);
             }
