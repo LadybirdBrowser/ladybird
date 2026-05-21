@@ -21,6 +21,11 @@ describe("parsing freestanding generators", () => {
         expect("function* foo() { ({...yield yield, }) }").toEval();
     });
 
+    test("yield expression preserves for-loop no-In context", () => {
+        expect("function* foo() { for (yield '' in {}; ;); }").not.toEval();
+        expect("function* foo() { for (yield * '' in {}; ;); }").not.toEval();
+    });
+
     test("yield-from expression", () => {
         expect(`function* foo() { yield *bar; }`).toEval();
         expect(`function* foo() { yield *(yield); }`).toEval();
@@ -61,6 +66,8 @@ describe("parsing classes with generator methods", () => {
 
 test("function expression names equal to 'yield'", () => {
     expect(`function *foo() { (function yield() {}); }`).toEval();
+    expect(`function f() { (function* yield() {}); }`).not.toEval();
+    expect(`var g = function* yield() {};`).not.toEval();
     expect(`function *foo() { function yield() {} }`).not.toEval();
 });
 
