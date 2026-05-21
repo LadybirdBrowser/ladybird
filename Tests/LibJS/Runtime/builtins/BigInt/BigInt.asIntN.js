@@ -82,17 +82,8 @@ describe("correct behavior", () => {
         expect(BigInt.asIntN(0x8ffffffffffff, 1n)).toBe(1n);
         expect(BigInt.asIntN(2 ** 53 - 1, 2n)).toBe(2n);
 
-        // These incur large intermediate values that 00M. For now, ensure they don't crash
-        expect(() => {
-            BigInt.asIntN(0x4000000000000, -1n);
-        }).toThrowWithMessage(InternalError, "Out of memory");
-
-        expect(() => {
-            BigInt.asIntN(0x8ffffffffffff, -1n);
-        }).toThrowWithMessage(InternalError, "Out of memory");
-
-        expect(() => {
-            BigInt.asIntN(2 ** 53 - 1, -2n);
-        }).toThrowWithMessage(InternalError, "Out of memory");
+        expect(BigInt.asIntN(0x4000000000000, -1n)).toBe(-1n);
+        expect(BigInt.asIntN(0x8ffffffffffff, -1n)).toBe(-1n);
+        expect(BigInt.asIntN(2 ** 53 - 1, -2n)).toBe(-2n);
     });
 });
