@@ -10,9 +10,9 @@ block0:
   [  30] End value:reg5
 
 
-f$ecdffc4e async-await.js:7:5
+f$5541cf89 async-await.js:7:5
   Registers: 10
-  Blocks:    8
+  Blocks:    5
   Constants:
     [0] = Undefined
     [1] = Int32(42)
@@ -34,18 +34,7 @@ block2:
   [  a0] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
 
 block3:
-  [  b8] Await continuation_label:block5, argument:reg8
+  [  b8] Yield value:reg8
 
 block4:
   [  c8] Throw src:reg8
-
-block5:
-  [  d0] Mov dst:reg5, src:reg0
-  [  e0] GetCompletionFields type_dst:reg7, value_dst:reg6, completion:reg5
-  [  f0] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block6, false_target:block7
-
-block6:
-  [ 108] Yield value:reg6
-
-block7:
-  [ 118] Throw src:reg6

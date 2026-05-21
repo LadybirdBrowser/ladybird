@@ -1079,9 +1079,7 @@ pub fn generate_statement(
             let val = match value {
                 Some(expression) => {
                     let v = generate_expression_or_undefined(expression, generator, None);
-                    // Async functions implicitly await an explicit return value.
-                    // Bare `return;` does NOT await (per spec).
-                    if generator.is_in_async_function() {
+                    if generator.is_in_async_generator_function() {
                         let received_completion = generator.allocate_register();
                         let received_completion_type = generator.allocate_register();
                         let received_completion_value = generator.allocate_register();

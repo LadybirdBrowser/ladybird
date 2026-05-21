@@ -854,6 +854,9 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
 {
     dbgln_if(JS_BYTECODE_DEBUG, "VM will run bytecode unit {}", &executable);
 
+    auto const is_outermost_bytecode_execution = m_run_executable_depth == 0;
+    TemporaryChange restore_run_executable_depth { m_run_executable_depth, m_run_executable_depth + 1 };
+
     // NOTE: This is how we "push" a new execution context onto the VM's
     //       execution context stack.
     TemporaryChange restore_running_execution_context { m_running_execution_context, &context };
@@ -886,7 +889,8 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         }
     }
 
-    vm().run_queued_promise_jobs();
+    if (is_outermost_bytecode_execution)
+        vm().run_queued_promise_jobs();
     vm().finish_execution_generation();
 
     auto exception = reg(Register::exception());
