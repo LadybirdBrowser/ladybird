@@ -847,7 +847,7 @@ impl Generator {
             column: self.current_source_start.column,
         };
         let block = &mut self.basic_blocks[self.current_block_index.basic_block_index()];
-        block.append(instruction, source_map);
+        block.append(instruction, source_map, self.strict);
     }
 
     /// Emit a Mov instruction (optimized away if src == dst).
@@ -882,7 +882,7 @@ impl Generator {
         // instruction is a comparison whose dst matches condition, fuse into a JumpXxx.
         if condition.operand().is_register() && std::rc::Rc::strong_count(&condition.inner) == 1 {
             let block = &mut self.basic_blocks[self.current_block_index.basic_block_index()];
-            if let Some((last_instruction, _)) = block.instructions.last() {
+            if let Some((last_instruction, _, _)) = block.instructions.last() {
                 let fused = match last_instruction {
                     Instruction::LessThan { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpLessThan {
@@ -1563,6 +1563,7 @@ impl Generator {
                     Instruction::GetLexicalEnvironment {
                         dst,
                     },
+                    _,
                     _
                 )) if *dst == saved_environment
             )
@@ -1574,7 +1575,7 @@ impl Generator {
                     .instructions
                     .iter()
                     .enumerate()
-                    .any(|(instruction_index, (instruction, _))| {
+                    .any(|(instruction_index, (instruction, _, _))| {
                         if block_index == load_block_index && instruction_index == 0 {
                             return false;
                         }
@@ -1612,7 +1613,7 @@ impl Generator {
         // Phase 1: Operand rewriting
         let mut max_argument_index: Option<u32> = None;
         for block in &mut self.basic_blocks {
-            for (instruction, _) in &mut block.instructions {
+            for (instruction, _, _) in &mut block.instructions {
                 instruction.visit_operands(&mut |op: &mut Operand| {
                     match op.operand_type() {
                         OperandType::Register => {} // stays as-is
@@ -1733,7 +1734,7 @@ impl Generator {
             block_offsets.push(offset);
             let block = &self.basic_blocks[block_index];
             let mut block_actions = Vec::with_capacity(block.instructions.len());
-            for (instruction, _) in &block.instructions {
+            for (instruction, _, _) in &block.instructions {
                 match instruction {
                     Instruction::Jump { target } => {
                         let target_block = target.0 as usize;
@@ -1824,7 +1825,7 @@ impl Generator {
 
         // Phase 3: Patch labels (block index → byte offset)
         for block in &mut self.basic_blocks {
-            for (instruction, _) in &mut block.instructions {
+            for (instruction, _, _) in &mut block.instructions {
                 instruction.visit_labels(&mut |label: &mut Label| {
                     let block_index = label.0 as usize;
                     label.0 = u32_from_usize(block_offsets[block_index]);
@@ -1854,7 +1855,7 @@ impl Generator {
             let handler = block.handler;
             let block_actions = &actions[block_index];
 
-            for (instruction_index, (instruction, sm)) in block.instructions.iter().enumerate() {
+            for (instruction_index, (instruction, sm, strict)) in block.instructions.iter().enumerate() {
                 let action = block_actions[instruction_index];
                 match action {
                     InstAction::Skip => {
@@ -1874,7 +1875,7 @@ impl Generator {
                                 column: sm.column,
                             },
                         );
-                        instruction.encode(self.strict, &mut bytecode);
+                        instruction.encode(*strict, &mut bytecode);
                     }
                     InstAction::JumpToReturn(value) => {
                         let instruction_offset = bytecode.len();
@@ -1887,7 +1888,7 @@ impl Generator {
                             },
                         );
                         let replacement = Instruction::Return { value };
-                        replacement.encode(self.strict, &mut bytecode);
+                        replacement.encode(*strict, &mut bytecode);
                     }
                     InstAction::JumpToEnd(value) => {
                         let instruction_offset = bytecode.len();
@@ -1900,7 +1901,7 @@ impl Generator {
                             },
                         );
                         let replacement = Instruction::End { value };
-                        replacement.encode(self.strict, &mut bytecode);
+                        replacement.encode(*strict, &mut bytecode);
                     }
                     InstAction::EmitJumpFalse { condition, mut target } => {
                         // Patch label for the target
@@ -1916,7 +1917,7 @@ impl Generator {
                             },
                         );
                         let replacement = Instruction::JumpFalse { condition, target };
-                        replacement.encode(self.strict, &mut bytecode);
+                        replacement.encode(*strict, &mut bytecode);
                     }
                     InstAction::EmitJumpTrue { condition, mut target } => {
                         let target_block = target.0 as usize;
@@ -1931,7 +1932,7 @@ impl Generator {
                             },
                         );
                         let replacement = Instruction::JumpTrue { condition, target };
-                        replacement.encode(self.strict, &mut bytecode);
+                        replacement.encode(*strict, &mut bytecode);
                     }
                 }
             }

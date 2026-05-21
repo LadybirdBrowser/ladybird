@@ -22,7 +22,7 @@ pub struct SourceMapEntry {
 /// serialized into the final byte stream.
 pub struct BasicBlock {
     pub index: u32,
-    pub instructions: Vec<(Instruction, SourceMapEntry)>,
+    pub instructions: Vec<(Instruction, SourceMapEntry, bool)>,
     pub handler: Option<Label>,
     pub terminated: bool,
     pub resolved_this: bool,
@@ -39,9 +39,9 @@ impl BasicBlock {
         }
     }
 
-    pub fn append(&mut self, instruction: Instruction, source_map: SourceMapEntry) {
+    pub fn append(&mut self, instruction: Instruction, source_map: SourceMapEntry, strict: bool) {
         let is_terminator = instruction.is_terminator();
-        self.instructions.push((instruction, source_map));
+        self.instructions.push((instruction, source_map, strict));
         if is_terminator {
             self.terminated = true;
         }

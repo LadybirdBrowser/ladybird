@@ -7,7 +7,7 @@ $091ab4cd super-computed-string-to-id.js:1:1
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [  30] GetGlobal dst:reg6, `Object`
   [  40] SetLexicalEnvironment environment:reg4
   [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0

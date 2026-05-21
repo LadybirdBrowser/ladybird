@@ -73,6 +73,20 @@ pub fn generate_expression(
     result
 }
 
+fn generate_class_part_expression(
+    expression: &Expression,
+    generator: &mut Generator,
+    preferred_dst: Option<&ScopedOperand>,
+) -> Option<ScopedOperand> {
+    // https://tc39.es/ecma262/#sec-strict-mode-code
+    // All parts of a |ClassDeclaration| or a |ClassExpression| are strict mode code.
+    let saved_strict = generator.strict;
+    generator.strict = true;
+    let result = generate_expression(expression, generator, preferred_dst);
+    generator.strict = saved_strict;
+    result
+}
+
 fn emit_get_binding(
     generator: &mut Generator,
     dst: Operand,
@@ -5750,7 +5764,9 @@ fn generate_class_expression(
     });
     generator.push_static_lexical_environment(class_env.clone());
 
-    // Step 3.a: Create binding for the class name in the class environment.
+    // https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation
+    // If _classBinding_ is not *undefined*, then
+    //   Perform ! _classEnv_.CreateImmutableBinding(_classBinding_, *true*).
     // Only emit when the class has a name, or when there's no lhs_name
     // (skip this for anonymous classes with lhs_name).
     if data.name.is_some() || lhs_name.is_none() {
@@ -5765,13 +5781,13 @@ fn generate_class_expression(
             mode: EnvironmentMode::Lexical as u32,
             is_immutable: true,
             is_global: false,
-            is_strict: false,
+            is_strict: true,
         });
     }
 
     // Evaluate super class if present
     let super_class = if let Some(super_expression) = &data.super_class {
-        generate_expression(super_expression, generator, None)
+        generate_class_part_expression(super_expression, generator, None)
     } else {
         None
     };
@@ -5807,7 +5823,7 @@ fn generate_class_expression(
         match &element_node.inner {
             ClassElement::Method { key, .. } => {
                 if !is_private_key(key) {
-                    let key_val = generate_expression(key, generator, None);
+                    let key_val = generate_class_part_expression(key, generator, None);
                     element_keys.push(key_val);
                 } else {
                     element_keys.push(None);
@@ -5815,7 +5831,7 @@ fn generate_class_expression(
             }
             ClassElement::Field { key, .. } => {
                 if !is_private_key(key) {
-                    let key_val = generate_expression(key, generator, None);
+                    let key_val = generate_class_part_expression(key, generator, None);
                     element_keys.push(key_val);
                 } else {
                     element_keys.push(None);
