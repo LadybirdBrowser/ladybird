@@ -7036,6 +7036,14 @@ fn assign_binding_entry_alias(
     }
 }
 
+fn make_block_with_unwind_handler(generator: &mut Generator, unwind_handler: Option<Label>) -> Label {
+    let saved_unwind_handler = generator.current_unwind_handler;
+    generator.current_unwind_handler = unwind_handler;
+    let block = generator.make_block();
+    generator.current_unwind_handler = saved_unwind_handler;
+    block
+}
+
 fn generate_array_binding_pattern(
     generator: &mut Generator,
     pattern: &BindingPattern,
@@ -7057,6 +7065,43 @@ fn generate_array_binding_pattern(
         hint: IteratorHint::Sync as u32,
     });
 
+    // 13.15.5.1 Runtime Semantics: DestructuringAssignmentEvaluation,
+    // https://tc39.es/ecma262/#sec-runtime-semantics-destructuringassignmentevaluation
+    //
+    // ArrayAssignmentPattern : `[` AssignmentElementList `]`
+    // 1. Let _iteratorRecord_ be ? GetIterator(_value_, ~sync~).
+    // 2. Let _result_ be Completion(IteratorDestructuringAssignmentEvaluation of |AssignmentElementList| with argument
+    //    _iteratorRecord_).
+    // 3. If _iteratorRecord_.[[Done]] is *false*, return ? IteratorClose(_iteratorRecord_, _result_).
+    // 4. Return _result_.
+    let old_handler = generator.current_unwind_handler;
+    let close_completion_type = generator.allocate_register();
+    let close_completion_value = generator.allocate_register();
+    let exception_preamble_block = generator.make_block();
+    let iterator_close_body_block = generator.make_block();
+    let after_pattern_block = generator.make_block();
+    let lexical_env_at_entry = generator.lexical_environment_register_stack.last().cloned();
+    let parent_index = generator.current_finally_context;
+    generator.push_finally_context(FinallyContext {
+        completion_type: close_completion_type.clone(),
+        completion_value: close_completion_value.clone(),
+        finally_body: iterator_close_body_block,
+        exception_preamble: exception_preamble_block,
+        parent_index,
+        registered_jumps: Vec::new(),
+        next_jump_index: FinallyContext::FIRST_JUMP_INDEX,
+        lexical_environment_at_entry: lexical_env_at_entry.clone(),
+        saved_unwind_handler: None,
+    });
+    generator.start_boundary(BlockBoundaryType::ReturnToFinally);
+
+    generator.current_unwind_handler = Some(exception_preamble_block);
+    let pattern_body_block = generator.make_block();
+    generator.emit(Instruction::Jump {
+        target: pattern_body_block,
+    });
+    generator.switch_to_basic_block(pattern_body_block);
+
     for (index, entry) in pattern.entries.iter().enumerate() {
         if entry.is_rest {
             // 13.15.5.3 AssignmentRestElement: ... DestructuringAssignmentTarget
@@ -7072,16 +7117,24 @@ fn generate_array_binding_pattern(
             // else branch.
             let mut value = generator.allocate_register();
             if index == 0 {
+                let iterator_to_array_block = make_block_with_unwind_handler(generator, old_handler);
+                let continuation = make_block_with_unwind_handler(generator, Some(exception_preamble_block));
+                generator.emit(Instruction::Jump {
+                    target: iterator_to_array_block,
+                });
+                generator.switch_to_basic_block(iterator_to_array_block);
                 generator.emit(Instruction::IteratorToArray {
                     dst: value.operand(),
                     iterator_object: iterator_object.operand(),
                     iterator_next_method: iterator_next.operand(),
                     iterator_done_property: iterator_done.operand(),
                 });
+                generator.emit(Instruction::Jump { target: continuation });
+                generator.switch_to_basic_block(continuation);
             } else {
-                let if_exhausted = generator.make_block();
-                let if_not_exhausted = generator.make_block();
-                let continuation = generator.make_block();
+                let if_exhausted = make_block_with_unwind_handler(generator, Some(exception_preamble_block));
+                let if_not_exhausted = make_block_with_unwind_handler(generator, old_handler);
+                let continuation = make_block_with_unwind_handler(generator, Some(exception_preamble_block));
 
                 generator.emit_jump_if(&is_exhausted, if_exhausted, if_not_exhausted);
 
@@ -7112,7 +7165,7 @@ fn generate_array_binding_pattern(
             } else {
                 assign_binding_entry_alias(generator, entry, &value, mode);
             }
-            return; // rest consumes the iterator
+            break; // rest consumes the iterator
         }
 
         // 13.15.5.5 AssignmentElement: DestructuringAssignmentTarget Initializer(opt)
@@ -7127,13 +7180,19 @@ fn generate_array_binding_pattern(
         // but don't bind anything.
         let is_elision = entry.name.is_none() && entry.alias.is_none();
 
-        let exhausted_block = generator.make_block();
+        let exhausted_block = make_block_with_unwind_handler(generator, Some(exception_preamble_block));
 
         if index != 0 {
-            let not_exhausted_block = generator.make_block();
+            let not_exhausted_block = make_block_with_unwind_handler(generator, Some(exception_preamble_block));
             generator.emit_jump_if(&is_exhausted, exhausted_block, not_exhausted_block);
             generator.switch_to_basic_block(not_exhausted_block);
         }
+
+        let iterator_next_block = make_block_with_unwind_handler(generator, old_handler);
+        generator.emit(Instruction::Jump {
+            target: iterator_next_block,
+        });
+        generator.switch_to_basic_block(iterator_next_block);
 
         let value = generator.allocate_register();
         generator.emit(Instruction::IteratorNextUnpack {
@@ -7145,11 +7204,11 @@ fn generate_array_binding_pattern(
         });
 
         // Check if iterator got exhausted by this step.
-        let no_bail_block = generator.make_block();
+        let no_bail_block = make_block_with_unwind_handler(generator, Some(exception_preamble_block));
         generator.emit_jump_if(&is_exhausted, exhausted_block, no_bail_block);
 
         generator.switch_to_basic_block(no_bail_block);
-        let create_binding_block = generator.make_block();
+        let create_binding_block = make_block_with_unwind_handler(generator, Some(exception_preamble_block));
         generator.emit(Instruction::Jump {
             target: create_binding_block,
         });
@@ -7193,10 +7252,23 @@ fn generate_array_binding_pattern(
         }
     }
 
-    // Close iterator if not exhausted.
-    let done_block = generator.make_block();
-    let not_done_block = generator.make_block();
-    generator.emit_jump_if(&is_exhausted, done_block, not_done_block);
+    generator.end_boundary(BlockBoundaryType::ReturnToFinally);
+    let finally_ctx_index = generator.current_finally_context.expect("no active finally context");
+    generator.current_finally_context = generator.finally_contexts[finally_ctx_index].parent_index;
+    generator.current_unwind_handler = old_handler;
+
+    let normal_close_check_block = make_block_with_unwind_handler(generator, old_handler);
+    if !generator.is_current_block_terminated() {
+        generator.emit(Instruction::Jump {
+            target: normal_close_check_block,
+        });
+    }
+
+    // Close iterator if it is not done.
+    generator.switch_to_basic_block(normal_close_check_block);
+    let done_block = make_block_with_unwind_handler(generator, old_handler);
+    let not_done_block = make_block_with_unwind_handler(generator, old_handler);
+    generator.emit_jump_if(&iterator_done, done_block, not_done_block);
     generator.switch_to_basic_block(not_done_block);
     let undef = generator.add_constant_undefined();
     generator.emit(Instruction::IteratorClose {
@@ -7208,6 +7280,122 @@ fn generate_array_binding_pattern(
     });
     generator.emit(Instruction::Jump { target: done_block });
     generator.switch_to_basic_block(done_block);
+    generator.emit(Instruction::Jump {
+        target: after_pattern_block,
+    });
+
+    generator.switch_to_basic_block(exception_preamble_block);
+    generator.emit(Instruction::Catch {
+        dst: close_completion_value.operand(),
+    });
+    if let Some(env) = &lexical_env_at_entry {
+        generator.emit(Instruction::SetLexicalEnvironment {
+            environment: env.operand(),
+        });
+    }
+    let throw_const = generator.add_constant_i32(FinallyContext::THROW);
+    generator.emit_mov(&close_completion_type, &throw_const);
+    generator.emit(Instruction::Jump {
+        target: iterator_close_body_block,
+    });
+
+    generator.switch_to_basic_block(iterator_close_body_block);
+    let close_iterator_block = make_block_with_unwind_handler(generator, old_handler);
+    let dispatch_completion_block = make_block_with_unwind_handler(generator, old_handler);
+    generator.emit_jump_if(&iterator_done, dispatch_completion_block, close_iterator_block);
+
+    generator.switch_to_basic_block(close_iterator_block);
+    let throw_close_block = make_block_with_unwind_handler(generator, old_handler);
+    let non_throw_close_block = make_block_with_unwind_handler(generator, old_handler);
+    let throw_check_const = generator.add_constant_i32(FinallyContext::THROW);
+    generator.emit(Instruction::JumpStrictlyEquals {
+        lhs: close_completion_type.operand(),
+        rhs: throw_check_const.operand(),
+        true_target: throw_close_block,
+        false_target: non_throw_close_block,
+    });
+
+    generator.switch_to_basic_block(non_throw_close_block);
+    let undef = generator.add_constant_undefined();
+    generator.emit(Instruction::IteratorClose {
+        iterator_object: iterator_object.operand(),
+        iterator_next: iterator_next.operand(),
+        iterator_done: iterator_done.operand(),
+        completion_type: CompletionType::Normal as u32,
+        completion_value: undef.operand(),
+    });
+    generator.emit(Instruction::Jump {
+        target: dispatch_completion_block,
+    });
+
+    generator.switch_to_basic_block(throw_close_block);
+    generator.emit(Instruction::IteratorClose {
+        iterator_object: iterator_object.operand(),
+        iterator_next: iterator_next.operand(),
+        iterator_done: iterator_done.operand(),
+        completion_type: CompletionType::Throw as u32,
+        completion_value: close_completion_value.operand(),
+    });
+    if !generator.is_current_block_terminated() {
+        generator.emit(Instruction::Throw {
+            src: close_completion_value.operand(),
+        });
+    }
+
+    generator.switch_to_basic_block(dispatch_completion_block);
+    let registered_jumps = std::mem::take(&mut generator.finally_contexts[finally_ctx_index].registered_jumps);
+    for jump in &registered_jumps {
+        let after_check = make_block_with_unwind_handler(generator, old_handler);
+        let jump_const = generator.add_constant_i32(jump.index);
+        generator.emit(Instruction::JumpStrictlyEquals {
+            lhs: close_completion_type.operand(),
+            rhs: jump_const.operand(),
+            true_target: jump.target,
+            false_target: after_check,
+        });
+        generator.switch_to_basic_block(after_check);
+    }
+
+    let return_block = make_block_with_unwind_handler(generator, old_handler);
+    let throw_block = make_block_with_unwind_handler(generator, old_handler);
+    let return_const = generator.add_constant_i32(FinallyContext::RETURN);
+    generator.emit(Instruction::JumpStrictlyEquals {
+        lhs: close_completion_type.operand(),
+        rhs: return_const.operand(),
+        true_target: return_block,
+        false_target: throw_block,
+    });
+
+    generator.switch_to_basic_block(return_block);
+    if let Some(outer_index) = generator.current_finally_context {
+        let outer_ct = generator.finally_contexts[outer_index].completion_type.clone();
+        let outer_cv = generator.finally_contexts[outer_index].completion_value.clone();
+        let outer_fb = generator.finally_contexts[outer_index].finally_body;
+        generator.emit_mov(&outer_ct, &close_completion_type);
+        generator.emit_mov(&outer_cv, &close_completion_value);
+        generator.emit(Instruction::Jump { target: outer_fb });
+    } else if generator.is_in_generator_function() {
+        generator.emit(Instruction::Yield {
+            continuation_label: None,
+            value: close_completion_value.operand(),
+        });
+    } else {
+        generator.emit(Instruction::Return {
+            value: close_completion_value.operand(),
+        });
+    }
+
+    generator.switch_to_basic_block(throw_block);
+    generator.emit(Instruction::Throw {
+        src: close_completion_value.operand(),
+    });
+
+    let dummy = generator.add_constant_undefined();
+    generator.finally_contexts[finally_ctx_index].completion_type = dummy.clone();
+    generator.finally_contexts[finally_ctx_index].completion_value = dummy;
+    generator.finally_contexts[finally_ctx_index].lexical_environment_at_entry = None;
+
+    generator.switch_to_basic_block(after_pattern_block);
 }
 
 fn generate_object_binding_pattern(

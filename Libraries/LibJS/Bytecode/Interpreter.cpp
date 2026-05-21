@@ -2233,7 +2233,10 @@ ThrowCompletionOr<void> IteratorToArray::execute_impl(VM& vm) const
     size_t index = 0;
 
     while (true) {
-        auto value = TRY(iterator_step_value(vm, iterator_record));
+        auto value_or_error = iterator_step_value(vm, iterator_record);
+        if (iterator_record.done)
+            vm.set(m_iterator_done_property, Value(true));
+        auto value = TRY(value_or_error);
         if (!value.has_value())
             break;
 
@@ -3438,9 +3441,10 @@ ThrowCompletionOr<void> IteratorNext::execute_impl(VM& vm) const
     auto iterator_next_method = vm.get(m_iterator_next);
     auto iterator_done_property = vm.get(m_iterator_done).as_bool();
     IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
-    vm.set(m_dst, TRY(JS::iterator_next(vm, iterator_record)));
-    if (iterator_done_property)
+    auto result = JS::iterator_next(vm, iterator_record);
+    if (iterator_record.done)
         vm.set(m_iterator_done, Value(true));
+    vm.set(m_dst, TRY(result));
     return {};
 }
 
@@ -3450,16 +3454,20 @@ ThrowCompletionOr<void> IteratorNextUnpack::execute_impl(VM& vm) const
     auto iterator_next_method = vm.get(m_iterator_next);
     auto iterator_done_property = vm.get(m_iterator_done).as_bool();
     IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
-    auto iteration_result_or_done = TRY(iterator_step(vm, iterator_record));
-    if (iterator_done_property)
+    auto iteration_result_or_done_or_error = iterator_step(vm, iterator_record);
+    if (iterator_record.done)
         vm.set(m_iterator_done, Value(true));
+    auto iteration_result_or_done = TRY(iteration_result_or_done_or_error);
     if (iteration_result_or_done.has<IterationDone>()) {
         vm.set(m_dst_done, Value(true));
         return {};
     }
     auto& iteration_result = iteration_result_or_done.get<IterationResult>();
     vm.set(m_dst_done, TRY(iteration_result.done));
-    vm.set(m_dst_value, TRY(iteration_result.value));
+    auto value = move(iteration_result.value);
+    if (value.is_throw_completion())
+        vm.set(m_iterator_done, Value(true));
+    vm.set(m_dst_value, TRY(value));
     return {};
 }
 
