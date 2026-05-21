@@ -104,6 +104,7 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
 
     // Clear yield state so that a normal return (no yield) is detected as done.
     m_execution_context->yield_continuation = ExecutionContext::no_yield_continuation;
+    m_execution_context->yield_value_is_iterator_result = false;
 
     auto result_value = vm.run_executable(vm.running_execution_context(), *m_generating_executable, m_yield_continuation, Value(this));
     clear_pending_completion();
@@ -122,10 +123,11 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
 
     m_yield_continuation = m_execution_context->yield_continuation;
     bool done = m_yield_continuation == ExecutionContext::no_yield_continuation;
+    bool value_is_iterator_result = m_execution_context->yield_value_is_iterator_result;
 
     m_generator_state = done ? GeneratorState::Completed : GeneratorState::SuspendedYield;
 
-    return IterationResult(value, done);
+    return IterationResult(value, done, value_is_iterator_result && !done);
 }
 
 // 27.5.3.3 GeneratorResume ( generator, value, generatorBrand ), https://tc39.es/ecma262/#sec-generatorresume

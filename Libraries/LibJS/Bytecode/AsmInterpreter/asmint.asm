@@ -2322,6 +2322,7 @@ handler Call
     mov scratch, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
     store32 [frame_base, EXECUTION_CONTEXT_YIELD_CONTINUATION], scratch
     store8 [frame_base, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
+    store8 [frame_base, EXECUTION_CONTEXT_YIELD_VALUE_IS_ITERATOR_RESULT], 0
     store8 [frame_base, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
     store64 [frame_base, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
     load_pair32 return_pc, return_dst, [pb, pc, m_length], [pb, pc, m_dst]
@@ -2508,6 +2509,7 @@ handler Call
     mov scratch, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
     store32 [frame_base, EXECUTION_CONTEXT_YIELD_CONTINUATION], scratch
     store8 [frame_base, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
+    store8 [frame_base, EXECUTION_CONTEXT_YIELD_VALUE_IS_ITERATOR_RESULT], 0
     store8 [frame_base, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
 
     # While asm runs, the authoritative program counter lives in the `pc`

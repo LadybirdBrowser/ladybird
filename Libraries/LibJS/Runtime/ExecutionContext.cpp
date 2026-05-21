@@ -114,6 +114,7 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->program_counter = program_counter;
     copy->yield_continuation = yield_continuation;
     copy->yield_is_await = yield_is_await;
+    copy->yield_value_is_iterator_result = yield_value_is_iterator_result;
     copy->caller_is_construct = caller_is_construct;
     copy->this_value = this_value;
     copy->executable = executable;
