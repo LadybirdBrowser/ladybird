@@ -141,6 +141,59 @@ describe("normal behavior", () => {
         expect(fulfillmentValue).toBe("Some value");
     });
 
+    test("Promise jobs are not run while returning from a nested function call", () => {
+        const order = [];
+
+        function call() {
+            order.push("call");
+        }
+
+        Promise.resolve().then(() => {
+            order.push("job");
+        });
+
+        call();
+        order.push("after");
+        expect(order).toEqual(["call", "after"]);
+
+        runQueuedPromiseJobs();
+        expect(order).toEqual(["call", "after", "job"]);
+    });
+
+    test("chained Promise reactions are run in FIFO job order", () => {
+        const sequence = [];
+        const promise = new Promise(resolve => {
+            sequence.push(1);
+            resolve();
+        });
+
+        promise
+            .then(() => {
+                sequence.push(3);
+            })
+            .then(() => {
+                sequence.push(5);
+            })
+            .then(() => {
+                sequence.push(7);
+            });
+
+        promise
+            .then(() => {
+                sequence.push(4);
+            })
+            .then(() => {
+                sequence.push(6);
+            })
+            .then(() => {
+                sequence.push(8);
+            });
+
+        sequence.push(2);
+        runQueuedPromiseJobs();
+        expect(sequence).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    });
+
     test("PromiseCapability with throwing resolve function", () => {
         class PromiseLike {
             constructor(executor) {

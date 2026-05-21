@@ -163,21 +163,10 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
             auto result = generator_result.release_value();
             auto promise_value = result.value;
             if (result.done) {
-                // When returning a promise, we need to unwrap it.
-                if (auto returned_promise = promise_value.as_if<Promise>()) {
-                    if (returned_promise->state() == Promise::State::Fulfilled) {
-                        m_top_level_promise->fulfill(returned_promise->result());
-                        return {};
-                    }
-                    if (returned_promise->state() == Promise::State::Rejected)
-                        return throw_completion(returned_promise->result());
-
-                    // The promise is still pending but there's nothing more to do here.
-                    return {};
-                }
-
-                // We hit a `return value;`
-                m_top_level_promise->fulfill(promise_value);
+                // AsyncBlockStart resolves return completions via promiseCapability.[[Resolve]], which adopts returned
+                // thenables without turning `return value;` into `return await value;`.
+                auto resolving_functions = m_top_level_promise->create_resolving_functions();
+                MUST(call(vm, *resolving_functions.resolve, js_undefined(), promise_value));
                 return {};
             }
 

@@ -24,6 +24,9 @@ test("closure-capturing callees do not drain promise jobs before the caller resu
     Promise.resolve().then(() => order.push("micro"));
 
     outer();
+    expect(order).toEqual(["inner", "outer"]);
+
+    runQueuedPromiseJobs();
     expect(order).toEqual(["inner", "outer", "micro"]);
 });
 
@@ -46,6 +49,9 @@ test("sloppy primitive receivers do not drain promise jobs before the caller res
     Promise.resolve().then(() => order.push("micro"));
 
     outer();
+    expect(order).toEqual(["inner", "outer"]);
+
+    runQueuedPromiseJobs();
     expect(order).toEqual(["inner", "outer", "micro"]);
 });
 

@@ -2177,9 +2177,8 @@ handler Call
     #    callee frame here and dispatch at pc = 0 of the callee bytecode.
     #    Cases that need function-environment allocation or sloppy primitive
     #    this-boxing can't stay in pure asm but also don't want the full
-    #    slow path (which would insert a run_executable() boundary and an
-    #    observable microtask drain), so they detour through the
-    #    asm_try_inline_call helper at .call_interp_inline.
+    #    slow path, so they detour through the asm_try_inline_call helper at
+    #    .call_interp_inline.
     #
     #  - RawNativeFunction: build a callee ExecutionContext here, call the
     #    stored C++ function pointer directly via call_raw_native, and then
@@ -2406,9 +2405,8 @@ handler Call
     goto_handler pc
 .call_interp_inline:
     # Shared escape hatch for the cases that need C++ help to build the
-    # inline frame correctly but must not take the full Call slow path,
-    # since that would insert a run_executable() boundary and observable
-    # microtask drain.
+    # inline frame correctly but can still stay in the asm-managed inline-frame
+    # machinery.
     call_interp asm_try_inline_call, result
     branch_nonzero result, .call_slow
     load_vm vm_ptr

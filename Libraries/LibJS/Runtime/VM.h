@@ -563,6 +563,7 @@ private:
     WellKnownSymbols m_well_known_symbols;
 
     u32 m_execution_generation { 0 };
+    u32 m_run_executable_depth { 0 };
 
     OwnPtr<Agent> m_agent;
 
