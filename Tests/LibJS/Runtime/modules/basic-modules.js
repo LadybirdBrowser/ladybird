@@ -208,6 +208,10 @@ describe("in- and exports", () => {
         expectModulePassed("./re-export-namespace-via-binding.mjs");
     });
 
+    test("can merge matching namespace re-exports", () => {
+        expectModulePassed("./namespace-re-export-entry.mjs");
+    });
+
     test("import variable before import statement behaves as undefined and non mutable variable", () => {
         expectModulePassed("./accessing-var-import-before-decl.mjs");
     });

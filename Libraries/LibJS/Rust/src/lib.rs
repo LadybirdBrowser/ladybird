@@ -2048,14 +2048,14 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
 
                     if let Some(import_entry) = matching_import {
                         if import_entry.import_name.is_none() {
-                            // Namespace re-export → local export.
+                            // Re-export of an imported module namespace object becomes an indirect namespace export.
                             call_export_callback(
-                                cb.push_local_export,
+                                cb.push_indirect_export,
                                 ctx,
-                                entry.kind as u8,
+                                ExportEntryKind::ModuleRequestAll as u8,
                                 entry.export_name.as_ref(),
-                                entry.local_or_import_name.as_ref(),
                                 None,
+                                Some(&import_entry.module_request),
                             );
                         } else {
                             // Re-export of a specific binding → indirect export.
