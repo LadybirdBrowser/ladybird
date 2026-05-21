@@ -18,3 +18,31 @@ test("basic functionality", () => {
     expect(difference2to1).toHaveSize(2);
     ["d", "e"].forEach(value => expect(difference2to1.has(value)).toBeTrue());
 });
+
+test("receiver mutations during other.has do not affect visited keys", () => {
+    const set = new Set([1, 2, 3, 4]);
+    const visited = [];
+
+    const other = {
+        size: 100,
+        has(value) {
+            visited.push(value);
+
+            if (visited.length === 1) {
+                set.clear();
+                set.add(11);
+                set.add(22);
+            }
+
+            return true;
+        },
+        keys() {
+            throw new Error("unexpected keys call");
+        },
+    };
+
+    const difference = set.difference(other);
+    expect(difference).toHaveSize(0);
+    expect(visited).toEqual([1, 2, 3, 4]);
+    expect([...set]).toEqual([11, 22]);
+});
