@@ -1,4 +1,4 @@
-$f5bf1d5d object-rest-computed-key.js:1:1
+$fe0af08d object-rest-computed-key.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,8 +15,9 @@ block0:
   [  50] CacheObjectShape object:reg5
   [  60] ThrowIfNullish src:reg5
   [  68] GetGlobal dst:reg7, `a`
-  [  78] GetByValue dst:reg6, base:reg5, property:reg7
-  [  90] SetGlobal `b`, src:reg6
-  [  a0] CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
-  [  c0] SetGlobal `rest`, src:reg6
-  [  d0] End value:Undefined
+  [  78] ToPrimitiveWithStringHint dst:reg7, value:reg7
+  [  88] GetByValue dst:reg6, base:reg5, property:reg7
+  [  a0] SetGlobal `b`, src:reg6
+  [  b0] CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
+  [  d0] SetGlobal `rest`, src:reg6
+  [  e0] End value:Undefined
