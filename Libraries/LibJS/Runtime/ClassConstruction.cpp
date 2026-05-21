@@ -97,7 +97,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
     class_constructor->set_name(class_name);
     class_constructor->set_home_object(prototype);
     class_constructor->set_is_class_constructor();
-    class_constructor->define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
+    class_constructor->define_direct_property(vm.names.prototype, prototype, 0);
     TRY(class_constructor->internal_set_prototype_of(constructor_parent));
 
     if (blueprint.has_super_class)

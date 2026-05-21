@@ -71,6 +71,26 @@ test("static method overriding", () => {
     expect(Child.method()).toBe(10);
 });
 
+test("static elements cannot redefine prototype property", () => {
+    expect(() => {
+        class A {
+            static ["prototype"]() {}
+        }
+    }).toThrow(TypeError);
+
+    expect(() => {
+        class A {
+            static get ["prototype"]() {}
+        }
+    }).toThrow(TypeError);
+
+    expect(() => {
+        class A {
+            static set ["prototype"](value) {}
+        }
+    }).toThrow(TypeError);
+});
+
 test("static function named 'async'", () => {
     class A {
         static async() {
