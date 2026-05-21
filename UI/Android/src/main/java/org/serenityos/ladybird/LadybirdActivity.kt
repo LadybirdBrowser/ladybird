@@ -182,7 +182,7 @@ class LadybirdActivity : AppCompatActivity() {
             System.loadLibrary("Ladybird")
         }
 
-        private const val DEFAULT_HOME_URL = "https://ladybird.org"
+        private const val DEFAULT_HOME_URL = "https://ladybird.dev"
         private const val DEFAULT_SEARCH_URL = "https://www.google.com/search?q="
     }
 }
