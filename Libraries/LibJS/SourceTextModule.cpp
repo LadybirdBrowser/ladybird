@@ -634,6 +634,9 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     // 8. Suspend the currently running execution context.
     // NOTE: Done by the push of execution context in steps below.
 
+    vm.enter_module_execution();
+    ScopeGuard leave_module_execution = [&] { vm.leave_module_execution(); };
+
     // 9. If module.[[HasTLA]] is false, then
     if (!m_has_top_level_await) {
         // a. Assert: capability is not present.
