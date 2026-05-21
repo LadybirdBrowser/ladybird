@@ -33,6 +33,7 @@ public:
     bool is_empty() const { return m_attributes.is_empty(); }
 
     // Methods defined by the spec for JavaScript:
+    Attr* item(u32 index);
     Attr const* item(u32 index) const;
     Attr const* get_named_item(FlyString const& qualified_name) const;
     Attr const* get_named_item_ns(Optional<FlyString> const& namespace_, FlyString const& local_name) const;
