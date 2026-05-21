@@ -59,6 +59,29 @@ test("with object changes can shadow an outer binding", () => {
     expect(seen).toEqual(["outer", "object"]);
 });
 
+test("assignment keeps the resolved with binding through RHS side effects", () => {
+    var outer = 0;
+    var object = { outer: 1 };
+
+    with (object) {
+        outer = (delete object.outer, 2);
+    }
+
+    expect(object.outer).toBe(2);
+    expect(outer).toBe(0);
+});
+
+test("var initializer keeps the resolved with binding through initializer side effects", () => {
+    var object = { test262id: 1 };
+
+    with (object) {
+        var test262id = delete object.test262id;
+    }
+
+    expect(object.test262id).toBe(true);
+    expect(test262id).toBeUndefined();
+});
+
 test("with statement updates empty abrupt completions to undefined", () => {
     expect(eval("1; do { 2; with ({}) { 3; break; } 4; } while (false);")).toBe(3);
     expect(eval("5; do { 6; with ({}) { break; } 7; } while (false);")).toBeUndefined();

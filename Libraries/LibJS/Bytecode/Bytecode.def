@@ -1019,6 +1019,11 @@ op ResolveSuperBase < Instruction
     m_dst: Operand
 endop
 
+op ResolveBinding < Instruction
+    m_dst: Operand
+    m_identifier: IdentifierTableIndex
+endop
+
 op ResolveThisBinding < Instruction
 endop
 
@@ -1061,6 +1066,12 @@ op SetLexicalBinding < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand
     m_cache: EnvironmentCoordinate
+endop
+
+op SetResolvedBinding < Instruction
+    m_environment: Operand
+    m_identifier: IdentifierTableIndex
+    m_src: Operand
 endop
 
 op DynamicSetLexicalBinding < Instruction

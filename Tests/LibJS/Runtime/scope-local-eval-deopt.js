@@ -365,6 +365,19 @@ describe("scope-local eval deoptimization", () => {
         expect(foo()).toBe("undefined");
     });
 
+    test("assignment keeps the resolved binding through direct eval var declarations", () => {
+        function foo() {
+            var x = 0;
+            var innerX = (function () {
+                x = (eval("var x;"), 1);
+                return x;
+            })();
+            return [innerX, x];
+        }
+
+        expect(foo()).toEqual([undefined, 1]);
+    });
+
     test("eval shadowing global does not modify actual global", () => {
         globalThis.testGlobal789 = "original";
         function foo() {
