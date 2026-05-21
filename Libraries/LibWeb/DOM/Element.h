@@ -174,6 +174,7 @@ public:
     int client_height() const;
     [[nodiscard]] double current_css_zoom() const;
 
+    void for_each_attribute(Function<void(Attr&)>);
     void for_each_attribute(Function<void(Attr const&)>) const;
 
     void for_each_attribute(Function<void(FlyString const&, String const&)>) const;

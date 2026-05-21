@@ -3467,6 +3467,14 @@ Optional<String> Element::locate_a_namespace_prefix(Optional<String> const& name
     return {};
 }
 
+void Element::for_each_attribute(Function<void(Attr&)> callback)
+{
+    if (!m_attributes)
+        return;
+    for (size_t i = 0; i < m_attributes->length(); ++i)
+        callback(*m_attributes->item(i));
+}
+
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 {
     if (!m_attributes)

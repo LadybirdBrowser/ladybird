@@ -73,7 +73,7 @@ Vector<FlyString> NamedNodeMap::supported_property_names() const
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-item
-Attr const* NamedNodeMap::item(u32 index) const
+Attr* NamedNodeMap::item(u32 index)
 {
     // 1. If index is equal to or greater than this’s attribute list’s size, then return null.
     if (index >= m_attributes.size())
@@ -81,6 +81,11 @@ Attr const* NamedNodeMap::item(u32 index) const
 
     // 2. Otherwise, return this’s attribute list[index].
     return m_attributes[index].ptr();
+}
+
+Attr const* NamedNodeMap::item(u32 index) const
+{
+    return const_cast<NamedNodeMap&>(*this).item(index);
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-getnameditem
