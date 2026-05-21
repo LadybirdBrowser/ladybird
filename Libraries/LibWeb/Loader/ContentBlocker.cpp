@@ -9,7 +9,9 @@
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/Span.h>
+#include <AK/StringBuilder.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 
 namespace Web {
@@ -55,8 +57,81 @@ bool ContentBlocker::contains(StringView text) const
 
 ErrorOr<void> ContentBlocker::set_patterns(ReadonlySpan<String> patterns)
 {
-    m_matcher = make<AsciiStringMatcher>(patterns);
+    Vector<String> network_patterns;
+    m_cosmetic_rules.clear();
+
+    for (auto const& pattern : patterns) {
+        auto pattern_view = pattern.bytes_as_string_view();
+        auto cosmetic_marker = pattern_view.find("##"sv);
+        if (!cosmetic_marker.has_value()) {
+            network_patterns.append(pattern);
+            continue;
+        }
+
+        auto selector = pattern_view.substring_view(cosmetic_marker.value() + 2);
+        if (selector.is_empty())
+            continue;
+
+        auto domains = pattern_view.substring_view(0, cosmetic_marker.value());
+        if (domains.is_empty()) {
+            CosmeticRule rule;
+            rule.selector = TRY(String::from_utf8(selector));
+            m_cosmetic_rules.append(move(rule));
+            continue;
+        }
+
+        for (auto domain : domains.split_view(',')) {
+            if (domain.is_empty())
+                continue;
+            CosmeticRule rule;
+            rule.domain = TRY(String::from_utf8(domain));
+            rule.selector = TRY(String::from_utf8(selector));
+            m_cosmetic_rules.append(move(rule));
+        }
+    }
+
+    m_matcher = make<AsciiStringMatcher>(network_patterns);
     return {};
+}
+
+static bool cosmetic_rule_domain_matches(StringView domain, URL::URL const& url)
+{
+    auto const& host = url.host();
+    if (!host.has_value())
+        return false;
+
+    auto host_string = host->serialize();
+    auto host_view = host_string.bytes_as_string_view();
+    if (host_view == domain)
+        return true;
+
+    if (!host_view.ends_with(domain))
+        return false;
+    if (host_view.length() <= domain.length())
+        return false;
+
+    return host_view[host_view.length() - domain.length() - 1] == '.';
+}
+
+String ContentBlocker::cosmetic_style_sheet_for_document(DOM::Document const& document) const
+{
+    return cosmetic_style_sheet_for_url(document.fallback_base_url());
+}
+
+String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url) const
+{
+    if (!filtering_enabled())
+        return {};
+
+    StringBuilder builder;
+    for (auto const& rule : m_cosmetic_rules) {
+        if (rule.domain.has_value() && !cosmetic_rule_domain_matches(rule.domain->bytes_as_string_view(), url))
+            continue;
+
+        builder.append(rule.selector);
+        builder.append(" { display: none !important; }\n"sv);
+    }
+    return builder.to_string_without_validation();
 }
 
 ContentBlocker::ResourceType ContentBlocker::resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const& destination, Optional<Fetch::Infrastructure::Request::InitiatorType> const& initiator_type, Fetch::Infrastructure::Request::Mode mode)

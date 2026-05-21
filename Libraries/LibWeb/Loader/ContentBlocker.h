@@ -14,6 +14,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Forward.h>
 
 namespace Web {
 
@@ -68,6 +69,10 @@ public:
     bool is_filtered(URL::URL const&, URL::URL const& source_url, Optional<Fetch::Infrastructure::Request::Destination> const&, Optional<Fetch::Infrastructure::Request::InitiatorType> const&, Fetch::Infrastructure::Request::Mode) const;
     ErrorOr<void> set_patterns(ReadonlySpan<String>);
 
+    bool has_cosmetic_rules() const { return !m_cosmetic_rules.is_empty(); }
+    String cosmetic_style_sheet_for_document(DOM::Document const&) const;
+    String cosmetic_style_sheet_for_url(URL::URL const&) const;
+
     static ResourceType resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const&, Optional<Fetch::Infrastructure::Request::InitiatorType> const&, Fetch::Infrastructure::Request::Mode);
     static URL::URL source_url_for_matching(URL::URL const&);
 
@@ -77,8 +82,14 @@ private:
 
     bool contains(StringView text) const;
 
+    struct CosmeticRule {
+        Optional<String> domain;
+        String selector;
+    };
+
     bool m_filtering_enabled { true };
     OwnPtr<AsciiStringMatcher> m_matcher;
+    Vector<CosmeticRule> m_cosmetic_rules;
 };
 
 }

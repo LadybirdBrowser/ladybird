@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
@@ -758,12 +759,41 @@ GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
 void Page::set_user_style(String source)
 {
     m_user_style_sheet_source = source;
-    if (top_level_traversable_is_initialized() && top_level_traversable()->active_document()) {
-        auto& document = *top_level_traversable()->active_document();
+    invalidate_user_style();
+}
+
+void Page::set_content_blocking_enabled(bool enabled)
+{
+    auto& blocker = ContentBlocker::the();
+    if (blocker.filtering_enabled() == enabled)
+        return;
+
+    auto has_cosmetic_rules = blocker.has_cosmetic_rules();
+    blocker.set_filtering_enabled(enabled);
+    if (has_cosmetic_rules)
+        invalidate_user_style();
+}
+
+void Page::invalidate_user_style()
+{
+    if (!top_level_traversable_is_initialized() || !top_level_traversable()->active_document())
+        return;
+
+    auto invalidate_document = [](DOM::Document& document) {
         document.style_scope().invalidate_rule_cache();
         document.for_each_shadow_root([](auto& shadow_root) {
             shadow_root.style_scope().invalidate_rule_cache();
+            shadow_root.invalidate_style(DOM::StyleInvalidationReason::StyleSheetReplace);
         });
+        document.invalidate_style(DOM::StyleInvalidationReason::StyleSheetReplace);
+    };
+
+    auto& active_document = *top_level_traversable()->active_document();
+    invalidate_document(active_document);
+
+    for (auto& navigable : active_document.descendant_navigables()) {
+        if (auto document = navigable->active_document())
+            invalidate_document(*document);
     }
 }
 
