@@ -50,6 +50,28 @@ describe("parsing", () => {
     test("multiple destructuring parameters with rest parameters, array patterns with recursive patterns 2", () => {
         expect(`function testFunction({ bar, ...a }, [ b, [ c, ...{ d } ] ]) { }`).toEval();
     });
+
+    test("eval and arguments are allowed in sloppy destructuring parameters", () => {
+        expect(`function testFunction([eval]) { }`).toEval();
+        expect(`function testFunction({ value: arguments }) { }`).toEval();
+        expect(`({ method([eval]) { } });`).toEval();
+        expect(`({ set value({ value: arguments }) { } });`).toEval();
+    });
+
+    test("eval and arguments are not allowed in strict destructuring parameters", () => {
+        for (const source of [
+            `"use strict"; function testFunction([eval]) { }`,
+            `"use strict"; function testFunction({ value: eval }) { }`,
+            `"use strict"; function testFunction([arguments]) { }`,
+            `"use strict"; function testFunction({ value: arguments }) { }`,
+            `"use strict"; ({ method([eval]) { } });`,
+            `"use strict"; ({ set value({ value: arguments }) { } });`,
+            `class C { method([eval]) { } }`,
+            `class C { set value({ value: arguments }) { } }`,
+        ]) {
+            expect(source).not.toEval();
+        }
+    });
 });
 
 describe("evaluating", () => {

@@ -597,8 +597,9 @@ impl Parser<'_> {
         if name.is_some() {
             self.check_identifier_name_for_assignment_validity(fn_name, has_use_strict);
         }
-        if has_use_strict || kind != FunctionKind::Normal {
-            self.check_parameters_post_body(&parsed.parameter_info, has_use_strict, kind);
+        let parameters_are_strict = self.flags.strict_mode || has_use_strict;
+        if parameters_are_strict || kind != FunctionKind::Normal {
+            self.check_parameters_post_body(&parsed.parameter_info, parameters_are_strict, kind);
         }
         self.flags.in_class_static_init_block = saved_static_init;
         self.flags.in_class_field_initializer = saved_field_init;
