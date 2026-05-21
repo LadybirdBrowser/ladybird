@@ -903,7 +903,11 @@ fn generate_yield_expression(
         &received_completion,
         &received_completion_type,
         &received_completion_value,
-        generator.is_in_async_generator_function(),
+        if generator.is_in_async_generator_function() {
+            YieldBehavior::AwaitValue
+        } else {
+            YieldBehavior::Normal
+        },
     );
 
     generator.switch_to_basic_block(continuation_block);
@@ -1300,6 +1304,13 @@ enum IteratorHint {
     Async = 1,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum YieldBehavior {
+    Normal,
+    AwaitValue,
+    IteratorResult,
+}
+
 /// Like generate_await but uses caller-provided completion registers.
 ///
 /// Returns the received_completion_value on the normal path.
@@ -1408,7 +1419,7 @@ fn generate_yield_from(
     // =========================================================================
     generator.switch_to_basic_block(type_is_normal_block);
 
-    // i. Let innerResult be ? Call(next, iterator, « received.[[Value]] »).
+    // i. Let _innerResult_ be ? Call(_next_, _iterator_, « _received_.[[Value]] »).
     let inner_result = generator.allocate_register();
     generator.emit(Instruction::Call {
         dst: inner_result.operand(),
@@ -1419,7 +1430,7 @@ fn generate_yield_from(
         arguments: vec![received_completion_value.operand()],
     });
 
-    // ii. If generatorKind is async, set innerResult to ? Await(innerResult).
+    // ii. If _generatorKind_ is ~async~, set _innerResult_ to ? Await(_innerResult_).
     if is_async {
         let awaited = generate_await_with_completions(
             generator,
@@ -1431,16 +1442,16 @@ fn generate_yield_from(
         generator.emit_mov(&inner_result, &awaited);
     }
 
-    // iii. If innerResult is not an Object, throw a TypeError exception.
+    // iii. If _innerResult_ is not an Object, throw a *TypeError* exception.
     generator.emit(Instruction::ThrowIfNotObject {
         src: inner_result.operand(),
     });
 
-    // iv. Let done be ? IteratorComplete(innerResult).
+    // iv. Let _done_ be ? IteratorComplete(_innerResult_).
     let done = generator.allocate_register();
     emit_get_by_id(generator, &done, &inner_result, utf16!("done"), None);
 
-    // v. If done is true, then return ? IteratorValue(innerResult).
+    // v. If _done_ is *true*, then return ? IteratorValue(_innerResult_).
     let type_is_normal_done_block = generator.make_block();
     let type_is_normal_not_done_block = generator.make_block();
     generator.emit_jump_if(&done, type_is_normal_done_block, type_is_normal_not_done_block);
@@ -1450,20 +1461,26 @@ fn generate_yield_from(
     emit_get_by_id(generator, &return_value, &inner_result, utf16!("value"), None);
     generator.emit(Instruction::Jump { target: loop_end_block });
 
-    // vi/vii. Yield IteratorValue(innerResult), receive new completion.
+    // vi. If _generatorKind_ is ~async~, set _received_ to Completion(AsyncGeneratorYield(? IteratorValue(_innerResult_))).
+    // vii. Else, set _received_ to Completion(GeneratorYield(_innerResult_)).
     generator.switch_to_basic_block(type_is_normal_not_done_block);
     {
-        let current_value = generator.allocate_register();
-        emit_get_by_id(generator, &current_value, &inner_result, utf16!("value"), None);
+        let (yield_value, yield_behavior) = if is_async {
+            let current_value = generator.allocate_register();
+            emit_get_by_id(generator, &current_value, &inner_result, utf16!("value"), None);
+            (current_value, YieldBehavior::Normal)
+        } else {
+            (inner_result.clone(), YieldBehavior::IteratorResult)
+        };
 
         generate_yield(
             generator,
             continuation_block,
-            &current_value,
+            &yield_value,
             received_completion,
             received_completion_type,
             received_completion_value,
-            false,
+            yield_behavior,
         );
     }
 
@@ -1484,7 +1501,7 @@ fn generate_yield_from(
 
     generator.switch_to_basic_block(type_is_throw_block);
 
-    // i. Let throw be ? GetMethod(iterator, "throw").
+    // i. Let _throw_ be ? GetMethod(_iterator_, *"throw"*).
     let throw_method = generator.allocate_register();
     let throw_key = generator.intern_property_key(utf16!("throw"));
     generator.emit(Instruction::GetMethod {
@@ -1493,7 +1510,7 @@ fn generate_yield_from(
         property: throw_key,
     });
 
-    // ii. If throw is not undefined, then
+    // ii. If _throw_ is not *undefined*, then
     let throw_method_defined_block = generator.make_block();
     let throw_method_undefined_block = generator.make_block();
     generator.emit(Instruction::JumpUndefined {
@@ -1504,7 +1521,7 @@ fn generate_yield_from(
 
     generator.switch_to_basic_block(throw_method_defined_block);
 
-    // 1. Let innerResult be ? Call(throw, iterator, « received.[[Value]] »).
+    // 1. Let _innerResult_ be ? Call(_throw_, _iterator_, « _received_.[[Value]] »).
     generator.emit(Instruction::Call {
         dst: inner_result.operand(),
         callee: throw_method.operand(),
@@ -1514,7 +1531,7 @@ fn generate_yield_from(
         arguments: vec![received_completion_value.operand()],
     });
 
-    // 2. If generatorKind is async, set innerResult to ? Await(innerResult).
+    // 2. If _generatorKind_ is ~async~, set _innerResult_ to ? Await(_innerResult_).
     if is_async {
         let awaited = generate_await_with_completions(
             generator,
@@ -1526,15 +1543,15 @@ fn generate_yield_from(
         generator.emit_mov(&inner_result, &awaited);
     }
 
-    // 4. If innerResult is not an Object, throw a TypeError exception.
+    // 4. If _innerResult_ is not an Object, throw a *TypeError* exception.
     generator.emit(Instruction::ThrowIfNotObject {
         src: inner_result.operand(),
     });
 
-    // 5. Let done be ? IteratorComplete(innerResult).
+    // 5. Let _done_ be ? IteratorComplete(_innerResult_).
     emit_get_by_id(generator, &done, &inner_result, utf16!("done"), None);
 
-    // 6. If done is true, return ? IteratorValue(innerResult).
+    // 6. If _done_ is *true*, return ? IteratorValue(_innerResult_).
     let type_is_throw_done_block = generator.make_block();
     let type_is_throw_not_done_block = generator.make_block();
     generator.emit_jump_if(&done, type_is_throw_done_block, type_is_throw_not_done_block);
@@ -1543,11 +1560,17 @@ fn generate_yield_from(
     emit_get_by_id(generator, &return_value, &inner_result, utf16!("value"), None);
     generator.emit(Instruction::Jump { target: loop_end_block });
 
-    // 7/8. Yield IteratorValue(innerResult), receive new completion.
+    // 7. If _generatorKind_ is ~async~, set _received_ to Completion(AsyncGeneratorYield(? IteratorValue(_innerResult_))).
+    // 8. Else, set _received_ to Completion(GeneratorYield(_innerResult_)).
     generator.switch_to_basic_block(type_is_throw_not_done_block);
     {
-        let yield_value = generator.allocate_register();
-        emit_get_by_id(generator, &yield_value, &inner_result, utf16!("value"), None);
+        let (yield_value, yield_behavior) = if is_async {
+            let current_value = generator.allocate_register();
+            emit_get_by_id(generator, &current_value, &inner_result, utf16!("value"), None);
+            (current_value, YieldBehavior::Normal)
+        } else {
+            (inner_result.clone(), YieldBehavior::IteratorResult)
+        };
         generate_yield(
             generator,
             continuation_block,
@@ -1555,7 +1578,7 @@ fn generate_yield_from(
             received_completion,
             received_completion_type,
             received_completion_value,
-            false,
+            yield_behavior,
         );
     }
 
@@ -1631,7 +1654,7 @@ fn generate_yield_from(
     // =========================================================================
     generator.switch_to_basic_block(type_is_return_block);
 
-    // ii. Let return be ? GetMethod(iterator, "return").
+    // ii. Let _return_ be ? GetMethod(_iterator_, *"return"*).
     let return_method = generator.allocate_register();
     let return_key = generator.intern_property_key(utf16!("return"));
     generator.emit(Instruction::GetMethod {
@@ -1640,7 +1663,7 @@ fn generate_yield_from(
         property: return_key,
     });
 
-    // iii. If return is undefined, then return received.[[Value]].
+    // iii. If _return_ is *undefined*, then
     let return_is_undefined_block = generator.make_block();
     let return_is_defined_block = generator.make_block();
     generator.emit(Instruction::JumpUndefined {
@@ -1650,7 +1673,7 @@ fn generate_yield_from(
     });
 
     generator.switch_to_basic_block(return_is_undefined_block);
-    // 1. If generatorKind is async, set received.[[Value]] to ? Await(received.[[Value]]).
+    // 1. If _generatorKind_ is ~async~, set _received_.[[Value]] to ? Await(_received_.[[Value]]).
     if is_async {
         generate_await_with_completions(
             generator,
@@ -1660,12 +1683,12 @@ fn generate_yield_from(
             received_completion_value,
         );
     }
-    // 2. Return received (return completion).
+    // 2. Return _received_.
     generator.generate_return(received_completion_value);
 
     generator.switch_to_basic_block(return_is_defined_block);
 
-    // iv. Let innerReturnResult be ? Call(return, iterator, « received.[[Value]] »).
+    // iv. Let _innerReturnResult_ be ? Call(_return_, _iterator_, « _received_.[[Value]] »).
     let inner_return_result = generator.allocate_register();
     generator.emit(Instruction::Call {
         dst: inner_return_result.operand(),
@@ -1676,7 +1699,7 @@ fn generate_yield_from(
         arguments: vec![received_completion_value.operand()],
     });
 
-    // v. If generatorKind is async, set innerReturnResult to ? Await(innerReturnResult).
+    // v. If _generatorKind_ is ~async~, set _innerReturnResult_ to ? Await(_innerReturnResult_).
     if is_async {
         let awaited = generate_await_with_completions(
             generator,
@@ -1688,15 +1711,15 @@ fn generate_yield_from(
         generator.emit_mov(&inner_return_result, &awaited);
     }
 
-    // vi. If innerReturnResult is not an Object, throw a TypeError exception.
+    // vi. If _innerReturnResult_ is not an Object, throw a *TypeError* exception.
     generator.emit(Instruction::ThrowIfNotObject {
         src: inner_return_result.operand(),
     });
 
-    // vii. Let done be ? IteratorComplete(innerReturnResult).
+    // vii. Let _done_ be ? IteratorComplete(_innerReturnResult_).
     emit_get_by_id(generator, &done, &inner_return_result, utf16!("done"), None);
 
-    // viii. If done is true, return IteratorValue(innerReturnResult).
+    // viii. If _done_ is *true*, then
     let type_is_return_done_block = generator.make_block();
     let type_is_return_not_done_block = generator.make_block();
     generator.emit_jump_if(&done, type_is_return_done_block, type_is_return_not_done_block);
@@ -1712,10 +1735,16 @@ fn generate_yield_from(
     );
     generator.generate_return(&inner_return_result_value);
 
-    // ix/x. Yield IteratorValue(innerReturnResult), receive new completion.
+    // ix. If _generatorKind_ is ~async~, set _received_ to Completion(AsyncGeneratorYield(? IteratorValue(_innerReturnResult_))).
+    // x. Else, set _received_ to Completion(GeneratorYield(_innerReturnResult_)).
     generator.switch_to_basic_block(type_is_return_not_done_block);
-    let received = generator.allocate_register();
-    emit_get_by_id(generator, &received, &inner_return_result, utf16!("value"), None);
+    let (received, yield_behavior) = if is_async {
+        let current_value = generator.allocate_register();
+        emit_get_by_id(generator, &current_value, &inner_return_result, utf16!("value"), None);
+        (current_value, YieldBehavior::Normal)
+    } else {
+        (inner_return_result.clone(), YieldBehavior::IteratorResult)
+    };
     generate_yield(
         generator,
         continuation_block,
@@ -1723,7 +1752,7 @@ fn generate_yield_from(
         received_completion,
         received_completion_type,
         received_completion_value,
-        false,
+        yield_behavior,
     );
 
     // =========================================================================
@@ -1760,17 +1789,24 @@ fn generate_yield(
     received_completion: &ScopedOperand,
     received_completion_type: &ScopedOperand,
     received_completion_value: &ScopedOperand,
-    await_before_yield: bool,
+    yield_behavior: YieldBehavior,
 ) {
     if !generator.is_in_async_generator_function() {
-        generator.emit(Instruction::Yield {
-            continuation_label: Some(continuation_label),
-            value: argument.operand(),
-        });
+        if yield_behavior == YieldBehavior::IteratorResult {
+            generator.emit(Instruction::YieldIteratorResult {
+                continuation_label,
+                value: argument.operand(),
+            });
+        } else {
+            generator.emit(Instruction::Yield {
+                continuation_label: Some(continuation_label),
+                value: argument.operand(),
+            });
+        }
         return;
     }
 
-    let argument = if await_before_yield {
+    let argument = if yield_behavior == YieldBehavior::AwaitValue {
         generate_await_with_completions(
             generator,
             argument,

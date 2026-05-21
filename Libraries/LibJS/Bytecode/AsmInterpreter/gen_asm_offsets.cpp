@@ -143,6 +143,7 @@ int main()
     EMIT_OFFSET(EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER, ExecutionContext, skip_when_determining_incumbent_counter);
     EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_CONTINUATION, ExecutionContext, yield_continuation);
     EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_IS_AWAIT, ExecutionContext, yield_is_await);
+    EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_VALUE_IS_ITERATOR_RESULT, ExecutionContext, yield_value_is_iterator_result);
     EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT, ExecutionContext, caller_is_construct);
     EMIT_OFFSET(EXECUTION_CONTEXT_THIS_VALUE, ExecutionContext, this_value);
     EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_FRAME, ExecutionContext, caller_frame);

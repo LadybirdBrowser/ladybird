@@ -330,6 +330,11 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         typed.execute_impl(*vm);
         return -1;
     }
+    case Instruction::Type::YieldIteratorResult: {
+        auto& typed = *reinterpret_cast<Op::YieldIteratorResult const*>(&bytecode[pc]);
+        typed.execute_impl(*vm);
+        return -1;
+    }
 
     // Non-throwing instructions
     case Instruction::Type::AddPrivateName:

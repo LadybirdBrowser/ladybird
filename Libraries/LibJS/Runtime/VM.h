@@ -103,7 +103,7 @@ public:
         m_running_execution_context->registers_and_constants_and_locals_and_arguments_span().data()[op.raw()] = value;
     }
 
-    Value do_yield(Value value, Optional<Bytecode::Label> continuation);
+    Value do_yield(Value value, Optional<Bytecode::Label> continuation, bool value_is_iterator_result = false);
     void do_return(Value value)
     {
         if (value.is_special_empty_value())

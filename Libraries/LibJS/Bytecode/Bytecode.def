@@ -1177,6 +1177,13 @@ op Yield < Instruction
     m_value: Operand
 endop
 
+op YieldIteratorResult < Instruction
+    @terminator
+    @nothrow
+    m_continuation_label: Label
+    m_value: Operand
+endop
+
 op CacheObjectShape < Instruction
     @nothrow
     m_object: Operand

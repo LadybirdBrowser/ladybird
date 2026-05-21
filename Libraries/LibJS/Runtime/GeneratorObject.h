@@ -23,14 +23,16 @@ public:
 
     struct IterationResult {
         IterationResult() = delete;
-        explicit IterationResult(Value value, bool done)
+        explicit IterationResult(Value value, bool done, bool value_is_iterator_result = false)
             : done(done)
             , value(value)
+            , value_is_iterator_result(value_is_iterator_result)
         {
         }
 
         bool done { false };
         Value value;
+        bool value_is_iterator_result { false };
     };
 
     ThrowCompletionOr<IterationResult> resume(VM&, Value value, Optional<StringView> const& generator_brand);

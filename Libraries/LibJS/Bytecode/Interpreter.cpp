@@ -95,7 +95,7 @@ ALWAYS_INLINE static ThrowCompletionOr<bool> strict_equals(VM&, Value src1, Valu
     return is_strictly_equal(src1, src2);
 }
 
-ALWAYS_INLINE Value VM::do_yield(Value value, Optional<Label> continuation)
+ALWAYS_INLINE Value VM::do_yield(Value value, Optional<Label> continuation, bool value_is_iterator_result)
 {
     auto& context = running_execution_context();
     if (continuation.has_value())
@@ -103,6 +103,7 @@ ALWAYS_INLINE Value VM::do_yield(Value value, Optional<Label> continuation)
     else
         context.yield_continuation = ExecutionContext::no_yield_continuation;
     context.yield_is_await = false;
+    context.yield_value_is_iterator_result = value_is_iterator_result;
     return value;
 }
 
@@ -818,6 +819,12 @@ void VM::run_bytecode(size_t entry_point)
 
         handle_Yield: {
             auto& instruction = *reinterpret_cast<Op::Yield const*>(&bytecode[program_counter]);
+            instruction.execute_impl(*this);
+            return;
+        }
+
+        handle_YieldIteratorResult: {
+            auto& instruction = *reinterpret_cast<Op::YieldIteratorResult const*>(&bytecode[program_counter]);
             instruction.execute_impl(*this);
             return;
         }
@@ -3370,12 +3377,20 @@ void Yield::execute_impl(VM& vm) const
         vm.do_yield(yielded_value, m_continuation_label));
 }
 
+void YieldIteratorResult::execute_impl(VM& vm) const
+{
+    auto yielded_value = vm.get(m_value).is_special_empty_value() ? js_undefined() : vm.get(m_value);
+    vm.do_return(
+        vm.do_yield(yielded_value, m_continuation_label, true));
+}
+
 void Await::execute_impl(VM& vm) const
 {
     auto yielded_value = vm.get(m_argument).is_special_empty_value() ? js_undefined() : vm.get(m_argument);
     auto& context = vm.running_execution_context();
     context.yield_continuation = m_continuation_label.address();
     context.yield_is_await = true;
+    context.yield_value_is_iterator_result = false;
     vm.do_return(yielded_value);
 }
 

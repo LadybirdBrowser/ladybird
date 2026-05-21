@@ -80,3 +80,63 @@ test("generator instances use the intrinsic prototype when function prototype is
         expect(Object.getPrototypeOf(generator())).toBe(GeneratorPrototype);
     }
 });
+
+test("yield-star yields delegated iterator results directly", () => {
+    const firstResult = { value: 1 };
+    const terminalResult = { value: 34, done: true };
+    const iterator = {
+        index: 0,
+        next() {
+            return this.index++ === 0 ? firstResult : terminalResult;
+        },
+    };
+    const iterable = {
+        [Symbol.iterator]() {
+            return iterator;
+        },
+    };
+
+    function* generator() {
+        return yield* iterable;
+    }
+
+    const outer = generator();
+    expect(outer.next()).toBe(firstResult);
+    expect(outer.next()).toEqual({ value: 34, done: true });
+});
+
+test("yield-star does not get value from non-terminal sync results", () => {
+    let log = "";
+    let count = 1;
+    const iterator = {
+        next() {
+            log += "n";
+            return {
+                get done() {
+                    log += "d";
+                    return count-- === 0;
+                },
+                get value() {
+                    log += "v";
+                    return 42;
+                },
+            };
+        },
+        [Symbol.iterator]() {
+            log += "i";
+            return this;
+        },
+    };
+
+    function* generator() {
+        return yield* iterator;
+    }
+
+    const outer = generator();
+    const firstResult = outer.next();
+    expect(log).toBe("ind");
+    expect(firstResult.value).toBe(42);
+    expect(log).toBe("indv");
+    expect(outer.next()).toEqual({ value: 42, done: true });
+    expect(log).toBe("indvndv");
+});

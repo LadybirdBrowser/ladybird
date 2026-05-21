@@ -71,6 +71,7 @@ public:
     u32 yield_continuation { no_yield_continuation };
 
     bool yield_is_await { false };
+    bool yield_value_is_iterator_result { false };
     bool caller_is_construct { false };
 
     Optional<Value> this_value;
