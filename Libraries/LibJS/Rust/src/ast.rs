@@ -1537,6 +1537,7 @@ pub struct AssignmentExprData {
     pub op: AssignmentOp,
     pub lhs: AssignmentLhs,
     pub rhs: Box<Expression>,
+    pub lhs_is_parenthesized: bool,
 }
 
 #[derive(Clone, Debug)]

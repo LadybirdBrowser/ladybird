@@ -124,4 +124,22 @@ describe("some anonymous functions get renamed", () => {
         let f4 = false || function () {};
         expect(f4.name).toBe("");
     });
+
+    test("parenthesized assignment target does not name", () => {
+        let f5;
+        eval("(f5) = function () {};");
+        expect(f5.name).toBe("");
+
+        let f6;
+        eval("(f6) ??= function () {};");
+        expect(f6.name).toBe("");
+
+        let f7 = false;
+        eval("(f7) ||= function () {};");
+        expect(f7.name).toBe("");
+
+        let f8 = true;
+        eval("(f8) &&= function () {};");
+        expect(f8.name).toBe("");
+    });
 });

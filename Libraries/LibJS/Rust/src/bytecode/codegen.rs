@@ -187,6 +187,22 @@ fn emit_typeof_binding(generator: &mut Generator, dst: Operand, identifier: Iden
     }
 }
 
+fn set_pending_lhs_name_for_identifier_assignment(
+    generator: &mut Generator,
+    identifier: StringId,
+    lhs_is_parenthesized: bool,
+) {
+    // https://tc39.es/ecma262/#sec-assignment-operators-runtime-semantics-evaluation
+    // If IsAnonymousFunctionDefinition(|AssignmentExpression|) is *true* and IsIdentifierRef of
+    // |LeftHandSideExpression| is *true*, then
+    // A parenthesized identifier can be a simple assignment target, but it is not an IdentifierRef.
+    generator.pending_lhs_name = if lhs_is_parenthesized {
+        None
+    } else {
+        Some(generator.intern_identifier_id(identifier))
+    };
+}
+
 fn generate_expression_inner(
     expression: &Expression,
     generator: &mut Generator,
@@ -354,9 +370,14 @@ fn generate_expression_inner(
         ExpressionKind::Update(data) => generate_update_expression(generator, data.op, &data.argument, data.prefixed),
 
         // === Assignment ===
-        ExpressionKind::Assignment(data) => {
-            generate_assignment_expression(generator, data.op, &data.lhs, &data.rhs, preferred_dst)
-        }
+        ExpressionKind::Assignment(data) => generate_assignment_expression(
+            generator,
+            data.op,
+            &data.lhs,
+            &data.rhs,
+            data.lhs_is_parenthesized,
+            preferred_dst,
+        ),
 
         // === Template literals ===
         ExpressionKind::TemplateLiteral(data) => generate_template_literal(generator, data, preferred_dst),
@@ -3555,6 +3576,7 @@ fn generate_assignment_expression(
     op: AssignmentOp,
     lhs: &AssignmentLhs,
     rhs: &Expression,
+    lhs_is_parenthesized: bool,
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
     match lhs {
@@ -3565,7 +3587,7 @@ fn generate_assignment_expression(
                 let arena = generator.arena.clone();
                 let ident = &arena.identifiers[id];
                 if op == AssignmentOp::Assignment {
-                    generator.pending_lhs_name = Some(generator.intern_identifier_id(ident.name));
+                    set_pending_lhs_name_for_identifier_assignment(generator, ident.name, lhs_is_parenthesized);
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     if ident.is_local() {
@@ -3606,7 +3628,11 @@ fn generate_assignment_expression(
                     }
                     // RHS block: evaluate RHS, assign, jump to end.
                     generator.switch_to_basic_block(rhs_block);
-                    generator.pending_lhs_name = Some(generator.intern_identifier_id(arena.identifiers[id].name));
+                    set_pending_lhs_name_for_identifier_assignment(
+                        generator,
+                        arena.identifiers[id].name,
+                        lhs_is_parenthesized,
+                    );
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     // Allocate dst after RHS evaluation.
