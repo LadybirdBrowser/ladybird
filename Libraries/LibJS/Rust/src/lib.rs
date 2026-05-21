@@ -336,11 +336,18 @@ unsafe fn create_executable_from_compiled_bytecode(
     bytecode: &mut CompiledBytecode,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_owner: bytecode::ffi::SharedFunctionDataOwner,
 ) -> *mut c_void {
     unsafe {
         bytecode.generator.vm_ptr = vm_ptr;
         bytecode.generator.source_code_ptr = source_code_ptr;
-        bytecode::ffi::create_executable(&mut bytecode.generator, &bytecode.assembled, vm_ptr, source_code_ptr)
+        bytecode::ffi::create_executable(
+            &mut bytecode.generator,
+            &bytecode.assembled,
+            vm_ptr,
+            source_code_ptr,
+            shared_function_data_owner,
+        )
     }
 }
 
@@ -529,9 +536,18 @@ unsafe fn compile_program_body(
     scope_id: ast::ScopeId,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_owner: bytecode::ffi::SharedFunctionDataOwner,
 ) -> *mut c_void {
     let assembled = compile_program_body_to_bytecode(generator, program, scope_id);
-    unsafe { bytecode::ffi::create_executable(generator, &assembled, vm_ptr, source_code_ptr) }
+    unsafe {
+        bytecode::ffi::create_executable(
+            generator,
+            &assembled,
+            vm_ptr,
+            source_code_ptr,
+            shared_function_data_owner,
+        )
+    }
 }
 
 // =============================================================================
@@ -834,41 +850,7 @@ pub unsafe extern "C" fn rust_free_bytecode_cache_blob(data: *mut u8, length: us
     }
 }
 
-/// Decode a bytecode cache blob into an owned parser-free cache handle.
-///
-/// # Safety
-/// `data` must point to `length` readable bytes.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_decode_bytecode_cache_blob(
-    data: *const u8,
-    length: usize,
-    expected_program_type: u8,
-    expected_source_hash: *const u8,
-    expected_source_hash_len: usize,
-) -> *mut DecodedBytecodeCacheBlob {
-    unsafe {
-        abort_on_panic(|| {
-            if data.is_null() || expected_source_hash.is_null() || expected_source_hash_len != 32 {
-                return std::ptr::null_mut();
-            }
-            let expected_program_type = match expected_program_type {
-                0 => ast::ProgramType::Script,
-                1 => ast::ProgramType::Module,
-                _ => return std::ptr::null_mut(),
-            };
-            let expected_source_hash = std::slice::from_raw_parts(expected_source_hash, expected_source_hash_len)
-                .try_into()
-                .expect("source hash length was checked");
-            let bytes = std::slice::from_raw_parts(data, length);
-            let Some(blob) = bytecode_cache::decode_blob(bytes, expected_program_type, expected_source_hash) else {
-                return std::ptr::null_mut();
-            };
-            Box::into_raw(Box::new(DecodedBytecodeCacheBlob { _blob: blob }))
-        })
-    }
-}
-
-/// Decode an mmap-backed bytecode cache blob into an owned parser-free cache handle.
+/// Decode an ImmutableBytes-backed bytecode cache blob into a parser-free cache handle.
 ///
 /// # Safety
 /// - `data` must point to `length` readable bytes.
@@ -925,7 +907,7 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
 /// Free a decoded bytecode cache blob.
 ///
 /// # Safety
-/// `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob()`.
+/// `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_free_decoded_bytecode_cache_blob(blob: *mut DecodedBytecodeCacheBlob) {
     unsafe {
@@ -936,7 +918,7 @@ pub unsafe extern "C" fn rust_free_decoded_bytecode_cache_blob(blob: *mut Decode
 /// Materialize a decoded script bytecode cache blob. Consumes and frees the blob.
 ///
 /// # Safety
-/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob()`.
+/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
 /// - `vm_ptr` must be a valid `JS::VM*`.
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
 /// - `gdi_context` must be a valid pointer to a C++ ScriptGdiBuilder.
@@ -946,6 +928,7 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_script(
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
     source_len: usize,
+    shared_function_data_list_ptr: *mut c_void,
     gdi_context: *mut c_void,
 ) -> *mut c_void {
     unsafe {
@@ -957,7 +940,8 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_script(
             if !blob._blob.source_ranges_are_valid(source_len) {
                 return std::ptr::null_mut();
             }
-            blob._blob.materialize_script(vm_ptr, source_code_ptr, gdi_context)
+            blob._blob
+                .materialize_script(vm_ptr, source_code_ptr, shared_function_data_list_ptr, gdi_context)
         })
     }
 }
@@ -965,7 +949,7 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_script(
 /// Materialize a decoded module bytecode cache blob. Consumes and frees the blob.
 ///
 /// # Safety
-/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob()`.
+/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
 /// - `vm_ptr` must be a valid `JS::VM*`.
 /// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
 /// - `module_context` must be a valid `ModuleBuilder*`.
@@ -976,6 +960,7 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_module(
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
     source_len: usize,
+    shared_function_data_list_ptr: *mut c_void,
     module_context: *mut c_void,
     callbacks: *const ModuleCallbacks,
     tla_executable_out: *mut *mut c_void,
@@ -989,8 +974,115 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_module(
             if !blob._blob.source_ranges_are_valid(source_len) {
                 return std::ptr::null_mut();
             }
-            blob._blob
-                .materialize_module(vm_ptr, source_code_ptr, module_context, callbacks, tla_executable_out)
+            blob._blob.materialize_module(
+                vm_ptr,
+                source_code_ptr,
+                shared_function_data_list_ptr,
+                module_context,
+                callbacks,
+                tla_executable_out,
+            )
+        })
+    }
+}
+
+/// Install a decoded script bytecode cache blob into an existing program.
+/// Consumes and frees the blob.
+///
+/// # Safety
+/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `existing_executable_ptr` must be a valid `Bytecode::Executable*`.
+/// - `existing_declaration_function_ptrs` must be null when
+///   `existing_declaration_function_count` is zero, otherwise it must point to
+///   `existing_declaration_function_count` valid `SharedFunctionInstanceData*`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_install_bytecode_cache_script(
+    blob: *mut DecodedBytecodeCacheBlob,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    source_len: usize,
+    existing_executable_ptr: *const c_void,
+    existing_declaration_function_ptrs: *const *mut c_void,
+    existing_declaration_function_count: usize,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if blob.is_null() {
+                return std::ptr::null_mut();
+            }
+            let blob = Box::from_raw(blob);
+            let existing_declaration_functions = if existing_declaration_function_count == 0 {
+                &[]
+            } else {
+                if existing_declaration_function_ptrs.is_null() {
+                    return std::ptr::null_mut();
+                }
+                std::slice::from_raw_parts(existing_declaration_function_ptrs, existing_declaration_function_count)
+            };
+            if !blob._blob.source_ranges_are_valid(source_len) {
+                return std::ptr::null_mut();
+            }
+            blob._blob.install_script(
+                vm_ptr,
+                source_code_ptr,
+                existing_executable_ptr,
+                existing_declaration_functions,
+            )
+        })
+    }
+}
+
+/// Install a decoded module bytecode cache blob into an existing program.
+/// Consumes and frees the blob.
+///
+/// # Safety
+/// - `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
+/// - `vm_ptr` must be a valid `JS::VM*`.
+/// - `source_code_ptr` must be a valid `JS::SourceCode const*`.
+/// - `existing_executable_ptr` must be null or a valid `Bytecode::Executable*`.
+/// - `existing_declaration_function_ptrs` must be null when
+///   `existing_declaration_function_count` is zero, otherwise it must point to
+///   `existing_declaration_function_count` valid `SharedFunctionInstanceData*`.
+/// - `existing_tla_sfd_ptr` must be null or a valid `SharedFunctionInstanceData*`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_install_bytecode_cache_module(
+    blob: *mut DecodedBytecodeCacheBlob,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    source_len: usize,
+    existing_executable_ptr: *const c_void,
+    existing_declaration_function_ptrs: *const *mut c_void,
+    existing_declaration_function_count: usize,
+    existing_tla_sfd_ptr: *mut c_void,
+    tla_executable_out: *mut *mut c_void,
+) -> *mut c_void {
+    unsafe {
+        abort_on_panic(|| {
+            if blob.is_null() {
+                return std::ptr::null_mut();
+            }
+            let blob = Box::from_raw(blob);
+            let existing_declaration_functions = if existing_declaration_function_count == 0 {
+                &[]
+            } else {
+                if existing_declaration_function_ptrs.is_null() {
+                    return std::ptr::null_mut();
+                }
+                std::slice::from_raw_parts(existing_declaration_function_ptrs, existing_declaration_function_count)
+            };
+            if !blob._blob.source_ranges_are_valid(source_len) {
+                return std::ptr::null_mut();
+            }
+            blob._blob.install_module(
+                vm_ptr,
+                source_code_ptr,
+                existing_executable_ptr,
+                existing_declaration_functions,
+                existing_tla_sfd_ptr,
+                tla_executable_out,
+            )
         })
     }
 }
@@ -1008,9 +1100,17 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_function(
     cached_executable: *mut c_void,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
 ) -> *mut c_void {
     unsafe {
-        abort_on_panic(|| bytecode_cache::materialize_cached_function(cached_executable, vm_ptr, source_code_ptr))
+        abort_on_panic(|| {
+            bytecode_cache::materialize_cached_function(
+                cached_executable,
+                vm_ptr,
+                source_code_ptr,
+                shared_function_data_list_ptr,
+            )
+        })
     }
 }
 
@@ -1041,6 +1141,7 @@ pub unsafe extern "C" fn rust_materialize_precompiled_bytecode_function(
     precompiled_executable: *mut c_void,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
 ) -> *mut c_void {
     unsafe {
         abort_on_panic(|| {
@@ -1056,6 +1157,11 @@ pub unsafe extern "C" fn rust_materialize_precompiled_bytecode_function(
                 &precompiled.assembled,
                 vm_ptr,
                 source_code_ptr,
+                if shared_function_data_list_ptr.is_null() {
+                    bytecode::ffi::SharedFunctionDataOwner::None
+                } else {
+                    bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr)
+                },
             )
         })
     }
@@ -1120,6 +1226,7 @@ pub unsafe extern "C" fn rust_compile_parsed_script(
     parsed: *mut ParsedProgram,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
     gdi_context: *mut c_void,
     source_len: usize,
 ) -> *mut c_void {
@@ -1130,12 +1237,18 @@ pub unsafe extern "C" fn rust_compile_parsed_script(
             let mut generator = new_program_generator(parsed.is_strict_mode, vm_ptr, source_code_ptr, source_len);
             generator.function_table = std::mem::take(&mut parsed.function_table);
             generator.arena = parsed.arena.clone();
+            let shared_function_data_context = bytecode::ffi::SharedFunctionDataCreationContext {
+                vm_ptr,
+                source_code_ptr,
+                owner: bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr),
+            };
             let exec_ptr = compile_program_body(
                 &mut generator,
                 &parsed.program,
                 parsed.scope_ref,
                 vm_ptr,
                 source_code_ptr,
+                shared_function_data_context.owner,
             );
             if exec_ptr.is_null() {
                 return std::ptr::null_mut();
@@ -1144,8 +1257,7 @@ pub unsafe extern "C" fn rust_compile_parsed_script(
             extract_script_gdi(
                 &parsed.arena.scopes[parsed.scope_ref],
                 parsed.is_strict_mode,
-                vm_ptr,
-                source_code_ptr,
+                shared_function_data_context,
                 gdi_context,
                 &mut generator.function_table,
                 &parsed.arena,
@@ -1168,6 +1280,7 @@ pub unsafe extern "C" fn rust_materialize_compiled_script(
     compiled: *mut CompiledProgram,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
     gdi_context: *mut c_void,
 ) -> *mut c_void {
     unsafe {
@@ -1181,7 +1294,17 @@ pub unsafe extern "C" fn rust_materialize_compiled_script(
                 return std::ptr::null_mut();
             };
 
-            let exec_ptr = create_executable_from_compiled_bytecode(bytecode, vm_ptr, source_code_ptr);
+            let shared_function_data_context = bytecode::ffi::SharedFunctionDataCreationContext {
+                vm_ptr,
+                source_code_ptr,
+                owner: bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr),
+            };
+            let exec_ptr = create_executable_from_compiled_bytecode(
+                bytecode,
+                vm_ptr,
+                source_code_ptr,
+                shared_function_data_context.owner,
+            );
             if exec_ptr.is_null() {
                 return std::ptr::null_mut();
             }
@@ -1189,8 +1312,7 @@ pub unsafe extern "C" fn rust_materialize_compiled_script(
             extract_script_gdi(
                 &compiled.parsed.arena.scopes[compiled.parsed.scope_ref],
                 compiled.parsed.is_strict_mode,
-                vm_ptr,
-                source_code_ptr,
+                shared_function_data_context,
                 gdi_context,
                 &mut bytecode.generator.function_table,
                 &compiled.parsed.arena,
@@ -1279,7 +1401,14 @@ pub unsafe extern "C" fn rust_compile_eval(
             let mut generator = new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
             generator.function_table = std::mem::take(&mut parser.function_table);
             generator.arena = arena_arc.clone();
-            let exec_ptr = compile_program_body(&mut generator, &program, scope_id, vm_ptr, source_code_ptr);
+            let exec_ptr = compile_program_body(
+                &mut generator,
+                &program,
+                scope_id,
+                vm_ptr,
+                source_code_ptr,
+                bytecode::ffi::SharedFunctionDataOwner::None,
+            );
             if exec_ptr.is_null() {
                 return std::ptr::null_mut();
             }
@@ -1507,7 +1636,17 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                 .extract_reachable(&function_data, &parser.arena.scopes);
             let arena = std::sync::Arc::new(std::mem::take(&mut parser.arena));
 
-            bytecode::ffi::create_sfd_for_gdi(function_data, subtable, vm_ptr, source_code_ptr, is_strict, arena)
+            bytecode::ffi::create_sfd_for_gdi(
+                function_data,
+                subtable,
+                bytecode::ffi::SharedFunctionDataCreationContext {
+                    vm_ptr,
+                    source_code_ptr,
+                    owner: bytecode::ffi::SharedFunctionDataOwner::None,
+                },
+                is_strict,
+                arena,
+            )
         })
     }
 }
@@ -1590,8 +1729,11 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
                     let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
                         function_data,
                         subtable,
-                        vm_ptr,
-                        source_code_ptr,
+                        bytecode::ffi::SharedFunctionDataCreationContext {
+                            vm_ptr,
+                            source_code_ptr,
+                            owner: bytecode::ffi::SharedFunctionDataOwner::None,
+                        },
                         true, // strict
                         arena.clone(),
                     );
@@ -1630,6 +1772,7 @@ pub unsafe extern "C" fn rust_compile_parsed_module(
     parsed: *mut ParsedProgram,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
     module_context: *mut c_void,
     callbacks: *const ModuleCallbacks,
     tla_executable_out: *mut *mut c_void,
@@ -1639,6 +1782,11 @@ pub unsafe extern "C" fn rust_compile_parsed_module(
         abort_on_panic(|| {
             let mut parsed = Box::from_raw(parsed);
             let cb = &*callbacks;
+            let shared_function_data_context = bytecode::ffi::SharedFunctionDataCreationContext {
+                vm_ptr,
+                source_code_ptr,
+                owner: bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr),
+            };
 
             // 1. Report has_top_level_await.
             (cb.set_has_top_level_await)(module_context, parsed.has_top_level_await);
@@ -1649,8 +1797,7 @@ pub unsafe extern "C" fn rust_compile_parsed_module(
             // 3. Extract var declared names and lexical bindings.
             extract_module_declarations(
                 &parsed.arena.scopes[parsed.scope_ref],
-                vm_ptr,
-                source_code_ptr,
+                shared_function_data_context,
                 module_context,
                 cb,
                 &mut parsed.function_table,
@@ -1666,8 +1813,7 @@ pub unsafe extern "C" fn rust_compile_parsed_module(
                     &parsed.program,
                     parsed.scope_ref,
                     parsed.arena.clone(),
-                    vm_ptr,
-                    source_code_ptr,
+                    shared_function_data_context,
                     source_len,
                     std::mem::take(&mut parsed.function_table),
                 );
@@ -1688,6 +1834,7 @@ pub unsafe extern "C" fn rust_compile_parsed_module(
                     parsed.scope_ref,
                     vm_ptr,
                     source_code_ptr,
+                    shared_function_data_context.owner,
                 )
             }
         })
@@ -1707,6 +1854,7 @@ pub unsafe extern "C" fn rust_materialize_compiled_module(
     compiled: *mut CompiledProgram,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
     module_context: *mut c_void,
     callbacks: *const ModuleCallbacks,
     tla_executable_out: *mut *mut c_void,
@@ -1719,6 +1867,11 @@ pub unsafe extern "C" fn rust_materialize_compiled_module(
 
             let mut compiled = Box::from_raw(compiled);
             let cb = &*callbacks;
+            let shared_function_data_context = bytecode::ffi::SharedFunctionDataCreationContext {
+                vm_ptr,
+                source_code_ptr,
+                owner: bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr),
+            };
 
             (cb.set_has_top_level_await)(module_context, compiled.parsed.has_top_level_await);
             extract_module_metadata(
@@ -1732,8 +1885,7 @@ pub unsafe extern "C" fn rust_materialize_compiled_module(
             };
             extract_module_declarations(
                 &compiled.parsed.arena.scopes[compiled.parsed.scope_ref],
-                vm_ptr,
-                source_code_ptr,
+                shared_function_data_context,
                 module_context,
                 cb,
                 &mut bytecode.generator.function_table,
@@ -1747,7 +1899,12 @@ pub unsafe extern "C" fn rust_materialize_compiled_module(
 
             match &mut compiled.bytecode {
                 CompiledProgramBytecode::AsyncModule(bytecode) => {
-                    let exec_ptr = create_executable_from_compiled_bytecode(bytecode, vm_ptr, source_code_ptr);
+                    let exec_ptr = create_executable_from_compiled_bytecode(
+                        bytecode,
+                        vm_ptr,
+                        source_code_ptr,
+                        shared_function_data_context.owner,
+                    );
                     if !tla_executable_out.is_null() {
                         *tla_executable_out = exec_ptr;
                     }
@@ -1757,7 +1914,12 @@ pub unsafe extern "C" fn rust_materialize_compiled_module(
                     if !tla_executable_out.is_null() {
                         *tla_executable_out = std::ptr::null_mut();
                     }
-                    create_executable_from_compiled_bytecode(bytecode, vm_ptr, source_code_ptr)
+                    create_executable_from_compiled_bytecode(
+                        bytecode,
+                        vm_ptr,
+                        source_code_ptr,
+                        shared_function_data_context.owner,
+                    )
                 }
             }
         })
@@ -1910,6 +2072,7 @@ pub unsafe extern "C" fn rust_compile_module(
     source_len: usize,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
     module_context: *mut c_void,
     callbacks: *const ModuleCallbacks,
     dump_ast: bool,
@@ -1949,6 +2112,7 @@ pub unsafe extern "C" fn rust_compile_module(
                 parsed,
                 vm_ptr,
                 source_code_ptr,
+                shared_function_data_list_ptr,
                 module_context,
                 callbacks,
                 tla_executable_out,
@@ -2106,8 +2270,7 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
 /// Extract var declared names and lexical bindings from a module scope.
 unsafe fn extract_module_declarations(
     scope: &ast::ScopeData,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    shared_function_data_context: bytecode::ffi::SharedFunctionDataCreationContext,
     ctx: *mut c_void,
     cb: &ModuleCallbacks,
     function_table: &mut ast::FunctionTable,
@@ -2149,8 +2312,7 @@ unsafe fn extract_module_declarations(
                     let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
                         function_data,
                         subtable,
-                        vm_ptr,
-                        source_code_ptr,
+                        shared_function_data_context,
                         true,
                         arena.clone(),
                     );
@@ -2353,19 +2515,24 @@ unsafe fn compile_module_as_async(
     program: &ast::Statement,
     scope_id: ast::ScopeId,
     arena: std::sync::Arc<ast::AstArena>,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    shared_function_data_context: bytecode::ffi::SharedFunctionDataCreationContext,
     source_len: usize,
     function_table: ast::FunctionTable,
 ) -> *mut c_void {
     unsafe {
         let mut generator = new_module_async_generator(source_len, function_table);
         generator.arena = arena;
-        generator.vm_ptr = vm_ptr;
-        generator.source_code_ptr = source_code_ptr;
+        generator.vm_ptr = shared_function_data_context.vm_ptr;
+        generator.source_code_ptr = shared_function_data_context.source_code_ptr;
 
         let assembled = compile_module_as_async_to_bytecode(program, scope_id, &mut generator);
-        bytecode::ffi::create_executable(&mut generator, &assembled, vm_ptr, source_code_ptr)
+        bytecode::ffi::create_executable(
+            &mut generator,
+            &assembled,
+            shared_function_data_context.vm_ptr,
+            shared_function_data_context.source_code_ptr,
+            shared_function_data_context.owner,
+        )
     }
 }
 
@@ -2408,6 +2575,7 @@ fn extract_gdi_common(
     scope: &ast::ScopeData,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_owner: bytecode::ffi::SharedFunctionDataOwner,
     is_strict: bool,
     push_var_name: &mut dyn FnMut(&[u16]),
     push_function: &mut dyn FnMut(*mut c_void, &[u16]),
@@ -2451,8 +2619,11 @@ fn extract_gdi_common(
                 bytecode::ffi::create_sfd_for_gdi(
                     function_data,
                     subtable,
-                    vm_ptr,
-                    source_code_ptr,
+                    bytecode::ffi::SharedFunctionDataCreationContext {
+                        vm_ptr,
+                        source_code_ptr,
+                        owner: shared_function_data_owner,
+                    },
                     is_strict,
                     arena.clone(),
                 )
@@ -2523,6 +2694,7 @@ unsafe fn extract_eval_gdi(
             scope,
             vm_ptr,
             source_code_ptr,
+            bytecode::ffi::SharedFunctionDataOwner::None,
             is_strict,
             &mut |name| eval_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
             &mut |sfd_ptr, name| eval_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
@@ -2546,8 +2718,7 @@ unsafe fn extract_eval_gdi(
 unsafe fn extract_script_gdi(
     scope: &ast::ScopeData,
     is_strict: bool,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    shared_function_data_context: bytecode::ffi::SharedFunctionDataCreationContext,
     ctx: *mut c_void,
     function_table: &mut ast::FunctionTable,
     arena: &std::sync::Arc<ast::AstArena>,
@@ -2588,8 +2759,9 @@ unsafe fn extract_script_gdi(
 
         extract_gdi_common(
             scope,
-            vm_ptr,
-            source_code_ptr,
+            shared_function_data_context.vm_ptr,
+            shared_function_data_context.source_code_ptr,
+            shared_function_data_context.owner,
             is_strict,
             &mut |name| script_gdi_push_var_name(ctx, name.as_ptr(), name.len()),
             &mut |sfd_ptr, name| script_gdi_push_function(ctx, sfd_ptr, name.as_ptr(), name.len()),
@@ -2773,6 +2945,7 @@ pub unsafe extern "C" fn rust_compile_function(
     sfd_ptr: *mut c_void,
     rust_function_ast: *mut c_void,
     builtin_abstract_operations_enabled: bool,
+    shared_function_data_list_ptr: *mut c_void,
 ) -> *mut c_void {
     unsafe {
         abort_on_panic(|| {
@@ -2799,6 +2972,11 @@ pub unsafe extern "C" fn rust_compile_function(
                 &precompiled.assembled,
                 vm_ptr,
                 source_code_ptr,
+                if shared_function_data_list_ptr.is_null() {
+                    bytecode::ffi::SharedFunctionDataOwner::None
+                } else {
+                    bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr)
+                },
             )
         })
     }

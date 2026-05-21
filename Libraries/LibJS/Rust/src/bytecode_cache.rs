@@ -64,14 +64,6 @@ pub fn serialize_compiled_program(
     encoder.finish()
 }
 
-pub(crate) fn decode_blob(
-    bytes: &[u8],
-    expected_program_type: ast::ProgramType,
-    expected_source_hash: &[u8; SOURCE_HASH_SIZE],
-) -> Option<DecodedCacheBlob> {
-    decode_blob_impl(bytes, expected_program_type, expected_source_hash, None)
-}
-
 pub(crate) type FreeBytecodeCacheBlobOwner = unsafe extern "C" fn(*mut c_void);
 pub(crate) type CloneBytecodeCacheBlobOwner = unsafe extern "C" fn(*const c_void) -> *mut c_void;
 
@@ -215,15 +207,12 @@ impl<'a> Decoder<'a> {
 
     fn bytecode_bytes(&mut self, length: usize) -> Option<DecodedBytecodeBytes> {
         let offset = self.offset;
-        let bytes = self.bytes(length)?;
-        if let Some(foreign_blob) = &self.foreign_blob {
-            return Some(DecodedBytecodeBytes::Foreign {
-                blob: foreign_blob.clone(),
-                range: offset..offset + length,
-            });
-        }
-
-        Some(DecodedBytecodeBytes::Owned(bytes.to_vec()))
+        self.bytes(length)?;
+        let foreign_blob = self.foreign_blob.as_ref()?;
+        Some(DecodedBytecodeBytes::Foreign {
+            blob: foreign_blob.clone(),
+            range: offset..offset + length,
+        })
     }
 
     fn expect_bytes(&mut self, expected: &[u8]) -> Option<()> {
@@ -535,11 +524,12 @@ impl ByteVector {
 }
 
 enum DecodedBytecodeBytes {
-    Owned(Vec<u8>),
     Foreign {
         blob: Rc<ForeignBytecodeCacheBlob>,
         range: Range<usize>,
     },
+    #[cfg(test)]
+    Owned(Vec<u8>),
 }
 
 impl DecodedBytecodeBytes {
@@ -550,22 +540,24 @@ impl DecodedBytecodeBytes {
 
     fn as_slice(&self) -> &[u8] {
         match self {
-            Self::Owned(bytes) => bytes,
             Self::Foreign { blob, range } => {
                 debug_assert!(range.end <= blob.length);
                 unsafe { std::slice::from_raw_parts(blob.data.add(range.start), range.len()) }
             }
+            #[cfg(test)]
+            Self::Owned(bytes) => bytes,
         }
     }
 
     fn owner_for_ffi(&self) -> *mut c_void {
         match self {
-            Self::Owned(_) => std::ptr::null_mut(),
             // The C++ executable retains the immutable blob so the hot
             // instruction stream can point directly into the cache file. Clone
             // the small owner wrapper here; the original decoded blob still
             // owns its copy until materialization finishes.
             Self::Foreign { blob, .. } => unsafe { (blob.clone_owner)(blob.owner.cast_const()) },
+            #[cfg(test)]
+            Self::Owned(_) => std::ptr::null_mut(),
         }
     }
 
@@ -575,15 +567,16 @@ impl DecodedBytecodeBytes {
 
     fn decoder(&self) -> Decoder<'_> {
         match self {
-            Self::Owned(bytes) => Decoder {
-                bytes,
-                offset: 0,
-                foreign_blob: None,
-            },
             Self::Foreign { blob, range } => Decoder {
                 bytes: self.as_slice(),
                 offset: range.start,
                 foreign_blob: Some(blob.clone()),
+            },
+            #[cfg(test)]
+            Self::Owned(bytes) => Decoder {
+                bytes,
+                offset: 0,
+                foreign_blob: None,
             },
         }
     }
@@ -734,6 +727,7 @@ impl DecodedCacheBlob {
         self,
         vm_ptr: *mut c_void,
         source_code_ptr: *const c_void,
+        shared_function_data_list_ptr: *mut c_void,
         gdi_context: *mut c_void,
     ) -> *mut c_void {
         unsafe {
@@ -761,17 +755,20 @@ impl DecodedCacheBlob {
                 return std::ptr::null_mut();
             }
 
+            let shared_function_data_owner =
+                crate::bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr);
             if !materialize_script_declaration_metadata(
                 metadata,
                 declaration_functions,
                 is_strict_mode,
                 vm_ptr,
                 source_code_ptr,
+                shared_function_data_owner,
                 gdi_context,
             ) {
                 return std::ptr::null_mut();
             }
-            materialize_executable(program.executable, vm_ptr, source_code_ptr)
+            materialize_executable(program.executable, vm_ptr, source_code_ptr, shared_function_data_owner)
         }
     }
 
@@ -779,6 +776,7 @@ impl DecodedCacheBlob {
         self,
         vm_ptr: *mut c_void,
         source_code_ptr: *const c_void,
+        shared_function_data_list_ptr: *mut c_void,
         module_context: *mut c_void,
         callbacks: *const ModuleCallbacks,
         tla_executable_out: *mut *mut c_void,
@@ -809,12 +807,15 @@ impl DecodedCacheBlob {
                 return std::ptr::null_mut();
             }
 
+            let shared_function_data_owner =
+                crate::bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr);
             (cb.set_has_top_level_await)(module_context, has_top_level_await);
             if !materialize_module_declaration_metadata(
                 metadata,
                 declaration_functions,
                 vm_ptr,
                 source_code_ptr,
+                shared_function_data_owner,
                 module_context,
                 cb,
             ) {
@@ -823,7 +824,8 @@ impl DecodedCacheBlob {
 
             match program.kind {
                 ProgramKind::AsyncModule => {
-                    let exec_ptr = materialize_executable(program.executable, vm_ptr, source_code_ptr);
+                    let exec_ptr =
+                        materialize_executable(program.executable, vm_ptr, source_code_ptr, shared_function_data_owner);
                     if !tla_executable_out.is_null() {
                         *tla_executable_out = exec_ptr;
                     }
@@ -833,10 +835,208 @@ impl DecodedCacheBlob {
                     if !tla_executable_out.is_null() {
                         *tla_executable_out = std::ptr::null_mut();
                     }
-                    materialize_executable(program.executable, vm_ptr, source_code_ptr)
+                    materialize_executable(program.executable, vm_ptr, source_code_ptr, shared_function_data_owner)
                 }
             }
         }
+    }
+
+    pub(crate) unsafe fn install_script(
+        self,
+        vm_ptr: *mut c_void,
+        source_code_ptr: *const c_void,
+        existing_executable_ptr: *const c_void,
+        existing_shared_function_data_ptrs: &[*mut c_void],
+    ) -> *mut c_void {
+        unsafe {
+            if existing_executable_ptr.is_null() {
+                return std::ptr::null_mut();
+            }
+
+            let Self {
+                program_type,
+                is_strict_mode,
+                metadata,
+                program,
+                ..
+            } = self;
+            if program_type != ast::ProgramType::Script {
+                return std::ptr::null_mut();
+            }
+            let DecodedDeclarationMetadata::Script {
+                metadata,
+                declaration_functions,
+            } = metadata
+            else {
+                return std::ptr::null_mut();
+            };
+            let ProgramKind::ScriptOrModule = program.kind else {
+                return std::ptr::null_mut();
+            };
+
+            let mut existing_shared_function_data = ExistingSharedFunctionData::new(existing_shared_function_data_ptrs);
+            let mut pending_function_installs = Vec::new();
+            if !prepare_declaration_function_installs(
+                declaration_functions,
+                metadata.function_names.len(),
+                &mut existing_shared_function_data,
+                is_strict_mode,
+                vm_ptr,
+                source_code_ptr,
+                &mut pending_function_installs,
+            ) {
+                return std::ptr::null_mut();
+            }
+            let executable_ptr = materialize_executable_for_install(
+                program.executable,
+                Some(&mut existing_shared_function_data),
+                crate::bytecode::ffi::SharedFunctionDataOwner::None,
+                vm_ptr,
+                source_code_ptr,
+                &mut pending_function_installs,
+            );
+            if executable_ptr.is_null() {
+                return std::ptr::null_mut();
+            }
+            if !existing_shared_function_data.all_matched() {
+                return std::ptr::null_mut();
+            }
+            for install in pending_function_installs {
+                install.commit();
+            }
+            executable_ptr
+        }
+    }
+
+    pub(crate) unsafe fn install_module(
+        self,
+        vm_ptr: *mut c_void,
+        source_code_ptr: *const c_void,
+        existing_executable_ptr: *const c_void,
+        existing_shared_function_data_ptrs: &[*mut c_void],
+        existing_tla_sfd_ptr: *mut c_void,
+        tla_executable_out: *mut *mut c_void,
+    ) -> *mut c_void {
+        unsafe {
+            let Self {
+                program_type,
+                has_top_level_await,
+                metadata,
+                program,
+                ..
+            } = self;
+            if program_type != ast::ProgramType::Module {
+                return std::ptr::null_mut();
+            }
+            let DecodedDeclarationMetadata::Module {
+                metadata,
+                declaration_functions,
+            } = metadata
+            else {
+                return std::ptr::null_mut();
+            };
+
+            let mut existing_shared_function_data = ExistingSharedFunctionData::new(existing_shared_function_data_ptrs);
+            let mut pending_function_installs = Vec::new();
+            if !prepare_declaration_function_installs(
+                declaration_functions,
+                metadata.function_names.len(),
+                &mut existing_shared_function_data,
+                true,
+                vm_ptr,
+                source_code_ptr,
+                &mut pending_function_installs,
+            ) {
+                return std::ptr::null_mut();
+            }
+            match program.kind {
+                ProgramKind::AsyncModule => {
+                    if !has_top_level_await || existing_tla_sfd_ptr.is_null() {
+                        return std::ptr::null_mut();
+                    }
+                    let exec_ptr = materialize_executable_for_install(
+                        program.executable,
+                        Some(&mut existing_shared_function_data),
+                        crate::bytecode::ffi::SharedFunctionDataOwner::None,
+                        vm_ptr,
+                        source_code_ptr,
+                        &mut pending_function_installs,
+                    );
+                    if exec_ptr.is_null() {
+                        return std::ptr::null_mut();
+                    }
+                    if !existing_shared_function_data.all_matched() {
+                        return std::ptr::null_mut();
+                    }
+                    for install in pending_function_installs {
+                        install.commit();
+                    }
+                    if !tla_executable_out.is_null() {
+                        *tla_executable_out = exec_ptr;
+                    }
+                    std::ptr::null_mut()
+                }
+                ProgramKind::ScriptOrModule => {
+                    if has_top_level_await || existing_executable_ptr.is_null() {
+                        return std::ptr::null_mut();
+                    }
+                    if !tla_executable_out.is_null() {
+                        *tla_executable_out = std::ptr::null_mut();
+                    }
+                    let executable_ptr = materialize_executable_for_install(
+                        program.executable,
+                        Some(&mut existing_shared_function_data),
+                        crate::bytecode::ffi::SharedFunctionDataOwner::None,
+                        vm_ptr,
+                        source_code_ptr,
+                        &mut pending_function_installs,
+                    );
+                    if executable_ptr.is_null() {
+                        return std::ptr::null_mut();
+                    }
+                    if !existing_shared_function_data.all_matched() {
+                        return std::ptr::null_mut();
+                    }
+                    for install in pending_function_installs {
+                        install.commit();
+                    }
+                    executable_ptr
+                }
+            }
+        }
+    }
+}
+
+unsafe fn prepare_declaration_function_installs(
+    declaration_functions: Vec<DecodedFunctionRecord>,
+    expected_function_count: usize,
+    existing_shared_function_data: &mut ExistingSharedFunctionData<'_>,
+    outer_strict: bool,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    pending_function_installs: &mut Vec<PendingFunctionInstall>,
+) -> bool {
+    unsafe {
+        if declaration_functions.len() != expected_function_count {
+            return false;
+        }
+
+        for function in declaration_functions {
+            if prepare_function_install(
+                function,
+                outer_strict,
+                existing_shared_function_data,
+                vm_ptr,
+                source_code_ptr,
+                pending_function_installs,
+            )
+            .is_null()
+            {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
@@ -846,6 +1046,7 @@ unsafe fn materialize_script_declaration_metadata(
     is_strict_mode: bool,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
     gdi_context: *mut c_void,
 ) -> bool {
     unsafe {
@@ -861,7 +1062,13 @@ unsafe fn materialize_script_declaration_metadata(
             script_gdi_push_var_name(gdi_context, name.as_ptr(), name.len());
         }
         for (function, name) in declaration_functions.into_iter().zip(metadata.function_names.iter()) {
-            let sfd_ptr = materialize_function(function, is_strict_mode, vm_ptr, source_code_ptr);
+            let sfd_ptr = materialize_function(
+                function,
+                is_strict_mode,
+                vm_ptr,
+                source_code_ptr,
+                shared_function_data_owner,
+            );
             if sfd_ptr.is_null() {
                 return false;
             }
@@ -891,6 +1098,7 @@ unsafe fn materialize_module_declaration_metadata(
     declaration_functions: Vec<DecodedFunctionRecord>,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
     module_context: *mut c_void,
     cb: &ModuleCallbacks,
 ) -> bool {
@@ -944,7 +1152,7 @@ unsafe fn materialize_module_declaration_metadata(
             (cb.push_var_name)(module_context, name.as_ptr(), name.len());
         }
         for (function, name) in declaration_functions.into_iter().zip(metadata.function_names.iter()) {
-            let sfd_ptr = materialize_function(function, true, vm_ptr, source_code_ptr);
+            let sfd_ptr = materialize_function(function, true, vm_ptr, source_code_ptr, shared_function_data_owner);
             if sfd_ptr.is_null() {
                 return false;
             }
@@ -1033,11 +1241,92 @@ unsafe fn push_module_export_entry(
     }
 }
 
+enum PendingFunctionInstallReplacement {
+    CachedBytecode(DecodedCachedExecutableRecord),
+    Executable(*mut c_void),
+}
+
+struct ExistingSharedFunctionData<'a> {
+    ptrs: &'a [*mut c_void],
+    matched: Vec<bool>,
+}
+
+impl<'a> ExistingSharedFunctionData<'a> {
+    fn new(ptrs: &'a [*mut c_void]) -> Self {
+        Self {
+            ptrs,
+            matched: vec![false; ptrs.len()],
+        }
+    }
+
+    unsafe fn take_matching(&mut self, data: &FFISharedFunctionData) -> *mut c_void {
+        unsafe {
+            for (index, ptr) in self.ptrs.iter().copied().enumerate() {
+                if self.matched[index] || ptr.is_null() {
+                    continue;
+                }
+                if crate::bytecode::ffi::rust_sfd_matches_bytecode_cache_function(ptr, data) {
+                    self.matched[index] = true;
+                    return ptr;
+                }
+            }
+            std::ptr::null_mut()
+        }
+    }
+
+    fn all_matched(&self) -> bool {
+        self.matched.iter().all(|matched| *matched)
+    }
+}
+
+struct PendingFunctionInstall {
+    existing_sfd_ptr: *mut c_void,
+    replacement: PendingFunctionInstallReplacement,
+    metadata: FunctionSfdMetadata,
+}
+
+impl PendingFunctionInstall {
+    unsafe fn commit(self) {
+        unsafe {
+            match self.replacement {
+                PendingFunctionInstallReplacement::CachedBytecode(cached_executable) => {
+                    let cached_executable_ptr = Box::into_raw(Box::new(cached_executable)) as *mut c_void;
+                    crate::bytecode::ffi::rust_sfd_install_cached_bytecode_executable(
+                        self.existing_sfd_ptr,
+                        cached_executable_ptr,
+                        self.metadata.uses_this,
+                        self.metadata.this_value_needs_environment_resolution,
+                        self.metadata.function_environment_needed,
+                        self.metadata.function_environment_bindings_count,
+                        self.metadata.var_environment_bindings_count,
+                        self.metadata.might_need_arguments,
+                        self.metadata.contains_eval,
+                    );
+                }
+                PendingFunctionInstallReplacement::Executable(executable_ptr) => {
+                    crate::bytecode::ffi::rust_sfd_install_bytecode_cache_executable(
+                        self.existing_sfd_ptr,
+                        executable_ptr,
+                        self.metadata.uses_this,
+                        self.metadata.this_value_needs_environment_resolution,
+                        self.metadata.function_environment_needed,
+                        self.metadata.function_environment_bindings_count,
+                        self.metadata.var_environment_bindings_count,
+                        self.metadata.might_need_arguments,
+                        self.metadata.contains_eval,
+                    );
+                }
+            }
+        }
+    }
+}
+
 unsafe fn materialize_function(
     function: DecodedFunctionRecord,
     outer_strict: bool,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
 ) -> *mut c_void {
     unsafe {
         if function.precompiled.validate_cached_bytecode().is_err() {
@@ -1079,7 +1368,15 @@ unsafe fn materialize_function(
             uses_this_from_environment: function.uses_this_from_environment,
         };
 
-        let sfd_ptr = crate::bytecode::ffi::rust_create_sfd(vm_ptr, source_code_ptr, &raw const data);
+        let sfd_ptr = match shared_function_data_owner {
+            crate::bytecode::ffi::SharedFunctionDataOwner::None => {
+                crate::bytecode::ffi::rust_create_sfd(vm_ptr, source_code_ptr, &raw const data)
+            }
+            crate::bytecode::ffi::SharedFunctionDataOwner::List(list_ptr) => {
+                assert!(!list_ptr.is_null(), "SharedFunctionDataOwner::List must not be null");
+                crate::bytecode::ffi::rust_create_sfd_in_list(vm_ptr, source_code_ptr, list_ptr, &raw const data)
+            }
+        };
         if sfd_ptr.is_null() {
             return std::ptr::null_mut();
         }
@@ -1107,10 +1404,101 @@ unsafe fn materialize_function(
     }
 }
 
+unsafe fn prepare_function_install(
+    function: DecodedFunctionRecord,
+    outer_strict: bool,
+    existing_shared_function_data: &mut ExistingSharedFunctionData<'_>,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    pending_function_installs: &mut Vec<PendingFunctionInstall>,
+) -> *mut c_void {
+    unsafe {
+        let (_parameter_name_storage, parameter_names): (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) = function
+            .parameter_names
+            .as_ref()
+            .map(|names| utf16_slice_storage(names.iter()))
+            .unwrap_or_default();
+        let name_storage = function.name.as_ref().map(PreparedUtf16Slice::new);
+        let (name, name_len) = name_storage
+            .as_ref()
+            .map(PreparedUtf16Slice::as_ptr_len)
+            .unwrap_or((std::ptr::null(), 0));
+        let source_text_offset = function.source_text_start as usize;
+        let source_text_length = function
+            .source_text_end
+            .checked_sub(function.source_text_start)
+            .map(|length| length as usize)
+            .unwrap_or(0);
+
+        let data = FFISharedFunctionData {
+            name,
+            name_len,
+            function_kind: function.kind as u8,
+            function_length: function.function_length,
+            formal_parameter_count: function.formal_parameter_count,
+            strict: function.is_strict_mode || outer_strict,
+            is_arrow: function.is_arrow_function,
+            has_simple_parameter_list: function.parameter_names.is_some(),
+            parameter_names: parameter_names.as_ptr(),
+            parameter_name_count: parameter_names.len(),
+            source_text_offset,
+            source_text_length,
+            rust_function_ast: std::ptr::null_mut(),
+            uses_this: function.uses_this,
+            uses_this_from_environment: function.uses_this_from_environment,
+        };
+
+        let existing_sfd_ptr = existing_shared_function_data.take_matching(&data);
+        if existing_sfd_ptr.is_null() {
+            return std::ptr::null_mut();
+        }
+
+        if crate::bytecode::ffi::rust_sfd_executable(existing_sfd_ptr).is_null() {
+            if function.precompiled.validate_cached_bytecode().is_err() {
+                return std::ptr::null_mut();
+            }
+
+            pending_function_installs.push(PendingFunctionInstall {
+                existing_sfd_ptr,
+                replacement: PendingFunctionInstallReplacement::CachedBytecode(function.precompiled),
+                metadata: function.metadata,
+            });
+            return existing_sfd_ptr;
+        }
+
+        let Some(executable) = function.precompiled.decode_executable() else {
+            return std::ptr::null_mut();
+        };
+        if executable.validate_cached_bytecode().is_err() {
+            return std::ptr::null_mut();
+        }
+        let executable_ptr = materialize_executable_for_install(
+            executable,
+            Some(existing_shared_function_data),
+            crate::bytecode::ffi::SharedFunctionDataOwner::None,
+            vm_ptr,
+            source_code_ptr,
+            pending_function_installs,
+        );
+        if executable_ptr.is_null() {
+            return std::ptr::null_mut();
+        }
+
+        pending_function_installs.push(PendingFunctionInstall {
+            existing_sfd_ptr,
+            replacement: PendingFunctionInstallReplacement::Executable(executable_ptr),
+            metadata: function.metadata,
+        });
+
+        existing_sfd_ptr
+    }
+}
+
 pub(crate) unsafe fn materialize_cached_function(
     cached_executable_ptr: *mut c_void,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_list_ptr: *mut c_void,
 ) -> *mut c_void {
     unsafe {
         if cached_executable_ptr.is_null() {
@@ -1123,7 +1511,12 @@ pub(crate) unsafe fn materialize_cached_function(
         if executable.validate_cached_bytecode().is_err() {
             return std::ptr::null_mut();
         }
-        materialize_executable(executable, vm_ptr, source_code_ptr)
+        let shared_function_data_owner = if shared_function_data_list_ptr.is_null() {
+            crate::bytecode::ffi::SharedFunctionDataOwner::None
+        } else {
+            crate::bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr)
+        };
+        materialize_executable(executable, vm_ptr, source_code_ptr, shared_function_data_owner)
     }
 }
 
@@ -1141,6 +1534,28 @@ unsafe fn materialize_executable(
     executable: DecodedExecutableRecord,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
+) -> *mut c_void {
+    unsafe {
+        let mut pending_function_installs = Vec::new();
+        materialize_executable_for_install(
+            executable,
+            None,
+            shared_function_data_owner,
+            vm_ptr,
+            source_code_ptr,
+            &mut pending_function_installs,
+        )
+    }
+}
+
+unsafe fn materialize_executable_for_install(
+    executable: DecodedExecutableRecord,
+    mut existing_shared_function_data: Option<&mut ExistingSharedFunctionData<'_>>,
+    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
+    vm_ptr: *mut c_void,
+    source_code_ptr: *const c_void,
+    pending_function_installs: &mut Vec<PendingFunctionInstall>,
 ) -> *mut c_void {
     unsafe {
         let DecodedExecutableRecord {
@@ -1190,10 +1605,23 @@ unsafe fn materialize_executable(
         let Some(shared_functions) = shared_functions.into_values() else {
             return std::ptr::null_mut();
         };
-        let sfd_ptrs: Vec<*const c_void> = shared_functions
-            .into_iter()
-            .map(|function| materialize_function(function, strict, vm_ptr, source_code_ptr) as *const c_void)
-            .collect();
+        let mut sfd_ptrs = Vec::with_capacity(shared_functions.len());
+        for function in shared_functions {
+            let sfd_ptr = if let Some(registry) = existing_shared_function_data.as_deref_mut() {
+                prepare_function_install(
+                    function,
+                    strict,
+                    registry,
+                    vm_ptr,
+                    source_code_ptr,
+                    pending_function_installs,
+                ) as *const c_void
+            } else {
+                materialize_function(function, strict, vm_ptr, source_code_ptr, shared_function_data_owner)
+                    as *const c_void
+            };
+            sfd_ptrs.push(sfd_ptr);
+        }
         if sfd_ptrs.iter().any(|ptr| ptr.is_null()) {
             return std::ptr::null_mut();
         }
@@ -3577,7 +4005,19 @@ mod tests {
         bytes.push(ast::ProgramType::Script as u8);
         bytes.extend_from_slice(&stored_source_hash);
 
-        assert!(decode_blob(&bytes, ast::ProgramType::Script, &expected_source_hash).is_none());
+        assert!(
+            decode_blob_with_foreign_owner(
+                &bytes,
+                ast::ProgramType::Script,
+                &expected_source_hash,
+                ForeignBytecodeCacheBlobOwner {
+                    owner: std::ptr::null_mut(),
+                    clone_owner: ignore_clone_foreign_owner,
+                    free_owner: ignore_foreign_owner,
+                },
+            )
+            .is_none()
+        );
     }
 
     unsafe extern "C" fn ignore_foreign_owner(_: *mut c_void) {}
