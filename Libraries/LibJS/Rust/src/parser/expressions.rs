@@ -81,7 +81,7 @@ impl Parser<'_> {
                 | TokenType::Typeof
                 | TokenType::Void
                 | TokenType::Delete
-        )
+        ) || (self.flags.await_expression_is_valid && self.current_token_type() == TokenType::Await)
     }
 
     pub(crate) fn match_secondary_expression(&self, forbidden: &ForbiddenTokens) -> bool {
@@ -544,16 +544,6 @@ impl Parser<'_> {
             TokenType::Yield if self.flags.in_generator_function_context && min_precedence <= 3 => {
                 let expression = self.parse_yield_expression(forbidden);
                 (expression, false)
-            }
-
-            // https://tc39.es/ecma262/#sec-async-function-definitions
-            // AwaitExpression : `await` UnaryExpression
-            // NB: Unlike yield (AssignmentExpression level), await is at
-            // UnaryExpression level, so `await 1 + 2` is `(await 1) + 2`.
-            // We set should_continue=true to allow binary operators.
-            TokenType::Await if self.flags.await_expression_is_valid => {
-                let expression = self.parse_await_expression();
-                (expression, true)
             }
 
             TokenType::PrivateIdentifier => {
@@ -1069,6 +1059,7 @@ impl Parser<'_> {
         let tt = self.current_token_type();
 
         match tt {
+            TokenType::Await if self.flags.await_expression_is_valid => self.parse_await_expression(),
             TokenType::PlusPlus => {
                 self.consume();
                 let expression = self.parse_expression(PRECEDENCE_UNARY, Associativity::Right, ForbiddenTokens::none());
