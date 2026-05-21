@@ -33,7 +33,7 @@ static ThrowCompletionOr<void> validate_typed_array_length(VM& vm, size_t array_
 {
     if (array_length > NumericLimits<i32>::max() / element_size)
         return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");
-    if (Checked<u32>::multiplication_would_overflow(array_length, element_size))
+    if (Checked<size_t>::multiplication_would_overflow(array_length, element_size))
         return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");
     return {};
 }
@@ -82,7 +82,7 @@ ThrowCompletionOr<void> initialize_typed_array_from_array_buffer(VM& vm, TypedAr
     }
     // 9. Else,
     else {
-        Checked<u32> new_byte_length;
+        Checked<size_t> new_byte_length;
 
         // a. If length is undefined, then
         if (length.is_undefined()) {
@@ -91,21 +91,21 @@ ThrowCompletionOr<void> initialize_typed_array_from_array_buffer(VM& vm, TypedAr
                 return vm.throw_completion<RangeError>(ErrorType::TypedArrayInvalidBufferLength, typed_array.class_name(), element_size, buffer_byte_length);
 
             // ii. Let newByteLength be bufferByteLength - offset.
-            new_byte_length = buffer_byte_length;
-            new_byte_length -= offset;
-
             // iii. If newByteLength < 0, throw a RangeError exception.
-            if (new_byte_length.has_overflow())
+            if (offset > buffer_byte_length)
                 return vm.throw_completion<RangeError>(ErrorType::TypedArrayOutOfRangeByteOffset, offset, buffer_byte_length);
+            new_byte_length = buffer_byte_length - offset;
         }
         // b. Else,
         else {
             // i. Let newByteLength be newLength × elementSize.
             new_byte_length = new_length;
             new_byte_length *= element_size;
+            if (new_byte_length.has_overflow())
+                return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");
 
             // ii. If offset + newByteLength > bufferByteLength, throw a RangeError exception.
-            Checked<u32> new_byte_end = offset;
+            Checked<size_t> new_byte_end = offset;
             new_byte_end += new_byte_length;
 
             if (new_byte_end.has_overflow())
@@ -114,18 +114,23 @@ ThrowCompletionOr<void> initialize_typed_array_from_array_buffer(VM& vm, TypedAr
                 return vm.throw_completion<RangeError>(ErrorType::TypedArrayOutOfRangeByteOffsetOrLength, offset, new_byte_end.value(), buffer_byte_length);
         }
 
+        auto new_array_length = new_byte_length.value() / element_size;
+        TRY(validate_typed_array_length(vm, new_array_length, element_size));
+
         // c. Set O.[[ByteLength]] to newByteLength.
-        typed_array.set_byte_length(new_byte_length.value());
+        typed_array.set_byte_length(static_cast<u32>(new_byte_length.value()));
 
         // d. Set O.[[ArrayLength]] to newByteLength / elementSize.
-        typed_array.set_array_length(new_byte_length.value() / element_size);
+        typed_array.set_array_length(static_cast<u32>(new_array_length));
     }
 
     // 10. Set O.[[ViewedArrayBuffer]] to buffer.
     typed_array.set_viewed_array_buffer(&array_buffer);
 
     // 11. Set O.[[ByteOffset]] to offset.
-    typed_array.set_byte_offset(offset);
+    if (offset > NumericLimits<u32>::max())
+        return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "typed array");
+    typed_array.set_byte_offset(static_cast<u32>(offset));
 
     // 12. Return unused.
     return {};

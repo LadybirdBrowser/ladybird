@@ -125,6 +125,16 @@ test("typed array from ArrayBuffer errors", () => {
     expect(() => {
         new Uint16Array(new ArrayBuffer(7), 2, 3);
     }).toThrowWithMessage(RangeError, "Typed array range 2:8 is out of range for buffer with length 7");
+
+    [...TYPED_ARRAYS, ...BIGINT_TYPED_ARRAYS].forEach(T => {
+        const arrayBuffer = new ArrayBuffer(0);
+        expect(() => {
+            new T(arrayBuffer, 2 ** 32);
+        }).toThrow(RangeError);
+        expect(() => {
+            new T(arrayBuffer, 0, 2 ** 32);
+        }).toThrow(RangeError);
+    });
 });
 
 test("typed array from TypedArray", () => {
