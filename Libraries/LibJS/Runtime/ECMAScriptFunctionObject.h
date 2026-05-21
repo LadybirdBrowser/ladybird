@@ -135,6 +135,7 @@ private:
         Object& prototype);
 
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override;
+    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override;
 
     virtual bool is_strict_mode() const override { return shared_data().m_strict; }
 
@@ -148,6 +149,9 @@ private:
 
     void prepare_for_ordinary_call(VM&, ExecutionContext& callee_context, Object* new_target);
     void ordinary_call_bind_this(VM&, ExecutionContext&, Value this_argument);
+    bool supports_legacy_caller_or_arguments() const;
+    Value legacy_caller() const;
+    Value legacy_arguments() const;
 
     GC::Ref<SharedFunctionInstanceData> m_shared_data;
 
