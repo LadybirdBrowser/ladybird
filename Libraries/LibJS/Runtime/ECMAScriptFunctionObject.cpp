@@ -315,6 +315,7 @@ void ECMAScriptFunctionObject::make_method(Object& home_object)
     // 1. Set F.[[HomeObject]] to homeObject.
     m_home_object = &home_object;
     m_is_method = true;
+    m_may_need_lazy_prototype_instantiation = false;
 
     // 2. Return unused.
 }
