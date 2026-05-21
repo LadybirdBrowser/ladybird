@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body></body>
+<script>
+    test(() => {
+        internals.setContentBlockers("##.ad");
+
+        const host = document.createElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        document.body.appendChild(host);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(":host { display: block; }");
+        shadowRoot.adoptedStyleSheets = [sheet];
+
+        const target = document.createElement("div");
+        shadowRoot.appendChild(target);
+
+        println(getComputedStyle(target).display);
+
+        target.className = "ad";
+        println(getComputedStyle(target).display);
+
+        internals.setContentBlockers("");
+    });
+</script>

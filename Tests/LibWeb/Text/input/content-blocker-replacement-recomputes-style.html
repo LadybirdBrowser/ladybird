@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body>
+    <div class="ad"></div>
+</body>
+<script>
+    test(() => {
+        const target = document.querySelector(".ad");
+
+        println(getComputedStyle(target).display);
+
+        internals.setContentBlockers("##.ad");
+        println(getComputedStyle(target).display);
+
+        internals.setContentBlockers("");
+        println(getComputedStyle(target).display);
+    });
+</script>

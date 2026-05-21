@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<script>
+    asyncTest(async () => {
+        const server = httpTestServer();
+        const targetURL = await server.createEcho("GET", "/content-blocker-srcdoc-frame-cosmetic-source.html", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+            },
+            body: `
+                <!DOCTYPE html>
+                <iframe id="frame" srcdoc="<div class='ad'></div>"></iframe>
+                <script>
+                    let output = "";
+                    function println(line) {
+                        output += line + "\\n";
+                    }
+
+                    window.addEventListener("load", () => {
+                        const target = document.getElementById("frame").contentDocument.querySelector(".ad");
+                        println(getComputedStyle(target).display);
+
+                        internals.setContentBlockers("localhost##.ad");
+                        println(getComputedStyle(target).display);
+
+                        internals.setContentBlockers("");
+                        println(getComputedStyle(target).display);
+
+                        internals.signalTestIsDone(output);
+                    });
+                </scr` + `ipt>
+            `,
+        });
+
+        location.href = targetURL;
+    });
+</script>
