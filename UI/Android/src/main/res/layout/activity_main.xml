@@ -10,26 +10,90 @@
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize">
-        <!-- FIXME: Add Navigation, URL bar, Tab interactions, etc -->
+        android:layout_height="wrap_content">
+
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/ladybird_toolbar"
+            android:contentInsetStart="0dp"
+            android:contentInsetEnd="0dp"
+            app:contentInsetEnd="0dp"
+            app:contentInsetStart="0dp"
             app:layout_scrollFlags="scroll|snap|enterAlways">
 
-            <EditText
-                android:id="@+id/urlEditText"
-                style="@style/Widget.AppCompat.EditText"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:autofillHints="url"
-                android:ems="10"
-                android:hint="@string/url_edit_default"
-                android:imeOptions="actionGo|actionSearch"
-                android:inputType="textUri"
-                android:singleLine="true" />
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/backButton"
+                    android:layout_width="40dp"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/browser_back"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_arrow_back" />
+
+                <ImageButton
+                    android:id="@+id/forwardButton"
+                    android:layout_width="40dp"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/browser_forward"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_arrow_forward" />
+
+                <ImageButton
+                    android:id="@+id/reloadButton"
+                    android:layout_width="40dp"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/browser_reload"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_refresh" />
+
+                <EditText
+                    android:id="@+id/urlEditText"
+                    style="@style/Widget.AppCompat.EditText"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:autofillHints="url"
+                    android:background="@color/ladybird_toolbar_field"
+                    android:ems="10"
+                    android:hint="@string/browser_search_url_hint"
+                    android:imeOptions="actionGo|actionSearch"
+                    android:inputType="textUri"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:selectAllOnFocus="true"
+                    android:singleLine="true"
+                    android:textColor="@color/ladybird_toolbar_field_text"
+                    android:textColorHint="@color/grey" />
+
+                <ImageButton
+                    android:id="@+id/menuButton"
+                    android:layout_width="40dp"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/browser_menu"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_more_vert" />
+            </LinearLayout>
         </androidx.appcompat.widget.Toolbar>
+
+        <ProgressBar
+            android:id="@+id/loadingProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            tools:visibility="visible" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout

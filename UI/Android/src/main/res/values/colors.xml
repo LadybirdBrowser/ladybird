@@ -8,4 +8,7 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="grey">#FF6B6B6B</color>
+    <color name="ladybird_toolbar">#FF202124</color>
+    <color name="ladybird_toolbar_field">#FFFFFFFF</color>
+    <color name="ladybird_toolbar_field_text">#FF202124</color>
 </resources>

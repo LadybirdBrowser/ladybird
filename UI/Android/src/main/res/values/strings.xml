@@ -1,4 +1,17 @@
 <resources>
     <string name="app_name">Ladybird</string>
     <string name="url_edit_default">Enter URL...</string>
+    <string name="browser_back">Back</string>
+    <string name="browser_forward">Forward</string>
+    <string name="browser_reload">Reload</string>
+    <string name="browser_menu">Browser menu</string>
+    <string name="browser_loading">Loading…</string>
+    <string name="browser_search_url_hint">Search or enter address</string>
+    <string name="browser_webcontent_crashed">WebContent crashed. Reload the page to try again.</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_bookmarks">Bookmarks</string>
+    <string name="menu_downloads">Downloads</string>
+    <string name="menu_about">About Ladybird</string>
+    <string name="feature_not_available">This feature is not available yet.</string>
+    <string name="about_ladybird_message">Ladybird for Android</string>
 </resources>

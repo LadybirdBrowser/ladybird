@@ -106,6 +106,26 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeLoadURL(JNIEnv* env, jo
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeReload(JNIEnv*, jobject /* thiz */, jlong);
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeReload(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->reload();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeTraverseHistory(JNIEnv*, jobject /* thiz */, jlong, jint);
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeTraverseHistory(JNIEnv*, jobject /* thiz */, jlong instance, jint delta)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->traverse_the_history_by_delta(delta);
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeSetDevicePixelRatio(JNIEnv*, jobject /* thiz */, jlong instance, jfloat);
 
 extern "C" JNIEXPORT void JNICALL
