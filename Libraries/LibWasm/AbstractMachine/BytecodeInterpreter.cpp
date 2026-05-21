@@ -2151,7 +2151,17 @@ HANDLE_INSTRUCTION(br)
 HANDLE_INSTRUCTION(synthetic_br_nostack)
 {
     LOG_INSN;
-    short_ip.current_ip_value = interpreter.branch_to_label<false>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label, short_ip.current_ip_value).value();
+    auto& branch_args = instruction->arguments().unsafe_get<Instruction::BranchArgs>();
+    auto label_idx = branch_args.label.value();
+    auto& label_stack = configuration.label_stack();
+    auto label_pos = label_stack.size() - 1 - label_idx;
+    auto& label = label_stack.data()[label_pos];
+    auto expected = label.stack_height() + label.arity();
+    auto current = configuration.value_stack().size();
+    if (current != expected) [[unlikely]]
+        TAILCALL return InstructionHandler<Instructions::br.value()>::operator()<HasDynamicInsnLimit, Continue, source_address_mix>(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    label_stack.unsafe_shrink(label_pos + 1);
+    short_ip.current_ip_value = label.continuation().value() - 1;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2169,9 +2179,26 @@ HANDLE_INSTRUCTION(synthetic_br_if_nostack)
 {
     LOG_INSN;
     LOAD_ADDRESSES();
-    // bounds checked by verifier.
     auto cond = configuration.take_source<source_address_mix>(0, addresses.sources).template to<i32>();
-    short_ip.current_ip_value = interpreter.branch_to_label<false>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label, short_ip.current_ip_value, cond != 0).value();
+    if (cond == 0) {
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
+    auto& branch_args = instruction->arguments().unsafe_get<Instruction::BranchArgs>();
+    auto label_idx = branch_args.label.value();
+    auto& label_stack = configuration.label_stack();
+    auto label_pos = label_stack.size() - 1 - label_idx;
+    auto& label = label_stack.data()[label_pos];
+    auto expected = label.stack_height() + label.arity();
+    auto current = configuration.value_stack().size();
+    if (current != expected) [[unlikely]] {
+        // This branch is definitely taken, but we have to tailcall a different function so we don't pollute this one with vector reallocation nonsense.
+        return [](HANDLER_PARAMS(DECOMPOSE_PARAMS)) NEVER_INLINE static {
+            short_ip.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label, short_ip.current_ip_value).value();
+            TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+        }(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    }
+    label_stack.unsafe_shrink(label_pos + 1);
+    short_ip.current_ip_value = label.continuation().value() - 1;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -6984,7 +7011,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         }
     }
 
-    // Swap out br(.if) with synthetic:br(.if).nostack if !args.has_stack_adjustment.
+    // Swap out br(.if) with the runtime-checked nostack variant if no adjustment is needed.
+    // We still have to check whether that's true in reality as we may have had a polymorphic stack coming in,
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         auto& dispatch = result.dispatches[i];
         if ((dispatch.instruction->opcode() == Instructions::br || dispatch.instruction->opcode() == Instructions::br_if)
