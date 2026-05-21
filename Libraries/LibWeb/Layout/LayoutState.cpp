@@ -241,6 +241,8 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
                 continue;
 
             auto child_border_box = child.paintable_box()->absolute_border_box_rect();
+            if (child.computed_values().overflow_x() == CSS::Overflow::Clip || child.computed_values().overflow_y() == CSS::Overflow::Clip)
+                child_border_box.unite(child.paintable_box()->overflow_clip_edge_rect());
 
             // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
             auto wholly_in_unreachable_x = overflow_directions.x_positive

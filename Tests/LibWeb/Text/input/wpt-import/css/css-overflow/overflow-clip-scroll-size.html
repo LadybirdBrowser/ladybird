@@ -1,0 +1,80 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>overflow: scroll width/height should return overflow size</title>
+<link rel="help" href="https://drafts.csswg.org/css-overflow/#valdef-overflow-clip">
+<link rel="author" title="Scott Violet" href="mailto:sky@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .parent {
+    width: 100px;
+    height: 101px;
+  }
+  .child {
+    width: 200px;
+    height: 201px;
+  }
+  .overflow_clip_and_border {
+    width: 100px;
+    height: 101px;
+    overflow: clip;
+    border-width: 2px;
+    border-style: solid;
+  }
+</style>
+<div id="parent-clip-both" class="parent" style="overflow: clip">
+  <div class="child"></div>
+</div>
+<div id="parent-clip-x" class="parent" style="overflow: clip-x">
+  <div class="child"></div>
+</div>
+<div id="parent-clip-y" class="parent" style="overflow: clip-y">
+  <div class="child"></div>
+</div>
+
+<div id="border-equal-clip" class="parent">
+  <div class="overflow_clip_and_border"
+       style="overflow-clip-margin: 2px">
+    <div class="child"></div>
+  </div>
+</div>
+<div id="border-smaller-clip" class="parent">
+  <div class="overflow_clip_and_border"
+       style="overflow-clip-margin: 3px">
+    <div class="child"></div>
+  </div>
+</div>
+<div id="border-greater-clip" class="parent">
+  <div class="overflow_clip_and_border"
+       style="overflow-clip-margin: 1px">
+    <div class="child"></div>
+  </div>
+</div>
+
+<script>
+test(() => {
+  var pClipBoth = document.getElementById("parent-clip-both");
+  assert_equals(pClipBoth.scrollWidth, 200);
+  assert_equals(pClipBoth.scrollHeight, 201);
+
+  var pClipX = document.getElementById("parent-clip-x");
+  assert_equals(pClipX.scrollWidth, 200);
+  assert_equals(pClipX.scrollHeight, 201);
+
+  var pClipY = document.getElementById("parent-clip-y");
+  assert_equals(pClipY.scrollWidth, 200);
+  assert_equals(pClipY.scrollHeight, 201);
+}, "scroll size should match that of size specified by overflow: clip");
+
+test(() => {
+    assert_equals(document.getElementById("border-equal-clip").scrollWidth,
+                  104);
+
+    assert_equals(document.getElementById("border-smaller-clip").scrollWidth,
+                  105);
+
+    assert_equals(document.getElementById("border-greater-clip").scrollWidth,
+                  104);
+}, "scroll size should take into account border size and overflow-clip-margin");
+
+</script>

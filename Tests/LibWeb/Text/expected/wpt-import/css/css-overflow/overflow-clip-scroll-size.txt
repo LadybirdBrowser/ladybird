@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	scroll size should match that of size specified by overflow: clip
+Pass	scroll size should take into account border size and overflow-clip-margin
