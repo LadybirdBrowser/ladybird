@@ -7465,6 +7465,14 @@ fn generate_object_binding_pattern(
 
     for entry in &pattern.entries {
         if entry.is_rest {
+            // AssignmentRestProperty : `...` DestructuringAssignmentTarget
+            // 1. Let _lRef_ be ? Evaluation of |DestructuringAssignmentTarget|.
+            let evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
+                Some(emit_evaluate_member_reference(generator, expression))
+            } else {
+                None
+            };
+
             // Rest element: copy object excluding already-destructured properties.
             let copy = generator.allocate_register();
             generator.emit(Instruction::CopyObjectExcludingProperties {
@@ -7473,16 +7481,30 @@ fn generate_object_binding_pattern(
                 excluded_names_count: u32_from_usize(excluded_names.len()),
                 excluded_names: excluded_names.iter().map(|o| o.operand()).collect(),
             });
-            assign_binding_entry_alias(generator, entry, &copy, mode);
+            if let Some(ref eref) = evaluated_ref {
+                emit_store_to_evaluated_reference(generator, eref, &copy);
+            } else {
+                assign_binding_entry_alias(generator, entry, &copy, mode);
+            }
             return;
         }
 
         let value = generator.allocate_register();
+        let evaluated_ref;
 
         match &entry.name {
             Some(BindingEntryName::Identifier(ident)) => {
                 let arena = generator.arena.clone();
                 let name = arena.name_slice(*ident);
+                // AssignmentElement : DestructuringAssignmentTarget Initializer?
+                // 1. If |DestructuringAssignmentTarget| is neither an |ObjectLiteral| nor an |ArrayLiteral|, then
+                //    a. Let _lRef_ be ? Evaluation of |DestructuringAssignmentTarget|.
+                // 2. Let _v_ be ? GetV(_value_, _propertyName_).
+                evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
+                    Some(emit_evaluate_member_reference(generator, expression))
+                } else {
+                    None
+                };
                 emit_get_by_id(generator, &value, object, name, None);
                 if has_rest {
                     let name_val = generator.add_constant_string(arena.name_of(*ident).clone());
@@ -7491,17 +7513,23 @@ fn generate_object_binding_pattern(
             }
             Some(BindingEntryName::Expression(expression)) => {
                 let property_name = generate_expression_or_undefined(expression, generator, None);
+                let property_name = generator.copy_if_needed_to_preserve_evaluation_order(&property_name);
+                generator.emit(Instruction::ToPrimitiveWithStringHint {
+                    dst: property_name.operand(),
+                    value: property_name.operand(),
+                });
                 if has_rest {
-                    // Only copy to a new register if the property name is a local variable,
-                    // since locals can be reassigned. Registers are temporaries and won't change.
-                    if property_name.operand().is_local() {
-                        let excluded_name = generator.allocate_register();
-                        generator.emit_mov(&excluded_name, &property_name);
-                        excluded_names.push(excluded_name);
-                    } else {
-                        excluded_names.push(property_name.clone());
-                    }
+                    excluded_names.push(property_name.clone());
                 }
+                // AssignmentElement : DestructuringAssignmentTarget Initializer?
+                // 1. If |DestructuringAssignmentTarget| is neither an |ObjectLiteral| nor an |ArrayLiteral|, then
+                //    a. Let _lRef_ be ? Evaluation of |DestructuringAssignmentTarget|.
+                // 2. Let _v_ be ? GetV(_value_, _propertyName_).
+                evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
+                    Some(emit_evaluate_member_reference(generator, expression))
+                } else {
+                    None
+                };
                 emit_get_by_value(generator, &value, object, &property_name, None);
             }
             None => {
@@ -7530,7 +7558,11 @@ fn generate_object_binding_pattern(
             generator.switch_to_basic_block(if_not_undefined);
         }
 
-        assign_binding_entry_alias(generator, entry, &value, mode);
+        if let Some(ref eref) = evaluated_ref {
+            emit_store_to_evaluated_reference(generator, eref, &value);
+        } else {
+            assign_binding_entry_alias(generator, entry, &value, mode);
+        }
     }
 }
 

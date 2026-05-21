@@ -63,6 +63,71 @@ test("MemberExpression target with object literal in object destructuring", () =
     expect(setValue).toBe(42);
 });
 
+test("object destructuring evaluates MemberExpression target before source property", () => {
+    var log = [];
+    var source = {
+        get p() {
+            log.push("get p");
+            return 42;
+        },
+    };
+    var target = {
+        set q(value) {
+            log.push(`set q ${value}`);
+        },
+    };
+
+    ({ p: (log.push("target base"), target).q } = source);
+    expect(log).toEqual(["target base", "get p", "set q 42"]);
+});
+
+test("object destructuring evaluates computed MemberExpression target before source property", () => {
+    var log = [];
+    var source = {
+        get p() {
+            log.push("get p");
+            return undefined;
+        },
+    };
+    var target = {
+        set q(value) {
+            log.push(`set q ${value}`);
+        },
+    };
+    function sourceKey() {
+        log.push("source key");
+        return {
+            toString() {
+                log.push("source key toString");
+                return "p";
+            },
+        };
+    }
+    function targetKey() {
+        log.push("target key");
+        return "q";
+    }
+
+    ({ [sourceKey()]: target[targetKey()] = (log.push("default"), 7) } = source);
+    expect(log).toEqual(["source key", "source key toString", "target key", "get p", "default", "set q 7"]);
+});
+
+test("object rest destructuring evaluates MemberExpression target before copying properties", () => {
+    var log = [];
+    var source = {
+        a: 1,
+        get b() {
+            log.push("get b");
+            return 2;
+        },
+    };
+    var target = {};
+
+    ({ a, ...(log.push("target base"), target).rest } = source);
+    expect(log).toEqual(["target base", "get b"]);
+    expect(target.rest).toEqual({ b: 2 });
+});
+
 test("named class expression as default value in array destructuring", () => {
     var x;
     [x = class C {}] = [undefined];
