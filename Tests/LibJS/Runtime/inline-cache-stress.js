@@ -28,6 +28,47 @@ describe("basic property access", () => {
         }
         expect(obj.counter).toBe(999);
     });
+
+    test("cached accessor get with missing getter", () => {
+        function getValue(obj) {
+            return obj.value;
+        }
+
+        const withGetter = {
+            get value() {
+                return 1;
+            },
+        };
+        expect(getValue(withGetter)).toBe(1);
+
+        const withSetter = {
+            set value(value) {},
+        };
+        expect(getValue(withSetter)).toBeUndefined();
+    });
+
+    test("cached accessor set with missing setter", () => {
+        function setValue(obj, value) {
+            obj.value = value;
+        }
+
+        let setterValue = 0;
+        const withSetter = {
+            set value(value) {
+                setterValue = value;
+            },
+        };
+        setValue(withSetter, 1);
+        expect(setterValue).toBe(1);
+
+        const withGetter = {
+            get value() {
+                return 2;
+            },
+        };
+        setValue(withGetter, 3);
+        expect(withGetter.value).toBe(2);
+    });
 });
 
 describe("prototype chain access", () => {

@@ -27,6 +27,19 @@ enum class GetByIdMode {
     Length,
 };
 
+ALWAYS_INLINE ThrowCompletionOr<Value> get_cached_property_value(VM& vm, Value value, Value this_value)
+{
+    if (!value.is_accessor())
+        return value;
+
+    // https://tc39.es/ecma262/#sec-ordinaryget
+    // If _getter_ is *undefined*, return *undefined*.
+    auto* getter = value.as_accessor().getter();
+    if (!getter)
+        return js_undefined();
+    return TRY(call(vm, *getter, this_value));
+}
+
 ALWAYS_INLINE GC::Ptr<Object> base_object_for_get_impl(VM& vm, Value base_value)
 {
     if (base_value.is_object()) [[likely]]
@@ -117,9 +130,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             }();
             if (can_use_cache) [[likely]] {
                 auto value = cached_prototype->get_direct(cache_entry.property_offset);
-                if (value.is_accessor())
-                    return TRY(call(vm, value.as_accessor().getter(), this_value));
-                return value;
+                return TRY(get_cached_property_value(vm, value, this_value));
             }
         } else if (&shape == cache_entry.shape) {
             // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
@@ -132,10 +143,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
 
             if (can_use_cache) [[likely]] {
                 auto value = base_obj->get_direct(cache_entry.property_offset);
-                if (value.is_accessor()) {
-                    return TRY(call(vm, value.as_accessor().getter(), this_value));
-                }
-                return value;
+                return TRY(get_cached_property_value(vm, value, this_value));
             }
         }
     }
@@ -262,7 +270,10 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     if (can_use_cache) [[likely]] {
                         auto value_in_prototype = cached_prototype->get_direct(cache.property_offset);
                         if (value_in_prototype.is_accessor()) [[unlikely]] {
-                            (void)TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
+                            auto* setter = value_in_prototype.as_accessor().setter();
+                            if (!setter)
+                                break;
+                            (void)TRY(call(vm, *setter, this_value, value));
                             return {};
                         }
                     }
@@ -280,7 +291,10 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
 
                     auto value_in_object = object->get_direct(cache.property_offset);
                     if (value_in_object.is_accessor()) [[unlikely]] {
-                        (void)TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
+                        auto* setter = value_in_object.as_accessor().setter();
+                        if (!setter)
+                            break;
+                        (void)TRY(call(vm, *setter, this_value, value));
                     } else {
                         object->put_direct(cache.property_offset, value);
                     }
