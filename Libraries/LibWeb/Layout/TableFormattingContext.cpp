@@ -1003,7 +1003,7 @@ void TableFormattingContext::compute_table_height()
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
 
-        cell.baseline = box_baseline(cell.box);
+        cell.baseline = table_cell_baseline(cell.box);
 
         // Implements https://www.w3.org/TR/css-tables-3/#computing-the-table-height
 
@@ -1095,7 +1095,7 @@ void TableFormattingContext::compute_table_height()
             independent_formatting_context->parent_context_did_dimension_child_root_box();
         }
 
-        cell.baseline = box_baseline(cell.box);
+        cell.baseline = table_cell_baseline(cell.box);
 
         if (!row.is_collapsed) {
             row.reference_height = max(row.reference_height, cell_state.border_box_height());
@@ -1985,6 +1985,119 @@ template<>
 CSSPixels TableFormattingContext::border_spacing<TableFormattingContext::Column>()
 {
     return border_spacing_horizontal();
+}
+
+CSSPixels TableFormattingContext::table_cell_baseline(Box const& cell_box) const
+{
+    auto const& cell_state = m_state.get(cell_box);
+    auto cell_margin_box_top = cell_state.cumulative_offset().y() - cell_state.margin_box_top();
+
+    // https://drafts.csswg.org/css-tables-3/#row-layout
+    //
+    // The baseline of a cell is defined as the baseline of the first in-flow line box in the cell, or the first
+    // in-flow table-row in the cell, whichever comes first.
+    //
+    // If there is no such line box or table-row, the baseline is the bottom of content edge of the cell box.
+    auto is_in_flow_descendant = [&](Box const& descendant) {
+        for (Node const* node = &descendant; node && node != &cell_box; node = node->parent()) {
+            auto const* box = as_if<Box>(*node);
+            if (box && box->is_out_of_flow(*this))
+                return false;
+        }
+        return true;
+    };
+
+    Optional<CSSPixels> baseline;
+    cell_box.for_each_in_inclusive_subtree_of_type<Box>([&](Box const& descendant) {
+        if (!is_in_flow_descendant(descendant))
+            return TraversalDecision::Continue;
+
+        auto const* descendant_state = m_state.try_get(descendant);
+        if (!descendant_state)
+            return TraversalDecision::Continue;
+
+        // "The baseline of a cell is defined as the baseline of the first in-flow line box in the cell..."
+        if (!descendant_state->line_boxes.is_empty()) {
+            auto const& first_line_box = descendant_state->line_boxes.first();
+            auto first_line_box_top = first_line_box.bottom() - first_line_box.block_length();
+            baseline = descendant_state->cumulative_offset().y() + first_line_box_top + first_line_box.baseline() - cell_margin_box_top;
+            return TraversalDecision::Break;
+        }
+
+        // "...or the first in-flow table-row in the cell, whichever comes first."
+        if (descendant.display().is_table_row()) {
+            auto row_margin_box_top = descendant_state->cumulative_offset().y() - descendant_state->margin_box_top();
+            baseline = row_margin_box_top - cell_margin_box_top + table_row_baseline(descendant);
+            return TraversalDecision::Break;
+        }
+
+        return TraversalDecision::Continue;
+    });
+
+    if (baseline.has_value())
+        return baseline.value();
+
+    // "If there is no such line box or table-row, the baseline is the bottom of content edge of the cell box."
+    return cell_state.margin_box_top() + cell_state.content_height();
+}
+
+CSSPixels TableFormattingContext::table_row_baseline(Box const& row_box) const
+{
+    auto const& row_state = m_state.get(row_box);
+    auto row_margin_box_top = row_state.cumulative_offset().y() - row_state.margin_box_top();
+
+    // https://drafts.csswg.org/css-tables-3/#row-layout
+    //
+    // The maximum distance between the top of the cell box and the baseline over all cells that have
+    // 'vertical-align: baseline' is used to set the baseline of the row.
+    //
+    // If a row doesn’t have any cell that has 'vertical-align: baseline', the baseline of that row is the bottom
+    // content edge of the lowest cell in the row.
+    auto cell_aligns_to_baseline = [](Box const& cell_box) {
+        auto const& vertical_align = cell_box.computed_values().vertical_align();
+        if (!vertical_align.has<CSS::VerticalAlign>())
+            return true;
+
+        switch (vertical_align.get<CSS::VerticalAlign>()) {
+        case CSS::VerticalAlign::Middle:
+        case CSS::VerticalAlign::Top:
+        case CSS::VerticalAlign::Bottom:
+            return false;
+        default:
+            return true;
+        }
+    };
+
+    Optional<CSSPixels> baseline;
+    Optional<CSSPixels> lowest_cell_content_bottom;
+    row_box.for_each_child_of_type<Box>([&](Box const& child_box) {
+        if (!child_box.display().is_table_cell() || child_box.is_out_of_flow(*this))
+            return IterationDecision::Continue;
+
+        auto const* child_state = m_state.try_get(child_box);
+        if (!child_state)
+            return IterationDecision::Continue;
+
+        auto child_margin_box_top = child_state->cumulative_offset().y() - child_state->margin_box_top();
+        auto child_offset_from_row = child_margin_box_top - row_margin_box_top;
+
+        // "...the bottom content edge of the lowest cell in the row."
+        lowest_cell_content_bottom = max(lowest_cell_content_bottom.value_or(0), child_offset_from_row + child_state->margin_box_top() + child_state->content_height());
+
+        // "The maximum distance between the top of the cell box and the baseline over all cells that have
+        // 'vertical-align: baseline' is used to set the baseline of the row."
+        if (cell_aligns_to_baseline(child_box))
+            baseline = max(baseline.value_or(0), child_offset_from_row + table_cell_baseline(child_box));
+        return IterationDecision::Continue;
+    });
+
+    if (baseline.has_value())
+        return baseline.value();
+    if (lowest_cell_content_bottom.has_value())
+        return lowest_cell_content_bottom.value();
+
+    // Empty rows use their bottom content edge as a fallback baseline.
+    return row_state.margin_box_top() + row_state.content_height();
 }
 
 CSSPixels TableFormattingContext::border_spacing_horizontal() const

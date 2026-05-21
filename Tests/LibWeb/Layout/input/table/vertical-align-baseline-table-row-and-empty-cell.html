@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+table {
+    border-collapse: collapse;
+}
+
+td {
+    border: 1px solid black;
+    vertical-align: baseline;
+}
+
+.outer td {
+    height: 80px;
+}
+
+.nested td {
+    font-size: 40px;
+    height: auto;
+}
+
+.block-line {
+    font-size: 40px;
+}
+
+.empty {
+    height: 30px;
+    padding-bottom: 40px;
+    padding-top: 20px;
+}
+</style>
+<table class="outer">
+<tr><td>Single line</td><td><table class="nested"><tr><td>Nested line</td></tr></table>After</td></tr>
+<tr><td>Single line</td><td><div class="block-line">Block line</div></td></tr>
+<tr><td>Single line</td><td class="empty"></td></tr>
+</table>

@@ -135,6 +135,8 @@ private:
     Vector<RowOrColumn>& table_rows_or_columns();
 
     CSSPixels compute_row_content_height(Cell const& cell) const;
+    CSSPixels table_cell_baseline(Box const&) const;
+    CSSPixels table_row_baseline(Box const&) const;
 
     enum class ConflictingSide {
         Top,
