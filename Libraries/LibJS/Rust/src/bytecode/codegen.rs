@@ -1116,12 +1116,18 @@ pub fn generate_statement(
             generator.push_dynamic_lexical_environment(object_environment);
             generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
 
-            let result = generate_statement(&data.body, generator, preferred_dst);
+            let with_completion = generator.allocate_completion_register();
+            let result = generate_with_completion(
+                &data.body,
+                generator,
+                with_completion.as_ref(),
+                with_completion.as_ref().or(preferred_dst),
+            );
 
             generator.end_variable_scope();
-            // Per spec 13.11.7 step 10: if body completion value is empty,
-            // return NormalCompletion(undefined).
-            Some(result.unwrap_or_else(|| generator.add_constant_undefined()))
+
+            // Return ? UpdateEmpty(_stmtCompletion_, *undefined*).
+            Some(with_completion.unwrap_or_else(|| result.unwrap_or_else(|| generator.add_constant_undefined())))
         }
 
         // === ForIn / ForOf / ForAwaitOf ===
