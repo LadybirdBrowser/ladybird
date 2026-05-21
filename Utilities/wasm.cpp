@@ -672,17 +672,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         if (export_all_imports) {
             HashMap<Wasm::Linker::Name, Wasm::ExternValue> exports;
-            for (auto& entry : linker.unresolved_imports()) {
-                if (!entry.type.has<Wasm::TypeIndex>())
-                    continue;
-                auto type = parse_result->type_section().types()[entry.type.get<Wasm::TypeIndex>().value()];
 
-                if (!type.is_function())
-                    continue;
-                auto& func = type.function();
-
-                auto address = machine.store().allocate(Wasm::HostFunction(
-                    [name = entry.name, func = func](auto&, auto arguments) -> Wasm::Result {
+            auto allocate_function_stub = [&](Wasm::FunctionType const& func, ByteString const& name) {
+                return *machine.store().allocate(Wasm::HostFunction(
+                    [name, func](auto&, auto arguments) -> Wasm::Result {
                         StringBuilder argument_builder;
                         bool first = true;
                         size_t index = 0;
@@ -707,8 +700,43 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         return Wasm::Result { move(result) };
                     },
                     func,
-                    entry.name));
-                exports.set(entry, *address);
+                    name));
+            };
+
+            for (auto& entry : linker.unresolved_imports()) {
+                Optional<Wasm::ExternValue> address;
+                entry.type.visit(
+                    [&](Wasm::TypeIndex const& type_index) {
+                        auto& type = parse_result->type_section().types()[type_index.value()];
+                        if (!type.is_function()) {
+                            dbgln("[wasm runtime] Cannot stub import {}::{} of non-function {}", entry.module, entry.name, type.name());
+                            return;
+                        }
+                        address = allocate_function_stub(type.function(), entry.name);
+                    },
+                    [&](Wasm::FunctionType const& func) {
+                        address = allocate_function_stub(func, entry.name);
+                    },
+                    [&](Wasm::TableType const& table_type) {
+                        address = *machine.store().allocate(table_type);
+                    },
+                    [&](Wasm::MemoryType const& memory_type) {
+                        address = *machine.store().allocate(memory_type);
+                    },
+                    [&](Wasm::GlobalType const& global_type) {
+                        address = *machine.store().allocate(global_type, Wasm::Value(global_type.type()));
+                    },
+                    [&](Wasm::TagType const& tag_type) {
+                        auto& type = parse_result->type_section().types()[tag_type.type().value()];
+                        if (!type.is_function()) {
+                            dbgln("[wasm runtime] Cannot stub tag import {}::{}: type is not a function", entry.module, entry.name);
+                            return;
+                        }
+                        address = *machine.store().allocate(type.function(), tag_type.flags());
+                    });
+
+                if (address.has_value())
+                    exports.set(entry, address.release_value());
             }
 
             linker.link(exports);
