@@ -502,6 +502,13 @@ impl Parser<'_> {
             None
         };
 
+        // https://tc39.es/ecma262/#prod-GeneratorExpression
+        // GeneratorExpression : `function` `*` BindingIdentifier[+Yield, ~Await]? `(` FormalParameters[+Yield, ~Await] `)`
+        // `{` GeneratorBody `}`
+        if kind == FunctionKind::Generator && fn_name_value.as_slice() == utf16!("yield") {
+            self.syntax_error("'yield' is not allowed as a generator function expression name");
+        }
+
         // Register the function expression name in the outer scope, matching C++.
         // This must happen before open_function_scope so that the identifier group
         // exists with declaration_kind=None, preventing later var declarations

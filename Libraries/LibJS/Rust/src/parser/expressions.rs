@@ -542,7 +542,7 @@ impl Parser<'_> {
             // When min_precedence is higher (e.g. void/typeof at 17), yield must
             // be treated as an identifier, not a yield expression.
             TokenType::Yield if self.flags.in_generator_function_context && min_precedence <= 3 => {
-                let expression = self.parse_yield_expression();
+                let expression = self.parse_yield_expression(forbidden);
                 (expression, false)
             }
 
@@ -1405,7 +1405,7 @@ impl Parser<'_> {
     //                 | `yield` [no LineTerminator here] `*` AssignmentExpression
     // https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
     // It is a Syntax Error if YieldExpression appears within FormalParameters.
-    fn parse_yield_expression(&mut self) -> Expression {
+    fn parse_yield_expression(&mut self, forbidden: ForbiddenTokens) -> Expression {
         let start = self.position();
 
         if self.flags.in_formal_parameter_context {
@@ -1430,7 +1430,11 @@ impl Parser<'_> {
         }
 
         if is_yield_from || self.match_expression() || self.match_token(TokenType::Class) {
-            let argument = self.parse_assignment_expression();
+            // https://tc39.es/ecma262/#prod-YieldExpression
+            // YieldExpression[In, Await] :
+            //   `yield` [no LineTerminator here] AssignmentExpression[?In, +Yield, ?Await]
+            //   `yield` [no LineTerminator here] `*` AssignmentExpression[?In, +Yield, ?Await]
+            let argument = self.parse_expression(PRECEDENCE_ASSIGNMENT, Associativity::Right, forbidden);
             self.expression(
                 start,
                 ExpressionKind::Yield(Box::new(YieldExprData {
