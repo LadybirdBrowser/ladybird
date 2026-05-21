@@ -9,7 +9,10 @@
 use crate::fast_hash::HashSet;
 
 use crate::ast::*;
-use crate::parser::{Associativity, ForbiddenTokens, PRECEDENCE_COMMA, Parser, Position};
+use crate::parser::{
+    Associativity, ForbiddenTokens, PRECEDENCE_COMMA, Parser, Position, is_strict_reserved_word,
+    is_unconditional_reserved_word,
+};
 use crate::token::TokenType;
 
 /// Used locally during for-statement parsing before converting to `ast::ForInit`.
@@ -878,14 +881,14 @@ impl Parser<'_> {
         self.discard_saved_state();
         self.consume(); // consume :
 
-        // https://tc39.es/ecma262/#sec-labelled-statements
-        // LabelIdentifier : Identifier (not ReservedWord)
-        // `true`, `false`, and `null` are reserved words and cannot be labels.
-        if token.token_type == TokenType::BoolLiteral || token.token_type == TokenType::NullLiteral {
+        // https://tc39.es/ecma262/#sec-identifiers
+        // LabelIdentifier[Yield, Await] : Identifier
+        // Identifier : IdentifierName but not ReservedWord
+        if is_unconditional_reserved_word(&label) {
             self.syntax_error("Reserved word cannot be used as a label");
         }
 
-        if self.flags.strict_mode && (label == utf16!("let") || crate::parser::is_strict_reserved_word(&label)) {
+        if self.flags.strict_mode && (label == utf16!("let") || is_strict_reserved_word(&label)) {
             self.syntax_error("Strict mode reserved word is not allowed in label");
         }
         if self.flags.in_generator_function_context && label == utf16!("yield") {
