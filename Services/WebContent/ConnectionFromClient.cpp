@@ -52,7 +52,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Loader/ContentFilter.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/ProxyMappings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
@@ -540,8 +540,8 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
-    if (request == "content-filtering") {
-        Web::ContentFilter::the().set_filtering_enabled(argument == "on");
+    if (request == "content-blocking") {
+        Web::ContentBlocker::the().set_filtering_enabled(argument == "on");
         return;
     }
 }
@@ -1227,9 +1227,9 @@ void ConnectionFromClient::paste(u64 page_id, Utf16String text)
         page->page().focused_navigable().paste(text);
 }
 
-void ConnectionFromClient::set_content_filters(u64, Vector<String> filters)
+void ConnectionFromClient::set_content_blockers(u64, Vector<String> patterns)
 {
-    Web::ContentFilter::the().set_patterns(filters).release_value_but_fixme_should_propagate_errors();
+    Web::ContentBlocker::the().set_patterns(patterns).release_value_but_fixme_should_propagate_errors();
 }
 
 void ConnectionFromClient::set_autoplay_allowed_on_all_websites(u64)

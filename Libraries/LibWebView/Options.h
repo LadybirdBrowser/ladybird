@@ -69,7 +69,7 @@ using DNSSettings = Variant<SystemDNS, DNSOverTLS, DNSOverUDP>;
 
 constexpr inline u16 default_devtools_port = 6000;
 
-enum class EnableContentFilter {
+enum class EnableContentBlocker {
     No,
     Yes,
 };
@@ -91,7 +91,7 @@ struct BrowserOptions {
     Optional<ByteString> webdriver_endpoint {};
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
-    EnableContentFilter enable_content_filter { EnableContentFilter::Yes };
+    EnableContentBlocker enable_content_blocker { EnableContentBlocker::Yes };
 };
 
 enum class HTTPDiskCacheMode {

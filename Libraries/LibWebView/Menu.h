@@ -103,7 +103,7 @@ enum class ActionID {
     SpoofUserAgent,
     NavigatorCompatibilityMode,
     EnableScripting,
-    EnableContentFiltering,
+    EnableContentBlocking,
     BlockPopUps,
 };
 

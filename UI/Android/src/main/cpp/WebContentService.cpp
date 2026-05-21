@@ -17,7 +17,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Loader/ContentFilter.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
@@ -40,7 +40,7 @@ static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> bind_image_decoder_ser
     return bind_service<ImageDecoderClient::Client>(&bind_image_decoder_java);
 }
 
-static ErrorOr<void> load_content_filters();
+static ErrorOr<void> load_content_blockers();
 
 static ErrorOr<void> load_autoplay_allowlist();
 
@@ -68,9 +68,9 @@ ErrorOr<int> service_main(int ipc_socket)
     // in order to make it work. For now, it's better to just disable it.
     WebView::disable_site_isolation();
 
-    auto maybe_content_filter_error = load_content_filters();
-    if (maybe_content_filter_error.is_error())
-        dbgln("Failed to load content filters: {}", maybe_content_filter_error.error());
+    auto maybe_content_blocker_error = load_content_blockers();
+    if (maybe_content_blocker_error.is_error())
+        dbgln("Failed to load content blockers: {}", maybe_content_blocker_error.error());
 
     auto maybe_autoplay_allowlist_error = load_autoplay_allowlist();
     if (maybe_autoplay_allowlist_error.is_error())
@@ -102,20 +102,20 @@ ErrorOr<NonnullRefPtr<Client>> bind_service(void (*bind_method)(int))
     return new_client;
 }
 
-static ErrorOr<void> load_content_filters()
+static ErrorOr<void> load_content_blockers()
 {
-    auto file_or_error = Core::File::open(ByteString::formatted("{}/res/ladybird/default-config/BrowserContentFilters.txt", WebView::s_ladybird_resource_root), Core::File::OpenMode::Read);
+    auto file_or_error = Core::File::open(ByteString::formatted("{}/res/ladybird/default-config/BrowserContentBlockers.txt", WebView::s_ladybird_resource_root), Core::File::OpenMode::Read);
     if (file_or_error.is_error())
         return file_or_error.release_error();
 
     auto file = file_or_error.release_value();
-    auto ad_filter_list = TRY(Core::InputBufferedFile::create(move(file)));
+    auto content_blocker_list = TRY(Core::InputBufferedFile::create(move(file)));
     auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
 
     Vector<String> patterns;
 
-    while (TRY(ad_filter_list->can_read_line())) {
-        auto line = TRY(ad_filter_list->read_line(buffer));
+    while (TRY(content_blocker_list->can_read_line())) {
+        auto line = TRY(content_blocker_list->read_line(buffer));
         if (line.is_empty())
             continue;
 
@@ -123,8 +123,8 @@ static ErrorOr<void> load_content_filters()
         TRY(patterns.try_append(move(pattern)));
     }
 
-    auto& content_filter = Web::ContentFilter::the();
-    TRY(content_filter.set_patterns(patterns));
+    auto& content_blocker = Web::ContentBlocker::the();
+    TRY(content_blocker.set_patterns(patterns));
 
     return {};
 }
