@@ -18,6 +18,8 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
     private val viewImpl = WebViewImplementation(this)
     private lateinit var contentBitmap: Bitmap
     var onLoadStart: (url: String, isRedirect: Boolean) -> Unit = { _, _ -> }
+    var onContentReady: () -> Unit = { }
+    var onWebContentCrash: () -> Unit = { }
 
     fun initialize(resourceDir: String) {
         viewImpl.initialize(resourceDir)
@@ -29,6 +31,18 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
 
     fun loadURL(url: String) {
         viewImpl.loadURL(url)
+    }
+
+    fun reload() {
+        viewImpl.reload()
+    }
+
+    fun goBack() {
+        viewImpl.goBack()
+    }
+
+    fun goForward() {
+        viewImpl.goForward()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

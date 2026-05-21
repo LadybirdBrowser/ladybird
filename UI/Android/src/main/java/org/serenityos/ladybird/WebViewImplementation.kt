@@ -13,7 +13,6 @@ import android.graphics.Bitmap
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import java.net.URL
 
 /**
  * Wrapper around WebView::ViewImplementation for use by Kotlin
@@ -22,7 +21,7 @@ class WebViewImplementation(private val view: WebView) {
     // Instance Pointer to native object, very unsafe :)
     private var nativeInstance: Long = 0
     private lateinit var resourceDir: String
-    private lateinit var connection: ServiceConnection
+    private var connection: ServiceConnection? = null
 
     fun initialize(resourceDir: String) {
         this.resourceDir = resourceDir
@@ -30,27 +29,61 @@ class WebViewImplementation(private val view: WebView) {
     }
 
     fun dispose() {
+        connection?.let {
+            view.context.unbindService(it)
+            connection = null
+        }
+        if (nativeInstance == 0L)
+            return
         nativeObjectDispose(nativeInstance)
         nativeInstance = 0
     }
 
     fun loadURL(url: String) {
+        if (nativeInstance == 0L)
+            return
         nativeLoadURL(nativeInstance, url)
     }
 
+    fun reload() {
+        if (nativeInstance == 0L)
+            return
+        nativeReload(nativeInstance)
+    }
+
+    fun goBack() {
+        if (nativeInstance == 0L)
+            return
+        nativeTraverseHistory(nativeInstance, -1)
+    }
+
+    fun goForward() {
+        if (nativeInstance == 0L)
+            return
+        nativeTraverseHistory(nativeInstance, 1)
+    }
+
     fun drawIntoBitmap(bitmap: Bitmap) {
+        if (nativeInstance == 0L)
+            return
         nativeDrawIntoBitmap(nativeInstance, bitmap)
     }
 
     fun setViewportGeometry(w: Int, h: Int) {
+        if (nativeInstance == 0L)
+            return
         nativeSetViewportGeometry(nativeInstance, w, h)
     }
 
     fun setDevicePixelRatio(ratio: Float) {
+        if (nativeInstance == 0L)
+            return
         nativeSetDevicePixelRatio(nativeInstance, ratio)
     }
 
     fun mouseEvent(eventType: Int, x: Float, y: Float, rawX: Float, rawY: Float) {
+        if (nativeInstance == 0L)
+            return
         nativeMouseEvent(nativeInstance, eventType, x, y, rawX, rawY)
     }
 
@@ -58,21 +91,22 @@ class WebViewImplementation(private val view: WebView) {
     fun bindWebContentService(ipcFd: Int) {
         val connector = LadybirdServiceConnection(ipcFd, resourceDir)
         connector.onDisconnect = {
-            // FIXME: Notify impl that service is dead and might need restarted
             Log.e("WebContentView", "WebContent Died! :(")
+            view.onWebContentCrash()
         }
-        // FIXME: Unbind this at some point maybe
-        view.context.bindService(
+        val bound = view.context.bindService(
             Intent(view.context, WebContentService::class.java),
             connector,
             Context.BIND_AUTO_CREATE
         )
-        connection = connector
+        if (bound)
+            connection = connector
     }
 
     fun invalidateLayout() {
         view.requestLayout()
         view.invalidate()
+        view.onContentReady()
     }
 
     fun onLoadStart(url: String, isRedirect: Boolean) {
@@ -87,6 +121,8 @@ class WebViewImplementation(private val view: WebView) {
     private external fun nativeSetViewportGeometry(instance: Long, w: Int, h: Int)
     private external fun nativeSetDevicePixelRatio(instance: Long, ratio: Float)
     private external fun nativeLoadURL(instance: Long, url: String)
+    private external fun nativeReload(instance: Long)
+    private external fun nativeTraverseHistory(instance: Long, delta: Int)
     private external fun nativeMouseEvent(instance: Long, eventType: Int, x: Float, y: Float, rawX: Float, rawY: Float)
 
     companion object {
