@@ -27,13 +27,14 @@ block0:
   [  80] Return value:reg5
 
 
-eval$d8e83433 line 1, column 1
-  Registers: 5
+eval$e1340763 line 1, column 1
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Int32(1)
     [1] = Undefined
 
 block0:
-  [   0] DynamicSetLexicalBinding `x`, src:Int32(1)
-  [  10] End value:Undefined
+  [   0] ResolveBinding dst:reg5, `x`
+  [  10] SetResolvedBinding environment:reg5, `x`, src:Int32(1)
+  [  20] End value:Undefined

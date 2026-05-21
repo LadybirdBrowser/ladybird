@@ -761,6 +761,7 @@ void VM::run_bytecode(size_t entry_point)
 
             HANDLE_INSTRUCTION(PutBySpread);
             HANDLE_INSTRUCTION(PutPrivateById);
+            HANDLE_INSTRUCTION(ResolveBinding);
             HANDLE_INSTRUCTION(ResolveSuperBase);
             HANDLE_INSTRUCTION(ResolveThisBinding);
             HANDLE_INSTRUCTION(RightShift);
@@ -769,6 +770,7 @@ void VM::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(SetGlobal);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetLexicalEnvironment);
             HANDLE_INSTRUCTION(SetLexicalBinding);
+            HANDLE_INSTRUCTION(SetResolvedBinding);
             HANDLE_INSTRUCTION(DynamicSetLexicalBinding);
             HANDLE_INSTRUCTION(SetVariableBinding);
             HANDLE_INSTRUCTION(DynamicSetVariableBinding);
@@ -2727,6 +2729,16 @@ ThrowCompletionOr<void> SetLexicalBinding::execute_impl(VM& vm) const
     return initialize_or_set_binding<EnvironmentMode::Lexical, BindingInitializationMode::Set>(vm, strict(), vm.get(m_src), m_cache);
 }
 
+ThrowCompletionOr<void> SetResolvedBinding::execute_impl(VM& vm) const
+{
+    auto const& identifier = vm.get_identifier(m_identifier);
+    auto environment = vm.get(m_environment);
+    auto reference = environment.is_null()
+        ? Reference { Reference::BaseType::Unresolvable, PropertyKey { identifier }, strict() }
+        : Reference { as<Environment>(environment.as_cell()), identifier, strict() };
+    return reference.put_value(vm, vm.get(m_src));
+}
+
 ThrowCompletionOr<void> SetVariableBinding::execute_impl(VM& vm) const
 {
     return initialize_or_set_binding<EnvironmentMode::Var, BindingInitializationMode::Set>(vm, strict(), vm.get(m_src), m_cache);
@@ -2851,6 +2863,20 @@ COLD ThrowCompletionOr<void> DeleteById::execute_impl(VM& vm) const
     auto const& property_key = vm.get_property_key(m_property);
     auto reference = Reference { vm.get(m_base), property_key, {}, strict() };
     vm.set(dst(), Value(TRY(reference.delete_(vm))));
+    return {};
+}
+
+ThrowCompletionOr<void> ResolveBinding::execute_impl(VM& vm) const
+{
+    auto const& identifier = vm.get_identifier(m_identifier);
+    auto reference = TRY(vm.resolve_binding(identifier, strict()));
+    if (reference.is_unresolvable()) {
+        vm.set(dst(), js_null());
+        return {};
+    }
+
+    VERIFY(reference.is_environment_reference());
+    vm.set(dst(), &reference.base_environment());
     return {};
 }
 

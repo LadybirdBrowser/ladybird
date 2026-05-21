@@ -2875,6 +2875,58 @@ fn emit_block_declaration_instantiation(generator: &mut Generator, scope: &Scope
 // Variable declaration
 // =============================================================================
 
+struct ResolvedBinding {
+    environment: ScopedOperand,
+    identifier: IdentifierTableIndex,
+}
+
+fn emit_resolve_binding_for_identifier_assignment(
+    generator: &mut Generator,
+    id: crate::ast::IdentifierId,
+) -> Option<ResolvedBinding> {
+    let arena = generator.arena.clone();
+    let ident = &arena.identifiers[id];
+    if ident.is_local() || ident.is_global {
+        return None;
+    }
+
+    let identifier = generator.intern_identifier_id(ident.name);
+    if generator.environment_coordinate_for_identifier(identifier).is_some() {
+        return None;
+    }
+
+    let environment = generator.allocate_register();
+    generator.emit(Instruction::ResolveBinding {
+        dst: environment.operand(),
+        identifier,
+    });
+    Some(ResolvedBinding {
+        environment,
+        identifier,
+    })
+}
+
+fn emit_set_resolved_binding(generator: &mut Generator, resolved_binding: &ResolvedBinding, value: &ScopedOperand) {
+    generator.emit(Instruction::SetResolvedBinding {
+        environment: resolved_binding.environment.operand(),
+        identifier: resolved_binding.identifier,
+        src: value.operand(),
+    });
+}
+
+fn emit_set_variable_or_resolved_binding(
+    generator: &mut Generator,
+    id: crate::ast::IdentifierId,
+    value: &ScopedOperand,
+    resolved_binding: Option<&ResolvedBinding>,
+) {
+    if let Some(resolved_binding) = resolved_binding {
+        emit_set_resolved_binding(generator, resolved_binding, value);
+    } else {
+        emit_set_variable(generator, id, value);
+    }
+}
+
 fn generate_variable_declaration(
     generator: &mut Generator,
     kind: DeclarationKind,
@@ -2895,6 +2947,21 @@ fn generate_variable_declaration(
                 } else {
                     None
                 }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // https://tc39.es/ecma262/#sec-variable-statement-runtime-semantics-evaluation
+        // VariableDeclaration : BindingIdentifier Initializer
+        //
+        // 1. Let _bindingId_ be the StringValue of |BindingIdentifier|.
+        // 2. Let _lhs_ be ? ResolveBinding(_bindingId_).
+        let resolved_binding = if kind == DeclarationKind::Var && declaration.init.is_some() {
+            if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
+                emit_resolve_binding_for_identifier_assignment(generator, *id)
             } else {
                 None
             }
@@ -2934,7 +3001,9 @@ fn generate_variable_declaration(
                     let id = generator.intern_identifier_id(ident.name);
                     match kind {
                         DeclarationKind::Var => {
-                            if ident.is_global {
+                            if let Some(resolved_binding) = &resolved_binding {
+                                emit_set_resolved_binding(generator, resolved_binding, &value);
+                            } else if ident.is_global {
                                 let cache = generator.next_global_variable_cache();
                                 generator.emit(Instruction::SetGlobal {
                                     identifier: id,
@@ -3608,13 +3677,28 @@ fn generate_assignment_expression(
                 let arena = generator.arena.clone();
                 let ident = &arena.identifiers[id];
                 if op == AssignmentOp::Assignment {
+                    // https://tc39.es/ecma262/#sec-assignment-operators-runtime-semantics-evaluation
+                    // AssignmentExpression : LeftHandSideExpression `=` AssignmentExpression
+                    //
+                    // 1. If |LeftHandSideExpression| is neither an |ObjectLiteral| nor an |ArrayLiteral|, then
+                    //   a. Let _lRef_ be ? Evaluation of |LeftHandSideExpression|.
+                    //   b. If the AssignmentTargetType of |LeftHandSideExpression| is ~web-compat~, throw a
+                    //      *ReferenceError* exception.
+                    //   c. If IsAnonymousFunctionDefinition(|AssignmentExpression|) is *true* and IsIdentifierRef of
+                    //      |LeftHandSideExpression| is *true*, then
+                    //     i. Let _lhs_ be the StringValue of |LeftHandSideExpression|.
+                    //     ii. Let _rVal_ be ? NamedEvaluation of |AssignmentExpression| with argument _lhs_.
+                    //   d. Else,
+                    //     i. Let _rRef_ be ? Evaluation of |AssignmentExpression|.
+                    //     ii. Let _rVal_ be ? GetValue(_rRef_).
+                    let resolved_binding = emit_resolve_binding_for_identifier_assignment(generator, id);
                     set_pending_lhs_name_for_identifier_assignment(generator, ident.name, lhs_is_parenthesized);
                     let rhs_val = generate_expression(rhs, generator, None)?;
                     generator.pending_lhs_name = None;
                     if ident.is_local() {
                         emit_tdz_check_if_needed(generator, id);
                     }
-                    emit_set_variable(generator, id, &rhs_val);
+                    emit_set_variable_or_resolved_binding(generator, id, &rhs_val, resolved_binding.as_ref());
                     return Some(rhs_val);
                 }
 

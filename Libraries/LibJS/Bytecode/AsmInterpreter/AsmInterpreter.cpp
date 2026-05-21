@@ -477,10 +477,14 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         return execute_throwing<Op::PutByValueWithThis>(*vm, pc);
     case Instruction::Type::SetFunctionName:
         return execute_throwing<Op::SetFunctionName>(*vm, pc);
+    case Instruction::Type::ResolveBinding:
+        return execute_throwing<Op::ResolveBinding>(*vm, pc);
     case Instruction::Type::ResolveSuperBase:
         return execute_throwing<Op::ResolveSuperBase>(*vm, pc);
     case Instruction::Type::DynamicSetLexicalBinding:
         return execute_throwing<Op::DynamicSetLexicalBinding>(*vm, pc);
+    case Instruction::Type::SetResolvedBinding:
+        return execute_throwing<Op::SetResolvedBinding>(*vm, pc);
     case Instruction::Type::DynamicSetVariableBinding:
         return execute_throwing<Op::DynamicSetVariableBinding>(*vm, pc);
     case Instruction::Type::SetVariableBinding:
