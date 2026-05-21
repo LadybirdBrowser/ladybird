@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-rect-applies-to-display-table.html" />
+<!-- An absolutely positioned element with clip: rect(1px, 1px, 1px, 1px) is clipped to a zero-area region.
+     With display: table, position: absolute moves to the generated table wrapper box; clip must move with it
+     so the element is still clipped away and paints nothing. Regression test for issue #9349. -->
+<style>
+  .visually-hidden {
+    position: absolute;
+    clip: rect(1px, 1px, 1px, 1px);
+    display: table;
+  }
+</style>
+<p class="visually-hidden">This text must be clipped away and not painted</p>

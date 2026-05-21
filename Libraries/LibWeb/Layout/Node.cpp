@@ -1226,6 +1226,7 @@ void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_valu
     // even if the spec does not mention that: https://github.com/w3c/csswg-drafts/issues/11689
     // Note that there may be more properties that need to be added to this list.
     mutable_computed_values.set_z_index(CSS::InitialValues::z_index());
+    mutable_computed_values.set_clip(CSS::InitialValues::clip());
 }
 
 void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values)
@@ -1258,6 +1259,8 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     // even if the spec does not mention that: https://github.com/w3c/csswg-drafts/issues/11689
     // Note that there may be more properties that need to be added to this list.
     mutable_wrapper_computed_values.set_z_index(computed_values().z_index());
+    // "clip" only takes effect on absolutely-positioned elements; the table box isn't one — the wrapper is.
+    mutable_wrapper_computed_values.set_clip(computed_values().clip());
 
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
