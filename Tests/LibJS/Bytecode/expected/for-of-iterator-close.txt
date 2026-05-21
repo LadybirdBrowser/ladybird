@@ -15,7 +15,7 @@ block0:
   [  c0] End value:reg5
 
 
-forOfBreak$0dacb993 for-of-iterator-close.js:2:18
+forOfBreak$7367477b for-of-iterator-close.js:2:18
   Registers: 13
   Blocks:    13
   Locals:    x~0
@@ -48,38 +48,37 @@ block4:
 
 block5:
   [  b8] Mov dst:x~0, src:reg10
-  [  c8] ThrowIfTDZ src:x~0
-  [  d0] JumpStrictlyEquals lhs:x~0, rhs:Int32(2), true_target:block6, false_target:block7
+  [  c8] JumpStrictlyEquals lhs:x~0, rhs:Int32(2), true_target:block6, false_target:block7
 
 block6:
-  [  e8] Mov dst:reg5, src:Int32(3)
-  [  f8] Jump target:block4
+  [  e0] Mov dst:reg5, src:Int32(3)
+  [  f0] Jump target:block4
 
 block7:
-  [ 100] Jump target:block2
+  [  f8] Jump target:block2
 
 block8:
-  [ 108] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-  [ 120] Throw src:reg9
+  [ 100] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [ 118] Throw src:reg9
 
 block9:
-  [ 128] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 140] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block1, false_target:block10
+  [ 120] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 138] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block1, false_target:block10
 
 block10:
-  [ 158] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block11, false_target:block12
+  [ 150] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block11, false_target:block12
 
 block11:
-  [ 170] Return value:reg9
+  [ 168] Return value:reg9
 
 block12:
-  [ 178] Throw src:reg9
+  [ 170] Throw src:reg9
 
 Exception handlers:
-  [  b8 ..  108] => handler block3
+  [  b8 ..  100] => handler block3
 
 
-forOfReturn$3e676e69 for-of-iterator-close.js:9:18
+forOfReturn$3ba37d59 for-of-iterator-close.js:9:18
   Registers: 12
   Blocks:    10
   Locals:    x~0
@@ -110,30 +109,28 @@ block4:
   [  a0] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block6, false_target:block7
 
 block5:
-  [  b8] Mov dst:x~0, src:reg10
-  [  c8] ThrowIfTDZ src:x~0
-  [  d0] Mov2 dst1:reg9, src1:x~0, dst2:reg5, src2:Int32(2)
-  [  e8] Jump target:block4
+  [  b8] Mov3 dst1:x~0, src1:reg10, dst2:reg9, src2:x~0, dst3:reg5, src3:Int32(2)
+  [  d8] Jump target:block4
 
 block6:
-  [  f0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-  [ 108] Throw src:reg9
+  [  e0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [  f8] Throw src:reg9
 
 block7:
-  [ 110] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 128] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block8, false_target:block9
+  [ 100] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 118] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block8, false_target:block9
 
 block8:
-  [ 140] Return value:reg9
+  [ 130] Return value:reg9
 
 block9:
-  [ 148] Throw src:reg9
+  [ 138] Throw src:reg9
 
 Exception handlers:
-  [  b8 ..   f0] => handler block3
+  [  b8 ..   e0] => handler block3
 
 
-forAwaitOfBreak$16089337 for-of-iterator-close.js:16:24
+forAwaitOfBreak$976a8bbf for-of-iterator-close.js:16:24
   Registers: 18
   Blocks:    30
   Locals:    x~0
@@ -186,77 +183,76 @@ block9:
 
 block10:
   [ 150] Mov dst:x~0, src:reg10
-  [ 160] ThrowIfTDZ src:x~0
-  [ 168] JumpStrictlyEquals lhs:x~0, rhs:Int32(2), true_target:block11, false_target:block12
+  [ 160] JumpStrictlyEquals lhs:x~0, rhs:Int32(2), true_target:block11, false_target:block12
 
 block11:
-  [ 180] Mov dst:reg8, src:Int32(3)
-  [ 190] Jump target:block5
+  [ 178] Mov dst:reg8, src:Int32(3)
+  [ 188] Jump target:block5
 
 block12:
-  [ 198] Jump target:block3
+  [ 190] Jump target:block3
 
 block13:
-  [ 1a0] Jump target:block25
+  [ 198] Jump target:block25
 
 block14:
-  [ 1a8] GetMethod dst:reg12, object:reg5, `return`
-  [ 1b8] JumpUndefined condition:reg12, true_target:block15, false_target:block16
+  [ 1a0] GetMethod dst:reg12, object:reg5, `return`
+  [ 1b0] JumpUndefined condition:reg12, true_target:block15, false_target:block16
 
 block15:
-  [ 1c8] JumpStrictlyEquals lhs:reg8, rhs:Int32(3), true_target:block2, false_target:block20
+  [ 1c0] JumpStrictlyEquals lhs:reg8, rhs:Int32(3), true_target:block2, false_target:block20
 
 block16:
-  [ 1e0] Call dst:reg13, callee:reg12, this_value:reg5
-  [ 200] Await continuation_label:block17, argument:reg13
+  [ 1d8] Call dst:reg13, callee:reg12, this_value:reg5
+  [ 1f8] Await continuation_label:block17, argument:reg13
 
 block17:
-  [ 210] Mov dst:reg14, src:reg0
-  [ 220] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
-  [ 230] JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:block18, false_target:block19
+  [ 208] Mov dst:reg14, src:reg0
+  [ 218] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
+  [ 228] JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:block18, false_target:block19
 
 block18:
-  [ 248] ThrowIfNotObject src:reg16
-  [ 250] Jump target:block15
+  [ 240] ThrowIfNotObject src:reg16
+  [ 248] Jump target:block15
 
 block19:
-  [ 258] Throw src:reg16
+  [ 250] Throw src:reg16
 
 block20:
-  [ 260] JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:block21, false_target:block22
+  [ 258] JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:block21, false_target:block22
 
 block21:
-  [ 278] Return value:reg9
+  [ 270] Return value:reg9
 
 block22:
-  [ 280] Throw src:reg9
+  [ 278] Throw src:reg9
 
 block23:
-  [ 288] Throw src:reg9
+  [ 280] Throw src:reg9
 
 block24:
-  [ 290] Catch dst:reg12
-  [ 298] Jump target:block23
+  [ 288] Catch dst:reg12
+  [ 290] Jump target:block23
 
 block25:
-  [ 2a0] GetMethod dst:reg12, object:reg5, `return`
-  [ 2b0] JumpUndefined condition:reg12, true_target:block23, false_target:block26
+  [ 298] GetMethod dst:reg12, object:reg5, `return`
+  [ 2a8] JumpUndefined condition:reg12, true_target:block23, false_target:block26
 
 block26:
-  [ 2c0] Call dst:reg13, callee:reg12, this_value:reg5
-  [ 2e0] Await continuation_label:block27, argument:reg13
+  [ 2b8] Call dst:reg13, callee:reg12, this_value:reg5
+  [ 2d8] Await continuation_label:block27, argument:reg13
 
 block27:
-  [ 2f0] Mov dst:reg14, src:reg0
-  [ 300] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
-  [ 310] JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:block28, false_target:block29
+  [ 2e8] Mov dst:reg14, src:reg0
+  [ 2f8] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
+  [ 308] JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:block28, false_target:block29
 
 block28:
-  [ 328] Jump target:block23
+  [ 320] Jump target:block23
 
 block29:
-  [ 330] Throw src:reg16
+  [ 328] Throw src:reg16
 
 Exception handlers:
-  [ 150 ..  1a0] => handler block4
-  [ 2a0 ..  338] => handler block24
+  [ 150 ..  198] => handler block4
+  [ 298 ..  330] => handler block24

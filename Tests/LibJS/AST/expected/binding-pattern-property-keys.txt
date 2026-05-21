@@ -6,12 +6,12 @@ Program (script) @1:1
       │  │  ├─ name
       │  │  │  └─ Identifier "foo" [global] @1:7
       │  │  └─ alias
-      │  │     └─ Identifier "a" [global] @1:12
+      │  │     └─ Identifier "a" [global] (let) @1:12
       │  └─ entry
       │     ├─ name
       │     │  └─ Identifier "1" [global] @1:15
       │     └─ alias
-      │        └─ Identifier "b" [global] @1:18
+      │        └─ Identifier "b" [global] (let) @1:18
       └─ ObjectExpression @1:24
          ├─ ObjectProperty @1:24
          │  ├─ StringLiteral "foo" @1:26

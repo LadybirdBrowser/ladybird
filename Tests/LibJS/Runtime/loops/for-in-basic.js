@@ -217,6 +217,18 @@ describe("special left hand sides", () => {
 
         expect(vals).toEqual(["0", "1"]);
     });
+
+    test("Cannot change destructured constant declaration in body", () => {
+        const vals = [];
+        for (const { 0: value } in "ab") {
+            expect(() => {
+                value = "x";
+            }).toThrowWithMessage(TypeError, "Invalid assignment to const variable");
+            vals.push(value);
+        }
+
+        expect(vals).toEqual(["0", "1"]);
+    });
 });
 
 test("remove properties while iterating", () => {

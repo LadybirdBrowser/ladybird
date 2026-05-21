@@ -49,13 +49,13 @@ Program (script) @3:1
 │        │     │     ├─ name
 │        │     │     │  └─ Identifier "arguments" [variable:0] @37:11
 │        │     │     └─ alias
-│        │     │        └─ Identifier "x" [variable:1] @37:22
+│        │     │        └─ Identifier "x" [variable:1] (let) @37:22
 │        │     └─ ObjectExpression @37:28
 │        │        └─ ObjectProperty @37:28
 │        │           ├─ StringLiteral "arguments" @37:30
 │        │           └─ NumericLiteral 1 @37:41
 │        └─ ReturnStatement @38:5
-│           └─ Identifier "x" [variable:1] @38:12
+│           └─ Identifier "x" [variable:1] (let) @38:12
 └─ FunctionDeclaration "method_named_arguments" @42:1
    └─ body
       └─ FunctionBody @43:5

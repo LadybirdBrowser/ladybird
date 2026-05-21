@@ -212,8 +212,6 @@ impl Parser<'_> {
                         .zip(bound_names.iter())
                         .map(|(n, (_, id))| (n.as_slice(), Some(*id)))
                         .collect();
-                    // NOTE: Binding pattern identifiers don't get declaration_kind,
-                    // matching C++ behavior where only simple identifiers do.
                     let Self {
                         scope_collector, arena, ..
                     } = self;
@@ -221,7 +219,7 @@ impl Parser<'_> {
                         &entries,
                         declaration_line,
                         declaration_column,
-                        None,
+                        Some(DeclarationKind::Var),
                         &mut arena.identifiers,
                         &arena.strings,
                         &mut arena.scopes,
@@ -230,17 +228,13 @@ impl Parser<'_> {
                     let refs: Vec<&[u16]> = name_strs.iter().map(|n| n.as_slice()).collect();
                     self.scope_collector
                         .add_lexical_declaration(&refs, declaration_line, declaration_column);
-                    // Register each binding pattern identifier for scope analysis
-                    // so they get is_local() annotations.
-                    // NOTE: C++ does not pass declaration_kind for binding pattern identifiers,
-                    // only for simple identifier declarations.
                     let Self {
                         scope_collector, arena, ..
                     } = self;
                     for (_name, id) in &bound_names {
                         scope_collector.register_identifier(
                             *id,
-                            None,
+                            Some(kind),
                             &mut arena.identifiers,
                             &arena.strings,
                             &mut arena.scopes,

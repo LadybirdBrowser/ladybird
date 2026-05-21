@@ -1,4 +1,4 @@
-$0a509d5d for-of-iteration-env-capacity.js:1:14
+$078cac4d for-of-iteration-env-capacity.js:1:14
   Registers: 13
   Blocks:    9
   Locals:    x~0
@@ -28,24 +28,22 @@ block3:
   [  b0] JumpStrictlyEquals lhs:reg9, rhs:Int32(1), true_target:block5, false_target:block6
 
 block4:
-  [  c8] Mov dst:x~0, src:reg11
-  [  d8] ThrowIfTDZ src:x~0
-  [  e0] Mov dst:reg5, src:x~0
-  [  f0] Jump target:block2
+  [  c8] Mov2 dst1:x~0, src1:reg11, dst2:reg5, src2:x~0
+  [  e0] Jump target:block2
 
 block5:
-  [  f8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg10
-  [ 110] Throw src:reg10
+  [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg10
+  [ 100] Throw src:reg10
 
 block6:
-  [ 118] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 130] JumpStrictlyEquals lhs:reg9, rhs:Int32(2), true_target:block7, false_target:block8
+  [ 108] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 120] JumpStrictlyEquals lhs:reg9, rhs:Int32(2), true_target:block7, false_target:block8
 
 block7:
-  [ 148] Return value:reg10
+  [ 138] Return value:reg10
 
 block8:
-  [ 150] Throw src:reg10
+  [ 140] Throw src:reg10
 
 Exception handlers:
-  [  c8 ..   f8] => handler block3
+  [  c8 ..   e8] => handler block3
