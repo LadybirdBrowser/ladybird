@@ -47,6 +47,18 @@ TESTJS_GLOBAL_FUNCTION(evaluate_source, evaluateSource)
     return vm.run(script.value());
 }
 
+TESTJS_GLOBAL_FUNCTION(evaluate_module, evaluateModule)
+{
+    auto& realm = *vm.current_realm();
+
+    auto path = TRY(vm.argument(0).to_string(vm));
+    auto module = Test::JS::parse_module(path.to_byte_string(), realm);
+    if (module.is_error())
+        return vm.throw_completion<JS::SyntaxError>(module.error().error.to_string());
+
+    return vm.run(module.value());
+}
+
 TESTJS_GLOBAL_FUNCTION(run_queued_promise_jobs, runQueuedPromiseJobs)
 {
     vm.run_queued_promise_jobs();
