@@ -65,8 +65,10 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     Vector<ExportEntry> star_export_entries, Optional<Utf16FlyString> default_export_binding_name,
     Vector<Utf16FlyString> var_declared_names, Vector<LexicalBinding> lexical_bindings,
     Vector<FunctionToInitialize> functions_to_initialize,
+    Vector<GC::Root<SharedFunctionInstanceData>> shared_function_data,
     GC::Ptr<Bytecode::Executable> executable,
-    GC::Ptr<SharedFunctionInstanceData> tla_shared_data)
+    GC::Ptr<SharedFunctionInstanceData> tla_shared_data,
+    ExecutableBacking executable_backing)
     : CyclicModule(realm, filename, has_top_level_await, move(requested_modules), host_defined)
     , m_execution_context(ExecutionContext::create(0, ReadonlySpan<Value> {}, 0))
     , m_import_entries(move(import_entries))
@@ -79,7 +81,12 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     , m_default_export_binding_name(move(default_export_binding_name))
     , m_executable(executable)
     , m_tla_shared_data(tla_shared_data)
+    , m_executable_backing(executable_backing)
 {
+    for (auto& shared_data : shared_function_data)
+        m_shared_function_data.append(*shared_data);
+
+    verify_executable_backing_invariants();
 }
 
 SourceTextModule::~SourceTextModule() = default;
@@ -89,6 +96,7 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_import_meta);
     m_execution_context->visit_edges(visitor);
+    m_shared_function_data.visit_edges(visitor);
     for (auto const& function : m_functions_to_initialize)
         visitor.visit(function.shared_data);
     visitor.visit(m_executable);
@@ -128,7 +136,8 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         move(module_result.star_export_entries), move(module_result.default_export_binding_name),
         move(module_result.var_declared_names), move(module_result.lexical_bindings),
         move(functions_to_initialize),
-        module_result.executable.ptr(), module_result.tla_shared_data.ptr());
+        move(module_result.shared_function_data),
+        module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::source());
 }
 
 Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
@@ -151,7 +160,8 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         move(module_result.star_export_entries), move(module_result.default_export_binding_name),
         move(module_result.var_declared_names), move(module_result.lexical_bindings),
         move(functions_to_initialize),
-        module_result.executable.ptr(), module_result.tla_shared_data.ptr());
+        move(module_result.shared_function_data),
+        module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::heap_bytecode());
 }
 
 Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
@@ -174,7 +184,85 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         move(module_result.star_export_entries), move(module_result.default_export_binding_name),
         move(module_result.var_declared_names), move(module_result.lexical_bindings),
         move(functions_to_initialize),
-        module_result.executable.ptr(), module_result.tla_shared_data.ptr());
+        move(module_result.shared_function_data),
+        module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::mapped_bytecode_cache());
+}
+
+bool SourceTextModule::try_install_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
+{
+    if (m_executable_backing.is_mapped_bytecode_cache()) {
+        RustIntegration::free_decoded_bytecode_cache_blob(bytecode_cache);
+        return false;
+    }
+
+    auto shared_function_data = collect_shared_function_data();
+    auto result = RustIntegration::try_install_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable, shared_function_data, m_tla_shared_data);
+    if (!result.has_value())
+        return false;
+
+    complete_bytecode_cache_install(result->executable.ptr(), result->top_level_await_executable.ptr());
+    return true;
+}
+
+void SourceTextModule::install_generated_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
+{
+    VERIFY(can_install_generated_bytecode_cache());
+
+    auto shared_function_data = collect_shared_function_data();
+    auto result = RustIntegration::install_generated_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable, shared_function_data, m_tla_shared_data);
+    complete_bytecode_cache_install(result.executable.ptr(), result.top_level_await_executable.ptr());
+}
+
+bool SourceTextModule::can_generate_bytecode_cache() const
+{
+    auto has_executable = m_executable || (m_tla_shared_data && m_tla_shared_data->m_executable);
+    return has_executable && m_executable_backing.can_generate_bytecode_cache();
+}
+
+bool SourceTextModule::can_install_generated_bytecode_cache() const
+{
+    auto has_executable = m_executable || (m_tla_shared_data && m_tla_shared_data->m_executable);
+    return has_executable && m_executable_backing.can_install_generated_bytecode_cache();
+}
+
+void SourceTextModule::begin_bytecode_cache_generation()
+{
+    VERIFY(can_generate_bytecode_cache());
+    m_executable_backing.begin_bytecode_cache_generation();
+    verify_executable_backing_invariants();
+}
+
+void SourceTextModule::finish_bytecode_cache_generation_without_install()
+{
+    m_executable_backing.finish_bytecode_cache_generation_without_install();
+    verify_executable_backing_invariants();
+}
+
+Vector<SharedFunctionInstanceData*> SourceTextModule::collect_shared_function_data()
+{
+    Vector<SharedFunctionInstanceData*> shared_function_data;
+    shared_function_data.ensure_capacity(m_shared_function_data.size_slow());
+    m_shared_function_data.for_each([&](auto& shared_data) {
+        shared_function_data.unchecked_append(&shared_data);
+    });
+    return shared_function_data;
+}
+
+void SourceTextModule::complete_bytecode_cache_install(GC::Ptr<Bytecode::Executable> executable, GC::Ptr<Bytecode::Executable> top_level_await_executable)
+{
+    VERIFY(executable || top_level_await_executable);
+    if (executable) {
+        VERIFY(m_executable);
+        m_executable = executable;
+    }
+    if (top_level_await_executable) {
+        VERIFY(m_tla_shared_data);
+        m_tla_shared_data->set_executable(top_level_await_executable);
+        m_tla_shared_data->clear_non_bytecode_cache_compile_inputs();
+    }
+    m_shared_function_data.clear_non_bytecode_cache_compile_inputs();
+    m_executable_backing.finish_bytecode_cache_install();
+    verify_executable_backing_invariants();
 }
 
 // 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
@@ -198,7 +286,19 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(S
         move(module_result.star_export_entries), move(module_result.default_export_binding_name),
         move(module_result.var_declared_names), move(module_result.lexical_bindings),
         move(functions_to_initialize),
-        module_result.executable.ptr(), module_result.tla_shared_data.ptr());
+        move(module_result.shared_function_data),
+        module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::source());
+}
+
+void SourceTextModule::verify_executable_backing_invariants()
+{
+    VERIFY(m_executable || (m_tla_shared_data && m_tla_shared_data->m_executable));
+
+    if (!m_executable_backing.requires_non_bytecode_cache_compile_inputs_to_be_cleared())
+        return;
+
+    VERIFY(!m_shared_function_data.contains_rust_function_ast());
+    VERIFY(!m_shared_function_data.contains_precompiled_bytecode());
 }
 
 // 16.2.1.7.2.1 GetExportedNames ( [ exportStarSet ] ), https://tc39.es/ecma262/#sec-getexportednames

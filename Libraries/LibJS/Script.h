@@ -10,10 +10,12 @@
 #include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibJS/ExecutableBacking.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/SharedFunctionInstanceData.h>
 
 namespace JS {
 
@@ -67,6 +69,13 @@ public:
     StringView filename() const LIFETIME_BOUND { return m_filename; }
 
     Bytecode::Executable* cached_executable() const { return m_executable; }
+    ExecutableBacking const& executable_backing() const { return m_executable_backing; }
+    [[nodiscard]] bool can_generate_bytecode_cache() const;
+    [[nodiscard]] bool can_install_generated_bytecode_cache() const;
+    void begin_bytecode_cache_generation();
+    void finish_bytecode_cache_generation_without_install();
+    bool try_install_bytecode_cache(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code);
+    void install_generated_bytecode_cache(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code);
 
     ThrowCompletionOr<void> global_declaration_instantiation(VM&, GlobalEnvironment&);
 
@@ -83,15 +92,20 @@ public:
     };
 
 private:
-    Script(Realm&, StringView filename, RustIntegration::ScriptResult&&, HostDefined*);
+    Script(Realm&, StringView filename, RustIntegration::ScriptResult&&, ExecutableBacking, HostDefined*);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
+    Vector<SharedFunctionInstanceData*> collect_shared_function_data();
+    void complete_bytecode_cache_install(GC::Ref<Bytecode::Executable>);
+    void verify_executable_backing_invariants();
 
     GC::Ptr<Realm> m_realm;                       // [[Realm]]
     Vector<LoadedModuleRequest> m_loaded_modules; // [[LoadedModules]]
 
     mutable GC::Ptr<Bytecode::Executable> m_executable;
+    SharedFunctionInstanceDataList m_shared_function_data;
+    ExecutableBacking m_executable_backing;
 
     Vector<Utf16FlyString> m_lexical_names;
     Vector<Utf16FlyString> m_var_names;
