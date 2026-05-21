@@ -1199,6 +1199,7 @@ impl<'a> Parser<'a> {
     // a StringLiteral followed by semicolon. A "use strict" directive causes
     // subsequent code to be interpreted in strict mode.
     pub(crate) fn parse_directive(&mut self) -> (bool, Vec<Statement>) {
+        self.flags.string_legacy_octal_escape_sequence_in_scope = false;
         let mut found_use_strict = false;
         let mut statements = Vec::new();
         while !self.done() && self.match_token(TokenType::StringLiteral) {
