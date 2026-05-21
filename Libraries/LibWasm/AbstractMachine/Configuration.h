@@ -41,6 +41,7 @@ public:
         auto const& memories = frame.module().memories();
         m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
         m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr;
+        frame.set_compiled_fn_table(&frame.module().compiled_fn_table(m_store));
 
         auto continuation = frame.expression().instructions().size() - 1;
         if (auto size = frame.expression().compiled_instructions.dispatches.size(); size > 0)
@@ -68,7 +69,9 @@ public:
     void set_frame_lightweight(ModuleInstance const& module, Value* locals_ptr,
         Expression const& expression, size_t arity)
     {
+        VERIFY(bit_cast<FlatPtr>(&module) != 0);
         m_frame_stack.empend(module, locals_ptr, expression, arity);
+        m_frame_stack.last().set_compiled_fn_table(&module.compiled_fn_table(m_store));
         m_locals_base = locals_ptr;
         auto const& memories = module.memories();
         m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
@@ -114,23 +117,6 @@ public:
 
     // When > 0, unwind_impl skips the frame pop (the direct call didn't push a frame).
     size_t m_compiled_direct_call_depth { 0 };
-
-    // Per-function entry for the compiled function table (direct calls from Cranelift).
-    struct CompiledFunctionEntry {
-        FlatPtr handler_ptr { 0 };    // 0 = not compiled, use slow path
-        FlatPtr dispatches_ptr { 0 }; // Dispatch const* for the handler call
-        FlatPtr src_dst_ptr { 0 };    // SourcesAndDestination const*
-        Instruction const* first_insn { nullptr };
-        Expression const* expression { nullptr };
-        ModuleInstance const* module { nullptr };
-        u32 total_local_count { 0 };
-        u32 arity { 0 };
-        u32 max_call_rec_size { 0 };
-    };
-    Vector<CompiledFunctionEntry> m_compiled_fn_table;
-    ModuleInstance const* m_compiled_fn_table_module { nullptr };
-
-    void build_compiled_function_table();
 
     static constexpr size_t locals_base_offset() { return __builtin_offsetof(Configuration, m_locals_base); }
     static constexpr size_t default_memory_base_offset() { return __builtin_offsetof(Configuration, m_default_memory_base); }

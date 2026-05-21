@@ -221,6 +221,42 @@ bool MemoryInstance::grow(size_t size_to_grow, GrowType grow_type, InhibitGrowCa
     return true;
 }
 
+Vector<CompiledFunctionEntry> const& ModuleInstance::compiled_fn_table(Store& store) const
+{
+    if (m_compiled_fn_table_built)
+        return m_compiled_fn_table;
+    m_compiled_fn_table_built = true;
+
+    auto count = m_functions.size();
+    if (count == 0)
+        return m_compiled_fn_table;
+
+    m_compiled_fn_table.resize_with_default_value_and_keep_capacity(count, {});
+    auto* entries = m_compiled_fn_table.data();
+
+    for (size_t i = 0; i < count; i++) {
+        auto* instance = store.unsafe_get(m_functions[i]);
+        auto* wasm_fn = instance->get_pointer<WasmFunction>();
+        if (!wasm_fn)
+            continue;
+        auto& ci = wasm_fn->code().func().body().compiled_instructions;
+        if (!ci.cranelift_compiled)
+            continue;
+
+        auto& entry = entries[i];
+        entry.handler_ptr = ci.dispatches[0].handler_ptr;
+        entry.dispatches_ptr = bit_cast<FlatPtr>(ci.dispatches.data());
+        entry.src_dst_ptr = bit_cast<FlatPtr>(ci.src_dst_mappings.data());
+        entry.first_insn = ci.dispatches[0].instruction;
+        entry.expression = &wasm_fn->code().func().body();
+        entry.module = &wasm_fn->module();
+        entry.total_local_count = static_cast<u32>(wasm_fn->code().func().total_local_count());
+        entry.arity = static_cast<u32>(wasm_fn->type().results().size());
+        entry.max_call_rec_size = static_cast<u32>(ci.max_call_rec_size);
+    }
+    return m_compiled_fn_table;
+}
+
 Optional<FunctionAddress> Store::allocate(ModuleInstance& instance, Module const& module, CodeSection::Code const& code, TypeIndex type_index)
 {
     FunctionAddress address { m_functions.size() };

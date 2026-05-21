@@ -304,6 +304,19 @@ struct InstantiationError {
 using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, TagAddress>;
 
 class Store;
+class ModuleInstance;
+
+struct CompiledFunctionEntry {
+    FlatPtr handler_ptr { 0 };    // 0 = not compiled, use slow path
+    FlatPtr dispatches_ptr { 0 }; // Dispatch const*
+    FlatPtr src_dst_ptr { 0 };    // SourcesAndDestination const*
+    Instruction const* first_insn { nullptr };
+    Expression const* expression { nullptr };
+    ModuleInstance const* module { nullptr };
+    u32 total_local_count { 0 };
+    u32 arity { 0 };
+    u32 max_call_rec_size { 0 };
+};
 
 class ExportInstance {
 public:
@@ -365,6 +378,8 @@ public:
 
     size_t cached_minimum_call_record_allocation_size { 0 };
 
+    Vector<CompiledFunctionEntry> const& compiled_fn_table(Store&) const;
+
 private:
     Vector<TypeSection::Type> m_types;
     Vector<TagType> m_tag_types;
@@ -376,6 +391,9 @@ private:
     Vector<DataAddress> m_datas;
     Vector<TagAddress> m_tags;
     Vector<ExportInstance> m_exports;
+
+    mutable Vector<CompiledFunctionEntry> m_compiled_fn_table;
+    mutable bool m_compiled_fn_table_built { false };
 };
 
 class WasmFunction {
@@ -732,6 +750,7 @@ public:
         , m_arity(other.m_arity)
         , m_label_index(other.m_label_index)
         , m_owns_locals(other.m_owns_locals)
+        , m_compiled_fn_table(other.m_compiled_fn_table)
     {
     }
 
@@ -743,6 +762,7 @@ public:
             m_arity = other.m_arity;
             m_label_index = other.m_label_index;
             m_owns_locals = other.m_owns_locals;
+            m_compiled_fn_table = other.m_compiled_fn_table;
         }
         return *this;
     }
@@ -759,6 +779,9 @@ public:
     auto label_index() const { return m_label_index; }
     auto& label_index() { return m_label_index; }
 
+    Vector<CompiledFunctionEntry> const* compiled_fn_table() const { return m_compiled_fn_table; }
+    void set_compiled_fn_table(Vector<CompiledFunctionEntry> const* table) { m_compiled_fn_table = table; }
+
 private:
     ModuleInstance const& m_module;
     Vector<Value, ArgumentsStaticSize> m_owned_locals;
@@ -767,6 +790,7 @@ private:
     size_t m_arity { 0 };
     size_t m_label_index { 0 };
     bool m_owns_locals { false };
+    Vector<CompiledFunctionEntry> const* m_compiled_fn_table { nullptr };
 };
 
 using InstantiationResult = AK::ErrorOr<NonnullRefPtr<ModuleInstance>, InstantiationError>;

@@ -98,47 +98,6 @@ ErrorOr<void, Trap> Configuration::execute_for_compiled_call(Interpreter& interp
     return {};
 }
 
-void Configuration::build_compiled_function_table()
-{
-    if (m_frame_stack.is_empty())
-        return;
-    auto const* current_module = &frame().module();
-    if (m_compiled_fn_table_module == current_module && !m_compiled_fn_table.is_empty())
-        return;
-
-    m_compiled_fn_table.clear_with_capacity();
-    m_compiled_fn_table_module = current_module;
-
-    auto const& functions = frame().module().functions();
-    auto count = functions.size();
-    if (count == 0)
-        return;
-
-    m_compiled_fn_table.resize_with_default_value_and_keep_capacity(count, {});
-    auto fn_table = m_compiled_fn_table.data();
-
-    for (size_t i = 0; i < count; i++) {
-        auto* instance = m_store.unsafe_get(functions[i]);
-        auto* wasm_fn = instance->get_pointer<WasmFunction>();
-        if (!wasm_fn)
-            continue;
-        auto& ci = wasm_fn->code().func().body().compiled_instructions;
-        if (!ci.cranelift_compiled)
-            continue;
-
-        auto& entry = fn_table[i];
-        entry.handler_ptr = ci.dispatches[0].handler_ptr;
-        entry.dispatches_ptr = bit_cast<FlatPtr>(ci.dispatches.data());
-        entry.src_dst_ptr = bit_cast<FlatPtr>(ci.src_dst_mappings.data());
-        entry.first_insn = ci.dispatches[0].instruction;
-        entry.expression = &wasm_fn->code().func().body();
-        entry.module = &wasm_fn->module();
-        entry.total_local_count = static_cast<u32>(wasm_fn->code().func().total_local_count());
-        entry.arity = static_cast<u32>(wasm_fn->type().results().size());
-        entry.max_call_rec_size = static_cast<u32>(ci.max_call_rec_size);
-    }
-}
-
 void Configuration::dump_stack()
 {
     auto print_value = []<typename... Ts>(CheckedFormatString<Ts...> format, Ts... vs) {
