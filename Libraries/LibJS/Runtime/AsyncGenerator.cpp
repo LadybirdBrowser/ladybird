@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/AsyncGenerator.h>
 #include <LibJS/Runtime/AsyncGeneratorPrototype.h>
 #include <LibJS/Runtime/AsyncGeneratorRequest.h>
@@ -20,14 +21,11 @@ GC_DEFINE_ALLOCATOR(AsyncGenerator);
 GC::Ref<AsyncGenerator> AsyncGenerator::create(Realm& realm, Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>> generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
 {
     auto& vm = realm.vm();
-    // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
-    auto generating_function_prototype = MUST(generating_function.visit([&vm](auto function) {
-        static Bytecode::StaticPropertyLookupCache cache;
-        return function->get(vm.names.prototype, cache);
+    // 2. Let _generator_ be ? OrdinaryCreateFromConstructor(_functionObject_, *"%AsyncGeneratorPrototype%"*,
+    //    « [[AsyncGeneratorState]], [[AsyncGeneratorContext]], [[AsyncGeneratorQueue]], [[GeneratorBrand]] »).
+    auto* generating_function_prototype_object = MUST(generating_function.visit([&vm](auto function) -> ThrowCompletionOr<Object*> {
+        return get_prototype_from_constructor(vm, *function, &Intrinsics::async_generator_prototype);
     }));
-    GC::Ptr<Object> generating_function_prototype_object = nullptr;
-    if (!generating_function_prototype.is_nullish())
-        generating_function_prototype_object = MUST(generating_function_prototype.to_object(vm));
 
     auto generating_executable = generating_function.visit(
         [](GC::Ref<ECMAScriptFunctionObject> function) -> GC::Ref<Bytecode::Executable> {

@@ -63,3 +63,13 @@ test("function expression names equal to 'yield'", () => {
     expect(`function *foo() { (function yield() {}); }`).toEval();
     expect(`function *foo() { function yield() {} }`).not.toEval();
 });
+
+test("generator instances use the intrinsic prototype when function prototype is not an object", () => {
+    function* generator() {}
+    const GeneratorPrototype = Object.getPrototypeOf(generator).prototype;
+
+    for (const prototype of [undefined, null, false, "", Symbol(), 1]) {
+        generator.prototype = prototype;
+        expect(Object.getPrototypeOf(generator())).toBe(GeneratorPrototype);
+    }
+});
