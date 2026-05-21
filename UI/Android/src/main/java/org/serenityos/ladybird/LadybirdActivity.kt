@@ -124,7 +124,7 @@ class LadybirdActivity : AppCompatActivity() {
         if (!parsedUri.scheme.isNullOrEmpty())
             return trimmedInput
 
-        val looksLikeUrl = !trimmedInput.contains(Regex("\\s")) &&
+        val looksLikeUrl = !trimmedInput.contains(WHITESPACE_REGEX) &&
             (trimmedInput.contains(".") ||
                 trimmedInput.equals("localhost", ignoreCase = true) ||
                 trimmedInput.startsWith("[") && trimmedInput.contains("]"))
@@ -184,5 +184,6 @@ class LadybirdActivity : AppCompatActivity() {
 
         private const val DEFAULT_HOME_URL = "https://ladybird.dev"
         private const val DEFAULT_SEARCH_URL = "https://www.google.com/search?q="
+        private val WHITESPACE_REGEX = Regex("\\s")
     }
 }
