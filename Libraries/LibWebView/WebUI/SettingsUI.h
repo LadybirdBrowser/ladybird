@@ -17,6 +17,7 @@ class WEBVIEW_API SettingsUI : public WebUI {
 private:
     virtual void register_interfaces() override;
 
+    void load_features();
     void load_current_settings();
 
     void set_new_tab_page_url(JsonValue const&);

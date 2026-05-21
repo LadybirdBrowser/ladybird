@@ -210,6 +210,20 @@ static QClipboard::Mode clipboard_mode(QClipboard const& clipboard, Application:
     VERIFY_NOT_REACHED();
 }
 
+bool Application::supports_clipboard_type(ClipboardType type) const
+{
+    if (browser_options().headless_mode.has_value())
+        return WebView::Application::supports_clipboard_type(type);
+
+    switch (type) {
+    case WebView::Application::ClipboardType::Text:
+        return true;
+    case WebView::Application::ClipboardType::Selection:
+        return QGuiApplication::clipboard()->supportsSelection();
+    }
+    VERIFY_NOT_REACHED();
+}
+
 Utf16String Application::clipboard_text(ClipboardType type) const
 {
     if (browser_options().headless_mode.has_value())

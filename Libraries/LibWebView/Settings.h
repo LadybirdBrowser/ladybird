@@ -104,7 +104,7 @@ public:
     void set_languages(Vector<String>);
 
     static BrowsingBehavior parse_browsing_behavior(JsonValue const&);
-    BrowsingBehavior const& browsing_behavior() const { return m_browsing_behavior; }
+    BrowsingBehavior browsing_behavior() const;
     void set_browsing_behavior(BrowsingBehavior);
 
     Optional<SearchEngine> const& search_engine() const { return m_search_engine; }

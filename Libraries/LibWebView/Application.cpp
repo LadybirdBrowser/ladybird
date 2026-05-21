@@ -1089,6 +1089,11 @@ void Application::display_error_dialog(StringView error_message) const
     warnln("{}", error_message);
 }
 
+bool Application::supports_clipboard_type(ClipboardType type) const
+{
+    return type == ClipboardType::Text;
+}
+
 Utf16String Application::clipboard_text(ClipboardType) const
 {
     if (!m_clipboard.has_value())

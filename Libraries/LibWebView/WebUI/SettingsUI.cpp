@@ -34,6 +34,9 @@ static StringView config_variable_type_to_string(JsonValue::Type type)
 
 void SettingsUI::register_interfaces()
 {
+    register_interface("loadFeatures"sv, [this](auto const&) {
+        load_features();
+    });
     register_interface("loadCurrentSettings"sv, [this](auto const&) {
         load_current_settings();
     });
@@ -102,6 +105,14 @@ void SettingsUI::register_interfaces()
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
     });
+}
+
+void SettingsUI::load_features()
+{
+    JsonObject features;
+    features.set("primaryPaste"_string, Application::the().supports_clipboard_type(Application::ClipboardType::Selection));
+
+    async_send_message("loadFeatures"sv, move(features));
 }
 
 void SettingsUI::load_current_settings()
