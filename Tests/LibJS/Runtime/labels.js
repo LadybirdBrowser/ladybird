@@ -204,3 +204,21 @@ test("sloppy labelled function declarations conflict with lexical declarations",
     expect(() => Function("var f; label: function f() {};")).not.toThrow();
     expect(() => Function("label: function f() {}; var f;")).not.toThrow();
 });
+
+test("sloppy labelled function declarations are hoisted", () => {
+    expect(Function("label: function labelledFunctionBody() { return 1; } return labelledFunctionBody();")()).toBe(1);
+    expect(eval("label: function labelledEval() { return 2; } labelledEval();")).toBe(2);
+    expect(eval("{ labelledBlock(); label: function labelledBlock() { return 3; } } labelledBlock();")).toBe(3);
+    expect(
+        eval(
+            "switch (1) { case 1: labelledSwitch(); " +
+                "case 2: label: function labelledSwitch() { return 4; } } labelledSwitch();"
+        )
+    ).toBe(4);
+    expect(
+        eval(
+            "{ labelledDuplicate(); function labelledDuplicate() { return 5; } " +
+                "label: function labelledDuplicate() { return 6; } } labelledDuplicate();"
+        )
+    ).toBe(6);
+});

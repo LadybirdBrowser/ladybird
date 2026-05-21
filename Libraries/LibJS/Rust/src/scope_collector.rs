@@ -52,8 +52,8 @@
 use crate::fast_hash::{HashMap, IndexMap};
 
 use crate::ast::{
-    FunctionScopeData, IdentifierArena, IdentifierId, LocalBinding, LocalVarKind, LocalVariable, ScopeId, StringId,
-    Utf16String, VarToInit,
+    FunctionScopeData, IdentifierArena, IdentifierId, LocalBinding, LocalVarKind, LocalVariable, ScopeId, Statement,
+    StringId, Utf16String, VarToInit,
 };
 use crate::parser::{DeclarationKind, FunctionKind, ParseError, ProgramType};
 use crate::u32_from_usize;
@@ -285,6 +285,19 @@ fn ancestor_scopes(start: usize, records: &[ScopeRecord]) -> impl Iterator<Item 
 fn last_function_scope(index: usize, records: &[ScopeRecord]) -> Option<usize> {
     ancestor_scopes(index, records)
         .find(|&i| records[i].scope_type == ScopeType::Function || records[i].scope_type == ScopeType::ClassStaticInit)
+}
+
+fn mark_hoisted_function_declarations(
+    statement: &mut Statement,
+    name: &[u16],
+    identifiers: &IdentifierArena,
+    strings: &crate::ast::StringInterner,
+) {
+    if let Some(fd) = statement.inner.function_declaration_for_labelled_item_mut()
+        && fd.name.is_some_and(|n| strings[identifiers[n].name].as_slice() == name)
+    {
+        fd.is_hoisted = true;
+    }
 }
 
 // === ScopeCollector ===
@@ -1289,7 +1302,7 @@ impl ScopeCollector {
         {
             let sd = &scopes[scope_id];
             for (i, child) in sd.children.iter().enumerate() {
-                if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = child.inner
+                if let Some(fd) = child.inner.function_declaration_for_labelled_item()
                     && let Some(name_ident) = fd.name
                 {
                     let name_id = identifiers[name_ident].name;
@@ -1298,7 +1311,7 @@ impl ScopeCollector {
                 }
             }
             for (i, child) in sd.children.iter().enumerate() {
-                if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = child.inner
+                if let Some(fd) = child.inner.function_declaration_for_labelled_item()
                     && let Some(name_ident) = fd.name
                     && last_position.get(&identifiers[name_ident].name).copied() == Some(i)
                 {
@@ -1442,13 +1455,7 @@ impl ScopeCollector {
                 if let Some(block_scope_id) = function.block_scope_data {
                     let bs = &mut scopes[block_scope_id];
                     for child in &mut bs.children {
-                        if let crate::ast::StatementKind::FunctionDeclaration(ref mut fd) = child.inner
-                            && fd
-                                .name
-                                .is_some_and(|n| strings[identifiers[n].name].as_slice() == function.name.as_slice())
-                        {
-                            fd.is_hoisted = true;
-                        }
+                        mark_hoisted_function_declarations(child, function.name.as_slice(), identifiers, strings);
                     }
                 }
             } else if let Some(parent_index) = records[index].parent {

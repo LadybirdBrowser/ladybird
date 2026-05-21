@@ -2755,6 +2755,13 @@ fn emit_lexical_declarations_for_block<'a>(
     children: impl Iterator<Item = &'a Statement>,
 ) {
     for child in children {
+        if let Some(fd) = child.inner.function_declaration_for_labelled_item()
+            && fd.name.is_some()
+        {
+            emit_lexical_function_declaration_for_block(generator, environment, fd);
+            continue;
+        }
+
         match &child.inner {
             StatementKind::VariableDeclaration(vd)
                 if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
@@ -2809,41 +2816,46 @@ fn emit_lexical_declarations_for_block<'a>(
                     }
                 }
             }
-            StatementKind::FunctionDeclaration(fd) if fd.name.is_some() => {
-                let name_ident_id = fd.name.unwrap();
-                let arena = generator.arena.clone();
-                let name_ident = &arena.identifiers[name_ident_id];
-                // a. Create binding.
-                if !name_ident.is_local() {
-                    let id = generator.intern_identifier_id(name_ident.name);
-                    generator.emit(Instruction::CreateMutableBinding {
-                        environment: environment.operand(),
-                        identifier: id,
-                        can_be_deleted: false,
-                    });
-                }
-                // b. Instantiate function object.
-                let function_data = generator.function_table.take(fd.function_id);
-                let sfd_index = emit_new_function(generator, function_data, None);
-                let fo = generator.allocate_register();
-                generator.emit(Instruction::NewFunction {
-                    dst: fo.operand(),
-                    shared_function_data_index: sfd_index,
-                    home_object: None,
-                    lhs_name: None,
-                });
-                if name_ident.is_local() {
-                    let local_index = name_ident.local_index;
-                    let local = generator.local(local_index);
-                    generator.emit_mov(&local, &fo);
-                    generator.mark_local_initialized(local_index);
-                } else {
-                    let id = generator.intern_identifier_id(name_ident.name);
-                    emit_initialize_lexical_binding(generator, id, fo.operand());
-                }
-            }
             _ => {}
         }
+    }
+}
+
+fn emit_lexical_function_declaration_for_block(
+    generator: &mut Generator,
+    environment: &ScopedOperand,
+    fd: &FunctionDeclarationData,
+) {
+    let name_ident_id = fd.name.unwrap();
+    let arena = generator.arena.clone();
+    let name_ident = &arena.identifiers[name_ident_id];
+    // a. Create binding.
+    if !name_ident.is_local() {
+        let id = generator.intern_identifier_id(name_ident.name);
+        generator.emit(Instruction::CreateMutableBinding {
+            environment: environment.operand(),
+            identifier: id,
+            can_be_deleted: false,
+        });
+    }
+    // b. Instantiate function object.
+    let function_data = generator.function_table.take(fd.function_id);
+    let sfd_index = emit_new_function(generator, function_data, None);
+    let fo = generator.allocate_register();
+    generator.emit(Instruction::NewFunction {
+        dst: fo.operand(),
+        shared_function_data_index: sfd_index,
+        home_object: None,
+        lhs_name: None,
+    });
+    if name_ident.is_local() {
+        let local_index = name_ident.local_index;
+        let local = generator.local(local_index);
+        generator.emit_mov(&local, &fo);
+        generator.mark_local_initialized(local_index);
+    } else {
+        let id = generator.intern_identifier_id(name_ident.name);
+        emit_initialize_lexical_binding(generator, id, fo.operand());
     }
 }
 
@@ -5111,7 +5123,7 @@ fn generate_switch_statement(
             // For function declarations in switch cases: emit AnnexB hoisting
             // only if the scope collector approved it (name is in annexb_function_names).
             if did_create_env
-                && let StatementKind::FunctionDeclaration(ref fd) = child.inner
+                && let Some(fd) = child.inner.function_declaration_for_labelled_item()
                 && let Some(name_ident_id) = fd.name
                 && generator
                     .annexb_function_names
@@ -5177,7 +5189,7 @@ fn emit_switch_block_declaration_instantiation(generator: &mut Generator, data: 
     // Check if we need a lexical environment.
     // Only needed if there are non-local lexical declarations.
     let needs_env = all_children.iter().any(|child| match &child.inner {
-        StatementKind::FunctionDeclaration(_) => true,
+        _ if child.inner.function_declaration_for_labelled_item().is_some() => true,
         StatementKind::VariableDeclaration(vd)
             if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
         {
@@ -8707,7 +8719,7 @@ pub fn emit_function_declaration_instantiation(
     if let Some(fsd) = function_scope_data {
         for function_to_init in &fsd.functions_to_initialize {
             let child = &body_scope.children[function_to_init.child_index];
-            if let StatementKind::FunctionDeclaration(ref fd) = child.inner {
+            if let Some(fd) = child.inner.function_declaration_for_labelled_item() {
                 let inner_function_data = generator.function_table.take(fd.function_id);
                 let sfd_index = emit_new_function(generator, inner_function_data, None);
 
@@ -8752,7 +8764,7 @@ fn is_for_loop(statement: &Statement) -> bool {
 fn needs_block_declaration_instantiation(scope: &ScopeData, arena: &crate::ast::AstArena) -> bool {
     for child in &scope.children {
         match &child.inner {
-            StatementKind::FunctionDeclaration(_) => {
+            _ if child.inner.function_declaration_for_labelled_item().is_some() => {
                 return true;
             }
             StatementKind::VariableDeclaration(vd)

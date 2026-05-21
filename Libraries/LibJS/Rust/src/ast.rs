@@ -1761,6 +1761,27 @@ pub enum StatementKind {
     ClassFieldInitializer(Box<ClassFieldInitializerData>),
 }
 
+impl StatementKind {
+    pub fn function_declaration_for_labelled_item(&self) -> Option<&FunctionDeclarationData> {
+        // https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations
+        // LabelledItem : FunctionDeclaration
+        // 1. Return « |FunctionDeclaration| ».
+        match self {
+            StatementKind::FunctionDeclaration(function) => Some(function),
+            StatementKind::Labelled(data) => data.item.inner.function_declaration_for_labelled_item(),
+            _ => None,
+        }
+    }
+
+    pub fn function_declaration_for_labelled_item_mut(&mut self) -> Option<&mut FunctionDeclarationData> {
+        match self {
+            StatementKind::FunctionDeclaration(function) => Some(function),
+            StatementKind::Labelled(data) => data.item.inner.function_declaration_for_labelled_item_mut(),
+            _ => None,
+        }
+    }
+}
+
 // =============================================================================
 // Program data
 // =============================================================================
