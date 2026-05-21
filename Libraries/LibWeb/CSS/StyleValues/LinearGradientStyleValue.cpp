@@ -128,7 +128,12 @@ float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
             return angle;
         },
         [&](NonnullRefPtr<StyleValue const> const& style_value) {
-            return Angle::from_style_value(style_value, {}).to_degrees();
+            auto angle = Angle::from_style_value(style_value, {}).to_degrees();
+            // Note: With -webkit-linear-gradient, 0deg points to the right instead of top,
+            // and the direction is reversed (counter-clockwise instead of clockwise)
+            if (m_properties.gradient_type == GradientType::WebKit)
+                return 90.0 - angle;
+            return angle;
         });
 }
 
