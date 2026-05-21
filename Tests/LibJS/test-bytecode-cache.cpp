@@ -11,6 +11,7 @@
 #include <LibCore/System.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibJS/Bytecode/Instruction.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
@@ -23,7 +24,7 @@
 
 struct BytecodeCacheTestData {
     NonnullRefPtr<JS::SourceCode const> source_code;
-    ByteBuffer blob;
+    Core::ImmutableBytes blob;
     Crypto::Hash::SHA256::DigestType source_hash;
 };
 
@@ -271,7 +272,7 @@ static BytecodeCacheTestData create_bytecode_cache_blob(StringView source)
 
     return {
         .source_code = source_code,
-        .blob = move(blob),
+        .blob = Core::ImmutableBytes::adopt(move(blob)),
         .source_hash = source_hash,
     };
 }
@@ -300,9 +301,48 @@ static BytecodeCacheTestData create_module_bytecode_cache_blob(StringView source
 
     return {
         .source_code = source_code,
-        .blob = move(blob),
+        .blob = Core::ImmutableBytes::adopt(move(blob)),
         .source_hash = source_hash,
     };
+}
+
+static JS::SharedFunctionInstanceData& first_shared_function_with_template_object_cache(JS::Bytecode::Executable& executable)
+{
+    for (auto& shared_data : executable.shared_function_data) {
+        if (!shared_data || !shared_data->m_executable)
+            continue;
+        if (!shared_data->m_executable->template_object_caches.is_empty())
+            return *shared_data;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static size_t count_shared_functions_with_rust_ast(JS::Bytecode::Executable& executable)
+{
+    size_t count = 0;
+    for (auto& shared_data : executable.shared_function_data) {
+        if (!shared_data)
+            continue;
+        if (shared_data->m_rust_function_ast)
+            ++count;
+        if (shared_data->m_executable)
+            count += count_shared_functions_with_rust_ast(*shared_data->m_executable);
+    }
+    return count;
+}
+
+static size_t count_shared_functions_with_cached_bytecode(JS::Bytecode::Executable& executable)
+{
+    size_t count = 0;
+    for (auto& shared_data : executable.shared_function_data) {
+        if (!shared_data)
+            continue;
+        if (shared_data->m_cached_bytecode_executable)
+            ++count;
+        if (shared_data->m_executable)
+            count += count_shared_functions_with_cached_bytecode(*shared_data->m_executable);
+    }
+    return count;
 }
 
 static size_t first_declaration_function_bytecode_payload_offset(ReadonlyBytes blob)
@@ -384,7 +424,7 @@ TEST_CASE(bytecode_cache_materialization_failure_has_parser_error)
 
     // Structural decode still succeeds because the blob is internally well-formed; the corruption is in the bytecode
     // payload, which is only checked by the validator that runs during materialization.
-    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(corrupted_blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(Core::ImmutableBytes::adopt(move(corrupted_blob)), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
     VERIFY(decoded_blob);
 
     auto materialized = JS::RustIntegration::materialize_bytecode_cache_script(decoded_blob, test_data.source_code, realm);
@@ -409,7 +449,7 @@ TEST_CASE(bytecode_cache_rejects_corrupt_declaration_function)
 
     // Structural decode still succeeds (the blob layout is intact); the corruption is in a function's bytecode payload
     // and is only caught when the materializer asks the validator to check it.
-    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(corrupted_blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(Core::ImmutableBytes::adopt(move(corrupted_blob)), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
     VERIFY(decoded_blob);
 
     auto materialized = JS::RustIntegration::materialize_bytecode_cache_script(decoded_blob, test_data.source_code, realm);
@@ -433,7 +473,7 @@ TEST_CASE(bytecode_cache_rejects_out_of_range_declaration_function_source_span)
 
     // The source hash still matches and the blob layout is intact, but the cached function source span points outside
     // the current SourceCode. Materialization should reject it as a cache miss instead of handing the range to C++.
-    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(corrupted_blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(Core::ImmutableBytes::adopt(move(corrupted_blob)), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
     VERIFY(decoded_blob);
 
     auto materialized = JS::RustIntegration::materialize_bytecode_cache_script(decoded_blob, test_data.source_code, realm);
@@ -451,12 +491,13 @@ TEST_CASE(bytecode_cache_materializes_function_executables_lazily)
 
     auto test_data = create_bytecode_cache_blob("let f = function lazy() { return 1; }; f();"_string);
 
-    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
     VERIFY(decoded_blob);
 
     auto script_or_error = JS::Script::create_from_bytecode_cache(decoded_blob, test_data.source_code, realm);
     VERIFY(!script_or_error.is_error());
     auto script = script_or_error.release_value();
+    EXPECT(script->executable_backing().is_mapped_bytecode_cache());
 
     auto* executable = script->cached_executable();
     VERIFY(executable);
@@ -471,6 +512,286 @@ TEST_CASE(bytecode_cache_materializes_function_executables_lazily)
     EXPECT(!shared_data.m_cached_bytecode_executable);
 }
 
+TEST_CASE(bytecode_cache_install_shares_template_object_cache_slots)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = "var tag = function(strings) { return strings; };\n"
+                  "var f = function(useTemplate) { if (useTemplate) return tag`hello`; return null; };\n"
+                  "f(false);"_string;
+    auto test_data = create_bytecode_cache_blob(source);
+
+    auto script_or_error = JS::Script::parse(source, realm, "test.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+    EXPECT(script->executable_backing().is_source());
+    EXPECT(script->can_generate_bytecode_cache());
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+    EXPECT(result.value().is_null());
+
+    auto* old_executable = script->cached_executable();
+    VERIFY(old_executable);
+    auto& shared_data = first_shared_function_with_template_object_cache(*old_executable);
+    auto old_function_executable = shared_data.m_executable;
+    VERIFY(old_function_executable);
+    VERIFY(old_function_executable->template_object_caches.size() == 1);
+
+    auto old_template_cache = old_function_executable->template_object_caches[0];
+    EXPECT(!old_template_cache->cached_template_object);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    EXPECT(script->try_install_bytecode_cache(decoded_blob, test_data.source_code));
+    auto new_function_executable = shared_data.m_executable;
+    VERIFY(new_function_executable);
+    EXPECT_NE(new_function_executable.ptr(), old_function_executable.ptr());
+    VERIFY(new_function_executable->template_object_caches.size() == 1);
+    EXPECT_EQ(new_function_executable->template_object_caches[0].ptr(), old_template_cache.ptr());
+
+    auto late_template_object = MUST(JS::Array::create(realm, 0));
+    old_template_cache->cached_template_object = late_template_object;
+    EXPECT_EQ(new_function_executable->template_object_caches[0]->cached_template_object.ptr(), late_template_object.ptr());
+}
+
+TEST_CASE(bytecode_cache_install_rejects_corrupt_declaration_function)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = "function f() { return 1; } f();"_string;
+    auto test_data = create_bytecode_cache_blob(source);
+    auto corrupted_blob = MUST(ByteBuffer::copy(test_data.blob.bytes()));
+
+    auto declaration_function_bytecode_offset = first_declaration_function_bytecode_payload_offset(corrupted_blob.bytes());
+    VERIFY(declaration_function_bytecode_offset < corrupted_blob.size());
+    corrupted_blob[declaration_function_bytecode_offset] ^= 0xff;
+
+    auto script_or_error = JS::Script::parse(source, realm, "test.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+
+    auto* old_executable = script->cached_executable();
+    VERIFY(old_executable);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(Core::ImmutableBytes::adopt(move(corrupted_blob)), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    EXPECT(!script->try_install_bytecode_cache(decoded_blob, test_data.source_code));
+    EXPECT_EQ(script->cached_executable(), old_executable);
+}
+
+TEST_CASE(bytecode_cache_install_failure_preserves_existing_shared_functions)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = "var f = function() { return 1; }; f();"_string;
+    auto test_data = create_bytecode_cache_blob(source);
+
+    auto script_or_error = JS::Script::parse(source, realm, "test.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+    EXPECT_EQ(result.value().as_i32(), 1);
+
+    auto* old_executable = script->cached_executable();
+    VERIFY(old_executable);
+    VERIFY(old_executable->shared_function_data.size() == 1);
+    auto& shared_data = *old_executable->shared_function_data[0];
+    auto old_function_executable = shared_data.m_executable;
+    VERIFY(old_function_executable);
+
+    auto corrupted_blob = MUST(ByteBuffer::copy(test_data.blob.bytes()));
+    auto bytecode_payload_offset = top_level_bytecode_payload_offset(corrupted_blob.bytes());
+    VERIFY(bytecode_payload_offset < corrupted_blob.size());
+    corrupted_blob[bytecode_payload_offset] ^= 0xff;
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(Core::ImmutableBytes::adopt(move(corrupted_blob)), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    EXPECT(!script->try_install_bytecode_cache(decoded_blob, test_data.source_code));
+    EXPECT_EQ(script->cached_executable(), old_executable);
+    EXPECT_EQ(shared_data.m_executable.ptr(), old_function_executable.ptr());
+}
+
+TEST_CASE(bytecode_cache_install_clears_lazy_nested_function_inputs)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = "let f = function outer() { function inner() { return 1; } return inner; }; let g = f();"_string;
+    auto test_data = create_bytecode_cache_blob(source);
+
+    auto script_or_error = JS::Script::parse(source, realm, "test.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+
+    auto* executable = script->cached_executable();
+    VERIFY(executable);
+    VERIFY(executable->shared_function_data.size() == 1);
+    auto& outer_shared_data = *executable->shared_function_data[0];
+    EXPECT(outer_shared_data.m_owner_shared_function_data_list);
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+
+    VERIFY(outer_shared_data.m_executable);
+    VERIFY(outer_shared_data.m_executable->shared_function_data.size() == 1);
+    auto& inner_shared_data = *outer_shared_data.m_executable->shared_function_data[0];
+    EXPECT_EQ(inner_shared_data.m_owner_shared_function_data_list, outer_shared_data.m_owner_shared_function_data_list);
+    EXPECT(inner_shared_data.m_rust_function_ast);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    EXPECT(script->try_install_bytecode_cache(decoded_blob, test_data.source_code));
+    EXPECT(!inner_shared_data.m_rust_function_ast);
+    EXPECT(inner_shared_data.m_cached_bytecode_executable);
+}
+
+TEST_CASE(bytecode_cache_install_matches_class_constructor_after_source_text_expands)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = "let C = class { constructor() { this.value = 1; } method() { return this.value; } }; C;"_string;
+    auto test_data = create_bytecode_cache_blob(source);
+
+    auto script_or_error = JS::Script::parse(source, realm, "test.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+
+    auto* old_executable = script->cached_executable();
+    VERIFY(old_executable);
+    EXPECT(count_shared_functions_with_rust_ast(*old_executable) > 0);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    script->begin_bytecode_cache_generation();
+    EXPECT(script->executable_backing().is_source());
+    EXPECT(!script->can_generate_bytecode_cache());
+    EXPECT(script->can_install_generated_bytecode_cache());
+    script->finish_bytecode_cache_generation_without_install();
+    EXPECT(script->executable_backing().is_source());
+    EXPECT(script->can_generate_bytecode_cache());
+    EXPECT(!script->can_install_generated_bytecode_cache());
+
+    script->begin_bytecode_cache_generation();
+    EXPECT(script->can_install_generated_bytecode_cache());
+    script->install_generated_bytecode_cache(decoded_blob, test_data.source_code);
+    EXPECT(script->executable_backing().is_mapped_bytecode_cache());
+    EXPECT(!script->can_generate_bytecode_cache());
+    EXPECT(!script->can_install_generated_bytecode_cache());
+    auto* new_executable = script->cached_executable();
+    VERIFY(new_executable);
+    EXPECT_EQ(count_shared_functions_with_rust_ast(*new_executable), static_cast<size_t>(0));
+    EXPECT(count_shared_functions_with_cached_bytecode(*new_executable) > 0);
+}
+
+TEST_CASE(bytecode_cache_install_clears_precompiled_lazy_function_inputs)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = "let f = function lazy() { return 1; }; f;"_string;
+    auto test_data = create_bytecode_cache_blob(source);
+
+    auto* parsed = JS::RustIntegration::parse_program(test_data.source_code->utf16_data(), test_data.source_code->length_in_code_units(), JS::RustIntegration::ProgramType::Script);
+    VERIFY(parsed);
+    ArmedScopeGuard free_parsed = [&] {
+        JS::RustIntegration::free_parsed_program(parsed);
+    };
+    EXPECT(!JS::RustIntegration::parsed_program_has_errors(parsed));
+
+    auto* compiled = JS::RustIntegration::compile_parsed_program_fully_off_thread(parsed, test_data.source_code->length_in_code_units());
+    VERIFY(compiled);
+    free_parsed.disarm();
+
+    auto script_or_error = JS::Script::create_from_compiled(compiled, test_data.source_code, realm);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+    EXPECT(script->executable_backing().is_heap_bytecode());
+
+    auto* executable = script->cached_executable();
+    VERIFY(executable);
+    VERIFY(executable->shared_function_data.size() == 1);
+    auto& shared_data = *executable->shared_function_data[0];
+    EXPECT(!shared_data.m_executable);
+    EXPECT(shared_data.m_precompiled_bytecode_executable);
+    EXPECT(!shared_data.m_cached_bytecode_executable);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    script->begin_bytecode_cache_generation();
+    EXPECT(script->executable_backing().is_heap_bytecode());
+    EXPECT(!script->can_generate_bytecode_cache());
+    EXPECT(script->can_install_generated_bytecode_cache());
+    script->finish_bytecode_cache_generation_without_install();
+    EXPECT(script->executable_backing().is_heap_bytecode());
+    EXPECT(script->can_generate_bytecode_cache());
+    EXPECT(!script->can_install_generated_bytecode_cache());
+
+    script->begin_bytecode_cache_generation();
+    script->install_generated_bytecode_cache(decoded_blob, test_data.source_code);
+    EXPECT(script->executable_backing().is_mapped_bytecode_cache());
+    EXPECT(!script->can_generate_bytecode_cache());
+    EXPECT(!script->can_install_generated_bytecode_cache());
+    EXPECT(!shared_data.m_rust_function_ast);
+    EXPECT(!shared_data.m_precompiled_bytecode_executable);
+    EXPECT(shared_data.m_cached_bytecode_executable);
+}
+
+TEST_CASE(bytecode_cache_install_updates_top_level_await_module_executable)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = "await 1;"_string;
+    auto test_data = create_module_bytecode_cache_blob(source);
+
+    auto module_or_error = JS::SourceTextModule::parse(source, realm, "test.mjs"sv);
+    VERIFY(!module_or_error.is_error());
+    auto module = module_or_error.release_value();
+    EXPECT(module->executable_backing().is_source());
+
+    auto* top_level_await_shared_data = module->top_level_await_shared_data();
+    VERIFY(top_level_await_shared_data);
+    auto old_executable = top_level_await_shared_data->m_executable;
+    VERIFY(old_executable);
+
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Module, test_data.source_hash.bytes());
+    VERIFY(decoded_blob);
+
+    module->begin_bytecode_cache_generation();
+    EXPECT(module->can_install_generated_bytecode_cache());
+    module->install_generated_bytecode_cache(decoded_blob, test_data.source_code);
+
+    EXPECT(module->executable_backing().is_mapped_bytecode_cache());
+    EXPECT(!module->can_generate_bytecode_cache());
+    EXPECT(!module->can_install_generated_bytecode_cache());
+    EXPECT_EQ(module->top_level_await_shared_data(), top_level_await_shared_data);
+    VERIFY(top_level_await_shared_data->m_executable);
+    EXPECT_NE(top_level_await_shared_data->m_executable.ptr(), old_executable.ptr());
+}
+
 TEST_CASE(bytecode_cache_to_string_caches_lazy_ascii_source_text)
 {
     auto vm = JS::VM::create();
@@ -483,7 +804,7 @@ TEST_CASE(bytecode_cache_to_string_caches_lazy_ascii_source_text)
     auto source_bytes = TRY_OR_FAIL(Core::ImmutableBytes::copy(source.bytes()));
     auto source_code = JS::SourceCode::create("test.js"_string, test_data.source_code->length_in_code_units(), "UTF-8"_string, move(source_bytes));
 
-    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
     VERIFY(decoded_blob);
 
     auto script_or_error = JS::Script::create_from_bytecode_cache(decoded_blob, source_code, realm);
@@ -517,7 +838,7 @@ TEST_CASE(bytecode_cache_to_string_uses_lazy_utf8_offset_map)
     auto source_bytes = TRY_OR_FAIL(Core::ImmutableBytes::copy(source.bytes()));
     auto source_code = JS::SourceCode::create("test.js"_string, test_data.source_code->length_in_code_units(), "UTF-8"_string, move(source_bytes));
 
-    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob.bytes(), JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
     VERIFY(decoded_blob);
 
     auto script_or_error = JS::Script::create_from_bytecode_cache(decoded_blob, source_code, realm);
@@ -576,7 +897,7 @@ TEST_CASE(fresh_precompiled_function_executables_materialize_lazily)
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto& realm = *root_execution_context->realm;
 
-    auto source_code = JS::SourceCode::create("test.js"_string, Utf16String::from_utf8("let f = function lazy() { return 1; }; f();"_string));
+    auto source_code = JS::SourceCode::create("test.js"_string, Utf16String::from_utf8("let f = function lazy() { function inner() { return 1; } return inner(); }; f();"_string));
     auto* parsed = JS::RustIntegration::parse_program(source_code->utf16_data(), source_code->length_in_code_units(), JS::RustIntegration::ProgramType::Script);
     VERIFY(parsed);
     ArmedScopeGuard free_parsed = [&] {
@@ -591,6 +912,7 @@ TEST_CASE(fresh_precompiled_function_executables_materialize_lazily)
     auto script_or_error = JS::Script::create_from_compiled(compiled, source_code, realm);
     VERIFY(!script_or_error.is_error());
     auto script = script_or_error.release_value();
+    EXPECT(script->executable_backing().is_heap_bytecode());
 
     auto* executable = script->cached_executable();
     VERIFY(executable);
@@ -598,9 +920,12 @@ TEST_CASE(fresh_precompiled_function_executables_materialize_lazily)
     auto& shared_data = *executable->shared_function_data[0];
     EXPECT(!shared_data.m_executable);
     EXPECT(shared_data.m_precompiled_bytecode_executable);
+    EXPECT(!shared_data.m_rust_function_ast);
+    EXPECT(shared_data.m_functions_to_initialize.is_empty());
 
     auto result = vm->run(script);
     VERIFY(!result.is_throw_completion());
+    EXPECT_EQ(result.value().as_i32(), 1);
     EXPECT(shared_data.m_executable);
     EXPECT(!shared_data.m_precompiled_bytecode_executable);
 }
@@ -613,13 +938,14 @@ TEST_CASE(bytecode_cache_preserves_re_exported_import_names)
 
     auto test_data = create_module_bytecode_cache_blob("import { pass as renamed } from './source.mjs'; export { renamed as default };"sv);
 
-    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob.bytes(), JS::RustIntegration::ProgramType::Module, test_data.source_hash.bytes());
+    auto* decoded_blob = JS::RustIntegration::decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Module, test_data.source_hash.bytes());
     VERIFY(decoded_blob);
 
     auto source_module = JS::SourceTextModule::parse("export function pass() {}"sv, realm, "./source.mjs"sv).release_value();
     source_module->set_status(JS::ModuleStatus::Unlinked);
 
     auto cached_module = JS::SourceTextModule::parse_from_bytecode_cache(decoded_blob, test_data.source_code, realm).release_value();
+    EXPECT(cached_module->executable_backing().is_mapped_bytecode_cache());
     cached_module->set_status(JS::ModuleStatus::Unlinked);
     cached_module->loaded_modules().append(JS::LoadedModuleRequest {
         .specifier = Utf16String::from_utf8("./source.mjs"sv),
