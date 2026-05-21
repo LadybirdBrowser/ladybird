@@ -25,6 +25,7 @@ class ProcessManager;
 class Settings;
 class ViewImplementation;
 class WebContentClient;
+class WebWorkerClient;
 class WebUI;
 
 struct Attribute;

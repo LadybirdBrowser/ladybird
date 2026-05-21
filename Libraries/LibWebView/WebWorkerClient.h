@@ -7,30 +7,25 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/HashTable.h>
-#include <AK/IterationDecision.h>
 #include <AK/Types.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibWeb/Export.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
+#include <LibWebView/Export.h>
 
-namespace Web::HTML {
+namespace WebView {
 
-class WEB_API WebWorkerClient final
+class WEBVIEW_API WebWorkerClient final
     : public IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>
     , public WebWorkerClientEndpoint {
     C_OBJECT_ABSTRACT(WebWorkerClient);
 
 public:
-    template<typename Callback>
-    static void for_each_client(Callback callback);
-
-    explicit WebWorkerClient(NonnullOwnPtr<IPC::Transport>);
+    explicit WebWorkerClient(NonnullOwnPtr<IPC::Transport>, Web::HTML::WorkerAgentId agent_id);
     ~WebWorkerClient();
 
     pid_t pid() const { return m_pid; }
@@ -46,31 +41,11 @@ public:
     virtual Messages::WebWorkerClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
 
-    Function<void()> on_worker_close;
-    Function<void()> on_worker_died;
-    Function<void(bool)> on_worker_script_load_success;
-    Function<void()> on_worker_script_load_failure;
-    Function<void(String, String, u32, u32)> on_worker_exception;
-    Function<HTTP::Cookie::VersionedCookie(URL::URL const&, HTTP::Cookie::Source)> on_request_cookie;
-    Function<void(ByteString, i32)> on_request_file;
-    Function<void(Web::HTML::BroadcastChannelMessage)> on_post_broadcast_channel_message;
-    Function<Web::HTML::WorkerAgentId(Web::HTML::WorkerAgentStartRequest)> on_start_worker_agent;
-    Function<void(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken)> on_close_worker_agent;
-
 private:
     virtual void die() override;
 
     pid_t m_pid { -1 };
-    static HashTable<WebWorkerClient*> s_all_clients;
+    Web::HTML::WorkerAgentId m_agent_id { 0 };
 };
-
-template<typename Callback>
-void WebWorkerClient::for_each_client(Callback callback)
-{
-    for (auto* client : s_all_clients) {
-        if (callback(*client) == IterationDecision::Break)
-            return;
-    }
-}
 
 }

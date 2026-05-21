@@ -16,12 +16,6 @@
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWebView/Forward.h>
 
-namespace Web::HTML {
-
-class WebWorkerClient;
-
-}
-
 namespace WebView {
 
 class WorkerProcessManager {
@@ -37,15 +31,18 @@ public:
     };
 
     Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, u64 page_id, Web::HTML::WorkerAgentStartRequest);
-    Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WebWorkerClient&, Web::HTML::WorkerAgentStartRequest);
+    Web::HTML::WorkerAgentId start_worker_agent(WebWorkerClient&, Web::HTML::WorkerAgentStartRequest);
 
     void close_worker_agent(WebContentClient&, Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken);
-    void close_worker_agent(Web::HTML::WebWorkerClient&, Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken);
+    void close_worker_agent(WebWorkerClient&, Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken);
     void remove_web_content_owner(WebContentClient&);
+    void remove_web_worker_owner(WebWorkerClient&);
 
     void broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const&);
 
 private:
+    friend class WebWorkerClient;
+
     WorkerProcessManager() = default;
 
     struct WebContentOwner {
@@ -54,7 +51,7 @@ private:
     };
 
     struct WebWorkerOwner {
-        NonnullRefPtr<Web::HTML::WebWorkerClient> client;
+        NonnullRefPtr<WebWorkerClient> client;
     };
 
     struct Owner {
@@ -82,7 +79,7 @@ private:
 
     struct WorkerAgent {
         Web::HTML::WorkerAgentId id { 0 };
-        NonnullRefPtr<Web::HTML::WebWorkerClient> client;
+        NonnullRefPtr<WebWorkerClient> client;
         Web::Bindings::AgentType agent_type { Web::Bindings::AgentType::DedicatedWorker };
         Web::Bindings::WorkerType worker_type { Web::Bindings::WorkerType::Classic };
         Web::Bindings::RequestCredentials credentials { Web::Bindings::RequestCredentials::SameOrigin };
