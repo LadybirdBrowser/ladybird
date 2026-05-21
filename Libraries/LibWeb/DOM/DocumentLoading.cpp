@@ -46,6 +46,14 @@ static void convert_to_xml_error_document(DOM::Document& document, Utf16String e
     MUST(body_element->append_child(document.realm().create<DOM::Text>(document, move(error_string))));
     document.remove_all_children();
     MUST(document.append_child(html_element));
+
+    if (document.ready_for_post_load_tasks())
+        return;
+
+    if (!document.is_completely_loaded())
+        document.completely_finish_loading();
+
+    document.set_ready_for_post_load_tasks(true);
 }
 
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<String> content_encoding)
@@ -185,9 +193,6 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             // FIXME: Insert error message into the document.
             dbgln("XML Document contains improperly-encoded characters");
             convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_utf16);
-
-            // NB: This ensures that the `load` event gets fired for the frame loading this document.
-            document->completely_finish_loading();
             return;
         }
         auto source = decoder->to_utf8(data);
@@ -195,9 +200,6 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             // FIXME: Insert error message into the document.
             dbgln("Failed to decode XML document: {}", source.error());
             convert_to_xml_error_document(document, Utf16String::formatted("Failed to decode XML document: {}", source.error()));
-
-            // NB: This ensures that the `load` event gets fired for the frame loading this document.
-            document->completely_finish_loading();
             return;
         }
         auto run_xml_parser = [document, source_string = source.release_value()] {
@@ -208,8 +210,6 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
                 // FIXME: Insert error message into the document.
                 dbgln("Failed to parse XML document: {}", result.error());
                 convert_to_xml_error_document(document, Utf16String::formatted("Failed to parse XML document: {}", result.error()));
-
-                // NB: XMLDocumentBuilder ensures that the `load` event gets fired. We don't need to do anything else here.
             }
         };
         if (document->ready_to_run_scripts()) {
