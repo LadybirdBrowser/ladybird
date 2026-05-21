@@ -58,3 +58,10 @@ test("with object changes can shadow an outer binding", () => {
 
     expect(seen).toEqual(["outer", "object"]);
 });
+
+test("with statement updates empty abrupt completions to undefined", () => {
+    expect(eval("1; do { 2; with ({}) { 3; break; } 4; } while (false);")).toBe(3);
+    expect(eval("5; do { 6; with ({}) { break; } 7; } while (false);")).toBeUndefined();
+    expect(eval("8; do { 9; with ({}) { 10; continue; } 11; } while (false);")).toBe(10);
+    expect(eval("12; do { 13; with ({}) { continue; } 14; } while (false);")).toBeUndefined();
+});
