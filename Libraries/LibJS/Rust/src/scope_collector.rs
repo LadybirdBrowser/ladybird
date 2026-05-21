@@ -616,6 +616,19 @@ impl ScopeCollector {
         }
     }
 
+    pub fn check_labelled_function_declaration(
+        &mut self,
+        name: &[u16],
+        declaration_line: u32,
+        declaration_column: u32,
+    ) {
+        let index = self.current.expect("no current scope");
+
+        if self.records[index].has_flag(name, VarFlags::LEXICAL) {
+            self.already_declared_error(name, declaration_line, declaration_column);
+        }
+    }
+
     // https://tc39.es/ecma262/#sec-try-statement
     // Catch clause parameters create a new scope. The bound names in a
     // catch pattern forbid `var` declarations with the same name in the

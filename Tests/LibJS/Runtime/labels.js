@@ -187,3 +187,19 @@ test("invalid label usage", () => {
         `)
     ).toThrowWithMessage(SyntaxError, "Label 'label' has already been declared");
 });
+
+test("sloppy function bodies allow labelled normal function declarations", () => {
+    expect(() => Function("label: function f() {};")).not.toThrow();
+
+    expect(() => Function("'use strict'; label: function f() {};")).toThrow(SyntaxError);
+    expect(() => Function("label: function* f() {};")).toThrow(SyntaxError);
+});
+
+test("sloppy labelled function declarations conflict with lexical declarations", () => {
+    expect(() => Function("let f; label: function f() {};")).toThrow(SyntaxError);
+    expect(() => Function("label: function f() {}; let f;")).toThrow(SyntaxError);
+    expect(() => Function("function h() { let f; label: function f() {} }")).toThrow(SyntaxError);
+
+    expect(() => Function("var f; label: function f() {};")).not.toThrow();
+    expect(() => Function("label: function f() {}; var f;")).not.toThrow();
+});
