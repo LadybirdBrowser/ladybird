@@ -129,6 +129,23 @@ test("parameter with an arrow function default value", () => {
     expect(arrowFunc(() => 10)).toBe(10);
 });
 
+test("parameter default value infers anonymous function names", () => {
+    function func(
+        a = function () {},
+        b = function* () {},
+        c = async function () {},
+        d = () => {},
+        e = async () => {},
+        f = class {},
+        g = function named() {},
+        h = class Named {}
+    ) {
+        return [a.name, b.name, c.name, d.name, e.name, f.name, g.name, h.name];
+    }
+
+    expect(func()).toEqual(["a", "b", "c", "d", "e", "f", "named", "Named"]);
+});
+
 test("parameter with an object default value", () => {
     function func(a = { foo: "bar" }) {
         return a.foo;
