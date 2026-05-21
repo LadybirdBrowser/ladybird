@@ -1771,19 +1771,6 @@ void Node::set_needs_style_update(bool value)
     }
 }
 
-void Node::set_subtree_may_depend_on_non_inherited_property_inheritance()
-{
-    if (m_subtree_may_depend_on_non_inherited_property_inheritance)
-        return;
-    m_subtree_may_depend_on_non_inherited_property_inheritance = true;
-
-    for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (ancestor->m_subtree_may_depend_on_non_inherited_property_inheritance)
-            break;
-        ancestor->m_subtree_may_depend_on_non_inherited_property_inheritance = true;
-    }
-}
-
 void Node::post_connection()
 {
 }

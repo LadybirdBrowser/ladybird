@@ -8,3 +8,7 @@ relative initial child font-size: 20px
 relative changed child font-size: 40px
 explicit inherit initial child margin-left: 11px
 explicit inherit changed child margin-left: 27px
+PASS: explicit inherit only marks direct shadow-root children | styleInvalidations=3, fullStyleInvalidations=0, elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=2, elementInheritedStyleNoopRecomputations=1, hasAncestorWalkInvocations=0, hasInvalidationMetadataCandidates=0, hasMatchInvocations=0, hasResultCacheHits=0, hasResultCacheMisses=0
+descendant explicit inherit initial grandchild margin-left: 0px
+descendant explicit inherit changed grandchild margin-left: 0px
+PASS: descendant explicit inherit does not mark all ancestors | styleInvalidations=3, fullStyleInvalidations=0, elementStyleRecomputations=1, elementStyleNoopRecomputations=0, elementInheritedStyleRecomputations=0, elementInheritedStyleNoopRecomputations=0, hasAncestorWalkInvocations=0, hasInvalidationMetadataCandidates=0, hasMatchInvocations=0, hasResultCacheHits=0, hasResultCacheMisses=0
