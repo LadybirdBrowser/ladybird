@@ -72,7 +72,7 @@ protected:
     Vector<LoadedModuleRequest> m_loaded_modules;         // [[LoadedModules]]
     GC::Ptr<CyclicModule> m_cycle_root;                   // [[CycleRoot]]
     bool m_has_top_level_await { false };                 // [[HasTLA]]
-    bool m_async_evaluation { false };                    // [[AsyncEvaluation]]
+    Optional<u64> m_async_evaluation_order;               // [[AsyncEvaluationOrder]]
     GC::Ptr<PromiseCapability> m_top_level_capability;    // [[TopLevelCapability]]
     Vector<GC::Ptr<CyclicModule>> m_async_parent_modules; // [[AsyncParentModules]]
     Optional<u32> m_pending_async_dependencies;           // [[PendingAsyncDependencies]]

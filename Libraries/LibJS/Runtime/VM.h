@@ -91,6 +91,7 @@ public:
         --m_module_execution_depth;
     }
     [[nodiscard]] bool is_executing_module() const { return m_module_execution_depth > 0; }
+    u64 increment_module_async_evaluation_count() { return m_module_async_evaluation_count++; }
 
     ALWAYS_INLINE Value& accumulator() { return reg(Bytecode::Register::accumulator()); }
     Value& reg(Bytecode::Register const& r)
@@ -573,6 +574,7 @@ private:
     u32 m_execution_generation { 0 };
     u32 m_run_executable_depth { 0 };
     u32 m_module_execution_depth { 0 };
+    u64 m_module_async_evaluation_count { 0 }; // [[ModuleAsyncEvaluationCount]]
 
     OwnPtr<Agent> m_agent;
 
