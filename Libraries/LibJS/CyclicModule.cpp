@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -447,11 +448,15 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
         // b. Assert: module.[[EvaluationError]] is empty.
         VERIFY(!m_evaluation_error.is_error());
 
-        // c. If module.[[AsyncEvaluation]] is false, then
-        if (!m_async_evaluation) {
-            // i. Assert: module.[[Status]] is evaluated.
-            VERIFY(m_status == ModuleStatus::Evaluated);
-            // ii. Perform ! Call(capability.[[Resolve]], undefined, « undefined »).
+        // c. If _module_.[[Status]] is ~evaluated~, then
+        if (m_status == ModuleStatus::Evaluated) {
+            // i. Assert: _module_.[[AsyncEvaluationOrder]] is either ~unset~ or ~done~.
+            VERIFY(!m_async_evaluation_order.has_value());
+
+            // ii. NOTE: _module_.[[AsyncEvaluationOrder]] is ~done~ if and only if _module_ had already been evaluated and
+            //     that evaluation was asynchronous.
+
+            // iii. Perform ! Call(_capability_.[[Resolve]], *undefined*, « *undefined* »).
             MUST(call(vm, *m_top_level_capability->resolve(), js_undefined(), js_undefined()));
         }
 
@@ -544,8 +549,8 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, GC::RootVec
                 return cyclic_module->m_evaluation_error.throw_completion();
         }
 
-        // v. If requiredModule.[[AsyncEvaluation]] is true, then
-        if (cyclic_module->m_async_evaluation) {
+        // v. If _requiredModule_.[[AsyncEvaluationOrder]] is an integer, then
+        if (cyclic_module->m_async_evaluation_order.has_value()) {
             // 1. Set module.[[PendingAsyncDependencies]] to module.[[PendingAsyncDependencies]] + 1.
             ++m_pending_async_dependencies.value();
 
@@ -557,14 +562,13 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, GC::RootVec
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] inner_module_evaluation on {} has tla: {} and pending async dep: {} dfs: {} ancestor dfs: {}", filename(), m_has_top_level_await, m_pending_async_dependencies.value(), m_dfs_index.value(), m_dfs_ancestor_index.value());
     // 12. If module.[[PendingAsyncDependencies]] > 0 or module.[[HasTLA]] is true, then
     if (m_pending_async_dependencies.value() > 0 || m_has_top_level_await) {
-        // a. Assert: module.[[AsyncEvaluation]] is false and was never previously set to true.
-        VERIFY(!m_async_evaluation); // FIXME: I don't think we can check previously?
+        // a. Assert: _module_.[[AsyncEvaluationOrder]] is ~unset~.
+        VERIFY(!m_async_evaluation_order.has_value());
 
-        // b. Set module.[[AsyncEvaluation]] to true.
-        m_async_evaluation = true;
-        // c. NOTE: The order in which module records have their [[AsyncEvaluation]] fields transition to true is significant. (See 16.2.1.5.2.4.)
+        // b. Set _module_.[[AsyncEvaluationOrder]] to IncrementModuleAsyncEvaluationCount().
+        m_async_evaluation_order = vm.increment_module_async_evaluation_count();
 
-        // d. If module.[[PendingAsyncDependencies]] is 0, perform ExecuteAsyncModule(module).
+        // c. If _module_.[[PendingAsyncDependencies]] = 0, perform ExecuteAsyncModule(_module_).
         if (m_pending_async_dependencies.value() == 0)
             execute_async_module(vm);
     }
@@ -600,18 +604,20 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, GC::RootVec
 
             auto& cyclic_module = static_cast<CyclicModule&>(*required_module);
 
-            // iv. If requiredModule.[[AsyncEvaluation]] is false, set requiredModule.[[Status]] to evaluated.
-            if (!cyclic_module.m_async_evaluation)
+            // iv. Assert: _requiredModule_.[[AsyncEvaluationOrder]] is either an integer or ~unset~.
+
+            // v. If _requiredModule_.[[AsyncEvaluationOrder]] is ~unset~, set _requiredModule_.[[Status]] to ~evaluated~.
+            if (!cyclic_module.m_async_evaluation_order.has_value())
                 cyclic_module.m_status = ModuleStatus::Evaluated;
-            // v. Otherwise, set requiredModule.[[Status]] to evaluating-async.
+            // vi. Else, set _requiredModule_.[[Status]] to ~evaluating-async~.
             else
                 cyclic_module.m_status = ModuleStatus::EvaluatingAsync;
 
-            // vi. If requiredModule and module are the same Module Record, set done to true.
+            // vii. If _requiredModule_ and _module_ are the same Module Record, set _done_ to *true*.
             if (required_module == this)
                 done = true;
 
-            // vii. Set requiredModule.[[CycleRoot]] to module.
+            // viii. Set _requiredModule_.[[CycleRoot]] to _module_.
             cyclic_module.m_cycle_root = this;
         }
     }
@@ -696,8 +702,8 @@ void CyclicModule::gather_available_ancestors(GC::RootVector<GC::Ptr<CyclicModul
             // ii. Assert: m.[[EvaluationError]] is empty.
             VERIFY(!module->m_evaluation_error.is_error());
 
-            // iii. Assert: m.[[AsyncEvaluation]] is true.
-            VERIFY(module->m_async_evaluation);
+            // iii. Assert: _m_.[[AsyncEvaluationOrder]] is an integer.
+            VERIFY(module->m_async_evaluation_order.has_value());
 
             // iv. Assert: m.[[PendingAsyncDependencies]] > 0.
             VERIFY(module->m_pending_async_dependencies.value() > 0);
@@ -735,14 +741,14 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
     // 2. Assert: module.[[Status]] is evaluating-async.
     VERIFY(m_status == ModuleStatus::EvaluatingAsync);
 
-    // 3. Assert: module.[[AsyncEvaluation]] is true.
-    VERIFY(m_async_evaluation);
+    // 3. Assert: _module_.[[AsyncEvaluationOrder]] is an integer.
+    VERIFY(m_async_evaluation_order.has_value());
 
     // 4. Assert: module.[[EvaluationError]] is empty.
     VERIFY(!m_evaluation_error.is_error());
 
-    // 5. Set module.[[AsyncEvaluation]] to false.
-    m_async_evaluation = false;
+    // 5. Set _module_.[[AsyncEvaluationOrder]] to ~done~.
+    m_async_evaluation_order = {};
 
     // 6. Set module.[[Status]] to evaluated.
     m_status = ModuleStatus::Evaluated;
@@ -762,11 +768,19 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
     // 9. Perform GatherAvailableAncestors(module, execList).
     gather_available_ancestors(exec_list);
 
-    // 10. Let sortedExecList be a List whose elements are the elements of execList, in the order in which they had their [[AsyncEvaluation]] fields set to true in InnerModuleEvaluation.
-    // FIXME: Sort the list. To do this we need to use more than an Optional<bool> to track [[AsyncEvaluation]].
+    // 10. Assert: All elements of _execList_ have their [[AsyncEvaluationOrder]] field set to an integer,
+    //     [[PendingAsyncDependencies]] field set to 0, and [[EvaluationError]] field set to ~empty~.
+    VERIFY(all_of(exec_list, [&](auto module) {
+        return module->m_async_evaluation_order.has_value()
+            && module->m_pending_async_dependencies.value() == 0
+            && !module->m_evaluation_error.is_error();
+    }));
 
-    // 11. Assert: All elements of sortedExecList have their [[AsyncEvaluation]] field set to true, [[PendingAsyncDependencies]] field set to 0, and [[EvaluationError]] field set to empty.
-    VERIFY(all_of(exec_list, [&](auto module) { return module->m_async_evaluation && module->m_pending_async_dependencies.value() == 0 && !module->m_evaluation_error.is_error(); }));
+    // 11. Let _sortedExecList_ be a List whose elements are the elements of _execList_, sorted by their
+    //     [[AsyncEvaluationOrder]] field in ascending order.
+    quick_sort(exec_list, [](auto const& left, auto const& right) {
+        return left->m_async_evaluation_order.value() < right->m_async_evaluation_order.value();
+    });
 
     // 12. For each Cyclic Module Record m of sortedExecList, do
     for (auto module : exec_list) {
@@ -792,12 +806,15 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
             }
             // iii. Else,
             else {
-                // 1. Set m.[[Status]] to evaluated.
+                // 1. Set _m_.[[AsyncEvaluationOrder]] to ~done~.
+                module->m_async_evaluation_order = {};
+
+                // 2. Set _m_.[[Status]] to ~evaluated~.
                 module->m_status = ModuleStatus::Evaluated;
 
-                // 2. If m.[[TopLevelCapability]] is not empty, then
+                // 3. If _m_.[[TopLevelCapability]] is not ~empty~, then
                 if (module->m_top_level_capability != nullptr) {
-                    // a. Assert: m.[[CycleRoot]] is m.
+                    // a. Assert: _m_.[[CycleRoot]] and _m_ are the same Module Record.
                     VERIFY(module->m_cycle_root == module);
 
                     // b. Perform ! Call(m.[[TopLevelCapability]].[[Resolve]], undefined, « undefined »).
@@ -825,8 +842,8 @@ void CyclicModule::async_module_execution_rejected(VM& vm, Value error)
     // 2. Assert: module.[[Status]] is evaluating-async.
     VERIFY(m_status == ModuleStatus::EvaluatingAsync);
 
-    // 3. Assert: module.[[AsyncEvaluation]] is true.
-    VERIFY(m_async_evaluation);
+    // 3. Assert: _module_.[[AsyncEvaluationOrder]] is an integer.
+    VERIFY(m_async_evaluation_order.has_value());
 
     // 4. Assert: module.[[EvaluationError]] is empty.
     VERIFY(!m_evaluation_error.is_error());
@@ -837,13 +854,12 @@ void CyclicModule::async_module_execution_rejected(VM& vm, Value error)
     // 6. Set module.[[Status]] to evaluated.
     m_status = ModuleStatus::Evaluated;
 
-    // 7. Set module.[[AsyncEvaluationOrder]] to DONE.
-    // FIXME: [[AsyncEvaluation]] was editorially replaced with [[AsyncEvaluationOrder]]. See:
-    //        https://github.com/tc39/ecma262/commit/030dcd6c88e79e066a2d58ee39d045ba7d1e6e03
+    // 7. Set _module_.[[AsyncEvaluationOrder]] to ~done~.
+    m_async_evaluation_order = {};
 
-    // 8. NOTE: module.[[AsyncEvaluationOrder]] is set to DONE for symmetry with AsyncModuleExecutionFulfilled. In
+    // 8. NOTE: _module_.[[AsyncEvaluationOrder]] is set to ~done~ for symmetry with AsyncModuleExecutionFulfilled. In
     //    InnerModuleEvaluation, the value of a module's [[AsyncEvaluationOrder]] internal slot is unused when its
-    //    [[EvaluationError]] internal slot is not EMPTY.
+    //    [[EvaluationError]] internal slot is not ~empty~.
 
     // 9. If module.[[TopLevelCapability]] is not empty, then
     if (m_top_level_capability != nullptr) {

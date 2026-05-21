@@ -272,6 +272,10 @@ describe("loops", () => {
         expect(globalThis.dynamicSelfImportDefaultExportPassed).toBeTrue();
     });
 
+    test("async parent modules execute in evaluation order", () => {
+        expectModulePassed("./async-evaluation-order.mjs");
+    });
+
     test("import something which imports a cycle", () => {
         expectModulePassed("./loop-entry.mjs");
     });
