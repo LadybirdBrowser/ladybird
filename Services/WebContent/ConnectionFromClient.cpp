@@ -458,7 +458,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "content-blocking") {
-        Web::ContentBlocker::the().set_filtering_enabled(argument == "on");
+        page->page().set_content_blocking_enabled(argument == "on");
         return;
     }
 }
@@ -1144,9 +1144,16 @@ void ConnectionFromClient::paste(u64 page_id, Utf16String text)
         page->page().focused_navigable().paste(text);
 }
 
-void ConnectionFromClient::set_content_blockers(u64, Vector<String> patterns)
+void ConnectionFromClient::set_content_blockers(u64 page_id, Vector<String> patterns)
 {
-    Web::ContentBlocker::the().set_patterns(patterns).release_value_but_fixme_should_propagate_errors();
+    auto& blocker = Web::ContentBlocker::the();
+    auto had_cosmetic_rules = blocker.has_cosmetic_rules();
+    blocker.set_patterns(patterns).release_value_but_fixme_should_propagate_errors();
+
+    if (had_cosmetic_rules || blocker.has_cosmetic_rules()) {
+        if (auto page = this->page(page_id); page.has_value())
+            page->page().invalidate_user_style();
+    }
 }
 
 void ConnectionFromClient::set_autoplay_allowed_on_all_websites(u64)

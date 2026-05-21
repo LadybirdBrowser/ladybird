@@ -66,7 +66,8 @@ TEST_CASE(data_urls_exempt)
 TEST_CASE(disable_filtering)
 {
     Vector<String> patterns = {
-        { "example.com"_string }
+        { "example.com"_string },
+        { "##.ad"_string }
     };
 
     auto& blocker = make_blocker(move(patterns));
@@ -74,9 +75,11 @@ TEST_CASE(disable_filtering)
 
     EXPECT(!blocker.is_filtered(url("https://example.com"sv)));
     EXPECT(!blocker.is_filtered(url("http://example.com/ads"sv)));
+    EXPECT(blocker.cosmetic_style_sheet_for_url(url("https://example.com"sv)).is_empty());
 
     blocker.set_filtering_enabled(true);
     EXPECT(blocker.is_filtered(url("https://example.com"sv)));
+    EXPECT(!blocker.cosmetic_style_sheet_for_url(url("https://example.com"sv)).is_empty());
 }
 
 TEST_CASE(substring_matches)
@@ -165,6 +168,37 @@ TEST_CASE(contextual_filtering_uses_existing_matcher)
         Fetch::Infrastructure::Request::Destination::Script,
         Fetch::Infrastructure::Request::InitiatorType::CSS,
         Fetch::Infrastructure::Request::Mode::NoCORS));
+}
+
+TEST_CASE(cosmetic_rules_generate_user_css)
+{
+    Vector<String> patterns = {
+        { "blocked.js"_string },
+        { "##.ad"_string },
+        { "example.com##.sponsored"_string },
+        { "other.example##.other"_string }
+    };
+
+    auto& blocker = make_blocker(move(patterns));
+
+    EXPECT(blocker.has_cosmetic_rules());
+    EXPECT(blocker.is_filtered(url("https://tracker.example/blocked.js"sv)));
+    EXPECT(!blocker.is_filtered(url("https://tracker.example/##.ad"sv)));
+
+    auto style_sheet = blocker.cosmetic_style_sheet_for_url(url("https://www.example.com/page"sv));
+    EXPECT(style_sheet.contains(".ad { display: none !important; }"sv));
+    EXPECT(style_sheet.contains(".sponsored { display: none !important; }"sv));
+    EXPECT(!style_sheet.contains(".other { display: none !important; }"sv));
+}
+
+TEST_CASE(clearing_patterns_clears_cosmetic_rules)
+{
+    auto& blocker = make_blocker({ "##.ad"_string });
+    EXPECT(blocker.has_cosmetic_rules());
+
+    MUST(blocker.set_patterns({}));
+    EXPECT(!blocker.has_cosmetic_rules());
+    EXPECT(blocker.cosmetic_style_sheet_for_url(url("https://example.com/"sv)).is_empty());
 }
 
 }

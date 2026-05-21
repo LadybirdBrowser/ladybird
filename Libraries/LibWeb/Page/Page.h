@@ -243,6 +243,8 @@ public:
 
     Optional<String> const& user_style() const { return m_user_style_sheet_source; }
     void set_user_style(String source);
+    void set_content_blocking_enabled(bool);
+    void invalidate_user_style();
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 

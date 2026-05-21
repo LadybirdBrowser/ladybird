@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringBuilder.h>
 #include <LibCore/ReportTime.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
@@ -25,6 +26,7 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 
@@ -122,7 +124,7 @@ void StyleScope::build_rule_cache()
             constructed_style_sheet = style_sheet;
         });
 
-        if (constructed_style_sheet && !saw_more_than_one_style_sheet && constructed_style_sheet->constructed() && !document().page().user_style().has_value()) {
+        if (constructed_style_sheet && !saw_more_than_one_style_sheet && constructed_style_sheet->constructed() && !document().page().user_style().has_value() && !ContentBlocker::the().has_cosmetic_rules()) {
             m_rule_cache = constructed_style_sheet->shared_single_constructed_sheet_style_cache(*this);
             return;
         }
@@ -167,8 +169,21 @@ void StyleScope::build_user_style_sheet_if_needed()
     if (m_user_style_sheet)
         return;
 
-    if (auto user_style_source = document().page().user_style(); user_style_source.has_value())
-        m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), user_style_source.value()));
+    auto user_style_source = document().page().user_style();
+    auto content_blocker_style_source = ContentBlocker::the().cosmetic_style_sheet_for_document(document());
+    if (!user_style_source.has_value() && content_blocker_style_source.is_empty())
+        return;
+
+    StringBuilder source;
+    if (user_style_source.has_value())
+        source.append(user_style_source.value());
+    if (!content_blocker_style_source.is_empty()) {
+        if (!source.is_empty())
+            source.append('\n');
+        source.append(content_blocker_style_source);
+    }
+
+    m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), source.to_string_without_validation()));
 }
 
 void StyleScope::build_rule_cache_if_needed() const
