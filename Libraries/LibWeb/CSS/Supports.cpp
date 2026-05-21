@@ -97,6 +97,26 @@ void Supports::Env::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("Env: `{}` matches={}\n", m_variable_name, m_matches);
 }
 
+MatchResult Supports::AtRule::evaluate(BooleanExpressionEvaluationContext const&) const
+{
+    return as_match_result(m_matches);
+}
+
+String Supports::AtRule::to_string() const
+{
+    StringBuilder builder;
+    builder.append("at-rule(@"sv);
+    serialize_an_identifier(builder, m_name);
+    builder.append(')');
+    return builder.to_string_without_validation();
+}
+
+void Supports::AtRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.appendff("AtRule: `@{}` matches={}\n", m_name, m_matches);
+}
+
 String Supports::to_string() const
 {
     return m_condition->to_string();

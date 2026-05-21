@@ -341,11 +341,44 @@ OwnPtr<BooleanExpression> Parser::parse_supports_condition(TokenStream<Component
     return maybe_condition;
 }
 
+static bool at_rule_is_supported(FlyString const& name)
+{
+    // https://drafts.csswg.org/css-conditional-5/#support-definition-at-rules
+    // A CSS processor supports an at-rule if it would accept an at-rule beginning with that
+    // at-keyword within any context. @charset is intentionally excluded: it is not a valid at-rule.
+    if (name.equals_ignoring_ascii_case("charset"sv))
+        return false;
+
+    if (name.equals_ignoring_ascii_case("container"sv)
+        || name.equals_ignoring_ascii_case("counter-style"sv)
+        || name.equals_ignoring_ascii_case("font-face"sv)
+        || name.equals_ignoring_ascii_case("font-feature-values"sv)
+        || name.equals_ignoring_ascii_case("function"sv)
+        || name.equals_ignoring_ascii_case("import"sv)
+        || name.equals_ignoring_ascii_case("keyframes"sv)
+        || name.equals_ignoring_ascii_case("-webkit-keyframes"sv)
+        || name.equals_ignoring_ascii_case("layer"sv)
+        || name.equals_ignoring_ascii_case("media"sv)
+        || name.equals_ignoring_ascii_case("namespace"sv)
+        || name.equals_ignoring_ascii_case("page"sv)
+        || name.equals_ignoring_ascii_case("property"sv)
+        || name.equals_ignoring_ascii_case("supports"sv))
+        return true;
+
+    if (CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(name))
+        return true;
+
+    if (is_margin_rule_name(name))
+        return true;
+
+    return false;
+}
+
 // https://drafts.csswg.org/css-conditional-5/#typedef-supports-feature
 OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentValue>& tokens)
 {
     // <supports-feature> = <supports-selector-fn> | <supports-font-tech-fn>
-    //                    | <supports-font-format-fn> | <supports-env-fn>
+    //                    | <supports-font-format-fn> | <supports-at-rule-fn> | <supports-env-fn>
     //                    | <supports-decl>
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
@@ -405,6 +438,21 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
         auto format_name = format_token.token().ident();
         bool matches = font_format_is_supported(format_name);
         return Supports::FontFormat::create(move(format_name), matches);
+    }
+
+    // `<supports-at-rule-fn> = at-rule( <at-keyword-token> )`
+    if (first_token.is_function("at-rule"sv)) {
+        TokenStream at_rule_tokens { first_token.function().value };
+        at_rule_tokens.discard_whitespace();
+        auto at_rule_token = at_rule_tokens.consume_a_token();
+        at_rule_tokens.discard_whitespace();
+        if (at_rule_tokens.has_next_token() || !at_rule_token.is(Token::Type::AtKeyword))
+            return {};
+
+        transaction.commit();
+        auto at_rule_name = at_rule_token.token().at_keyword();
+        bool matches = at_rule_is_supported(at_rule_name);
+        return Supports::AtRule::create(move(at_rule_name), matches);
     }
 
     // `<supports-env-fn> = env( <ident> )`
