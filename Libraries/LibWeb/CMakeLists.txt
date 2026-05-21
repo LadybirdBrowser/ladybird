@@ -721,6 +721,7 @@ set(SOURCES
     HTML/WorkerDebugConsoleClient.cpp
     HTML/WorkerGlobalScope.cpp
     HTML/WorkerLocation.cpp
+    HTML/WorkerAgentTypes.cpp
     HTML/WorkerNavigator.cpp
     HTML/WorkletGlobalScope.cpp
     HTML/XMLSerializer.cpp

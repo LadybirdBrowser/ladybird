@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -177,6 +178,10 @@ private:
     virtual void set_document_cookie_version_index(u64 page_id, i64 document_id, Core::SharedVersionIndex document_index) override;
     virtual void cookies_changed(u64 page_id, Vector<HTTP::Cookie::Cookie>) override;
     virtual void broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
+    virtual void did_worker_agent_finish_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) override;
+    virtual void did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) override;
+    virtual void did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, String message, String filename, u32 lineno, u32 colno) override;
+    virtual void did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) override;
 
     virtual void request_close(u64 page_id) override;
 

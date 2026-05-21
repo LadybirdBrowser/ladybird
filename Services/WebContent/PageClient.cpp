@@ -775,15 +775,20 @@ void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play
     client().async_did_change_audio_play_state(m_id, play_state);
 }
 
-Web::PageClient::WorkerAgentResponse PageClient::request_worker_agent(Web::Bindings::AgentType type)
+Web::HTML::WorkerAgentId PageClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::StartWorkerAgent>(m_id, move(request));
     if (!response) {
-        dbgln("WebContent client disconnected during RequestWorkerAgent. Exiting peacefully.");
+        dbgln("WebContent client disconnected during StartWorkerAgent. Exiting peacefully.");
         exit(0);
     }
 
-    return { response->take_handle(), response->take_request_server_handle(), response->take_image_decoder_handle() };
+    return response->agent_id();
+}
+
+void PageClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
+{
+    client().async_close_worker_agent(m_id, agent_id, owner_token);
 }
 
 void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<String> const& attribute_name)

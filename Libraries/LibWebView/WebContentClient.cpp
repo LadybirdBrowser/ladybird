@@ -19,6 +19,7 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
+#include <LibWebView/WorkerProcessManager.h>
 
 namespace WebView {
 
@@ -55,6 +56,7 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport)
 
 WebContentClient::~WebContentClient()
 {
+    WorkerProcessManager::the().remove_web_content_owner(*this);
     s_clients.remove(this);
 }
 
@@ -930,6 +932,7 @@ void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::Broadc
         client.async_broadcast_channel_message(message);
         return IterationDecision::Continue;
     });
+    WorkerProcessManager::the().broadcast_channel_message_from_web_content(message);
 }
 
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index)
@@ -1130,17 +1133,19 @@ void WebContentClient::did_present_backing_stores(u64 page_id, i32 front_bitmap_
     }
 }
 
-Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)
+Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto request_server_handle = MUST(connect_new_request_server_client());
-        auto image_decoder_handle = MUST(connect_new_image_decoder_client());
-        auto worker_client = MUST(WebView::launch_web_worker_process(worker_type));
-        auto worker_handle = MUST(worker_client->transport().release_for_transfer());
-        return { move(worker_handle), move(request_server_handle), move(image_decoder_handle) };
+        auto agent_id = WorkerProcessManager::the().start_worker_agent(*this, page_id, move(request));
+        return { agent_id };
     }
 
-    return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
+    return { 0 };
+}
+
+void WebContentClient::close_worker_agent(u64, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
+{
+    WorkerProcessManager::the().close_worker_agent(*this, agent_id, owner_token);
 }
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)

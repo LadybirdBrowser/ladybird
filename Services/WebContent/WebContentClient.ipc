@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/WebViewHints.h>
+#include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Attribute.h>
@@ -142,5 +143,6 @@ endpoint WebContentClient
 
     did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
-    request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) => (IPC::TransportHandle handle, IPC::TransportHandle request_server_handle, IPC::TransportHandle image_decoder_handle) // FIXME: Add required attributes to select a SharedWorker Agent
+    start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)
+    close_worker_agent(u64 page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|
 }

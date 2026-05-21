@@ -1,0 +1,4 @@
+worker1: connect 1
+worker2: connect 2
+worker1: echo 1: one
+worker2: echo 2: two

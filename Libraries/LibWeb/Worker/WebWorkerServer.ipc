@@ -6,6 +6,7 @@
 #include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/WorkerAgentTypes.h>
 
 endpoint WebWorkerServer {
 
@@ -20,7 +21,15 @@ endpoint WebWorkerServer {
                  Web::HTML::SerializedEnvironmentSettingsObject outside_settings,
                  Web::Bindings::AgentType agent_type) =|
 
+    connect_shared_worker(Web::HTML::TransferDataEncoder message_port,
+                          Web::HTML::SerializedEnvironmentSettingsObject outside_settings) =|
+
     close_worker() =|
+
+    did_worker_agent_finish_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) =|
+    did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) =|
+    did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, String message, String filename, u32 lineno, u32 colno) =|
+    did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) =|
 
     broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) =|
 
