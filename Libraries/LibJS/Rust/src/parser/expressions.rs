@@ -2531,8 +2531,9 @@ impl Parser<'_> {
         // Check parameters before restoring flags so that the method's
         // context is used (e.g. in_class_static_init_block must remain
         // false to allow `await` as a parameter name in generators).
-        if has_use_strict || fn_kind != FunctionKind::Normal {
-            self.check_parameters_post_body(&parsed.parameter_info, has_use_strict, fn_kind);
+        let parameters_are_strict = self.flags.strict_mode || has_use_strict;
+        if parameters_are_strict || fn_kind != FunctionKind::Normal {
+            self.check_parameters_post_body(&parsed.parameter_info, parameters_are_strict, fn_kind);
         }
 
         self.flags.in_class_static_init_block = saved_static_init;

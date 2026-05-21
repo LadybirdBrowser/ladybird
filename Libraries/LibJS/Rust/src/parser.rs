@@ -881,6 +881,9 @@ impl<'a> Parser<'a> {
     pub(crate) fn check_identifier_name_for_assignment_validity(&mut self, name: &[u16], force_strict: bool) {
         if self.flags.strict_mode || force_strict {
             if name == utf16!("arguments") || name == utf16!("eval") {
+                // https://tc39.es/ecma262/#sec-identifiers-static-semantics-early-errors
+                // It is a Syntax Error if IsStrict(this production) is *true* and the StringValue of |Identifier| is
+                // either *"arguments"* or *"eval"*.
                 self.syntax_error("Binding pattern target may not be called 'arguments' or 'eval' in strict mode");
             } else if is_strict_reserved_word(name) {
                 let name_str = String::from_utf16_lossy(name);
@@ -930,8 +933,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Post-body check for function parameters when 'use strict' was found in the
-    /// body or the function is a generator/async.
+    /// Check parameter names that need deferred strict-mode validation after parsing the function body.
     pub(crate) fn check_parameters_post_body(
         &mut self,
         parameter_info: &[ParamInfo],
