@@ -1439,7 +1439,7 @@ impl ScriptDeclarationMetadata {
 
         for child in &scope.children {
             collect_var_names_recursive(&child.inner, arena, &mut metadata.var_names);
-            if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
+            if let Some(function) = child.inner.function_declaration_for_labelled_item()
                 && let Some(name) = function.name
             {
                 metadata.var_names.push(arena.name_of(name).clone());
@@ -1871,7 +1871,7 @@ fn collect_script_lexical_bindings(
 fn script_function_names(scope: &ast::ScopeData, arena: &ast::AstArena) -> Vec<ast::Utf16String> {
     let mut last_position = HashMap::new();
     for (index, child) in scope.children.iter().enumerate() {
-        if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
+        if let Some(function) = child.inner.function_declaration_for_labelled_item()
             && let Some(name) = function.name
         {
             last_position.insert(arena.identifiers[name].name, index);
@@ -1880,7 +1880,7 @@ fn script_function_names(scope: &ast::ScopeData, arena: &ast::AstArena) -> Vec<a
 
     let mut names = Vec::new();
     for (index, child) in scope.children.iter().enumerate() {
-        if let ast::StatementKind::FunctionDeclaration(ref function) = child.inner
+        if let Some(function) = child.inner.function_declaration_for_labelled_item()
             && let Some(name) = function.name
             && last_position.get(&arena.identifiers[name].name).copied() == Some(index)
         {
