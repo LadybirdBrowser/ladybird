@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 25 tests
+
+24 Pass
+1 Fail
+Pass	@supports at-rule
+Pass	@supports at-rule 1
+Pass	@supports at-rule 2
+Pass	@supports at-rule 3
+Pass	@supports at-rule 4
+Pass	@supports at-rule 5
+Pass	@supports at-rule 6
+Pass	@supports at-rule 7
+Fail	@supports at-rule 8
+Pass	@supports at-rule 9
+Pass	@supports at-rule 10
+Pass	@supports at-rule 11
+Pass	@supports at-rule 12
+Pass	@supports at-rule 13
+Pass	@supports at-rule 14
+Pass	@supports at-rule 15
+Pass	@supports at-rule 16
+Pass	@supports at-rule 17
+Pass	@supports at-rule 18
+Pass	@supports at-rule 19
+Pass	@supports at-rule 20
+Pass	@supports at-rule 21
+Pass	@supports at-rule 22
+Pass	@supports at-rule 23
+Pass	@supports at-rule 24
