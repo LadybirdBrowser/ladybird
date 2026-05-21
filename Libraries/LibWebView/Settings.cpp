@@ -464,6 +464,17 @@ BrowsingBehavior Settings::parse_browsing_behavior(JsonValue const& settings)
     return browsing_behavior;
 }
 
+BrowsingBehavior Settings::browsing_behavior() const
+{
+    auto browsing_behavior = m_browsing_behavior;
+
+    // Override browsing behaviors depending on what the system supports. We do this here, rather than persisting the
+    // setting override, so that we don't persist unsupported behavior when headless mode is used.
+    browsing_behavior.enable_primary_paste &= Application::the().supports_clipboard_type(Application::ClipboardType::Selection);
+
+    return browsing_behavior;
+}
+
 void Settings::set_browsing_behavior(BrowsingBehavior browsing_behavior)
 {
     m_browsing_behavior = browsing_behavior;

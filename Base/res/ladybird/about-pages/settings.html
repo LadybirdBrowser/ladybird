@@ -397,7 +397,7 @@
                             <input id="enable-autoscroll" type="checkbox" switch />
                         </div>
                     </div>
-                    <div class="card-group card-separator">
+                    <div class="card-group card-separator" id="enable-primary-paste-group">
                         <div class="inline-container">
                             <label for="enable-primary-paste">
                                 Enable primary pasting
@@ -738,6 +738,7 @@
             });
 
             document.addEventListener("WebUILoaded", () => {
+                ladybird.sendMessage("loadFeatures");
                 ladybird.sendMessage("loadCurrentSettings");
             });
         </script>
