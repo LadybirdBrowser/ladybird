@@ -1950,7 +1950,12 @@ fn collect_module_imports_and_exports(scope: &ast::ScopeData, metadata: &mut Mod
                     .find(|import| entry.local_or_import_name.as_ref() == Some(&import.local_name));
                 if let Some(import_entry) = matching_import {
                     if import_entry.import_name.is_none() {
-                        metadata.local_exports.push(export_record(entry, None));
+                        metadata.indirect_exports.push(ModuleExportEntryRecord {
+                            kind: ast::ExportEntryKind::ModuleRequestAll,
+                            export_name: entry.export_name.clone(),
+                            local_or_import_name: None,
+                            module_request: Some(import_entry.module_request.clone()),
+                        });
                     } else {
                         metadata.indirect_exports.push(ModuleExportEntryRecord {
                             kind: entry.kind,
