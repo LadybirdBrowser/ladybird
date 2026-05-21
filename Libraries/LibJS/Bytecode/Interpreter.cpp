@@ -2143,7 +2143,7 @@ void NewPrimitiveArray::execute_impl(VM& vm) const
 // 13.2.8.4 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
 void GetTemplateObject::execute_impl(VM& vm) const
 {
-    auto& cache = vm.current_executable().template_object_caches[m_cache];
+    auto& cache = *vm.current_executable().template_object_caches[m_cache];
 
     // 1. Let realm be the current Realm Record.
     auto& realm = *vm.current_realm();
