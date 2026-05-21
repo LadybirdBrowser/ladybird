@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
@@ -464,6 +465,40 @@ bool Internals::set_http_memory_cache_enabled(bool enabled)
     auto was_enabled = Web::Fetch::Fetching::http_memory_cache_enabled();
     Web::Fetch::Fetching::set_http_memory_cache_enabled(enabled);
     return was_enabled;
+}
+
+WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns_source)
+{
+    Vector<String> patterns;
+
+    for (auto line : patterns_source.bytes_as_string_view().split_view('\n', SplitBehavior::Nothing)) {
+        if (line.ends_with('\r'))
+            line = line.substring_view(0, line.length() - 1);
+        if (line.is_empty())
+            continue;
+
+        auto pattern = String::from_utf8(line);
+        if (pattern.is_error())
+            return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", pattern.error())));
+
+        patterns.append(pattern.release_value());
+    }
+
+    auto& blocker = ContentBlocker::the();
+    auto had_cosmetic_rules = blocker.has_cosmetic_rules();
+    auto result = blocker.set_patterns(patterns);
+    if (result.is_error())
+        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", result.error())));
+
+    if (had_cosmetic_rules || blocker.has_cosmetic_rules())
+        page().invalidate_user_style();
+
+    return {};
+}
+
+void Internals::set_content_blocking_enabled(bool enabled)
+{
+    page().set_content_blocking_enabled(enabled);
 }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static
