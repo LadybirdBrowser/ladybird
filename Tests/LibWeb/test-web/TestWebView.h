@@ -22,7 +22,7 @@ class TestWebView final : public WebView::HeadlessWebView {
 public:
     static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
 
-    void clear_content_filters();
+    void clear_content_blockers();
     pid_t web_content_pid() const;
 
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();

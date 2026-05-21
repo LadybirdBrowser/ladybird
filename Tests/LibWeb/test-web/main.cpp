@@ -1291,7 +1291,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     for (auto [view_id, view] : enumerate(views)) {
         set_ui_callbacks_for_tests(*view, test_run_capture);
-        view->clear_content_filters();
+        view->clear_content_blockers();
 
         auto cleanup_test = [&, view = view.ptr()](size_t test_index, TestResult test_result) {
             view->on_load_finish = {};

@@ -9,21 +9,21 @@
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/Span.h>
-#include <LibWeb/Loader/ContentFilter.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 
 namespace Web {
 
-ContentFilter& ContentFilter::the()
+ContentBlocker& ContentBlocker::the()
 {
-    static ContentFilter filter;
-    return filter;
+    static ContentBlocker blocker;
+    return blocker;
 }
 
-ContentFilter::ContentFilter() = default;
+ContentBlocker::ContentBlocker() = default;
 
-ContentFilter::~ContentFilter() = default;
+ContentBlocker::~ContentBlocker() = default;
 
-bool ContentFilter::is_filtered(URL::URL const& url) const
+bool ContentBlocker::is_filtered(URL::URL const& url) const
 {
     if (!filtering_enabled())
         return false;
@@ -33,14 +33,14 @@ bool ContentFilter::is_filtered(URL::URL const& url) const
     return contains(url.to_string());
 }
 
-bool ContentFilter::contains(StringView text) const
+bool ContentBlocker::contains(StringView text) const
 {
     if (!m_matcher)
         return false;
     return m_matcher->contains(text);
 }
 
-ErrorOr<void> ContentFilter::set_patterns(ReadonlySpan<String> patterns)
+ErrorOr<void> ContentBlocker::set_patterns(ReadonlySpan<String> patterns)
 {
     m_matcher = make<AsciiStringMatcher>(patterns);
     return {};

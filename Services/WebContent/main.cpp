@@ -27,7 +27,7 @@
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/Internals.h>
-#include <LibWeb/Loader/ContentFilter.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -100,7 +100,7 @@ static void install_crash_signal_handlers()
 }
 #endif
 
-static ErrorOr<void> load_content_filters(StringView config_path);
+static ErrorOr<void> load_content_blockers(StringView config_path);
 
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle);
 static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle);
@@ -251,9 +251,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Web::WebIDL::set_enable_idl_tracing(true);
     }
 
-    auto maybe_content_filter_error = load_content_filters(config_path);
-    if (maybe_content_filter_error.is_error())
-        dbgln("Failed to load content filters: {}", maybe_content_filter_error.error());
+    auto maybe_content_blocker_error = load_content_blockers(config_path);
+    if (maybe_content_blocker_error.is_error())
+        dbgln("Failed to load content blockers: {}", maybe_content_blocker_error.error());
 
 #if defined(AK_OS_MACOS)
     auto browser_port = TRY(Core::MachPort::look_up_from_bootstrap_server(ByteString { mach_server_name }));
@@ -277,17 +277,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     return event_loop.exec();
 }
 
-static ErrorOr<void> load_content_filters(StringView config_path)
+static ErrorOr<void> load_content_blockers(StringView config_path)
 {
     auto buffer = TRY(ByteBuffer::create_uninitialized(4096));
 
-    auto file = TRY(Core::File::open(ByteString::formatted("{}/BrowserContentFilters.txt", config_path), Core::File::OpenMode::Read));
-    auto ad_filter_list = TRY(Core::InputBufferedFile::create(move(file)));
+    auto file = TRY(Core::File::open(ByteString::formatted("{}/BrowserContentBlockers.txt", config_path), Core::File::OpenMode::Read));
+    auto content_blocker_list = TRY(Core::InputBufferedFile::create(move(file)));
 
     Vector<String> patterns;
 
-    while (TRY(ad_filter_list->can_read_line())) {
-        auto line = TRY(ad_filter_list->read_line(buffer));
+    while (TRY(content_blocker_list->can_read_line())) {
+        auto line = TRY(content_blocker_list->read_line(buffer));
         if (line.is_empty())
             continue;
 
@@ -295,8 +295,8 @@ static ErrorOr<void> load_content_filters(StringView config_path)
         TRY(patterns.try_append(move(pattern)));
     }
 
-    auto& content_filter = Web::ContentFilter::the();
-    TRY(content_filter.set_patterns(patterns));
+    auto& content_blocker = Web::ContentBlocker::the();
+    TRY(content_blocker.set_patterns(patterns));
 
     return {};
 }

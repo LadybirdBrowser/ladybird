@@ -807,7 +807,7 @@ set(SOURCES
     Layout/TreeBuilder.cpp
     Layout/VideoBox.cpp
     Layout/Viewport.cpp
-    Loader/ContentFilter.cpp
+    Loader/ContentBlocker.cpp
     Loader/FileRequest.cpp
     Loader/GeneratedPagesLoader.cpp
     Loader/ProxyMappings.cpp

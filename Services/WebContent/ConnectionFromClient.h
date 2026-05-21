@@ -107,7 +107,7 @@ private:
     virtual void clone_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) override;
 
-    virtual void set_content_filters(u64 page_id, Vector<String>) override;
+    virtual void set_content_blockers(u64 page_id, Vector<String> patterns) override;
     virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;
     virtual void set_autoplay_allowlist(u64 page_id, Vector<String> allowlist) override;
     virtual void set_proxy_mappings(u64 page_id, Vector<ByteString>, HashMap<ByteString, size_t>) override;

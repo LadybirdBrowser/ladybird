@@ -18,7 +18,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
-#include <LibWeb/Loader/ContentFilter.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/ProxyMappings.h>
@@ -77,7 +77,7 @@ void ResourceLoader::prefetch_dns(URL::URL const& url)
     if (url.scheme().is_one_of("file"sv, "data"sv))
         return;
 
-    if (ContentFilter::the().is_filtered(url)) {
+    if (ContentBlocker::the().is_filtered(url)) {
         dbgln("ResourceLoader: Refusing to prefetch DNS for '{}': \033[31;1mURL was filtered\033[0m", url);
         return;
     }
@@ -92,7 +92,7 @@ void ResourceLoader::preconnect(URL::URL const& url)
     if (url.scheme().is_one_of("file"sv, "data"sv))
         return;
 
-    if (ContentFilter::the().is_filtered(url)) {
+    if (ContentBlocker::the().is_filtered(url)) {
         dbgln("ResourceLoader: Refusing to pre-connect to '{}': \033[31;1mURL was filtered\033[0m", url);
         return;
     }
@@ -189,7 +189,7 @@ static bool should_block_request(LoadRequest const& request)
         return true;
     }
 
-    if (ContentFilter::the().is_filtered(url)) {
+    if (ContentBlocker::the().is_filtered(url)) {
         log_filtered_request(request);
         return true;
     }

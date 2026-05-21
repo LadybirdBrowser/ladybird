@@ -37,9 +37,9 @@ private:
     Vector<Transition> m_transitions;
 };
 
-class WEB_API ContentFilter {
+class WEB_API ContentBlocker {
 public:
-    static ContentFilter& the();
+    static ContentBlocker& the();
 
     bool filtering_enabled() const { return m_filtering_enabled; }
     void set_filtering_enabled(bool const enabled) { m_filtering_enabled = enabled; }
@@ -48,8 +48,8 @@ public:
     ErrorOr<void> set_patterns(ReadonlySpan<String>);
 
 private:
-    ContentFilter();
-    ~ContentFilter();
+    ContentBlocker();
+    ~ContentBlocker();
 
     bool contains(StringView text) const;
 

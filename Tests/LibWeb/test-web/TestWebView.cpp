@@ -25,9 +25,9 @@ TestWebView::TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewp
 {
 }
 
-void TestWebView::clear_content_filters()
+void TestWebView::clear_content_blockers()
 {
-    client().async_set_content_filters(m_client_state.page_index, {});
+    client().async_set_content_blockers(m_client_state.page_index, {});
 }
 
 pid_t TestWebView::web_content_pid() const
