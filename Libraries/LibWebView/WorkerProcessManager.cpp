@@ -7,11 +7,9 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibIPC/File.h>
-#include <LibWeb/Worker/WebWorkerClient.h>
-#include <LibWebView/Application.h>
-#include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
 namespace WebView {
@@ -34,7 +32,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebContentClie
     return start_worker_agent(move(abstract_owner), move(request));
 }
 
-Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Web::HTML::WebWorkerClient& owner, Web::HTML::WorkerAgentStartRequest request)
+Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClient& owner, Web::HTML::WorkerAgentStartRequest request)
 {
     auto abstract_owner = Owner {
         .client = WebWorkerOwner {
@@ -113,40 +111,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
     // AD-HOC: For DedicatedWorker there is no shared worker manager step; we always launch a fresh
     //         worker process here.
     auto agent_id = ++m_next_agent_id;
-    auto client = MUST(launch_web_worker_process(request.agent_type));
-
-    client->on_worker_close = [this, agent_id] {
-        worker_did_close(agent_id);
-    };
-    client->on_worker_script_load_success = [this, agent_id](bool worker_is_secure_context) {
-        worker_did_finish_loading_script(agent_id, worker_is_secure_context);
-    };
-    client->on_worker_script_load_failure = [this, agent_id] {
-        worker_did_fail_loading_script(agent_id);
-    };
-    client->on_worker_exception = [this, agent_id](String message, String filename, u32 lineno, u32 colno) {
-        worker_did_report_exception(agent_id, move(message), move(filename), lineno, colno);
-    };
-    client->on_worker_died = [this, agent_id] {
-        worker_did_die(agent_id);
-    };
-    client->on_request_cookie = [](URL::URL const& url, HTTP::Cookie::Source source) {
-        HTTP::Cookie::VersionedCookie cookie;
-        cookie.cookie = Application::cookie_jar().get_cookie(url, source);
-        return cookie;
-    };
-    client->on_request_file = [this, agent_id](ByteString path, i32 request_id) {
-        worker_did_request_file(agent_id, move(path), request_id);
-    };
-    client->on_post_broadcast_channel_message = [this, agent_id](Web::HTML::BroadcastChannelMessage message) {
-        worker_did_post_broadcast_channel_message(agent_id, move(message));
-    };
-    client->on_start_worker_agent = [this, client = client.ptr()](Web::HTML::WorkerAgentStartRequest request) {
-        return start_worker_agent(*client, move(request));
-    };
-    client->on_close_worker_agent = [this, client = client.ptr()](Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) {
-        close_worker_agent(*client, agent_id, owner_token);
-    };
+    auto client = MUST(launch_web_worker_process(request.agent_type, agent_id));
 
     auto request_server_handle = MUST(connect_new_request_server_client());
     auto image_decoder_handle = MUST(connect_new_image_decoder_client());
@@ -196,7 +161,7 @@ void WorkerProcessManager::close_worker_agent(WebContentClient& client, Web::HTM
     remove_owner(agent_id, identity);
 }
 
-void WorkerProcessManager::close_worker_agent(Web::HTML::WebWorkerClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
+void WorkerProcessManager::close_worker_agent(WebWorkerClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     Owner identity {
         .client = WebWorkerOwner { .client = client },
@@ -213,6 +178,23 @@ void WorkerProcessManager::remove_web_content_owner(WebContentClient& client)
         agent.owners.remove_all_matching([&](Owner const& owner) {
             auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>();
             return web_content_owner && web_content_owner->client.ptr() == &client;
+        });
+        if (agent.owners.is_empty())
+            agents_to_close.append(agent.id);
+    }
+
+    for (auto agent_id : agents_to_close)
+        remove_agent(agent_id);
+}
+
+void WorkerProcessManager::remove_web_worker_owner(WebWorkerClient& client)
+{
+    Vector<Web::HTML::WorkerAgentId> agents_to_close;
+    for (auto& entry : m_agents) {
+        auto& agent = entry.value;
+        agent.owners.remove_all_matching([&](Owner const& owner) {
+            auto const* web_worker_owner = owner.client.get_pointer<WebWorkerOwner>();
+            return web_worker_owner && web_worker_owner->client.ptr() == &client;
         });
         if (agent.owners.is_empty())
             agents_to_close.append(agent.id);

@@ -56,7 +56,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             if constexpr (requires { client->set_pid(pid_t {}); })
                 client->set_pid(process.pid());
 
-            if constexpr (requires { client->transport().set_peer_pid(0); } && !IsSame<ClientType, Web::HTML::WebWorkerClient>) {
+            if constexpr (requires { client->transport().set_peer_pid(0); } && !IsSame<ClientType, WebWorkerClient>) {
                 auto response = client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
                 client->transport().set_peer_pid(response->peer_pid());
             }
@@ -185,7 +185,7 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     return launch_server_process<WebView::CompositorClient>("Compositor"sv, move(arguments));
 }
 
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type)
+ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type, Web::HTML::WorkerAgentId agent_id)
 {
     auto const& web_content_options = WebView::Application::web_content_options();
 
@@ -218,7 +218,7 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
         arguments.append(server.value());
     }
 
-    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, move(arguments));
+    return launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), agent_id);
 }
 
 ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
