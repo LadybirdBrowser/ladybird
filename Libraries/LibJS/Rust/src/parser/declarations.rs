@@ -555,7 +555,7 @@ impl Parser<'_> {
                     "async generator function is not allowed to be called '{name_str}'"
                 ));
             }
-            if self.flags.in_class_static_init_block && fn_name == utf16!("await") {
+            if self.flags.in_class_static_init_block && is_async && fn_name == utf16!("await") {
                 self.syntax_error("'await' is a reserved word");
             }
         }
@@ -593,16 +593,15 @@ impl Parser<'_> {
         self.scope_collector.close_scope();
         self.pattern_bound_names = saved_pattern_bound_names;
 
-        self.flags.in_class_static_init_block = saved_static_init;
-        self.flags.in_class_field_initializer = saved_field_init;
-        self.flags.new_target_is_valid = saved_new_target;
-
         if name.is_some() {
             self.check_identifier_name_for_assignment_validity(fn_name, has_use_strict);
         }
         if has_use_strict || kind != FunctionKind::Normal {
             self.check_parameters_post_body(&parsed.parameter_info, has_use_strict, kind);
         }
+        self.flags.in_class_static_init_block = saved_static_init;
+        self.flags.in_class_field_initializer = saved_field_init;
+        self.flags.new_target_is_valid = saved_new_target;
 
         insights.might_need_arguments_object = self.flags.function_might_need_arguments_object;
         self.flags.function_might_need_arguments_object = saved_might_need_arguments;
@@ -1143,13 +1142,16 @@ impl Parser<'_> {
 
         let init = if self.match_token(TokenType::Equals) {
             self.consume();
+            let saved_await = self.flags.await_expression_is_valid;
             let saved_field_init = self.flags.in_class_field_initializer;
             let saved_super_lookup = self.flags.allow_super_property_lookup;
+            self.flags.await_expression_is_valid = false;
             self.flags.in_class_field_initializer = true;
             self.flags.allow_super_property_lookup = true;
             self.scope_collector.open_class_field_scope(None);
             let expression = self.parse_assignment_expression();
             self.scope_collector.close_scope();
+            self.flags.await_expression_is_valid = saved_await;
             self.flags.in_class_field_initializer = saved_field_init;
             self.flags.allow_super_property_lookup = saved_super_lookup;
             Some(Box::new(expression))
