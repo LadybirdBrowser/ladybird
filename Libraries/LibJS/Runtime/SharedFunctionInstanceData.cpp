@@ -23,6 +23,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     bool is_arrow_function,
     bool has_simple_parameter_list,
     Vector<Utf16FlyString> parameter_names_for_mapped_arguments,
+    SharedFunctionInstanceDataList& owner_shared_function_data_list,
     void* rust_function_ast)
     : m_name(move(name))
     , m_function_length(function_length)
@@ -34,6 +35,38 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     , m_has_simple_parameter_list(has_simple_parameter_list)
     , m_rust_function_ast(rust_function_ast)
     , m_use_rust_compilation(true)
+{
+    initialize_after_construction();
+    owner_shared_function_data_list.append(*this);
+}
+
+SharedFunctionInstanceData::SharedFunctionInstanceData(
+    VM&,
+    FunctionKind kind,
+    Utf16FlyString name,
+    i32 function_length,
+    u32 formal_parameter_count,
+    bool strict,
+    bool is_arrow_function,
+    bool has_simple_parameter_list,
+    Vector<Utf16FlyString> parameter_names_for_mapped_arguments,
+    NoSharedFunctionDataList,
+    void* rust_function_ast)
+    : m_name(move(name))
+    , m_function_length(function_length)
+    , m_formal_parameter_count(formal_parameter_count)
+    , m_parameter_names_for_mapped_arguments(move(parameter_names_for_mapped_arguments))
+    , m_kind(kind)
+    , m_strict(strict)
+    , m_is_arrow_function(is_arrow_function)
+    , m_has_simple_parameter_list(has_simple_parameter_list)
+    , m_rust_function_ast(rust_function_ast)
+    , m_use_rust_compilation(true)
+{
+    initialize_after_construction();
+}
+
+void SharedFunctionInstanceData::initialize_after_construction()
 {
     if (m_is_arrow_function)
         m_this_mode = ThisMode::Lexical;
@@ -130,6 +163,9 @@ void SharedFunctionInstanceData::update_asm_call_metadata()
 
 void SharedFunctionInstanceData::finalize()
 {
+    if (m_owner_shared_function_data_list)
+        m_owner_shared_function_data_list->remove(*this);
+
     Base::finalize();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
@@ -141,14 +177,18 @@ void SharedFunctionInstanceData::finalize()
 
 void SharedFunctionInstanceData::clear_compile_inputs()
 {
-    VERIFY(m_executable);
+    clear_non_bytecode_cache_compile_inputs();
+    RustIntegration::free_cached_bytecode_executable(m_cached_bytecode_executable);
+    m_cached_bytecode_executable = nullptr;
+}
+
+void SharedFunctionInstanceData::clear_non_bytecode_cache_compile_inputs()
+{
     m_functions_to_initialize.clear();
     m_var_names_to_initialize_binding.clear();
     m_lexical_bindings.clear();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
-    RustIntegration::free_cached_bytecode_executable(m_cached_bytecode_executable);
-    m_cached_bytecode_executable = nullptr;
     RustIntegration::free_precompiled_bytecode_executable(m_precompiled_bytecode_executable);
     m_precompiled_bytecode_executable = nullptr;
 }
@@ -157,6 +197,68 @@ void SharedFunctionInstanceData::update_can_inline_call()
 {
     m_can_inline_call = m_executable && m_kind == FunctionKind::Normal && !m_is_class_constructor;
     update_asm_call_metadata();
+}
+
+SharedFunctionInstanceDataList::~SharedFunctionInstanceDataList()
+{
+    clear();
+}
+
+void SharedFunctionInstanceDataList::append(SharedFunctionInstanceData& shared_data)
+{
+    if (shared_data.m_owner_shared_function_data_list == this)
+        return;
+    if (shared_data.m_owner_shared_function_data_list)
+        shared_data.m_owner_shared_function_data_list->remove(shared_data);
+    VERIFY(!shared_data.m_script_or_module_list_node.is_in_list());
+
+    m_list.append(shared_data);
+    shared_data.m_owner_shared_function_data_list = this;
+}
+
+void SharedFunctionInstanceDataList::visit_edges(GC::Cell::Visitor& visitor)
+{
+    for (auto& shared_data : m_list)
+        visitor.visit(shared_data);
+}
+
+void SharedFunctionInstanceDataList::clear_non_bytecode_cache_compile_inputs()
+{
+    for (auto& shared_data : m_list)
+        shared_data.clear_non_bytecode_cache_compile_inputs();
+}
+
+bool SharedFunctionInstanceDataList::contains_rust_function_ast() const
+{
+    for (auto const& shared_data : m_list) {
+        if (shared_data.m_rust_function_ast)
+            return true;
+    }
+    return false;
+}
+
+bool SharedFunctionInstanceDataList::contains_precompiled_bytecode() const
+{
+    for (auto const& shared_data : m_list) {
+        if (shared_data.m_precompiled_bytecode_executable)
+            return true;
+    }
+    return false;
+}
+
+void SharedFunctionInstanceDataList::clear()
+{
+    while (!m_list.is_empty()) {
+        auto* shared_data = m_list.first();
+        remove(*shared_data);
+    }
+}
+
+void SharedFunctionInstanceDataList::remove(SharedFunctionInstanceData& shared_data)
+{
+    VERIFY(shared_data.m_owner_shared_function_data_list == this);
+    m_list.remove(shared_data);
+    shared_data.m_owner_shared_function_data_list = nullptr;
 }
 
 }

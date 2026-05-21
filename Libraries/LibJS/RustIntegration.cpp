@@ -95,6 +95,15 @@ static void collect_single_parse_error(void* ctx, uint8_t const* message, size_t
 
 struct ScriptGdiBuilder {
     ScriptResult result;
+    SharedFunctionInstanceDataList shared_function_data;
+
+    void collect_shared_function_data()
+    {
+        result.shared_function_data.clear();
+        shared_function_data.for_each([&](auto& shared_data) {
+            result.shared_function_data.append(shared_data);
+        });
+    }
 };
 
 }
@@ -219,6 +228,15 @@ namespace JS::RustIntegration {
 
 struct ModuleBuilder {
     ModuleResult result;
+    SharedFunctionInstanceDataList shared_function_data;
+
+    void collect_shared_function_data()
+    {
+        result.shared_function_data.clear();
+        shared_function_data.for_each([&](auto& shared_data) {
+            result.shared_function_data.append(shared_data);
+        });
+    }
 };
 
 static Vector<ImportAttribute> attributes_from_ffi(FFIUtf16Slice const* keys, FFIUtf16Slice const* values, size_t count)
@@ -411,11 +429,6 @@ ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& 
     return bytes;
 }
 
-DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
-{
-    return rust_decode_bytecode_cache_blob(bytes.data(), bytes.size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size());
-}
-
 static void free_bytecode_cache_blob_owner(void* owner)
 {
     delete static_cast<Core::ImmutableBytes*>(owner);
@@ -454,11 +467,12 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(Parsed
     GC::DeferGC defer_gc(realm.vm().heap());
     ScriptGdiBuilder builder;
 
-    void* exec_ptr = rust_compile_parsed_script(parsed, &realm.vm(), source_code.ptr(), &builder, length);
+    void* exec_ptr = rust_compile_parsed_script(parsed, &realm.vm(), source_code.ptr(), &builder.shared_function_data, &builder, length);
 
     if (!exec_ptr)
         return Vector<ParserError> {};
 
+    builder.collect_shared_function_data();
     builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
     return builder.result;
 }
@@ -471,11 +485,12 @@ Optional<Result<ScriptResult, Vector<ParserError>>> materialize_compiled_script(
     GC::DeferGC defer_gc(realm.vm().heap());
     ScriptGdiBuilder builder;
 
-    void* exec_ptr = rust_materialize_compiled_script(compiled, &realm.vm(), source_code.ptr(), &builder);
+    void* exec_ptr = rust_materialize_compiled_script(compiled, &realm.vm(), source_code.ptr(), &builder.shared_function_data, &builder);
 
     if (!exec_ptr)
         return Vector<ParserError> {};
 
+    builder.collect_shared_function_data();
     builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
     return builder.result;
 }
@@ -489,11 +504,12 @@ Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_s
     TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
     ScriptGdiBuilder builder;
 
-    void* exec_ptr = rust_materialize_bytecode_cache_script(blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(), &builder);
+    void* exec_ptr = rust_materialize_bytecode_cache_script(blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(), &builder.shared_function_data, &builder);
 
     if (!exec_ptr)
         return Vector<ParserError> { ParserError { "Failed to materialize bytecode cache"_string, {} } };
 
+    builder.collect_shared_function_data();
     builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
     return builder.result;
 }
@@ -578,12 +594,13 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(Parsed
 
     void* tla_executable = nullptr;
 
-    void* exec_ptr = rust_compile_parsed_module(parsed, &realm.vm(), source_code.ptr(),
+    void* exec_ptr = rust_compile_parsed_module(parsed, &realm.vm(), source_code.ptr(), &builder.shared_function_data,
         &builder, &callbacks, &tla_executable, length);
 
     if (!exec_ptr && !tla_executable)
         return Vector<ParserError> {};
 
+    builder.collect_shared_function_data();
     if (tla_executable) {
         auto& vm = realm.vm();
         auto* tla_exec = static_cast<Bytecode::Executable*>(tla_executable);
@@ -592,7 +609,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(Parsed
             vm, FunctionKind::Async,
             "module code with top-level await"_utf16_fly_string,
             0, 0, true, false, true,
-            Vector<Utf16FlyString> {}, nullptr);
+            Vector<Utf16FlyString> {}, NoSharedFunctionDataList {}, nullptr);
         builder.result.tla_shared_data->m_is_module_wrapper = true;
         builder.result.tla_shared_data->m_uses_this = true;
         builder.result.tla_shared_data->m_function_environment_needed = true;
@@ -627,12 +644,13 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_compiled_module(
 
     void* tla_executable = nullptr;
 
-    void* exec_ptr = rust_materialize_compiled_module(compiled, &realm.vm(), source_code.ptr(),
+    void* exec_ptr = rust_materialize_compiled_module(compiled, &realm.vm(), source_code.ptr(), &builder.shared_function_data,
         &builder, &callbacks, &tla_executable);
 
     if (!exec_ptr && !tla_executable)
         return Vector<ParserError> {};
 
+    builder.collect_shared_function_data();
     if (tla_executable) {
         auto& vm = realm.vm();
         auto* tla_exec = static_cast<Bytecode::Executable*>(tla_executable);
@@ -641,7 +659,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_compiled_module(
             vm, FunctionKind::Async,
             "module code with top-level await"_utf16_fly_string,
             0, 0, true, false, true,
-            Vector<Utf16FlyString> {}, nullptr);
+            Vector<Utf16FlyString> {}, NoSharedFunctionDataList {}, nullptr);
         builder.result.tla_shared_data->m_is_module_wrapper = true;
         builder.result.tla_shared_data->m_uses_this = true;
         builder.result.tla_shared_data->m_function_environment_needed = true;
@@ -677,12 +695,13 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_m
 
     void* tla_executable = nullptr;
 
-    void* exec_ptr = rust_materialize_bytecode_cache_module(blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(),
+    void* exec_ptr = rust_materialize_bytecode_cache_module(blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(), &builder.shared_function_data,
         &builder, &callbacks, &tla_executable);
 
     if (!exec_ptr && !tla_executable)
         return Vector<ParserError> { ParserError { "Failed to materialize bytecode cache"_string, {} } };
 
+    builder.collect_shared_function_data();
     if (tla_executable) {
         auto& vm = realm.vm();
         auto* tla_exec = static_cast<Bytecode::Executable*>(tla_executable);
@@ -691,7 +710,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_m
             vm, FunctionKind::Async,
             "module code with top-level await"_utf16_fly_string,
             0, 0, true, false, true,
-            Vector<Utf16FlyString> {}, nullptr);
+            Vector<Utf16FlyString> {}, NoSharedFunctionDataList {}, nullptr);
         builder.result.tla_shared_data->m_is_module_wrapper = true;
         builder.result.tla_shared_data->m_uses_this = true;
         builder.result.tla_shared_data->m_function_environment_needed = true;
@@ -702,6 +721,82 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_m
     }
 
     return builder.result;
+}
+
+GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data)
+{
+    if (!blob)
+        return {};
+
+    Vector<void*> existing_shared_function_data_ptrs;
+    existing_shared_function_data_ptrs.ensure_capacity(existing_shared_function_data.size());
+    for (auto* function : existing_shared_function_data)
+        existing_shared_function_data_ptrs.unchecked_append(function);
+
+    GC::Root<Bytecode::Executable> executable;
+    {
+        GC::DeferGC defer_gc(realm.vm().heap());
+        TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+
+        executable = static_cast<Bytecode::Executable*>(rust_install_bytecode_cache_script(
+            blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(), &existing_executable,
+            existing_shared_function_data_ptrs.data(), existing_shared_function_data_ptrs.size()));
+    }
+
+    if (executable)
+        executable->copy_runtime_caches_from(existing_executable);
+    return executable.ptr();
+}
+
+GC::Ref<Bytecode::Executable> install_generated_bytecode_cache_script(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data)
+{
+    auto executable = try_install_bytecode_cache_script(blob, move(source_code), realm, existing_executable, existing_shared_function_data);
+    VERIFY(executable);
+    return *executable;
+}
+
+Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data)
+{
+    if (!blob)
+        return {};
+
+    Vector<void*> existing_shared_function_data_ptrs;
+    existing_shared_function_data_ptrs.ensure_capacity(existing_shared_function_data.size());
+    for (auto* function : existing_shared_function_data)
+        existing_shared_function_data_ptrs.unchecked_append(function);
+
+    GC::DeferGC defer_gc(realm.vm().heap());
+    TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+
+    void* top_level_await_executable = nullptr;
+    auto* exec = static_cast<Bytecode::Executable*>(rust_install_bytecode_cache_module(
+        blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(),
+        existing_executable, existing_shared_function_data_ptrs.data(), existing_shared_function_data_ptrs.size(),
+        existing_top_level_await_shared_data, &top_level_await_executable));
+
+    if (!exec && !top_level_await_executable)
+        return {};
+
+    ModuleBytecodeCacheInstallResult result;
+    if (exec) {
+        if (existing_executable)
+            exec->copy_runtime_caches_from(*existing_executable);
+        result.executable = exec;
+    }
+    if (top_level_await_executable) {
+        auto* executable = static_cast<Bytecode::Executable*>(top_level_await_executable);
+        if (existing_top_level_await_shared_data && existing_top_level_await_shared_data->m_executable)
+            executable->copy_runtime_caches_from(*existing_top_level_await_shared_data->m_executable);
+        result.top_level_await_executable = executable;
+    }
+    return result;
+}
+
+ModuleBytecodeCacheInstallResult install_generated_bytecode_cache_module(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data)
+{
+    auto result = try_install_bytecode_cache_module(blob, move(source_code), realm, existing_executable, existing_shared_function_data, existing_top_level_await_shared_data);
+    VERIFY(result.has_value());
+    return result.release_value();
 }
 
 Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename)
@@ -791,7 +886,8 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
         auto* exec = static_cast<Bytecode::Executable*>(rust_materialize_precompiled_bytecode_function(
             shared_data.m_precompiled_bytecode_executable,
             &vm,
-            shared_data.m_source_code.ptr()));
+            shared_data.m_source_code.ptr(),
+            shared_data.m_owner_shared_function_data_list));
         shared_data.m_precompiled_bytecode_executable = nullptr;
         return exec;
     }
@@ -802,7 +898,8 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
         auto* exec = static_cast<Bytecode::Executable*>(rust_materialize_bytecode_cache_function(
             shared_data.m_cached_bytecode_executable,
             &vm,
-            shared_data.m_source_code.ptr()));
+            shared_data.m_source_code.ptr(),
+            shared_data.m_owner_shared_function_data_list));
         shared_data.m_cached_bytecode_executable = nullptr;
         return exec;
     }
@@ -820,7 +917,8 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
         shared_data.m_source_code->length_in_code_units(),
         &shared_data,
         shared_data.m_rust_function_ast,
-        builtin_abstract_operations_enabled));
+        builtin_abstract_operations_enabled,
+        shared_data.m_owner_shared_function_data_list));
     shared_data.m_rust_function_ast = nullptr;
 
     return exec;
@@ -1176,10 +1274,12 @@ extern "C" void* rust_create_executable(
     return executable.ptr();
 }
 
-extern "C" void* rust_create_sfd(
+template<typename SharedFunctionDataList>
+static GC::Ref<JS::SharedFunctionInstanceData> create_shared_function_instance_data(
     void* vm_ptr,
     void const* source_code_ptr,
-    FFISharedFunctionData const* data)
+    FFISharedFunctionData const* data,
+    SharedFunctionDataList&& shared_function_data_list)
 {
     auto& vm = *static_cast<JS::VM*>(vm_ptr);
     auto& source_code = *static_cast<JS::SourceCode const*>(source_code_ptr);
@@ -1205,6 +1305,7 @@ extern "C" void* rust_create_sfd(
         data->is_arrow,
         data->has_simple_parameter_list,
         move(mapped_param_names),
+        forward<SharedFunctionDataList>(shared_function_data_list),
         data->rust_function_ast);
 
     // Set parsing insights that must be available before lazy compilation.
@@ -1215,8 +1316,28 @@ extern "C" void* rust_create_sfd(
     shared->update_asm_call_metadata();
 
     shared->set_source_text_range(source_code, data->source_text_offset, data->source_text_length);
+    shared->m_bytecode_cache_source_text_offset = data->source_text_offset;
+    shared->m_bytecode_cache_source_text_length = data->source_text_length;
+    shared->m_has_bytecode_cache_source_text_range = true;
+    return shared;
+}
 
-    return shared.ptr();
+extern "C" void* rust_create_sfd(
+    void* vm_ptr,
+    void const* source_code_ptr,
+    FFISharedFunctionData const* data)
+{
+    return create_shared_function_instance_data(vm_ptr, source_code_ptr, data, JS::NoSharedFunctionDataList {}).ptr();
+}
+
+extern "C" void* rust_create_sfd_in_list(
+    void* vm_ptr,
+    void const* source_code_ptr,
+    void* shared_function_data_list_ptr,
+    FFISharedFunctionData const* data)
+{
+    auto& shared_function_data_list = *static_cast<JS::SharedFunctionInstanceDataList*>(shared_function_data_list_ptr);
+    return create_shared_function_instance_data(vm_ptr, source_code_ptr, data, shared_function_data_list).ptr();
 }
 
 extern "C" void rust_sfd_set_metadata(
@@ -1268,6 +1389,9 @@ extern "C" void rust_sfd_set_precompiled_executable(
 {
     auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
     auto& executable = *static_cast<JS::Bytecode::Executable*>(executable_ptr);
+    auto previous_executable = shared.m_executable;
+    if (previous_executable)
+        executable.copy_runtime_caches_from(*previous_executable);
 
     shared.m_uses_this = uses_this;
     shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
@@ -1320,6 +1444,7 @@ extern "C" void rust_sfd_set_precompiled_bytecode_executable(
 {
     auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
 
+    shared.clear_compile_inputs();
     shared.m_uses_this = uses_this;
     shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
     shared.m_function_environment_needed = function_environment_needed;
@@ -1328,8 +1453,117 @@ extern "C" void rust_sfd_set_precompiled_bytecode_executable(
     shared.m_might_need_arguments_object = might_need_arguments_object;
     shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
     shared.m_precompiled_bytecode_executable = precompiled_executable_ptr;
-    RustIntegration::free_function_ast(shared.m_rust_function_ast);
-    shared.m_rust_function_ast = nullptr;
+    shared.update_asm_call_metadata();
+}
+
+extern "C" size_t rust_executable_shared_function_data_count(void const* executable_ptr)
+{
+    if (!executable_ptr)
+        return 0;
+    auto& executable = *static_cast<JS::Bytecode::Executable const*>(executable_ptr);
+    return executable.shared_function_data.size();
+}
+
+extern "C" void* rust_executable_shared_function_data_at(void const* executable_ptr, size_t index)
+{
+    if (!executable_ptr)
+        return nullptr;
+    auto& executable = *static_cast<JS::Bytecode::Executable const*>(executable_ptr);
+    if (index >= executable.shared_function_data.size())
+        return nullptr;
+    return executable.shared_function_data[index].ptr();
+}
+
+extern "C" void* rust_sfd_executable(void const* sfd_ptr)
+{
+    if (!sfd_ptr)
+        return nullptr;
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData const*>(sfd_ptr);
+    return shared.m_executable.ptr();
+}
+
+static size_t bytecode_cache_source_text_offset(JS::SharedFunctionInstanceData const& shared)
+{
+    if (shared.m_has_bytecode_cache_source_text_range)
+        return shared.m_bytecode_cache_source_text_offset;
+    return shared.m_source_text_offset;
+}
+
+static size_t bytecode_cache_source_text_length(JS::SharedFunctionInstanceData const& shared)
+{
+    if (shared.m_has_bytecode_cache_source_text_range)
+        return shared.m_bytecode_cache_source_text_length;
+    return shared.m_source_text_length;
+}
+
+extern "C" bool rust_sfd_matches_bytecode_cache_function(void const* sfd_ptr, FFISharedFunctionData const* data)
+{
+    if (!sfd_ptr || !data)
+        return false;
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData const*>(sfd_ptr);
+    return bytecode_cache_source_text_offset(shared) == data->source_text_offset
+        && bytecode_cache_source_text_length(shared) == data->source_text_length
+        && shared.m_function_length == data->function_length
+        && shared.m_formal_parameter_count == data->formal_parameter_count
+        && shared.m_kind == static_cast<JS::FunctionKind>(data->function_kind)
+        && shared.m_strict == data->strict
+        && shared.m_is_arrow_function == data->is_arrow
+        && shared.m_has_simple_parameter_list == data->has_simple_parameter_list;
+}
+
+extern "C" void rust_sfd_install_bytecode_cache_executable(
+    void* sfd_ptr,
+    void* executable_ptr,
+    bool uses_this,
+    bool this_value_needs_environment_resolution,
+    bool function_environment_needed,
+    size_t function_environment_bindings_count,
+    size_t var_environment_bindings_count,
+    bool might_need_arguments_object,
+    bool contains_direct_call_to_eval)
+{
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
+    auto& executable = *static_cast<JS::Bytecode::Executable*>(executable_ptr);
+    auto previous_executable = shared.m_executable;
+    if (previous_executable)
+        executable.copy_runtime_caches_from(*previous_executable);
+
+    shared.m_uses_this = uses_this;
+    shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
+    shared.m_function_environment_needed = function_environment_needed;
+    shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_var_environment_bindings_count = var_environment_bindings_count;
+    shared.m_might_need_arguments_object = might_need_arguments_object;
+    shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
+    shared.set_executable(executable);
+    executable.name = shared.m_name;
+    if (Bytecode::g_dump_bytecode)
+        executable.dump();
+    shared.clear_compile_inputs();
+}
+
+extern "C" void rust_sfd_install_cached_bytecode_executable(
+    void* sfd_ptr,
+    void* cached_executable_ptr,
+    bool uses_this,
+    bool this_value_needs_environment_resolution,
+    bool function_environment_needed,
+    size_t function_environment_bindings_count,
+    size_t var_environment_bindings_count,
+    bool might_need_arguments_object,
+    bool contains_direct_call_to_eval)
+{
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
+
+    shared.clear_compile_inputs();
+    shared.m_uses_this = uses_this;
+    shared.m_this_value_needs_environment_resolution = this_value_needs_environment_resolution;
+    shared.m_function_environment_needed = function_environment_needed;
+    shared.m_function_environment_bindings_count = function_environment_bindings_count;
+    shared.m_var_environment_bindings_count = var_environment_bindings_count;
+    shared.m_might_need_arguments_object = might_need_arguments_object;
+    shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;
+    shared.m_cached_bytecode_executable = cached_executable_ptr;
     shared.update_asm_call_metadata();
 }
 

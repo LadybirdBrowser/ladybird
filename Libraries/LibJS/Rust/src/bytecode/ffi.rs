@@ -35,6 +35,19 @@ use crate::u32_from_usize;
 /// Opaque pointer returned from rust_create_executable.
 pub type ExecutableHandle = *mut c_void;
 
+#[derive(Clone, Copy)]
+pub enum SharedFunctionDataOwner {
+    None,
+    List(*mut c_void),
+}
+
+#[derive(Clone, Copy)]
+pub struct SharedFunctionDataCreationContext {
+    pub vm_ptr: *mut c_void,
+    pub source_code_ptr: *const c_void,
+    pub owner: SharedFunctionDataOwner,
+}
+
 /// Exception handler range (C++ `BytecodeFactory::ExceptionHandlerData`).
 #[repr(C)]
 pub struct FFIExceptionHandler {
@@ -240,6 +253,12 @@ unsafe extern "C" {
         source_code_ptr: *const c_void,
         data: *const FFISharedFunctionData,
     ) -> *mut c_void;
+    pub fn rust_create_sfd_in_list(
+        vm_ptr: *mut c_void,
+        source_code_ptr: *const c_void,
+        shared_function_data_list_ptr: *mut c_void,
+        data: *const FFISharedFunctionData,
+    ) -> *mut c_void;
 
     pub fn rust_sfd_set_class_field_initializer_name(
         sfd_ptr: *mut c_void,
@@ -275,6 +294,34 @@ unsafe extern "C" {
     pub fn rust_sfd_set_precompiled_bytecode_executable(
         sfd_ptr: *mut c_void,
         precompiled_executable_ptr: *mut c_void,
+        uses_this: bool,
+        this_value_needs_environment_resolution: bool,
+        function_environment_needed: bool,
+        function_environment_bindings_count: usize,
+        var_environment_bindings_count: usize,
+        might_need_arguments_object: bool,
+        contains_direct_call_to_eval: bool,
+    );
+
+    pub fn rust_executable_shared_function_data_count(executable_ptr: *const c_void) -> usize;
+    pub fn rust_executable_shared_function_data_at(executable_ptr: *const c_void, index: usize) -> *mut c_void;
+    pub fn rust_sfd_executable(sfd_ptr: *const c_void) -> *mut c_void;
+    pub fn rust_sfd_matches_bytecode_cache_function(sfd_ptr: *const c_void, data: *const FFISharedFunctionData)
+    -> bool;
+    pub fn rust_sfd_install_bytecode_cache_executable(
+        sfd_ptr: *mut c_void,
+        executable_ptr: *mut c_void,
+        uses_this: bool,
+        this_value_needs_environment_resolution: bool,
+        function_environment_needed: bool,
+        function_environment_bindings_count: usize,
+        var_environment_bindings_count: usize,
+        might_need_arguments_object: bool,
+        contains_direct_call_to_eval: bool,
+    );
+    pub fn rust_sfd_install_cached_bytecode_executable(
+        sfd_ptr: *mut c_void,
+        cached_executable_ptr: *mut c_void,
         uses_this: bool,
         this_value_needs_environment_resolution: bool,
         function_environment_needed: bool,
@@ -345,8 +392,7 @@ unsafe extern "C" {
 pub unsafe fn create_shared_function_data(
     function_data: Box<crate::ast::FunctionData>,
     subtable: crate::ast::FunctionTable,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    context: SharedFunctionDataCreationContext,
     is_strict: bool,
     name_override: Option<&[u16]>,
     arena: std::sync::Arc<crate::ast::AstArena>,
@@ -420,7 +466,15 @@ pub unsafe fn create_shared_function_data(
             uses_this_from_environment,
         };
 
-        let sfd_ptr = rust_create_sfd(vm_ptr, source_code_ptr, &raw const ffi_data);
+        let sfd_ptr = match context.owner {
+            SharedFunctionDataOwner::None => {
+                rust_create_sfd(context.vm_ptr, context.source_code_ptr, &raw const ffi_data)
+            }
+            SharedFunctionDataOwner::List(list_ptr) => {
+                assert!(!list_ptr.is_null(), "SharedFunctionDataOwner::List must not be null");
+                rust_create_sfd_in_list(context.vm_ptr, context.source_code_ptr, list_ptr, &raw const ffi_data)
+            }
+        };
 
         assert!(
             !sfd_ptr.is_null(),
@@ -437,18 +491,16 @@ pub unsafe fn create_shared_function_data(
 pub unsafe fn create_sfd_for_gdi(
     function_data: Box<crate::ast::FunctionData>,
     subtable: crate::ast::FunctionTable,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    context: SharedFunctionDataCreationContext,
     is_strict: bool,
     arena: std::sync::Arc<crate::ast::AstArena>,
 ) -> *mut c_void {
-    unsafe { create_shared_function_data(function_data, subtable, vm_ptr, source_code_ptr, is_strict, None, arena) }
+    unsafe { create_shared_function_data(function_data, subtable, context, is_strict, None, arena) }
 }
 
 unsafe fn materialize_shared_function_data(
     generator: &mut Generator,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
+    context: SharedFunctionDataCreationContext,
 ) -> Vec<*const c_void> {
     unsafe {
         let mut sfd_ptrs = Vec::with_capacity(generator.shared_function_data.len());
@@ -465,8 +517,7 @@ unsafe fn materialize_shared_function_data(
             let sfd_ptr = create_shared_function_data(
                 function_data,
                 subtable,
-                vm_ptr,
-                source_code_ptr,
+                context,
                 generator.strict,
                 pending.name_override.as_ref().map(|name| name.as_slice()),
                 arena,
@@ -651,9 +702,17 @@ pub unsafe fn create_executable(
     assembled: &AssembledBytecode,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
+    owner: SharedFunctionDataOwner,
 ) -> ExecutableHandle {
     unsafe {
-        let sfd_ptrs = materialize_shared_function_data(generator, vm_ptr, source_code_ptr);
+        let sfd_ptrs = materialize_shared_function_data(
+            generator,
+            SharedFunctionDataCreationContext {
+                vm_ptr,
+                source_code_ptr,
+                owner,
+            },
+        );
         let bp_ptrs = materialize_class_blueprints(generator, vm_ptr, source_code_ptr);
         create_executable_with_dependencies(generator, assembled, vm_ptr, source_code_ptr, &sfd_ptrs, &bp_ptrs)
     }

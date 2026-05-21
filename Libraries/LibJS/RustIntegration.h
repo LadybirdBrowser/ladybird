@@ -11,6 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Result.h>
+#include <AK/Span.h>
 #include <AK/Utf16FlyString.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Ptr.h>
@@ -45,6 +46,7 @@ enum class ProgramType : u8 {
 //     between compile_script() and the Script constructor.
 struct ScriptResult {
     GC::Root<Bytecode::Executable> executable;
+    Vector<GC::Root<SharedFunctionInstanceData>> shared_function_data;
     bool is_strict_mode { false };
     Vector<Utf16FlyString> lexical_names;
     Vector<Utf16FlyString> var_names;
@@ -85,6 +87,7 @@ struct ModuleResult {
     };
     Vector<FunctionToInitialize> functions_to_initialize;
     GC::Root<Bytecode::Executable> executable;
+    Vector<GC::Root<SharedFunctionInstanceData>> shared_function_data;
     GC::Root<SharedFunctionInstanceData> tla_shared_data;
 };
 
@@ -112,8 +115,7 @@ JS_API void free_compiled_program(FFI::CompiledProgram*);
 // Serialize a fully compiled program into a versioned bytecode cache blob.
 JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&, ProgramType, ReadonlyBytes source_hash);
 
-// Decode a bytecode cache blob into an owned parser-free cache handle.
-JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(ReadonlyBytes, ProgramType, ReadonlyBytes source_hash);
+// Decode an ImmutableBytes-backed bytecode cache blob into a parser-free cache handle.
 JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes, ProgramType, ReadonlyBytes source_hash);
 
 // Free a decoded bytecode cache blob.
@@ -126,6 +128,27 @@ JS_API Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_
 // Materialize a decoded module bytecode cache blob. Must be called on the main thread.
 // Consumes and frees the decoded blob.
 JS_API Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_module(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&);
+
+struct ModuleBytecodeCacheInstallResult {
+    GC::Root<Bytecode::Executable> executable;
+    GC::Root<Bytecode::Executable> top_level_await_executable;
+};
+
+// Try to install a decoded script bytecode cache blob into an existing script executable tree.
+// Must be called on the main thread. Consumes and frees the decoded blob.
+JS_API GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data);
+
+// Install a decoded script bytecode cache blob produced by the current process.
+// Must be called on the main thread. Consumes and frees the decoded blob.
+JS_API GC::Ref<Bytecode::Executable> install_generated_bytecode_cache_script(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data);
+
+// Try to install a decoded module bytecode cache blob into an existing module executable tree.
+// Must be called on the main thread. Consumes and frees the decoded blob.
+JS_API Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data);
+
+// Install a decoded module bytecode cache blob produced by the current process.
+// Must be called on the main thread. Consumes and frees the decoded blob.
+JS_API ModuleBytecodeCacheInstallResult install_generated_bytecode_cache_module(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data);
 
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.
