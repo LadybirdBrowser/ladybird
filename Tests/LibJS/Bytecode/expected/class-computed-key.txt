@@ -17,7 +17,7 @@ f$0a149d9a class-computed-key.js:4:5
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable ``, is_immutable:true, is_global:false, is_strict:false
+  [  20] CreateVariable ``, is_immutable:true, is_global:false, is_strict:true
   [  30] GetGlobal dst:reg6, `Symbol`
   [  40] GetById dst:reg7, base:reg6, `iterator` (Symbol.iterator)
   [  58] SetLexicalEnvironment environment:reg4

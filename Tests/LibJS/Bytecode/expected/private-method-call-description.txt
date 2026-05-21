@@ -8,7 +8,7 @@ $79e506f5 private-method-call-description.js:1:1
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [  30] CreatePrivateEnvironment
   [  38] AddPrivateName `#m`
   [  40] SetLexicalEnvironment environment:reg4

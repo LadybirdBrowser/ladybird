@@ -24,7 +24,7 @@ classWithName$155d62f1 class-environment.js:2:13
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:false
+  [  20] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
   [  30] SetLexicalEnvironment environment:reg4
   [  38] NewClass dst:C~0, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
   [  60] CallConstruct dst:reg6, callee:C~0, C

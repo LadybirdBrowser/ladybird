@@ -8,12 +8,12 @@ $2a66ad4a super-constructor-call.js:1:1
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:false
+  [  20] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
   [  30] SetLexicalEnvironment environment:reg4
   [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
   [  58] DynamicInitializeLexicalBinding `Base`, src:reg6
   [  68] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
-  [  80] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:false
+  [  80] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
   [  90] GetGlobal dst:reg5, `Base`
   [  a0] SetLexicalEnvironment environment:reg4
   [  a8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1

@@ -57,7 +57,7 @@ block6:
 
 block7:
   [  f0] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:0, is_catch_environment:false
-  [ 108] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [ 108] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [ 118] SetLexicalEnvironment environment:reg4
   [ 120] NewClass dst:reg14, class_environment:reg13, class_blueprint_index:0
   [ 140] Mov dst:reg12, src:reg14

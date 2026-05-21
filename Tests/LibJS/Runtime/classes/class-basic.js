@@ -19,3 +19,31 @@ test("class constructor prototype property descriptor", () => {
     expect(constructorDescriptor.enumerable).toBeFalse();
     expect(constructorDescriptor.configurable).toBeTrue();
 });
+
+test("class heritage and computed property names are strict mode code", () => {
+    expect(() => {
+        class A {
+            [(Object.preventExtensions({}).prop = 1)]() {}
+        }
+    }).toThrow(TypeError);
+
+    expect(() => {
+        const A = class {
+            [(Object.preventExtensions({}).prop = 1)]() {}
+        };
+    }).toThrow(TypeError);
+
+    expect(() => {
+        class A {
+            [(Object.preventExtensions({}).prop = 1)];
+        }
+    }).toThrow(TypeError);
+
+    expect(() => {
+        class A extends (Object.preventExtensions({}).prop = 1) {}
+    }).toThrow(TypeError);
+
+    expect(() => {
+        const A = class extends (Object.preventExtensions({}).prop = 1) {};
+    }).toThrow(TypeError);
+});
