@@ -1,0 +1,6 @@
+initial opacity: 1
+initial color: rgb(255, 0, 0)
+initial background-color: rgb(0, 255, 0)
+opacity is transitioning (not snapped to 0.5)? true
+color is not at final value? true
+background-color is not at final value? true

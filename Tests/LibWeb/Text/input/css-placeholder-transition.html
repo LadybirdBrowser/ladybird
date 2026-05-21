@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<script src="include.js"></script>
+<style>
+    #target::placeholder {
+        transition: opacity 10s linear, color 10s linear, background-color 10s linear;
+        color: rgb(255, 0, 0);
+        background-color: rgb(0, 255, 0);
+        opacity: 1;
+    }
+    #target.fade::placeholder {
+        opacity: 0.5;
+        color: rgb(0, 0, 255);
+        background-color: rgb(0, 0, 0);
+    }
+</style>
+<input id="target" placeholder="Placeholder Text">
+<script>
+    // Verifies that CSS transition properties cascade correctly onto ::placeholder.
+    //
+    // Root cause: pseudo_element_supports_property() filtered out transition-* and
+    // animation-* properties for whitelisted pseudo-elements (e.g. ::placeholder).
+    // As a result, transition-duration and transition-delay resolved to 0s, which
+    // triggered the zero-duration fast-path in compute_transitioned_properties()
+    // and prevented transition registration entirely.
+    //
+    // Failure mode (without the fix): all three properties snap instantly to their
+    // final values the moment the class is added, producing:
+    //   opacity is transitioning (not snapped to 0.5)? false
+    //   color is not at final value? false
+    //   background-color is not at final value? false
+    //
+    // The transition duration is 10s so that at t=1ms the interpolated values are
+    // indistinguishable from the initial values, making the assertions robust against
+    // floating-point precision differences in opacity serialization.
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+
+        println(`initial opacity: ${getComputedStyle(target, "::placeholder").getPropertyValue("opacity")}`);
+        println(`initial color: ${getComputedStyle(target, "::placeholder").getPropertyValue("color")}`);
+        println(`initial background-color: ${getComputedStyle(target, "::placeholder").getPropertyValue("background-color")}`);
+
+        target.classList.add("fade");
+
+        // Check shortly after triggering the transition.
+        // With a 10s linear transition, at t=1ms the values should still be
+        // extremely close to their initial values and NOT at their final values.
+        // If transitions are not supported, the values snap instantly to the final
+        // state and these checks will fail.
+        setTimeout(() => {
+            const opacity = parseFloat(getComputedStyle(target, "::placeholder").getPropertyValue("opacity"));
+            const color = getComputedStyle(target, "::placeholder").getPropertyValue("color");
+            const bgColor = getComputedStyle(target, "::placeholder").getPropertyValue("background-color");
+
+            println(`opacity is transitioning (not snapped to 0.5)? ${opacity > 0.5}`);
+            println(`color is not at final value? ${color !== "rgb(0, 0, 255)"}`);
+            println(`background-color is not at final value? ${bgColor !== "rgb(0, 0, 0)"}`);
+            done();
+        }, 1);
+    });
+</script>
+
+</html>
