@@ -129,16 +129,21 @@ JS_DEFINE_NATIVE_FUNCTION(SetPrototype::difference)
         // a. Let thisSize be the number of elements in O.[[SetData]].
         // b. Let index be 0.
         // c. Repeat, while index < thisSize,
-        for (auto const& element : *set) {
+        GC::RootVector<Value> keys;
+        keys.ensure_capacity(result->set_size());
+        for (auto const& element : *result)
+            keys.unchecked_append(element.key);
+
+        for (auto const& key : keys) {
             // i. Let e be resultSetData[index].
             // ii. If e is not EMPTY, then
             //     1. Let inOther be ToBoolean(? Call(otherRec.[[Has]], otherRec.[[SetObject]], « e »)).
-            auto in_other = TRY(call(vm, *other_record.has, other_record.set_object, element.key)).to_boolean();
+            auto in_other = TRY(call(vm, *other_record.has, other_record.set_object, key)).to_boolean();
 
             //     2. If inOther is true, then
             if (in_other) {
                 // a. Set resultSetData[index] to EMPTY.
-                result->set_remove(element.key);
+                result->set_remove(key);
             }
 
             // iii. Set index to index + 1.
