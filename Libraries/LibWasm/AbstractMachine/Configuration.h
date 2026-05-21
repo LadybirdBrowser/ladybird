@@ -127,7 +127,7 @@ public:
         u32 arity { 0 };
         u32 max_call_rec_size { 0 };
     };
-    HashMap<u32, CompiledFunctionEntry> m_compiled_fn_table;
+    Vector<CompiledFunctionEntry> m_compiled_fn_table;
     ModuleInstance const* m_compiled_fn_table_module { nullptr };
 
     void build_compiled_function_table();

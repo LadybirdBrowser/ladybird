@@ -670,7 +670,7 @@ public:
     ExceptionInstance* get(ExceptionAddress);
 
     ALWAYS_INLINE FunctionInstance* unsafe_get(FunctionAddress address) { return &m_functions.data()[address.value()]; }
-    ALWAYS_INLINE MemoryInstance* unsafe_get(MemoryAddress address) { return m_memories[address.value()].ptr(); }
+    ALWAYS_INLINE MemoryInstance* unsafe_get(MemoryAddress address) { return m_memories.data()[address.value()].ptr(); }
 
 private:
     Vector<FunctionInstance> m_functions;

@@ -106,13 +106,16 @@ void Configuration::build_compiled_function_table()
     if (m_compiled_fn_table_module == current_module && !m_compiled_fn_table.is_empty())
         return;
 
-    m_compiled_fn_table.clear();
+    m_compiled_fn_table.clear_with_capacity();
     m_compiled_fn_table_module = current_module;
 
     auto const& functions = frame().module().functions();
     auto count = functions.size();
     if (count == 0)
         return;
+
+    m_compiled_fn_table.resize_with_default_value_and_keep_capacity(count, {});
+    auto fn_table = m_compiled_fn_table.data();
 
     for (size_t i = 0; i < count; i++) {
         auto* instance = m_store.unsafe_get(functions[i]);
@@ -122,7 +125,8 @@ void Configuration::build_compiled_function_table()
         auto& ci = wasm_fn->code().func().body().compiled_instructions;
         if (!ci.cranelift_compiled)
             continue;
-        CompiledFunctionEntry entry;
+
+        auto& entry = fn_table[i];
         entry.handler_ptr = ci.dispatches[0].handler_ptr;
         entry.dispatches_ptr = bit_cast<FlatPtr>(ci.dispatches.data());
         entry.src_dst_ptr = bit_cast<FlatPtr>(ci.src_dst_mappings.data());
@@ -132,7 +136,6 @@ void Configuration::build_compiled_function_table()
         entry.total_local_count = static_cast<u32>(wasm_fn->code().func().total_local_count());
         entry.arity = static_cast<u32>(wasm_fn->type().results().size());
         entry.max_call_rec_size = static_cast<u32>(ci.max_call_rec_size);
-        m_compiled_fn_table.set(static_cast<u32>(i), entry);
     }
 }
 
