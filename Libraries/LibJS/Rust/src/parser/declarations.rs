@@ -1267,7 +1267,6 @@ impl Parser<'_> {
         let mut has_seen_default = false;
         let mut has_seen_rest = false;
         let mut parameter_info: Vec<ParamInfo> = Vec::new();
-        let mut parameter_info_ranges: Vec<(usize, usize, bool)> = Vec::new();
 
         // C++ uses the position at the start of parse_formal_parameters for all
         // parameter identifiers (i.e., the position of the first parameter).
@@ -1275,13 +1274,12 @@ impl Parser<'_> {
 
         loop {
             let parameter_start = self.position();
-            let parameter_info_start = parameter_info.len();
             let rest = self.eat(TokenType::TripleDot);
             if rest {
                 has_seen_rest = true;
             }
 
-            let (binding, is_pat) = if self.match_identifier()
+            let binding = if self.match_identifier()
                 || self.match_token(TokenType::Await)
                 || self.match_token(TokenType::Yield)
             {
@@ -1318,7 +1316,7 @@ impl Parser<'_> {
                     is_from_pattern: false,
                     identifier: Some(id),
                 });
-                (FunctionParameterBinding::Identifier(id), false)
+                FunctionParameterBinding::Identifier(id)
             } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                 let pat = self.parse_binding_pattern();
                 let bound_names = std::mem::take(&mut self.pattern_bound_names);
@@ -1331,7 +1329,7 @@ impl Parser<'_> {
                         identifier: Some(id),
                     });
                 }
-                (FunctionParameterBinding::BindingPattern(pat), true)
+                FunctionParameterBinding::BindingPattern(pat)
             } else {
                 self.expected("parameter name");
                 self.consume();
@@ -1340,7 +1338,7 @@ impl Parser<'_> {
                     .arena
                     .identifiers
                     .insert(Identifier::new(self.range_from(parameter_start), empty));
-                (FunctionParameterBinding::Identifier(id), false)
+                FunctionParameterBinding::Identifier(id)
             };
 
             let default_value = if !rest && self.match_token(TokenType::Equals) {
@@ -1360,14 +1358,11 @@ impl Parser<'_> {
                 function_length += 1;
             }
 
-            let parameter_is_non_simple = rest || is_pat || default_value.is_some();
             parameters.push(FunctionParameter {
                 binding,
                 default_value,
                 is_rest: rest,
             });
-            let parameter_info_end = parameter_info.len();
-            parameter_info_ranges.push((parameter_info_start, parameter_info_end, parameter_is_non_simple));
 
             if rest || !self.match_token(TokenType::Comma) {
                 break;
@@ -1379,45 +1374,32 @@ impl Parser<'_> {
             }
         }
 
-        // Validate duplicates after parsing so we can use borrowed name slices
-        // from `parameter_info` without cloning each entry into the HashSet.
-        let mut seen_parameter_names: HashSet<&[u16]> = HashSet::default();
-        let mut has_seen_non_simple = false;
-        for (start, end, parameter_is_non_simple) in parameter_info_ranges {
-            for info in &parameter_info[start..end] {
-                if info.name.is_empty() {
-                    continue;
-                }
-                let is_duplicate = seen_parameter_names.contains(info.name.as_slice());
-                // https://tc39.es/ecma262/#sec-function-definitions-static-semantics-early-errors
-                // Duplicate names are tolerated only for sloppy, non-arrow
-                // functions with a fully simple parameter list.
-                // - `!is_arrow`: arrows reject duplicates via
-                //   check_arrow_duplicate_parameters().
-                // - `self.flags.strict_mode`: strict functions always reject.
-                // - `has_seen_non_simple || parameter_is_non_simple`: once any
-                //   rest/default/destructuring parameter appears, duplicates are
-                //   no longer allowed (e.g. `function(a, a = 1)`).
-                if is_duplicate
-                    && !is_arrow
-                    && (self.flags.strict_mode || has_seen_non_simple || parameter_is_non_simple)
-                {
-                    let name_str = String::from_utf16_lossy(&info.name);
-                    self.syntax_error(&format!("Duplicate parameter '{name_str}' not allowed"));
-                }
-                seen_parameter_names.insert(info.name.as_slice());
-            }
-            has_seen_non_simple |= parameter_is_non_simple;
-        }
-
-        self.flags.in_formal_parameter_context = saved_formal_parameter_ctx;
-        self.pattern_bound_names = saved_pattern_bound_names;
-
         let is_simple = !has_seen_default
             && !has_seen_rest
             && !parameters
                 .iter()
                 .any(|p| matches!(&p.binding, FunctionParameterBinding::BindingPattern(_)));
+
+        // Validate duplicates after parsing so we can use borrowed name slices
+        // from `parameter_info` without cloning each entry into the HashSet.
+        let mut seen_parameter_names: HashSet<&[u16]> = HashSet::default();
+        for info in &parameter_info {
+            if info.name.is_empty() {
+                continue;
+            }
+            let is_duplicate = seen_parameter_names.contains(info.name.as_slice());
+            // https://tc39.es/ecma262/#sec-function-definitions-static-semantics-early-errors
+            // Duplicate names are tolerated only for sloppy, non-arrow functions with a fully simple parameter list.
+            if is_duplicate && !is_arrow && (self.flags.strict_mode || !is_simple) {
+                let name_str = String::from_utf16_lossy(&info.name);
+                self.syntax_error(&format!("Duplicate parameter '{name_str}' not allowed"));
+            }
+            seen_parameter_names.insert(info.name.as_slice());
+        }
+
+        self.flags.in_formal_parameter_context = saved_formal_parameter_ctx;
+        self.pattern_bound_names = saved_pattern_bound_names;
+
         ParsedParameters {
             parameters,
             function_length,

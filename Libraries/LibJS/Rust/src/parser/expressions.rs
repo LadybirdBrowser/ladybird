@@ -2489,6 +2489,10 @@ impl Parser<'_> {
         self.push_function_context();
         let parsed = self.parse_formal_parameters();
 
+        // UniqueFormalParameters : FormalParameters
+        // It is a Syntax Error if the BoundNames of |FormalParameters| contains any duplicate elements.
+        self.check_unique_formal_parameters(&parsed.parameter_info);
+
         self.register_function_parameters_with_scope(&parsed.parameters, &parsed.parameter_info);
 
         if method_kind == MethodKind::Getter && !parsed.parameters.is_empty() {
