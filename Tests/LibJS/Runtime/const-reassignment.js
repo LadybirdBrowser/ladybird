@@ -80,3 +80,19 @@ test("const creation in inner scope", () => {
     } while (false);
     expect(constantValue).toBe(1);
 });
+
+test("reassignment to destructured const in function", () => {
+    expect(() => {
+        (() => {
+            const { value } = { value: 1 };
+            value = 2;
+        })();
+    }).toThrowWithMessage(TypeError, "Invalid assignment to const variable");
+
+    expect(() => {
+        (() => {
+            const [value] = [1];
+            [value] = [2];
+        })();
+    }).toThrowWithMessage(TypeError, "Invalid assignment to const variable");
+});

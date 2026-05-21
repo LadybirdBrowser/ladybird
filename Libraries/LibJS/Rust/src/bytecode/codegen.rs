@@ -7012,6 +7012,9 @@ fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &
 // =============================================================================
 
 /// Whether we are initializing a new binding or setting an existing one.
+// https://tc39.es/ecma262/#sec-runtime-semantics-bindinginitialization
+// https://tc39.es/ecma262/#sec-runtime-semantics-destructuringassignmentevaluation
+// Binding patterns initialize lexical declarations, while assignment patterns perform PutValue.
 #[derive(Clone, Copy)]
 enum BindingMode {
     /// `const` or `let` declarations: emit InitializeLexicalBinding.
@@ -7063,8 +7066,17 @@ fn emit_set_variable_with_mode(
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
     if ident.is_local() {
-        let local = generator.resolve_local(ident.local_index, ident.local_type.unwrap());
-        generator.emit_mov(&local, value);
+        match mode {
+            BindingMode::InitializeLexical => {
+                let local = generator.resolve_local(ident.local_index, ident.local_type.unwrap());
+                generator.emit_mov(&local, value);
+                generator.mark_local_initialized(ident.local_index);
+            }
+            BindingMode::Set => {
+                emit_tdz_check_if_needed(generator, id);
+                emit_set_variable(generator, id, value);
+            }
+        }
     } else {
         let id = generator.intern_identifier_id(ident.name);
         match mode {

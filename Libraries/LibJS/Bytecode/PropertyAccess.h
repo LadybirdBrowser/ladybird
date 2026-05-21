@@ -14,6 +14,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
@@ -91,6 +92,15 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
         }
     }
 
+    auto const& property_name = get_property_name();
+    if (base_value.is_string()) {
+        // https://tc39.es/ecma262/#sec-stringgetownproperty
+        // String exotic objects expose virtual own properties for canonical string indexes.
+        auto string_value = TRY(base_value.as_string().get(vm, property_name));
+        if (string_value.has_value())
+            return *string_value;
+    }
+
     auto base_obj = TRY(base_object_for_get(vm, base_value, get_base_identifier, get_property_name));
 
     if constexpr (mode == GetByIdMode::Length) {
@@ -152,7 +162,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
         prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
 
     CacheableGetPropertyMetadata cacheable_metadata;
-    auto value = TRY(base_obj->internal_get(get_property_name(), this_value, &cacheable_metadata));
+    auto value = TRY(base_obj->internal_get(property_name, this_value, &cacheable_metadata));
 
     // If internal_get() caused object's shape change, we can no longer be sure
     // that collected metadata is valid, e.g. if getter in prototype chain added

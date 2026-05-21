@@ -84,7 +84,7 @@ block0:
   [  18] Return value:outer~1
 
 
-forInTeardown$7c859710 lexical-env-teardown.js:28:5
+forInTeardown$fde78f98 lexical-env-teardown.js:28:5
   Registers: 8
   Blocks:    6
   Locals:    k~0, outer~1
@@ -117,11 +117,10 @@ block4:
 
 block5:
   [  b8] Mov dst:k~0, src:reg5
-  [  c8] ThrowIfTDZ src:k~0
-  [  d0] Jump target:block2
+  [  c8] Jump target:block2
 
 
-forOfTeardown$94a2ae97 lexical-env-teardown.js:38:5
+forOfTeardown$269c4d7f lexical-env-teardown.js:38:5
   Registers: 12
   Blocks:    9
   Locals:    v~0, outer~1
@@ -153,25 +152,24 @@ block3:
 
 block4:
   [  c0] Mov dst:v~0, src:reg10
-  [  d0] ThrowIfTDZ src:v~0
-  [  d8] Jump target:block2
+  [  d0] Jump target:block2
 
 block5:
-  [  e0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-  [  f8] Throw src:reg9
+  [  d8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [  f0] Throw src:reg9
 
 block6:
-  [ 100] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 118] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block7, false_target:block8
+  [  f8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 110] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block7, false_target:block8
 
 block7:
-  [ 130] Return value:reg9
+  [ 128] Return value:reg9
 
 block8:
-  [ 138] Throw src:reg9
+  [ 130] Throw src:reg9
 
 Exception handlers:
-  [  c0 ..   e0] => handler block3
+  [  c0 ..   d8] => handler block3
 
 
 catchTeardown$6b833e8d lexical-env-teardown.js:48:5

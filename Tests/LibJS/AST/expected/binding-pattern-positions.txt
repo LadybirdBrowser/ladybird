@@ -4,10 +4,10 @@ Program (script) @6:1
 │     ├─ BindingPattern (object)
 │     │  ├─ entry
 │     │  │  └─ name
-│     │  │     └─ Identifier "foo" [global] @6:7
+│     │  │     └─ Identifier "foo" [global] (let) @6:7
 │     │  └─ entry
 │     │     └─ name
-│     │        └─ Identifier "bar" [global] @6:12
+│     │        └─ Identifier "bar" [global] (let) @6:12
 │     └─ ObjectExpression @6:20
 ├─ VariableDeclaration (let) @7:1
 │  └─ VariableDeclarator @7:1
@@ -16,23 +16,23 @@ Program (script) @6:1
 │     │  │  ├─ name
 │     │  │  │  └─ Identifier "x" [global] @7:7
 │     │  │  └─ alias
-│     │  │     └─ Identifier "aliased" [global] @7:10
+│     │  │     └─ Identifier "aliased" [global] (let) @7:10
 │     │  └─ entry
 │     │     ├─ name
 │     │     │  └─ Identifier "y" [global] @7:19
 │     │     └─ alias
-│     │        └─ Identifier "also" [global] @7:22
+│     │        └─ Identifier "also" [global] (let) @7:22
 │     └─ ObjectExpression @7:31
 ├─ VariableDeclaration (let) @8:1
 │  └─ VariableDeclarator @8:1
 │     ├─ BindingPattern (array)
 │     │  ├─ entry
 │     │  │  └─ alias
-│     │  │     └─ Identifier "first" [global] @8:7
+│     │  │     └─ Identifier "first" [global] (let) @8:7
 │     │  ├─ Elision
 │     │  └─ entry
 │     │     └─ alias
-│     │        └─ Identifier "third" [global] @8:16
+│     │        └─ Identifier "third" [global] (let) @8:16
 │     └─ ArrayExpression @8:26
 ├─ VariableDeclaration (let) @9:1
 │  └─ VariableDeclarator @9:1
@@ -44,26 +44,26 @@ Program (script) @6:1
 │     │  │     └─ BindingPattern (object)
 │     │  │        └─ entry
 │     │  │           └─ name
-│     │  │              └─ Identifier "inner" [global] @9:17
+│     │  │              └─ Identifier "inner" [global] (let) @9:17
 │     │  └─ entry (rest)
 │     │     └─ name
-│     │        └─ Identifier "rest" [global] @9:29
+│     │        └─ Identifier "rest" [global] (let) @9:29
 │     └─ ObjectExpression @9:38
 ├─ VariableDeclaration (let) @10:1
 │  └─ VariableDeclarator @10:1
 │     ├─ BindingPattern (array)
 │     │  ├─ entry
 │     │  │  └─ alias
-│     │  │     └─ Identifier "a" [global] @10:7
+│     │  │     └─ Identifier "a" [global] (let) @10:7
 │     │  └─ entry
 │     │     └─ alias
 │     │        └─ BindingPattern (array)
 │     │           ├─ entry
 │     │           │  └─ alias
-│     │           │     └─ Identifier "b" [global] @10:12
+│     │           │     └─ Identifier "b" [global] (let) @10:12
 │     │           └─ entry
 │     │              └─ alias
-│     │                 └─ Identifier "c" [global] @10:15
+│     │                 └─ Identifier "c" [global] (let) @10:15
 │     └─ ArrayExpression @10:23
 └─ FunctionDeclaration "destructured" @12:1
    ├─ parameters

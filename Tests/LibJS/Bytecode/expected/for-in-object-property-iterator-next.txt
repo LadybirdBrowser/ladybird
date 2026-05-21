@@ -21,7 +21,7 @@ block0:
   [  b8] End value:reg5
 
 
-collect$aa10966b for-in-object-property-iterator-next.js:2:18
+collect$a1c4c33b for-in-object-property-iterator-next.js:2:18
   Registers: 12
   Blocks:    6
   Locals:    key~0, keys~1
@@ -47,8 +47,6 @@ block4:
 block5:
   [  68] Mov dst:key~0, src:reg6
   [  78] GetById dst:reg9, base:keys~1, `push` (keys.push)
-  [  90] Mov dst:reg10, src:keys~1
-  [  a0] ThrowIfTDZ src:key~0
-  [  a8] Mov dst:reg11, src:key~0
-  [  b8] Call dst:reg8, callee:reg9, this_value:reg10, keys.push, arguments:[reg11]
-  [  e0] Jump target:block2
+  [  90] Mov2 dst1:reg10, src1:keys~1, dst2:reg11, src2:key~0
+  [  a8] Call dst:reg8, callee:reg9, this_value:reg10, keys.push, arguments:[reg11]
+  [  d0] Jump target:block2

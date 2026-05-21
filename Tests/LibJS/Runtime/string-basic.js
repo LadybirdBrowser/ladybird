@@ -269,6 +269,19 @@ test("string object: string property indexing", () => {
     expect(lastSetThisValue).toBeNull();
     lastSetThisValue = null;
 });
+
+test("primitive string object destructuring sees virtual indexed properties", () => {
+    const { 0: first, 1: second, length } = "ab";
+    expect(first).toBe("a");
+    expect(second).toBe("b");
+    expect(length).toBe(2);
+
+    const values = [];
+    for (const { 0: c } of "ab") {
+        values.push(c);
+    }
+    expect(values).toEqual(["a", "b"]);
+});
 test("string object: string property name access", () => {
     expect(new String("").length).toBe(0);
     expect(new String("foo").length).toBe(3);

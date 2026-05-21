@@ -61,18 +61,18 @@ Program (script) @2:1
 │           │        └─ BindingPattern (array)
 │           │           ├─ entry
 │           │           │  └─ alias
-│           │           │     └─ Identifier "a" [variable:0] @25:15
+│           │           │     └─ Identifier "a" [variable:0] (let) @25:15
 │           │           └─ entry
 │           │              └─ alias
-│           │                 └─ Identifier "b" [variable:1] @25:18
+│           │                 └─ Identifier "b" [variable:1] (let) @25:18
 │           ├─ rhs
 │           │  └─ Identifier "pairs" [argument:0] @25:24
 │           └─ body
 │              └─ BlockStatement @25:31
 │                 └─ ExpressionStatement @26:9
 │                    └─ BinaryExpression (+) @26:11
-│                       ├─ Identifier "a" [variable:0] @26:9
-│                       └─ Identifier "b" [variable:1] @26:13
+│                       ├─ Identifier "a" [variable:0] (let) @26:9
+│                       └─ Identifier "b" [variable:1] (let) @26:13
 └─ FunctionDeclaration "for_in_eval" [direct-eval] [uses-this] [might-need-arguments] @31:1
    ├─ parameters
    │  └─ Identifier "obj" @31:22

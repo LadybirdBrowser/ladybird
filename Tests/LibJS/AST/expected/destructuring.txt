@@ -7,10 +7,10 @@ Program (script) @1:1
          │     ├─ BindingPattern (array)
          │     │  ├─ entry
          │     │  │  └─ alias
-         │     │  │     └─ Identifier "a" [variable:0] @2:10
+         │     │  │     └─ Identifier "a" [variable:0] (let) @2:10
          │     │  └─ entry
          │     │     └─ alias
-         │     │        └─ Identifier "b" [variable:1] @2:13
+         │     │        └─ Identifier "b" [variable:1] (let) @2:13
          │     └─ ArrayExpression @2:18
          │        ├─ NumericLiteral 1 @2:19
          │        └─ NumericLiteral 2 @2:22
@@ -19,12 +19,12 @@ Program (script) @1:1
          │     ├─ BindingPattern (object)
          │     │  ├─ entry
          │     │  │  └─ name
-         │     │  │     └─ Identifier "x" [variable:2] @3:11
+         │     │  │     └─ Identifier "x" [variable:2] (let) @3:11
          │     │  └─ entry
          │     │     ├─ name
          │     │     │  └─ Identifier "y" [global] @3:14
          │     │     └─ alias
-         │     │        └─ Identifier "z" [variable:3] @3:17
+         │     │        └─ Identifier "z" [variable:3] (let) @3:17
          │     └─ ObjectExpression @3:23
          │        ├─ ObjectProperty @3:23
          │        │  ├─ StringLiteral "x" @3:25
@@ -36,7 +36,7 @@ Program (script) @1:1
             └─ BinaryExpression (+) @4:22
                ├─ BinaryExpression (+) @4:18
                │  ├─ BinaryExpression (+) @4:14
-               │  │  ├─ Identifier "a" [variable:0] @4:12
-               │  │  └─ Identifier "b" [variable:1] @4:16
-               │  └─ Identifier "x" [variable:2] @4:20
-               └─ Identifier "z" [variable:3] @4:24
+               │  │  ├─ Identifier "a" [variable:0] (let) @4:12
+               │  │  └─ Identifier "b" [variable:1] (let) @4:16
+               │  └─ Identifier "x" [variable:2] (let) @4:20
+               └─ Identifier "z" [variable:3] (let) @4:24
