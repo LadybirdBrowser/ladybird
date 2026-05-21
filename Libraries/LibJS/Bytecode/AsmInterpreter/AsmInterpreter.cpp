@@ -359,6 +359,8 @@ i64 asm_fallback_handler(VM* vm, u32 pc)
         return execute_nonthrowing<Op::GetImportMeta>(*vm, pc);
     case Instruction::Type::GetNewTarget:
         return execute_nonthrowing<Op::GetNewTarget>(*vm, pc);
+    case Instruction::Type::GetSuperConstructor:
+        return execute_nonthrowing<Op::GetSuperConstructor>(*vm, pc);
     case Instruction::Type::GetTemplateObject:
         return execute_nonthrowing<Op::GetTemplateObject>(*vm, pc);
     case Instruction::Type::IsCallable:

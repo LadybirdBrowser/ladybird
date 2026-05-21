@@ -412,6 +412,14 @@ fn generate_expression_inner(
 
         // === SuperCall ===
         ExpressionKind::SuperCall(data) => {
+            // https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
+            // 3. Let _superConstructor_ be GetSuperConstructor().
+            // 4. Let _argList_ be ? ArgumentListEvaluation of |Arguments|.
+            let super_constructor = generator.allocate_register();
+            generator.emit(Instruction::GetSuperConstructor {
+                dst: super_constructor.operand(),
+            });
+
             let arguments = if data.is_synthetic {
                 // Synthetic constructor: super(...arguments) — single spread argument,
                 // don't call @@iterator on %Array.prototype%.
@@ -424,6 +432,7 @@ fn generate_expression_inner(
             let dst = choose_dst(generator, preferred_dst);
             generator.emit(Instruction::SuperCallWithArgumentArray {
                 dst: dst.operand(),
+                super_constructor: super_constructor.operand(),
                 arguments: arguments.operand(),
                 is_synthetic: data.is_synthetic,
             });

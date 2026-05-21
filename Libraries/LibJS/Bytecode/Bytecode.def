@@ -535,6 +535,11 @@ op GetNewTarget < Instruction
     m_dst: Operand
 endop
 
+op GetSuperConstructor < Instruction
+    @nothrow
+    m_dst: Operand
+endop
+
 op GetObjectPropertyIterator < Instruction
     m_dst_iterator: Operand
     m_object: Operand
@@ -1096,6 +1101,7 @@ endop
 
 op SuperCallWithArgumentArray < Instruction
     m_dst: Operand
+    m_super_constructor: Operand
     m_arguments: Operand
     m_is_synthetic: bool
 endop
