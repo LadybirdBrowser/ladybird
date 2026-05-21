@@ -627,6 +627,8 @@ VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteStrin
     return &(*end_or_module);
 }
 
+static ByteString resolve_module_filename(StringView filename, Utf16View const& module_type);
+
 ThrowCompletionOr<void> VM::link_and_eval_module(SourceTextModule& module)
 {
     return link_and_eval_module(static_cast<CyclicModule&>(module));
@@ -635,6 +637,19 @@ ThrowCompletionOr<void> VM::link_and_eval_module(SourceTextModule& module)
 ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)
 {
     auto filename = module.filename();
+    if (!filename.is_empty()) {
+        auto absolute_filename = resolve_module_filename(LexicalPath::absolute_path("."sv, filename), {});
+        if (!get_stored_module(GC::Ref { module }, absolute_filename, {})) {
+            // Register the entry module before loading dependencies so self-imports resolve to this Module Record.
+            m_loaded_modules.empend(
+                GC::Ref { module },
+                move(absolute_filename),
+                String {},
+                make_root(static_cast<Module&>(module)),
+                true);
+        }
+    }
+
     auto& promise_capability = module.load_requested_modules(nullptr);
 
     if (auto const& promise = as<Promise>(*promise_capability.promise()); promise.state() == Promise::State::Rejected)

@@ -259,6 +259,10 @@ describe("loops", () => {
         expectModulePassed("./loop-self.mjs");
     });
 
+    test("entry module can import itself before evaluation", () => {
+        evaluateModule("./modules/entry-self-import.mjs");
+    });
+
     test("import something which imports a cycle", () => {
         expectModulePassed("./loop-entry.mjs");
     });
