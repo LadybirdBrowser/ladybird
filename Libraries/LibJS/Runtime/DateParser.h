@@ -68,6 +68,9 @@ private:
     Optional<u8> m_timezone_seconds;
     Optional<u64> m_timezone_nanoseconds;
 
+    bool m_date_is_iso_like { false };
+    bool m_previous_separator_was_space { false };
+
     constexpr static u64 pow10(size_t pow)
     {
         switch (pow) {
@@ -121,6 +124,9 @@ private:
 
     ALWAYS_INLINE bool guess_date_from_numbers() // Guess an ambiguous date, like 1/1/1.
     {
+        if (m_year.has_value() && m_month.has_value() && m_day.has_value())
+            return m_numbers.is_empty();
+
         switch (m_numbers.size()) {
         case 0:
             return true; // The year and possibly month may have already been calculated. Verify later
@@ -310,12 +316,16 @@ private:
         case 'A' ... 'Z':
             return maybe_word(); // Captures all date string "keywords". Accepts any kind of "junk" before date and time..
         case ' ':
+            m_previous_separator_was_space = true;
+            ignore();
+            return true;
         case '.':
         case ',':
         case '/':
             // Firefox seems to accept (ignore) this punctuation. So do we.
             // Firefox also accepts a bare '+' sometimes. We do not.
             // Chrome is a lot more permissive.
+            m_previous_separator_was_space = false;
             ignore(); // Ignore punctuation.
             return true;
         case '(':
@@ -356,7 +366,10 @@ private:
 
         return true;
     }
-    ALWAYS_INLINE bool maybe_time(std::pair<u32, size_t> const& hours) // H[H]:MM[:SS[.mss[...]]][ ][AM|PM] At this point, H[H]: has already been read.
+    // H[H]:MM[:SS[.mss[...]]][ ][AM|PM] At this point, H[H]: has already been read.
+    ALWAYS_INLINE bool maybe_time(
+        std::pair<u32, size_t> const& hours,
+        bool allow_single_digit_minutes_and_seconds = false)
     {
         if (m_hours.has_value())
             return false; // Time has already been read.
@@ -368,7 +381,7 @@ private:
         m_hours = hours.first; // No precision loss during the conversion u32 -> u8 since the hours has at most 2 digits.
 
         auto const minutes = read_number<u32, 3>();
-        if (minutes.second != 2)
+        if (minutes.second != 2 && !(allow_single_digit_minutes_and_seconds && minutes.second == 1))
             return false; // 12:345 or 12:3
         if (minutes.first > 59)
             return false;
@@ -380,7 +393,7 @@ private:
             return true;
 
         auto const seconds = read_number<u32, 3>();
-        if (seconds.second != 2)
+        if (seconds.second != 2 && !(allow_single_digit_minutes_and_seconds && seconds.second == 1))
             return false; // 12:34:567 or 12:34:5
         if (seconds.first > 59)
             return false;
@@ -410,6 +423,9 @@ private:
     }
     ALWAYS_INLINE bool maybe_number()
     {
+        auto const previous_separator_was_space = m_previous_separator_was_space;
+        m_previous_separator_was_space = false;
+
         auto const number = read_number<u32, 7>();
         VERIFY(number.second > 0);
 
@@ -417,7 +433,7 @@ private:
             return false; // 1234567
 
         if (consume_specific(':')) {
-            if (!maybe_time(number))
+            if (!maybe_time(number, m_date_is_iso_like && previous_separator_was_space))
                 return false;
             if (!maybe_ampm())
                 return false;
@@ -506,10 +522,11 @@ private:
             return false;
         }
 
+        auto const timezone_offset_requires_colon = iso_8601_format && number.second == 2;
         m_timezone_hours = number.first; // Guaranteed to be a 1- or 2-digit number.
 
         if (!consume_specific(':'))
-            return true; // +H[H] "military" time offset
+            return !timezone_offset_requires_colon; // +H[H] "military" time offset
 
         // Timezone with colon
         auto const minutes = read_number<u16, 3>();
@@ -544,10 +561,14 @@ private:
             return true;
         switch (peek()) {
         case ' ':
+            m_previous_separator_was_space = true;
+            ignore();
+            return true;
         case ',':
         case '.':
         case '/':
         case '-':
+            m_previous_separator_was_space = false;
             ignore();
             return true;
         }
@@ -758,6 +779,8 @@ private:
     {
         if (!consume_specific('-'))
             return true;
+
+        m_date_is_iso_like = true;
 
         auto month = read_number<u16, 3>();
         if (consume_specific(':')) { // Like "2000-12:34". Firefox and Chrome parse it correctly. We do the same.
