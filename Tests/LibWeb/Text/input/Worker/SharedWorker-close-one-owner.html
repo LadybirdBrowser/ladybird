@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const workerScript = `
+            let connections = 0;
+            onconnect = event => {
+                connections++;
+                const connectionNumber = connections;
+                const port = event.ports[0];
+                port.onmessage = event => {
+                    port.postMessage("echo " + connectionNumber + ": " + event.data);
+                };
+                port.start();
+                port.postMessage("connect " + connectionNumber);
+            };
+        `;
+
+        const workerURL = URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" }));
+        let worker1 = new SharedWorker(workerURL, "shared-worker-close-one-owner");
+        const worker2 = new SharedWorker(workerURL, "shared-worker-close-one-owner");
+
+        let worker1Connected = false;
+        let worker2Connected = false;
+
+        function dropWorker1AndPingViaWorker2() {
+            worker1.port.onmessage = null;
+            worker1 = null;
+            internals.gc();
+
+            // worker2 must still talk to the same shared worker after worker1 is gone.
+            worker2.port.postMessage("after-gc");
+        }
+
+        function whenBothConnected() {
+            if (worker1Connected && worker2Connected)
+                dropWorker1AndPingViaWorker2();
+        }
+
+        worker1.port.onmessage = event => {
+            if (event.data === "connect 1") {
+                worker1Connected = true;
+                whenBothConnected();
+            }
+        };
+        worker1.port.start();
+
+        worker2.port.onmessage = event => {
+            println("worker2: " + event.data);
+            if (event.data === "connect 2") {
+                worker2Connected = true;
+                whenBothConnected();
+            } else if (event.data === "echo 2: after-gc") {
+                done();
+            }
+        };
+        worker2.port.start();
+    });
+</script>

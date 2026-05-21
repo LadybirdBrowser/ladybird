@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const workerScript = `
+            let connections = 0;
+            onconnect = event => {
+                connections++;
+                const port = event.ports[0];
+                port.start();
+                port.postMessage("connect " + connections);
+            };
+        `;
+
+        const workerURL = URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" }));
+
+        let worker1Message = null;
+        let worker2Errored = false;
+        let finished = false;
+
+        function maybeDone() {
+            if (finished || worker1Message === null || !worker2Errored)
+                return;
+            finished = true;
+            println("worker1: " + worker1Message);
+            println("worker2: error");
+            done();
+        }
+
+        const worker1 = new SharedWorker(workerURL, { name: "shared-worker-type-mismatch", type: "classic" });
+        worker1.port.onmessage = event => {
+            worker1Message = event.data;
+            maybeDone();
+        };
+        worker1.port.start();
+
+        const worker2 = new SharedWorker(workerURL, { name: "shared-worker-type-mismatch", type: "module" });
+        worker2.onerror = () => {
+            worker2Errored = true;
+            maybeDone();
+        };
+        worker2.port.onmessage = event => {
+            if (finished)
+                return;
+            finished = true;
+            println("worker2: unexpected " + event.data);
+            done();
+        };
+        worker2.port.start();
+    });
+</script>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const workerScript = `
+            let connections = 0;
+            onconnect = event => {
+                connections++;
+                const connectionNumber = connections;
+                const port = event.ports[0];
+                port.onmessage = event => {
+                    port.postMessage("echo " + connectionNumber + ": " + event.data);
+                };
+                port.start();
+                port.postMessage("connect " + connectionNumber);
+            };
+        `;
+
+        const workerURL = URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" }));
+        const worker1 = new SharedWorker(workerURL, "shared-worker-reuse");
+        const worker2 = new SharedWorker(workerURL, "shared-worker-reuse");
+
+        let messages = 0;
+        function maybeDone() {
+            if (++messages === 4)
+                done();
+        }
+
+        worker1.port.onmessage = event => {
+            println("worker1: " + event.data);
+            if (event.data === "connect 1")
+                worker1.port.postMessage("one");
+            maybeDone();
+        };
+
+        worker2.port.onmessage = event => {
+            println("worker2: " + event.data);
+            if (event.data === "connect 2")
+                worker2.port.postMessage("two");
+            maybeDone();
+        };
+
+        worker1.port.start();
+        worker2.port.start();
+    });
+</script>

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefPtr.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MessageEvent.h>
@@ -15,6 +16,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
@@ -51,6 +53,8 @@ static Web::HTML::WorkerGlobalScope::Owner relevant_owner_to_add(Web::HTML::Seri
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
 void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared)
 {
+    m_is_shared = is_shared;
+
     // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
     // 2. Let owner be the relevant owner to add given outside settings.
     auto owner = relevant_owner_to_add(outside_settings_snapshot);
@@ -73,6 +77,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     // 6. Let worker global scope be the global object of realm execution context's Realm component.
     // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object created in the previous step.
     GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope = as<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
+    m_worker_global_scope = worker_global_scope;
 
     // AD-HOC: The spec assumes when setting up the worker environment settings object that the URL is already set on
     //         the worker global scope. This is not the case. This URL is only known after performing the fetch, and in
@@ -92,6 +97,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     // 7. Set up a worker environment settings object with realm execution context, outside settings, and
     //    unsafeWorkerCreationTime, and let inside settings be the result.
     auto inside_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time);
+    m_inside_settings = inside_settings;
 
     // AD-HOC: Create a console object for the worker.
     auto& console_object = *inside_settings->realm().intrinsics().console_object();
@@ -201,7 +207,8 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inside_settings->heap(), move(perform_fetch_function));
 
     // In both cases, let onComplete given script be the following steps:
-    auto on_complete_function = [page, inside_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url, is_shared](GC::Ptr<Web::HTML::Script> script) mutable {
+    RefPtr<WorkerHost> protected_this { *this };
+    auto on_complete_function = [protected_this, page, inside_settings, worker_global_scope, message_port_data = move(message_port_data), outside_settings_snapshot, url = m_url, is_shared](GC::Ptr<Web::HTML::Script> script) mutable {
         auto& realm = inside_settings->realm();
 
         // 1. If script is null or if script's error to rethrow is non-null, then:
@@ -220,20 +227,25 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // FIXME: 2. Associate worker with worker global scope.
         // What does this even mean?
 
-        // 3. Let inside port be a new MessagePort object in inside settings's realm.
-        auto inside_port = Web::HTML::MessagePort::create(realm);
+        GC::Ptr<Web::HTML::MessagePort> inside_port;
 
+        // 3. Let inside port be a new MessagePort object in inside settings's realm.
         // 4. If is shared is false, then:
+        // 5. Entangle outside port and inside port.
+        // AD-HOC: For shared workers we defer the inside port creation (step 3) and entanglement
+        //         (step 5) to connect_shared_worker_impl. Each connecting page gets its own pair
+        //         since the connect event fires once per owner, not once at worker startup.
         if (!is_shared) {
+            inside_port = Web::HTML::MessagePort::create(realm);
+
             // FIXME:  1. Set inside port's message event target to worker global scope.
 
             // 2. Set worker global scope's inside port to inside port.
-            worker_global_scope->set_internal_port(inside_port);
-        }
+            worker_global_scope->set_internal_port(*inside_port);
 
-        // 5. Entangle outside port and inside port.
-        Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
-        MUST(inside_port->transfer_receiving_steps(decoder));
+            Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
+            MUST(inside_port->transfer_receiving_steps(decoder));
+        }
 
         // 6. Create a new WorkerLocation object and associate it with worker global scope.
         worker_global_scope->set_location(realm.create<Web::HTML::WorkerLocation>(*worker_global_scope));
@@ -257,7 +269,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         else
             (void)as<Web::HTML::ModuleScript>(*script).run();
 
-        as<WebWorker::PageHost>(page->client()).did_finish_loading_worker_script();
+        as<WebWorker::PageHost>(page->client()).did_finish_loading_worker_script(Web::HTML::is_secure_context(*inside_settings));
 
         // FIXME: 11. Enable outside port's port message queue.
 
@@ -271,19 +283,9 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         //     with the data attribute initialized to the empty string, the ports attribute initialized
         //     to a new frozen array containing inside port, and the source attribute initialized to inside port.
         if (is_shared) {
-            Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, *worker_global_scope, GC::create_function(realm.heap(), [worker_global_scope, inside_port] {
-                auto& realm = worker_global_scope->realm();
-                auto& vm = realm.vm();
-                Web::HTML::TemporaryExecutionContext const context(realm);
-
-                Web::Bindings::MessageEventInit event_init;
-                event_init.data = GC::Ref { vm.empty_string() };
-                event_init.source = Web::HTML::NullableMessageEventSource { inside_port };
-                event_init.ports.append(inside_port);
-
-                auto message_event = Web::HTML::MessageEvent::create(realm, Web::HTML::EventNames::connect, event_init);
-                worker_global_scope->dispatch_event(message_event);
-            }));
+            protected_this->m_accepting_shared_worker_connections = true;
+            protected_this->connect_shared_worker_impl(move(message_port_data), outside_settings_snapshot, ShouldAppendOwner::No);
+            protected_this->flush_pending_shared_worker_connections();
         }
 
         // FIXME: 14. Enable the client message queue of the ServiceWorkerContainer object whose associated service
@@ -322,6 +324,67 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             TODO();
         }
     }
+}
+
+void WorkerHost::connect_shared_worker(Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject outside_settings)
+{
+    if (!m_is_shared || !m_accepting_shared_worker_connections) {
+        m_pending_shared_worker_connections.append(PendingSharedWorkerConnection {
+            .message_port_data = move(message_port_data),
+            .outside_settings = move(outside_settings),
+        });
+        return;
+    }
+
+    connect_shared_worker_impl(move(message_port_data), outside_settings, ShouldAppendOwner::Yes);
+}
+
+// https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
+void WorkerHost::connect_shared_worker_impl(Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings, ShouldAppendOwner should_append_owner)
+{
+    VERIFY(m_worker_global_scope);
+    VERIFY(m_inside_settings);
+
+    auto& realm = m_inside_settings->realm();
+
+    // 11.5.5. Let insidePort be a new MessagePort in insideSettings's realm.
+    auto inside_port = Web::HTML::MessagePort::create(realm);
+
+    // 11.5.6. Entangle outsidePort and insidePort.
+    Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
+    MUST(inside_port->transfer_receiving_steps(decoder));
+
+    // 11.5.7. Queue a global task on the DOM manipulation task source given workerGlobalScope to
+    //         fire an event named connect at workerGlobalScope, using MessageEvent, with the data
+    //         attribute initialized to the empty string, the ports attribute initialized to a new
+    //         frozen array containing only insidePort, and the source attribute initialized to
+    //         insidePort.
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, *m_worker_global_scope, GC::create_function(realm.heap(), [worker_global_scope = GC::Root { *m_worker_global_scope }, inside_port] {
+        auto& realm = worker_global_scope->realm();
+        auto& vm = realm.vm();
+        Web::HTML::TemporaryExecutionContext const context(realm);
+
+        Web::Bindings::MessageEventInit event_init {};
+        event_init.data = GC::Ref { vm.empty_string() };
+        event_init.ports.append(inside_port);
+        event_init.source = Web::HTML::NullableMessageEventSource { inside_port };
+
+        auto message_event = Web::HTML::MessageEvent::create(realm, Web::HTML::EventNames::connect, event_init);
+        worker_global_scope->dispatch_event(message_event);
+    }));
+
+    // 11.5.8. Append the relevant owner to add given outsideSettings to workerGlobalScope's owner set.
+    if (should_append_owner == ShouldAppendOwner::Yes) {
+        auto owner = relevant_owner_to_add(outside_settings);
+        m_worker_global_scope->owner_set().append(owner);
+    }
+}
+
+void WorkerHost::flush_pending_shared_worker_connections()
+{
+    auto pending_connections = move(m_pending_shared_worker_connections);
+    for (auto& connection : pending_connections)
+        connect_shared_worker_impl(move(connection.message_port_data), connection.outside_settings, ShouldAppendOwner::Yes);
 }
 
 }

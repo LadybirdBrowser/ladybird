@@ -1,0 +1,2 @@
+worker2: connect 2
+worker2: echo 2: after-gc
