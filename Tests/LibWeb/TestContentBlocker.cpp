@@ -123,4 +123,48 @@ TEST_CASE(query_parameters_and_fragments)
     EXPECT(!blocker.is_filtered(url("https://site.com/page?ref=home"sv)));
 }
 
+TEST_CASE(fetch_metadata_maps_to_resource_type)
+{
+    using Request = Fetch::Infrastructure::Request;
+    using ResourceType = ContentBlocker::ResourceType;
+
+    auto resource_type = [](Optional<Request::Destination> destination, Optional<Request::InitiatorType> initiator_type, Request::Mode mode = Request::Mode::NoCORS) {
+        return ContentBlocker::resource_type_from_fetch_metadata(destination, initiator_type, mode);
+    };
+
+    EXPECT(resource_type(Request::Destination::Document, {}) == ResourceType::Document);
+    EXPECT(resource_type(Request::Destination::Font, Request::InitiatorType::CSS) == ResourceType::Font);
+    EXPECT(resource_type(Request::Destination::Image, Request::InitiatorType::CSS) == ResourceType::Image);
+    EXPECT(resource_type(Request::Destination::Style, {}) == ResourceType::Stylesheet);
+    EXPECT(resource_type(Request::Destination::IFrame, {}) == ResourceType::Subdocument);
+    EXPECT(resource_type({}, Request::InitiatorType::Fetch) == ResourceType::XMLHttpRequest);
+    EXPECT(resource_type({}, Request::InitiatorType::Ping) == ResourceType::Ping);
+    EXPECT(resource_type({}, {}, Request::Mode::WebSocket) == ResourceType::WebSocket);
+}
+
+TEST_CASE(blob_source_urls_are_normalized_for_matching)
+{
+    auto normalized = ContentBlocker::source_url_for_matching(url("blob:https://example.com/object-id"sv));
+    EXPECT_EQ(normalized.to_string(), "https://example.com/object-id"sv);
+
+    auto non_blob = ContentBlocker::source_url_for_matching(url("https://example.com/page"sv));
+    EXPECT_EQ(non_blob.to_string(), "https://example.com/page"sv);
+}
+
+TEST_CASE(contextual_filtering_uses_existing_matcher)
+{
+    Vector<String> patterns = {
+        { "blocked.js"_string }
+    };
+
+    auto& blocker = make_blocker(move(patterns));
+
+    EXPECT(blocker.is_filtered(
+        url("https://tracker.example/blocked.js"sv),
+        url("https://example.com/page"sv),
+        Fetch::Infrastructure::Request::Destination::Script,
+        Fetch::Infrastructure::Request::InitiatorType::CSS,
+        Fetch::Infrastructure::Request::Mode::NoCORS));
+}
+
 }

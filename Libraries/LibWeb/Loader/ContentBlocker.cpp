@@ -9,6 +9,7 @@
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/Span.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 
 namespace Web {
@@ -33,6 +34,18 @@ bool ContentBlocker::is_filtered(URL::URL const& url) const
     return contains(url.to_string());
 }
 
+bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url, ResourceType resource_type) const
+{
+    (void)source_url;
+    (void)resource_type;
+    return is_filtered(url);
+}
+
+bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url, Optional<Fetch::Infrastructure::Request::Destination> const& destination, Optional<Fetch::Infrastructure::Request::InitiatorType> const& initiator_type, Fetch::Infrastructure::Request::Mode mode) const
+{
+    return is_filtered(url, source_url_for_matching(source_url), resource_type_from_fetch_metadata(destination, initiator_type, mode));
+}
+
 bool ContentBlocker::contains(StringView text) const
 {
     if (!m_matcher)
@@ -44,6 +57,101 @@ ErrorOr<void> ContentBlocker::set_patterns(ReadonlySpan<String> patterns)
 {
     m_matcher = make<AsciiStringMatcher>(patterns);
     return {};
+}
+
+ContentBlocker::ResourceType ContentBlocker::resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const& destination, Optional<Fetch::Infrastructure::Request::InitiatorType> const& initiator_type, Fetch::Infrastructure::Request::Mode mode)
+{
+    using Fetch::Infrastructure::Request;
+
+    if (mode == Request::Mode::WebSocket)
+        return ResourceType::WebSocket;
+
+    if (destination.has_value()) {
+        switch (*destination) {
+        case Request::Destination::Audio:
+        case Request::Destination::Track:
+        case Request::Destination::Video:
+            return ResourceType::Media;
+        case Request::Destination::Document:
+            return ResourceType::Document;
+        case Request::Destination::Embed:
+        case Request::Destination::Object:
+            return ResourceType::Object;
+        case Request::Destination::Font:
+            return ResourceType::Font;
+        case Request::Destination::Frame:
+        case Request::Destination::IFrame:
+            return ResourceType::Subdocument;
+        case Request::Destination::Image:
+            return ResourceType::Image;
+        case Request::Destination::AudioWorklet:
+        case Request::Destination::PaintWorklet:
+        case Request::Destination::Script:
+        case Request::Destination::ServiceWorker:
+        case Request::Destination::SharedWorker:
+        case Request::Destination::Worker:
+            return ResourceType::Script;
+        case Request::Destination::Style:
+            return ResourceType::Stylesheet;
+        case Request::Destination::JSON:
+        case Request::Destination::Manifest:
+        case Request::Destination::Report:
+        case Request::Destination::WebIdentity:
+        case Request::Destination::XSLT:
+            return ResourceType::Other;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    if (initiator_type.has_value()) {
+        switch (*initiator_type) {
+        case Request::InitiatorType::Audio:
+        case Request::InitiatorType::Video:
+        case Request::InitiatorType::Track:
+            return ResourceType::Media;
+        case Request::InitiatorType::Beacon:
+        case Request::InitiatorType::Ping:
+            return ResourceType::Ping;
+        case Request::InitiatorType::Embed:
+        case Request::InitiatorType::Object:
+            return ResourceType::Object;
+        case Request::InitiatorType::Fetch:
+        case Request::InitiatorType::XMLHttpRequest:
+            return ResourceType::XMLHttpRequest;
+        case Request::InitiatorType::Font:
+            return ResourceType::Font;
+        case Request::InitiatorType::Frame:
+        case Request::InitiatorType::IFrame:
+            return ResourceType::Subdocument;
+        case Request::InitiatorType::Image:
+        case Request::InitiatorType::IMG:
+            return ResourceType::Image;
+        case Request::InitiatorType::Script:
+            return ResourceType::Script;
+        case Request::InitiatorType::CSS:
+        case Request::InitiatorType::EarlyHint:
+        case Request::InitiatorType::Body:
+        case Request::InitiatorType::Input:
+        case Request::InitiatorType::Link:
+        case Request::InitiatorType::Other:
+            return ResourceType::Other;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    return ResourceType::Other;
+}
+
+URL::URL ContentBlocker::source_url_for_matching(URL::URL const& source_url)
+{
+    if (source_url.scheme() != "blob"sv)
+        return source_url;
+
+    auto parsed_url = URL::Parser::basic_parse(source_url.serialize_path());
+    if (!parsed_url.has_value())
+        return source_url;
+
+    return parsed_url.release_value();
 }
 
 AsciiStringMatcher::AsciiStringMatcher(ReadonlySpan<String> patterns)

@@ -2126,6 +2126,20 @@ static void log_response(auto const& status_code, auto const& headers, auto cons
 }
 #endif
 
+static URL::URL content_blocker_source_url_for_request(Infrastructure::Request& request)
+{
+    if (request.destination().has_value() && request.destination().value() == Infrastructure::Request::Destination::Document)
+        return request.current_url();
+
+    if (auto client = request.client()) {
+        if (auto document = client->responsible_document())
+            return document->fallback_base_url();
+        return client->api_base_url();
+    }
+
+    return request.current_url();
+}
+
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // Drop-in replacement for 'HTTP-network fetch', but obviously non-standard :^)
 // It also handles file:// URLs since those can also go through ResourceLoader.
@@ -2154,6 +2168,9 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_cache_mode(request->cache_mode());
     load_request.set_include_credentials(include_credentials);
     load_request.set_initiator_type(request->initiator_type());
+    load_request.set_destination(request->destination());
+    load_request.set_request_mode(request->mode());
+    load_request.set_source_url(content_blocker_source_url_for_request(*request));
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
         (*body)->source().visit(
@@ -2295,7 +2312,9 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     auto preflight = Fetch::Infrastructure::Request::create(vm);
     preflight->set_method("OPTIONS"sv);
     preflight->set_url_list(request.url_list());
+    preflight->set_client(request.client());
     preflight->set_initiator(request.initiator());
+    preflight->set_initiator_type(request.initiator_type());
     preflight->set_destination(request.destination());
     preflight->set_origin(request.origin());
     preflight->set_referrer(request.referrer());
