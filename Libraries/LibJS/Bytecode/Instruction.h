@@ -59,6 +59,12 @@ enum class ArgumentsKind {
     Unmapped,
 };
 
+enum class FunctionNamePrefix {
+    None,
+    Get,
+    Set,
+};
+
 }
 
 namespace JS::Bytecode {

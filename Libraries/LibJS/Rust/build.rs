@@ -258,6 +258,10 @@ fn emit_scalar_field_check(
             w,
             "            validate_arguments_kind(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
+        "FunctionNamePrefix" => writeln!(
+            w,
+            "            validate_function_name_prefix(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
         // bool, u64, Value, EnvironmentCoordinate, Builtin: no per-field
         // bound applied here.
         _ => {}

@@ -95,6 +95,8 @@ static constexpr u32 put_kind_variant_count = to_underlying(PutKind::Own) + 1;
 static_assert(put_kind_variant_count == 5);
 static constexpr u32 arguments_kind_variant_count = to_underlying(Op::ArgumentsKind::Unmapped) + 1;
 static_assert(arguments_kind_variant_count == 2);
+static constexpr u32 function_name_prefix_variant_count = to_underlying(Op::FunctionNamePrefix::Set) + 1;
+static_assert(function_name_prefix_variant_count == 3);
 
 ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> basic_block_offsets)
 {
@@ -122,6 +124,7 @@ ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> 
         .environment_mode_variant_count = environment_mode_variant_count,
         .put_kind_variant_count = put_kind_variant_count,
         .arguments_kind_variant_count = arguments_kind_variant_count,
+        .function_name_prefix_variant_count = function_name_prefix_variant_count,
     };
 
     // Project Executable's exception handlers down to plain offsets; the

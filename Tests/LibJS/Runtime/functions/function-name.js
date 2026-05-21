@@ -44,6 +44,59 @@ test("functions in objects", () => {
     expect(o.c.name).toBe("");
 });
 
+test("computed property names infer anonymous function names", () => {
+    const namedSymbol = Symbol("named");
+    const emptySymbol = Symbol("");
+    const unnamedSymbol = Symbol();
+    const getterSymbol = Symbol("getter");
+    const setterSymbol = Symbol("");
+
+    const object = {
+        [1]: function () {},
+        [2]: class {},
+        [namedSymbol]: () => {},
+        [emptySymbol]: function* () {},
+        [unnamedSymbol]: async function () {},
+        [/a/]: function () {},
+        get [getterSymbol]() {},
+        set [setterSymbol](value) {},
+    };
+
+    expect(object[1].name).toBe("1");
+    expect(object[2].name).toBe("2");
+    expect(object[namedSymbol].name).toBe("[named]");
+    expect(object[emptySymbol].name).toBe("[]");
+    expect(object[unnamedSymbol].name).toBe("");
+    expect(object[/a/].name).toBe("/a/");
+    expect(Object.getOwnPropertyDescriptor(object, getterSymbol).get.name).toBe("get [getter]");
+    expect(Object.getOwnPropertyDescriptor(object, setterSymbol).set.name).toBe("set []");
+});
+
+test("computed property name inference does not leak between evaluations", () => {
+    function objectName(key) {
+        return { [key]: function () {} }[key].name;
+    }
+
+    function classMethodName(key) {
+        return new (class {
+            [key]() {}
+        })()[key].name;
+    }
+
+    expect(objectName("first")).toBe("first");
+    expect(objectName("second")).toBe("second");
+    expect(classMethodName("first")).toBe("first");
+    expect(classMethodName("second")).toBe("second");
+});
+
+test("computed property name inference only applies to anonymous definitions", () => {
+    const key = "computed";
+    const value = [function () {}][0];
+    const object = { [key]: value };
+
+    expect(object[key].name).toBe("");
+});
+
 test("names of native functions", () => {
     expect(console.debug.name).toBe("debug");
     expect((console.debug.name = "warn")).toBe("warn");

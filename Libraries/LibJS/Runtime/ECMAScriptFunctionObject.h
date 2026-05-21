@@ -59,8 +59,14 @@ public:
 
     virtual Utf16String name_for_call_stack() const override;
 
-    Utf16FlyString const& name() const { return shared_data().m_name; }
+    Utf16FlyString const& name() const
+    {
+        if (m_name.has_value())
+            return *m_name;
+        return shared_data().m_name;
+    }
     void set_name(Utf16FlyString const& name);
+    void set_inferred_name(Variant<PropertyKey, PrivateName> const& name, Optional<StringView> const& prefix = {});
 
     void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).set_is_class_constructor(); }
 
@@ -155,6 +161,7 @@ private:
 
     GC::Ref<SharedFunctionInstanceData> m_shared_data;
 
+    Optional<Utf16FlyString> m_name;
     GC::Ptr<PrimitiveString> m_name_string;
 
     // Internal Slots of ECMAScript Function Objects, https://tc39.es/ecma262/#table-internal-slots-of-ecmascript-function-objects

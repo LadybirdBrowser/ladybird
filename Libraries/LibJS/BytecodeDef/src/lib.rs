@@ -136,6 +136,7 @@ pub fn field_type_info(ty: &str) -> FieldType {
         "EnvironmentMode" => ("u32", 4, 4, "u32"),
         "PutKind" => ("u32", 4, 4, "u32"),
         "ArgumentsKind" => ("u32", 4, 4, "u32"),
+        "FunctionNamePrefix" => ("u32", 4, 4, "u32"),
         "Value" => ("u64", 8, 8, "u64"),
         "PropertyLookupCacheIndex"
         | "GlobalVariableCacheIndex"

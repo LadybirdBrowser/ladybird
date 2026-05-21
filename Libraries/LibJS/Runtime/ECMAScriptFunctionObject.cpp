@@ -145,7 +145,7 @@ void ECMAScriptFunctionObject::get_stack_frame_info(size_t& registers_and_locals
         VERIFY(rust_executable);
         m_shared_data->set_executable(rust_executable);
         executable = rust_executable;
-        executable->name = m_shared_data->m_name;
+        executable->name = name();
         if (Bytecode::g_dump_bytecode)
             executable->dump();
         m_shared_data->clear_compile_inputs();
@@ -533,10 +533,16 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
 void ECMAScriptFunctionObject::set_name(Utf16FlyString const& name)
 {
     auto& vm = this->vm();
-    const_cast<SharedFunctionInstanceData&>(shared_data()).m_name = name;
+    m_name = name;
     m_name_string = PrimitiveString::create(vm, name);
     PropertyDescriptor descriptor { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true };
     MUST(define_property_or_throw(vm.names.name, descriptor));
+}
+
+void ECMAScriptFunctionObject::set_inferred_name(Variant<PropertyKey, PrivateName> const& name, Optional<StringView> const& prefix)
+{
+    auto function_name = make_function_name(name, prefix);
+    set_name(Utf16FlyString(function_name->utf16_string()));
 }
 
 ECMAScriptFunctionObject::ClassData& ECMAScriptFunctionObject::ensure_class_data() const
