@@ -13,7 +13,6 @@ import android.graphics.Bitmap
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import java.net.URL
 
 /**
  * Wrapper around WebView::ViewImplementation for use by Kotlin
@@ -95,12 +94,13 @@ class WebViewImplementation(private val view: WebView) {
             Log.e("WebContentView", "WebContent Died! :(")
             view.onWebContentCrash()
         }
-        view.context.bindService(
+        val bound = view.context.bindService(
             Intent(view.context, WebContentService::class.java),
             connector,
             Context.BIND_AUTO_CREATE
         )
-        connection = connector
+        if (bound)
+            connection = connector
     }
 
     fun invalidateLayout() {
