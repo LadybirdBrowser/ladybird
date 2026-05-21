@@ -763,6 +763,7 @@ void VM::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ResolveThisBinding);
             HANDLE_INSTRUCTION(RightShift);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetCompletionType);
+            HANDLE_INSTRUCTION(SetFunctionName);
             HANDLE_INSTRUCTION(SetGlobal);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(SetLexicalEnvironment);
             HANDLE_INSTRUCTION(SetLexicalBinding);
@@ -3220,6 +3221,30 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(VM& vm) const
 void NewFunction::execute_impl(VM& vm) const
 {
     vm.set(dst(), new_function(vm, m_shared_function_data_index, m_home_object));
+}
+
+static Optional<StringView> function_name_prefix_to_string(Op::FunctionNamePrefix prefix)
+{
+    switch (prefix) {
+    case Op::FunctionNamePrefix::None:
+        return {};
+    case Op::FunctionNamePrefix::Get:
+        return "get"sv;
+    case Op::FunctionNamePrefix::Set:
+        return "set"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+ThrowCompletionOr<void> SetFunctionName::execute_impl(VM& vm) const
+{
+    auto function = vm.get(m_function).as_if<ECMAScriptFunctionObject>();
+    if (!function || !function->name().is_empty())
+        return {};
+
+    auto property_key = TRY(vm.get(m_name).to_property_key(vm));
+    function->set_inferred_name(Variant<PropertyKey, PrivateName> { move(property_key) }, function_name_prefix_to_string(m_prefix));
+    return {};
 }
 
 void Return::execute_impl(VM& vm) const

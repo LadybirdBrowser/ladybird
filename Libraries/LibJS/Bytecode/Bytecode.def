@@ -1035,6 +1035,12 @@ op SetCompletionType < Instruction
     m_completion_type: Completion::Type
 endop
 
+op SetFunctionName < Instruction
+    m_function: Operand
+    m_name: Operand
+    m_prefix: FunctionNamePrefix
+endop
+
 op SetGlobal < Instruction
     m_identifier: IdentifierTableIndex
     m_src: Operand

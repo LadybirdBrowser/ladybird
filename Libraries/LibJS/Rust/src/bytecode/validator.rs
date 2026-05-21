@@ -56,6 +56,7 @@ pub struct FFIValidatorBounds {
     pub environment_mode_variant_count: u32,
     pub put_kind_variant_count: u32,
     pub arguments_kind_variant_count: u32,
+    pub function_name_prefix_variant_count: u32,
 }
 
 /// Categorization of validation failures, mirrored to C++ as an enum class.
@@ -362,6 +363,14 @@ pub fn validate_arguments_kind(raw: u32, ctx: &ValidationContext) -> Result<(), 
     Ok(())
 }
 
+#[inline]
+pub fn validate_function_name_prefix(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.function_name_prefix_variant_count {
+        return Err(ValidationErrorKind::EnumOutOfRange);
+    }
+    Ok(())
+}
+
 /// Walk `bytes` and verify the structural integrity of every instruction.
 ///
 /// Pass 1 verifies that the buffer is a tight sequence of well-formed
@@ -519,6 +528,7 @@ mod tests {
             environment_mode_variant_count: 2,
             put_kind_variant_count: 5,
             arguments_kind_variant_count: 2,
+            function_name_prefix_variant_count: 3,
         }
     }
 

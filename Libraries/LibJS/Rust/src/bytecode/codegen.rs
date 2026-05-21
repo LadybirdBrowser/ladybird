@@ -1256,6 +1256,13 @@ enum ArgumentsKind {
     Unmapped = 1,
 }
 
+#[repr(u32)]
+enum FunctionNamePrefix {
+    None = 0,
+    Get = 1,
+    Set = 2,
+}
+
 /// Class element kind (ABI-compatible with ClassBlueprint::Element::Kind).
 #[repr(u8)]
 enum ClassElementKind {
@@ -5110,6 +5117,27 @@ fn emit_switch_block_declaration_instantiation(generator: &mut Generator, data: 
 // Object expression
 // =============================================================================
 
+fn is_anonymous_function_definition(generator: &Generator, expression: &Expression) -> bool {
+    match &expression.inner {
+        ExpressionKind::Function(function_id) => generator.function_table.get(*function_id).name.is_none(),
+        ExpressionKind::Class(data) => data.name.is_none(),
+        _ => false,
+    }
+}
+
+fn emit_set_function_name(
+    generator: &mut Generator,
+    function: &ScopedOperand,
+    name: &ScopedOperand,
+    prefix: FunctionNamePrefix,
+) {
+    generator.emit(Instruction::SetFunctionName {
+        function: function.operand(),
+        name: name.operand(),
+        prefix: prefix as u32,
+    });
+}
+
 /// Generate bytecode for an object literal expression.
 ///
 /// Objects whose shape can be determined at compile time (only simple
@@ -5188,6 +5216,25 @@ fn generate_object_expression(
             None
         };
 
+        let is_method_like = property.is_method
+            || property.property_type == ObjectPropertyType::Getter
+            || property.property_type == ObjectPropertyType::Setter;
+        let function_name_prefix = match property.property_type {
+            ObjectPropertyType::Getter => FunctionNamePrefix::Get,
+            ObjectPropertyType::Setter => FunctionNamePrefix::Set,
+            _ => FunctionNamePrefix::None,
+        };
+        // PropertyDefinitionEvaluation, https://tc39.es/ecma262/#sec-runtime-semantics-propertydefinitionevaluation
+        // If IsAnonymousFunctionDefinition(|AssignmentExpression|) is *true* and _isProtoSetter_ is *false*, then
+        //   Let _propValue_ be ? NamedEvaluation of |AssignmentExpression| with argument _propertyKey_.
+        let should_set_runtime_function_name = computed_key.is_some()
+            && property.property_type != ObjectPropertyType::ProtoSetter
+            && (is_method_like
+                || property
+                    .value
+                    .as_ref()
+                    .is_some_and(|value| is_anonymous_function_definition(generator, value)));
+
         // Set pending LHS name for function name inference on non-computed properties.
         // ProtoSetter (__proto__) skips NamedEvaluation per spec.
         if !effectively_computed && property.property_type != ObjectPropertyType::ProtoSetter {
@@ -5219,9 +5266,6 @@ fn generate_object_expression(
         }
         // Methods, getters, and setters need the object as their [[HomeObject]]
         // so that super property lookups work.
-        let is_method_like = property.is_method
-            || property.property_type == ObjectPropertyType::Getter
-            || property.property_type == ObjectPropertyType::Setter;
         if is_method_like {
             generator.home_objects.push(dst.clone());
         }
@@ -5234,6 +5278,16 @@ fn generate_object_expression(
             generator.home_objects.pop();
         }
         generator.pending_lhs_name = None;
+        if should_set_runtime_function_name {
+            emit_set_function_name(
+                generator,
+                &value,
+                computed_key
+                    .as_ref()
+                    .expect("runtime function names require a runtime property key"),
+                function_name_prefix,
+            );
+        }
 
         match property.property_type {
             ObjectPropertyType::Spread => {

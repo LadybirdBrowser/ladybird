@@ -218,14 +218,14 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     case PutKind::Getter: {
         auto& function = value.as_function();
         if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
-            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(Utf16String::formatted("get {}", name));
+            static_cast<ECMAScriptFunctionObject*>(&function)->set_inferred_name(Variant<PropertyKey, PrivateName> { name }, "get"sv);
         object->define_direct_accessor(name, &function, nullptr, Attribute::Configurable | Attribute::Enumerable);
         break;
     }
     case PutKind::Setter: {
         auto& function = value.as_function();
         if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
-            static_cast<ECMAScriptFunctionObject*>(&function)->set_name(Utf16String::formatted("set {}", name));
+            static_cast<ECMAScriptFunctionObject*>(&function)->set_inferred_name(Variant<PropertyKey, PrivateName> { name }, "set"sv);
         object->define_direct_accessor(name, nullptr, &function, Attribute::Configurable | Attribute::Enumerable);
         break;
     }

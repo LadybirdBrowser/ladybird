@@ -29,7 +29,7 @@ use crate::bytecode::validator::{
 use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 11;
+const FORMAT_VERSION: u32 = 12;
 const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
@@ -37,6 +37,7 @@ const ITERATOR_HINT_VARIANT_COUNT: u32 = 2;
 const ENVIRONMENT_MODE_VARIANT_COUNT: u32 = 2;
 const PUT_KIND_VARIANT_COUNT: u32 = 5;
 const ARGUMENTS_KIND_VARIANT_COUNT: u32 = 2;
+const FUNCTION_NAME_PREFIX_VARIANT_COUNT: u32 = 3;
 
 fn source_span_is_valid(start: u32, end: u32, source_len: usize) -> bool {
     let start = start as usize;
@@ -2403,6 +2404,7 @@ impl DecodedExecutableRecord {
             environment_mode_variant_count: ENVIRONMENT_MODE_VARIANT_COUNT,
             put_kind_variant_count: PUT_KIND_VARIANT_COUNT,
             arguments_kind_variant_count: ARGUMENTS_KIND_VARIANT_COUNT,
+            function_name_prefix_variant_count: FUNCTION_NAME_PREFIX_VARIANT_COUNT,
         };
 
         let exception_handlers = self

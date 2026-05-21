@@ -19,10 +19,10 @@
 
 namespace JS {
 
-static void update_function_name(Value value, Utf16FlyString const& name)
+static void update_function_name(Value value, ClassElementName const& name, Optional<StringView> const& prefix = {})
 {
     if (auto function = value.as_if<ECMAScriptFunctionObject>(); function && function->name().is_empty())
-        function->set_name(name);
+        function->set_inferred_name(name, prefix);
 }
 
 static ThrowCompletionOr<ClassElementName> resolve_element_key(VM& vm, Bytecode::ClassElementDescriptor const& descriptor, Value property_key)
@@ -40,25 +40,6 @@ static ThrowCompletionOr<ClassElementName> resolve_element_key(VM& vm, Bytecode:
 
     auto key = TRY(PropertyKey::from_value(vm, property_key));
     return ClassElementName { key };
-}
-
-static Utf16String compute_element_name(ClassElementName const& element_name, StringView prefix = {})
-{
-    auto name = element_name.visit(
-        [&](PropertyKey const& property_key) {
-            if (property_key.is_symbol()) {
-                auto description = property_key.as_symbol()->description();
-                if (!description.has_value() || description->is_empty())
-                    return Utf16String {};
-                return Utf16String::formatted("[{}]", *description);
-            }
-            return property_key.to_string();
-        },
-        [&](PrivateName const& private_name) {
-            return private_name.description.to_utf16_string();
-        });
-
-    return Utf16String::formatted("{}{}{}", prefix, prefix.is_empty() ? "" : " ", name);
 }
 
 ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
@@ -155,19 +136,19 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
                 auto& property_key = element_name.get<PropertyKey>();
                 switch (descriptor.kind) {
                 case Bytecode::ClassElementDescriptor::Kind::Method: {
-                    update_function_name(method_value, compute_element_name(element_name));
+                    update_function_name(method_value, element_name);
                     PropertyDescriptor property_descriptor { .value = method_value, .writable = true, .enumerable = false, .configurable = true };
                     TRY(home_object.define_property_or_throw(property_key, property_descriptor));
                     break;
                 }
                 case Bytecode::ClassElementDescriptor::Kind::Getter: {
-                    update_function_name(method_value, compute_element_name(element_name, "get"sv));
+                    update_function_name(method_value, element_name, "get"sv);
                     PropertyDescriptor property_descriptor { .get = &method_function, .enumerable = false, .configurable = true };
                     TRY(home_object.define_property_or_throw(property_key, property_descriptor));
                     break;
                 }
                 case Bytecode::ClassElementDescriptor::Kind::Setter: {
-                    update_function_name(method_value, compute_element_name(element_name, "set"sv));
+                    update_function_name(method_value, element_name, "set"sv);
                     PropertyDescriptor property_descriptor { .set = &method_function, .enumerable = false, .configurable = true };
                     TRY(home_object.define_property_or_throw(property_key, property_descriptor));
                     break;
@@ -182,13 +163,13 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
                 PrivateElement private_element = [&] {
                     switch (descriptor.kind) {
                     case Bytecode::ClassElementDescriptor::Kind::Method:
-                        update_function_name(method_value, compute_element_name(element_name));
+                        update_function_name(method_value, element_name);
                         return PrivateElement { private_name, PrivateElement::Kind::Method, method_value };
                     case Bytecode::ClassElementDescriptor::Kind::Getter:
-                        update_function_name(method_value, compute_element_name(element_name, "get"sv));
+                        update_function_name(method_value, element_name, "get"sv);
                         return PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, &method_function, nullptr)) };
                     case Bytecode::ClassElementDescriptor::Kind::Setter:
-                        update_function_name(method_value, compute_element_name(element_name, "set"sv));
+                        update_function_name(method_value, element_name, "set"sv);
                         return PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, nullptr, &method_function)) };
                     default:
                         VERIFY_NOT_REACHED();
