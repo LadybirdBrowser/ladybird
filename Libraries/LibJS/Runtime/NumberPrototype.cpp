@@ -220,6 +220,45 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     return { .significand = move(significand), .exponent = exponent };
 }
 
+static Crypto::UnsignedBigInteger compute_to_fixed_scaled_integer(double number, u32 fraction_digits)
+{
+    using Extractor = AK::FloatExtractor<double>;
+
+    static auto ONE_BIGINT = 1_bigint;
+    static auto FIVE_BIGINT = 5_bigint;
+
+    // Decompose the number into its exact binary representation. An IEEE-754 double is exactly equal to:
+    //
+    //     binary_significand * 2 ^ binary_exponent
+    Extractor extractor;
+    extractor.d = number;
+
+    Crypto::UnsignedBigInteger binary_significand;
+    i32 binary_exponent = 0;
+
+    if (extractor.exponent == 0) {
+        binary_significand = extractor.mantissa;
+        binary_exponent = 1 - Extractor::exponent_bias - Extractor::mantissa_bits;
+    } else {
+        binary_significand = extractor.mantissa | (1ull << Extractor::mantissa_bits);
+        binary_exponent = extractor.exponent - Extractor::exponent_bias - Extractor::mantissa_bits;
+    }
+
+    auto numerator = binary_significand.multiplied_by(FIVE_BIGINT.pow(fraction_digits));
+    auto binary_scale = binary_exponent + static_cast<i32>(fraction_digits);
+    if (binary_scale >= 0)
+        return MUST(numerator.shift_left(static_cast<size_t>(binary_scale)));
+
+    auto denominator = MUST(ONE_BIGINT.shift_left(static_cast<size_t>(-binary_scale)));
+    auto [quotient, remainder] = numerator.divided_by(denominator);
+
+    // Pick the larger integer if x * 10^f is exactly between two candidates.
+    if (MUST(remainder.shift_left(1)) >= denominator)
+        quotient = quotient.plus(1);
+
+    return quotient;
+}
+
 // 21.1.3.2 Number.prototype.toExponential ( fractionDigits ), https://tc39.es/ecma262/#sec-number.prototype.toexponential
 JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_exponential)
 {
@@ -400,11 +439,24 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_fixed)
     //         v. Set m to the string-concatenation of a, ".", and b.
     // 12. Return the string-concatenation of s and m.
 
-    // NOTE: the above steps are effectively trying to create a formatted string of the
-    //       `number` double. Instead of generating a huge, unwieldy `n`, we format
-    //       the double using our existing formatting code.
+    auto fraction_digit_count = static_cast<u32>(fraction_digits);
+    auto number_string = MUST(compute_to_fixed_scaled_integer(number, fraction_digit_count).to_base(10));
 
-    return PrimitiveString::create(vm, MUST(String::formatted("{}{:.{}f}", s, number, static_cast<u32>(fraction_digits))));
+    if (fraction_digit_count != 0) {
+        auto k = number_string.bytes_as_string_view().length();
+        if (k <= fraction_digit_count) {
+            auto zeroes = MUST(String::repeated('0', fraction_digit_count + 1 - k));
+            number_string = MUST(String::formatted("{}{}", zeroes, number_string));
+            k = fraction_digit_count + 1;
+        }
+
+        auto number_string_view = number_string.bytes_as_string_view();
+        auto whole_part = number_string_view.substring_view(0, k - fraction_digit_count);
+        auto fractional_part = number_string_view.substring_view(k - fraction_digit_count);
+        number_string = MUST(String::formatted("{}.{}", whole_part, fractional_part));
+    }
+
+    return PrimitiveString::create(vm, MUST(String::formatted("{}{}", s, number_string)));
 }
 
 // 20.2.1 Number.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-number.prototype.tolocalestring
