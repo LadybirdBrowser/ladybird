@@ -56,3 +56,13 @@ describe("parsing classes with generator methods", () => {
         expect(`class Foo { async *constructor() { yield 42; } }`).not.toEval();
     });
 });
+
+test("async generator instances use the intrinsic prototype when function prototype is not an object", () => {
+    async function* generator() {}
+    const AsyncGeneratorPrototype = Object.getPrototypeOf(generator.prototype);
+
+    for (const prototype of [undefined, null, false, "", Symbol(), 1]) {
+        generator.prototype = prototype;
+        expect(Object.getPrototypeOf(generator())).toBe(AsyncGeneratorPrototype);
+    }
+});
