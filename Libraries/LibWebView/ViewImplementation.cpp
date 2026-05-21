@@ -566,6 +566,11 @@ void ViewImplementation::debug_request(ByteString const& request, ByteString con
     client().async_debug_request(page_id(), request, argument);
 }
 
+void ViewImplementation::set_content_blockers(Core::AnonymousBuffer const& patterns)
+{
+    client().async_set_content_blockers(page_id(), patterns);
+}
+
 void ViewImplementation::run_javascript(String const& js_source)
 {
     client().async_run_javascript(page_id(), js_source);
