@@ -75,6 +75,7 @@ describe("only allowed in async functions", () => {
         expect("async function foo() { for await (const v of []) return v; }").toEval();
         expect("(async function () { for await (const v of []) return v; })").toEval();
         expect("async () => { for await (const v of []) return v; }").toEval();
+        expect("async function foo() { let async; for await (async of []) ; }").toEval();
     });
 
     test("regular functions", () => {
@@ -91,5 +92,6 @@ describe("only allowed in async functions", () => {
     test("async generator functions", () => {
         expect("async function* foo() { for await (const v of []) yield v; }").toEval();
         expect("(async function* () { for await (const v of []) yield v; })").toEval();
+        expect("async function* foo() { let async; for await (async of []) ; }").toEval();
     });
 });

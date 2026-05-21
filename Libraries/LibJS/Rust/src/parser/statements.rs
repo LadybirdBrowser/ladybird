@@ -460,10 +460,10 @@ impl Parser<'_> {
                 } else {
                     self.validate_for_in_of_lhs(&init);
                     // https://tc39.es/ecma262/#sec-for-in-and-for-of-statements
-                    // `for (async of ...)` must be rejected when `async` is the
-                    // reserved keyword token. Escaped identifiers (e.g. `\u0061sync`)
-                    // are still valid here.
-                    if init_starts_with_async_keyword
+                    // The ordinary for-of grammar excludes `async of`, while the for-await-of grammar only excludes
+                    // `let`, so escaped identifiers (e.g. `\u0061sync`) and `for await (async of ...)` are valid here.
+                    if !is_await
+                        && init_starts_with_async_keyword
                         && let LocalForInit::Expression(ref expression) = init
                         && let ExpressionKind::Identifier(ident) = expression.inner
                         && self.arena.name_of(ident).as_slice() == utf16!("async")
