@@ -1580,8 +1580,14 @@ impl Parser<'_> {
                                 Associativity::Right,
                                 ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                             );
-                            if Self::is_object_expression(&expression) || Self::is_array_expression(&expression) {
-                                let pattern = self.synthesize_binding_pattern(expression_start);
+                            if Self::is_parenthesized_object_or_array_expression(&expression, expression_start) {
+                                // https://tc39.es/ecma262/#sec-destructuring-assignment-static-semantics-early-errors
+                                // If |LeftHandSideExpression| is either an |ObjectLiteral| or an |ArrayLiteral|,
+                                // |LeftHandSideExpression| must cover an |AssignmentPattern|.
+                                self.syntax_error("Invalid destructuring assignment target");
+                                break;
+                            } else if Self::is_object_or_array_expression(&expression) {
+                                let pattern = self.synthesize_binding_pattern(expression.range.start);
                                 entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                             } else if Self::is_member_expression(&expression) {
                                 entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
@@ -1626,8 +1632,14 @@ impl Parser<'_> {
                     Associativity::Right,
                     ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                 );
-                if Self::is_object_expression(&expression) || Self::is_array_expression(&expression) {
-                    let pattern = self.synthesize_binding_pattern(expression_start);
+                if Self::is_parenthesized_object_or_array_expression(&expression, expression_start) {
+                    // https://tc39.es/ecma262/#sec-destructuring-assignment-static-semantics-early-errors
+                    // If |LeftHandSideExpression| is either an |ObjectLiteral| or an |ArrayLiteral|,
+                    // |LeftHandSideExpression| must cover an |AssignmentPattern|.
+                    self.syntax_error("Invalid destructuring assignment target");
+                    break;
+                } else if Self::is_object_or_array_expression(&expression) {
+                    let pattern = self.synthesize_binding_pattern(expression.range.start);
                     entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                 } else if Self::is_member_expression(&expression) {
                     entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));

@@ -1034,6 +1034,14 @@ impl<'a> Parser<'a> {
         matches!(&expression.inner, ExpressionKind::Array(_))
     }
 
+    fn is_object_or_array_expression(expression: &Expression) -> bool {
+        Self::is_object_expression(expression) || Self::is_array_expression(expression)
+    }
+
+    fn is_parenthesized_object_or_array_expression(expression: &Expression, start: Position) -> bool {
+        Self::is_object_or_array_expression(expression) && expression.range.start.offset != start.offset
+    }
+
     fn is_identifier(expression: &Expression) -> bool {
         matches!(&expression.inner, ExpressionKind::Identifier(_))
     }

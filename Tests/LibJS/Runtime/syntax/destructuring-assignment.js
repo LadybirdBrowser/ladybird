@@ -60,6 +60,14 @@ describe("parsing", () => {
         expect("({c:a.b}) => 3").not.toEval();
         expect("({a:b[0]}) => 4").not.toEval();
     });
+
+    test("assignment patterns cannot use parenthesized nested object or array patterns", () => {
+        expect("var a, b; ({ a: ({ b: b }) } = { a: { b: 42 } });").not.toEval();
+        expect("var a, b; ({ a: ([b]) } = { a: [42] });").not.toEval();
+
+        expect("var a, b; ({ a: (a), b } = { a: 1, b: 2 });").toEval();
+        expect("var a, b; [(a), b] = [1, 2];").toEval();
+    });
 });
 
 describe("evaluating", () => {
