@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body></body>
+<script>
+    test(() => {
+        internals.setContentBlockers("##.ad\n###sponsor");
+
+        const host = document.createElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        document.body.appendChild(host);
+
+        const classTarget = document.createElement("div");
+        shadowRoot.appendChild(classTarget);
+
+        const idTarget = document.createElement("div");
+        shadowRoot.appendChild(idTarget);
+
+        println(getComputedStyle(classTarget).display);
+        println(getComputedStyle(idTarget).display);
+
+        classTarget.className = "ad";
+        idTarget.id = "sponsor";
+
+        println(getComputedStyle(classTarget).display);
+        println(getComputedStyle(idTarget).display);
+
+        internals.setContentBlockers("");
+
+        println(getComputedStyle(classTarget).display);
+        println(getComputedStyle(idTarget).display);
+    });
+</script>

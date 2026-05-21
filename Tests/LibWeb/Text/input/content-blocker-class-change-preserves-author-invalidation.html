@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<style>
+    div {
+        color: red;
+    }
+
+    .active {
+        color: green;
+    }
+</style>
+<body></body>
+<script>
+    test(() => {
+        internals.setContentBlockers("##.ad");
+
+        const target = document.createElement("div");
+        target.id = "target";
+        document.body.appendChild(target);
+
+        println(getComputedStyle(target).color);
+
+        target.className = "active";
+        println(getComputedStyle(target).color);
+
+        internals.setContentBlockers("");
+    });
+</script>
