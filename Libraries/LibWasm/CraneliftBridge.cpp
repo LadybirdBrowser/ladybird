@@ -567,8 +567,8 @@ i32 wasm_cl_call_with_record(void* interp_ptr, void* config_ptr, i32 func_index)
 static ALWAYS_INLINE i32 wasm_cl_direct_call_impl(BytecodeInterpreter& interpreter, Configuration& config, i32 func_index, Value* args, size_t arg_count)
 {
     config.build_compiled_function_table();
-    auto it = config.m_compiled_fn_table.find(static_cast<u32>(func_index));
-    if (it == config.m_compiled_fn_table.end()) [[unlikely]] {
+    auto maybe_entry = config.m_compiled_fn_table.get(static_cast<size_t>(func_index));
+    if (!maybe_entry.has_value()) [[unlikely]] {
         // Not Cranelift-compiled, fall back to full path.
         Vector<Value, ArgumentsStaticSize> args_vec;
         args_vec.ensure_capacity(arg_count);
@@ -577,7 +577,7 @@ static ALWAYS_INLINE i32 wasm_cl_direct_call_impl(BytecodeInterpreter& interpret
         return wasm_cl_finish_call(interpreter, config, config.frame().module().functions()[func_index], args_vec);
     }
 
-    auto const& entry = it->value;
+    auto const& entry = maybe_entry.value();
 
     if (config.depth() > 500) [[unlikely]] {
         interpreter.set_trap("call stack exhausted"sv);
