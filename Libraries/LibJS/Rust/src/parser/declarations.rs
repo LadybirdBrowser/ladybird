@@ -1207,7 +1207,9 @@ impl Parser<'_> {
             }
         }
 
-        children.extend(self.parse_statement_list(false));
+        // https://tc39.es/ecma262/#sec-labelled-function-declarations
+        // That rule is then modified to suppress the Syntax Error in non-strict code if the host supports this feature.
+        children.extend(self.parse_statement_list(true));
 
         self.flags.strict_mode = strict_before;
         self.flags.in_function_context = in_function_before;

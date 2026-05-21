@@ -917,8 +917,17 @@ impl Parser<'_> {
         let body_starts_iteration = self.match_iteration_start();
         self.last_inner_label_is_iteration = false;
         let body = if self.match_token(TokenType::Function) {
+            let function_start = self.position();
             let fn_decl = self.parse_function_declaration();
             if let StatementKind::FunctionDeclaration(ref fd) = fn_decl.inner {
+                if let Some(name) = fd.name {
+                    let name = self.arena.name_of(name).clone();
+                    self.scope_collector.check_labelled_function_declaration(
+                        name.as_slice(),
+                        function_start.line,
+                        function_start.column,
+                    );
+                }
                 match fd.kind {
                     FunctionKind::Generator | FunctionKind::AsyncGenerator => {
                         self.syntax_error("Generator functions cannot be defined in labelled statements");
