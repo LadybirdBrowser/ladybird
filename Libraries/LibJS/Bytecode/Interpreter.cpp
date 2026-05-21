@@ -1051,9 +1051,7 @@ inline ThrowCompletionOr<Value> get_global(VM& vm, IdentifierTableIndex identifi
         auto* entry = cache.first_entry();
         if (entry && &shape == entry->shape && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
             auto value = binding_object.get_direct(entry->property_offset);
-            if (value.is_accessor())
-                return TRY(call(vm, value.as_accessor().getter(), &binding_object));
-            return value;
+            return TRY(get_cached_property_value(vm, value, &binding_object));
         }
 
         // OPTIMIZATION: For global lexical bindings, if the global declarative environment hasn't changed,
