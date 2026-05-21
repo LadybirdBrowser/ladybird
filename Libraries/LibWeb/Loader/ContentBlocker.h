@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -38,6 +39,8 @@ private:
 };
 
 class WEB_API ContentBlocker {
+    AK_MAKE_NONCOPYABLE(ContentBlocker);
+
 public:
     static ContentBlocker& the();
 
