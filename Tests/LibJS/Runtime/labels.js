@@ -134,6 +134,7 @@ test("can use certain 'keywords' as labels", () => {
     expect(i).toBe(6);
 
     expect(`const: { break const; }`).not.toEval();
+    expect(`super: { break super; }`).not.toEval();
 });
 
 test("can use certain 'keywords' even in strict mode", () => {
