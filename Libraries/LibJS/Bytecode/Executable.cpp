@@ -25,6 +25,7 @@
 namespace JS::Bytecode {
 
 GC_DEFINE_ALLOCATOR(Executable);
+GC_DEFINE_ALLOCATOR(TemplateObjectCache);
 GC_DEFINE_ALLOCATOR(ObjectPropertyIteratorCacheData);
 
 InstructionStream::InstructionStream(Vector<u8> bytecode)
@@ -179,6 +180,17 @@ size_t PropertyLookupCache::external_memory_size() const
     return 0;
 }
 
+void PropertyLookupCache::copy_from(PropertyLookupCache const& other)
+{
+    clear();
+    if (auto* data = other.monomorphic_data()) {
+        set_monomorphic_data(new MonomorphicData(*data));
+        return;
+    }
+    if (auto* data = other.polymorphic_data())
+        set_polymorphic_data(new PolymorphicData(*data));
+}
+
 void PropertyLookupCache::clear()
 {
     if (auto* data = monomorphic_data()) {
@@ -252,6 +264,12 @@ size_t ObjectPropertyIteratorCacheData::external_memory_size() const
     return size;
 }
 
+void TemplateObjectCache::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(cached_template_object);
+}
+
 Executable::Executable(
     InstructionStream bytecode,
     NonnullOwnPtr<IdentifierTable> identifier_table,
@@ -282,7 +300,9 @@ Executable::Executable(
     property_lookup_caches.resize(number_of_property_lookup_caches);
     global_variable_caches.resize(number_of_global_variable_caches);
     environment_coordinate_caches.resize(number_of_environment_coordinate_caches);
-    template_object_caches.resize(number_of_template_object_caches);
+    template_object_caches.ensure_capacity(number_of_template_object_caches);
+    for (size_t i = 0; i < number_of_template_object_caches; ++i)
+        template_object_caches.append(heap().allocate<TemplateObjectCache>());
     object_shape_caches.resize(number_of_object_shape_caches);
     object_property_iterator_caches.resize(number_of_object_property_iterator_caches);
     asm_constants_size = this->constants.size();
@@ -541,8 +561,7 @@ void Executable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(constants);
-    for (auto& cache : template_object_caches)
-        visitor.visit(cache.cached_template_object);
+    visitor.visit(template_object_caches);
     for (auto& cache : object_property_iterator_caches)
         visitor.visit(cache.data);
     for (auto& cache : object_property_iterator_caches)
@@ -556,6 +575,34 @@ void Executable::visit_edges(Visitor& visitor)
         }
     }
     property_key_table->visit_edges(visitor);
+}
+
+void Executable::copy_runtime_caches_from(Executable const& other)
+{
+    if (this == &other)
+        return;
+
+    if (property_lookup_caches.size() == other.property_lookup_caches.size()) {
+        for (size_t i = 0; i < property_lookup_caches.size(); ++i)
+            property_lookup_caches[i].copy_from(other.property_lookup_caches[i]);
+    }
+
+    if (global_variable_caches.size() == other.global_variable_caches.size())
+        global_variable_caches = other.global_variable_caches;
+
+    if (environment_coordinate_caches.size() == other.environment_coordinate_caches.size())
+        environment_coordinate_caches = other.environment_coordinate_caches;
+
+    if (template_object_caches.size() == other.template_object_caches.size())
+        template_object_caches = other.template_object_caches;
+
+    if (object_shape_caches.size() == other.object_shape_caches.size())
+        object_shape_caches = other.object_shape_caches;
+
+    if (object_property_iterator_caches.size() == other.object_property_iterator_caches.size()) {
+        for (size_t i = 0; i < object_property_iterator_caches.size(); ++i)
+            object_property_iterator_caches[i].data = other.object_property_iterator_caches[i].data;
+    }
 }
 
 size_t Executable::external_memory_size() const

@@ -98,6 +98,7 @@ struct PropertyLookupCache {
     [[nodiscard]] Span<Entry> entries();
     [[nodiscard]] ReadonlySpan<Entry> entries() const;
     [[nodiscard]] size_t external_memory_size() const;
+    void copy_from(PropertyLookupCache const&);
 
     void update(Entry::Type type, auto callback)
     {
@@ -194,8 +195,17 @@ struct GlobalVariableCache {
 
 // https://tc39.es/ecma262/#sec-gettemplateobject
 // Template objects are cached at the call site.
-struct TemplateObjectCache {
+class JS_API TemplateObjectCache final : public Cell {
+    GC_CELL(TemplateObjectCache, Cell);
+    GC_DECLARE_ALLOCATOR(TemplateObjectCache);
+
+public:
+    virtual ~TemplateObjectCache() override = default;
+
     GC::Ptr<Array> cached_template_object;
+
+private:
+    virtual void visit_edges(Visitor&) override;
 };
 
 // Cache for object literal shapes.
@@ -288,7 +298,7 @@ public:
     Vector<PropertyLookupCache> property_lookup_caches;
     Vector<GlobalVariableCache> global_variable_caches;
     Vector<EnvironmentCoordinate> environment_coordinate_caches;
-    Vector<TemplateObjectCache> template_object_caches;
+    Vector<GC::Ref<TemplateObjectCache>> template_object_caches;
     Vector<ObjectShapeCache> object_shape_caches;
     Vector<ObjectPropertyIteratorCache> object_property_iterator_caches;
     NonnullOwnPtr<StringTable> string_table;
@@ -338,6 +348,7 @@ public:
     }
 
     [[nodiscard]] COLD Optional<size_t> basic_block_index_for_offset(size_t offset) const;
+    void copy_runtime_caches_from(Executable const&);
     [[nodiscard]] COLD Optional<ExceptionHandlers const&> exception_handlers_for_offset(size_t offset) const;
 
     [[nodiscard]] Optional<SourceRange> source_range_at(size_t offset) const;
