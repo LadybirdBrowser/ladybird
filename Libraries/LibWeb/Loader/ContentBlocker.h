@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 
 namespace Web {
 
@@ -42,13 +43,33 @@ class WEB_API ContentBlocker {
     AK_MAKE_NONCOPYABLE(ContentBlocker);
 
 public:
+    enum class ResourceType : u8 {
+        Document,
+        Font,
+        Image,
+        Media,
+        Object,
+        Other,
+        Ping,
+        Script,
+        Stylesheet,
+        Subdocument,
+        WebSocket,
+        XMLHttpRequest,
+    };
+
     static ContentBlocker& the();
 
     bool filtering_enabled() const { return m_filtering_enabled; }
     void set_filtering_enabled(bool const enabled) { m_filtering_enabled = enabled; }
 
     bool is_filtered(URL::URL const&) const;
+    bool is_filtered(URL::URL const&, URL::URL const& source_url, ResourceType) const;
+    bool is_filtered(URL::URL const&, URL::URL const& source_url, Optional<Fetch::Infrastructure::Request::Destination> const&, Optional<Fetch::Infrastructure::Request::InitiatorType> const&, Fetch::Infrastructure::Request::Mode) const;
     ErrorOr<void> set_patterns(ReadonlySpan<String>);
+
+    static ResourceType resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const&, Optional<Fetch::Infrastructure::Request::InitiatorType> const&, Fetch::Infrastructure::Request::Mode);
+    static URL::URL source_url_for_matching(URL::URL const&);
 
 private:
     ContentBlocker();

@@ -508,7 +508,7 @@ void HTMLLinkElement::fetch_and_process_linked_dns_prefetch_resource()
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#resolve-an-origin
     if (!ResourceLoader::is_initialized())
         return;
-    ResourceLoader::the().prefetch_dns(url.value());
+    ResourceLoader::the().prefetch_dns(url.value(), document().fallback_base_url());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-preconnect:fetch-and-process-the-linked-resource-2
@@ -633,7 +633,8 @@ void HTMLLinkElement::preconnect(LinkProcessingOptions const& options)
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#concept-connection-obtain
     if (!ResourceLoader::is_initialized())
         return;
-    ResourceLoader::the().preconnect(*url);
+    auto source_url = options.document ? options.document->fallback_base_url() : options.environment->api_base_url();
+    ResourceLoader::the().preconnect(*url, source_url);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#match-preload-type

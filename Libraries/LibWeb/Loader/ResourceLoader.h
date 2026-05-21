@@ -42,8 +42,8 @@ public:
 
     RefPtr<Requests::RequestClient>& request_client() { return m_request_client; }
 
-    void prefetch_dns(URL::URL const&);
-    void preconnect(URL::URL const&);
+    void prefetch_dns(URL::URL const&, URL::URL const& source_url);
+    void preconnect(URL::URL const&, URL::URL const& source_url);
 
     Function<void()> on_load_counter_change;
 
