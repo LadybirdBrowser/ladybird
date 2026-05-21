@@ -54,6 +54,25 @@ describe("normal behavior", () => {
         expect(a.length).toEqual(2);
         expect(a[1]).toEqual(2);
     });
+
+    test("should stop truncating sparse arrays at non-configurable values", () => {
+        var a = [0, , 2, , , 5];
+        Object.defineProperty(a, 100, { configurable: true, value: "deleted" });
+        Object.defineProperty(a, 50, { configurable: false, value: "kept" });
+        Object.defineProperty(a, 40, { configurable: true, value: "also kept" });
+
+        expect((a.length = 1)).toEqual(1);
+        expect(a.length).toEqual(51);
+        expect(Object.getOwnPropertyNames(a).sort()).toEqual(["0", "2", "40", "5", "50", "length"]);
+
+        function strictTruncate() {
+            "use strict";
+            a.length = 1;
+        }
+        expect(strictTruncate).toThrow(TypeError);
+        expect(a.length).toEqual(51);
+        expect(Object.getOwnPropertyNames(a).sort()).toEqual(["0", "2", "40", "5", "50", "length"]);
+    });
 });
 
 describe("behavior when obj has Array prototype", () => {
