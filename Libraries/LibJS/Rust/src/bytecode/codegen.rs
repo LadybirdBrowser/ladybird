@@ -8165,6 +8165,14 @@ pub fn emit_function_declaration_instantiation(
             });
 
             generator.switch_to_basic_block(if_undefined_block);
+            if let FunctionParameterBinding::Identifier(ident_id) = &parameter.binding {
+                // https://tc39.es/ecma262/#sec-runtime-semantics-iteratorbindinginitialization
+                // If |Initializer| is present and _v_ is *undefined*, then
+                //   If IsAnonymousFunctionDefinition(|Initializer|) is *true*, then
+                //     Set _v_ to ? NamedEvaluation of |Initializer| with argument _bindingId_.
+                let arena = generator.arena.clone();
+                generator.pending_lhs_name = Some(generator.intern_identifier_id(arena.identifiers[*ident_id].name));
+            }
             if let Some(value) = generate_expression(
                 parameter
                     .default_value
@@ -8175,6 +8183,7 @@ pub fn emit_function_declaration_instantiation(
             ) {
                 generator.emit_mov_raw(Operand::argument(parameter_index), value.operand());
             }
+            generator.pending_lhs_name = None;
             generator.emit(Instruction::Jump {
                 target: if_not_undefined_block,
             });
