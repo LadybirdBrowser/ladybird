@@ -110,6 +110,8 @@ struct EvalDeclarationData {
         bool is_constant { false };
     };
     Vector<LexicalBinding> lexical_bindings;
+
+    Vector<Utf16FlyString> referenced_private_names;
 };
 
 ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, EvalDeclarationData&, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict);

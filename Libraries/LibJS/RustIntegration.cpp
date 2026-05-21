@@ -150,6 +150,7 @@ struct EvalGdiBuilder {
     Vector<Utf16FlyString> var_scoped_names;
     Vector<Utf16FlyString> annex_b_candidate_names;
     Vector<EvalDeclarationData::LexicalBinding> lexical_bindings;
+    Vector<Utf16FlyString> referenced_private_names;
 
     EvalResult to_result()
     {
@@ -162,6 +163,7 @@ struct EvalGdiBuilder {
         result.declaration_data.var_scoped_names = move(var_scoped_names);
         result.declaration_data.annex_b_candidate_names = move(annex_b_candidate_names);
         result.declaration_data.lexical_bindings = move(lexical_bindings);
+        result.declaration_data.referenced_private_names = move(referenced_private_names);
         return result;
     }
 };
@@ -202,6 +204,11 @@ extern "C" void eval_gdi_push_annex_b_name(void* ctx, uint16_t const* name, size
 extern "C" void eval_gdi_push_lexical_binding(void* ctx, uint16_t const* name, size_t len, bool is_constant)
 {
     static_cast<JS::RustIntegration::EvalGdiBuilder*>(ctx)->lexical_bindings.append({ JS::RustIntegration::utf16_fly_from(name, len), is_constant });
+}
+
+extern "C" void eval_gdi_push_private_name(void* ctx, uint16_t const* name, size_t len)
+{
+    static_cast<JS::RustIntegration::EvalGdiBuilder*>(ctx)->referenced_private_names.append(JS::RustIntegration::utf16_fly_from(name, len));
 }
 
 }

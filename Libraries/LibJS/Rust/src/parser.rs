@@ -207,6 +207,8 @@ struct SavedState {
     flags: ParserFlags,
     scope_collector_state: ScopeCollectorState,
     function_context_stack_lengths: Vec<usize>,
+    referenced_private_names_stack: Vec<HashSet<Utf16String>>,
+    eval_referenced_private_names: Vec<Utf16String>,
 }
 
 /// The main JavaScript parser.
@@ -264,8 +266,9 @@ pub struct Parser<'a> {
     /// Stack of sets tracking private names referenced inside class bodies.
     /// Each class body pushes a new set. At the end of the class, any names
     /// not found in the class's declared private names are bubbled up to the
-    /// outer class, or reported as errors if there is no outer class.
+    /// outer class, recorded for eval validation, or reported as errors.
     referenced_private_names_stack: Vec<HashSet<Utf16String>>,
+    eval_referenced_private_names: Vec<Utf16String>,
 
     /// Communication channel from `parse_variable_declaration` back to
     /// `parse_for_statement` when parsing `for (let/const/var ... ; ...)`.
@@ -335,6 +338,7 @@ impl<'a> Parser<'a> {
             class_scope_depth: 0,
             has_default_export_name: false,
             referenced_private_names_stack: Vec::new(),
+            eval_referenced_private_names: Vec::new(),
             for_loop_declaration_count: 0,
             for_loop_declaration_has_init: false,
             for_loop_declaration_is_var: false,
@@ -674,20 +678,33 @@ impl<'a> Parser<'a> {
         self.syntax_error_at(message, pos.line, pos.column);
     }
 
-    /// Register a referenced private name. Returns true if we're inside a class
-    /// body (the reference is valid for now, will be checked at class end).
-    /// Returns false if we're outside all class bodies (always invalid).
+    /// Register a referenced private name. Returns true if the reference can be
+    /// checked later by class parsing or EvalDeclarationInstantiation.
     pub(crate) fn register_referenced_private_name(&mut self, name: &[u16]) -> bool {
         if let Some(set) = self.referenced_private_names_stack.last_mut() {
             set.insert(Utf16String::from(name));
+            true
+        } else if self.initiated_by_eval {
+            self.register_eval_referenced_private_name(name);
             true
         } else {
             false
         }
     }
 
+    pub(crate) fn register_eval_referenced_private_name(&mut self, name: &[u16]) {
+        let name = Utf16String::from(name);
+        if !self.eval_referenced_private_names.contains(&name) {
+            self.eval_referenced_private_names.push(name);
+        }
+    }
+
+    pub(crate) fn eval_referenced_private_names(&self) -> &[Utf16String] {
+        &self.eval_referenced_private_names
+    }
+
     /// Parse and validate a private identifier token.
-    /// Registers the private name reference and emits an error if outside a class body.
+    /// Registers the private name reference and emits an error if it cannot be validated later.
     /// The current token must be a PrivateIdentifier.
     pub(crate) fn parse_private_identifier(&mut self, range_start: Position) -> PrivateIdentifier {
         let value = self.token_value(&self.current_token).to_vec();
@@ -776,6 +793,8 @@ impl<'a> Parser<'a> {
             flags: self.flags,
             scope_collector_state: self.scope_collector.save_state(),
             function_context_stack_lengths: self.function_context_stack.iter().map(Vec::len).collect(),
+            referenced_private_names_stack: self.referenced_private_names_stack.clone(),
+            eval_referenced_private_names: self.eval_referenced_private_names.clone(),
         });
     }
 
@@ -785,6 +804,8 @@ impl<'a> Parser<'a> {
         self.errors.truncate(state.errors_len);
         self.flags = state.flags;
         self.scope_collector.load_state(state.scope_collector_state);
+        self.referenced_private_names_stack = state.referenced_private_names_stack;
+        self.eval_referenced_private_names = state.eval_referenced_private_names;
         self.function_context_stack
             .truncate(state.function_context_stack_lengths.len());
         for (context, len) in self

@@ -35,6 +35,17 @@ PrivateName PrivateEnvironment::resolve_private_identifier(Utf16FlyString const&
     return m_outer_environment->resolve_private_identifier(identifier);
 }
 
+bool PrivateEnvironment::contains_private_identifier(Utf16FlyString const& identifier) const
+{
+    if (!find_private_name(identifier).is_end())
+        return true;
+
+    if (!m_outer_environment)
+        return false;
+
+    return m_outer_environment->contains_private_identifier(identifier);
+}
+
 void PrivateEnvironment::add_private_name(Utf16FlyString description)
 {
     if (!find_private_name(description).is_end())

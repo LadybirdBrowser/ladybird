@@ -723,6 +723,8 @@ impl Parser<'_> {
             // Bubble up to outer class, or error if no outer class.
             if let Some(outer) = self.referenced_private_names_stack.last_mut() {
                 outer.insert(name);
+            } else if self.initiated_by_eval {
+                self.register_eval_referenced_private_name(&name);
             } else {
                 let name_str = String::from_utf16_lossy(&name);
                 self.syntax_error(&format!("Reference to undeclared private field or method '{name_str}'"));
