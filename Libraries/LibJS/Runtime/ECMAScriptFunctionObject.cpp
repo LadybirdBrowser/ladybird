@@ -678,6 +678,9 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ECMAScriptFunctionObject::intern
 
 ThrowCompletionOr<GC::RootVector<Value>> ECMAScriptFunctionObject::internal_own_property_keys() const
 {
+    if (m_may_need_lazy_prototype_instantiation)
+        (void)TRY(internal_get_own_property(vm().names.prototype));
+
     auto keys = TRY(Base::internal_own_property_keys());
     if (!supports_legacy_caller_or_arguments())
         return keys;
