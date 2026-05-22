@@ -1,0 +1,94 @@
+Harness status: Error
+
+Found 88 tests
+
+81 Pass
+7 Fail
+Pass	font-weight(valid): 'normal' keyword: normal
+Pass	font-weight(valid): 'bold' keyword: bold
+Pass	font-weight(valid): 'auto' keyword inside @font-face: auto
+Pass	font-weight(invalid): 'lighter' keyword inside @font-face: lighter
+Pass	font-weight(invalid): 'bolder' keyword inside @font-face: bolder
+Pass	font-weight(invalid): Extra content after keyword: bold a
+Pass	font-weight(valid): Values that are not multiple of 100 should be parsed successfully: 401
+Pass	font-weight(valid): Non-integer values should be parsed successfully: 400.1
+Pass	font-weight(valid): Minimum allowed value should be parsed successfully: 1
+Pass	font-weight(invalid): Values below minimum should be rejected: 0.999
+Pass	font-weight(invalid): Values below zero should be rejected: -100
+Pass	font-weight(valid): Maximum allowed value should be parsed successfully: 1000
+Pass	font-weight(invalid): Values above maximum should be rejected: 1000.001
+Pass	font-weight(invalid): Extra content after value: 100 a
+Pass	font-weight(valid): Simple calc value: calc(100.5)
+Pass	font-weight(valid): Out-of-range simple calc value: calc(1001)
+Pass	font-weight(valid): Valid calc expression: calc(100.5*3 + 50.5)
+Pass	font-weight(valid): Valid calc expression with out-of-range value: calc(100.5*3 + 800)
+Pass	font-weight(invalid): Valid calc expression with units: calc(100.5px + 50.5px)
+Pass	font-weight(valid): Simple range: 100 900
+Pass	font-weight(valid): Simple range with equal upper and lower bounds: 500 500
+Pass	font-weight(invalid): Lower bound out of range: 0.9 100
+Pass	font-weight(invalid): Upper bound out of range: 100 1001
+Pass	font-weight(valid): Lower bound calc(): calc(100 + 100) 400
+Pass	font-weight(valid): Upper bound calc(): 200 calc(200 + 200)
+Pass	font-weight(valid): Both bounds are calc(): calc(100 + 100) calc(200 + 200)
+Pass	font-weight(valid): Bounds out of order are valid: 400 200
+Pass	font-weight(invalid): Extra content after upper bound: 100 200 300
+Pass	font-stretch(valid): 'ultra-condensed' keyword: ultra-condensed
+Pass	font-stretch(valid): 'extra-condensed' keyword: extra-condensed
+Pass	font-stretch(valid): 'condensed' keyword: condensed
+Pass	font-stretch(valid): 'semi-condensed' keyword: semi-condensed
+Pass	font-stretch(valid): 'normal' keyword: normal
+Pass	font-stretch(valid): 'semi-expanded' keyword: semi-expanded
+Pass	font-stretch(valid): 'expanded' keyword: expanded
+Pass	font-stretch(valid): 'extra-expanded' keyword: extra-expanded
+Pass	font-stretch(valid): 'ultra-expanded' keyword: ultra-expanded
+Pass	font-stretch(invalid): Extra content after value: expanded a
+Pass	font-stretch(valid): 'auto' keyword inside @font-face: auto
+Pass	font-stretch(valid): Legal percentage: 1%
+Pass	font-stretch(valid): Legal percentage: 10.5%
+Pass	font-stretch(valid): Legal percentage: 100%
+Pass	font-stretch(valid): Legal percentage: 1000%
+Pass	font-stretch(invalid): Only percentages, not numbers allowed: 100
+Pass	font-stretch(invalid): Negative values are illegal: -1%
+Pass	font-stretch(valid): Zero is legal: 0%
+Pass	font-stretch(invalid): Extra content after value: 100% a
+Pass	font-stretch(valid): Simple calc value: calc(200.5%)
+Pass	font-stretch(valid): Valid calc expression: calc(50%*2 - 20%)
+Pass	font-stretch(valid): Negative calc value (to be clamped): calc(-100%)
+Pass	font-stretch(valid): Negative calc expression (to be clamped): calc(50% - 50%*2)
+Pass	font-stretch(invalid): Unit-less calc value: calc(100)
+Pass	font-stretch(invalid): Calc value with units: calc(100px)
+Fail	font-stretch(valid): Simple range: 100% 200%
+Fail	font-stretch(valid): Simple range with equal upper and lower bounds: 100% 100%
+Pass	font-stretch(invalid): Lower bound out of range: -100% 100%
+Fail	font-stretch(valid): Lower bound calc(): calc(10% + 10%) 30%
+Fail	font-stretch(valid): Upper bound calc(): 10% calc(10% + 10%)
+Fail	font-stretch(valid): Both bounds are calc(): calc(10% + 10%) calc(20% + 20%)
+Fail	font-stretch(valid): Bounds out of order: 200% 100%
+Pass	font-stretch(invalid): Extra content after upper bound: 100% 200% 300%
+Pass	font-style(valid): 'normal' keyword: normal
+Pass	font-style(valid): 'italic' keyword: italic
+Pass	font-style(valid): 'oblique' keyword: oblique
+Pass	font-style(valid): 'auto' keyword inside @font-face: auto
+Pass	font-style(invalid): 'italic' followed by angle: italic 20deg
+Pass	font-style(invalid): Extra content after keyword: italic a
+Pass	font-style(valid): 'oblique' followed by zero degrees: oblique 0deg
+Pass	font-style(valid): 'oblique' followed by former default 20deg angle: oblique 20deg
+Pass	font-style(valid): 'oblique' followed by maxumum 90 degree angle: oblique 90deg
+Pass	font-style(valid): 'oblique' followed by minimum -90 degree angle: oblique -90deg
+Pass	font-style(valid): 'oblique' followed by calc with out of range value (should be clamped): oblique calc(91deg)
+Pass	font-style(valid): 'oblique' followed by calc with out of range value (should be clamped): oblique calc(-91deg)
+Pass	font-style(valid): 'oblique' followed by angle in radians: oblique 0rad
+Pass	font-style(invalid): 'oblique' followed by unit-less number: oblique 20
+Pass	font-style(invalid): 'oblique' followed by non-angle: oblique 20px
+Pass	font-style(invalid): 'oblique' followed by non-number: oblique a
+Pass	font-style(invalid): 'oblique' followed by isolated minus: oblique -
+Pass	font-style(invalid): 'oblique' followed by minus and angle separated by space: oblique - 20deg
+Pass	font-style(invalid): 'oblique' followed by minus and non-number: oblique -a
+Pass	font-style(valid): Simple range: oblique 10deg 20deg
+Pass	font-style(valid): Simple range with equal upper and lower bounds: oblique 10deg 10deg
+Pass	font-style(valid): Simple range with equal upper and lower bounds: oblique 0deg 0deg
+Fail	font-style(valid): Simple range with former default angle for both bounds: oblique 20deg 20deg
+Pass	font-style(valid): Bounds out of order: oblique 20deg 10deg
+Pass	font-style(invalid): Lower bound out of range: oblique -100deg 20deg
+Pass	font-style(invalid): Upper bound out of range: oblique 20deg 100deg
+Pass	font-style(invalid): Extra content after upper bound: oblique 10deg 20deg 30deg

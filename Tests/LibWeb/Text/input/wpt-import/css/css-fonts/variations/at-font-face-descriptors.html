@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing @font-face descriptor values introduced in CSS Fonts level 4</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-face-rule" />
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style id="testStyle">
+        @font-face { font-family: Test; src: local('Courier New'), local('Courier'); }
+    </style>
+</head>
+<body>
+    <div>@font-face descriptor tests</div>
+    <script>
+
+        function updateFontFaceRule(descriptorName, descriptorValue) {
+            let testRule = document.getElementById("testStyle").sheet.cssRules[0];
+
+            testRule.style.fontWeight = "normal";
+            testRule.style.fontStyle = "normal";
+            testRule.style.fontStretch = "normal";
+            assert_equals(testRule.style.fontWeight, "normal", "Can't clear @font-face.");
+            assert_equals(testRule.style.fontStyle, "normal", "Can't clear @font-face.");
+            assert_equals(testRule.style.fontStretch,  "normal", "Can't clear @font-face.");
+
+            testRule.style.fontWeight = "";
+            testRule.style.fontStyle = "";
+            testRule.style.fontStretch = "";
+            assert_true(!testRule.style.fontWeight, "", "Can't clear @font-face.");
+            assert_true(!testRule.style.fontStyle, "", "Can't clear @font-face.");
+            assert_true(!testRule.style.fontStretch,  "", "Can't clear @font-face.");
+
+            testRule.style[descriptorName] = descriptorValue;
+
+            return testRule;
+        }
+
+        function testDescriptor(descriptorName, testCases) {
+            var propertyName = { 'font-weight':'fontWeight', 'font-stretch':'fontStretch', 'font-style':'fontStyle' }[descriptorName];
+            testCases.forEach(function (testCase) {
+                test(() => {
+                    let rule = updateFontFaceRule(descriptorName, testCase.value);
+
+                    if (testCase.isValid) {
+                        assert_not_equals(rule.style[propertyName], "", "Valid value should be accepted.");
+
+                        let expectedValue = (testCase.expectedValue) ? testCase.expectedValue : testCase.value;
+                        assert_equals(rule.style[propertyName], expectedValue, "Unexpected resulting value.");
+                    }
+                    else {
+                        assert_equals(rule.style[propertyName], "", "No properties should be set.");
+                    }
+                }, descriptorName + (testCase.isValid ? "(valid): " : "(invalid): ") + testCase.description + ": " + testCase.value);
+
+            });
+        }
+
+        testDescriptor("font-weight", [
+            // Single value, keyword
+            { value: "normal",                  isValid: true,  description: "'normal' keyword" },
+            { value: "bold",                    isValid: true,  description: "'bold' keyword" },
+            { value: "auto",                    isValid: true,  description: "'auto' keyword inside @font-face" },
+            { value: "lighter",                 isValid: false, description: "'lighter' keyword inside @font-face" },
+            { value: "bolder",                  isValid: false, description: "'bolder' keyword inside @font-face" },
+            { value: "bold a",                  isValid: false, description: "Extra content after keyword" },
+
+            // Single value, number
+            { value: "401",                     isValid: true,  description: "Values that are not multiple of 100 should be parsed successfully" },
+            { value: "400.1",                   isValid: true,  description: "Non-integer values should be parsed successfully" },
+            { value: "1",                       isValid: true,  description: "Minimum allowed value should be parsed successfully" },
+            { value: "0.999",                   isValid: false, description: "Values below minimum should be rejected" },
+            { value: "-100",                    isValid: false, description: "Values below zero should be rejected" },
+            { value: "1000",                    isValid: true,  description: "Maximum allowed value should be parsed successfully" },
+            { value: "1000.001",                isValid: false, description: "Values above maximum should be rejected" },
+            { value: "100 a",                   isValid: false, description: "Extra content after value" },
+
+            // Single value, calc
+            { value: "calc(100.5)",             isValid: true,  expectedValue: "calc(100.5)", description: "Simple calc value" },
+            { value: "calc(1001)",              isValid: true, description: "Out-of-range simple calc value" },
+            { value: "calc(100.5*3 + 50.5)",    isValid: true,  expectedValue: "calc(352)", description: "Valid calc expression" },
+            { value: "calc(100.5*3 + 800)",     isValid: true,  expectedValue: "calc(1101.5)", description: "Valid calc expression with out-of-range value" },
+            { value: "calc(100.5px + 50.5px)",  isValid: false, description: "Valid calc expression with units" },
+
+            // Value range
+            { value: "100 900",                         isValid: true,  description: "Simple range" },
+            { value: "500 500",                         isValid: true,  expectedValue: "500", description: "Simple range with equal upper and lower bounds" },
+            { value: "0.9 100",                         isValid: false, description: "Lower bound out of range" },
+            { value: "100 1001",                        isValid: false, description: "Upper bound out of range" },
+            { value: "calc(100 + 100) 400",             isValid: true,  expectedValue: "calc(200) 400", description: "Lower bound calc()" },
+            { value: "200 calc(200 + 200)",             isValid: true,  expectedValue: "200 calc(400)", description: "Upper bound calc()" },
+            { value: "calc(100 + 100) calc(200 + 200)", isValid: true,  expectedValue: "calc(200) calc(400)", description: "Both bounds are calc()" },
+            { value: "400 200",                         isValid: true,  expectedValue: "400 200", description: "Bounds out of order are valid" },
+            { value: "100 200 300",                     isValid: false, description: "Extra content after upper bound" },
+        ]);
+
+        testDescriptor("font-stretch", [
+            // Single value, keyword
+            { value: "ultra-condensed",         isValid: true,  description: "'ultra-condensed' keyword" },
+            { value: "extra-condensed",         isValid: true,  description: "'extra-condensed' keyword" },
+            { value: "condensed",               isValid: true,  description: "'condensed' keyword" },
+            { value: "semi-condensed",          isValid: true,  description: "'semi-condensed' keyword" },
+            { value: "normal",                  isValid: true,  description: "'normal' keyword" },
+            { value: "semi-expanded",           isValid: true,  description: "'semi-expanded' keyword" },
+            { value: "expanded",                isValid: true,  description: "'expanded' keyword" },
+            { value: "extra-expanded",          isValid: true,  description: "'extra-expanded' keyword" },
+            { value: "ultra-expanded",          isValid: true,  description: "'ultra-expanded' keyword" },
+            { value: "expanded a",              isValid: false, description: "Extra content after value" },
+            { value: "auto",                    isValid: true,  description: "'auto' keyword inside @font-face" },
+
+            // Single value, number
+            { value: "1%",                      isValid: true,  description:"Legal percentage" },
+            { value: "10.5%",                   isValid: true,  description:"Legal percentage" },
+            { value: "100%",                    isValid: true,  description:"Legal percentage" },
+            { value: "1000%",                   isValid: true,  description:"Legal percentage" },
+            { value: "100",                     isValid: false, description:"Only percentages, not numbers allowed" },
+            { value: "-1%",                     isValid: false, description:"Negative values are illegal" },
+            { value: "0%",                      isValid: true,  description:"Zero is legal" },
+            { value: "100% a",                  isValid: false, description:"Extra content after value" },
+
+            // Single value, calc
+            { value: "calc(200.5%)",            isValid: true,  expectedValue: "calc(200.5%)", description: "Simple calc value" },
+            { value: "calc(50%*2 - 20%)",       isValid: true,  expectedValue: "calc(80%)", description: "Valid calc expression" },
+            { value: "calc(-100%)",             isValid: true,  description: "Negative calc value (to be clamped)" },
+            { value: "calc(50% - 50%*2)",       isValid: true,  expectedValue: "calc(-50%)", description: "Negative calc expression (to be clamped)" },
+            { value: "calc(100)",               isValid: false, description: "Unit-less calc value" },
+            { value: "calc(100px)",             isValid: false, description: "Calc value with units" },
+
+            // Value range
+            { value: "100% 200%",                       isValid: true,  description: "Simple range" },
+            { value: "100% 100%",                       isValid: true,  expectedValue: "100%", description: "Simple range with equal upper and lower bounds" },
+            { value: "-100% 100%",                      isValid: false, description: "Lower bound out of range" },
+            { value: "calc(10% + 10%) 30%",             isValid: true,  expectedValue: "calc(20%) 30%", description: "Lower bound calc()" },
+            { value: "10% calc(10% + 10%)",             isValid: true,  expectedValue: "10% calc(20%)", description: "Upper bound calc()" },
+            { value: "calc(10% + 10%) calc(20% + 20%)", isValid: true,  expectedValue: "calc(20%) calc(40%)", description: "Both bounds are calc()" },
+            { value: "200% 100%",                       isValid: true,  expectedValue: "200% 100%", description: "Bounds out of order" },
+            { value: "100% 200% 300%",                  isValid: false, description: "Extra content after upper bound" },
+        ]);
+
+        testDescriptor("font-style", [
+            // Single value, keyword
+            { value: "normal",                  isValid: true,  description: "'normal' keyword" },
+            { value: "italic",                  isValid: true,  description: "'italic' keyword" },
+            { value: "oblique",                 isValid: true,  description: "'oblique' keyword" },
+            { value: "auto",                    isValid: true,  description: "'auto' keyword inside @font-face" },
+
+            // Single value
+            { value: "italic 20deg",            isValid: false, description: "'italic' followed by angle" },
+            { value: "italic a",                isValid: false, description: "Extra content after keyword" },
+            { value: "oblique 0deg",            isValid: true,  expectedValue: "normal", description: "'oblique' followed by zero degrees" },
+            { value: "oblique 20deg",           isValid: true,  description: "'oblique' followed by former default 20deg angle" },
+            { value: "oblique 90deg",           isValid: true,  description: "'oblique' followed by maxumum 90 degree angle" },
+            { value: "oblique -90deg",          isValid: true,  description: "'oblique' followed by minimum -90 degree angle" },
+            { value: "oblique calc(91deg)",     isValid: true,  description: "'oblique' followed by calc with out of range value (should be clamped)" },
+            { value: "oblique calc(-91deg)",    isValid: true,  description: "'oblique' followed by calc with out of range value (should be clamped)" },
+            { value: "oblique 0rad",            isValid: true,  expectedValue: "normal", description: "'oblique' followed by angle in radians" },
+            { value: "oblique 20",              isValid: false, description: "'oblique' followed by unit-less number" },
+            { value: "oblique 20px",            isValid: false, description: "'oblique' followed by non-angle" },
+            { value: "oblique a",               isValid: false, description: "'oblique' followed by non-number" },
+            { value: "oblique -",               isValid: false, description: "'oblique' followed by isolated minus" },
+            { value: "oblique - 20deg",         isValid: false, description: "'oblique' followed by minus and angle separated by space" },
+            { value: "oblique -a",              isValid: false, description: "'oblique' followed by minus and non-number" },
+
+            // Value range
+            { value: "oblique 10deg 20deg",         isValid: true,  description: "Simple range" },
+            { value: "oblique 10deg 10deg",         isValid: true,  expectedValue: "oblique 10deg", description: "Simple range with equal upper and lower bounds" },
+            { value: "oblique 0deg 0deg",           isValid: true,  expectedValue: "normal", description: "Simple range with equal upper and lower bounds" },
+            { value: "oblique 20deg 20deg",         isValid: true,  description: "Simple range with former default angle for both bounds" },
+            { value: "oblique 20deg 10deg",         isValid: true,  expectedValue: "oblique 20deg 10deg", description: "Bounds out of order" },
+            { value: "oblique -100deg 20deg",       isValid: false, description: "Lower bound out of range" },
+            { value: "oblique 20deg 100deg",        isValid: false, description: "Upper bound out of range" },
+            { value: "oblique 10deg 20deg 30deg",   isValid: false, description: "Extra content after upper bound" },
+        ]);
+    </script>
+</body>
+</html>

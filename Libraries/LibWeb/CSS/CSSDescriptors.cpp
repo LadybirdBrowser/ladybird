@@ -5,10 +5,13 @@
  */
 
 #include <LibWeb/CSS/CSSDescriptors.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -95,6 +98,28 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(FlyString const& property
     // 6. If component value list is null, then return.
     if (!component_value_list)
         return {};
+
+    // https://drafts.csswg.org/css-fonts-4/#descdef-font-face-font-style
+    // Normalize font-style StyleValueList to FontStyleStyleValue so serialization
+    // uses the specialized path (oblique 0deg → "normal", equal-bound collapsing, etc.)
+    if (descriptor_name_and_id->id() == DescriptorID::FontStyle && component_value_list->is_value_list()) {
+        auto const& values = component_value_list->as_value_list().values();
+        if (values.size() >= 1 && values[0]->is_keyword()) {
+            auto keyword = keyword_to_font_style_keyword(values[0]->to_keyword());
+            if (keyword.has_value()) {
+                ValueComparingRefPtr<StyleValue const> angle1;
+                ValueComparingRefPtr<StyleValue const> angle2;
+                if (values.size() > 1 && values[1]->is_value_list()) {
+                    auto const& inner = values[1]->as_value_list().values();
+                    if (inner.size() > 0 && !inner[0]->is_empty_optional())
+                        angle1 = inner[0];
+                    if (inner.size() > 1 && !inner[1]->is_empty_optional())
+                        angle2 = inner[1];
+                }
+                component_value_list = FontStyleStyleValue::create(keyword.release_value(), move(angle1), move(angle2));
+            }
+        }
+    }
 
     // 7. Let updated be false.
     auto updated = false;
