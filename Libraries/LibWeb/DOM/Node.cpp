@@ -2111,6 +2111,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         }
 
         if (paintable_box()) {
+            MUST(object.add("display"sv, paintable_box()->computed_values().display().to_string()));
             if (paintable_box()->could_be_scrolled_by_wheel_event()) {
                 MUST(object.add("scrollable"sv, true));
             }
