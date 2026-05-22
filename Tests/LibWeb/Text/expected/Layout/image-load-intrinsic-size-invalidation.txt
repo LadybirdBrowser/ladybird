@@ -1,0 +1,12 @@
+auto: container=120 image=120x120
+width-percent: container=120 image=60x60
+width-percent-fixed-height: container=20 image=10x20
+height-percent: container=120 image=120x120
+height-percent-fixed-width: container=20 image=20x20
+both-percent: container=120 image=60x60
+calc-percent: container=120 image=60x60
+calc-percent-fixed-height: container=20 image=10x20
+min-width-percent: container=20 image=20x20
+max-width-percent: container=120 image=60x120
+min-content: container=20 image=20x20
+fixed: container=20 image=20x30

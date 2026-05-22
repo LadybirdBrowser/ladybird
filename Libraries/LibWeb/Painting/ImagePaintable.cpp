@@ -61,7 +61,8 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     if (phase == PaintPhase::Foreground) {
         auto image_rect = absolute_rect();
         auto image_rect_device_pixels = context.rounded_device_rect(image_rect);
-        if (m_renders_as_alt_text) {
+        auto renders_as_alt_text = m_is_svg_image ? m_renders_as_alt_text : !m_image_provider.is_image_available();
+        if (renders_as_alt_text) {
             if (!m_alt_text.is_empty()) {
                 auto enclosing_rect = context.enclosing_device_rect(image_rect).to_type<int>();
                 context.display_list_recorder().draw_text(enclosing_rect, Utf16String::from_utf8(m_alt_text), layout_node().font(context), Gfx::TextAlignment::Center, computed_values().color());

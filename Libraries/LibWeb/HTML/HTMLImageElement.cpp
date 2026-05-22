@@ -87,6 +87,61 @@ static BatchingDispatcher& batching_dispatcher()
     return dispatcher;
 }
 
+static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::ImageBox const& image_box)
+{
+    auto const& computed_values = image_box.computed_values();
+
+    auto size_is_definite = [](CSS::Size const& size) {
+        return size.is_length() || (size.is_calculated() && !size.contains_percentage());
+    };
+    auto size_constraint_is_definite_or_none = [&](CSS::Size const& size) {
+        return size.is_none() || size_is_definite(size);
+    };
+
+    auto const& width = computed_values.width();
+    auto const& height = computed_values.height();
+    if (!size_is_definite(width) || !size_is_definite(height))
+        return true;
+
+    auto const& min_width = computed_values.min_width();
+    auto const& min_height = computed_values.min_height();
+    if (!size_is_definite(min_width) || !size_is_definite(min_height))
+        return true;
+
+    auto const& max_width = computed_values.max_width();
+    auto const& max_height = computed_values.max_height();
+    if (!size_constraint_is_definite_or_none(max_width) || !size_constraint_is_definite_or_none(max_height))
+        return true;
+
+    return false;
+}
+
+static void reset_intrinsic_size_caches_after_image_data_change(Layout::ImageBox& image_box)
+{
+    image_box.reset_cached_intrinsic_sizes();
+    for (auto* ancestor = image_box.parent(); ancestor; ancestor = ancestor->parent()) {
+        auto* box = as_if<Layout::Box>(ancestor);
+        if (!box)
+            continue;
+        box->reset_cached_intrinsic_sizes();
+        if (box->is_absolutely_positioned() || box->is_svg_svg_box())
+            break;
+    }
+}
+
+static void set_needs_layout_update_or_repaint_after_image_data_change(HTMLImageElement& image_element, DOM::SetNeedsLayoutReason reason)
+{
+    auto layout_node = image_element.unsafe_layout_node();
+    auto* image_box = as_if<Layout::ImageBox>(layout_node.ptr());
+    if (!image_box || image_element_dimensions_may_depend_on_intrinsic_size(*image_box)) {
+        image_element.set_needs_layout_update(reason);
+        return;
+    }
+
+    reset_intrinsic_size_caches_after_image_data_change(*image_box);
+    image_element.set_needs_repaint();
+}
+
 GC_DEFINE_ALLOCATOR(HTMLImageElement);
 
 HTMLImageElement::HTMLImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
@@ -693,7 +748,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
                 m_current_request->set_current_url(realm(), *url_string);
 
                 set_needs_style_update(true);
-                set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
+                set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string)
@@ -933,7 +988,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 document().prune_image_resource_caches();
 
                 set_needs_style_update(true);
-                set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
+                set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
                 // 4. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string)
@@ -1090,7 +1145,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
             image_request->prepare_for_presentation(*this);
             // FIXME: This is ad-hoc, updating the layout here should probably be handled by prepare_for_presentation().
             set_needs_style_update(true);
-            set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLImageElementReactToChangesInTheEnvironment);
+            set_needs_layout_update_or_repaint_after_image_data_change(*this, DOM::SetNeedsLayoutReason::HTMLImageElementReactToChangesInTheEnvironment);
 
             // 7. Fire an event named load at the img element.
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
