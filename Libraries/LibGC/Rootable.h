@@ -8,6 +8,7 @@
 
 #include <LibGC/Cell.h>
 #include <LibGC/HeapRoot.h>
+#include <LibGC/Ptr.h>
 
 namespace GC::Detail {
 
@@ -25,6 +26,26 @@ struct RootableValueTraits {
         }
 
         return nullptr;
+    }
+};
+
+template<typename T>
+struct RootableValueTraits<Ref<T>> {
+    static constexpr bool is_rootable = true;
+
+    static Cell* cell(Ref<T> const& value)
+    {
+        return const_cast<Cell*>(reinterpret_cast<Cell const*>(value.ptr()));
+    }
+};
+
+template<typename T>
+struct RootableValueTraits<Ptr<T>> {
+    static constexpr bool is_rootable = true;
+
+    static Cell* cell(Ptr<T> const& value)
+    {
+        return const_cast<Cell*>(reinterpret_cast<Cell const*>(value.ptr()));
     }
 };
 
