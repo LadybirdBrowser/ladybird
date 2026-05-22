@@ -179,10 +179,10 @@ template<>
 ErrorOr<Core::ProxyData> decode(Decoder& decoder)
 {
     auto type = TRY(decoder.decode<Core::ProxyData::Type>());
-    auto host_ipv4 = IPv4Address(TRY(decoder.decode<u32>()));
+    auto host = TRY(decoder.decode<String>());
     auto port = TRY(decoder.decode<u16>());
 
-    return Core::ProxyData { type, host_ipv4, port };
+    return Core::ProxyData { type, host, port };
 }
 
 template<>

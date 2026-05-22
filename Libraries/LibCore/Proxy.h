@@ -8,42 +8,34 @@
 
 #include <AK/Error.h>
 #include <AK/IPv4Address.h>
+#include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Vector.h>
+#include <LibCore/Export.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 
 namespace Core {
 
 // FIXME: Username/password support.
-struct ProxyData {
+struct CORE_API ProxyData {
     enum Type {
         Direct,
         SOCKS5,
+        HTTP,
+        HTTPS
     } type { Type::Direct };
 
-    IPv4Address host_ipv4;
+    String host;
     u16 port { 0 };
 
     bool operator==(ProxyData const& other) const = default;
 
-    static ErrorOr<ProxyData> parse_url(URL::URL const& url)
-    {
-        ProxyData proxy_data;
-        if (url.scheme() != "socks5")
-            return Error::from_string_literal("Unsupported proxy type");
+    bool is_direct() const { return type == Type::Direct; }
 
-        proxy_data.type = ProxyData::Type::SOCKS5;
-
-        if (!url.host().has_value() || !url.host()->has<IPv4Address>())
-            return Error::from_string_literal("Invalid proxy host, must be an IPv4 address");
-        proxy_data.host_ipv4 = url.host()->get<IPv4Address>();
-
-        auto port = url.port();
-        if (!port.has_value())
-            return Error::from_string_literal("Invalid proxy, must have a port");
-        proxy_data.port = *port;
-
-        return proxy_data;
-    }
+    static ErrorOr<ProxyData> parse_url(URL::URL const& url);
+    static bool use_system_proxy();
+    static Vector<ProxyData> get_proxies_for_url(URL::URL const& url);
 };
 
 }

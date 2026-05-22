@@ -970,8 +970,36 @@ void Request::handle_fetch_state()
         m_curl_string_lists.append(curl_headers);
     }
 
-    // FIXME: Set up proxy if applicable
-    (void)m_proxy_data;
+    auto proxy_data = m_proxy_data;
+    if (proxy_data.is_direct() && Core::ProxyData::use_system_proxy()) {
+        auto system_proxies = Core::ProxyData::get_proxies_for_url(m_url);
+        if (!system_proxies.is_empty()) {
+            proxy_data = system_proxies.first();
+            if (!proxy_data.is_direct()) {
+                dbgln("Using system proxy {}:{} for {}", proxy_data.host, proxy_data.port, m_url.serialize());
+            }
+        }
+    }
+
+    if (!proxy_data.is_direct()) {
+        auto proxy_host = proxy_data.host;
+        set_option(CURLOPT_PROXY, proxy_host.to_byte_string().characters());
+        set_option(CURLOPT_PROXYPORT, static_cast<long>(proxy_data.port));
+
+        switch (proxy_data.type) {
+        case Core::ProxyData::Type::HTTP:
+            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+            break;
+        case Core::ProxyData::Type::HTTPS:
+            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+            break;
+        case Core::ProxyData::Type::SOCKS5:
+            set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
+            break;
+        default:
+            break;
+        }
+    }
 
     set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
     set_option(CURLOPT_HEADERDATA, this);

@@ -201,7 +201,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Core::ProxyData const& proxy)
 {
     TRY(encoder.encode(proxy.type));
-    TRY(encoder.encode(proxy.host_ipv4));
+    TRY(encoder.encode(proxy.host));
     TRY(encoder.encode(proxy.port));
     return {};
 }
