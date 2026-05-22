@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+removeTestErrorHandler();
+window.log = [];
+asyncTest(done => {
+    window.addEventListener("load", () => {
+        println("PASS! (Didn't crash)");
+        done();
+    });
+});
+</script>
+<script type="module" src="./evaluation-error-cycle-a.js"></script>
+<script type="module" src="./evaluation-error-cycle-b.js"></script>

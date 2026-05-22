@@ -412,8 +412,6 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
 
     // 9. If result is an abrupt completion, then
     if (result.is_throw_completion()) {
-        VERIFY(!m_evaluation_error.is_error());
-
         // a. For each Cyclic Module Record m of stack, do
         for (auto mod : stack) {
             if (!is<CyclicModule>(*mod))
