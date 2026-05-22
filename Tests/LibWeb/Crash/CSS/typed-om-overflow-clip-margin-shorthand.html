@@ -1,0 +1,9 @@
+<!doctype html>
+<body>
+<script>
+    const element = document.createElement("div");
+    document.body.appendChild(element);
+
+    element.attributeStyleMap.set("overflow-clip-margin", new CSSKeywordValue("border-box"));
+    element.attributeStyleMap.set("overflow-clip-margin", CSS.px(10));
+</script>

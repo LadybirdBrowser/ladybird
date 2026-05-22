@@ -11,10 +11,12 @@
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -76,6 +78,43 @@ static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_r
         });
 }
 
+static WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> normalize_overflow_clip_margin_internal_representation(
+    CSSStyleDeclaration const& declarations, PropertyNameAndID const& property, NonnullRefPtr<StyleValue const> value)
+{
+    if (!first_is_one_of(
+            property.id(),
+            PropertyID::OverflowClipMargin,
+            PropertyID::OverflowClipMarginBlock,
+            PropertyID::OverflowClipMarginInline)) {
+        return value;
+    }
+
+    if (value->is_shorthand()
+        || value->is_unresolved()
+        || value->is_pending_substitution()
+        || value->is_guaranteed_invalid()
+        || value->is_css_wide_keyword()) {
+        return value;
+    }
+
+    // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation
+    // If value is a CSSStyleValue subclass, if value does not match the grammar of a list-valued property
+    // iteration of property, throw a TypeError.
+    auto const parsing_params = declarations.owner_node().has_value()
+        ? Parser::ParsingParams { declarations.owner_node()->element().document() }
+        : Parser::ParsingParams {};
+    auto serialized_value = value->to_string(SerializationMode::Normal);
+    auto parsed_value = parse_css_value(parsing_params, serialized_value, property.id());
+    if (!parsed_value) {
+        return WebIDL::SimpleException {
+            WebIDL::SimpleExceptionType::TypeError,
+            MUST(String::formatted("Property '{}' does not accept the value '{}'", property.name(), serialized_value))
+        };
+    }
+
+    return parsed_value.release_nonnull();
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set
 WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<Variant<GC::Root<CSSStyleValue>, String>> values)
 {
@@ -120,6 +159,8 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<
     for (auto const& value : values) {
         // AD-HOC: Step 5 is done here, see above.
         auto internal_representation = TRY(create_an_internal_representation(vm(), property.value(), value));
+        internal_representation = TRY(normalize_overflow_clip_margin_internal_representation(
+            props, property.value(), move(internal_representation)));
 
         if (values.size() >= 2 && internal_representation->is_unresolved())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide multiple values if one is an CSSUnparsedValue or CSSVariableReferenceValue"_string };
