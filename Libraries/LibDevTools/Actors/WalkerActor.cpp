@@ -208,6 +208,26 @@ void WalkerActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "getParentGridNode"sv) {
+        auto node = get_required_parameter<String>(message, "node"sv);
+        if (!node.has_value())
+            return;
+
+        auto dom_node = WalkerActor::dom_node_for(*this, *node);
+        if (!dom_node.has_value()) {
+            send_unknown_actor_error(message, *node);
+            return;
+        }
+
+        JsonValue parent_grid_node;
+        if (auto parent_grid = parent_grid_node_for_node(dom_node->node); parent_grid.has_value())
+            parent_grid_node = serialize_node(parent_grid.value());
+
+        response.set("node"sv, move(parent_grid_node));
+        send_response(message, move(response));
+        return;
+    }
+
     if (message.type == "innerHTML"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
@@ -677,6 +697,24 @@ Optional<JsonObject const&> WalkerActor::next_sibling_for_node(JsonObject const&
     if (!parent.has_value() || !parent.value())
         return {};
     return sibling_for_node(*parent.value(), node, Direction::Next);
+}
+
+Optional<JsonObject const&> WalkerActor::parent_grid_node_for_node(JsonObject const& node) const
+{
+    auto parent = m_dom_node_to_parent_map.get(&node);
+    while (parent.has_value() && parent.value()) {
+        auto display = parent.value()->get_string("display"sv);
+        if (!display.has_value())
+            return {};
+        if (display->contains("grid"sv))
+            return *parent.value();
+        if (*display != "contents"sv)
+            return {};
+
+        parent = m_dom_node_to_parent_map.get(parent.value());
+    }
+
+    return {};
 }
 
 Optional<JsonObject const&> WalkerActor::remove_node(JsonObject const& node)

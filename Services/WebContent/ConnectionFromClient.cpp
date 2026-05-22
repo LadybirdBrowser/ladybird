@@ -45,6 +45,8 @@
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/Storage.h>
@@ -761,6 +763,33 @@ static Optional<JsonObject> grid_layout_for_node(Web::DOM::Node const& node)
     return layout;
 }
 
+static void append_grid_layouts_for_node_and_frame_descendants(Web::DOM::Node& root_node, JsonArray& grid_layouts)
+{
+    root_node.for_each_in_inclusive_subtree([&](Web::DOM::Node& node) {
+        if (auto grid_layout = grid_layout_for_node(node); grid_layout.has_value())
+            grid_layouts.must_append(grid_layout.release_value());
+
+        auto* navigable_container = as_if<Web::HTML::NavigableContainer>(node);
+        if (!navigable_container)
+            return Web::TraversalDecision::Continue;
+
+        auto content_navigable = navigable_container->content_navigable();
+        if (!content_navigable)
+            return Web::TraversalDecision::Continue;
+
+        auto content_document = content_navigable->active_document();
+        if (!content_document)
+            return Web::TraversalDecision::Continue;
+
+        if (!content_document->origin().is_same_origin_domain(navigable_container->document().origin()))
+            return Web::TraversalDecision::Continue;
+
+        content_document->update_layout(Web::DOM::UpdateLayoutReason::InspectGridLayout);
+        append_grid_layouts_for_node_and_frame_descendants(*content_document, grid_layouts);
+        return Web::TraversalDecision::Continue;
+    });
+}
+
 void ConnectionFromClient::inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id)
 {
     auto page = this->page(page_id);
@@ -776,11 +805,7 @@ void ConnectionFromClient::inspect_grid_layouts(u64 page_id, Web::UniqueNodeID r
     root_node->document().update_layout(Web::DOM::UpdateLayoutReason::InspectGridLayout);
 
     JsonArray grid_layouts;
-    root_node->for_each_in_inclusive_subtree([&](Web::DOM::Node& node) {
-        if (auto grid_layout = grid_layout_for_node(node); grid_layout.has_value())
-            grid_layouts.must_append(grid_layout.release_value());
-        return Web::TraversalDecision::Continue;
-    });
+    append_grid_layouts_for_node_and_frame_descendants(*root_node, grid_layouts);
 
     async_did_inspect_grid_layouts(page_id, grid_layouts.serialized());
 }

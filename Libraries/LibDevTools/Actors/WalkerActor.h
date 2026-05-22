@@ -43,6 +43,7 @@ private:
 
     Optional<JsonObject const&> previous_sibling_for_node(JsonObject const& node);
     Optional<JsonObject const&> next_sibling_for_node(JsonObject const& node);
+    Optional<JsonObject const&> parent_grid_node_for_node(JsonObject const& node) const;
     Optional<JsonObject const&> remove_node(JsonObject const& node);
 
     void new_dom_node_mutation(WebView::Mutation);
