@@ -251,8 +251,12 @@ private:
     virtual void stop_listening_for_dom_properties(DevTools::TabDescription const&) const override;
     virtual void inspect_dom_node(DevTools::TabDescription const&, DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const override;
     virtual void clear_inspected_dom_node(DevTools::TabDescription const&) const override;
+    virtual void inspect_grid_layouts(DevTools::TabDescription const&, Web::UniqueNodeID, OnGridLayoutsReceived) const override;
+    virtual void inspect_current_grid(DevTools::TabDescription const&, Web::UniqueNodeID, OnCurrentGridReceived) const override;
     virtual void highlight_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const override;
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override;
+    virtual void highlight_grid(DevTools::TabDescription const&, Web::UniqueNodeID, JsonValue) const override;
+    virtual void clear_grid_highlight(DevTools::TabDescription const&, Web::UniqueNodeID) const override;
     virtual void listen_for_dom_mutations(DevTools::TabDescription const&, OnDOMMutationReceived) const override;
     virtual void stop_listening_for_dom_mutations(DevTools::TabDescription const&) const override;
     virtual void get_dom_node_inner_html(DevTools::TabDescription const&, Web::UniqueNodeID, OnDOMNodeHTMLReceived) const override;

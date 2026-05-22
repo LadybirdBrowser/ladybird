@@ -119,6 +119,8 @@ private:
     virtual void did_get_source(u64 page_id, URL::URL, URL::URL, String) override;
     virtual void did_inspect_dom_tree(u64 page_id, String) override;
     virtual void did_inspect_dom_node(u64 page_id, DOMNodeProperties) override;
+    virtual void did_inspect_grid_layouts(u64 page_id, String) override;
+    virtual void did_inspect_current_grid(u64 page_id, String) override;
     virtual void did_inspect_accessibility_tree(u64 page_id, String) override;
     virtual void did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) override;

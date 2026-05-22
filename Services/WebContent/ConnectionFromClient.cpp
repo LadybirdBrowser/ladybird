@@ -10,12 +10,14 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
 #include <LibCore/System.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibJS/Runtime/ConsoleObject.h>
@@ -50,6 +52,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/ProxyMappings.h>
@@ -635,6 +638,177 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     async_did_inspect_dom_node(page_id, { property_type, move(serialized) });
 }
 
+static StringView grid_track_type_to_string(Web::Layout::GridTrackType type)
+{
+    switch (type) {
+    case Web::Layout::GridTrackType::Explicit:
+        return "explicit"sv;
+    case Web::Layout::GridTrackType::Implicit:
+        return "implicit"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static StringView grid_track_state_to_string(Web::Layout::GridTrackState state)
+{
+    switch (state) {
+    case Web::Layout::GridTrackState::Static:
+        return "static"sv;
+    case Web::Layout::GridTrackState::Repeat:
+        return "repeat"sv;
+    case Web::Layout::GridTrackState::Removed:
+        return "removed"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static JsonArray serialize_grid_line_names(Vector<String> const& names)
+{
+    JsonArray serialized_names;
+    for (auto const& name : names)
+        serialized_names.must_append(name);
+    return serialized_names;
+}
+
+static JsonObject serialize_grid_line(Web::Layout::GridLayoutLine const& line)
+{
+    JsonObject serialized_line;
+    serialized_line.set("breadth"sv, line.breadth.to_double());
+    serialized_line.set("names"sv, serialize_grid_line_names(line.names));
+    serialized_line.set("negativeNumber"sv, line.negative_number);
+    serialized_line.set("number"sv, line.number);
+    serialized_line.set("start"sv, line.start.to_double());
+    serialized_line.set("type"sv, grid_track_type_to_string(line.type));
+    return serialized_line;
+}
+
+static JsonObject serialize_grid_track(Web::Layout::GridLayoutTrack const& track)
+{
+    JsonObject serialized_track;
+    serialized_track.set("breadth"sv, track.breadth.to_double());
+    serialized_track.set("start"sv, track.start.to_double());
+    serialized_track.set("state"sv, grid_track_state_to_string(track.state));
+    serialized_track.set("type"sv, grid_track_type_to_string(track.type));
+    return serialized_track;
+}
+
+static JsonObject serialize_grid_area(Web::Layout::GridLayoutArea const& area)
+{
+    JsonObject serialized_area;
+    serialized_area.set("columnEnd"sv, area.column_end);
+    serialized_area.set("columnStart"sv, area.column_start);
+    serialized_area.set("name"sv, area.name);
+    serialized_area.set("rowEnd"sv, area.row_end);
+    serialized_area.set("rowStart"sv, area.row_start);
+    serialized_area.set("type"sv, grid_track_type_to_string(area.type));
+    return serialized_area;
+}
+
+static JsonObject serialize_grid_dimension(Web::Layout::GridLayoutDimension const& dimension)
+{
+    JsonArray lines;
+    for (auto const& line : dimension.lines)
+        lines.must_append(serialize_grid_line(line));
+
+    JsonArray tracks;
+    for (auto const& track : dimension.tracks)
+        tracks.must_append(serialize_grid_track(track));
+
+    JsonObject serialized_dimension;
+    serialized_dimension.set("lines"sv, move(lines));
+    serialized_dimension.set("tracks"sv, move(tracks));
+    return serialized_dimension;
+}
+
+static JsonObject serialize_grid_fragment(Web::Layout::GridLayoutFragment const& fragment)
+{
+    JsonArray areas;
+    for (auto const& area : fragment.areas)
+        areas.must_append(serialize_grid_area(area));
+
+    JsonObject serialized_fragment;
+    serialized_fragment.set("areas"sv, move(areas));
+    serialized_fragment.set("cols"sv, serialize_grid_dimension(fragment.columns));
+    serialized_fragment.set("rows"sv, serialize_grid_dimension(fragment.rows));
+    return serialized_fragment;
+}
+
+static JsonArray serialize_grid_fragments(Vector<Web::Layout::GridLayoutFragment> const& fragments)
+{
+    JsonArray serialized_fragments;
+    for (auto const& fragment : fragments)
+        serialized_fragments.must_append(serialize_grid_fragment(fragment));
+    return serialized_fragments;
+}
+
+static Optional<JsonObject> grid_layout_for_node(Web::DOM::Node const& node)
+{
+    auto paintable_box = node.paintable_box();
+    if (!paintable_box)
+        return {};
+
+    auto const* grid_layout_data = paintable_box->grid_layout_data();
+    if (!grid_layout_data)
+        return {};
+
+    JsonObject layout;
+    layout.set("containerNodeId"sv, node.unique_id().value());
+    layout.set("direction"sv, Web::CSS::to_string(grid_layout_data->direction));
+    layout.set("gridFragments"sv, serialize_grid_fragments(grid_layout_data->fragments));
+    layout.set("isSubgrid"sv, grid_layout_data->is_subgrid);
+    layout.set("writingMode"sv, Web::CSS::to_string(grid_layout_data->writing_mode));
+
+    return layout;
+}
+
+void ConnectionFromClient::inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* root_node = Web::DOM::Node::from_unique_id(root_node_id);
+    if (!root_node) {
+        async_did_inspect_grid_layouts(page_id, "[]"_string);
+        return;
+    }
+
+    root_node->document().update_layout(Web::DOM::UpdateLayoutReason::InspectGridLayout);
+
+    JsonArray grid_layouts;
+    root_node->for_each_in_inclusive_subtree([&](Web::DOM::Node& node) {
+        if (auto grid_layout = grid_layout_for_node(node); grid_layout.has_value())
+            grid_layouts.must_append(grid_layout.release_value());
+        return Web::TraversalDecision::Continue;
+    });
+
+    async_did_inspect_grid_layouts(page_id, grid_layouts.serialized());
+}
+
+void ConnectionFromClient::inspect_current_grid(u64 page_id, Web::UniqueNodeID node_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* node = Web::DOM::Node::from_unique_id(node_id);
+    if (!node) {
+        async_did_inspect_current_grid(page_id, "null"_string);
+        return;
+    }
+
+    node->document().update_layout(Web::DOM::UpdateLayoutReason::InspectGridLayout);
+
+    for (auto const* current = node; current; current = current->parent_or_shadow_host_node()) {
+        if (auto grid_layout = grid_layout_for_node(*current); grid_layout.has_value()) {
+            async_did_inspect_current_grid(page_id, grid_layout->serialized());
+            return;
+        }
+    }
+
+    async_did_inspect_current_grid(page_id, "null"_string);
+}
+
 void ConnectionFromClient::clear_inspected_dom_node(u64 page_id)
 {
     auto page = this->page(page_id);
@@ -665,6 +839,61 @@ void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID nod
         return;
 
     node->document().set_highlighted_node(node, pseudo_element);
+}
+
+static Web::Painting::GridInspectorOverlayOptions grid_inspector_overlay_options_from_json(JsonValue const& options)
+{
+    Web::Painting::GridInspectorOverlayOptions result;
+
+    if (options.is_object()) {
+        auto const& object = options.as_object();
+        if (auto color = object.get_string("color"sv); color.has_value()) {
+            if (auto parsed_color = Gfx::Color::from_string(*color); parsed_color.has_value())
+                result.color = *parsed_color;
+        }
+
+        result.show_area_names = object.get_bool("showGridAreasOverlay"sv).value_or(result.show_area_names);
+        result.show_line_numbers = object.get_bool("showGridLineNumbers"sv).value_or(result.show_line_numbers);
+        result.show_infinite_lines = object.get_bool("showInfiniteLines"sv).value_or(result.show_infinite_lines);
+        result.show_track_sizes = object.get_bool("showGridTrackSizes"sv)
+                                      .value_or(object.get_bool("showGridTrackSizeLabels"sv)
+                                              .value_or(object.get_bool("showTrackSizes"sv)
+                                                      .value_or(result.show_track_sizes)));
+    }
+
+    return result;
+}
+
+void ConnectionFromClient::highlight_grid(u64 page_id, Web::UniqueNodeID node_id, JsonValue options)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* node = Web::DOM::Node::from_unique_id(node_id);
+    if (!node || !node->layout_node())
+        return;
+
+    node->document().set_grid_highlighted_node(node, grid_inspector_overlay_options_from_json(options));
+}
+
+void ConnectionFromClient::clear_grid_highlight(u64 page_id, Web::UniqueNodeID node_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (node_id != 0) {
+        auto* node = Web::DOM::Node::from_unique_id(node_id);
+        if (node)
+            node->document().clear_grid_highlighted_node(node);
+        return;
+    }
+
+    for (auto& navigable : Web::HTML::all_navigables()) {
+        if (navigable->active_document())
+            navigable->active_document()->clear_grid_highlighted_node(nullptr);
+    }
 }
 
 void ConnectionFromClient::inspect_accessibility_tree(u64 page_id)

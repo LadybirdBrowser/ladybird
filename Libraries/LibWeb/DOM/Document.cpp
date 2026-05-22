@@ -674,6 +674,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_hovered_node);
     visitor.visit(m_inspected_node);
     visitor.visit(m_highlighted_node);
+    for (auto const& grid_highlight : m_grid_highlights)
+        visitor.visit(grid_highlight.node);
     visitor.visit(m_active_favicon);
     visitor.visit(m_browsing_context);
     visitor.visit(m_focused_area);
@@ -2605,6 +2607,44 @@ void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElem
 
     if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->first_paintable())
         layout_node->first_paintable()->set_needs_repaint();
+}
+
+void Document::set_grid_highlighted_node(GC::Ptr<Node> node, Painting::GridInspectorOverlayOptions options)
+{
+    if (!node)
+        return;
+
+    for (auto& grid_highlight : m_grid_highlights) {
+        if (grid_highlight.node != node)
+            continue;
+
+        grid_highlight.options = options;
+        node->set_needs_repaint();
+        return;
+    }
+
+    m_grid_highlights.append({ node, options });
+    node->set_needs_repaint();
+}
+
+void Document::clear_grid_highlighted_node(GC::Ptr<Node> node)
+{
+    if (!node) {
+        for (auto const& grid_highlight : m_grid_highlights) {
+            if (grid_highlight.node)
+                grid_highlight.node->set_needs_repaint();
+        }
+        m_grid_highlights.clear();
+        return;
+    }
+
+    auto old_size = m_grid_highlights.size();
+    m_grid_highlights.remove_all_matching([&](auto const& grid_highlight) {
+        return grid_highlight.node == node;
+    });
+
+    if (m_grid_highlights.size() != old_size)
+        node->set_needs_repaint();
 }
 
 GC::Ptr<Layout::Node> Document::highlighted_layout_node()
@@ -8293,6 +8333,16 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 
     if (highlighted_node() && highlighted_node()->paintable()) {
         highlighted_node()->paintable()->paint_inspector_overlay(context);
+    }
+
+    for (auto const& grid_highlight : m_grid_highlights) {
+        if (!grid_highlight.node)
+            continue;
+        auto paintable = grid_highlight.node->paintable();
+        auto const* paintable_box = as_if<Painting::PaintableBox>(paintable.ptr());
+        if (!paintable_box)
+            continue;
+        paintable_box->paint_grid_inspector_overlay(context, grid_highlight.options);
     }
 
     return display_list;

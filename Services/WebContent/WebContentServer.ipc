@@ -58,8 +58,12 @@ endpoint WebContentServer
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
     inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) =|
+    inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id) =|
+    inspect_current_grid(u64 page_id, Web::UniqueNodeID node_id) =|
     clear_inspected_dom_node(u64 page_id) =|
     highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) =|
+    highlight_grid(u64 page_id, Web::UniqueNodeID node_id, JsonValue options) =|
+    clear_grid_highlight(u64 page_id, Web::UniqueNodeID node_id) =|
     inspect_accessibility_tree(u64 page_id) =|
     get_hovered_node_id(u64 page_id) =|
 
