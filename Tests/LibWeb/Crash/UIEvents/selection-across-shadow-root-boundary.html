@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+  <template shadowrootmode=open>
+    <style>span { font-size: 50px; }</style>
+    <span>Well Hello </span>
+    <span>friends!</span>
+  </template>
+</body>
+<script>
+    // Drag-select starting in the first shadow-tree span and crossing into the second. This used to SIGSEGV in
+    // set_user_selection(): the user-select:contain ancestor walk stopped at the shadow root (a DocumentFragment with
+    // no parent), then dereferenced its null layout node. Regression test for issue #9332.
+    onload = () => {
+        internals.mouseDown(60, 35);
+        internals.mouseMove(360, 35);
+        internals.mouseUp(360, 35);
+        document.documentElement.classList.remove("test-wait");
+    };
+</script>
+</html>
