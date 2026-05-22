@@ -37,17 +37,15 @@ void DisplayingVideoSink::set_time_provider(NonnullRefPtr<MediaTimeProvider> con
     m_time_provider = provider;
 }
 
-DisplayingVideoSinkUpdateResult DisplayingVideoSink::consume_moved_position_signals(PipelineStatus& status)
+void DisplayingVideoSink::consume_moved_position_signals(PipelineStatus& status)
 {
-    auto result = DisplayingVideoSinkUpdateResult::NoChange;
     while ((status = m_input->status()) == PipelineStatus::MovedPosition) {
         m_input->pull(m_next_frame);
         VERIFY(m_next_frame == nullptr);
         m_current_frame.clear();
-        result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        m_seek_status = SeekStatus::FrameInvalidated;
     }
     VERIFY(status != PipelineStatus::MovedPosition);
-    return result;
 }
 
 ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> const& input)
@@ -56,11 +54,9 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
     m_input = input;
     input->set_wake_handler([this, input] {
         auto status = PipelineStatus::Pending;
-        if (consume_moved_position_signals(status) == DisplayingVideoSinkUpdateResult::NewFrameAvailable)
-            m_seek_status = SeekStatus::FrameInvalidated;
+        consume_moved_position_signals(status);
         if (is_waiting_for_data(status))
             return;
-        m_seek_status = SeekStatus::Complete;
         dispatch_state_if_changed(status);
     });
     input->seek(m_time_provider->current_time());
@@ -83,31 +79,39 @@ static AK::Duration conservative_frame_end(VideoFrame& frame)
 void DisplayingVideoSink::seek(AK::Duration timestamp)
 {
     m_seek_id++;
-
-    auto available_start = AK::Duration::max();
-    auto available_end = AK::Duration::min();
-    auto include_frame = [&](RefPtr<VideoFrame> const& frame) {
-        if (frame == nullptr)
-            return;
-        available_start = min(available_start, frame->timestamp());
-        available_end = max(available_end, conservative_frame_end(*frame));
-    };
-    include_frame(m_current_frame);
-    include_frame(m_next_frame);
-
     m_last_dispatched_status = PipelineStatus::Pending;
-    if (timestamp >= available_start && timestamp < available_end) {
+
+    auto can_resolve_seek_within_cached_frames = [&] {
+        if (m_seek_status != SeekStatus::None)
+            return false;
+        auto available_start = AK::Duration::max();
+        auto available_end = AK::Duration::min();
+        auto include_frame = [&](RefPtr<VideoFrame> const& frame) {
+            if (frame == nullptr)
+                return;
+            available_start = min(available_start, frame->timestamp());
+            available_end = max(available_end, conservative_frame_end(*frame));
+        };
+        include_frame(m_current_frame);
+        include_frame(m_next_frame);
+
+        return timestamp >= available_start && timestamp < available_end;
+    }();
+
+    if (can_resolve_seek_within_cached_frames) {
         Core::deferred_invoke([self = NonnullRefPtr(*this), seek_id = m_seek_id] {
             if (self->m_seek_id != seek_id)
                 return;
             self->dispatch_state_if_changed(PipelineStatus::HaveData);
+            VERIFY(self->m_seek_status == SeekStatus::None);
         });
         return;
     }
 
     if (m_input != nullptr)
         m_input->seek(timestamp);
-    m_seek_status = SeekStatus::InProgress;
+    if (m_seek_status == SeekStatus::None)
+        m_seek_status = SeekStatus::InProgress;
 }
 
 void DisplayingVideoSink::dispatch_state_if_changed(PipelineStatus status)
@@ -127,25 +131,21 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     auto current_time = m_time_provider->current_time();
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
 
-    if (m_seek_status == SeekStatus::FrameInvalidated) {
-        result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
-        m_seek_status = SeekStatus::None;
-    } else if (m_seek_status == SeekStatus::Complete) {
-        result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
-    }
-
     auto last_status = PipelineStatus::Pending;
     while (true) {
-        if (consume_moved_position_signals(last_status) == DisplayingVideoSinkUpdateResult::NewFrameAvailable)
-            result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
+        if (m_next_frame == nullptr || m_seek_status != SeekStatus::None)
+            consume_moved_position_signals(last_status);
         if (m_next_frame == nullptr) {
             if (last_status != PipelineStatus::HaveData)
                 break;
             m_input->pull(m_next_frame);
             VERIFY(m_next_frame != nullptr);
-            m_seek_status = SeekStatus::Complete;
+            if (m_seek_status == SeekStatus::FrameInvalidated)
+                m_current_frame.clear();
         }
-        if (m_seek_status != SeekStatus::Complete)
+        if (!is_waiting_for_data(last_status))
+            m_seek_status = SeekStatus::None;
+        if (m_seek_status != SeekStatus::None)
             break;
         if (m_next_frame->timestamp() > current_time)
             break;

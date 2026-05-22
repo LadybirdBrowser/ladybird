@@ -40,7 +40,7 @@ public:
     RefPtr<VideoFrame> current_frame();
 
 private:
-    DisplayingVideoSinkUpdateResult consume_moved_position_signals(PipelineStatus&);
+    void consume_moved_position_signals(PipelineStatus&);
 
     void dispatch_state_if_changed(PipelineStatus);
 
@@ -54,7 +54,6 @@ private:
         None,
         InProgress,
         FrameInvalidated,
-        Complete,
     };
     SeekStatus m_seek_status { SeekStatus::None };
 
