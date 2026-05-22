@@ -1,4 +1,11 @@
+#include <LibWeb/Compositor/Types.h>
+#include <LibWeb/Page/InputEvent.h>
+
 endpoint CompositorWebContentClient
 {
-    did_connect() =|
+    mouse_event(u64 page_id, Web::MouseEvent event) =|
+    request_rendering_update() =|
+    did_complete_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
+    did_fail_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
+    did_lose_compositor() =|
 }

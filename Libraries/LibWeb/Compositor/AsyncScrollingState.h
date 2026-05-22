@@ -14,6 +14,7 @@
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/ScrollFrame.h>
@@ -154,13 +155,13 @@ enum class WheelScrollAdmission {
     BlockedByWheelEventRegion,
 };
 
-void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&, Painting::ViewportPaintable&);
-void record_async_scrolling_metadata_for_paintable(Painting::PaintableBox const&, DisplayListRecordingContext&);
-void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::Navigable&, Gfx::IntRect viewport_rect);
-AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayList const&);
-WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
-StringView wheel_routing_admission_to_string(WheelRoutingAdmission);
-bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
-WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
+WEB_API void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&, Painting::ViewportPaintable&);
+WEB_API void record_async_scrolling_metadata_for_paintable(Painting::PaintableBox const&, DisplayListRecordingContext&);
+WEB_API void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::Navigable&, Gfx::IntRect viewport_rect);
+WEB_API AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayList const&);
+WEB_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
+WEB_API StringView wheel_routing_admission_to_string(WheelRoutingAdmission);
+WEB_API bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
+WEB_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
 
 }
