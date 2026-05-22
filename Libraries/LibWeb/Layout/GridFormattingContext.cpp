@@ -159,7 +159,7 @@ static Alignment to_alignment(CSS::AlignItems value)
     }
 }
 
-GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit = false)
+GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit, bool is_auto_repeat)
 {
     // NOTE: repeat() is expected to be expanded beforehand.
     VERIFY(!definition.is_repeat());
@@ -169,6 +169,7 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
             .min_track_sizing_function = definition.minmax().min_grid_size(),
             .max_track_sizing_function = definition.minmax().max_grid_size(),
             .is_auto_fit = is_auto_fit,
+            .is_auto_repeat = is_auto_repeat,
         };
     }
 
@@ -186,6 +187,7 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
         .min_track_sizing_function = min_track_sizing_function,
         .max_track_sizing_function = max_track_sizing_function,
         .is_auto_fit = is_auto_fit,
+        .is_auto_repeat = is_auto_repeat,
     };
 }
 
@@ -977,19 +979,22 @@ void GridFormattingContext::initialize_grid_tracks_from_definition(GridDimension
     for (auto const& track_definition : tracks_definition) {
         int repeat_count = 1;
         bool is_auto_fit = false;
+        bool is_auto_repeat = false;
         if (track_definition.is_repeat()) {
             is_auto_fit = track_definition.repeat().is_auto_fit();
-            if (track_definition.repeat().is_auto_fill() || is_auto_fit)
+            if (track_definition.repeat().is_auto_fill() || is_auto_fit) {
+                is_auto_repeat = true;
                 repeat_count = count_of_repeated_auto_fill_or_fit_tracks(dimension, track_definition);
-            else
+            } else {
                 repeat_count = track_definition.repeat().repeat_count();
+            }
         }
         for (auto _ = 0; _ < repeat_count; _++) {
             if (track_definition.is_default() || track_definition.is_minmax()) {
-                tracks.append(GridTrack::create_from_definition(track_definition, is_auto_fit));
+                tracks.append(GridTrack::create_from_definition(track_definition, is_auto_fit, is_auto_repeat));
             } else if (track_definition.is_repeat()) {
                 for (auto& explicit_grid_track : track_definition.repeat().grid_track_size_list().track_list()) {
-                    tracks.append(GridTrack::create_from_definition(explicit_grid_track, is_auto_fit));
+                    tracks.append(GridTrack::create_from_definition(explicit_grid_track, is_auto_fit, is_auto_repeat));
                 }
             } else {
                 VERIFY_NOT_REACHED();
@@ -1051,6 +1056,7 @@ void GridFormattingContext::initialize_grid_tracks_for_columns_and_rows()
         size_t implicit_column_index = 0;
         // NOTE: If there are implicit tracks created by items with negative indexes they should prepend explicitly defined tracks
         auto negative_index_implied_column_tracks_count = abs(m_occupation_grid.min_column_index());
+        m_explicit_columns_start_line_index = negative_index_implied_column_tracks_count;
         for (int i = 0; i < negative_index_implied_column_tracks_count; i++)
             m_column_lines.insert(0, {});
         for (int column_index = 0; column_index < negative_index_implied_column_tracks_count; column_index++) {
@@ -1081,6 +1087,7 @@ void GridFormattingContext::initialize_grid_tracks_for_columns_and_rows()
         size_t implicit_row_index = 0;
         // NOTE: If there are implicit tracks created by items with negative indexes they should prepend explicitly defined tracks
         auto negative_index_implied_row_tracks_count = abs(m_occupation_grid.min_row_index());
+        m_explicit_rows_start_line_index = negative_index_implied_row_tracks_count;
         for (int i = 0; i < negative_index_implied_row_tracks_count; i++)
             m_row_lines.insert(0, {});
         for (int row_index = 0; row_index < negative_index_implied_row_tracks_count; row_index++) {
@@ -2411,6 +2418,147 @@ void GridFormattingContext::resolve_track_spacing(GridDimension dimension)
     }
 }
 
+void GridFormattingContext::save_grid_layout_data(CSS::GridTrackSizeList&& columns, CSS::GridTrackSizeList&& rows)
+{
+    auto data = make<GridLayoutData>();
+    data->direction = grid_container().computed_values().direction();
+    data->writing_mode = grid_container().computed_values().writing_mode();
+    data->resolved_grid_template_columns = CSS::GridTrackSizeListStyleValue::create(move(columns));
+    data->resolved_grid_template_rows = CSS::GridTrackSizeListStyleValue::create(move(rows));
+
+    auto track_type_for_index = [](size_t index, size_t explicit_start_line_index, size_t explicit_line_count) {
+        if (explicit_line_count == 0)
+            return GridTrackType::Implicit;
+
+        auto explicit_track_count = explicit_line_count - 1;
+        if (index >= explicit_start_line_index && index < explicit_start_line_index + explicit_track_count)
+            return GridTrackType::Explicit;
+        return GridTrackType::Implicit;
+    };
+
+    auto line_type_for_index = [](size_t index, size_t explicit_start_line_index, size_t explicit_line_count) {
+        if (index >= explicit_start_line_index && index < explicit_start_line_index + explicit_line_count)
+            return GridTrackType::Explicit;
+        return GridTrackType::Implicit;
+    };
+
+    auto line_number_for_index = [](size_t index, size_t explicit_start_line_index) -> u32 {
+        if (index < explicit_start_line_index)
+            return 0;
+        return static_cast<u32>(index - explicit_start_line_index + 1);
+    };
+
+    auto negative_line_number_for_index = [](size_t index, size_t explicit_start_line_index, size_t explicit_line_count) -> i32 {
+        auto explicit_end_line_index = explicit_start_line_index + explicit_line_count;
+        if (index >= explicit_end_line_index)
+            return 0;
+        return -static_cast<i32>(explicit_end_line_index - index);
+    };
+
+    auto track_state = [&](GridTrack const& track, GridDimension dimension, size_t track_index) {
+        if (!track.is_auto_repeat)
+            return GridTrackState::Static;
+
+        if (track.is_auto_fit && !m_occupation_grid.is_occupied(dimension == GridDimension::Column ? track_index : 0, dimension == GridDimension::Row ? track_index : 0))
+            return GridTrackState::Removed;
+
+        return GridTrackState::Repeat;
+    };
+
+    auto axis_start_offset = [&](GridDimension dimension) -> CSSPixels {
+        auto const& tracks_and_gaps = dimension == GridDimension::Column ? m_grid_columns_and_gaps : m_grid_rows_and_gaps;
+        auto grid_container_size = grid_container_size_for_track_alignment(dimension);
+
+        CSSPixels sum_of_base_sizes_including_gaps = 0;
+        for (auto const& track : tracks_and_gaps)
+            sum_of_base_sizes_including_gaps += track.base_size;
+
+        Alignment alignment;
+        if (dimension == GridDimension::Column)
+            alignment = to_alignment(grid_container().computed_values().justify_content());
+        else
+            alignment = to_alignment(grid_container().computed_values().align_content());
+
+        if (alignment == Alignment::Center) {
+            auto free_space = grid_container_size - sum_of_base_sizes_including_gaps;
+            return static_cast<CSSPixels>(free_space / 2);
+        }
+        if (alignment == Alignment::SpaceAround || alignment == Alignment::SpaceEvenly) {
+            auto free_space = grid_container_size - sum_of_base_sizes_including_gaps;
+            return static_cast<CSSPixels>(max(free_space, CSSPixels { 0 }) / 2);
+        }
+        if (alignment == Alignment::End) {
+            auto free_space = grid_container_size - sum_of_base_sizes_including_gaps;
+            return free_space;
+        }
+        return CSSPixels { 0 };
+    };
+
+    auto serialize_dimension = [&](GridDimension dimension) {
+        auto const& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
+        auto const& gap_tracks = dimension == GridDimension::Column ? m_column_gap_tracks : m_row_gap_tracks;
+        auto const& lines = dimension == GridDimension::Column ? m_column_lines : m_row_lines;
+        auto explicit_start_line_index = dimension == GridDimension::Column ? m_explicit_columns_start_line_index : m_explicit_rows_start_line_index;
+        auto explicit_line_count = dimension == GridDimension::Column ? m_explicit_columns_line_count : m_explicit_rows_line_count;
+
+        GridLayoutDimension result;
+        auto line_start = axis_start_offset(dimension);
+
+        for (size_t i = 0; i < lines.size(); ++i) {
+            CSSPixels line_breadth = i == 0 || i - 1 >= gap_tracks.size() ? CSSPixels { 0 } : gap_tracks[i - 1].base_size;
+
+            GridLayoutLine line;
+            line.start = line_start;
+            line.breadth = line_breadth;
+            line.type = line_type_for_index(i, explicit_start_line_index, explicit_line_count);
+            line.number = line_number_for_index(i, explicit_start_line_index);
+            line.negative_number = negative_line_number_for_index(i, explicit_start_line_index, explicit_line_count);
+
+            for (auto const& line_name : lines[i])
+                line.names.append(line_name.name.to_string());
+
+            result.lines.append(move(line));
+
+            if (i < tracks.size()) {
+                GridLayoutTrack track;
+                track.start = line_start + line_breadth;
+                track.breadth = tracks[i].base_size;
+                track.type = track_type_for_index(i, explicit_start_line_index, explicit_line_count);
+                track.state = track_state(tracks[i], dimension, i);
+                result.tracks.append(track);
+
+                line_start = track.start + track.breadth;
+            }
+        }
+
+        return result;
+    };
+
+    GridLayoutFragment fragment;
+    fragment.columns = serialize_dimension(GridDimension::Column);
+    fragment.rows = serialize_dimension(GridDimension::Row);
+
+    auto const& grid_template_areas = grid_container().computed_values().grid_template_areas();
+    for (auto const& [name, area] : grid_template_areas.areas) {
+        auto row_start_index = m_explicit_rows_start_line_index + area.row_start;
+        auto row_end_index = m_explicit_rows_start_line_index + area.row_end;
+        auto column_start_index = m_explicit_columns_start_line_index + area.column_start;
+        auto column_end_index = m_explicit_columns_start_line_index + area.column_end;
+
+        fragment.areas.append(GridLayoutArea {
+            .name = name,
+            .type = GridTrackType::Explicit,
+            .row_start = line_number_for_index(row_start_index, m_explicit_rows_start_line_index),
+            .row_end = line_number_for_index(row_end_index, m_explicit_rows_start_line_index),
+            .column_start = line_number_for_index(column_start_index, m_explicit_columns_start_line_index),
+            .column_end = line_number_for_index(column_end_index, m_explicit_columns_start_line_index),
+        });
+    }
+
+    data->fragments.append(move(fragment));
+    m_grid_container_used_values.set_grid_layout_data(move(data));
+}
+
 CSSPixels GridFormattingContext::grid_container_size_for_track_alignment(GridDimension dimension) const
 {
     if (dimension == GridDimension::Column)
@@ -2762,8 +2910,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
     // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
     // so they need to be saved in the state, and then assigned to paintables in LayoutState::commit()
-    m_grid_container_used_values.set_grid_template_columns(CSS::GridTrackSizeListStyleValue::create(move(grid_track_columns)));
-    m_grid_container_used_values.set_grid_template_rows(CSS::GridTrackSizeListStyleValue::create(move(grid_track_rows)));
+    save_grid_layout_data(move(grid_track_columns), move(grid_track_rows));
 }
 
 // https://www.w3.org/TR/css-grid-2/#abspos-items
