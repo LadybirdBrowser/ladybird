@@ -24,6 +24,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -811,6 +812,47 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_f
     return invalidation;
 }
 
+static bool animated_property_changes_are_visual_context_only(HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& old_properties, HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> const& new_properties)
+{
+    auto is_visual_context_property = [](CSS::PropertyID property_id) {
+        return first_is_one_of(property_id,
+            CSS::PropertyID::Transform,
+            CSS::PropertyID::Rotate,
+            CSS::PropertyID::Scale,
+            CSS::PropertyID::Translate,
+            CSS::PropertyID::Perspective,
+            CSS::PropertyID::TransformOrigin,
+            CSS::PropertyID::PerspectiveOrigin,
+            CSS::PropertyID::Opacity,
+            CSS::PropertyID::Filter);
+    };
+
+    bool saw_changed_property = false;
+    auto changed_property_is_visual_context_only = [&](CSS::PropertyID property_id, CSS::StyleValue const* old_value, CSS::StyleValue const* new_value) {
+        if (!old_value && !new_value)
+            return true;
+        if (old_value == new_value)
+            return true;
+        if (old_value && new_value && old_value->equals(*new_value))
+            return true;
+        saw_changed_property = true;
+        return is_visual_context_property(property_id);
+    };
+
+    for (auto const& [property_id, old_value] : old_properties) {
+        auto const* new_value = new_properties.get(property_id).value_or({});
+        if (!changed_property_is_visual_context_only(property_id, old_value.ptr(), new_value))
+            return false;
+    }
+    for (auto const& [property_id, new_value] : new_properties) {
+        if (old_properties.contains(property_id))
+            continue;
+        if (!changed_property_is_visual_context_only(property_id, nullptr, new_value.ptr()))
+            return false;
+    }
+    return saw_changed_property;
+}
+
 AnimationUpdateContext::~AnimationUpdateContext()
 {
     for (auto& it : elements) {
@@ -820,6 +862,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
         auto& element = it.key;
         GC::Ref<DOM::Element> target = element.element();
         auto invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update, style->animated_property_values());
+        auto visual_context_only_change = animated_property_changes_are_visual_context_only(it.value.animated_properties_before_update, style->animated_property_values());
 
         if (invalidation.is_none())
             continue;
@@ -877,7 +920,20 @@ AnimationUpdateContext::~AnimationUpdateContext()
             if (invalidation.rebuild_accumulated_visual_contexts)
                 element.document().set_needs_accumulated_visual_contexts_update(true);
 
-            target->set_needs_repaint();
+            auto can_keep_paint_cache_for_visual_context_change = visual_context_only_change
+                && invalidation.rebuild_accumulated_visual_contexts
+                && !invalidation.relayout
+                && !invalidation.rebuild_layout_tree
+                && !invalidation.rebuild_stacking_context_tree
+                && !invalidation.recompute_descendant_styles
+                && !invalidation.inherited_style_changed;
+
+            if (can_keep_paint_cache_for_visual_context_change) {
+                element.document().set_needs_to_record_display_list();
+                target->set_needs_repaint(InvalidateDisplayList::No);
+            } else {
+                target->set_needs_repaint();
+            }
         }
         if (invalidation.rebuild_stacking_context_tree)
             element.document().invalidate_stacking_context_tree();
