@@ -889,6 +889,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 element.set_needs_style_update(false);
             }
             style = element.computed_properties();
+            if (!style)
+                return;
             display = style->display();
             if (display.is_none())
                 return;
