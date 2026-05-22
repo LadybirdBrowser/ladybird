@@ -534,6 +534,10 @@ void EventLoop::update_the_rendering()
         auto navigable = doc->navigable();
         if (!navigable->needs_repaint())
             continue;
+        // OPTIMIZATION: Don't paint navigables hidden by an ancestor iframe with visibility: hidden.
+        //               needs_repaint() stays true — so, once the navigable becomes visible, it's painted.
+        if (navigable->has_inclusive_ancestor_with_visibility_hidden())
+            continue;
         if (navigable->is_svg_page())
             continue;
         if (auto document = navigable->active_document())
