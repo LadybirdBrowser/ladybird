@@ -335,6 +335,19 @@ public:
         last_highlighted_pseudo_element = pseudo_element;
     }
 
+    virtual void highlight_grid(DevTools::TabDescription const&, Web::UniqueNodeID node_id, JsonValue options) const override
+    {
+        ++highlight_grid_call_count;
+        last_highlighted_grid_node = node_id;
+        last_grid_highlight_options = move(options);
+    }
+
+    virtual void clear_grid_highlight(DevTools::TabDescription const&, Web::UniqueNodeID node_id) const override
+    {
+        ++clear_grid_highlight_call_count;
+        last_cleared_grid_node = node_id;
+    }
+
     virtual void listen_for_dom_mutations(DevTools::TabDescription const&, OnDOMMutationReceived callback) const override
     {
         ++listen_for_dom_mutations_call_count;
@@ -583,6 +596,8 @@ public:
     mutable size_t inspect_current_grid_call_count { 0 };
     mutable size_t highlight_dom_node_call_count { 0 };
     mutable size_t clear_highlighted_dom_node_call_count { 0 };
+    mutable size_t highlight_grid_call_count { 0 };
+    mutable size_t clear_grid_highlight_call_count { 0 };
     mutable size_t listen_for_dom_mutations_call_count { 0 };
     mutable size_t stop_listening_for_dom_mutations_call_count { 0 };
     mutable size_t get_dom_node_inner_html_call_count { 0 };
@@ -615,6 +630,9 @@ public:
     mutable Optional<Web::CSS::PseudoElement> last_inspected_pseudo_element;
     mutable Optional<Web::UniqueNodeID> last_grid_root_node;
     mutable Optional<Web::UniqueNodeID> last_current_grid_node;
+    mutable Optional<Web::UniqueNodeID> last_highlighted_grid_node;
+    mutable Optional<Web::UniqueNodeID> last_cleared_grid_node;
+    mutable JsonValue last_grid_highlight_options;
     mutable Optional<Web::UniqueNodeID> last_edited_node;
     mutable Optional<Web::UniqueNodeID> last_parent_node;
     mutable Optional<Web::UniqueNodeID> last_sibling_node;
@@ -1015,6 +1033,45 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     show_unknown.set("node"sv, "missing-actor"sv);
     EXPECT(!client.request(move(show_unknown)).get_bool("value"sv).value());
     EXPECT_EQ(client.request(highlighter_actor, "hide"sv).get_string("from"sv).value(), highlighter_actor);
+
+    JsonObject grid_highlighter_request;
+    grid_highlighter_request.set("to"sv, inspector_actor);
+    grid_highlighter_request.set("type"sv, "getHighlighterByType"sv);
+    grid_highlighter_request.set("typeName"sv, "CssGridHighlighter"sv);
+    auto grid_highlighter_actor = client.request(move(grid_highlighter_request)).get_object("highlighter"sv)->get_string("actor"sv).release_value();
+
+    JsonObject second_grid_highlighter_request;
+    second_grid_highlighter_request.set("to"sv, inspector_actor);
+    second_grid_highlighter_request.set("type"sv, "getHighlighterByType"sv);
+    second_grid_highlighter_request.set("typeName"sv, "CssGridHighlighter"sv);
+    EXPECT_EQ(client.request(move(second_grid_highlighter_request)).get_object("highlighter"sv)->get_string("actor"sv).value(), grid_highlighter_actor);
+
+    JsonObject grid_options;
+    grid_options.set("showGridArea"sv, true);
+
+    JsonObject show_grid_highlighter;
+    show_grid_highlighter.set("to"sv, grid_highlighter_actor);
+    show_grid_highlighter.set("type"sv, "show"sv);
+    show_grid_highlighter.set("node"sv, div_actor);
+    show_grid_highlighter.set("options"sv, move(grid_options));
+    EXPECT(client.request(move(show_grid_highlighter)).get_bool("value"sv).value());
+    EXPECT_EQ(session->delegate.highlight_grid_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_highlighted_grid_node.value(), 4u);
+    EXPECT(session->delegate.last_grid_highlight_options.as_object().get_bool("showGridArea"sv).value());
+
+    JsonObject show_second_grid_highlighter;
+    show_second_grid_highlighter.set("to"sv, grid_highlighter_actor);
+    show_second_grid_highlighter.set("type"sv, "show"sv);
+    show_second_grid_highlighter.set("node"sv, span_actor);
+    EXPECT(client.request(move(show_second_grid_highlighter)).get_bool("value"sv).value());
+    EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_cleared_grid_node.value(), 4u);
+    EXPECT_EQ(session->delegate.highlight_grid_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_highlighted_grid_node.value(), 8u);
+
+    EXPECT_EQ(client.request(grid_highlighter_actor, "hide"sv).get_string("from"sv).value(), grid_highlighter_actor);
+    EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_cleared_grid_node.value(), 8u);
 
     auto layout_actor = client.request(walker_actor, "getLayoutInspector"sv).get_object("actor"sv)->get_string("actor"sv).release_value();
 
