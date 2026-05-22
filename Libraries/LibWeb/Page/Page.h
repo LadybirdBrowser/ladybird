@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/DOM/RequestFullscreenError.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -417,6 +418,14 @@ public:
     virtual size_t screen_count() const = 0;
     virtual Queue<QueuedInputEvent>& input_event_queue() = 0;
     virtual void report_finished_handling_input_event(u64 page_id, EventResult event_was_handled) = 0;
+    virtual Compositor::CompositorContextId allocate_compositor_context_id(Compositor::PagePresentationRegistration page_presentation_registration)
+    {
+        if (page_presentation_registration == Compositor::PagePresentationRegistration::Yes)
+            return Compositor::compositor_context_id_for_page(id());
+        auto context_id = Compositor::allocate_compositor_context_id();
+        VERIFY(!Compositor::is_page_presenting_compositor_context_id(context_id));
+        return context_id;
+    }
     virtual void request_frame() = 0;
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_change_url(URL::URL const&) { }

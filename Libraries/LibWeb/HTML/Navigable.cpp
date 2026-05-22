@@ -289,7 +289,8 @@ Navigable::Navigable(
         Optional<u64> page_id;
         if (page_presentation_registration == Compositor::PagePresentationRegistration::Yes)
             page_id = page->client().id();
-        m_compositor_context = page->compositor_host().create_context(page_id, page_presentation_registration);
+        auto context_id = page->client().allocate_compositor_context_id(page_presentation_registration);
+        m_compositor_context = page->compositor_host().create_context(context_id, page_id, page_presentation_registration);
     }
 }
 

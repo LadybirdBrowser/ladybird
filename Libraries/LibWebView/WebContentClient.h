@@ -48,7 +48,6 @@ public:
     static void for_each_client(Callback callback);
 
     static size_t client_count() { return s_clients.size(); }
-
     explicit WebContentClient(NonnullOwnPtr<IPC::Transport>);
     WebContentClient(NonnullOwnPtr<IPC::Transport>, ViewImplementation&);
     ~WebContentClient();
@@ -75,7 +74,6 @@ public:
 
 private:
     void maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const&, Optional<String> title, StringView reason);
-
     virtual void die() override;
 
     virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url) override;

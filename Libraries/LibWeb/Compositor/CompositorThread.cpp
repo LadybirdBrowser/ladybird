@@ -133,19 +133,6 @@ static void flush_surface(Gfx::PaintingSurface& surface)
     surface.flush();
 }
 
-static constexpr u64 page_presenting_context_id_tag = 1ull << 63;
-
-static CompositorContextId compositor_context_id_for_page(u64 page_id)
-{
-    VERIFY((page_id & page_presenting_context_id_tag) == 0);
-    return CompositorContextId { page_presenting_context_id_tag | page_id };
-}
-
-static bool is_page_presenting_context_id(CompositorContextId context_id)
-{
-    return (context_id.value() & page_presenting_context_id_tag) != 0;
-}
-
 class CompositorThread::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
     explicit ThreadData(NonnullRefPtr<CompositorMainThreadClient> main_thread_client)
@@ -172,10 +159,9 @@ public:
         VERIFY(!m_contexts.contains(context_id));
         if (page_presentation_registration == PagePresentationRegistration::Yes) {
             VERIFY(page_id.has_value());
-            VERIFY(context_id == compositor_context_id_for_page(*page_id));
         } else {
             VERIFY(!page_id.has_value());
-            VERIFY(!is_page_presenting_context_id(context_id));
+            VERIFY(!is_page_presenting_compositor_context_id(context_id));
         }
         m_contexts.set(context_id, adopt_ref(*new ContextState(page_id, page_presentation_registration)));
     }
@@ -190,6 +176,20 @@ public:
     {
         Sync::MutexLocker const locker { m_mutex };
         return m_contexts.get(context_id).value_or(nullptr);
+    }
+
+    RefPtr<ContextState> page_presenting_context_state(u64 page_id, Optional<CompositorContextId>* context_id = nullptr)
+    {
+        Sync::MutexLocker const locker { m_mutex };
+        for (auto& entry : m_contexts) {
+            auto& context = entry.value;
+            if (context->page_id != page_id || !context->presents_to_client)
+                continue;
+            if (context_id)
+                *context_id = entry.key;
+            return context;
+        }
+        return nullptr;
     }
 
     void stop_presenting_to_client(CompositorContextId context_id)
@@ -356,8 +356,8 @@ public:
 
     bool enqueue_async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
     {
-        auto context_id = compositor_context_id_for_page(page_id);
-        auto context_state = this->context_state(context_id);
+        Optional<CompositorContextId> context_id;
+        auto context_state = page_presenting_context_state(page_id, &context_id);
         if (!context_state)
             return false;
         auto& context = *context_state;
@@ -401,14 +401,14 @@ public:
 
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Compositor accepted async scroll enqueue at {},{} device delta {},{} for scroll node {} viewport={}x{} at {},{}",
             position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y(), scroll_target.node_id->scroll_frame_index.value(), viewport_rect.width(), viewport_rect.height(), viewport_rect.x(), viewport_rect.y());
-        enqueue_command(context_id, AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, {} });
+        enqueue_command(*context_id, AsyncScrollByCommand { position, delta_in_device_pixels, viewport_rect, *scroll_target.node_id, {} });
         return true;
     }
 
     bool handle_viewport_scrollbar_mouse_event(u64 page_id, MouseEvent const& event)
     {
-        auto context_id = compositor_context_id_for_page(page_id);
-        auto context_state = this->context_state(context_id);
+        Optional<CompositorContextId> context_id;
+        auto context_state = page_presenting_context_state(page_id, &context_id);
         if (!context_state)
             return false;
         auto& context = *context_state;
@@ -432,7 +432,7 @@ public:
                 return false;
 
             schedule_viewport_scrollbar_present(context);
-            enqueue_command(context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
+            enqueue_command(*context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseMove: {
@@ -446,7 +446,7 @@ public:
             if (had_capture) {
                 if (!drag.has_value())
                     return false;
-                enqueue_command(context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
+                enqueue_command(*context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
                 return true;
             }
             auto hovered_scrollbar_index = [&] {
@@ -464,7 +464,7 @@ public:
             if (!drag.has_value())
                 return false;
             schedule_viewport_scrollbar_present(context);
-            enqueue_command(context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
+            enqueue_command(*context_id, ViewportScrollbarDragCommand { drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position });
             return true;
         }
         case MouseEvent::Type::MouseLeave: {
@@ -1042,7 +1042,7 @@ public:
 
     void mark_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)
     {
-        auto context_state = this->context_state(compositor_context_id_for_page(page_id));
+        auto context_state = page_presenting_context_state(page_id);
         if (!context_state)
             return;
         auto& context = *context_state;
@@ -1072,19 +1072,9 @@ CompositorThread::~CompositorThread()
     m_thread_data->exit();
 }
 
-CompositorContextId CompositorThread::create_context(Optional<u64> page_id, PagePresentationRegistration page_presentation_registration)
+void CompositorThread::register_context(CompositorContextId context_id, Optional<u64> page_id, PagePresentationRegistration page_presentation_registration)
 {
-    CompositorContextId context_id;
-    if (page_presentation_registration == PagePresentationRegistration::Yes) {
-        VERIFY(page_id.has_value());
-        context_id = compositor_context_id_for_page(*page_id);
-    } else {
-        VERIFY(!page_id.has_value());
-        context_id = allocate_compositor_context_id();
-        VERIFY(!is_page_presenting_context_id(context_id));
-    }
     m_thread_data->register_context(context_id, page_id, page_presentation_registration);
-    return context_id;
 }
 
 void CompositorThread::destroy_context(CompositorContextId context_id)
