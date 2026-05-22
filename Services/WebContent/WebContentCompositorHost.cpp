@@ -231,9 +231,9 @@ public:
     }
 
 private:
-    virtual Messages::WebContentCompositorServer::CreateContextResponse create_context(Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) override
+    virtual void create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) override
     {
-        return m_compositor_thread->create_context(page_id, page_presentation_registration);
+        m_compositor_thread->register_context(context_id, page_id, page_presentation_registration);
     }
 
     virtual void destroy_context(Web::Compositor::CompositorContextId context_id) override
@@ -414,9 +414,9 @@ public:
     }
 
 private:
-    virtual Web::Compositor::CompositorContextId allocate_context(Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) override
+    virtual void register_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) override
     {
-        return connection().create_context(page_id, page_presentation_registration);
+        connection().create_context(context_id, page_id, page_presentation_registration);
     }
 
     virtual void destroy_context(Web::Compositor::CompositorContextId context_id) override

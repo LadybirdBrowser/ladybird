@@ -55,7 +55,7 @@ public:
     bool async_scroll_by(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
     bool handle_mouse_event(u64 page_id, MouseEvent const&);
 
-    CompositorContextId create_context(Optional<u64> page_id, PagePresentationRegistration);
+    void register_context(CompositorContextId, Optional<u64> page_id, PagePresentationRegistration);
     void destroy_context(CompositorContextId);
     void stop_presenting_to_client(CompositorContextId);
     void set_presentation_mode(CompositorContextId, PresentationMode);

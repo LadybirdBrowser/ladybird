@@ -114,9 +114,9 @@ void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::PaintingSurf
 
 CompositorHost::~CompositorHost() = default;
 
-OwnPtr<CompositorContextHandle> CompositorHost::create_context(Optional<u64> page_id, PagePresentationRegistration page_presentation_registration)
+OwnPtr<CompositorContextHandle> CompositorHost::create_context(CompositorContextId context_id, Optional<u64> page_id, PagePresentationRegistration page_presentation_registration)
 {
-    auto context_id = allocate_context(page_id, page_presentation_registration);
+    register_context(context_id, page_id, page_presentation_registration);
     return adopt_own(*new CompositorContextHandle(*this, context_id));
 }
 

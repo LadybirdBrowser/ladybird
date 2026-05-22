@@ -81,7 +81,7 @@ public:
     virtual ~CompositorHost();
 
     virtual void start(DisplayListPlayerType) = 0;
-    OwnPtr<CompositorContextHandle> create_context(Optional<u64> page_id, PagePresentationRegistration);
+    OwnPtr<CompositorContextHandle> create_context(CompositorContextId, Optional<u64> page_id, PagePresentationRegistration);
 
     virtual void destroy_context(CompositorContextId) = 0;
     virtual void stop_presenting_to_client(CompositorContextId) = 0;
@@ -110,7 +110,7 @@ protected:
     CompositorHost() = default;
 
 private:
-    virtual CompositorContextId allocate_context(Optional<u64> page_id, PagePresentationRegistration) = 0;
+    virtual void register_context(CompositorContextId, Optional<u64> page_id, PagePresentationRegistration) = 0;
 };
 
 }

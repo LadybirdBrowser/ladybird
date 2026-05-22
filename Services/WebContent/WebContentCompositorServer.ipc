@@ -13,7 +13,7 @@
 
 endpoint WebContentCompositorServer
 {
-    create_context(Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => (Web::Compositor::CompositorContextId context_id)
+    create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => ()
     destroy_context(Web::Compositor::CompositorContextId context_id) =|
 
     set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode presentation_mode) =|
