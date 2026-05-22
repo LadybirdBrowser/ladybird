@@ -1,10 +1,37 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<style>
+    body.hide-pending-descendant #pending-descendant-invalidation-target {
+        display: none;
+    }
+
+    #pending-has-invalidation-container:has(.hide-target) {
+        display: none;
+    }
+
+    body.shrink-media-query-iframe #parent-pending-media-query-iframe {
+        width: 50px;
+    }
+
+    body.hide-pending-slotted #pending-invalidation-slotted-target {
+        display: none;
+    }
+
+    #computed-style-hidden-subtree {
+        display: none;
+        color: rgb(1, 2, 3);
+    }
+
+    #computed-style-hidden-subtree.changed {
+        color: rgb(4, 5, 6);
+    }
+</style>
 <input id="visible">
 <div id="hidden-container" hidden>
     <input id="hidden-ancestor">
 </div>
 <input id="display-none" style="display: none">
+<input id="display-none-after-style-change" style="width: 123px">
 <div id="display-contents" style="display: contents" tabindex="0">display contents</div>
 <div id="slotted-focus-host">
     <input id="slotted-hidden-focus-target">
@@ -13,21 +40,52 @@
 <div id="ancestor-hidden-after-focus">
     <input id="focused-then-ancestor-hidden">
 </div>
+<div id="display-none-ancestor-after-style-change">
+    <input id="display-none-ancestor-target">
+</div>
+<input id="animated-display-none-target">
+<div id="animated-display-none-ancestor">
+    <input id="animated-display-none-ancestor-target">
+</div>
+<input id="pending-descendant-invalidation-target">
+<div id="pending-has-invalidation-container">
+    <input id="pending-has-invalidation-target">
+</div>
+<div id="pending-invalidation-slotted-host">
+    <input id="pending-invalidation-slotted-target">
+</div>
+<div id="computed-style-hidden-subtree">
+    <span id="computed-style-hidden-target"></span>
+</div>
 <script>
-    test(() => {
+    promiseTest(async () => {
         const visible = document.getElementById("visible");
         const hiddenAncestor = document.getElementById("hidden-ancestor");
         const hiddenContainer = document.getElementById("hidden-container");
         const displayNone = document.getElementById("display-none");
+        const displayNoneAfterStyleChange = document.getElementById("display-none-after-style-change");
         const displayContents = document.getElementById("display-contents");
         const slottedFocusHost = document.getElementById("slotted-focus-host");
         const slottedHiddenFocusTarget = document.getElementById("slotted-hidden-focus-target");
         const focusedThenDisplayNone = document.getElementById("focused-then-display-none");
         const ancestorHiddenAfterFocus = document.getElementById("ancestor-hidden-after-focus");
         const focusedThenAncestorHidden = document.getElementById("focused-then-ancestor-hidden");
+        const displayNoneAncestorAfterStyleChange = document.getElementById("display-none-ancestor-after-style-change");
+        const displayNoneAncestorTarget = document.getElementById("display-none-ancestor-target");
+        const animatedDisplayNoneTarget = document.getElementById("animated-display-none-target");
+        const animatedDisplayNoneAncestor = document.getElementById("animated-display-none-ancestor");
+        const animatedDisplayNoneAncestorTarget = document.getElementById("animated-display-none-ancestor-target");
+        const pendingDescendantInvalidationTarget = document.getElementById("pending-descendant-invalidation-target");
+        const pendingHasInvalidationContainer = document.getElementById("pending-has-invalidation-container");
+        const pendingHasInvalidationTarget = document.getElementById("pending-has-invalidation-target");
+        const pendingInvalidationSlottedHost = document.getElementById("pending-invalidation-slotted-host");
+        const pendingInvalidationSlottedTarget = document.getElementById("pending-invalidation-slotted-target");
+        const computedStyleHiddenSubtree = document.getElementById("computed-style-hidden-subtree");
+        const computedStyleHiddenTarget = document.getElementById("computed-style-hidden-target");
         const slottedShadowRoot = slottedFocusHost.attachShadow({ mode: "open" });
         slottedShadowRoot.innerHTML = `<div id="slot-container" style="display: none"><slot></slot></div>`;
         const slotContainer = slottedShadowRoot.getElementById("slot-container");
+        pendingInvalidationSlottedHost.attachShadow({ mode: "open" }).innerHTML = `<slot></slot>`;
 
         visible.focus();
         println(`after visible.focus(): ${document.activeElement.id}`);
@@ -38,6 +96,107 @@
 
         displayNone.focus();
         println(`after display none input.focus(): ${document.activeElement.id}`);
+
+        displayNoneAfterStyleChange.offsetWidth;
+        displayNoneAfterStyleChange.style.display = "none";
+        displayNoneAfterStyleChange.focus();
+        println(`after display none from dirty style input.focus(): ${document.activeElement.id}`);
+        println(`after display none from dirty style offsetWidth: ${displayNoneAfterStyleChange.offsetWidth}`);
+
+        displayNoneAncestorAfterStyleChange.style.display = "none";
+        displayNoneAncestorTarget.focus();
+        println(`after display none ancestor from dirty style input.focus(): ${document.activeElement.id}`);
+
+        getComputedStyle(computedStyleHiddenTarget).color;
+        computedStyleHiddenSubtree.classList.add("changed");
+        println(`after getComputedStyle in dirty display none subtree: ${getComputedStyle(computedStyleHiddenTarget).color}`);
+
+        getComputedStyle(animatedDisplayNoneTarget).display;
+        const displayNoneAnimation = animatedDisplayNoneTarget.animate({ display: ["block", "none"] }, { duration: 1000, fill: "forwards" });
+        displayNoneAnimation.pause();
+        displayNoneAnimation.currentTime = 1000;
+        animatedDisplayNoneTarget.focus();
+        println(`after display none from pending animation input.focus(): ${document.activeElement.id}`);
+
+        getComputedStyle(animatedDisplayNoneAncestor).display;
+        const ancestorDisplayNoneAnimation = animatedDisplayNoneAncestor.animate({ display: ["block", "none"] }, { duration: 1000, fill: "forwards" });
+        ancestorDisplayNoneAnimation.pause();
+        ancestorDisplayNoneAnimation.currentTime = 1000;
+        animatedDisplayNoneAncestorTarget.focus();
+        println(`after display none ancestor from pending animation input.focus(): ${document.activeElement.id}`);
+
+        getComputedStyle(pendingDescendantInvalidationTarget).display;
+        document.body.classList.add("hide-pending-descendant");
+        pendingDescendantInvalidationTarget.focus();
+        println(`after display none from pending descendant invalidation input.focus(): ${document.activeElement.id}`);
+
+        getComputedStyle(pendingInvalidationSlottedTarget).display;
+        document.body.classList.add("hide-pending-slotted");
+        visible.focus();
+        pendingInvalidationSlottedTarget.offsetWidth;
+        pendingInvalidationSlottedTarget.focus();
+        println(`after display none from pending slotted invalidation input.focus(): ${document.activeElement.id}`);
+
+        getComputedStyle(pendingHasInvalidationContainer).display;
+        const hideTarget = document.createElement("span");
+        hideTarget.className = "hide-target";
+        pendingHasInvalidationContainer.append(hideTarget);
+        pendingHasInvalidationTarget.focus();
+        println(`after display none from pending :has invalidation input.focus(): ${document.activeElement.id}`);
+
+        const mediaQueryIframe = document.createElement("iframe");
+        mediaQueryIframe.width = "200";
+        mediaQueryIframe.height = "50";
+        mediaQueryIframe.srcdoc = `
+            <style>
+                @media (max-width: 100px) {
+                    #media-query-focus-target {
+                        display: none;
+                    }
+                }
+            </style>
+            <input id="media-query-focus-target">
+        `;
+        await new Promise(resolve => {
+            mediaQueryIframe.addEventListener("load", resolve, { once: true });
+            document.body.append(mediaQueryIframe);
+        });
+        const mediaQueryFocusTarget = mediaQueryIframe.contentDocument.getElementById("media-query-focus-target");
+        getComputedStyle(mediaQueryFocusTarget).display;
+        mediaQueryIframe.width = "50";
+        mediaQueryIframe.getBoundingClientRect();
+        mediaQueryFocusTarget.focus();
+        println(`after display none from pending media query input.focus(): ${mediaQueryIframe.contentDocument.activeElement.tagName}`);
+
+        const parentPendingMediaQueryIframe = document.createElement("iframe");
+        parentPendingMediaQueryIframe.id = "parent-pending-media-query-iframe";
+        parentPendingMediaQueryIframe.width = "200";
+        parentPendingMediaQueryIframe.height = "50";
+        parentPendingMediaQueryIframe.srcdoc = `
+            <style>
+                @media (max-width: 100px) {
+                    #parent-media-query-focus-target {
+                        display: none;
+                    }
+                }
+            </style>
+            <input id="parent-media-query-focus-target">
+        `;
+        await new Promise(resolve => {
+            parentPendingMediaQueryIframe.addEventListener("load", resolve, { once: true });
+            document.body.append(parentPendingMediaQueryIframe);
+        });
+        const parentMediaQueryFocusTarget = parentPendingMediaQueryIframe.contentDocument.getElementById("parent-media-query-focus-target");
+        getComputedStyle(parentMediaQueryFocusTarget).display;
+        document.body.classList.add("shrink-media-query-iframe");
+        parentMediaQueryFocusTarget.focus();
+        println(`after display none from pending parent media query input.focus(): ${parentPendingMediaQueryIframe.contentDocument.activeElement.tagName}`);
+
+        visible.focus();
+        const detached = document.createElement("input");
+        detached.id = "detached";
+        detached.focus();
+        println(`after detached input.focus(): ${document.activeElement.id}`);
 
         displayContents.focus();
         println(`after display contents div.focus(): ${document.activeElement.id}`);

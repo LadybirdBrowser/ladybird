@@ -26,12 +26,27 @@ function styleCounterSummary() {
     );
 }
 
+function styleCounterSummaryWithoutRecomputations() {
+    const counters = internals.getStyleInvalidationCounters();
+    return (
+        `styleInvalidations=${counters.styleInvalidations}, fullStyleInvalidations=${counters.fullStyleInvalidations}, ` +
+        `hasAncestorWalkInvocations=${counters.hasAncestorWalkInvocations}, ` +
+        `hasInvalidationMetadataCandidates=${counters.hasInvalidationMetadataCandidates}, ` +
+        `hasMatchInvocations=${counters.hasMatchInvocations}, ` +
+        `hasResultCacheHits=${counters.hasResultCacheHits}, hasResultCacheMisses=${counters.hasResultCacheMisses}`
+    );
+}
+
 function styleCounters() {
     return internals.getStyleInvalidationCounters();
 }
 
 function printPassWithCounters(testName) {
     println(`PASS: ${testName} | ${styleCounterSummary()}`);
+}
+
+function printPassWithoutRecomputeCounters(testName) {
+    println(`PASS: ${testName} | ${styleCounterSummaryWithoutRecomputations()}`);
 }
 
 function hasWalkCounterDetailSummary() {
@@ -277,6 +292,7 @@ function runCase({
     after,
     pseudoElement = "",
     skipInitialRead = false,
+    omitRecomputeCounters = false,
     fixtureOptions = {},
 }) {
     if (
@@ -297,7 +313,8 @@ function runCase({
         resetStyleCounters();
         mutate(subject, fixture);
         assertEqual(`${testName} after mutation`, readProbe(target, pseudoElement), after ? MATCH : BASE);
-        printPassWithCounters(testName);
+        if (omitRecomputeCounters) printPassWithoutRecomputeCounters(testName);
+        else printPassWithCounters(testName);
     } finally {
         cleanup();
     }
@@ -431,6 +448,7 @@ const childMutationCases = [
         selector: ":empty",
         initial: true,
         after: false,
+        omitRecomputeCounters: true,
         mutate: subject => subject.appendChild(makeElement("span")),
     },
     {
@@ -2036,13 +2054,14 @@ const descendantStateMutationCases = [
     },
 ];
 
-function runDetachedReconnectCase(scope, selectorCase, pseudoElement = "") {
+function runDetachedReconnectCase(scope, selectorCase, pseudoElement = "", options = {}) {
     runCase({
         suite: pseudoElement ? "detached pseudo-element child mutation" : "detached child mutation",
         scope,
         initial: selectorCase.initial,
         after: selectorCase.after,
         pseudoElement,
+        omitRecomputeCounters: options.omitRecomputeCounters,
         ...selectorCase,
         mutate: (subject, fixture) => {
             fixture.remove();

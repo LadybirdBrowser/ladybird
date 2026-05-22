@@ -61,7 +61,7 @@
         assertEqual("unmatched 2 after ancestor attribute change", readProbe(unmatched2), BASE);
         assertEqual("unmatched 3 after ancestor attribute change", readProbe(unmatched3), BASE);
         assertEqual("matched after ancestor attribute change", readProbe(matched), MATCH);
-        printPassWithCounters("attribute class match set requires class attribute presence");
+        printPassWithoutRecomputeCounters("attribute class match set requires class attribute presence");
         document.getElementById("class-presence-style").remove();
 
         runClassRemovalCase("[class] descendant loses match", "[class] .target", fixture => {

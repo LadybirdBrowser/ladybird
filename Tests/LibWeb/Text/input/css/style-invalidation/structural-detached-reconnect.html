@@ -22,8 +22,8 @@
                 const selectorCase = childMutationCases.find(c => c.name === name);
                 if (!selectorCase)
                     throw new Error(`detached scope refers to unknown case: ${name}`);
-                runDetachedReconnectCase(scope, selectorCase);
-                runDetachedReconnectCase(scope, selectorCase, "::before");
+                runDetachedReconnectCase(scope, selectorCase, "", { omitRecomputeCounters: true });
+                runDetachedReconnectCase(scope, selectorCase, "::before", { omitRecomputeCounters: true });
             }
         }
 
