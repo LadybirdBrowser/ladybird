@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+31 Pass
+1 Fail
+Pass	Checking invalid combination - justify-items: auto
+Pass	Checking invalid combination - justify-items: space-around
+Pass	Checking invalid combination - justify-items: auto safe
+Pass	Checking invalid combination - justify-items: auto left
+Pass	Checking invalid combination - justify-items: normal unsafe
+Pass	Checking invalid combination - justify-items: normal stretch
+Pass	Checking invalid combination - justify-items: baseline normal
+Pass	Checking invalid combination - justify-items: baseline center
+Pass	Checking invalid combination - justify-items: first baseline center
+Pass	Checking invalid combination - justify-items: last baseline center
+Pass	Checking invalid combination - justify-items: baseline last
+Pass	Checking invalid combination - justify-items: baseline first
+Pass	Checking invalid combination - justify-items: stretch unsafe
+Pass	Checking invalid combination - justify-items: stretch right
+Pass	Checking invalid combination - justify-items: unsafe unsafe
+Pass	Checking invalid combination - justify-items: unsafe safe
+Pass	Checking invalid combination - justify-items: center start
+Pass	Checking invalid combination - justify-items: unsafe stretch
+Pass	Checking invalid combination - justify-items: safe stretch
+Pass	Checking invalid combination - justify-items: baseline safe
+Pass	Checking invalid combination - justify-items: unsafe baseline
+Pass	Checking invalid combination - justify-items: unsafe safe left
+Pass	Checking invalid combination - justify-items: unsafe left safe
+Pass	Checking invalid combination - justify-items: left safe unsafe safe
+Pass	Checking invalid combination - justify-items: start safe
+Fail	Checking invalid combination - justify-items: safe
+Pass	Checking invalid combination - justify-items: legacy start
+Pass	Checking invalid combination - justify-items: legacy end
+Pass	Checking invalid combination - justify-items: legacy right unsafe
+Pass	Checking invalid combination - justify-items: legacy auto
+Pass	Checking invalid combination - justify-items: legacy stretch
+Pass	Checking invalid combination - justify-items: legacy left right

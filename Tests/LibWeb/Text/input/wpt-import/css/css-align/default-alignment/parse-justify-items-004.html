@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Default-Alignment: justify-items - invalid values</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#default-alignment" />
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-items" />
+<meta name="assert" content="Check bad combinations of specified values."/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/css-align/resources/alignment-parsing-utils.js"></script>
+<div id="log"></div>
+<script>
+    element = document.createElement("div");
+    document.body.appendChild(element);
+
+    let values = ["auto", "space-around"].concat(invalidPositionValues, invalidLegacyValues);
+
+    values.forEach(function(value) {
+        test(function() {
+            checkBadValues(element, "justifyItems", "justify-items",  value);
+        }, "Checking invalid combination - justify-items: " + value);
+    });
+
+</script>

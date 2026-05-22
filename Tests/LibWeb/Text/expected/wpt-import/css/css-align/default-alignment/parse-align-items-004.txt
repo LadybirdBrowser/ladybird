@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 29 tests
+
+28 Pass
+1 Fail
+Pass	Checking invalid combination - align-items: auto
+Pass	Checking invalid combination - align-items: legacy
+Pass	Checking invalid combination - align-items: space-around
+Pass	Checking invalid combination - align-items: left
+Pass	Checking invalid combination - align-items: safe right
+Pass	Checking invalid combination - align-items: auto safe
+Pass	Checking invalid combination - align-items: auto left
+Pass	Checking invalid combination - align-items: normal unsafe
+Pass	Checking invalid combination - align-items: normal stretch
+Pass	Checking invalid combination - align-items: baseline normal
+Pass	Checking invalid combination - align-items: baseline center
+Pass	Checking invalid combination - align-items: first baseline center
+Pass	Checking invalid combination - align-items: last baseline center
+Pass	Checking invalid combination - align-items: baseline last
+Pass	Checking invalid combination - align-items: baseline first
+Pass	Checking invalid combination - align-items: stretch unsafe
+Pass	Checking invalid combination - align-items: stretch right
+Pass	Checking invalid combination - align-items: unsafe unsafe
+Pass	Checking invalid combination - align-items: unsafe safe
+Pass	Checking invalid combination - align-items: center start
+Pass	Checking invalid combination - align-items: unsafe stretch
+Pass	Checking invalid combination - align-items: safe stretch
+Pass	Checking invalid combination - align-items: baseline safe
+Pass	Checking invalid combination - align-items: unsafe baseline
+Pass	Checking invalid combination - align-items: unsafe safe left
+Pass	Checking invalid combination - align-items: unsafe left safe
+Pass	Checking invalid combination - align-items: left safe unsafe safe
+Pass	Checking invalid combination - align-items: start safe
+Fail	Checking invalid combination - align-items: safe
