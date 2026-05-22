@@ -5,6 +5,8 @@
     .red { color: red; }
     .green { color: green; }
     .blue { color: blue; }
+    #whole-subtree-target[open] span { color: green; }
+    #whole-subtree-target:not([open]) span { color: red; }
 </style>
 <div id="parent">
     <div id="target">hello</div>
@@ -12,9 +14,15 @@
 </div>
 <div id="slot-host">
     <template shadowrootmode="open">
+        <style>
+            slot { --slot-color: red; }
+            slot.green { --slot-color: green; }
+            ::slotted(.uses-slot-custom-property) { color: var(--slot-color); }
+        </style>
         <slot id="the-slot"></slot>
     </template>
     <span id="slotted-child">slotted</span>
+    <span id="slotted-custom-property-child" class="uses-slot-custom-property">slotted custom property</span>
 </div>
 <div id="shadow-host-2">
     <template shadowrootmode="open">
@@ -27,6 +35,17 @@
 <div id="inherit-parent" class="red">
     <div id="inherit-child">inherits</div>
 </div>
+<details id="whole-subtree-target" open>
+    <summary>summary</summary>
+    <div>
+        <span id="whole-subtree-path-target">path target</span>
+    </div>
+    <div>
+        <div>
+            <span id="whole-subtree-off-path-target">off path target</span>
+        </div>
+    </div>
+</details>
 <script>
     test(() => {
         const target = document.getElementById("target");
@@ -36,12 +55,19 @@
         const slotHost = document.getElementById("slot-host");
         const inheritParent = document.getElementById("inherit-parent");
         const inheritChild = document.getElementById("inherit-child");
+        const slottedCustomPropertyChild = document.getElementById("slotted-custom-property-child");
+        const wholeSubtreeTarget = document.getElementById("whole-subtree-target");
+        const wholeSubtreePathTarget = document.getElementById("whole-subtree-path-target");
+        const wholeSubtreeOffPathTarget = document.getElementById("whole-subtree-off-path-target");
 
         // Force initial style computation.
         getComputedStyle(target).color;
         getComputedStyle(sibling).color;
         getComputedStyle(slottedChild).color;
+        getComputedStyle(slottedCustomPropertyChild).color;
         getComputedStyle(inheritChild).color;
+        getComputedStyle(wholeSubtreePathTarget).color;
+        getComputedStyle(wholeSubtreeOffPathTarget).color;
 
         // 1. Reading computed style without changes should return correct values.
         println(`1: ${getComputedStyle(target).color}`);
@@ -86,5 +112,18 @@
         // 8. Multiple reads without changes return consistent values.
         println(`8a: ${getComputedStyle(target).color}`);
         println(`8b: ${getComputedStyle(target).color}`);
+
+        // 9. A targeted update through one branch must not clear whole-subtree
+        //    invalidation for descendants in other branches.
+        wholeSubtreeTarget.open = false;
+        println(`9a: ${getComputedStyle(wholeSubtreePathTarget).color}`);
+        document.body.offsetWidth;
+        println(`9b: ${getComputedStyle(wholeSubtreeOffPathTarget).color}`);
+
+        // 10. A targeted update of a slot whose custom properties changed must
+        //     dirty assigned slottables that inherit through the flat tree.
+        theSlot.classList.add("green");
+        getComputedStyle(theSlot).display;
+        println(`10: ${getComputedStyle(slottedCustomPropertyChild).color}`);
     });
 </script>

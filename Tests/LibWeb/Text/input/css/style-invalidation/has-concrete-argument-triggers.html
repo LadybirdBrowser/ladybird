@@ -30,12 +30,12 @@
         mutating.classList.add("needle");
         assertEqual("needle target after relevant mutation", readProbe(needleTarget), MATCH);
         assertEqual("other target after unrelated mutation", readProbe(otherTarget), BASE);
-        printPassWithCounters("class mutation invalidates affected :has() rule");
+        printPassWithoutRecomputeCounters("class mutation invalidates affected :has() rule");
 
         resetStyleCounters();
         mutating.classList.add("other");
         assertEqual("other target after relevant mutation", readProbe(otherTarget), MATCH);
-        printPassWithCounters("class mutation still invalidates matching :has() rule");
+        printPassWithoutRecomputeCounters("class mutation still invalidates matching :has() rule");
 
         const style = addStyle(document.head, `.empty-dir-auto-scope .outer:has(.auto:empty) .target { ${MATCH_DECLARATION} }`);
         const fixture = makeElement("section", { className: "empty-dir-auto-scope" });
@@ -52,7 +52,7 @@
         resetStyleCounters();
         text.data = "text";
         assertEqual("dir=auto empty text after mutation", readProbe(target), BASE);
-        printPassWithCounters("dir=auto text mutation invalidates :has(:empty)");
+        printPassWithoutRecomputeCounters("dir=auto text mutation invalidates :has(:empty)");
 
         style.remove();
         fixture.remove();
@@ -71,7 +71,7 @@
             resetStyleCounters();
             mutate(subject);
             assertEqual(`${name} after mutation`, readProbe(target), expectedAfter ? MATCH : BASE);
-            printPassWithCounters(`${name} invalidates :has()`);
+            printPassWithoutRecomputeCounters(`${name} invalidates :has()`);
 
             style.remove();
             fixture.remove();

@@ -82,7 +82,7 @@
             selectorCase.mutate(context);
             const after = readProbe(context.target);
             println(`RESULT: ${selectorCase.name}: initial=${initial} expectedInitial=${selectorCase.initial ? MATCH : BASE}, after=${after} expectedAfter=${selectorCase.after ? MATCH : BASE}`);
-            printPassWithCounters(`non-subject :has sibling combinator: ${selectorCase.name}`);
+            printPassWithoutRecomputeCounters(`non-subject :has sibling combinator: ${selectorCase.name}`);
         } finally {
             style.remove();
             fixture.remove();
