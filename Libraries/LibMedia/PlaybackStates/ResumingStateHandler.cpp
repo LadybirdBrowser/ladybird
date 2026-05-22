@@ -17,7 +17,7 @@ void ResumingStateHandler::resume()
     if (m_playing)
         manager().replace_state_handler<PlayingStateHandler>();
     else
-        manager().replace_state_handler<PausedStateHandler>(PlaybackManager::RESUMING_SUSPEND_TIMEOUT_MS);
+        manager().replace_state_handler<PausedStateHandler>();
 }
 
 }
