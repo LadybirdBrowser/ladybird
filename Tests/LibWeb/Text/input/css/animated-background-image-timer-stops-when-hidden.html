@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 100px;
+        height: 50px;
+        background-image: url("../wpt-import/images/anim-gr.gif");
+    }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+
+        internals.dumpLayoutTree(document);
+        println(`active animations before hiding: ${internals.activeImageStyleValueAnimationCount()}`);
+
+        target.style.display = "none";
+        internals.dumpLayoutTree(document);
+
+        println(`active animations after hiding: ${internals.activeImageStyleValueAnimationCount()}`);
+        done();
+    });
+</script>

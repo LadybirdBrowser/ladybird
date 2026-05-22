@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -28,20 +29,25 @@ class ImageStyleValue final
 
 public:
     class Client {
+        friend class ImageStyleValue;
+
     public:
-        Client(ImageStyleValue const&);
+        Client(DOM::Document&, ImageStyleValue const&);
         virtual ~Client();
         virtual void image_style_value_did_update(ImageStyleValue&) = 0;
 
     protected:
         void image_style_value_finalize();
+        GC::Ptr<DOM::Document> document() const { return m_document.ptr(); }
 
         ImageStyleValue const& m_image_style_value;
+        GC::Weak<DOM::Document> m_document;
     };
 
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&);
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
+    static u64 active_animation_timer_count(DOM::Document const&);
 
     virtual void visit_edges(JS::Cell::Visitor& visitor) const override;
 
@@ -68,7 +74,6 @@ public:
 
 private:
     friend class Client;
-
     ImageStyleValue(URL const&);
 
     void register_client(Client&) const;
@@ -77,6 +82,11 @@ private:
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+    void start_animation_timer_if_needed(DOM::Document&) const;
+    void stop_animation_timer() const;
+    bool is_animatable() const;
+    bool animation_has_completed() const;
+    int current_frame_duration() const;
     void animate();
     Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
 
@@ -88,9 +98,9 @@ private:
 
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
-    GC::Ptr<Platform::Timer> m_timer;
 
     mutable HashTable<Client*> m_clients;
+    mutable GC::Ptr<Platform::Timer> m_timer;
 };
 
 }

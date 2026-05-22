@@ -1265,6 +1265,8 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16String const& title)
 
 void Document::tear_down_layout_tree()
 {
+    if (m_layout_root)
+        m_layout_root->prepare_subtree_for_detach_from_layout_tree();
     m_layout_root = nullptr;
     m_paintable = nullptr;
     m_needs_full_layout_tree_update = true;

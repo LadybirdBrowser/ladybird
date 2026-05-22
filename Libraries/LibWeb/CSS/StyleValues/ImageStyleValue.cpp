@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -23,6 +24,8 @@
 #include <LibWeb/Platform/Timer.h>
 
 namespace Web::CSS {
+
+static HashTable<ImageStyleValue const*> s_active_animation_timers;
 
 ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url)
 {
@@ -41,6 +44,18 @@ ImageStyleValue::ImageStyleValue(URL const& url)
 }
 
 ImageStyleValue::~ImageStyleValue() = default;
+
+u64 ImageStyleValue::active_animation_timer_count(DOM::Document const& document)
+{
+    u64 count = 0;
+    for (auto const* image_style_value : s_active_animation_timers) {
+        if (any_of(image_style_value->m_clients, [&](auto const* client) {
+                return client->document() == &document;
+            }))
+            ++count;
+    }
+    return count;
+}
 
 void ImageStyleValue::visit_edges(JS::Cell::Visitor& visitor) const
 {
@@ -78,18 +93,70 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
 
                 auto image_data = self.m_resource_request->image_data();
                 if (image_data->is_animated() && image_data->frame_count() > 1) {
-                    self.m_timer = Platform::Timer::create(self.m_document->heap());
-                    self.m_timer->set_interval(image_data->frame_duration(0));
-                    auto weak_self = self.template make_weak_ptr<ImageStyleValue>();
-                    self.m_timer->on_timeout = GC::create_function(self.m_document->heap(), [weak_self] {
-                        if (weak_self)
-                            weak_self->animate();
-                    });
-                    self.m_timer->start();
+                    for (auto* client : self.m_clients) {
+                        if (auto document = client->document()) {
+                            self.start_animation_timer_if_needed(*document);
+                            break;
+                        }
+                    }
                 }
             }),
             nullptr);
     }
+}
+
+void ImageStyleValue::start_animation_timer_if_needed(DOM::Document& document) const
+{
+    if (m_clients.is_empty() || !is_animatable())
+        return;
+
+    if (m_timer && m_timer->is_active())
+        return;
+
+    if (!m_timer) {
+        m_timer = Platform::Timer::create(document.heap());
+        auto weak_self = make_weak_ptr<ImageStyleValue>();
+        m_timer->on_timeout = GC::create_function(document.heap(), [weak_self] {
+            if (weak_self)
+                weak_self->animate();
+        });
+    }
+
+    m_timer->set_interval(current_frame_duration());
+    m_timer->start();
+    s_active_animation_timers.set(this);
+}
+
+void ImageStyleValue::stop_animation_timer() const
+{
+    if (m_timer && m_timer->is_active()) {
+        m_timer->stop();
+        s_active_animation_timers.remove(this);
+    }
+}
+
+bool ImageStyleValue::is_animatable() const
+{
+    auto image_data = this->image_data();
+    if (!image_data || !image_data->is_animated() || image_data->frame_count() <= 1)
+        return false;
+
+    return !animation_has_completed();
+}
+
+bool ImageStyleValue::animation_has_completed() const
+{
+    auto image_data = this->image_data();
+    return image_data && image_data->loop_count() > 0 && m_loops_completed == image_data->loop_count();
+}
+
+int ImageStyleValue::current_frame_duration() const
+{
+    auto image_data = this->image_data();
+    if (!image_data)
+        return 0;
+
+    return image_data->frame_duration(m_current_frame_index);
 }
 
 void ImageStyleValue::animate()
@@ -104,13 +171,13 @@ void ImageStyleValue::animate()
     m_current_frame_index = image_data->notify_frame_advanced(m_current_frame_index);
     auto current_frame_duration = image_data->frame_duration(m_current_frame_index);
 
-    if (current_frame_duration != m_timer->interval())
+    if (m_timer && current_frame_duration != m_timer->interval())
         m_timer->restart(current_frame_duration);
 
     if (m_current_frame_index == image_data->frame_count() - 1) {
         ++m_loops_completed;
-        if (m_loops_completed > 0 && m_loops_completed == image_data->loop_count())
-            m_timer->stop();
+        if (animation_has_completed())
+            stop_animation_timer();
     }
 
     if (on_animate)
@@ -238,16 +305,22 @@ void ImageStyleValue::register_client(Client& client) const
 {
     auto result = m_clients.set(&client);
     VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+    if (auto document = client.document())
+        start_animation_timer_if_needed(*document);
 }
 
 void ImageStyleValue::unregister_client(Client& client) const
 {
     auto did_remove = m_clients.remove(&client);
     VERIFY(did_remove);
+
+    if (m_clients.is_empty())
+        stop_animation_timer();
 }
 
-ImageStyleValue::Client::Client(ImageStyleValue const& image_style_value)
+ImageStyleValue::Client::Client(DOM::Document& document, ImageStyleValue const& image_style_value)
     : m_image_style_value(image_style_value)
+    , m_document(document)
 {
     m_image_style_value.register_client(*this);
 }

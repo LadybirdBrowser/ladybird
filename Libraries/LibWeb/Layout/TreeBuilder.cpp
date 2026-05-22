@@ -213,7 +213,7 @@ public:
     virtual void finalize() override
     {
         Base::finalize();
-        image_style_value_finalize();
+        unregister_image_style_value_client();
     }
 
     virtual bool is_image_available() const override { return m_image->is_paintable(); }
@@ -229,12 +229,17 @@ public:
     }
 
     virtual void set_visible_in_viewport(bool) override { }
+    virtual void layout_node_was_detached() const override
+    {
+        unregister_image_style_value_client();
+        m_layout_node = nullptr;
+    }
 
     virtual GC::Ptr<DOM::Element const> to_html_element() const override { return nullptr; }
 
-    static GC::Ref<GeneratedContentImageProvider> create(GC::Heap& heap, NonnullRefPtr<CSS::ImageStyleValue> image)
+    static GC::Ref<GeneratedContentImageProvider> create(GC::Heap& heap, DOM::Document& document, NonnullRefPtr<CSS::ImageStyleValue> image)
     {
-        return heap.allocate<GeneratedContentImageProvider>(move(image));
+        return heap.allocate<GeneratedContentImageProvider>(document, move(image));
     }
 
     void set_layout_node(GC::Ref<Layout::Node> layout_node)
@@ -249,8 +254,8 @@ public:
     }
 
 private:
-    GeneratedContentImageProvider(NonnullRefPtr<CSS::ImageStyleValue> image)
-        : Client(image)
+    GeneratedContentImageProvider(DOM::Document& document, NonnullRefPtr<CSS::ImageStyleValue> image)
+        : Client(document, image)
         , m_image(move(image))
     {
     }
@@ -270,11 +275,22 @@ private:
 
     virtual void image_style_value_did_update(CSS::ImageStyleValue&) override
     {
+        if (!m_layout_node)
+            return;
         m_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
     }
 
-    GC::Ptr<Layout::Node> m_layout_node;
+    void unregister_image_style_value_client() const
+    {
+        if (!m_registered_as_image_style_value_client)
+            return;
+        const_cast<GeneratedContentImageProvider&>(*this).image_style_value_finalize();
+        m_registered_as_image_style_value_client = false;
+    }
+
+    mutable GC::Ptr<Layout::Node> m_layout_node;
     NonnullRefPtr<CSS::ImageStyleValue> m_image;
+    mutable bool m_registered_as_image_style_value_client { true };
 };
 
 GC_DEFINE_ALLOCATOR(GeneratedContentImageProvider);
@@ -580,7 +596,7 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
                 } else {
                     auto& image = *item.get<NonnullRefPtr<CSS::ImageStyleValue>>();
                     image.load_any_resources(document);
-                    auto image_provider = GeneratedContentImageProvider::create(element.heap(), image);
+                    auto image_provider = GeneratedContentImageProvider::create(element.heap(), document, image);
                     layout_node = document.heap().allocate<ImageBox>(document, nullptr, *pseudo_element_style, image_provider);
                     image_provider->set_layout_node(*layout_node);
                 }
@@ -947,6 +963,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         m_layout_root = layout_node;
     } else if (should_create_layout_node) {
         if (may_replace_existing_layout_node) {
+            old_layout_node->prepare_subtree_for_detach_from_layout_tree();
             old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
         } else if (layout_node->is_svg_box()) {
             m_ancestor_stack.last()->append_child(*layout_node);

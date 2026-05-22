@@ -19,6 +19,7 @@
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
@@ -699,6 +700,11 @@ JS::Object* Internals::get_style_invalidation_counters()
 void Internals::reset_style_invalidation_counters()
 {
     window().associated_document().reset_style_invalidation_counters();
+}
+
+WebIDL::UnsignedLongLong Internals::active_image_style_value_animation_count()
+{
+    return CSS::ImageStyleValue::active_animation_timer_count(window().associated_document());
 }
 
 struct AsyncScrollingStateSnapshot {

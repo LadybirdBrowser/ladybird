@@ -84,6 +84,8 @@ public:
     PaintableList const& paintables() const { return m_paintable; }
     void add_paintable(RefPtr<Painting::Paintable>);
     void clear_paintables();
+    void prepare_for_detach_from_layout_tree();
+    void prepare_subtree_for_detach_from_layout_tree();
 
     virtual RefPtr<Painting::Paintable> create_paintable() const;
 
@@ -303,6 +305,7 @@ public:
     CSS::ImmutableComputedValues const& computed_values() const { return static_cast<CSS::ImmutableComputedValues const&>(*m_computed_values); }
     CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
 
+    void clear_image_observers();
     void apply_style(CSS::ComputedProperties const&);
 
     Gfx::Font const& first_available_font() const;
