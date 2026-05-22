@@ -255,6 +255,7 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
     m_downstream_needs_wake = true;
 
     if (timestamp >= m_earliest_available_timestamp && timestamp < m_latest_available_timestamp) {
+        m_last_processed_seek_id = m_seek_id;
         dispatch_wake_if_needed_while_locked();
         return;
     }
