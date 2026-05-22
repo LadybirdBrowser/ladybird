@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        font-size: 0;
+    }
+
+    .shrink {
+        display: inline-block;
+        line-height: 0;
+        margin-right: 10px;
+    }
+
+    img {
+        display: block;
+    }
+</style>
+
+<div id="auto" class="shrink"><img style="width: auto; height: auto;"></div>
+<div id="width-percent" class="shrink"><img style="width: 50%; height: auto;"></div>
+<div id="width-percent-fixed-height" class="shrink"><img style="width: 50%; height: 20px;"></div>
+<div id="height-percent" class="shrink"><img style="width: auto; height: 50%;"></div>
+<div id="height-percent-fixed-width" class="shrink"><img style="width: 20px; height: 50%;"></div>
+<div id="both-percent" class="shrink"><img style="width: 50%; height: 50%;"></div>
+<div id="calc-percent" class="shrink"><img style="width: calc(50% + 0px); height: auto;"></div>
+<div id="calc-percent-fixed-height" class="shrink"><img style="width: calc(50% + 0px); height: 20px;"></div>
+<div id="min-width-percent" class="shrink"><img style="width: 20px; height: 20px; min-width: 50%; min-height: 0;"></div>
+<div id="max-width-percent" class="shrink"><img style="width: 120px; height: 120px; min-width: 0; min-height: 0; max-width: 50%;"></div>
+<div id="min-content" class="shrink"><img style="width: min-content; height: 20px; min-width: 0; min-height: 0;"></div>
+<div id="fixed" class="shrink"><img style="width: 20px; height: 30px; min-width: 0; min-height: 0;"></div>
+
+<script>
+    const imageSource = "../../../Assets/120.png";
+
+    function waitForLoad(image) {
+        return new Promise(resolve => {
+            image.addEventListener("load", resolve, { once: true });
+        });
+    }
+
+    function roundedRectForCase(id) {
+        const container = document.getElementById(id);
+        const image = container.querySelector("img");
+        const containerRect = container.getBoundingClientRect();
+        const imageRect = image.getBoundingClientRect();
+        return {
+            containerWidth: Math.round(containerRect.width),
+            imageWidth: Math.round(imageRect.width),
+            imageHeight: Math.round(imageRect.height),
+        };
+    }
+
+    asyncTest(async done => {
+        document.body.offsetWidth;
+
+        const cases = Array.from(document.querySelectorAll(".shrink"));
+        const loadPromises = cases.map(container => waitForLoad(container.querySelector("img")));
+        cases.forEach((container, index) => {
+            container.querySelector("img").src = `${imageSource}?${index}`;
+        });
+
+        await Promise.all(loadPromises);
+
+        for (const container of cases) {
+            const rect = roundedRectForCase(container.id);
+            println(`${container.id}: container=${rect.containerWidth} image=${rect.imageWidth}x${rect.imageHeight}`);
+        }
+
+        done();
+    });
+</script>
