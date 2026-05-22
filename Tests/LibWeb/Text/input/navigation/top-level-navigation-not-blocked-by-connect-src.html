@@ -16,6 +16,12 @@
         meta.content = "connect-src 'none'";
         document.head.appendChild(meta);
 
+        // NB: test-web only completes Text tests after the original test page has finished loading.
+        // Navigating before it observes that can leave this test waiting forever, even after the target page reports PASS.
+        if (document.readyState !== "complete")
+            await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+        await timeout(0);
+
         location.href = targetURL;
     });
 </script>
