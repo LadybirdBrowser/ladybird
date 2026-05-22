@@ -7968,10 +7968,6 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
 {
     auto navigable = this->navigable();
 
-    // OPTIMIZATION: Ignore set_needs_repaint() inside navigable containers (i.e frames) with visibility: hidden.
-    if (navigable && navigable->has_inclusive_ancestor_with_visibility_hidden())
-        return;
-
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
         set_needs_to_record_display_list();
     }

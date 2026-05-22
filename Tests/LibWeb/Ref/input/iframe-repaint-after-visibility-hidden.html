@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <head>
+        <link rel="match" href="../expected/iframe-repaint-after-visibility-hidden-ref.html" />
+        <style>
+            body {
+                margin: 0;
+            }
+            iframe {
+                display: block;
+                width: 100px;
+                height: 100px;
+                border: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Regression test for https://github.com/LadybirdBrowser/ladybird/issues/9305 -->
+        <!-- An iframe whose content changes while it has a visibility:hidden ancestor must be -->
+        <!-- painted once that ancestor becomes visible again. -->
+        <iframe id="frame" srcdoc="<body style='background: red'></body>"></iframe>
+        <script>
+            const frame = document.getElementById("frame");
+            let phase = 0;
+            frame.addEventListener("load", () => {
+                if (phase === 0) {
+                    // The red document has loaded and been painted; hide the iframe and swap in green.
+                    phase = 1;
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        frame.style.visibility = "hidden";
+                        frame.srcdoc = "<body style='background: green'></body>";
+                    }));
+                } else if (phase === 1) {
+                    // The green document loaded while the iframe was hidden; reveal it again.
+                    phase = 2;
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        frame.style.visibility = "visible";
+                        requestAnimationFrame(() => requestAnimationFrame(() => {
+                            document.documentElement.className = "";
+                        }));
+                    }));
+                }
+            });
+        </script>
+    </body>
+</html>
