@@ -1189,6 +1189,7 @@ impl Parser<'_> {
             return self.expression(start, ExpressionKind::MetaProperty(MetaPropertyType::NewTarget));
         }
 
+        let callee_starts_with_grouping_paren = self.match_token(TokenType::ParenOpen);
         let callee = if self.match_token(TokenType::New) {
             self.parse_new_expression()
         } else {
@@ -1196,7 +1197,7 @@ impl Parser<'_> {
             self.parse_expression(PRECEDENCE_MEMBER, Associativity::Right, forbidden)
         };
 
-        if matches!(callee.inner, ExpressionKind::ImportCall(_)) {
+        if matches!(callee.inner, ExpressionKind::ImportCall(_)) && !callee_starts_with_grouping_paren {
             self.syntax_error("Cannot call new on dynamic import");
         }
 
