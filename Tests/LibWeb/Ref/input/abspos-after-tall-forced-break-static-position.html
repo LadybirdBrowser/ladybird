@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/abspos-after-tall-forced-break-static-position-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+
+body {
+    margin: 0;
+}
+
+ul {
+    font: 10px/40px Ahem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+li {
+    position: relative;
+    width: 100px;
+}
+
+.inline-block {
+    background: black;
+    display: inline-block;
+    height: 10px;
+    width: 20px;
+}
+
+li::after {
+    content: "X";
+    position: absolute;
+}
+</style>
+<ul>
+    <li><span class="inline-block"></span><br></li>
+</ul>

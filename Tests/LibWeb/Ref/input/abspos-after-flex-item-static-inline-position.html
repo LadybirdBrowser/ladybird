@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/abspos-after-flex-item-static-inline-position-ref.html">
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font: 20px Ahem;
+    }
+
+    ul {
+        display: flex;
+        gap: 24px;
+        list-style: none;
+        margin: 20px;
+        padding: 0;
+    }
+
+    li {
+        position: relative;
+    }
+
+    a {
+        margin: -14px 0 -14px -14px;
+        padding: 14px 0 14px 14px;
+    }
+
+    a span {
+        display: inline-flex;
+        margin: 0 16px 0 0;
+    }
+
+    li:not(:last-child)::after {
+        content: "X";
+        position: absolute;
+        bottom: 9px;
+        font-size: 110%;
+        line-height: 26px;
+    }
+</style>
+<ul>
+    <li><a><span>Tech</span></a></li>
+    <li><a><span>Reviews</span></a></li>
+    <li>Science</li>
+</ul>

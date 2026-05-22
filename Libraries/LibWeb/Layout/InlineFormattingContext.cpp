@@ -504,6 +504,7 @@ void InlineFormattingContext::generate_line_boxes()
     }
 
     line_builder.update_last_line();
+    m_containing_block_used_values.set_inline_end_static_position_rect(calculate_inline_end_static_position_rect());
 
     if (m_layout_mode == LayoutMode::Normal) {
         for (auto* box : absolute_boxes) {
@@ -592,6 +593,52 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
     }
 
     return { .rect = { position, { 0, 0 } } };
+}
+
+StaticPositionRect InlineFormattingContext::calculate_inline_end_static_position_rect() const
+{
+    CSSPixels logical_inline_position = 0;
+    CSSPixels logical_block_position = 0;
+
+    auto to_physical_position = [](CSS::WritingMode writing_mode, CSSPixels logical_inline_position, CSSPixels logical_block_position) {
+        if (writing_mode != CSS::WritingMode::HorizontalTb)
+            return CSSPixelPoint { logical_block_position, logical_inline_position };
+        return CSSPixelPoint { logical_inline_position, logical_block_position };
+    };
+    auto writing_mode = containing_block().computed_values().writing_mode();
+
+    if (m_containing_block_used_values.line_boxes.is_empty())
+        return { .rect = { to_physical_position(writing_mode, logical_inline_position, logical_block_position), { 0, 0 } } };
+
+    CSSPixels line_boxes_bottom = 0;
+    for (auto const& line_box : m_containing_block_used_values.line_boxes)
+        line_boxes_bottom = max(line_boxes_bottom, line_box.bottom());
+
+    auto const& last_line_box = m_containing_block_used_values.line_boxes.last();
+    if (last_line_box.has_forced_break()) {
+        logical_block_position = line_boxes_bottom;
+        return { .rect = { to_physical_position(writing_mode, logical_inline_position, logical_block_position), { 0, 0 } } };
+    }
+
+    if (last_line_box.fragments().is_empty()) {
+        logical_block_position = line_boxes_bottom;
+        return { .rect = { to_physical_position(writing_mode, logical_inline_position, logical_block_position), { 0, 0 } } };
+    }
+
+    auto const& last_fragment = last_line_box.fragments().last();
+    auto direction = containing_block().computed_values().direction();
+    if (containing_block().is_anonymous() && containing_block().parent())
+        direction = containing_block().parent()->computed_values().direction();
+
+    if (direction == CSS::Direction::Rtl) {
+        logical_inline_position = last_fragment.inline_offset();
+    } else {
+        auto last_fragment_visual_inline_end = last_fragment.inline_offset() + last_fragment.inline_length();
+        logical_inline_position = max(last_fragment_visual_inline_end, last_line_box.inline_length());
+    }
+    logical_block_position = last_fragment.block_offset();
+
+    return { .rect = { to_physical_position(last_fragment.writing_mode(), logical_inline_position, logical_block_position), { 0, 0 } } };
 }
 
 }

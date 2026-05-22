@@ -37,6 +37,7 @@ public:
 
     bool is_empty_or_ends_in_whitespace() const;
     bool is_empty() const { return m_fragments.is_empty() && !m_has_break; }
+    bool has_forced_break() const { return m_has_forced_break; }
 
     AvailableSize original_available_width() const { return m_original_available_width; }
 

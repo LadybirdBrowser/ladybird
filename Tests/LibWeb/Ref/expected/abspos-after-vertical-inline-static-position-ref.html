@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+
+body {
+    margin: 0;
+}
+
+ul {
+    font: 10px/20px Ahem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    writing-mode: vertical-rl;
+}
+
+li {
+    height: 100px;
+    position: relative;
+    width: 100px;
+}
+
+.abspos {
+    position: absolute;
+    right: 0;
+    top: 20px;
+}
+</style>
+<ul>
+    <li>XX<span class="abspos">X</span></li>
+</ul>
