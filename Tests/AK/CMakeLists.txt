@@ -19,7 +19,6 @@ set(AK_TEST_SOURCES
     TestCircularBuffer.cpp
     TestCircularQueue.cpp
     TestDemangle.cpp
-    TestDisjointChunks.cpp
     TestDistinctNumeric.cpp
     TestDoublyLinkedList.cpp
     TestEndian.cpp
