@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<meta name="variant" content="?case=fixed">
+<meta name="variant" content="?case=auto">
+<meta name="variant" content="?case=fixed-track">
+<meta name="variant" content="?case=offset-auto">
+<meta name="variant" content="?case=span-fixed-auto">
+<meta name="variant" content="?case=two-auto-second">
+<meta name="variant" content="?case=minmax-auto">
+<meta name="variant" content="?case=auto-fixed-first">
 <script src="include.js"></script>
 <style>
 body {
@@ -169,17 +177,19 @@ body {
 </div>
 <div id="matrix-root"></div>
 <script>
-test(() => {
+const testCase = new URLSearchParams(location.search).get("case");
+
+if (testCase) test(() => {
     const matrixRoot = document.querySelector("#matrix-root");
     const trackModes = [
         { name: "auto", columns: "auto", column: "auto" },
-        { name: "fixed", columns: "500px", column: "auto" },
+        { name: "fixed-track", columns: "500px", column: "auto" },
         { name: "offset-auto", columns: "250px auto", column: "2", prefix: true },
         { name: "span-fixed-auto", columns: "250px auto", column: "1 / 3" },
         { name: "two-auto-second", columns: "auto auto", column: "2", prefix: true },
         { name: "minmax-auto", columns: "minmax(auto, max-content)", column: "auto" },
         { name: "auto-fixed-first", columns: "auto 100px", column: "1" },
-    ];
+    ].filter(trackMode => trackMode.name === testCase);
     const widths = [ "auto", "100%", "200%" ];
     const minWidths = [ "", "400px", "200%" ];
     const maxWidths = [ "", "150%" ];
@@ -235,22 +245,25 @@ test(() => {
         println(`${name} width: ${rect.width.toFixed(1)}`);
     };
 
-    printRect("full area", "#full-area");
-    printRect("first column", "#first-column");
-    printRect("second column", "#second-column");
-    printRect("wide second column", "#wide-second-column");
-    printRect("oversized centered", "#oversized-centered");
-    printRect("oversized end", "#oversized-end");
-    printRect("oversized fixed centered", "#oversized-fixed-centered");
-    printRect("oversized fixed end", "#oversized-fixed-end");
-    printRect("oversized explicit auto centered", "#oversized-explicit-auto-centered");
-    printRect("oversized explicit auto end", "#oversized-explicit-auto-end");
-    printRect("oversized auto after fixed centered", "#oversized-auto-after-fixed-centered");
-    printRect("oversized auto after fixed end", "#oversized-auto-after-fixed-end");
-    printRect("fixed width auto track centered", "#fixed-width-auto-track-centered");
-    printRect("min width percentage", "#min-width-percentage");
-    printRect("auto width centered", "#auto-width-centered");
-    printRect("auto width margins", "#auto-width-margins");
+    if (testCase === "fixed") {
+        printRect("full area", "#full-area");
+        printRect("first column", "#first-column");
+        printRect("second column", "#second-column");
+        printRect("wide second column", "#wide-second-column");
+        printRect("oversized centered", "#oversized-centered");
+        printRect("oversized end", "#oversized-end");
+        printRect("oversized fixed centered", "#oversized-fixed-centered");
+        printRect("oversized fixed end", "#oversized-fixed-end");
+        printRect("oversized explicit auto centered", "#oversized-explicit-auto-centered");
+        printRect("oversized explicit auto end", "#oversized-explicit-auto-end");
+        printRect("oversized auto after fixed centered", "#oversized-auto-after-fixed-centered");
+        printRect("oversized auto after fixed end", "#oversized-auto-after-fixed-end");
+        printRect("fixed width auto track centered", "#fixed-width-auto-track-centered");
+        printRect("min width percentage", "#min-width-percentage");
+        printRect("auto width centered", "#auto-width-centered");
+        printRect("auto width margins", "#auto-width-margins");
+    }
+
     for (let index = 0; index < caseIndex; index++) {
         const rect = document.querySelector(`#matrix-${index}`).getBoundingClientRect();
         println(`matrix ${index}: ${rect.left.toFixed(1)} ${rect.width.toFixed(1)} ${rect.right.toFixed(1)}`);
