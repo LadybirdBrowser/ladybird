@@ -120,9 +120,6 @@ class Badge;
 template<typename T>
 class FixedArray;
 
-template<size_t precision, typename Underlying = i32>
-class FixedPoint;
-
 template<typename>
 class Function;
 
