@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft cyan glow disc behind the logo -->
+    <path android:pathData="M54,54 m-28,0 a28,28 0 1,0 56,0 a28,28 0 1,0 -56,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="54"
+                android:gradientRadius="28"
+                android:startColor="#9900E5FF"
+                android:endColor="#0000E5FF" />
+        </aapt:attr>
+    </path>
+
+    <!-- Inner thin futuristic ring -->
+    <path
+        android:pathData="M54,54 m-32,0 a32,32 0 1,0 64,0 a32,32 0 1,0 -64,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.6"
+        android:strokeAlpha="0.85"
+        android:fillColor="#00000000" />
+
+    <!-- Mid ring (cyan) -->
+    <path
+        android:pathData="M54,54 m-38,0 a38,38 0 1,0 76,0 a38,38 0 1,0 -76,0"
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="1.2"
+        android:strokeAlpha="0.9"
+        android:fillColor="#00000000" />
+
+    <!-- Outer ring (magenta), slightly dashed look via low alpha -->
+    <path
+        android:pathData="M54,54 m-44,0 a44,44 0 1,0 88,0 a44,44 0 1,0 -88,0"
+        android:strokeColor="#FFFF1FBF"
+        android:strokeWidth="0.9"
+        android:strokeAlpha="0.75"
+        android:fillColor="#00000000" />
+
+    <!-- Tick marks (N/E/S/W) on mid ring -->
+    <path android:pathData="M54,12 L54,18" android:strokeColor="#FF00E5FF" android:strokeWidth="1.6" android:strokeLineCap="round" />
+    <path android:pathData="M96,54 L90,54" android:strokeColor="#FF00E5FF" android:strokeWidth="1.6" android:strokeLineCap="round" />
+    <path android:pathData="M54,96 L54,90" android:strokeColor="#FF00E5FF" android:strokeWidth="1.6" android:strokeLineCap="round" />
+    <path android:pathData="M12,54 L18,54" android:strokeColor="#FF00E5FF" android:strokeWidth="1.6" android:strokeLineCap="round" />
+
+    <!-- Diagonal accent ticks (NE/SE/SW/NW) on outer ring -->
+    <path android:pathData="M83.9,24.1 L80.6,27.4" android:strokeColor="#FFFF1FBF" android:strokeWidth="1.1" android:strokeLineCap="round" />
+    <path android:pathData="M83.9,83.9 L80.6,80.6" android:strokeColor="#FFFF1FBF" android:strokeWidth="1.1" android:strokeLineCap="round" />
+    <path android:pathData="M24.1,83.9 L27.4,80.6" android:strokeColor="#FFFF1FBF" android:strokeWidth="1.1" android:strokeLineCap="round" />
+    <path android:pathData="M24.1,24.1 L27.4,27.4" android:strokeColor="#FFFF1FBF" android:strokeWidth="1.1" android:strokeLineCap="round" />
+
+    <!-- Tiny orbital satellite dots -->
+    <path android:pathData="M54,54 m38,0 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0" android:fillColor="#FFFFFFFF" />
+    <path android:pathData="M54,54 m-40,4 a1.1,1.1 0 1,0 2.2,0 a1.1,1.1 0 1,0 -2.2,0" android:fillColor="#FF00E5FF" />
+
+    <!-- "OG" badge in lower-right: rounded chip + glyphs -->
+    <path
+        android:pathData="M70,72 m0,0 a10,7 0 1,0 20,0 a10,7 0 1,0 -20,0"
+        android:fillColor="#FF0B0E2A" />
+    <path
+        android:pathData="M70,72 m0,0 a10,7 0 1,0 20,0 a10,7 0 1,0 -20,0"
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="0.6"
+        android:fillColor="#00000000" />
+    <!-- Letter O -->
+    <path
+        android:pathData="M75,72 m-2.4,0 a2.4,3.2 0 1,0 4.8,0 a2.4,3.2 0 1,0 -4.8,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.9"
+        android:fillColor="#00000000" />
+    <!-- Letter G: ring + horizontal stub on the right -->
+    <path
+        android:pathData="M84,72 m-2.4,0 a2.4,3.2 0 1,0 4.8,0 a2.4,3.2 0 1,0 -4.8,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.9"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M84,72 L86.4,72"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.9"
+        android:strokeLineCap="round" />
+</vector>

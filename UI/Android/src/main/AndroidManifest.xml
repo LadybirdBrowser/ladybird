@@ -20,7 +20,6 @@
         android:allowNativeHeapPointerTagging="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
-        android:extractNativeLibs="false"
         android:fullBackupContent="@xml/backup_rules"
         android:fullBackupOnly="false"
         android:hardwareAccelerated="true"
@@ -56,6 +55,12 @@
                 android:name="android.app.extract_android_style"
                 android:value="minimal" />
         </activity>
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title"
+            android:parentActivityName=".LadybirdActivity"
+            android:theme="@style/Theme.Ladybird" />
         <service
             android:name=".WebContentService"
             android:enabled="true"

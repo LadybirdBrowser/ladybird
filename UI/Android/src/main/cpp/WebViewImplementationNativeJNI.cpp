@@ -5,6 +5,8 @@
  */
 
 #include "WebViewImplementationNative.h"
+#include <AK/String.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <jni.h>
 
 using namespace Ladybird;
@@ -13,6 +15,11 @@ jclass WebViewImplementationNative::global_class_reference;
 jmethodID WebViewImplementationNative::bind_webcontent_method;
 jmethodID WebViewImplementationNative::invalidate_layout_method;
 jmethodID WebViewImplementationNative::on_load_start_method;
+jmethodID WebViewImplementationNative::on_load_finish_method;
+jmethodID WebViewImplementationNative::on_title_change_method;
+jmethodID WebViewImplementationNative::on_url_change_method;
+jmethodID WebViewImplementationNative::on_find_in_page_method;
+jmethodID WebViewImplementationNative::on_link_hover_method;
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_00024Companion_nativeClassInit(JNIEnv*, jobject /* thiz */);
@@ -40,6 +47,31 @@ Java_org_serenityos_ladybird_WebViewImplementation_00024Companion_nativeClassIni
     if (!method)
         TODO();
     WebViewImplementationNative::on_load_start_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "onLoadFinish", "(Ljava/lang/String;)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::on_load_finish_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "onTitleChange", "(Ljava/lang/String;)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::on_title_change_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "onUrlChange", "(Ljava/lang/String;)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::on_url_change_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "onFindInPage", "(II)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::on_find_in_page_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "onLinkHover", "(Ljava/lang/String;)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::on_link_hover_method = method;
 }
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -162,4 +194,115 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeMouseEvent(JNIEnv*, job
     }
 
     impl->mouse_event(web_event_type, x, y, raw_x, raw_y);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeFindInPage(JNIEnv*, jobject, jlong, jstring, jboolean);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeFindNext(JNIEnv*, jobject, jlong);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeFindPrevious(JNIEnv*, jobject, jlong);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomIn(JNIEnv*, jobject, jlong);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomOut(JNIEnv*, jobject, jlong);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomReset(JNIEnv*, jobject, jlong);
+extern "C" JNIEXPORT jdouble JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomLevel(JNIEnv*, jobject, jlong);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeSetPreferredColorScheme(JNIEnv*, jobject, jlong, jint);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeRunJavascript(JNIEnv*, jobject, jlong, jstring);
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeSelectAll(JNIEnv*, jobject, jlong);
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeFindInPage(JNIEnv* env, jobject /* thiz */, jlong instance, jstring query, jboolean case_sensitive)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    char const* raw = env->GetStringUTFChars(query, nullptr);
+    auto ak_query = MUST(String::from_utf8(StringView { raw, strlen(raw) }));
+    env->ReleaseStringUTFChars(query, raw);
+    auto sensitivity = case_sensitive == JNI_TRUE ? AK::CaseSensitivity::CaseSensitive : AK::CaseSensitivity::CaseInsensitive;
+    impl->find_in_page(ak_query, sensitivity);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeFindNext(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->find_in_page_next_match();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeFindPrevious(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->find_in_page_previous_match();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomIn(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->zoom_in();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomOut(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->zoom_out();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomReset(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->reset_zoom();
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeZoomLevel(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    return impl->zoom_level();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeSetPreferredColorScheme(JNIEnv*, jobject /* thiz */, jlong instance, jint scheme)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    Web::CSS::PreferredColorScheme css_scheme;
+    switch (scheme) {
+    case 1:
+        css_scheme = Web::CSS::PreferredColorScheme::Light;
+        break;
+    case 2:
+        css_scheme = Web::CSS::PreferredColorScheme::Dark;
+        break;
+    case 0:
+    default:
+        css_scheme = Web::CSS::PreferredColorScheme::Auto;
+        break;
+    }
+    impl->set_preferred_color_scheme(css_scheme);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeRunJavascript(JNIEnv* env, jobject /* thiz */, jlong instance, jstring js)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    char const* raw = env->GetStringUTFChars(js, nullptr);
+    auto ak_js = MUST(String::from_utf8(StringView { raw, strlen(raw) }));
+    env->ReleaseStringUTFChars(js, raw);
+    impl->run_javascript(ak_js);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeSelectAll(JNIEnv*, jobject /* thiz */, jlong instance)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->select_all();
 }

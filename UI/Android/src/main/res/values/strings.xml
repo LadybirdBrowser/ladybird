@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Ladybird</string>
+    <string name="browser_tagline">Independent browser preview</string>
     <string name="url_edit_default">Enter URL...</string>
     <string name="browser_back">Back</string>
     <string name="browser_forward">Forward</string>
@@ -8,10 +9,67 @@
     <string name="browser_loading">Loading…</string>
     <string name="browser_search_url_hint">Search or enter address</string>
     <string name="browser_webcontent_crashed">WebContent crashed. Reload the page to try again.</string>
-    <string name="menu_settings">Settings</string>
+
+    <string name="menu_new_tab">New page</string>
+    <string name="menu_find_in_page">Find in page…</string>
+    <string name="menu_add_bookmark">Add bookmark</string>
     <string name="menu_bookmarks">Bookmarks</string>
+    <string name="menu_history">History</string>
     <string name="menu_downloads">Downloads</string>
+    <string name="menu_view">View</string>
+    <string name="menu_zoom_in">Zoom in</string>
+    <string name="menu_zoom_out">Zoom out</string>
+    <string name="menu_zoom_reset">Reset zoom</string>
+    <string name="menu_color_scheme">Color scheme</string>
+    <string name="menu_color_scheme_auto">Auto</string>
+    <string name="menu_color_scheme_light">Light</string>
+    <string name="menu_color_scheme_dark">Dark</string>
+    <string name="menu_view_source">View page source</string>
+    <string name="menu_share">Share link</string>
+    <string name="menu_copy_url">Copy URL</string>
+    <string name="menu_open_external">Open in system browser</string>
+    <string name="menu_select_all">Select all</string>
+    <string name="menu_settings">Settings</string>
     <string name="menu_about">About Ladybird</string>
+
     <string name="feature_not_available">This feature is not available yet.</string>
-    <string name="about_ladybird_message">Ladybird for Android</string>
+    <string name="about_ladybird_title">About Ladybird</string>
+    <string name="about_ladybird_message">Ladybird for Android\nIndependent, standards-first browser engine.\n\nVersion %1$s</string>
+    <string name="about_visit_website">Visit ladybird.org</string>
+    <string name="bookmark_added">Bookmark added</string>
+    <string name="bookmark_already_exists">Bookmark already saved</string>
+    <string name="bookmark_remove">Remove</string>
+    <string name="bookmarks_empty">No bookmarks yet</string>
+    <string name="history_empty">No history yet</string>
+    <string name="history_clear">Clear history</string>
+    <string name="history_cleared">History cleared</string>
+
+    <string name="find_in_page_hint">Find in page</string>
+    <string name="find_in_page_prev">Previous match</string>
+    <string name="find_in_page_next">Next match</string>
+    <string name="find_in_page_close">Close find bar</string>
+    <string name="find_in_page_counter">%1$d / %2$d</string>
+    <string name="find_in_page_no_matches">No matches</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_home_page">Home page</string>
+    <string name="settings_home_page_summary">URL opened in new pages</string>
+    <string name="settings_search_engine">Search engine</string>
+    <string name="settings_search_engine_summary">Used when address bar input is not a URL</string>
+    <string name="settings_color_scheme">Color scheme</string>
+    <string name="settings_color_scheme_summary">Preferred website color scheme</string>
+    <string name="settings_javascript">Enable JavaScript hooks</string>
+    <string name="settings_javascript_summary">Allow injected JS helpers (zoom, scroll)</string>
+    <string name="settings_reset">Reset to defaults</string>
+    <string name="settings_save">Save</string>
+
+    <string name="search_engine_google">Google</string>
+    <string name="search_engine_duckduckgo">DuckDuckGo</string>
+    <string name="search_engine_bing">Bing</string>
+    <string name="search_engine_kagi">Kagi</string>
+    <string name="search_engine_brave">Brave</string>
+    <string name="search_engine_ecosia">Ecosia</string>
+
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_ok">OK</string>
 </resources>

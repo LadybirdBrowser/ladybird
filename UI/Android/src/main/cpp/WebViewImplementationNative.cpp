@@ -6,6 +6,7 @@
 
 #include "WebViewImplementationNative.h"
 #include "JNIHelpers.h"
+#include <AK/Utf16String.h>
 #include <LibCore/System.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
@@ -44,6 +45,46 @@ WebViewImplementationNative::WebViewImplementationNative(jobject thiz)
         auto url_string = env.jstring_from_ak_string(url.to_string());
         env.get()->CallVoidMethod(m_java_instance, on_load_start_method, url_string, is_redirect);
         env.get()->DeleteLocalRef(url_string);
+    };
+
+    on_load_finish = [this](URL::URL const& url) {
+        JavaEnvironment env(global_vm);
+        auto url_string = env.jstring_from_ak_string(url.to_string());
+        env.get()->CallVoidMethod(m_java_instance, on_load_finish_method, url_string);
+        env.get()->DeleteLocalRef(url_string);
+    };
+
+    on_title_change = [this](Utf16String const& title) {
+        JavaEnvironment env(global_vm);
+        auto title_string = env.jstring_from_ak_string(title.to_utf8());
+        env.get()->CallVoidMethod(m_java_instance, on_title_change_method, title_string);
+        env.get()->DeleteLocalRef(title_string);
+    };
+
+    on_url_change = [this](URL::URL const& url) {
+        JavaEnvironment env(global_vm);
+        auto url_string = env.jstring_from_ak_string(url.to_string());
+        env.get()->CallVoidMethod(m_java_instance, on_url_change_method, url_string);
+        env.get()->DeleteLocalRef(url_string);
+    };
+
+    on_find_in_page = [this](size_t current_match_index, Optional<size_t> const& total_match_count) {
+        JavaEnvironment env(global_vm);
+        jint current = current_match_index == 0 && !total_match_count.has_value() ? 0 : static_cast<jint>(current_match_index + 1);
+        jint total = total_match_count.has_value() ? static_cast<jint>(*total_match_count) : 0;
+        env.get()->CallVoidMethod(m_java_instance, on_find_in_page_method, current, total);
+    };
+
+    on_link_hover = [this](URL::URL const& url) {
+        JavaEnvironment env(global_vm);
+        auto url_string = env.jstring_from_ak_string(url.to_string());
+        env.get()->CallVoidMethod(m_java_instance, on_link_hover_method, url_string);
+        env.get()->DeleteLocalRef(url_string);
+    };
+
+    on_link_unhover = [this]() {
+        JavaEnvironment env(global_vm);
+        env.get()->CallVoidMethod(m_java_instance, on_link_hover_method, nullptr);
     };
 }
 

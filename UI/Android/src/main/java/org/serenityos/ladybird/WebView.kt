@@ -18,6 +18,11 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
     private val viewImpl = WebViewImplementation(this)
     private lateinit var contentBitmap: Bitmap
     var onLoadStart: (url: String, isRedirect: Boolean) -> Unit = { _, _ -> }
+    var onLoadFinish: (url: String) -> Unit = { }
+    var onTitleChange: (title: String) -> Unit = { }
+    var onUrlChange: (url: String) -> Unit = { }
+    var onFindInPage: (current: Int, total: Int) -> Unit = { _, _ -> }
+    var onLinkHover: (url: String?) -> Unit = { }
     var onContentReady: () -> Unit = { }
     var onWebContentCrash: () -> Unit = { }
 
@@ -44,6 +49,17 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
     fun goForward() {
         viewImpl.goForward()
     }
+
+    fun findInPage(query: String, caseSensitive: Boolean = false) = viewImpl.findInPage(query, caseSensitive)
+    fun findNext() = viewImpl.findNext()
+    fun findPrevious() = viewImpl.findPrevious()
+    fun zoomIn() = viewImpl.zoomIn()
+    fun zoomOut() = viewImpl.zoomOut()
+    fun zoomReset() = viewImpl.zoomReset()
+    fun zoomLevel(): Double = viewImpl.zoomLevel()
+    fun setPreferredColorScheme(scheme: Int) = viewImpl.setPreferredColorScheme(scheme)
+    fun runJavascript(js: String) = viewImpl.runJavascript(js)
+    fun selectAllOnPage() = viewImpl.selectAllOnPage()
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // The native side only supports down, move, and up events.

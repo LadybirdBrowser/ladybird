@@ -67,7 +67,23 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isDebuggable = false
+            isJniDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("debug")
+            ndk {
+                debugSymbolLevel = "NONE"
+            }
+            externalNativeBuild {
+                cmake {
+                    arguments += listOf(
+                        "-DCMAKE_BUILD_TYPE=MinSizeRel",
+                        "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+                    )
+                    cppFlags += listOf("-Oz")
+                }
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -93,12 +109,22 @@ android {
         prefab = true
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     sourceSets {
-        getByName("main").assets.srcDir(ladybirdAssetsDir)
+        getByName("main").assets.setSrcDirs(listOf(ladybirdAssetsDir))
     }
 }
 
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+    dependsOn(packageLadybirdAssets)
+}
+
+tasks.matching { it.name.contains("lint", ignoreCase = true) }.configureEach {
     dependsOn(packageLadybirdAssets)
 }
 

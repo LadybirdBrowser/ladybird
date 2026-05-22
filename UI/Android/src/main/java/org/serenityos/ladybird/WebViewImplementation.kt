@@ -25,7 +25,9 @@ class WebViewImplementation(private val view: WebView) {
 
     fun initialize(resourceDir: String) {
         this.resourceDir = resourceDir
+        Log.i("WebContentView", "Creating native WebView implementation")
         nativeInstance = nativeObjectInit()
+        Log.i("WebContentView", "Native WebView implementation ready")
     }
 
     fun dispose() {
@@ -63,6 +65,66 @@ class WebViewImplementation(private val view: WebView) {
         nativeTraverseHistory(nativeInstance, 1)
     }
 
+    fun findInPage(query: String, caseSensitive: Boolean = false) {
+        if (nativeInstance == 0L)
+            return
+        nativeFindInPage(nativeInstance, query, caseSensitive)
+    }
+
+    fun findNext() {
+        if (nativeInstance == 0L)
+            return
+        nativeFindNext(nativeInstance)
+    }
+
+    fun findPrevious() {
+        if (nativeInstance == 0L)
+            return
+        nativeFindPrevious(nativeInstance)
+    }
+
+    fun zoomIn() {
+        if (nativeInstance == 0L)
+            return
+        nativeZoomIn(nativeInstance)
+    }
+
+    fun zoomOut() {
+        if (nativeInstance == 0L)
+            return
+        nativeZoomOut(nativeInstance)
+    }
+
+    fun zoomReset() {
+        if (nativeInstance == 0L)
+            return
+        nativeZoomReset(nativeInstance)
+    }
+
+    fun zoomLevel(): Double {
+        if (nativeInstance == 0L)
+            return 1.0
+        return nativeZoomLevel(nativeInstance)
+    }
+
+    fun setPreferredColorScheme(scheme: Int) {
+        if (nativeInstance == 0L)
+            return
+        nativeSetPreferredColorScheme(nativeInstance, scheme)
+    }
+
+    fun runJavascript(js: String) {
+        if (nativeInstance == 0L)
+            return
+        nativeRunJavascript(nativeInstance, js)
+    }
+
+    fun selectAllOnPage() {
+        if (nativeInstance == 0L)
+            return
+        nativeSelectAll(nativeInstance)
+    }
+
     fun drawIntoBitmap(bitmap: Bitmap) {
         if (nativeInstance == 0L)
             return
@@ -89,6 +151,7 @@ class WebViewImplementation(private val view: WebView) {
 
     // Functions called from native code
     fun bindWebContentService(ipcFd: Int) {
+        Log.i("WebContentView", "Binding WebContent service with IPC fd $ipcFd")
         val connector = LadybirdServiceConnection(ipcFd, resourceDir)
         connector.onDisconnect = {
             Log.e("WebContentView", "WebContent Died! :(")
@@ -99,8 +162,11 @@ class WebViewImplementation(private val view: WebView) {
             connector,
             Context.BIND_AUTO_CREATE
         )
+        Log.i("WebContentView", "bindService(WebContentService) returned $bound")
         if (bound)
             connection = connector
+        else
+            view.onWebContentCrash()
     }
 
     fun invalidateLayout() {
@@ -111,6 +177,26 @@ class WebViewImplementation(private val view: WebView) {
 
     fun onLoadStart(url: String, isRedirect: Boolean) {
         view.onLoadStart(url, isRedirect)
+    }
+
+    fun onLoadFinish(url: String) {
+        view.onLoadFinish(url)
+    }
+
+    fun onTitleChange(title: String) {
+        view.onTitleChange(title)
+    }
+
+    fun onUrlChange(url: String) {
+        view.onUrlChange(url)
+    }
+
+    fun onFindInPage(currentMatch: Int, totalMatches: Int) {
+        view.onFindInPage(currentMatch, totalMatches)
+    }
+
+    fun onLinkHover(url: String?) {
+        view.onLinkHover(url)
     }
 
     // Functions implemented in native code
@@ -124,6 +210,16 @@ class WebViewImplementation(private val view: WebView) {
     private external fun nativeReload(instance: Long)
     private external fun nativeTraverseHistory(instance: Long, delta: Int)
     private external fun nativeMouseEvent(instance: Long, eventType: Int, x: Float, y: Float, rawX: Float, rawY: Float)
+    private external fun nativeFindInPage(instance: Long, query: String, caseSensitive: Boolean)
+    private external fun nativeFindNext(instance: Long)
+    private external fun nativeFindPrevious(instance: Long)
+    private external fun nativeZoomIn(instance: Long)
+    private external fun nativeZoomOut(instance: Long)
+    private external fun nativeZoomReset(instance: Long)
+    private external fun nativeZoomLevel(instance: Long): Double
+    private external fun nativeSetPreferredColorScheme(instance: Long, scheme: Int)
+    private external fun nativeRunJavascript(instance: Long, js: String)
+    private external fun nativeSelectAll(instance: Long)
 
     companion object {
         /*

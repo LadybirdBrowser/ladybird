@@ -22,32 +22,36 @@ class WebContentService : LadybirdServiceBase("WebContentService") {
 
     private fun bindRequestServer(ipcFd: Int)
     {
+        Log.i(TAG, "Binding RequestServer with IPC fd $ipcFd")
         val connector = LadybirdServiceConnection(ipcFd, resourceDir)
         connector.onDisconnect = {
             // FIXME: Notify impl that service is dead and might need restarted
             Log.e(TAG, "RequestServer Died! :(")
         }
         // FIXME: Unbind this at some point maybe
-        bindService(
+        val bound = bindService(
             Intent(this, RequestServerService::class.java),
             connector,
             Context.BIND_AUTO_CREATE
         )
+        Log.i(TAG, "bindService(RequestServerService) returned $bound")
     }
 
     private fun bindImageDecoder(ipcFd: Int)
     {
+        Log.i(TAG, "Binding ImageDecoder with IPC fd $ipcFd")
         val connector = LadybirdServiceConnection(ipcFd, resourceDir)
         connector.onDisconnect = {
             // FIXME: Notify impl that service is dead and might need restarted
             Log.e(TAG, "ImageDecoder Died! :(")
         }
         // FIXME: Unbind this at some point maybe
-        bindService(
+        val bound = bindService(
             Intent(this, ImageDecoderService::class.java),
             connector,
             Context.BIND_AUTO_CREATE
         )
+        Log.i(TAG, "bindService(ImageDecoderService) returned $bound")
     }
 
     external fun nativeInit()

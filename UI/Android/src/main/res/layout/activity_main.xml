@@ -1,90 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/ladybird_background"
     android:fitsSystemWindows="true"
+    android:orientation="vertical"
     tools:context=".LadybirdActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@color/ladybird_surface"
+        android:elevation="0dp">
 
-        <androidx.appcompat.widget.Toolbar
+        <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/ladybird_toolbar"
+            android:layout_height="56dp"
+            android:background="@android:color/transparent"
             android:contentInsetStart="0dp"
             android:contentInsetEnd="0dp"
             app:contentInsetEnd="0dp"
-            app:contentInsetStart="0dp"
-            app:layout_scrollFlags="scroll|snap|enterAlways">
+            app:contentInsetStart="0dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
 
-                <ImageButton
-                    android:id="@+id/backButton"
-                    android:layout_width="40dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/browser_back"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_arrow_back" />
-
-                <ImageButton
-                    android:id="@+id/forwardButton"
-                    android:layout_width="40dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/browser_forward"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_arrow_forward" />
-
-                <ImageButton
-                    android:id="@+id/reloadButton"
-                    android:layout_width="40dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/browser_reload"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_refresh" />
-
-                <EditText
-                    android:id="@+id/urlEditText"
-                    style="@style/Widget.AppCompat.EditText"
-                    android:layout_width="0dp"
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
                     android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:autofillHints="url"
-                    android:background="@color/ladybird_toolbar_field"
-                    android:ems="10"
-                    android:hint="@string/browser_search_url_hint"
-                    android:imeOptions="actionGo|actionSearch"
-                    android:inputType="textUri"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:selectAllOnFocus="true"
-                    android:singleLine="true"
-                    android:textColor="@color/ladybird_toolbar_field_text"
-                    android:textColorHint="@color/grey" />
+                    app:cardBackgroundColor="@color/ladybird_field_surface"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/ladybird_outline_soft"
+                    app:strokeWidth="1dp">
 
-                <ImageButton
-                    android:id="@+id/menuButton"
-                    android:layout_width="40dp"
-                    android:layout_height="match_parent"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/browser_menu"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_more_vert" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_marginStart="14dp"
+                            android:layout_marginEnd="10dp"
+                            android:contentDescription="@string/browser_search_url_hint"
+                            android:src="@drawable/ic_find"
+                            android:tint="@color/ladybird_on_surface_muted" />
+
+                        <EditText
+                            android:id="@+id/urlEditText"
+                            style="@style/Widget.AppCompat.EditText"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:autofillHints="url"
+                            android:background="@android:color/transparent"
+                            android:gravity="center_vertical"
+                            android:hint="@string/browser_search_url_hint"
+                            android:imeOptions="actionGo|actionSearch"
+                            android:inputType="textUri"
+                            android:paddingEnd="6dp"
+                            android:selectAllOnFocus="true"
+                            android:singleLine="true"
+                            android:textColor="@color/ladybird_on_surface"
+                            android:textColorHint="@color/ladybird_on_surface_muted"
+                            android:textSize="14sp" />
+
+                        <ImageButton
+                            android:id="@+id/reloadButton"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginEnd="2dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/browser_reload"
+                            android:padding="8dp"
+                            android:src="@drawable/ic_refresh"
+                            android:tint="@color/ladybird_on_surface_muted" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
-        </androidx.appcompat.widget.Toolbar>
+        </com.google.android.material.appbar.MaterialToolbar>
 
         <ProgressBar
             android:id="@+id/loadingProgress"
@@ -92,6 +98,7 @@
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:indeterminate="true"
+            android:indeterminateTint="@color/ladybird_progress"
             android:visibility="gone"
             tools:visibility="visible" />
     </com.google.android.material.appbar.AppBarLayout>
@@ -99,13 +106,138 @@
     <FrameLayout
         android:id="@+id/web_view_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/ladybird_surface">
 
         <org.serenityos.ladybird.WebView
             android:id="@+id/web_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             tools:context=".LadybirdActivity" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/findInPageBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:layout_margin="12dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/ladybird_surface"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="6dp"
+            app:strokeColor="@color/ladybird_outline_soft"
+            app:strokeWidth="1dp"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="4dp">
+
+                <EditText
+                    android:id="@+id/findInPageEdit"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:hint="@string/find_in_page_hint"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:singleLine="true"
+                    android:textColor="@color/ladybird_on_surface"
+                    android:textColorHint="@color/ladybird_on_surface_muted" />
+
+                <TextView
+                    android:id="@+id/findInPageCounter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:textColor="@color/ladybird_on_surface_muted"
+                    android:textSize="13sp"
+                    tools:text="2 / 8" />
+
+                <ImageButton
+                    android:id="@+id/findInPagePrev"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/find_in_page_prev"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_arrow_up"
+                    android:tint="@color/ladybird_on_surface" />
+
+                <ImageButton
+                    android:id="@+id/findInPageNext"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/find_in_page_next"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_arrow_down"
+                    android:tint="@color/ladybird_on_surface" />
+
+                <ImageButton
+                    android:id="@+id/findInPageClose"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/find_in_page_close"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_close"
+                    android:tint="@color/ladybird_on_surface" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </FrameLayout>
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/ladybird_outline_soft" />
+
+    <LinearLayout
+        android:id="@+id/bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="@color/ladybird_surface"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/browser_back"
+            android:padding="14dp"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="@color/ladybird_on_surface" />
+
+        <ImageButton
+            android:id="@+id/forwardButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/browser_forward"
+            android:padding="14dp"
+            android:src="@drawable/ic_arrow_forward"
+            android:tint="@color/ladybird_on_surface" />
+
+        <ImageButton
+            android:id="@+id/menuButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/browser_menu"
+            android:padding="14dp"
+            android:src="@drawable/ic_more_vert"
+            android:tint="@color/ladybird_on_surface" />
+    </LinearLayout>
+</LinearLayout>

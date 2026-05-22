@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="grey">#FF6B6B6B</color>
-    <color name="ladybird_toolbar">#FF202124</color>
-    <color name="ladybird_toolbar_field">#FFFFFFFF</color>
-    <color name="ladybird_toolbar_field_text">#FF202124</color>
+    <color name="ladybird_accent">#FF111111</color>
+    <color name="ladybird_accent_container">#FFE8E8E8</color>
+    <color name="ladybird_secondary">#FF4F5B66</color>
+    <color name="ladybird_background">#FFFFFFFF</color>
+    <color name="ladybird_surface">#FFFFFFFF</color>
+    <color name="ladybird_surface_variant">#FFF2F2F2</color>
+    <color name="ladybird_control_surface">#FFF3F3F3</color>
+    <color name="ladybird_field_surface">#FFF1F3F5</color>
+    <color name="ladybird_on_surface">#FF171413</color>
+    <color name="ladybird_on_surface_muted">#FF686868</color>
+    <color name="ladybird_outline_soft">#FFE3E5E8</color>
+    <color name="ladybird_progress">#FFFB542B</color>
 </resources>

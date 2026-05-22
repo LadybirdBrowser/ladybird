@@ -19,7 +19,10 @@ public:
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint p) const override { return p; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint p) const override { return p; }
-    virtual void update_zoom() override { }
+    virtual void update_zoom() override
+    {
+        client().async_set_zoom_level(page_id(), m_zoom_level);
+    }
 
     NonnullRefPtr<WebView::WebContentClient> bind_web_content_client();
 
@@ -37,6 +40,11 @@ public:
     static jmethodID bind_webcontent_method;
     static jmethodID invalidate_layout_method;
     static jmethodID on_load_start_method;
+    static jmethodID on_load_finish_method;
+    static jmethodID on_title_change_method;
+    static jmethodID on_url_change_method;
+    static jmethodID on_find_in_page_method;
+    static jmethodID on_link_hover_method;
 
     jobject java_instance() const { return m_java_instance; }
 

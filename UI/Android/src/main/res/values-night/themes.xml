@@ -1,18 +1,19 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.Ladybird" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_200</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/black</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_200</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
-        <item name="android:editTextBackground">@color/grey</item>
+    <style name="Theme.Ladybird" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/ladybird_accent</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/ladybird_accent_container</item>
+        <item name="colorOnPrimaryContainer">@color/ladybird_on_surface</item>
+        <item name="colorSecondary">@color/ladybird_secondary</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSurface">@color/ladybird_surface</item>
+        <item name="colorSurfaceVariant">@color/ladybird_surface_variant</item>
+        <item name="colorOnSurface">@color/ladybird_on_surface</item>
+        <item name="android:colorBackground">@color/ladybird_background</item>
+        <item name="android:windowBackground">@color/ladybird_background</item>
+        <item name="android:statusBarColor">@color/ladybird_surface</item>
+        <item name="android:navigationBarColor">@color/ladybird_surface</item>
+        <item name="android:editTextBackground">@android:color/transparent</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>

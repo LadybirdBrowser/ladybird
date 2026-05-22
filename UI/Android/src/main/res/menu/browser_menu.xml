@@ -1,14 +1,72 @@
-<?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/menu_settings"
-        android:title="@string/menu_settings" />
+        android:id="@+id/menu_find_in_page"
+        android:icon="@drawable/ic_find"
+        android:title="@string/menu_find_in_page" />
+    <item
+        android:id="@+id/menu_add_bookmark"
+        android:icon="@drawable/ic_add"
+        android:title="@string/menu_add_bookmark" />
     <item
         android:id="@+id/menu_bookmarks"
+        android:icon="@drawable/ic_bookmark"
         android:title="@string/menu_bookmarks" />
+    <item
+        android:id="@+id/menu_history"
+        android:title="@string/menu_history" />
     <item
         android:id="@+id/menu_downloads"
         android:title="@string/menu_downloads" />
+    <item
+        android:id="@+id/menu_view"
+        android:title="@string/menu_view">
+        <menu>
+            <item
+                android:id="@+id/menu_zoom_in"
+                android:title="@string/menu_zoom_in" />
+            <item
+                android:id="@+id/menu_zoom_out"
+                android:title="@string/menu_zoom_out" />
+            <item
+                android:id="@+id/menu_zoom_reset"
+                android:title="@string/menu_zoom_reset" />
+            <item
+                android:id="@+id/menu_color_scheme"
+                android:title="@string/menu_color_scheme">
+                <menu>
+                    <group android:checkableBehavior="single">
+                        <item
+                            android:id="@+id/menu_color_scheme_auto"
+                            android:title="@string/menu_color_scheme_auto" />
+                        <item
+                            android:id="@+id/menu_color_scheme_light"
+                            android:title="@string/menu_color_scheme_light" />
+                        <item
+                            android:id="@+id/menu_color_scheme_dark"
+                            android:title="@string/menu_color_scheme_dark" />
+                    </group>
+                </menu>
+            </item>
+            <item
+                android:id="@+id/menu_view_source"
+                android:title="@string/menu_view_source" />
+            <item
+                android:id="@+id/menu_select_all"
+                android:title="@string/menu_select_all" />
+        </menu>
+    </item>
+    <item
+        android:id="@+id/menu_share"
+        android:title="@string/menu_share" />
+    <item
+        android:id="@+id/menu_copy_url"
+        android:title="@string/menu_copy_url" />
+    <item
+        android:id="@+id/menu_open_external"
+        android:title="@string/menu_open_external" />
+    <item
+        android:id="@+id/menu_settings"
+        android:title="@string/menu_settings" />
     <item
         android:id="@+id/menu_about"
         android:title="@string/menu_about" />
