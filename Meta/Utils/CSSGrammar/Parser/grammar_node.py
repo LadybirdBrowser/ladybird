@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 from Utils.CSSGrammar.Parser.component_values import ComponentValue
 
@@ -57,3 +58,17 @@ class OptionalGrammarNode(GrammarNode):
 
     def dump(self, indent: int = 0) -> str:
         return f"{'': >{indent}}Optional:\n" + self.child.dump(indent + 2)
+
+
+@dataclass(frozen=True)
+class MultiplierGrammarNode(GrammarNode):
+    child: GrammarNode
+    minimum: int
+    maximum: Optional[int]
+
+    def dump(self, indent: int = 0) -> str:
+        if self.maximum is None:
+            return f"{'': >{indent}}Multiplier {{{self.minimum},}}:\n" + self.child.dump(indent + 2)
+        if self.minimum == self.maximum:
+            return f"{'': >{indent}}Multiplier {{{self.minimum}}}:\n" + self.child.dump(indent + 2)
+        return f"{'': >{indent}}Multiplier {{{self.minimum},{self.maximum}}}:\n" + self.child.dump(indent + 2)

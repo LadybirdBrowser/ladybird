@@ -1,8 +1,10 @@
+from Utils.CSSGrammar.Parser.component_values import Keyword
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
 from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GroupGrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import MultiplierGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import OptionalGrammarNode
 from Utils.CSSGrammar.Parser.token import Token
 from Utils.CSSGrammar.Parser.token import TokenType
@@ -75,6 +77,44 @@ class Parser:
         if self.peek().is_token_type(TokenType.QUESTION_MARK):
             self.consume()
             component_value = OptionalGrammarNode(component_value)
+
+        # A single number in curly braces ({A}) indicates that the preceding type, word, or group occurs A times.
+        # A comma-separated pair of numbers in curly braces ({A,B}) indicates that the preceding type, word, or group
+        # occurs at least A and at most B times. The B may be omitted ({A,}) to indicate that there must be
+        # at least A repetitions, with no upper bound on the number of repetitions.
+        if self.peek().is_token_type(TokenType.OPEN_CURLY_BRACKET):
+            self.consume()
+
+            if not self.peek().is_token_type(TokenType.COMPONENT_VALUE):
+                raise SyntaxError("CSSGrammar::Parser: Expected an integer in multiplier")
+            min_token = self.consume().component_value()
+            assert isinstance(min_token, Keyword)
+            minimum = int(min_token.value)
+
+            if self.peek().is_token_type(TokenType.COMMA):
+                self.consume()
+
+                if self.peek().is_token_type(TokenType.CLOSE_CURLY_BRACKET):
+                    # {A,} — unbounded
+                    self.consume()
+                    component_value = MultiplierGrammarNode(component_value, minimum, None)
+                elif self.peek().is_token_type(TokenType.COMPONENT_VALUE):
+                    # {A,B}
+                    max_token = self.consume().component_value()
+                    assert isinstance(max_token, Keyword)
+                    maximum = int(max_token.value)
+                    if not self.peek().is_token_type(TokenType.CLOSE_CURLY_BRACKET):
+                        raise SyntaxError("CSSGrammar::Parser: Expected '}' to close multiplier")
+                    self.consume()
+                    component_value = MultiplierGrammarNode(component_value, minimum, maximum)
+                else:
+                    raise SyntaxError("CSSGrammar::Parser: Expected integer or '}' in multiplier")
+            elif self.peek().is_token_type(TokenType.CLOSE_CURLY_BRACKET):
+                # {A} — exact count
+                self.consume()
+                component_value = MultiplierGrammarNode(component_value, minimum, minimum)
+            else:
+                raise SyntaxError("CSSGrammar::Parser: Expected ',' or '}' after integer in multiplier")
 
         return component_value
 

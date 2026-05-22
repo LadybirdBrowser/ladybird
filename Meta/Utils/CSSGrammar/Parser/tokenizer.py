@@ -54,13 +54,22 @@ class Tokenizer:
         if peeked == "?":
             self.lexer.consume()
             return Token.create(TokenType.QUESTION_MARK)
+        if peeked == "{":
+            self.lexer.consume()
+            return Token.create(TokenType.OPEN_CURLY_BRACKET)
+        if peeked == "}":
+            self.lexer.consume()
+            return Token.create(TokenType.CLOSE_CURLY_BRACKET)
+        if peeked == ",":
+            self.lexer.consume()
+            return Token.create(TokenType.COMMA)
         if peeked == "<":
             return self.consume_a_non_terminal_token()
 
         if is_identifier_character(peeked):
             return self.consume_a_keyword_token()
 
-        raise SyntaxError("CSSGrammar::Tokenizer: Unexpected character")
+        raise SyntaxError(f"CSSGrammar::Tokenizer: Unexpected character: {peeked}")
 
     def consume_custom_ident_blacklist(self) -> list[str]:
         # NB: This notation isn't yet included in the spec but we use it internally and the CSSWG has resolved to add it in

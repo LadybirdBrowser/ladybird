@@ -9,6 +9,7 @@ from Utils.CSSGrammar.Parser.grammar_node import CombinatorType
 from Utils.CSSGrammar.Parser.grammar_node import ComponentValueGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import GroupGrammarNode
+from Utils.CSSGrammar.Parser.grammar_node import MultiplierGrammarNode
 from Utils.CSSGrammar.Parser.grammar_node import OptionalGrammarNode
 from Utils.CSSGrammar.Parser.parser import parse_value_definition_grammar
 from Utils.utils import snake_casify
@@ -158,6 +159,62 @@ def generate_css_parser_expression_for_optional_grammar_node(
 """)
 
 
+def generate_css_parser_expression_for_multiplier_grammar_node(
+    out: TextIO, cpp_name: str, grammar_node: MultiplierGrammarNode
+) -> None:
+    # Generate a helper lambda for parsing one repetition of the child component.
+    out.write(f"auto const parse_{cpp_name}_repetition = [&]() -> RefPtr<StyleValue const> {{\n")
+    generate_css_parser_expression_for_grammar_node(out, f"{cpp_name}_rep", grammar_node.child)
+    out.write(f"    return {cpp_name}_rep;\n")
+    out.write("};\n\n")
+
+    capacity = grammar_node.maximum if grammar_node.maximum is not None else grammar_node.minimum
+    out.write(f"""auto const parse_{cpp_name}_multiplier = [&]() -> RefPtr<StyleValue const> {{
+auto {cpp_name}_transaction = tokens.begin_transaction();
+StyleValueVector {cpp_name}_values;
+{cpp_name}_values.ensure_capacity({capacity});
+
+""")
+    # Minimum repetitions (required)
+    for i in range(grammar_node.minimum):
+        out.write(f"""auto {cpp_name}_min_{i} = parse_{cpp_name}_repetition();
+if (!{cpp_name}_min_{i})
+    return nullptr;
+{cpp_name}_values.append({cpp_name}_min_{i}.release_nonnull());
+
+""")
+    # Optional additional repetitions
+    if grammar_node.maximum is not None:
+        remaining = grammar_node.maximum - grammar_node.minimum
+        if remaining > 0:
+            for i in range(remaining):
+                out.write(f"""do {{
+auto {cpp_name}_extra_{i} = parse_{cpp_name}_repetition();
+if (!{cpp_name}_extra_{i})
+    break;
+{cpp_name}_values.append({cpp_name}_extra_{i}.release_nonnull());
+}} while (false);
+
+""")
+            out.write("\n")
+    else:
+        # {A,} — unbounded: keep trying until failure
+        out.write(f"""while (true) {{
+auto {cpp_name}_extra = parse_{cpp_name}_repetition();
+if (!{cpp_name}_extra)
+    break;
+{cpp_name}_values.append({cpp_name}_extra.release_nonnull());
+}}
+
+""")
+
+    out.write(f"""{cpp_name}_transaction.commit();
+return StyleValueList::create(move({cpp_name}_values), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+}};
+auto {cpp_name} = parse_{cpp_name}_multiplier();
+""")
+
+
 def generate_css_parser_expression_for_grammar_node(out: TextIO, cpp_name: str, grammar_node: GrammarNode) -> None:
     if isinstance(grammar_node, ComponentValueGrammarNode):
         generate_css_parser_expression_for_component_value_grammar_node(out, cpp_name, grammar_node)
@@ -167,6 +224,9 @@ def generate_css_parser_expression_for_grammar_node(out: TextIO, cpp_name: str, 
         return
     if isinstance(grammar_node, OptionalGrammarNode):
         generate_css_parser_expression_for_optional_grammar_node(out, cpp_name, grammar_node)
+        return
+    if isinstance(grammar_node, MultiplierGrammarNode):
+        generate_css_parser_expression_for_multiplier_grammar_node(out, cpp_name, grammar_node)
         return
     if isinstance(grammar_node, CombinatorGrammarNode):
         generate_css_parser_expression_for_combinator_grammar_node(out, cpp_name, grammar_node)

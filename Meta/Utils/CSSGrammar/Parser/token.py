@@ -11,6 +11,9 @@ class TokenType(Enum):
     OPEN_SQUARE_BRACKET = "open-square-bracket"
     CLOSE_SQUARE_BRACKET = "close-square-bracket"
     QUESTION_MARK = "question-mark"
+    OPEN_CURLY_BRACKET = "open-curly-bracket"
+    CLOSE_CURLY_BRACKET = "close-curly-bracket"
+    COMMA = "comma"
     COMPONENT_VALUE = "component-value"
 
 
