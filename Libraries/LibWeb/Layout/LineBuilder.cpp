@@ -103,10 +103,17 @@ void LineBuilder::append_box(Box const& box, CSSPixels leading_size, CSSPixels t
         box_state.content_width(), box_state.content_height(), box_state.border_box_top(), box_state.border_box_bottom());
     m_max_height_on_current_line = max(m_max_height_on_current_line, box_state.margin_box_height());
 
-    box_state.containing_line_box_fragment = LineBoxFragmentCoordinate {
-        .line_box_index = m_containing_block_used_values.line_boxes.size() - 1,
-        .fragment_index = line_box.fragments().size() - 1,
-    };
+    box_state.containing_line_box_fragment = {};
+
+    // https://drafts.csswg.org/css-display/#atomic-inline
+    // Inline-level boxes that are not inline boxes are called atomic inline-level boxes because they
+    // participate in their inline formatting context as a single opaque box.
+    if (box.is_atomic_inline()) {
+        box_state.containing_line_box_fragment = LineBoxFragmentCoordinate {
+            .line_box_index = m_containing_block_used_values.line_boxes.size() - 1,
+            .fragment_index = line_box.fragments().size() - 1,
+        };
+    }
 }
 
 void LineBuilder::append_text_chunk(TextNode const& text_node, size_t offset_in_node, size_t length_in_node, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, RefPtr<Gfx::GlyphRun> glyph_run)
