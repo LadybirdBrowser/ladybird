@@ -238,6 +238,18 @@ void DisplayListPlayer::execute_impl(
         auto common_ancestor_index = visual_context_tree.find_common_ancestor(applied_context_index, target_index);
         size_t const common_ancestor_depth = common_ancestor_index.value() ? visual_context_tree.node_at(common_ancestor_index).depth : 0;
 
+        auto has_coordinate_changing_descendant = [&](VisualContextIndex ancestor_index) {
+            for (auto index = target_index; index != ancestor_index; index = visual_context_tree.node_at(index).parent_index) {
+                auto const& node = visual_context_tree.node_at(index);
+                if (node.data.has<TransformData>()
+                    || node.data.has<PerspectiveData>()
+                    || node.data.has<ScrollData>()
+                    || node.data.has<ScrollCompensation>())
+                    return true;
+            }
+            return false;
+        };
+
         while (applied_depth > common_ancestor_depth) {
             restore({});
             applied_depth--;
@@ -249,7 +261,8 @@ void DisplayListPlayer::execute_impl(
             target_index,
             [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node) {
                 if (bounding_rect.has_value() && node.data.has<EffectsData>()) {
-                    if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect)) {
+                    auto can_cull_before_effect = !has_coordinate_changing_descendant(node_index);
+                    if (bounding_rect->is_empty() || (can_cull_before_effect && would_be_fully_clipped_by_painter(*bounding_rect))) {
                         result = SwitchResult::CulledByEffect;
                         return IterationDecision::Break;
                     }

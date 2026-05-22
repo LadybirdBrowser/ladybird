@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/effect-culling-with-transformed-descendant-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+
+    .box {
+        position: absolute;
+        left: 120px;
+        top: 700px;
+        width: 400px;
+        height: 80px;
+        background: green;
+        opacity: 0.999;
+        transform: rotate(-90deg);
+        transform-origin: bottom left;
+    }
+</style>
+<div class="box"></div>
