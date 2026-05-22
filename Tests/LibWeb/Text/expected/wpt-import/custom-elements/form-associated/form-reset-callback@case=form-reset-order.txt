@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	form.reset(): formResetCallback is called synchronously at the end of form reset, with custom element reaction timing, *after* built-in form control reset algorithms run.
