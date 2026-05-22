@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts: parsing 'normal' in the font-style descriptor</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.org"/>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#descdef-font-face-font-style">
+<meta name="assert" content="Ensure that although 'normal' equates to 'oblique 0deg', a following <angle> is not allowed.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<style>
+@font-face {
+  font-family: test1;
+  font-style: normal;
+  src: url(../../fonts/Ahem.ttf);
+}
+@font-face {
+  font-family: test2;
+  font-style: oblique 0deg;
+  src: url(../../fonts/Ahem.ttf);
+}
+@font-face {
+  font-family: test3;
+  font-style: oblique 0deg 10deg;
+  src: url(../../fonts/Ahem.ttf);
+}
+@font-face {
+  font-family: test4;
+  font-style: normal 10deg;
+  src: url(../../fonts/Ahem.ttf);
+}
+</style>
+<script>
+  promise_test(async (t) => {
+    const fonts = await document.fonts.load("12px test1");
+    assert_equals(fonts[0].style, "normal", "'normal' serializes as specified");
+  });
+  promise_test(async (t) => {
+    const fonts = await document.fonts.load("12px test2");
+    assert_equals(fonts[0].style, "normal", "'oblique 0deg' serializes as 'normal'");
+  });
+  promise_test(async (t) => {
+    const fonts = await document.fonts.load("12px test3");
+    assert_equals(fonts[0].style, "oblique 0deg 10deg", "oblique range serializes as specified");
+  });
+  promise_test(async (t) => {
+    const fonts = await document.fonts.load("12px test4");
+    assert_equals(fonts[0].style, "normal", "'normal 10deg' is not a valid range");
+  });
+</script>
+</body>
+</html>

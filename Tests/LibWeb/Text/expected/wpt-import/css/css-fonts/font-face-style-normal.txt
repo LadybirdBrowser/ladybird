@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	CSS Fonts: parsing 'normal' in the font-style descriptor
+Pass	CSS Fonts: parsing 'normal' in the font-style descriptor 1
+Pass	CSS Fonts: parsing 'normal' in the font-style descriptor 2
+Pass	CSS Fonts: parsing 'normal' in the font-style descriptor 3

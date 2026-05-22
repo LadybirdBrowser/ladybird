@@ -5,6 +5,6 @@ Ahem
 normal
 normal
 auto
-auto
+normal
 U+0-10FFFF
 auto

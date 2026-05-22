@@ -479,9 +479,23 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
 
 void FontFace::set_style_impl(NonnullRefPtr<StyleValue const> const& value)
 {
+    // AD-HOC: Chromium and Firefox both return "normal" from the FontFace style
+    // getter when the stored value is auto (e.g., when descriptor parsing fails and
+    // the initial value auto is used, or when the descriptor is not specified).
+    // Spec issue: https://github.com/w3c/csswg-drafts/issues/11561
+    if (value->is_keyword() && value->to_keyword() == Keyword::Auto) {
+        m_style = "normal"_string;
+        m_cached_slope = 0;
+        return;
+    }
+
     auto context = computation_context();
     NonnullRefPtr<StyleValue const> absolutized_value = context.has_value() ? value->absolutized(*context) : value;
-    m_style = absolutized_value->to_string(SerializationMode::Normal);
+
+    // Normalize to FontStyleStyleValue for proper serialization
+    // (oblique 0deg → "normal", equal-bound collapsing, etc.)
+    auto computed = StyleComputer::compute_font_style(absolutized_value);
+    m_style = computed->to_string(SerializationMode::Normal);
     m_cached_slope = compute_slope(*absolutized_value);
 }
 
