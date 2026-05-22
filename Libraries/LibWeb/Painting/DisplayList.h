@@ -64,7 +64,7 @@ private:
     ByteBuffer m_command_bytes;
 };
 
-class DisplayListPlayer {
+class WEB_API DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
@@ -239,6 +239,7 @@ WEB_API ErrorOr<Web::Painting::DisplayList::AsyncScrollingMetadata> decode(Decod
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::DisplayList const&);
+template<>
 WEB_API ErrorOr<void> encode(Encoder&, NonnullRefPtr<Web::Painting::DisplayList> const&);
 template<>
 WEB_API ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder&);

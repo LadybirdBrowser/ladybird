@@ -350,6 +350,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display
     return {};
 }
 
+template<>
 ErrorOr<void> encode(Encoder& encoder, NonnullRefPtr<Web::Painting::DisplayList> const& display_list)
 {
     return encoder.encode(*display_list);
