@@ -51,6 +51,7 @@ public:
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
     virtual void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled) override;
+    virtual Web::Compositor::CompositorContextId allocate_compositor_context_id(Web::Compositor::PagePresentationRegistration) override;
 
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport(Web::DevicePixelSize const&, double device_pixel_ratio);

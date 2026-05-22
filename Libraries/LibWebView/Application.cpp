@@ -492,6 +492,15 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
     return client;
 }
 
+static bool should_skip_compositor_process_ipc(RefPtr<CompositorClient> const& compositor_client)
+{
+    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::No)
+        return true;
+    if (!compositor_client && Core::EventLoop::current().was_exit_requested())
+        return true;
+    return false;
+}
+
 ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& web_content_client)
 {
     if (m_browser_options.enable_compositor_process == EnableCompositorProcess::No)
@@ -505,6 +514,31 @@ ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& w
     web_content_client.set_compositor_connection_id({}, response.web_content_connection_id());
     web_content_client.async_connect_to_compositor_process(response.take_handle());
     return {};
+}
+
+void Application::register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
+{
+    if (should_skip_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    auto web_content_connection_id = web_content_client.compositor_connection_id({});
+    if (!web_content_connection_id.has_value()) {
+        MUST(connect_web_content_to_compositor(web_content_client));
+        web_content_connection_id = web_content_client.compositor_connection_id({});
+    }
+    VERIFY(web_content_connection_id.has_value());
+
+    m_compositor_client->create_context(context_id, page_id, page_presentation_registration, *web_content_connection_id);
+}
+
+void Application::destroy_compositor_context(Web::Compositor::CompositorContextId context_id)
+{
+    if (should_skip_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_destroy_context(context_id);
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
