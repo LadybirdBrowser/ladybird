@@ -56,10 +56,13 @@
       },
       "font-style": {
         "initial": "auto",
-        "FIXME": "Support angles for oblique",
         "syntax": [
           "auto",
-          "<'font-style'>"
+          "normal",
+          "italic",
+          "left",
+          "right",
+          "<font-style-oblique>"
         ]
       },
       "font-variation-settings": {

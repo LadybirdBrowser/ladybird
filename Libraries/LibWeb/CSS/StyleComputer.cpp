@@ -2858,8 +2858,35 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<
     // the keyword specified, plus angle in degrees if specified
 
     // NB: We always parse as a FontStyleStyleValue, but StylePropertyMap is able to set a KeywordStyleValue directly.
-    if (absolutized_value->is_keyword())
-        return FontStyleStyleValue::create(keyword_to_font_style_keyword(absolutized_value->to_keyword()).release_value());
+    if (absolutized_value->is_keyword()) {
+        auto font_style_keyword = keyword_to_font_style_keyword(absolutized_value->to_keyword());
+        if (font_style_keyword.has_value())
+            return FontStyleStyleValue::create(font_style_keyword.release_value());
+        return absolutized_value;
+    }
+
+    // NB: The @font-face descriptor parser returns a StyleValueList for the oblique case.
+    if (absolutized_value->is_value_list()) {
+        auto const& values = absolutized_value->as_value_list().values();
+        if (values.size() < 1 || !values[0]->is_keyword())
+            return absolutized_value;
+
+        auto keyword = keyword_to_font_style_keyword(values[0]->to_keyword());
+        if (!keyword.has_value())
+            return absolutized_value;
+
+        ValueComparingRefPtr<StyleValue const> angle1;
+        ValueComparingRefPtr<StyleValue const> angle2;
+        if (values.size() > 1 && values[1]->is_value_list()) {
+            auto const& inner = values[1]->as_value_list().values();
+            if (inner.size() > 0 && !inner[0]->is_empty_optional())
+                angle1 = inner[0];
+            if (inner.size() > 1 && !inner[1]->is_empty_optional())
+                angle2 = inner[1];
+        }
+
+        return FontStyleStyleValue::create(keyword.release_value(), move(angle1), move(angle2));
+    }
 
     return absolutized_value;
 }

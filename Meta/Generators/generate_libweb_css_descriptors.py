@@ -86,6 +86,7 @@ struct DescriptorMetadata {
         CropOrCross,
         FamilyName,
         FontSrcList,
+        FontStyleOblique,
         FontWeightAbsolutePair,
         Length,
         OptionalDeclarationValue,
@@ -109,6 +110,7 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID, DescriptorID);
 VALUE_TYPE_NAMES = {
     "<family-name>": "FamilyName",
     "<font-src-list>": "FontSrcList",
+    "<font-style-oblique>": "FontStyleOblique",
     "<font-weight-absolute>{1,2}": "FontWeightAbsolutePair",
     "<declaration-value>?": "OptionalDeclarationValue",
     "<length>": "Length",

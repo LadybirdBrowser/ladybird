@@ -13,10 +13,11 @@
 
 namespace Web::CSS {
 
-FontStyleStyleValue::FontStyleStyleValue(FontStyleKeyword font_style, ValueComparingRefPtr<StyleValue const> angle_value)
+FontStyleStyleValue::FontStyleStyleValue(FontStyleKeyword font_style, ValueComparingRefPtr<StyleValue const> angle_value, ValueComparingRefPtr<StyleValue const> second_angle_value)
     : StyleValueWithDefaultOperators(Type::FontStyle)
     , m_font_style(font_style)
     , m_angle_value(angle_value)
+    , m_second_angle_value(second_angle_value)
 {
 }
 
