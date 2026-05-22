@@ -6,7 +6,6 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibCore/ReportTime.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
