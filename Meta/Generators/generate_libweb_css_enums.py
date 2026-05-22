@@ -40,7 +40,7 @@ namespace Web::CSS {
         out.write(f"""}};
 Optional<{title_casify(name)}> keyword_to_{snake_casify(name)}(Keyword);
 Keyword to_keyword({title_casify(name)});
-StringView to_string({title_casify(name)});
+WEB_API StringView to_string({title_casify(name)});
 
 """)
 
