@@ -31,6 +31,7 @@
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
+#include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/SVGPaintable.h>
@@ -1179,6 +1180,139 @@ void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext&
     context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
     context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
     context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
+}
+
+void PaintableBox::paint_grid_inspector_overlay(DisplayListRecordingContext& context, GridInspectorOverlayOptions const& options) const
+{
+    if (!m_grid_layout_data)
+        return;
+
+    paint_with_inspector_overlay_context(context, [&] {
+        auto content_rect = absolute_united_content_rect();
+        auto const origin = content_rect.location();
+        auto const viewport_rect = document().viewport_rect();
+        auto const& color = options.color;
+        auto font = Platform::FontPlugin::the().default_font(10);
+        auto label_font = font->with_size(font->point_size() * context.device_pixels_per_css_pixel());
+        auto label_height = CSSPixels::nearest_value_for(font->pixel_size()) + 4;
+        auto label_padding = CSSPixels(4);
+
+        auto paint_rect = [&](CSSPixelRect const& rect, Gfx::Color rect_color) {
+            context.display_list_recorder().fill_rect(context.enclosing_device_rect(rect).to_type<int>(), rect_color);
+        };
+
+        auto paint_label = [&](CSSPixelPoint top_left, Utf16String const& text) {
+            auto label_width = CSSPixels::nearest_value_for(font->width(text)) + label_padding * 2;
+            auto label_rect = CSSPixelRect { top_left.x(), top_left.y(), label_width, label_height };
+            auto label_device_rect = context.enclosing_device_rect(label_rect).to_type<int>();
+            auto label_background = color.with_alpha(235);
+            context.display_list_recorder().fill_rect(label_device_rect, label_background);
+            context.display_list_recorder().draw_rect(label_device_rect, color.with_alpha(255));
+            context.display_list_recorder().draw_text(label_device_rect, text, label_font, Gfx::TextAlignment::Center, label_background.suggested_foreground_color());
+        };
+
+        auto paint_centered_label = [&](CSSPixelRect const& rect, Utf16String const& text) {
+            auto label_width = CSSPixels::nearest_value_for(font->width(text)) + label_padding * 2;
+            paint_label({ rect.center().x() - label_width / 2, rect.center().y() - label_height / 2 }, text);
+        };
+
+        auto line_start_for_number = [](Layout::GridLayoutDimension const& dimension, u32 number) -> Optional<CSSPixels> {
+            for (auto const& line : dimension.lines) {
+                if (line.number == number)
+                    return line.start;
+            }
+            return {};
+        };
+
+        auto line_number_label = [](Layout::GridLayoutLine const& line) {
+            if (line.negative_number < 0)
+                return MUST(String::formatted("{} / {}", line.number, line.negative_number));
+            return MUST(String::formatted("{}", line.number));
+        };
+
+        auto track_size_label = [](Layout::GridLayoutTrack const& track) {
+            return MUST(String::formatted("{:.2f}px", max(0.0, track.breadth.to_double())));
+        };
+
+        auto line_color = color.with_alpha(220);
+        auto gap_color = color.with_alpha(45);
+        auto line_thickness = CSSPixels(1);
+
+        for (auto const& fragment : m_grid_layout_data->fragments) {
+            for (auto const& column_line : fragment.columns.lines) {
+                auto x = origin.x() + column_line.start;
+                auto line_top = options.show_infinite_lines ? viewport_rect.y() : content_rect.y();
+                auto line_height = options.show_infinite_lines ? viewport_rect.height() : content_rect.height();
+
+                if (column_line.breadth > 0)
+                    paint_rect({ x, line_top, column_line.breadth, line_height }, gap_color);
+
+                paint_rect({ x, line_top, line_thickness, line_height }, line_color);
+
+                if (options.show_line_numbers)
+                    paint_label({ x + 2, line_top + 2 }, Utf16String::from_utf8(line_number_label(column_line)));
+            }
+
+            for (auto const& row_line : fragment.rows.lines) {
+                auto y = origin.y() + row_line.start;
+                auto line_left = options.show_infinite_lines ? viewport_rect.x() : content_rect.x();
+                auto line_width = options.show_infinite_lines ? viewport_rect.width() : content_rect.width();
+
+                if (row_line.breadth > 0)
+                    paint_rect({ line_left, y, line_width, row_line.breadth }, gap_color);
+
+                paint_rect({ line_left, y, line_width, line_thickness }, line_color);
+
+                if (options.show_line_numbers)
+                    paint_label({ line_left + 2, y + 2 }, Utf16String::from_utf8(line_number_label(row_line)));
+            }
+
+            if (options.show_track_sizes) {
+                for (auto const& column_track : fragment.columns.tracks) {
+                    auto track_rect = CSSPixelRect {
+                        origin.x() + column_track.start,
+                        content_rect.y(),
+                        column_track.breadth,
+                        min(content_rect.height(), label_height + 4),
+                    };
+                    paint_centered_label(track_rect, Utf16String::from_utf8(track_size_label(column_track)));
+                }
+
+                for (auto const& row_track : fragment.rows.tracks) {
+                    auto track_rect = CSSPixelRect {
+                        content_rect.x(),
+                        origin.y() + row_track.start,
+                        min(content_rect.width(), CSSPixels(72)),
+                        row_track.breadth,
+                    };
+                    paint_centered_label(track_rect, Utf16String::from_utf8(track_size_label(row_track)));
+                }
+            }
+
+            if (options.show_area_names) {
+                for (auto const& area : fragment.areas) {
+                    auto column_start = line_start_for_number(fragment.columns, area.column_start);
+                    auto column_end = line_start_for_number(fragment.columns, area.column_end);
+                    auto row_start = line_start_for_number(fragment.rows, area.row_start);
+                    auto row_end = line_start_for_number(fragment.rows, area.row_end);
+                    if (!column_start.has_value() || !column_end.has_value() || !row_start.has_value() || !row_end.has_value())
+                        continue;
+
+                    auto area_rect = CSSPixelRect {
+                        origin.x() + column_start.value(),
+                        origin.y() + row_start.value(),
+                        column_end.value() - column_start.value(),
+                        row_end.value() - row_start.value(),
+                    };
+                    paint_rect(area_rect, color.with_alpha(24));
+
+                    auto visible_area_rect = area_rect.intersected(viewport_rect);
+                    if (!visible_area_rect.is_empty())
+                        paint_centered_label(visible_area_rect, Utf16String::from_utf8(area.name));
+                }
+            }
+        }
+    });
 }
 
 void PaintableBox::set_stacking_context(NonnullRefPtr<StackingContext> stacking_context)

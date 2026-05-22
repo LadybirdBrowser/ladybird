@@ -147,7 +147,16 @@ RefPtr<StackingContext> Paintable::enclosing_stacking_context()
 
 void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) const
 {
+    paint_with_inspector_overlay_context(context, [&] {
+        paint_inspector_overlay_internal(context);
+    });
+}
+
+void Paintable::paint_with_inspector_overlay_context(DisplayListRecordingContext& context, Function<void()> const& callback) const
+{
     auto& display_list_recorder = context.display_list_recorder();
+    auto previous_visual_context_index = display_list_recorder.accumulated_visual_context();
+
     RefPtr<PaintableBox const> paintable_box;
     if (is<PaintableBox>(*this))
         paintable_box = static_cast<PaintableBox const&>(*this);
@@ -184,8 +193,8 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
         }
     }
 
-    paint_inspector_overlay_internal(context);
-    display_list_recorder.set_accumulated_visual_context({});
+    callback();
+    display_list_recorder.set_accumulated_visual_context(previous_visual_context_index);
 }
 
 void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
