@@ -135,8 +135,15 @@ void AudioContext::visit_edges(Cell::Visitor& visitor)
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp
 Bindings::AudioTimestamp AudioContext::get_output_timestamp()
 {
-    dbgln("(STUBBED) getOutputTimestamp()");
-    return {};
+    // If the context's rendering graph has not yet processed a block of audio, then
+    // getOutputTimestamp call returns an AudioTimestamp instance with both members
+    // containing zero.
+    // FIXME: Once we process audio blocks, report the current output stream position
+    //        and the corresponding performance time here.
+    return {
+        .context_time = 0.0,
+        .performance_time = 0.0,
+    };
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-resume
