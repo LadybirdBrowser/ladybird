@@ -7,6 +7,7 @@
 #include <AK/Assertions.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
+#include <AK/Time.h>
 #include <AK/Windows.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
@@ -42,6 +43,24 @@ void ConditionVariableBase<Mutex>::wait()
         warnln("SleepConditionVariableSRW failed with: {}", Error::from_windows_error());
         VERIFY_NOT_REACHED();
     }
+}
+
+template<>
+bool ConditionVariableBase<Mutex>::wait_for(AK::Duration const& timeout)
+{
+    if (timeout <= AK::Duration::zero())
+        return false;
+
+    auto timeout_ms = timeout.to_milliseconds();
+    VERIFY(timeout_ms >= 0);
+    auto result = SleepConditionVariableSRW(to_impl(m_storage), reinterpret_cast<PSRWLOCK>(m_to_wait_on.m_storage), static_cast<DWORD>(min<i64>(timeout_ms, INFINITE - 1)), 0);
+    if (result)
+        return true;
+    auto error = GetLastError();
+    if (error == ERROR_TIMEOUT)
+        return false;
+    warnln("SleepConditionVariableSRW failed with: {}", Error::from_windows_error(error));
+    VERIFY_NOT_REACHED();
 }
 
 template<typename MutexType>

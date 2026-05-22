@@ -5,9 +5,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Export.h>
 #include <LibSync/Mutex.h>
+#include <errno.h>
 #include <pthread.h>
 
 namespace Sync {
@@ -45,6 +47,21 @@ void ConditionVariableBase<MutexType>::wait()
 {
     int result = pthread_cond_wait(to_impl(m_storage), reinterpret_cast<pthread_mutex_t*>(m_to_wait_on.m_storage));
     VERIFY(result == 0);
+}
+
+template<typename MutexType>
+requires Detail::IsIntraprocess<MutexType> && Detail::IsNonRecursive<MutexType>
+bool ConditionVariableBase<MutexType>::wait_for(AK::Duration const& timeout)
+{
+    if (timeout <= AK::Duration::zero())
+        return false;
+
+    auto absolute_timeout = (AK::UnixDateTime::now() + timeout).to_timespec();
+    int result = pthread_cond_timedwait(to_impl(m_storage), reinterpret_cast<pthread_mutex_t*>(m_to_wait_on.m_storage), &absolute_timeout);
+    if (result == ETIMEDOUT)
+        return false;
+    VERIFY(result == 0);
+    return true;
 }
 
 template<typename MutexType>

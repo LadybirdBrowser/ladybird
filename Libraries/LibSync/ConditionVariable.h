@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Concepts.h>
+#include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
@@ -24,7 +25,6 @@ namespace Sync {
 // A signaling condition variable that wraps over the platform APIs.
 // On posix it is a wrapper of pthread_cond_*.
 // On Windows it wraps ConditionVariable
-// TODO: Implement timed_wait()
 template<typename MutexType>
 requires Detail::IsIntraprocess<MutexType> && Detail::IsNonRecursive<MutexType>
 class SYNC_API ConditionVariableBase {
@@ -38,6 +38,7 @@ public:
     // As with pthread APIs, the mutex must be locked or undefined behavior ensues.
     // Condition variables are allowed spurious wakeups. As such waiting on a condition in a loop is preferred.
     void wait();
+    bool wait_for(AK::Duration const&);
 
     ALWAYS_INLINE void wait_while(Function<bool()> condition)
     {
