@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<meta name="variant" content="?case=form-reset">
+<meta name="variant" content="?case=form-reset-order">
+<meta name="variant" content="?case=reset-button-click">
 <body>
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
@@ -35,7 +38,9 @@ class MyControl extends HTMLElement {
 }
 customElements.define('my-control', MyControl);
 
-test(() => {
+const testCase = new URLSearchParams(location.search).get("case");
+
+if (testCase === "form-reset") test(() => {
   document.body.insertAdjacentHTML('beforeend',
       '<form><my-control></my-control></form>');
   let form = document.body.lastChild;
@@ -44,7 +49,7 @@ test(() => {
   assert_true(custom.resetCalled);
 }, 'form.reset() should trigger formResetCallback');
 
-test(() => {
+if (testCase === "form-reset-order") test(() => {
   document.body.insertAdjacentHTML('beforeend',
       '<form><my-control></my-control><output>default</output></form>');
   let form = document.body.lastChild;
@@ -69,7 +74,7 @@ test(() => {
    'form reset, with custom element reaction timing, *after* built-in form ' +
    'control reset algorithms run.');
 
-promise_test(() => {
+if (testCase === "reset-button-click") promise_test(() => {
   document.body.insertAdjacentHTML('beforeend',
       '<form><my-control></my-control><input type=reset></form>');
   let form = document.body.lastChild;
