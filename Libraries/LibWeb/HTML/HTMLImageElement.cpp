@@ -553,6 +553,11 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
             return;
         }
 
+        if (!current_request.shared_resource_request()) {
+            queue_reject_task("Current request changed or was mutated"_utf16);
+            return;
+        }
+
         current_request.add_callbacks(
             // AD-HOC: Enqueue on the batching dispatcher to preserve ordering relative to update_the_image_data's step
             //         16, which also goes through the batching dispatcher. Otherwise decode() can resolve before the
