@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<iframe id="i1"></iframe>
 <script src="../include.js"></script>
 <script>
     asyncTest((done) => {
-        i1.onload = function() {
+        const iframe = document.createElement("iframe");
+        iframe.onload = function() {
             println("OK");
             done();
         }
-        i1.src = "data:application/xml;charset=utf-8;base64,vwo=";
+        iframe.src = "data:application/xml;charset=utf-8;base64,vwo=";
+        document.body.appendChild(iframe);
     });
 </script>
