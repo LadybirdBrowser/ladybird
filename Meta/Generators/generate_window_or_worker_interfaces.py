@@ -6,10 +6,12 @@
 
 
 import argparse
+import subprocess
 import sys
 
 from dataclasses import dataclass
 from dataclasses import field
+from io import StringIO
 from pathlib import Path
 from typing import Dict
 from typing import List
@@ -89,6 +91,29 @@ def parse_arguments() -> argparse.Namespace:
         type=Path,
         help="Path to output generated files into",
     )
+    argument_parser.add_argument(
+        "--depfile",
+        type=Path,
+        help="Path to write the per-IDL bindings dependency file to",
+    )
+    argument_parser.add_argument(
+        "--cxx-generator",
+        type=Path,
+        help="Path to the existing C++ bindings generator",
+    )
+    argument_parser.add_argument(
+        "-i",
+        "--header-include-path",
+        action="append",
+        default=[],
+        type=Path,
+        help="Header search path to pass to the C++ bindings generator",
+    )
+    argument_parser.add_argument(
+        "--python-generated-idl-list",
+        type=Path,
+        help="Path to a newline-separated list of IDL files opted in to the Python generator",
+    )
     argument_parser.add_argument("paths", nargs="+", type=Path, help="Paths of every IDL file that could be Exposed")
     return argument_parser.parse_args()
 
@@ -99,6 +124,12 @@ def read_input_paths(paths: List[Path]) -> List[Path]:
         return [Path(path) for path in response_file_path.read_text().splitlines() if path]
 
     return paths
+
+
+def read_path_list(path: Path) -> List[str]:
+    if not path.exists():
+        return []
+    return [line for line in path.read_text(encoding="utf-8").splitlines() if line]
 
 
 def parse_exposure_set(interface_name: str, exposed_value: str) -> Set[str]:
@@ -736,14 +767,55 @@ def write_forward_header(out: TextIO, modules: List[Module]) -> None:
 
 
 def write_generated_file(path: Path, writer, *args) -> None:
+    output_file = StringIO()
+    writer(output_file, *args)
+    generated_contents = output_file.getvalue()
+
+    if path.exists() and path.read_text(encoding="utf-8") == generated_contents:
+        return
+
     with path.open("w", encoding="utf-8", newline="\n") as output_file:
-        writer(output_file, *args)
+        output_file.write(generated_contents)
+
+
+def run_cxx_generator(arguments: argparse.Namespace) -> int:
+    if arguments.cxx_generator is None:
+        return 0
+
+    python_generated_idl_files: List[str] = []
+    if arguments.python_generated_idl_list is not None:
+        python_generated_idl_files = read_path_list(arguments.python_generated_idl_list)
+
+    if python_generated_idl_files:
+        sys.stderr.write(
+            "The Python LibWeb bindings generator is not implemented yet, but these IDL files were opted in:\n"
+        )
+        for idl_file in python_generated_idl_files:
+            sys.stderr.write(f"  {idl_file}\n")
+        return 1
+
+    command = [
+        str(arguments.cxx_generator),
+        "-o",
+        str(arguments.output_path),
+    ]
+    for header_include_path in arguments.header_include_path:
+        command.extend(["--header-include-path", str(header_include_path)])
+    if arguments.depfile is not None:
+        command.extend(["--depfile", str(arguments.depfile)])
+    command.extend(str(path) for path in arguments.paths)
+
+    return subprocess.run(command).returncode
 
 
 def main() -> int:
     arguments = parse_arguments()
     output_directory = arguments.output_path
     output_directory.mkdir(parents=True, exist_ok=True)
+
+    result = run_cxx_generator(arguments)
+    if result != 0:
+        return result
 
     interface_sets = InterfaceSets()
     modules: List[Module] = []
