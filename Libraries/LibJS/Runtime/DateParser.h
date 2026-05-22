@@ -47,29 +47,17 @@
 // - Support Firefox less permissive punctuation but more permissive punctuation
 //   syntax.
 class DateParser : public GenericLexer {
+public:
+    ALWAYS_INLINE static double parse(StringView string)
+    {
+        return DateParser(string).parse().value_or(NAN);
+    }
+
 private:
-    Vector<u64> m_numbers;
-
-    Optional<i8> m_sign;
-    Optional<i64> m_year;
-    Optional<u8> m_month;
-    Optional<u8> m_day;
-    Optional<u8> m_hours;
-    Optional<u8> m_minutes;
-    Optional<u8> m_seconds;
-    Optional<u16> m_milliseconds;
-
-    // True if GMT/UTC/Z specified and there is no timezone offset; false if timezone offset.
-    // No value if there is no timezone information: we have to guess whether the date was given in GMT or local time.
-    Optional<bool> m_timezone_utc;
-    Optional<i8> m_timezone_sign; // +1 or -1 if there is a timezone offset.
-    Optional<u8> m_timezone_hours;
-    Optional<u8> m_timezone_minutes;
-    Optional<u8> m_timezone_seconds;
-    Optional<u64> m_timezone_nanoseconds;
-
-    bool m_date_is_iso_like { false };
-    bool m_previous_separator_was_space { false };
+    explicit DateParser(StringView string)
+        : GenericLexer(string)
+    {
+    }
 
     constexpr static u64 pow10(size_t pow)
     {
@@ -98,6 +86,7 @@ private:
 
         VERIFY_NOT_REACHED();
     }
+
     // Reads a contiguous sequence of digits. Ignores digits read past MaxLength.
     // Returns the numeric value of the sequence and the number of digits not ignored.
     template<typename T, size_t MaxLength>
@@ -140,6 +129,7 @@ private:
 
         return false; // Too many numbers
     }
+
     ALWAYS_INLINE bool guess_date_from_3_numbers() // Only "month-day-year" (default) and "year-month-day" are supported (same as firefox and chrome).
     {
         VERIFY(m_numbers.size() == 3);
@@ -182,6 +172,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE bool guess_date_from_2_numbers() // Guess default order "day-year" or adapt.
     {
         VERIFY(m_numbers.size() == 2);
@@ -242,6 +233,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE bool guess_date_from_1_number() // Guess in this order: year, month, day.
     {
         VERIFY(m_numbers.size() == 1);
@@ -267,6 +259,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE static u64 guess_year(u64 const number) // Guess one- or two-digit year.
     {
         switch (number) {
@@ -278,6 +271,7 @@ private:
 
         return number;
     }
+
     ALWAYS_INLINE bool one_number(u64 const number) // The whole input string is just one stand-alone number.}
     {
         switch (number) {
@@ -337,6 +331,7 @@ private:
 
         return false;
     }
+
     ALWAYS_INLINE bool maybe_ampm() // Side effect: consumes space at the end of a time component, even if there is no AM/PM.
     {
         VERIFY(m_hours.has_value());
@@ -366,6 +361,7 @@ private:
 
         return true;
     }
+
     // H[H]:MM[:SS[.mss[...]]][ ][AM|PM] At this point, H[H]: has already been read.
     ALWAYS_INLINE bool maybe_time(
         std::pair<u32, size_t> const& hours,
@@ -421,6 +417,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE bool maybe_number()
     {
         auto const previous_separator_was_space = m_previous_separator_was_space;
@@ -444,6 +441,7 @@ private:
 
         return separator(); // Must be followed by a separator.
     }
+
     ALWAYS_INLINE bool maybe_sign()
     {
         i8 const sign = (consume() == '-') ? -1 : +1;
@@ -481,6 +479,7 @@ private:
         auto const number = read_number<u32, 7>();
         return tz_offset(number);
     }
+
     // Continue reading a timezone offset, after the sign and the first number have beeen read.
     ALWAYS_INLINE bool tz_offset(std::pair<u32, size_t> const& number, bool iso_8601_format = false)
     {
@@ -555,6 +554,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE bool separator() // Ignore space and Firefox punctuation.
     {
         if (is_eof())
@@ -574,6 +574,7 @@ private:
         }
         return false;
     }
+
     ALWAYS_INLINE bool gmt(StringView const& str) // Z or GMT or UTC can be used interchangeably.
     {
         if (!consume_specific(str))
@@ -590,6 +591,7 @@ private:
 
         return space || separator();
     }
+
     // Same as Chrome and Firefox, we only support abbreviations for timezones covering the US mainland.
     ALWAYS_INLINE bool us_timezone(StringView const& str, u8 hours, u8 minutes = 0, i8 sign = -1)
     {
@@ -606,6 +608,7 @@ private:
 
         return separator(); // Must end with a separator.
     }
+
     ALWAYS_INLINE bool month_name(StringView const& str, u8 month)
     {
         VERIFY(str.length() == 3); // Only looking for 3-letter month prefixes.
@@ -618,6 +621,7 @@ private:
 
         return separator(); // Must end with a separator.
     }
+
     ALWAYS_INLINE bool word() // Alphanumeric strings that are not date "keywords".
     {
         std::ignore = consume_while(isalpha);
@@ -626,6 +630,7 @@ private:
         // - Fail if a word is read later in the date string (exception: final time zone name, in brackets).
         return (m_numbers.is_empty() && !m_hours.has_value() && !m_year.has_value());
     }
+
     ALWAYS_INLINE bool maybe_word() // The top of a trie catching date "keywords".
     {
         switch (peek()) {
@@ -696,6 +701,7 @@ private:
 
         return Error::from_string_literal("Read ISO8601 format, but have some input left over.");
     }
+
     ALWAYS_INLINE ErrorOr<bool> maybe_iso_year()
     {
         switch (peek()) {
@@ -714,6 +720,7 @@ private:
 
         return false;
     }
+
     ALWAYS_INLINE ErrorOr<bool> maybe_iso_year4() // Like "2025".
     {
         auto number = read_number<u32, 7>();
@@ -745,6 +752,7 @@ private:
 
         return Error::from_string_literal("String too long to be a year.");
     }
+
     ALWAYS_INLINE ErrorOr<bool> maybe_iso_signed_year6() // Like "+002025".
     {
         i64 sign = +1;
@@ -775,6 +783,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE ErrorOr<bool> maybe_iso_month_day() // [-MM[-DD]]
     {
         if (!consume_specific('-'))
@@ -836,6 +845,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE ErrorOr<bool> maybe_iso_time() // THH:MM[:SS[.M[SS...]]]
     {
         // The ECMA date string format requires uppercase 'T' and 'Z' https://tc39.es/ecma262/#sec-date-time-string-format
@@ -858,6 +868,7 @@ private:
 
         return true;
     }
+
     ALWAYS_INLINE ErrorOr<void> maybe_iso_tz() // After the 'T' for iso_time has been read, reading an ISO8601 timezone either succeeds or the whole parse fails.
     {
         switch (consume()) {
@@ -925,6 +936,7 @@ private:
 
         return JS::time_clip(time_ms);
     }
+
     ALWAYS_INLINE ErrorOr<double> parse()
     {
         if (TRY(maybe_iso_8601()))
@@ -947,14 +959,27 @@ private:
 
         return build_date();
     }
-    DateParser(StringView const& str)
-        : GenericLexer(str)
-    {
-    }
 
-public:
-    ALWAYS_INLINE static double parse(StringView const& str)
-    {
-        return DateParser(str).parse().value_or(NAN);
-    }
+    Vector<u64> m_numbers;
+
+    Optional<i8> m_sign;
+    Optional<i64> m_year;
+    Optional<u8> m_month;
+    Optional<u8> m_day;
+    Optional<u8> m_hours;
+    Optional<u8> m_minutes;
+    Optional<u8> m_seconds;
+    Optional<u16> m_milliseconds;
+
+    // True if GMT/UTC/Z specified and there is no timezone offset; false if timezone offset.
+    // No value if there is no timezone information: we have to guess whether the date was given in GMT or local time.
+    Optional<bool> m_timezone_utc;
+    Optional<i8> m_timezone_sign; // +1 or -1 if there is a timezone offset.
+    Optional<u8> m_timezone_hours;
+    Optional<u8> m_timezone_minutes;
+    Optional<u8> m_timezone_seconds;
+    Optional<u64> m_timezone_nanoseconds;
+
+    bool m_date_is_iso_like { false };
+    bool m_previous_separator_was_space { false };
 };
