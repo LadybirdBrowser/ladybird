@@ -197,6 +197,16 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeMouseEvent(JNIEnv*, job
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeWheelEvent(JNIEnv*, jobject /* thiz */, jlong, jfloat, jfloat, jfloat, jfloat, jint, jint);
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeWheelEvent(JNIEnv*, jobject /* thiz */, jlong instance, jfloat x, jfloat y, jfloat raw_x, jfloat raw_y, jint wheel_delta_x, jint wheel_delta_y)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+    impl->wheel_event(x, y, raw_x, raw_y, wheel_delta_x, wheel_delta_y);
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeFindInPage(JNIEnv*, jobject, jlong, jstring, jboolean);
 extern "C" JNIEXPORT void JNICALL
 Java_org_serenityos_ladybird_WebViewImplementation_nativeFindNext(JNIEnv*, jobject, jlong);

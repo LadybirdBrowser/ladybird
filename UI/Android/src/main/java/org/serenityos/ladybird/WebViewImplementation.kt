@@ -149,6 +149,12 @@ class WebViewImplementation(private val view: WebView) {
         nativeMouseEvent(nativeInstance, eventType, x, y, rawX, rawY)
     }
 
+    fun wheelEvent(x: Float, y: Float, rawX: Float, rawY: Float, wheelDeltaX: Int, wheelDeltaY: Int) {
+        if (nativeInstance == 0L)
+            return
+        nativeWheelEvent(nativeInstance, x, y, rawX, rawY, wheelDeltaX, wheelDeltaY)
+    }
+
     // Functions called from native code
     fun bindWebContentService(ipcFd: Int) {
         Log.i("WebContentView", "Binding WebContent service with IPC fd $ipcFd")
@@ -210,6 +216,7 @@ class WebViewImplementation(private val view: WebView) {
     private external fun nativeReload(instance: Long)
     private external fun nativeTraverseHistory(instance: Long, delta: Int)
     private external fun nativeMouseEvent(instance: Long, eventType: Int, x: Float, y: Float, rawX: Float, rawY: Float)
+    private external fun nativeWheelEvent(instance: Long, x: Float, y: Float, rawX: Float, rawY: Float, wheelDeltaX: Int, wheelDeltaY: Int)
     private external fun nativeFindInPage(instance: Long, query: String, caseSensitive: Boolean)
     private external fun nativeFindNext(instance: Long)
     private external fun nativeFindPrevious(instance: Long)

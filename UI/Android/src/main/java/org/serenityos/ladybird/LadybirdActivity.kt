@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -43,6 +44,9 @@ class LadybirdActivity : AppCompatActivity() {
     private var nativeInitialized = false
     private var viewInitialized = false
     private var isLoading = false
+    private var hasRenderedContent = false
+    private var startupOverlayDismissed = false
+    private var startupOverlayShownAt = 0L
     private var currentUrl: String = ""
     private var currentTitle: String = ""
 
@@ -69,6 +73,7 @@ class LadybirdActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         urlEditText = binding.urlEditText
         view = binding.webView
+        startStartupOverlayAnimation()
 
         view.onLoadStart = { url: String, _ ->
             setLoading(true)
@@ -80,6 +85,9 @@ class LadybirdActivity : AppCompatActivity() {
             currentUrl = url
             setLoading(false)
             history.record(url, currentTitle.ifBlank { url })
+            // Some pages (Google search, dynamic SPAs) compute layout against an
+            // outdated viewport. Re-emit the current geometry once load settles.
+            view.post { view.syncViewport(); view.invalidate() }
         }
         view.onUrlChange = { url: String ->
             currentUrl = url
@@ -97,14 +105,23 @@ class LadybirdActivity : AppCompatActivity() {
                 Log.d("Ladybird", "Hover: $url")
         }
         view.onContentReady = {
+            hasRenderedContent = true
             if (isLoading)
                 setLoading(false)
+            hideStartupOverlayIfNeeded()
         }
         view.onWebContentCrash = {
             setLoading(false)
-            Snackbar.make(binding.root, R.string.browser_webcontent_crashed, Snackbar.LENGTH_LONG)
-                .setAction(R.string.browser_reload) { view.reload() }
-                .show()
+            // Suppress the spurious crash signal that fires once during initial
+            // WebContent service bind, before any content has rendered.
+            if (hasRenderedContent) {
+                Snackbar.make(binding.root, R.string.browser_webcontent_crashed, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.browser_reload) {
+                        if (currentUrl.isNotBlank()) view.loadURL(currentUrl)
+                        else view.reload()
+                    }
+                    .show()
+            }
         }
 
         urlEditText.setOnEditorActionListener { textView: TextView, actionId: Int, _: KeyEvent? ->
@@ -119,6 +136,8 @@ class LadybirdActivity : AppCompatActivity() {
         binding.backButton.setOnClickListener { view.goBack() }
         binding.forwardButton.setOnClickListener { view.goForward() }
         binding.reloadButton.setOnClickListener { view.reload() }
+        binding.homeButton.setOnClickListener { navigateToInput(settings.homePage) }
+        binding.bookmarksButton.setOnClickListener { showBookmarksDialog() }
         binding.menuButton.setOnClickListener { showBrowserMenu(it) }
 
         setupFindBar()
@@ -136,7 +155,10 @@ class LadybirdActivity : AppCompatActivity() {
         view.initialize(resourceDir)
         viewInitialized = true
         applySettingsToView()
-        navigateToInput(intent.dataString ?: settings.homePage)
+        // Defer the initial navigation until the WebView has been laid out so
+        // the WebContent viewport is sized correctly before the first render.
+        val initialTarget = intent.dataString ?: settings.homePage
+        view.post { navigateToInput(initialTarget) }
     }
 
     override fun onResume() {
@@ -203,6 +225,61 @@ class LadybirdActivity : AppCompatActivity() {
     private fun setLoading(loading: Boolean) {
         isLoading = loading
         binding.loadingProgress.visibility = if (loading) View.VISIBLE else View.GONE
+    }
+
+    private fun startStartupOverlayAnimation() {
+        startupOverlayShownAt = SystemClock.elapsedRealtime()
+        binding.startupOverlay.alpha = 1f
+        binding.startupOverlay.visibility = View.VISIBLE
+        binding.startupPulse.alpha = 0.22f
+        binding.startupPulse.scaleX = 0.72f
+        binding.startupPulse.scaleY = 0.72f
+        binding.startupLogo.alpha = 0f
+        binding.startupLogo.scaleX = 0.92f
+        binding.startupLogo.scaleY = 0.92f
+        binding.startupLogo.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(260)
+            .start()
+        loopStartupPulse()
+    }
+
+    private fun loopStartupPulse() {
+        if (startupOverlayDismissed)
+            return
+        binding.startupPulse.animate()
+            .alpha(0.04f)
+            .scaleX(1.16f)
+            .scaleY(1.16f)
+            .setDuration(920)
+            .withEndAction {
+                if (startupOverlayDismissed)
+                    return@withEndAction
+                binding.startupPulse.alpha = 0.22f
+                binding.startupPulse.scaleX = 0.72f
+                binding.startupPulse.scaleY = 0.72f
+                loopStartupPulse()
+            }
+            .start()
+    }
+
+    private fun hideStartupOverlayIfNeeded() {
+        if (startupOverlayDismissed)
+            return
+        startupOverlayDismissed = true
+        val elapsed = SystemClock.elapsedRealtime() - startupOverlayShownAt
+        val remainingDelay = (450L - elapsed).coerceAtLeast(0L)
+        binding.startupOverlay.postDelayed({
+            binding.startupOverlay.animate()
+                .alpha(0f)
+                .setDuration(220)
+                .withEndAction {
+                    binding.startupOverlay.visibility = View.GONE
+                }
+                .start()
+        }, remainingDelay)
     }
 
     private fun hideKeyboard() {

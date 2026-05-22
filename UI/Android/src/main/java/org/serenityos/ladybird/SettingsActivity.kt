@@ -40,6 +40,11 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.jsSwitch.isChecked = settings.javascriptHelpersEnabled
 
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "dev"
+        } catch (_: Exception) { "dev" }
+        binding.aboutVersion.text = getString(R.string.settings_about_version, version)
+
         binding.saveButton.setOnClickListener {
             settings.homePage = binding.homePageEdit.text.toString().trim()
             settings.searchEngine = engines[binding.searchEngineSpinner.selectedItemPosition]

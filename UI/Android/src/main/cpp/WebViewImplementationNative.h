@@ -35,6 +35,7 @@ public:
     void set_device_pixel_ratio(double f);
 
     void mouse_event(Web::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y);
+    void wheel_event(float x, float y, float raw_x, float raw_y, int wheel_delta_x, int wheel_delta_y);
 
     static jclass global_class_reference;
     static jmethodID bind_webcontent_method;

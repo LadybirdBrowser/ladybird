@@ -6,6 +6,15 @@
     <string name="browser_forward">Forward</string>
     <string name="browser_reload">Reload</string>
     <string name="browser_menu">Browser menu</string>
+    <string name="browser_home">Home</string>
+    <string name="browser_tabs">Tabs</string>
+    <string name="browser_shield">Site shields</string>
+    <string name="browser_tabs_single">Single-tab build — extra tabs coming soon.</string>
+    <string name="browser_shield_disabled">Shields are not configured in this build.</string>
+    <string name="tabs_current_prefix">Current: %1$s</string>
+    <string name="tabs_new_tab">Open home page</string>
+    <string name="tabs_reload">Reload current tab</string>
+    <string name="tabs_close_tab">Close tab (returns home)</string>
     <string name="browser_loading">Loading…</string>
     <string name="browser_search_url_hint">Search or enter address</string>
     <string name="browser_webcontent_crashed">WebContent crashed. Reload the page to try again.</string>
@@ -52,6 +61,11 @@
     <string name="find_in_page_no_matches">No matches</string>
 
     <string name="settings_title">Settings</string>
+    <string name="settings_section_general">General</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_site">Site settings</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_about_version">Version %1$s</string>
     <string name="settings_home_page">Home page</string>
     <string name="settings_home_page_summary">URL opened in new pages</string>
     <string name="settings_search_engine">Search engine</string>

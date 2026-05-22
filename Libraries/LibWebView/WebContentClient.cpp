@@ -855,11 +855,28 @@ void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto request_server_handle = MUST(connect_new_request_server_client());
-        auto image_decoder_handle = MUST(connect_new_image_decoder_client());
-        auto worker_client = MUST(WebView::launch_web_worker_process(worker_type));
-        auto worker_handle = MUST(worker_client->transport().release_for_transfer());
-        return { move(worker_handle), move(request_server_handle), move(image_decoder_handle) };
+        auto request_server_handle_or_error = connect_new_request_server_client();
+        if (request_server_handle_or_error.is_error()) {
+            dbgln("WebContentClient::request_worker_agent: {}", request_server_handle_or_error.error());
+            return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
+        }
+        auto image_decoder_handle_or_error = connect_new_image_decoder_client();
+        if (image_decoder_handle_or_error.is_error()) {
+            dbgln("WebContentClient::request_worker_agent: {}", image_decoder_handle_or_error.error());
+            return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
+        }
+        auto worker_client_or_error = WebView::launch_web_worker_process(worker_type);
+        if (worker_client_or_error.is_error()) {
+            dbgln("WebContentClient::request_worker_agent: {}", worker_client_or_error.error());
+            return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
+        }
+        auto worker_client = worker_client_or_error.release_value();
+        auto worker_handle_or_error = worker_client->transport().release_for_transfer();
+        if (worker_handle_or_error.is_error()) {
+            dbgln("WebContentClient::request_worker_agent: {}", worker_handle_or_error.error());
+            return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
+        }
+        return { worker_handle_or_error.release_value(), request_server_handle_or_error.release_value(), image_decoder_handle_or_error.release_value() };
     }
 
     return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };

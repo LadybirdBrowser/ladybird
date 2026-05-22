@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/ladybird_background"
-    android:fitsSystemWindows="true"
-    android:orientation="vertical"
     tools:context=".LadybirdActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/ladybird_background"
+        android:fitsSystemWindows="true"
+        android:orientation="vertical">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar"
@@ -31,14 +35,14 @@
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp">
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
+                    android:layout_height="42dp"
                     app:cardBackgroundColor="@color/ladybird_field_surface"
-                    app:cardCornerRadius="20dp"
+                    app:cardCornerRadius="21dp"
                     app:cardElevation="0dp"
                     app:strokeColor="@color/ladybird_outline_soft"
                     app:strokeWidth="1dp">
@@ -47,16 +51,16 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center_vertical"
-                        android:orientation="horizontal">
+                        android:orientation="horizontal"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="4dp">
 
                         <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
-                            android:layout_marginStart="14dp"
-                            android:layout_marginEnd="10dp"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
                             android:contentDescription="@string/browser_search_url_hint"
-                            android:src="@drawable/ic_find"
-                            android:tint="@color/ladybird_on_surface_muted" />
+                            android:src="@drawable/ic_search"
+                            android:tint="@color/ladybird_accent" />
 
                         <EditText
                             android:id="@+id/urlEditText"
@@ -70,6 +74,7 @@
                             android:hint="@string/browser_search_url_hint"
                             android:imeOptions="actionGo|actionSearch"
                             android:inputType="textUri"
+                            android:paddingStart="10dp"
                             android:paddingEnd="6dp"
                             android:selectAllOnFocus="true"
                             android:singleLine="true"
@@ -197,15 +202,15 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/ladybird_outline_soft" />
+        android:background="@color/ladybird_divider" />
 
-    <LinearLayout
-        android:id="@+id/bottom_nav"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:background="@color/ladybird_surface"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        <LinearLayout
+            android:id="@+id/bottom_nav"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@color/ladybird_surface"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
         <ImageButton
             android:id="@+id/backButton"
@@ -230,14 +235,75 @@
             android:tint="@color/ladybird_on_surface" />
 
         <ImageButton
-            android:id="@+id/menuButton"
+            android:id="@+id/homeButton"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?attr/selectableItemBackground"
-            android:contentDescription="@string/browser_menu"
+            android:contentDescription="@string/browser_home"
             android:padding="14dp"
-            android:src="@drawable/ic_more_vert"
+            android:src="@drawable/ic_home"
             android:tint="@color/ladybird_on_surface" />
+
+        <ImageButton
+            android:id="@+id/bookmarksButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="@string/menu_bookmarks"
+            android:padding="14dp"
+            android:src="@drawable/ic_bookmark"
+            android:tint="@color/ladybird_on_surface" />
+
+            <ImageButton
+                android:id="@+id/menuButton"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/browser_menu"
+                android:padding="14dp"
+                android:src="@drawable/ic_more_vert"
+                android:tint="@color/ladybird_on_surface" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/startupOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_startup_overlay"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <FrameLayout
+                android:layout_width="200dp"
+                android:layout_height="200dp">
+
+                <View
+                    android:id="@+id/startupPulse"
+                    android:layout_width="200dp"
+                    android:layout_height="200dp"
+                    android:layout_gravity="center"
+                    android:alpha="0.22"
+                    android:background="@drawable/bg_startup_pulse" />
+
+                <ImageView
+                    android:id="@+id/startupLogo"
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/ladybird_launcher_foreground" />
+            </FrameLayout>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

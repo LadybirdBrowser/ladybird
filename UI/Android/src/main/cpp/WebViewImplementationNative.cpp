@@ -95,16 +95,21 @@ void WebViewImplementationNative::initialize_client(WebView::ViewImplementation:
     auto new_client = bind_web_content_client();
 
     m_client_state.client = new_client;
-    on_web_content_crashed = [] {
-        warnln("WebContent crashed!");
-        // FIXME: launch a new client
+    on_web_content_crashed = [this] {
+        warnln("WebContent crashed! Attempting to respawn the WebContent client.");
+        // Re-bind a fresh WebContent service and re-emit viewport/zoom so the
+        // browser tab keeps working instead of staying frozen on a dead client.
+        initialize_client(WebView::ViewImplementation::CreateNewClient::Yes);
+        auto serialized = m_url.serialize();
+        if (!serialized.is_empty())
+            load(m_url);
     };
 
     m_client_state.client_handle = Web::Crypto::generate_random_uuid();
     client().async_set_window_handle(0, m_client_state.client_handle);
 
-    client().async_set_viewport(0, viewport_size(), m_device_pixel_ratio, Web::ViewportIsFullscreen::No);
     client().async_set_zoom_level(0, m_zoom_level);
+    client().async_set_viewport(0, viewport_size(), m_device_pixel_ratio, Web::ViewportIsFullscreen::No);
 
     set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
@@ -126,7 +131,7 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
     if (bitmap)
         painter->draw_bitmap(android_bitmap->rect().to_type<float>(), Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
     else
-        painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color::Magenta);
+        painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color(0xF5, 0xF6, 0xF8));
 }
 
 void WebViewImplementationNative::set_viewport_geometry(int w, int h)
@@ -145,6 +150,7 @@ void WebViewImplementationNative::set_zoom_level(double f)
 {
     m_zoom_level = f;
     client().async_set_zoom_level(0, m_zoom_level);
+    handle_resize();
 }
 
 void WebViewImplementationNative::mouse_event(Web::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y)
@@ -160,6 +166,26 @@ void WebViewImplementationNative::mouse_event(Web::MouseEvent::Type event_type, 
         Web::UIEvents::KeyModifier::Mod_None,
         0,
         0,
+        0,
+        nullptr
+    };
+
+    enqueue_input_event(move(event));
+}
+
+void WebViewImplementationNative::wheel_event(float x, float y, float raw_x, float raw_y, int wheel_delta_x, int wheel_delta_y)
+{
+    Gfx::IntPoint position = { x, y };
+    Gfx::IntPoint screen_position = { raw_x, raw_y };
+    auto event = Web::MouseEvent {
+        Web::MouseEvent::Type::MouseWheel,
+        position.to_type<Web::DevicePixels>(),
+        screen_position.to_type<Web::DevicePixels>(),
+        Web::UIEvents::MouseButton::None,
+        Web::UIEvents::MouseButton::None,
+        Web::UIEvents::KeyModifier::Mod_None,
+        wheel_delta_x,
+        wheel_delta_y,
         0,
         nullptr
     };

@@ -1,200 +1,291 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/ladybird_background"
-    android:fillViewport="true">
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
 
-    <LinearLayout
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:background="@color/ladybird_surface"
+        android:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/settingsToolbar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:background="@android:color/transparent"
+            android:layout_height="56dp"
+            android:background="@color/ladybird_surface"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="@color/ladybird_on_surface"
             app:title="@string/settings_title"
+            app:titleCentered="false"
             app:titleTextColor="@color/ladybird_on_surface" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/settings_home_page"
-            android:textColor="@color/ladybird_on_surface"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_home_page_summary"
-            android:textColor="@color/ladybird_on_surface_muted"
-            android:textSize="13sp" />
-
-        <com.google.android.material.card.MaterialCardView
+        <View
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            app:cardBackgroundColor="@color/ladybird_field_surface"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/ladybird_outline_soft"
-            app:strokeWidth="1dp">
+            android:layout_height="1dp"
+            android:background="@color/ladybird_divider" />
+    </com.google.android.material.appbar.AppBarLayout>
 
-            <EditText
-                android:id="@+id/homePageEdit"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@android:color/transparent"
-                android:inputType="textUri"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:singleLine="true"
-                android:textColor="@color/ladybird_on_surface" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="@string/settings_search_engine"
-            android:textColor="@color/ladybird_on_surface"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_search_engine_summary"
-            android:textColor="@color/ladybird_on_surface_muted"
-            android:textSize="13sp" />
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="6dp"
-            app:cardBackgroundColor="@color/ladybird_field_surface"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/ladybird_outline_soft"
-            app:strokeWidth="1dp">
-
-            <Spinner
-                android:id="@+id/searchEngineSpinner"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@android:color/transparent"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:popupBackground="@color/ladybird_surface" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="@string/settings_color_scheme"
-            android:textColor="@color/ladybird_on_surface"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_color_scheme_summary"
-            android:textColor="@color/ladybird_on_surface_muted"
-            android:textSize="13sp" />
-
-        <RadioGroup
-            android:id="@+id/colorSchemeGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="vertical">
-
-            <RadioButton
-                android:id="@+id/colorSchemeAuto"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/menu_color_scheme_auto"
-                android:textColor="@color/ladybird_on_surface" />
-
-            <RadioButton
-                android:id="@+id/colorSchemeLight"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/menu_color_scheme_light"
-                android:textColor="@color/ladybird_on_surface" />
-
-            <RadioButton
-                android:id="@+id/colorSchemeDark"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/menu_color_scheme_dark"
-                android:textColor="@color/ladybird_on_surface" />
-        </RadioGroup>
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="24dp">
+
+            <!-- ===== GENERAL ===== -->
+            <TextView
+                style="@style/Ladybird.SectionHeader"
+                android:text="@string/settings_section_general" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Ladybird.SettingsGroup">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        style="@style/Ladybird.SettingsRow"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Ladybird.RowTitle"
+                            android:text="@string/settings_home_page" />
+
+                        <TextView
+                            style="@style/Ladybird.RowSummary"
+                            android:text="@string/settings_home_page_summary" />
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginTop="10dp"
+                            app:cardBackgroundColor="@color/ladybird_field_surface"
+                            app:cardCornerRadius="12dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="@color/ladybird_outline_soft"
+                            app:strokeWidth="1dp">
+
+                            <EditText
+                                android:id="@+id/homePageEdit"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@android:color/transparent"
+                                android:gravity="center_vertical"
+                                android:inputType="textUri"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="12dp"
+                                android:singleLine="true"
+                                android:textColor="@color/ladybird_on_surface"
+                                android:textColorHint="@color/ladybird_on_surface_muted"
+                                android:textSize="14sp" />
+                        </com.google.android.material.card.MaterialCardView>
+                    </LinearLayout>
+
+                    <View style="@style/Ladybird.RowDivider" />
+
+                    <LinearLayout
+                        style="@style/Ladybird.SettingsRow"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Ladybird.RowTitle"
+                            android:text="@string/settings_search_engine" />
+
+                        <TextView
+                            style="@style/Ladybird.RowSummary"
+                            android:text="@string/settings_search_engine_summary" />
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginTop="10dp"
+                            app:cardBackgroundColor="@color/ladybird_field_surface"
+                            app:cardCornerRadius="12dp"
+                            app:cardElevation="0dp"
+                            app:strokeColor="@color/ladybird_outline_soft"
+                            app:strokeWidth="1dp">
+
+                            <Spinner
+                                android:id="@+id/searchEngineSpinner"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@android:color/transparent"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:popupBackground="@color/ladybird_surface" />
+                        </com.google.android.material.card.MaterialCardView>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ===== APPEARANCE ===== -->
+            <TextView
+                style="@style/Ladybird.SectionHeader"
+                android:layout_marginTop="22dp"
+                android:text="@string/settings_section_appearance" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Ladybird.SettingsGroup">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="6dp">
+
+                    <TextView
+                        style="@style/Ladybird.RowTitle"
+                        android:text="@string/settings_color_scheme" />
+
+                    <TextView
+                        style="@style/Ladybird.RowSummary"
+                        android:text="@string/settings_color_scheme_summary" />
+
+                    <RadioGroup
+                        android:id="@+id/colorSchemeGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:orientation="vertical">
+
+                        <RadioButton
+                            android:id="@+id/colorSchemeAuto"
+                            style="@style/Ladybird.Radio"
+                            android:text="@string/menu_color_scheme_auto" />
+
+                        <RadioButton
+                            android:id="@+id/colorSchemeLight"
+                            style="@style/Ladybird.Radio"
+                            android:text="@string/menu_color_scheme_light" />
+
+                        <RadioButton
+                            android:id="@+id/colorSchemeDark"
+                            style="@style/Ladybird.Radio"
+                            android:text="@string/menu_color_scheme_dark" />
+                    </RadioGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ===== SITE SETTINGS ===== -->
+            <TextView
+                style="@style/Ladybird.SectionHeader"
+                android:layout_marginTop="22dp"
+                android:text="@string/settings_section_site" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Ladybird.SettingsGroup">
+
+                <LinearLayout
+                    style="@style/Ladybird.SettingsRow"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Ladybird.RowTitle"
+                            android:text="@string/settings_javascript" />
+
+                        <TextView
+                            style="@style/Ladybird.RowSummary"
+                            android:text="@string/settings_javascript_summary" />
+                    </LinearLayout>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/jsSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ===== ABOUT ===== -->
+            <TextView
+                style="@style/Ladybird.SectionHeader"
+                android:layout_marginTop="22dp"
+                android:text="@string/settings_section_about" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Ladybird.SettingsGroup">
+
+                <LinearLayout
+                    style="@style/Ladybird.SettingsRow"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/Ladybird.RowTitle"
+                            android:text="@string/app_name" />
+
+                        <TextView
+                            android:id="@+id/aboutVersion"
+                            style="@style/Ladybird.RowSummary"
+                            tools:text="Version 1.0" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="12dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_chevron_right"
+                        android:tint="@color/ladybird_on_surface_muted" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:layout_marginTop="22dp"
+                android:gravity="end"
+                android:orientation="horizontal">
 
-                <TextView
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/resetButton"
+                    style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/settings_javascript"
-                    android:textColor="@color/ladybird_on_surface"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:text="@string/settings_reset"
+                    android:textColor="@color/ladybird_on_surface_muted" />
 
-                <TextView
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/saveButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/settings_javascript_summary"
-                    android:textColor="@color/ladybird_on_surface_muted"
-                    android:textSize="13sp" />
+                    android:layout_marginStart="12dp"
+                    android:backgroundTint="@color/ladybird_accent"
+                    android:text="@string/settings_save"
+                    android:textColor="@color/white" />
             </LinearLayout>
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/jsSwitch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
         </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:gravity="end"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/resetButton"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/settings_reset" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/saveButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="@string/settings_save" />
-        </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</LinearLayout>

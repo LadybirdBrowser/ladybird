@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ladybird-style palette (dark). Soft charcoal surfaces, ladybug-red accent. -->
+    <color name="ladybird_accent">#FFEF5350</color>
+    <color name="ladybird_accent_pressed">#FFFF7E7B</color>
+    <color name="ladybird_accent_container">#FF3A1F1F</color>
+    <color name="ladybird_secondary">#FF9AA4B2</color>
+
+    <color name="ladybird_background">#FF15171A</color>
+    <color name="ladybird_surface">#FF1E2024</color>
+    <color name="ladybird_surface_variant">#FF272A30</color>
+    <color name="ladybird_control_surface">#FF272A30</color>
+    <color name="ladybird_field_surface">#FF272A30</color>
+
+    <color name="ladybird_on_surface">#FFF0F2F5</color>
+    <color name="ladybird_on_surface_muted">#FF9CA3AF</color>
+    <color name="ladybird_outline_soft">#FF2E3138</color>
+    <color name="ladybird_divider">#FF2E3138</color>
+
+    <color name="ladybird_progress">#FFEF5350</color>
+    <color name="ladybird_chip">#FF272A30</color>
+</resources>
