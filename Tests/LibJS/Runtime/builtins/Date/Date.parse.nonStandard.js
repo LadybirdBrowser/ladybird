@@ -698,3 +698,13 @@ test("multiple month names", () => {
 
     setTimeZone(originalTimeZone);
 });
+
+test("non-ASCII input", () => {
+    expect(Date.parse("2024\uff01")).toBeNaN();
+    expect(Date.parse("1234567\uff01")).toBeNaN();
+    expect(Date.parse("Jan\uff01 01 2024")).toBeNaN();
+    expect(Date.parse("hello\uff01 Jan 01 2024")).toBeNaN();
+    expect(Date.parse("Jan 01 2024 12:34\u00a0PM")).toBeNaN();
+    expect(Date.parse("Jan 01 2024 GMT\u00a0")).toBeNaN();
+    expect(Date.parse("Jan 01 2024 (UTC)\u00a0")).toBeNaN();
+});
