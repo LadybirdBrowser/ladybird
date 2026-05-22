@@ -1995,8 +1995,18 @@ bool Document::layout_is_up_to_date() const
         });
     }
 
-    if (!skip_display_none_descent)
-        node.set_child_needs_style_update(false);
+    if (!skip_display_none_descent && node.child_needs_style_update()) {
+        auto any_child_still_dirty = false;
+        node.for_each_child([&](auto& child) {
+            if (child.needs_style_update() || child.child_needs_style_update()) {
+                any_child_still_dirty = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+        if (!any_child_still_dirty)
+            node.set_child_needs_style_update(false);
+    }
 
     if (node.is_element())
         style_computer.pop_ancestor(static_cast<Element const&>(node));

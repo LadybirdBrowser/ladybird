@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    #hidden {
+        animation: reveal 1s linear paused both;
+    }
+
+    @keyframes reveal {
+        from {
+            display: none;
+        }
+
+        to {
+            display: block;
+        }
+    }
+</style>
+<div id="hidden"></div>
+<script>
+    const hiddenContainer = document.getElementById("hidden");
+    const revealAnimation = hiddenContainer.getAnimations()[0];
+    revealAnimation.currentTime = 0;
+
+    hiddenContainer.appendChild(document.createElement("em"));
+    document.body.offsetWidth;
+
+    revealAnimation.currentTime = 500;
+    document.body.offsetWidth;
+</script>
