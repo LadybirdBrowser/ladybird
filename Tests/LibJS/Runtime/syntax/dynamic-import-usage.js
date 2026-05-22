@@ -5,6 +5,11 @@ describe("parsing", () => {
         expect("import('a', {options: true})").toEval();
     });
 
+    test("parenthesized import call can be used as a new callee", () => {
+        expect("new import('a')").not.toEval();
+        expect("new (import('a'), function() {})").toEval();
+    });
+
     test("does not crash on unexpected tokens after import", () => {
         expect("f = import('a')").toEval();
 
