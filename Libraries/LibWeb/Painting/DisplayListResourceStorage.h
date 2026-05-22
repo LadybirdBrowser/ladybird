@@ -59,7 +59,7 @@ struct DisplayListResourceTransaction {
     Vector<DisplayListResourceId> display_list_ids_to_remove;
 };
 
-class DisplayListResourceStorage {
+class WEB_API DisplayListResourceStorage {
     AK_MAKE_NONCOPYABLE(DisplayListResourceStorage);
     AK_MAKE_DEFAULT_MOVABLE(DisplayListResourceStorage);
 
