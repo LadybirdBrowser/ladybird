@@ -47,8 +47,6 @@ public:
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
 
     virtual void start() override;
-    void suspend();
-    void resume();
 
     virtual PipelineStatus status() const override;
     virtual void pull(AudioBlock& into) override;
@@ -71,14 +69,12 @@ private:
 
         void start();
         DecoderErrorOr<void> create_decoder();
-        void suspend();
-        void resume();
         void exit();
 
         void wait_for_start();
         bool should_thread_exit_while_locked() const;
         bool should_thread_exit() const;
-        bool handle_suspension();
+        bool handle_auto_suspension();
         template<typename Invokee>
         void invoke_on_main_thread_while_locked(Invokee);
         template<typename Invokee>
@@ -104,8 +100,6 @@ private:
         void wake() const { m_wait_condition.broadcast(); }
 
         AudioDecoder const& decoder() const { return *m_decoder; }
-        AudioQueue& queue() { return m_queue; }
-        void clear_queue();
 
         void dispatch_wake_if_needed_while_locked();
 
@@ -115,9 +109,11 @@ private:
         enum class RequestedState : u8 {
             None,
             Running,
-            Suspended,
             Exit,
         };
+
+        void note_consumer_activity_while_locked() const;
+        void wait_for_queue_space_or_auto_suspend_while_locked();
 
         NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
 
@@ -135,6 +131,8 @@ private:
 
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;
+        AK::Duration m_earliest_available_timestamp;
+        AK::Duration m_latest_available_timestamp;
         BlockEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
@@ -146,6 +144,11 @@ private:
 
         PipelineWakeHandler m_wake_handler;
         mutable bool m_downstream_needs_wake { true };
+
+        mutable MonotonicTime m_last_consumer_activity { MonotonicTime::now() };
+        MonotonicTime m_auto_suspend_entered_at { MonotonicTime::now() };
+        bool m_auto_suspended { false };
+        mutable bool m_auto_suspend_requested { false };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

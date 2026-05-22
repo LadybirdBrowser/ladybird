@@ -38,7 +38,7 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
 
-    static DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
+    static DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&);
 
     DecodedVideoProducer(NonnullRefPtr<ThreadData> const&);
     ~DecodedVideoProducer();
@@ -47,8 +47,6 @@ public:
     void set_duration_change_handler(FrameEndTimeHandler&&);
 
     virtual void start() override;
-    void suspend();
-    void resume();
 
     virtual PipelineStatus status() const override;
     virtual void pull(RefPtr<VideoFrame>& into) override;
@@ -62,7 +60,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration, RefPtr<MediaTimeProvider> const&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -71,8 +69,6 @@ private:
 
         void start();
         DecoderErrorOr<void> create_decoder();
-        void suspend();
-        void resume();
         void exit();
 
         FrameQueue& queue();
@@ -87,7 +83,7 @@ private:
         void wait_for_start();
         bool should_thread_exit_while_locked() const;
         bool should_thread_exit() const;
-        bool handle_suspension();
+        bool handle_auto_suspension();
         template<typename Invokee>
         void invoke_on_main_thread_while_locked(Invokee);
         template<typename Invokee>
@@ -112,9 +108,11 @@ private:
         enum class RequestedState : u8 {
             None,
             Running,
-            Suspended,
             Exit,
         };
+
+        void note_consumer_activity_while_locked() const;
+        void wait_for_queue_space_or_auto_suspend_while_locked();
 
         NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
 
@@ -127,8 +125,6 @@ private:
         AK::Duration m_duration;
         OwnPtr<VideoDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
-
-        RefPtr<MediaTimeProvider> m_time_provider;
 
         size_t m_queue_max_size { 4 };
         FrameQueue m_queue;
@@ -145,6 +141,11 @@ private:
 
         PipelineWakeHandler m_wake_handler;
         mutable bool m_downstream_needs_wake { true };
+
+        mutable MonotonicTime m_last_consumer_activity { MonotonicTime::now() };
+        MonotonicTime m_auto_suspend_entered_at { MonotonicTime::now() };
+        bool m_auto_suspended { false };
+        mutable bool m_auto_suspend_requested { false };
     };
 
     NonnullRefPtr<ThreadData> m_thread_data;

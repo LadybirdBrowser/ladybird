@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibCore/Forward.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 
@@ -14,11 +13,14 @@ namespace Media {
 
 class PausedStateHandler final : public PlaybackStateHandler {
 public:
-    PausedStateHandler(PlaybackManager& manager, int suspend_timeout_ms = PlaybackManager::DEFAULT_SUSPEND_TIMEOUT_MS);
-    virtual ~PausedStateHandler() override;
+    PausedStateHandler(PlaybackManager& manager)
+        : PlaybackStateHandler(manager)
+    {
+    }
+    virtual ~PausedStateHandler() override = default;
 
-    virtual void on_enter() override;
-    virtual void on_exit() override;
+    virtual void on_enter() override { }
+    virtual void on_exit() override { }
 
     virtual void play() override;
     virtual void pause() override { }
@@ -38,11 +40,6 @@ public:
 
     virtual void enter_buffering() override { }
     virtual void exit_buffering() override { }
-
-private:
-    void suspend();
-
-    NonnullRefPtr<Core::Timer> m_suspend_timer;
 };
 
 }

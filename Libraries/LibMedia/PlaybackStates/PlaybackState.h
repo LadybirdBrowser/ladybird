@@ -17,7 +17,6 @@ enum class PlaybackState : u8 {
     Playing,
     Paused,
     Seeking,
-    Suspended,
 };
 
 constexpr StringView playback_state_to_string(PlaybackState state)
@@ -33,8 +32,6 @@ constexpr StringView playback_state_to_string(PlaybackState state)
         return "Paused"sv;
     case PlaybackState::Seeking:
         return "Seeking"sv;
-    case PlaybackState::Suspended:
-        return "Suspended"sv;
     }
     return "Invalid"sv;
 }

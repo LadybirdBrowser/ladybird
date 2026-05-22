@@ -17,10 +17,6 @@
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibTest/TestCase.h>
 
-// The following tests attempt to reproduce a race condition in DecodedAudioProducer and DecodedVideoProducer
-// where rapidly transitioning through states None -> Suspended -> Exit can cause the decoder thread to
-// continue with a null decoder.
-
 static NonnullRefPtr<Media::IncrementallyPopulatedStream> load_test_file(StringView path)
 {
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
@@ -33,80 +29,6 @@ static NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::Increme
     if (!matroska_result.is_error())
         return matroska_result.release_value();
     return MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
-}
-
-static constexpr size_t iterations = 100;
-
-TEST_CASE(audio_producer_suspend_then_exit)
-{
-    Core::EventLoop loop;
-
-    for (size_t i = 0; i < iterations; i++) {
-        auto stream = load_test_file("test-webm-xiph-lacing.mka"sv);
-        auto demuxer = create_demuxer(stream);
-        auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
-        VERIFY(track.has_value());
-
-        auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
-
-        producer->suspend();
-        MUST(Core::System::sleep_ms(1));
-    }
-}
-
-TEST_CASE(video_producer_suspend_then_exit)
-{
-    Core::EventLoop loop;
-
-    for (size_t i = 0; i < iterations; i++) {
-        auto stream = load_test_file("vp9_in_webm.webm"sv);
-        auto demuxer = create_demuxer(stream);
-        auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
-        VERIFY(track.has_value());
-
-        auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
-
-        producer->suspend();
-        MUST(Core::System::sleep_ms(1));
-    }
-}
-
-TEST_CASE(audio_producer_start_suspend_then_exit)
-{
-    Core::EventLoop loop;
-
-    for (size_t i = 0; i < iterations; i++) {
-        auto stream = load_test_file("test-webm-xiph-lacing.mka"sv);
-        auto demuxer = create_demuxer(stream);
-        auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
-        VERIFY(track.has_value());
-
-        auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
-
-        producer->start();
-        MUST(Core::System::sleep_ms(1));
-        producer->suspend();
-        MUST(Core::System::sleep_ms(1));
-    }
-}
-
-TEST_CASE(video_producer_start_suspend_then_exit)
-{
-    Core::EventLoop loop;
-
-    for (size_t i = 0; i < iterations; i++) {
-        auto stream = load_test_file("vp9_in_webm.webm"sv);
-        auto demuxer = create_demuxer(stream);
-        auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
-        VERIFY(track.has_value());
-
-        auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
-
-        producer->start();
-        MUST(Core::System::sleep_ms(1));
-        producer->suspend();
-        MUST(Core::System::sleep_ms(1));
-    }
 }
 
 TEST_CASE(audio_producer_underspecified_5_1_channel_map)
