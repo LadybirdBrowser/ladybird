@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../../Ref/data/fonts/Ahem.ttf");
+}
+
+body {
+    margin: 0;
+}
+
+#container {
+    font: 10px/20px Ahem;
+    position: relative;
+    width: 40px;
+}
+
+#target {
+    height: 10px;
+    position: absolute;
+    width: 10px;
+}
+</style>
+<div id="container">XXXX XX<span id="target"></span></div>
+<script>
+promiseTest(async () => {
+    await document.fonts.ready;
+    await animationFrame();
+
+    const containerRect = document.getElementById("container").getBoundingClientRect();
+    const targetRect = document.getElementById("target").getBoundingClientRect();
+
+    println(`target x: ${Math.round(targetRect.x - containerRect.x)}`);
+    println(`target y: ${Math.round(targetRect.y - containerRect.y)}`);
+});
+</script>

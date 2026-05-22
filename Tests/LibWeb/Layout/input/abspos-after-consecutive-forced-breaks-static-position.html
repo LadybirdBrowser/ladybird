@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../Ref/data/fonts/Ahem.ttf");
+}
+
+body {
+    margin: 0;
+}
+
+ul {
+    font: 10px/20px Ahem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+li {
+    position: relative;
+    width: 100px;
+}
+
+li::after {
+    content: "X";
+    position: absolute;
+}
+</style>
+<ul>
+    <li>XXX<br><br></li>
+</ul>
