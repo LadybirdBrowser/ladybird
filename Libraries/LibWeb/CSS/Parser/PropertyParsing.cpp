@@ -433,6 +433,11 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         //       values, only the CSS-wide keywords - this is handled above, and thus, if we have gotten to here, there
         //       is an invalid value which is a syntax error.
         return ParseError::SyntaxError;
+    case PropertyID::AlignItems:
+    case PropertyID::AlignSelf:
+    case PropertyID::JustifyItems:
+    case PropertyID::JustifySelf:
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_self_alignment_value(property_id, tokens); });
     case PropertyID::AnchorName:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_anchor_name_value(tokens); });
     case PropertyID::AnchorScope:
@@ -1029,6 +1034,15 @@ RefPtr<StyleValue const> Parser::parse_anchor_scope_value(TokenStream<ComponentV
     return parse_comma_separated_value_list(tokens, [this](TokenStream<ComponentValue>& inner_tokens) -> RefPtr<StyleValue const> {
         return parse_dashed_ident_value(inner_tokens);
     });
+}
+
+// https://drafts.csswg.org/css-align-3/#overflow-values
+RefPtr<StyleValue const> Parser::parse_self_alignment_value(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+{
+    auto value = parse_css_value_for_property(property_id, tokens);
+    if (value && (value->to_keyword() == Keyword::Safe || value->to_keyword() == Keyword::Unsafe))
+        return nullptr;
+    return value;
 }
 
 // https://www.w3.org/TR/css-sizing-4/#aspect-ratio

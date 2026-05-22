@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-31 Pass
-1 Fail
+32 Pass
 Pass	Checking invalid combination - justify-items: auto
 Pass	Checking invalid combination - justify-items: space-around
 Pass	Checking invalid combination - justify-items: auto safe
@@ -29,7 +28,7 @@ Pass	Checking invalid combination - justify-items: unsafe safe left
 Pass	Checking invalid combination - justify-items: unsafe left safe
 Pass	Checking invalid combination - justify-items: left safe unsafe safe
 Pass	Checking invalid combination - justify-items: start safe
-Fail	Checking invalid combination - justify-items: safe
+Pass	Checking invalid combination - justify-items: safe
 Pass	Checking invalid combination - justify-items: legacy start
 Pass	Checking invalid combination - justify-items: legacy end
 Pass	Checking invalid combination - justify-items: legacy right unsafe
