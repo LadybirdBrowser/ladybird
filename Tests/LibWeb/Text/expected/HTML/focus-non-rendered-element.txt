@@ -5,9 +5,9 @@ after display none from dirty style input.focus(): visible
 after display none from dirty style offsetWidth: 0
 after display none ancestor from dirty style input.focus(): visible
 after getComputedStyle in dirty display none subtree: rgb(4, 5, 6)
-after display none from pending animation input.focus(): animated-display-none-target
-after display none ancestor from pending animation input.focus(): animated-display-none-ancestor-target
-after display none from pending descendant invalidation input.focus(): animated-display-none-ancestor-target
+after display none from pending animation input.focus(): visible
+after display none ancestor from pending animation input.focus(): visible
+after display none from pending descendant invalidation input.focus(): visible
 after display none from pending slotted invalidation input.focus(): visible
 after display none from pending :has invalidation input.focus(): visible
 after display none from pending media query input.focus(): BODY

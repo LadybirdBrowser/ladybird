@@ -2083,44 +2083,136 @@ void Document::update_style_if_needed_for_element(AbstractElement const& abstrac
         update_style();
 }
 
-void Document::update_style_for_element(AbstractElement const& abstract_element)
+static void mark_direct_children_for_style_update(Element& element)
 {
-    // Refresh computed properties for an abstract element after style update has skipped a display:none subtree it lives
-    // inside. This walks up to the topmost display:none ancestor on the inheritance chain and re-cascades each element on
-    // the path back down to the target so that observers like `getComputedStyle()` see fresh values.
+    if (auto shadow_root = element.shadow_root()) {
+        shadow_root->for_each_child([](auto& child) {
+            child.set_needs_style_update(true);
+            return IterationDecision::Continue;
+        });
+    }
 
-    if (!m_is_running_update_layout && element_needs_style_update(abstract_element))
-        update_style();
+    element.for_each_child([](auto& child) {
+        child.set_needs_style_update(true);
+        return IterationDecision::Continue;
+    });
+}
+
+static void apply_targeted_style_invalidation(Element& element, CSS::RequiredInvalidationAfterStyleChange const& invalidation, bool did_change_custom_properties, bool descendant_style_recompute_needed)
+{
+    apply_element_style_invalidation_after_style_change(element, invalidation, !invalidation.is_none() || did_change_custom_properties, true);
+
+    if (!invalidation.is_none() || did_change_custom_properties || descendant_style_recompute_needed || invalidation.recompute_descendant_styles)
+        mark_direct_children_for_style_update(element);
+
+    apply_document_style_invalidation_after_style_change(element.document(), invalidation);
+}
+
+static CSS::RequiredInvalidationAfterStyleChange recompute_style_for_targeted_style_update(Element& element, bool& did_change_custom_properties)
+{
+    if (element.parent())
+        return element.recompute_style(did_change_custom_properties);
+
+    auto new_computed_properties = element.document().style_computer().compute_style({ element }, did_change_custom_properties);
+    element.set_computed_properties({}, move(new_computed_properties));
+    element.set_needs_style_update(false);
+    return {};
+}
+
+GC::Ptr<CSS::ComputedProperties const> Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
+{
+    // Refresh computed properties for an abstract element without requiring every unrelated dirty element in the
+    // document to be resolved. This walks the flat-tree inheritance chain and re-cascades from the rootmost stale
+    // element on the path back down to the target. Normal mode also re-cascades the target path under display:none
+    // ancestors, because the regular document traversal may leave those descendants stale.
+
+    if (auto navigable = this->navigable(); navigable && navigable->container() && &navigable->container()->document() != this)
+        navigable->container()->document().update_layout(UpdateLayoutReason::ChildDocumentStyleUpdate);
+
+    if (browsing_context()) {
+        update_animated_style_if_needed();
+
+        style_computer().set_viewport_rect({}, viewport_rect());
+
+        // Media query evaluation can enqueue normal style invalidations, so do it before deciding whether the full
+        // style traversal needs to run.
+        if (m_needs_media_query_evaluation)
+            evaluate_media_rules();
+
+        if (!m_is_running_update_layout
+            && (needs_full_style_update()
+                || m_needs_invalidation_of_elements_affected_by_has
+                || m_style_invalidator->has_pending_invalidations()
+                || needs_style_update())) {
+            update_style();
+        }
+    }
 
     // Single walk up the inheritance chain: collect each ancestor and remember the index of the topmost display:none
-    // entry seen. Pseudo-element styles are refreshed when the originating element is recomputed, so don't put the
-    // pseudo on the path.
+    // entry seen. Pseudo-element styles are refreshed when the originating element is recomputed, so don't put the pseudo
+    // on the path.
     GC::RootVector<GC::Ref<Element>> inheritance_chain;
     if (!abstract_element.pseudo_element().has_value())
         inheritance_chain.append(const_cast<Element&>(abstract_element.element()));
 
     Optional<size_t> topmost_display_none_index;
+    Optional<size_t> topmost_element_requiring_style;
+    bool ancestor_needs_descendant_style_recompute = false;
     for (auto cursor = abstract_element.element_to_inherit_style_from(); cursor.has_value(); cursor = cursor->element_to_inherit_style_from()) {
         auto& ancestor = const_cast<Element&>(cursor->element());
         inheritance_chain.append(ancestor);
-        if (auto const* properties = ancestor.computed_properties().ptr(); properties && properties->display().is_none())
-            topmost_display_none_index = inheritance_chain.size() - 1;
     }
 
-    if (!topmost_display_none_index.has_value())
-        return;
+    for (size_t i = inheritance_chain.size(); i > 0; --i) {
+        auto& ancestor = inheritance_chain[i - 1];
+        if (!topmost_element_requiring_style.has_value()
+            && (ancestor_needs_descendant_style_recompute
+                || ancestor->needs_style_update()
+                || !ancestor->computed_properties())) {
+            topmost_element_requiring_style = i - 1;
+        }
+
+        if (ancestor->entire_subtree_needs_style_update()) {
+            if (!topmost_element_requiring_style.has_value())
+                topmost_element_requiring_style = i - 1;
+            ancestor_needs_descendant_style_recompute = true;
+        }
+
+        if (auto const* properties = ancestor->computed_properties().ptr(); properties && properties->display().is_none()) {
+            topmost_display_none_index = i - 1;
+            if (mode == StyleUpdateMode::StopAtDisplayNone && !topmost_element_requiring_style.has_value())
+                return nullptr;
+        }
+    }
+
+    Optional<size_t> topmost_element_to_recompute = topmost_element_requiring_style;
+    if (mode == StyleUpdateMode::Normal && topmost_display_none_index.has_value()) {
+        if (!topmost_element_to_recompute.has_value() && *topmost_display_none_index > 0)
+            topmost_element_to_recompute = *topmost_display_none_index - 1;
+    }
+
+    if (!topmost_element_to_recompute.has_value()) {
+        if (mode == StyleUpdateMode::Normal && !inheritance_chain.is_empty())
+            topmost_element_to_recompute = 0;
+        else
+            return abstract_element.computed_properties();
+    }
+
+    style_computer().reset_has_result_cache();
 
     // Re-cascading the inheritance chain requires the style computer's ancestor filter to reflect each recomputed
     // element's DOM ancestors, so that descendant-combinator selectors match correctly. The filter is empty at this
     // point because the normal top-down `update_style` traversal skipped the display:none subtree, so we have to seed
     // it ourselves.
     GC::RootVector<GC::Ref<Element>> ancestor_chain;
-    for (auto* cursor = inheritance_chain[*topmost_display_none_index].ptr(); cursor; cursor = cursor->parent_or_shadow_host_element())
+    for (auto* cursor = inheritance_chain[*topmost_element_to_recompute]->parent_or_shadow_host_element(); cursor; cursor = cursor->parent_or_shadow_host_element())
         ancestor_chain.append(*cursor);
 
     auto& style_computer = this->style_computer();
     for (size_t i = ancestor_chain.size(); i > 0; --i)
         style_computer.push_ancestor(ancestor_chain[i - 1]);
+
+    GC::RootVector<GC::Ref<Element>> pushed_path_ancestors;
 
     ScopeGuard pop_ancestor_chain = [&] {
         for (auto& ancestor : ancestor_chain)
@@ -2128,21 +2220,35 @@ void Document::update_style_for_element(AbstractElement const& abstract_element)
     };
 
     ScopeGuard pop_path_ancestors = [&] {
-        for (size_t i = 1; i < *topmost_display_none_index; ++i)
-            style_computer.pop_ancestor(inheritance_chain[i]);
+        for (auto& ancestor : pushed_path_ancestors)
+            style_computer.pop_ancestor(ancestor);
     };
 
-    for (size_t i = *topmost_display_none_index; i > 0; --i) {
+    bool descendant_style_recompute_needed = false;
+    for (size_t i = *topmost_element_to_recompute + 1; i > 0; --i) {
         auto& element = inheritance_chain[i - 1];
         bool did_change_custom_properties = false;
-        auto invalidation = element->recompute_style(did_change_custom_properties);
-        if (!invalidation.is_none())
-            CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
-        if (invalidation.inherited_style_changed || invalidation.rebuild_layout_tree)
-            CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(element);
-        if (i > 1)
+        auto invalidation = recompute_style_for_targeted_style_update(element, did_change_custom_properties);
+        apply_targeted_style_invalidation(element, invalidation, did_change_custom_properties, descendant_style_recompute_needed);
+
+        descendant_style_recompute_needed |= invalidation.recompute_descendant_styles;
+
+        if (element->computed_properties()->display().is_none()) {
+            if (mode == StyleUpdateMode::StopAtDisplayNone)
+                return nullptr;
+            descendant_style_recompute_needed = false;
+        }
+
+        if (did_change_custom_properties || invalidation.rebuild_layout_tree)
+            descendant_style_recompute_needed = true;
+
+        if (i > 1) {
             style_computer.push_ancestor(element);
+            pushed_path_ancestors.append(element);
+        }
     }
+
+    return abstract_element.computed_properties();
 }
 
 bool Document::element_needs_style_update(AbstractElement const& abstract_element) const
