@@ -12,6 +12,7 @@
 #include <LibGC/Cell.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapRoot.h>
+#include <LibGC/Rootable.h>
 
 namespace GC {
 
@@ -48,16 +49,10 @@ public:
 
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {
-        static_assert(IsBaseOf<NanBoxedValue, T> || IsConvertible<T, Cell const*>,
+        static_assert(Detail::RootableValueTraits<T>::is_rootable,
             "RootHashTable element type must be convertible to Cell const* or derive from NanBoxedValue");
-        for (auto& value : *this) {
-            if constexpr (IsBaseOf<NanBoxedValue, T>) {
-                if (value.is_cell())
-                    roots.set(&const_cast<T&>(value).as_cell(), HeapRoot { .type = HeapRoot::Type::RootHashTable });
-            } else if constexpr (IsConvertible<T, Cell const*>) {
-                roots.set(const_cast<Cell*>(static_cast<Cell const*>(value)), HeapRoot { .type = HeapRoot::Type::RootHashTable });
-            }
-        }
+        for (auto& value : *this)
+            Detail::gather_root(roots, value, HeapRoot::Type::RootHashTable);
     }
 };
 
