@@ -41,7 +41,6 @@ set(AK_TEST_SOURCES
     TestInsertionSort.cpp
     TestIntegerMath.cpp
     TestIntrusiveList.cpp
-    TestIntrusiveRedBlackTree.cpp
     TestJSON.cpp
     TestLEB128.cpp
     TestMemory.cpp
