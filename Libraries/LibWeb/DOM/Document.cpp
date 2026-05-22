@@ -1865,6 +1865,36 @@ bool Document::layout_is_up_to_date() const
         && m_svg_roots_needing_relayout.is_empty();
 }
 
+static void apply_element_style_invalidation_after_style_change(Element& element, CSS::RequiredInvalidationAfterStyleChange const& invalidation, bool invalidate_assigned_slottables, bool invalidate_descendant_slots)
+{
+    if (invalidate_assigned_slottables)
+        CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
+    if (invalidate_descendant_slots && (invalidation.inherited_style_changed || invalidation.rebuild_layout_tree))
+        CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(element);
+
+    if (invalidation.relayout)
+        element.set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
+    if (invalidation.rebuild_layout_tree) {
+        // Mark the parent to handle display changes to/from contents correctly.
+        if (auto parent_element = element.parent_element())
+            parent_element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
+        else
+            element.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
+    }
+
+    element.set_needs_style_update(false);
+}
+
+static void apply_document_style_invalidation_after_style_change(Document& document, CSS::RequiredInvalidationAfterStyleChange const& invalidation)
+{
+    if (!invalidation.is_none())
+        document.set_needs_to_record_display_list();
+    if (invalidation.rebuild_accumulated_visual_contexts)
+        document.set_needs_accumulated_visual_contexts_update(true);
+    if (invalidation.rebuild_stacking_context_tree)
+        document.invalidate_stacking_context_tree();
+}
+
 [[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(
     Node& node,
     CSS::StyleComputer& style_computer,
@@ -1908,23 +1938,10 @@ bool Document::layout_is_up_to_date() const
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
 
-        if (!node_invalidation.is_none())
-            CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
-        if (!needs_inherited_style_update && (node_invalidation.inherited_style_changed || node_invalidation.rebuild_layout_tree))
-            CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(element);
+        apply_element_style_invalidation_after_style_change(element, node_invalidation, !node_invalidation.is_none(), !needs_inherited_style_update);
     }
-    if (node_invalidation.relayout)
-        node.set_needs_layout_update(SetNeedsLayoutReason::StyleChange);
-    if (node_invalidation.rebuild_layout_tree) {
-        // We mark layout tree for rebuild starting from parent element to correctly invalidate
-        // "display" property change to/from "contents" value.
-        if (auto parent_element = node.parent_element()) {
-            parent_element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
-        } else {
-            node.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
-        }
-    }
-    node.set_needs_style_update(false);
+    if (!node.is_element())
+        node.set_needs_style_update(false);
     invalidation |= node_invalidation;
 
     if (did_change_custom_properties) {
@@ -2061,14 +2078,7 @@ void Document::update_style()
         m_style_invalidator->invalidate(*this);
     }
 
-    if (!invalidation.is_none())
-        set_needs_to_record_display_list();
-
-    if (invalidation.rebuild_accumulated_visual_contexts)
-        set_needs_accumulated_visual_contexts_update(true);
-
-    if (invalidation.rebuild_stacking_context_tree)
-        invalidate_stacking_context_tree();
+    apply_document_style_invalidation_after_style_change(*this, invalidation);
 }
 
 void Document::update_style_if_needed_for_element(AbstractElement const& abstract_element)
