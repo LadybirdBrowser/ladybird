@@ -302,7 +302,7 @@ void FontFace::reparse_connected_css_font_face_rule_descriptors()
     set_family_impl(*descriptors->descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)));
     set_style_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontStyle))->absolutized(computation_context));
     set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWeight))->absolutized(computation_context));
-    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth)));
+    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth))->absolutized(computation_context));
     set_unicode_range_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::UnicodeRange)));
     set_feature_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings)));
     set_variation_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings)));
