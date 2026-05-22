@@ -21,6 +21,7 @@ add_subdirectory(LibXML)
 add_subdirectory(Meta)
 
 if (ENABLE_GUI_TARGETS)
+    add_subdirectory(LibDevTools)
     add_subdirectory(LibGfx)
     add_subdirectory(LibMedia)
     add_subdirectory(LibWeb)
