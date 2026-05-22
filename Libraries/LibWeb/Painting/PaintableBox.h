@@ -29,6 +29,7 @@
 
 namespace Web::Painting {
 
+struct GridInspectorOverlayOptions;
 class ResizeHandle;
 class Scrollbar;
 
@@ -279,6 +280,7 @@ public:
 
     void set_grid_layout_data(OwnPtr<Layout::GridLayoutData> grid_layout_data) { m_grid_layout_data = move(grid_layout_data); }
     Layout::GridLayoutData const* grid_layout_data() const { return m_grid_layout_data.ptr(); }
+    void paint_grid_inspector_overlay(DisplayListRecordingContext&, GridInspectorOverlayOptions const&) const;
 
     void set_enclosing_scroll_frame_index(ScrollFrameIndex index) { m_enclosing_scroll_frame_index = index; }
     void set_own_scroll_frame_index(ScrollFrameIndex index) { m_own_scroll_frame_index = index; }

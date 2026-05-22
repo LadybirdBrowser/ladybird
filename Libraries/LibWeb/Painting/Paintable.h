@@ -171,6 +171,8 @@ public:
 protected:
     explicit Paintable(Layout::Node const&);
 
+    void paint_with_inspector_overlay_context(DisplayListRecordingContext&, Function<void()> const&) const;
+
     virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const { }
     Optional<WeakPtr<PaintableBox>> mutable m_containing_block;
 
