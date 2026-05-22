@@ -2884,10 +2884,12 @@ fn emit_resolve_binding_for_identifier_assignment(
 ) -> Option<ResolvedBinding> {
     let arena = generator.arena.clone();
     let ident = &arena.identifiers[id];
-    if ident.is_local() || ident.is_global {
+    if ident.is_local() || (ident.is_global && !generator.strict) {
         return None;
     }
 
+    // In strict mode, a global-looking identifier may still be unresolvable. Preserve that reference across RHS
+    // evaluation so PutValue throws even if the RHS creates a global property with the same name.
     let identifier = generator.intern_identifier_id(ident.name);
     if generator.environment_coordinate_for_identifier(identifier).is_some() {
         return None;

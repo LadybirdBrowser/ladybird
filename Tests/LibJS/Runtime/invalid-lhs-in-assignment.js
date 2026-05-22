@@ -16,6 +16,16 @@ test("assignment to function call in strict mode is a SyntaxError", () => {
     expect("'use strict'; foo() = 'foo'").not.toEval();
 });
 
+test("strict assignment to unresolvable reference preserves initial reference", () => {
+    delete globalThis.__test_unresolvable_assignment;
+    expect(() => {
+        "use strict";
+        __test_unresolvable_assignment = (globalThis.__test_unresolvable_assignment = 5);
+    }).toThrowWithMessage(ReferenceError, "'__test_unresolvable_assignment' is not defined");
+    expect(globalThis.__test_unresolvable_assignment).toBe(5);
+    delete globalThis.__test_unresolvable_assignment;
+});
+
 test("assignment to inline function call", () => {
     expect(() => {
         (function () {})() = "foo";
