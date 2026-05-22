@@ -39,6 +39,7 @@
 #include <LibWebView/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
+#include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebDriverConnection.h>
 
 #include <openssl/thread.h>
@@ -149,6 +150,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
     bool disable_async_scrolling = false;
+    bool enable_compositor_process = false;
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
     StringView style_invalidation_counter_dump_interval {};
@@ -171,6 +173,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
+    args_parser.add_option(enable_compositor_process, "Use the Compositor helper process", "enable-compositor-process");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
@@ -222,6 +225,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Painting::set_paint_viewport_scrollbars(!disable_scrollbar_painting);
     WebContent::PageClient::set_async_scrolling_enabled(!disable_async_scrolling);
+    WebContent::set_should_use_compositor_process(enable_compositor_process);
 
     if (!echo_server_port_string_view.is_empty()) {
         if (auto maybe_echo_server_port = echo_server_port_string_view.to_number<u16>(); maybe_echo_server_port.has_value())

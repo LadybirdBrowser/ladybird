@@ -50,7 +50,7 @@ void PageHost::ensure_compositor_host(Web::DisplayListPlayerType display_list_pl
 {
     if (m_compositor_host)
         return;
-    m_compositor_host = create_web_content_compositor_host();
+    m_compositor_host = create_web_content_compositor_host(m_client);
     m_compositor_host->start(display_list_player_type);
 }
 

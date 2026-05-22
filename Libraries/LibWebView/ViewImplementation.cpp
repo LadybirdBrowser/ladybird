@@ -292,7 +292,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
                 mouse_event->async_scroll_performed_default_action = true;
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
                 m_client_state.page_index, mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
-        } else if (client().send_mouse_event_to_compositor(m_client_state.page_index, *mouse_event)) {
+        } else if (client().handle_mouse_event_in_compositor(m_client_state.page_index, *mouse_event)) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor handled mouse event for page {} at {},{}",
                 m_client_state.page_index, mouse_event->position.x().value(), mouse_event->position.y().value());
             return;
@@ -309,7 +309,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             client().async_key_event(m_client_state.page_index, event.clone_without_browser_data());
         },
         [this](Web::MouseEvent const& event) {
-            client().async_mouse_event(m_client_state.page_index, event.clone_without_browser_data());
+            client().dispatch_mouse_event_to_web_content(m_client_state.page_index, event);
         },
         [this](Web::DragEvent& event) {
             auto cloned_event = event.clone_without_browser_data();
@@ -720,6 +720,8 @@ void ViewImplementation::apply_zoom_for_current_host()
 void ViewImplementation::handle_resize()
 {
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::Yes)
+        Application::the().update_compositor_viewport(client().compositor_context_id_for_page(page_id()), viewport_size().to_type<int>());
 }
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client)
@@ -739,6 +741,10 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
+    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::Yes) {
+        auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
+        Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
+    }
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
 
     if (auto webdriver_endpoint = Application::browser_options().webdriver_endpoint; webdriver_endpoint.has_value())

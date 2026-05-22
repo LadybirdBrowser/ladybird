@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/EventResult.h>
@@ -48,6 +49,8 @@ public:
 
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
+    CompositorConnection& compositor_process_connection() const;
+    void did_destroy_compositor_context(Web::Compositor::CompositorContextId);
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
@@ -179,6 +182,7 @@ private:
 
     virtual void exit_fullscreen(u64 page_id) override;
 
+    RefPtr<CompositorConnection> m_compositor_connection;
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
@@ -187,7 +191,6 @@ private:
     void enqueue_input_event(Web::QueuedInputEvent);
 
     Queue<Web::QueuedInputEvent> m_input_event_queue;
-    RefPtr<CompositorConnection> m_compositor_connection;
 };
 
 }

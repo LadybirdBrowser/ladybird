@@ -35,7 +35,7 @@
 endpoint WebContentClient
 {
     allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => (Web::Compositor::CompositorContextId context_id)
-    destroy_compositor_context(Web::Compositor::CompositorContextId context_id) =|
+    did_destroy_compositor_context(Web::Compositor::CompositorContextId context_id) =|
 
     did_request_new_process_for_navigation(u64 page_id, URL::URL url) =|
     did_start_loading(u64 page_id, URL::URL url, bool is_redirect) =|
