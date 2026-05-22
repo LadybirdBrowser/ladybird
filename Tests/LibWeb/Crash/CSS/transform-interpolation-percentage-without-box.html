@@ -1,0 +1,15 @@
+<!doctype html>
+<body>
+<script>
+    const element = document.createElement("div");
+    document.body.appendChild(element);
+
+    element.animate({
+        transform: [ "translate(1px, 1%)", "rotate(45deg)" ],
+    }, {
+        fill: "forwards",
+        iterationStart: 0.5,
+    });
+
+    element.computedStyleMap().get("transform");
+</script>

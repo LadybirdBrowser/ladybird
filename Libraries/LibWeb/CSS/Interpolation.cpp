@@ -1349,8 +1349,12 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
 
     auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) -> Optional<FloatMatrix4x4> {
         FloatMatrix4x4 result = FloatMatrix4x4::identity();
-        for (auto index = start_index; index < transformations.size(); ++index)
-            result = result * transformations[index]->to_matrix(paintable_box);
+        for (auto index = start_index; index < transformations.size(); ++index) {
+            auto const& transformation = transformations[index];
+            if (!paintable_box.has_value() && !transformation->can_be_converted_to_matrix_without_reference_box())
+                return {};
+            result = result * transformation->to_matrix(paintable_box);
+        }
 
         return result;
     };
