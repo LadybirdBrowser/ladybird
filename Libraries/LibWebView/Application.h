@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/FileDownloader.h>
@@ -83,6 +84,8 @@ public:
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
     ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);
+    void register_compositor_context(WebContentClient&, Web::Compositor::CompositorContextId, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration);
+    void destroy_compositor_context(Web::Compositor::CompositorContextId);
 
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
