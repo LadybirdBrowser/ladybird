@@ -13,6 +13,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -47,7 +48,7 @@ struct CachedBlockingWheelEventTarget {
 
 // Mutable compositor-side copy of AsyncScrollingState. Current scroll offsets live in ScrollStateSnapshot; this tree
 // owns scroll node geometry and derived hit-test targets.
-class AsyncScrollTree {
+class WEB_API AsyncScrollTree {
 public:
     void set_state(AsyncScrollingState&&);
 

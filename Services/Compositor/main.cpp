@@ -43,11 +43,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (!force_cpu_painting)
         Gfx::SkiaBackendContext::initialize_gpu_backend();
+    auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
 
     Core::EventLoop event_loop;
-    auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(mach_server_name));
-    (void)client;
-    (void)disable_async_scrolling;
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
+        mach_server_name, move(skia_backend_context), !disable_async_scrolling));
 
     return event_loop.exec();
 }

@@ -24,7 +24,11 @@ void CompositorClient::die()
     }
 }
 
-void CompositorClient::did_connect_web_content(i32)
+void CompositorClient::did_allocate_backing_stores(Web::Compositor::CompositorContextId, i32, Gfx::SharedImage, i32, Gfx::SharedImage)
+{
+}
+
+void CompositorClient::did_present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect, i32)
 {
 }
 

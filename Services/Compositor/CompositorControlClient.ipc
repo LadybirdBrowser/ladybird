@@ -1,4 +1,9 @@
+#include <LibGfx/Rect.h>
+#include <LibGfx/SharedImage.h>
+#include <LibWeb/Compositor/Types.h>
+
 endpoint CompositorControlClient
 {
-    did_connect_web_content(i32 web_content_connection_id) =|
+    did_allocate_backing_stores(Web::Compositor::CompositorContextId context_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store) =|
+    did_present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect content_rect, i32 bitmap_id) =|
 }
