@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.container {
+    font: 16px/24px sans-serif;
+}
+
+.icon {
+    display: inline-flex;
+    height: 32px;
+    vertical-align: top;
+    width: 32px;
+}
+
+.block {
+    display: inline-block;
+}
+
+.next {
+    display: inline-block;
+    height: 1px;
+    width: 1px;
+}
+</style>
+<div id="flex" class="container"><span class="icon"></span><br><span class="next"></span></div>
+<div id="block" class="container"><span class="icon block"></span><br><span class="next"></span></div>
+<script>
+test(() => {
+    const flexRect = document.getElementById("flex").getBoundingClientRect();
+    const flexNextRect = document.querySelector("#flex .next").getBoundingClientRect();
+    const blockRect = document.getElementById("block").getBoundingClientRect();
+    const blockNextRect = document.querySelector("#block .next").getBoundingClientRect();
+
+    const flexNextLineY = Math.round(flexNextRect.y - flexRect.y);
+    const blockNextLineY = Math.round(blockNextRect.y - blockRect.y);
+    println(`top aligned inline-flex matches inline-block: ${flexNextLineY == blockNextLineY ? "PASS" : "FAIL"}`);
+});
+</script>
