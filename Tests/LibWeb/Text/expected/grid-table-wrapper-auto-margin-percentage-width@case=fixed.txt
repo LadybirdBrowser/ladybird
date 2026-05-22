@@ -1,0 +1,49 @@
+full area left: 25.6
+full area right: 1254.4
+full area width: 1228.8
+first column left: 125.0
+first column right: 375.0
+first column width: 250.0
+second column left: 625.0
+second column right: 875.0
+second column width: 250.0
+wide second column left: 437.5
+wide second column right: 812.5
+wide second column width: 375.0
+oversized centered left: -250.0
+oversized centered right: 750.0
+oversized centered width: 1000.0
+oversized end left: -500.0
+oversized end right: 500.0
+oversized end width: 1000.0
+oversized fixed centered left: -250.0
+oversized fixed centered right: 750.0
+oversized fixed centered width: 1000.0
+oversized fixed end left: -500.0
+oversized fixed end right: 500.0
+oversized fixed end width: 1000.0
+oversized explicit auto centered left: -250.0
+oversized explicit auto centered right: 750.0
+oversized explicit auto centered width: 1000.0
+oversized explicit auto end left: -500.0
+oversized explicit auto end right: 500.0
+oversized explicit auto end width: 1000.0
+oversized auto after fixed centered left: 125.0
+oversized auto after fixed centered right: 625.0
+oversized auto after fixed centered width: 500.0
+oversized auto after fixed end left: 0.0
+oversized auto after fixed end right: 500.0
+oversized auto after fixed end width: 500.0
+fixed width auto track centered left: 0.0
+fixed width auto track centered right: 600.0
+fixed width auto track centered width: 600.0
+min width percentage left: 50.0
+min width percentage right: 1050.0
+min width percentage width: 1000.0
+auto width centered left: 0.0
+auto width centered right: 100.0
+auto width centered width: 100.0
+auto width margins left: 0.0
+auto width margins right: 100.0
+auto width margins width: 100.0
+document scroll width: 1280
