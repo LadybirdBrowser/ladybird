@@ -2422,6 +2422,7 @@ void GridFormattingContext::save_grid_layout_data(CSS::GridTrackSizeList&& colum
 {
     auto data = make<GridLayoutData>();
     data->direction = grid_container().computed_values().direction();
+    data->is_subgrid = is_subgridded_axis(GridDimension::Column) || is_subgridded_axis(GridDimension::Row);
     data->writing_mode = grid_container().computed_values().writing_mode();
     data->resolved_grid_template_columns = CSS::GridTrackSizeListStyleValue::create(move(columns));
     data->resolved_grid_template_rows = CSS::GridTrackSizeListStyleValue::create(move(rows));

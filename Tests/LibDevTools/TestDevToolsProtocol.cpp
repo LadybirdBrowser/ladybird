@@ -57,6 +57,7 @@ static JsonObject make_dom_tree()
     JsonObject target = make_node(4, "element"sv, "DIV"sv);
     target.set("visible"sv, true);
     target.set("scrollable"sv, true);
+    target.set("display"sv, "grid"sv);
 
     JsonObject target_attributes;
     target_attributes.set("id"sv, "target"sv);
@@ -76,11 +77,16 @@ static JsonObject make_dom_tree()
     before.set("parent-id"sv, 4);
     before.set("pseudo-element"sv, to_underlying(Web::CSS::PseudoElement::Before));
 
+    JsonObject subgrid = make_node(9, "element"sv, "SECTION"sv);
+    subgrid.set("visible"sv, true);
+    subgrid.set("display"sv, "grid"sv);
+
     JsonArray target_children;
     target_children.must_append(move(text));
     target_children.must_append(move(comment));
     target_children.must_append(move(whitespace));
     target_children.must_append(move(before));
+    target_children.must_append(move(subgrid));
     target.set("children"sv, move(target_children));
 
     JsonObject sibling = make_node(8, "element"sv, "SPAN"sv);
@@ -212,7 +218,7 @@ static JsonObject make_grid_dimension()
     return dimension;
 }
 
-static JsonObject make_grid_layout(Web::UniqueNodeID container_node_id, StringView area_name)
+static JsonObject make_grid_layout(Web::UniqueNodeID container_node_id, StringView area_name, bool is_subgrid = false)
 {
     JsonObject area;
     area.set("columnEnd"sv, 2);
@@ -237,7 +243,7 @@ static JsonObject make_grid_layout(Web::UniqueNodeID container_node_id, StringVi
     layout.set("containerNodeId"sv, container_node_id.value());
     layout.set("direction"sv, "ltr"sv);
     layout.set("gridFragments"sv, move(fragments));
-    layout.set("isSubgrid"sv, false);
+    layout.set("isSubgrid"sv, is_subgrid);
     layout.set("writingMode"sv, "horizontal-tb"sv);
     return layout;
 }
@@ -246,6 +252,7 @@ static JsonArray make_grid_layouts()
 {
     JsonArray grids;
     grids.must_append(make_grid_layout(Web::UniqueNodeID { 4 }, "content"sv));
+    grids.must_append(make_grid_layout(Web::UniqueNodeID { 9 }, "subgrid"sv, true));
     grids.must_append(make_grid_layout(Web::UniqueNodeID { 8 }, "subframe"sv));
     return grids;
 }
@@ -979,6 +986,7 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     EXPECT_EQ(children_response.get_array("nodes"sv)->size(), 1u);
 
     auto div_actor = query_selector(client, walker_actor, root_node_actor, "div"sv);
+    auto section_actor = query_selector(client, walker_actor, root_node_actor, "section"sv);
     auto span_actor = query_selector(client, walker_actor, root_node_actor, "span"sv);
     JsonObject previous_sibling;
     previous_sibling.set("to"sv, walker_actor);
@@ -1082,7 +1090,7 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     auto grids = client.request(move(get_grids)).get_array("grids"sv).release_value();
     EXPECT_EQ(session->delegate.inspect_grid_layouts_call_count, 1u);
     EXPECT_EQ(session->delegate.last_grid_root_node.value(), 1u);
-    EXPECT_EQ(grids.size(), 2u);
+    EXPECT_EQ(grids.size(), 3u);
 
     auto const& content_grid = grids.at(0).as_object();
     EXPECT(!content_grid.has("containerNodeId"sv));
@@ -1095,7 +1103,24 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     EXPECT_EQ(content_grid_fragment.get_array("areas"sv)->at(0).as_object().get_string("name"sv).value(), "content"sv);
     EXPECT_EQ(content_grid_fragment.get_object("cols"sv)->get_array("lines"sv)->at(0).as_object().get_integer<i32>("negativeNumber"sv).value(), -2);
 
-    auto const& subframe_grid = grids.at(1).as_object();
+    auto const& subgrid = grids.at(1).as_object();
+    EXPECT_EQ(subgrid.get_string("containerNodeActorID"sv).value(), section_actor);
+    EXPECT_EQ(subgrid.get_bool("isSubgrid"sv).value(), true);
+    EXPECT_EQ(subgrid.get_array("gridFragments"sv)->at(0).as_object().get_array("areas"sv)->at(0).as_object().get_string("name"sv).value(), "subgrid"sv);
+
+    JsonObject get_parent_grid_node;
+    get_parent_grid_node.set("to"sv, walker_actor);
+    get_parent_grid_node.set("type"sv, "getParentGridNode"sv);
+    get_parent_grid_node.set("node"sv, section_actor);
+    EXPECT_EQ(client.request(move(get_parent_grid_node)).get_object("node"sv)->get_string("actor"sv).value(), div_actor);
+
+    JsonObject get_missing_parent_grid_node;
+    get_missing_parent_grid_node.set("to"sv, walker_actor);
+    get_missing_parent_grid_node.set("type"sv, "getParentGridNode"sv);
+    get_missing_parent_grid_node.set("node"sv, div_actor);
+    EXPECT(client.request(move(get_missing_parent_grid_node)).get("node"sv).value().is_null());
+
+    auto const& subframe_grid = grids.at(2).as_object();
     EXPECT_EQ(subframe_grid.get_string("containerNodeActorID"sv).value(), span_actor);
     EXPECT_EQ(subframe_grid.get_array("gridFragments"sv)->at(0).as_object().get_array("areas"sv)->at(0).as_object().get_string("name"sv).value(), "subframe"sv);
 
