@@ -482,6 +482,10 @@ bool Selection::contains_node(GC::Ref<DOM::Node> node, bool allow_partial_contai
     // The method must return false if this is empty or if node's root is not the document associated with this.
     if (!m_range)
         return false;
+    // The range's boundary points can be in a tree that's not connected to the document (for example, inside the shadow
+    // tree of a removed host). Such a range isn't comparable with a node in the document.
+    if (&m_range->start().node->shadow_including_root() != m_document.ptr())
+        return false;
     if (&node->root() != m_document.ptr())
         return false;
 

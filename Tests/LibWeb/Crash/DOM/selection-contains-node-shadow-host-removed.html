@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<!-- Regression test for https://github.com/LadybirdBrowser/ladybird/issues/9469
+     Removing a shadow host leaves a selection range inside its shadow tree disconnected
+     from the document. Selection.containsNode() must not crash on such a range. -->
+<div id="host"></div>
+<script>
+    const host = document.getElementById("host");
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = "<span>shadow text</span>";
+    const text = shadow.querySelector("span").firstChild;
+    getSelection().setBaseAndExtent(text, 0, text, 4);
+    host.remove();
+    getSelection().containsNode(document.body, true);
+</script>
