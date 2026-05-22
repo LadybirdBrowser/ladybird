@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibCore/Socket.h>
 #include <LibDevTools/Actors/RootActor.h>
@@ -27,6 +28,7 @@ public:
     RefPtr<Connection>& connection() { return m_connection; }
     DevToolsDelegate const& delegate() const { return m_delegate; }
     ActorRegistry const& actor_registry() const { return m_actor_registry; }
+    Optional<u16> local_port() const;
 
     template<typename ActorType, typename... Args>
     ActorType& register_actor(Args&&... args)
