@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 29 tests
 
-28 Pass
-1 Fail
+29 Pass
 Pass	Checking invalid combination - align-items: auto
 Pass	Checking invalid combination - align-items: legacy
 Pass	Checking invalid combination - align-items: space-around
@@ -32,4 +31,4 @@ Pass	Checking invalid combination - align-items: unsafe safe left
 Pass	Checking invalid combination - align-items: unsafe left safe
 Pass	Checking invalid combination - align-items: left safe unsafe safe
 Pass	Checking invalid combination - align-items: start safe
-Fail	Checking invalid combination - align-items: safe
+Pass	Checking invalid combination - align-items: safe
