@@ -1577,7 +1577,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         }
 
         if (
-            potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            potential_contain_node->layout_node() && potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
             if (focus_node->is_before(*potential_contain_node)) {
                 focus_offset = 0;
             } else {
@@ -1601,7 +1601,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
                 potential_contain_node = potential_contain_node->parent();
             }
             if (
-                potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
+                potential_contain_node->layout_node() && potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
                 if (potential_contain_node->is_before(*anchor_node)) {
                     focus_node = potential_contain_node->next_in_pre_order();
                     while (potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
