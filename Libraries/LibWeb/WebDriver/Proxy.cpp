@@ -90,9 +90,9 @@ static ErrorOr<void, Error> validate_proxy_item(StringView key, JsonValue const&
 
     if (key == "socksProxy"sv) {
         if (!value.is_string())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a string"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'socksProxy' must be a string"sv);
         if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value())
-            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a valid URL"sv);
+            return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'socksProxy' must be a valid URL"sv);
         return {};
     }
 
