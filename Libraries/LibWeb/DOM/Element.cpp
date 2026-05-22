@@ -1947,6 +1947,8 @@ bool Element::has_synthetic_pseudo_elements() const
 void Element::clear_synthetic_pseudo_element_layout_nodes()
 {
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+        if (auto layout_node = pseudo_element.layout_node())
+            layout_node->prepare_subtree_for_detach_from_layout_tree();
         pseudo_element.set_layout_node(nullptr);
     });
 }

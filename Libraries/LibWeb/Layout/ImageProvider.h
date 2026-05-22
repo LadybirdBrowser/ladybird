@@ -37,6 +37,7 @@ public:
     virtual Optional<Gfx::DecodedImageFrame> default_image_frame_sized(Gfx::IntSize) const;
 
     virtual void set_visible_in_viewport(bool) = 0;
+    virtual void layout_node_was_detached() const { }
 
     virtual void image_provider_visit_edges(GC::Cell::Visitor& visitor) const
     {

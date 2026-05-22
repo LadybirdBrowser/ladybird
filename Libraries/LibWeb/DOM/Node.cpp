@@ -1674,12 +1674,16 @@ void Node::set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node> layout_nod
 
 void Node::clear_layout_node_and_paintable(Badge<Document>)
 {
+    if (m_layout_node)
+        m_layout_node->prepare_for_detach_from_layout_tree();
     m_layout_node = nullptr;
     m_paintable = nullptr;
 }
 
 void Node::detach_layout_node(Badge<Layout::TreeBuilder>)
 {
+    if (m_layout_node)
+        m_layout_node->prepare_for_detach_from_layout_tree();
     m_layout_node = nullptr;
 }
 

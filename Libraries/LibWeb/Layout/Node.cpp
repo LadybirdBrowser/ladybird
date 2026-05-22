@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
+#include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
@@ -55,6 +56,22 @@ Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_d
 }
 
 Node::~Node() = default;
+
+void Node::prepare_for_detach_from_layout_tree()
+{
+    if (auto* node_with_style = as_if<NodeWithStyle>(*this))
+        node_with_style->clear_image_observers();
+    if (auto* image_box = as_if<ImageBox>(*this))
+        image_box->image_provider().layout_node_was_detached();
+}
+
+void Node::prepare_subtree_for_detach_from_layout_tree()
+{
+    for_each_in_inclusive_subtree([](Node& node) {
+        node.prepare_for_detach_from_layout_tree();
+        return TraversalDecision::Continue;
+    });
+}
 
 void Node::visit_edges(Cell::Visitor& visitor)
 {
@@ -592,7 +609,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOw
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
-    : CSS::ImageStyleValue::Client(*image)
+    : CSS::ImageStyleValue::Client(owner.document(), *image)
     , m_owner(owner)
     , m_image(move(image))
 {
@@ -632,6 +649,11 @@ void NodeWithStyle::ImageObserver::visit_edges(JS::Cell::Visitor& visitor) const
 void NodeWithStyle::finalize()
 {
     Base::finalize();
+    clear_image_observers();
+}
+
+void NodeWithStyle::clear_image_observers()
+{
     m_image_observers.clear();
 }
 

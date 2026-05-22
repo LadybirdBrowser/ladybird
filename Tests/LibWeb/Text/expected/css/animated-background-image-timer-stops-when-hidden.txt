@@ -1,0 +1,2 @@
+active animations before hiding: 1
+active animations after hiding: 0

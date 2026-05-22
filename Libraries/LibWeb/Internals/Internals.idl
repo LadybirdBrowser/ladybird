@@ -94,6 +94,7 @@ interface Internals {
     // elementStyleNoopRecomputations.
     object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
+    unsigned long long activeImageStyleValueAnimationCount();
 
     object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);
