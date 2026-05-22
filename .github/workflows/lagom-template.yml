@@ -155,6 +155,7 @@ jobs:
           VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
           cmake --preset=Host_Tools -B "${GITHUB_WORKSPACE}/Build/host-tools-build" \
+            -DENABLE_CI_BASELINE_CPU=ON \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python
 
           ninja -C "${GITHUB_WORKSPACE}/Build/host-tools-build" install

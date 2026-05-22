@@ -48,7 +48,7 @@ function(add_cxx_link_option_if_supported option)
 endfunction()
 
 if (ENABLE_CI_BASELINE_CPU)
-    # In CI, we want to target a common architecture so different runners can share ccache caches effectively.
+    # In CI, target a common architecture so ccache artifacts and built tools are portable across runners.
     if (APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
         add_cxx_compile_options(-mcpu=apple-m1)
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
