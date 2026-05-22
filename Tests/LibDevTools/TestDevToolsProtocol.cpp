@@ -175,6 +175,81 @@ static Web::CSS::StyleSheetIdentifier fixture_style_sheet()
         .rule_count = 2 };
 }
 
+static JsonObject make_grid_line(double start, i32 number, i32 negative_number)
+{
+    JsonObject line;
+    line.set("breadth"sv, 0);
+    line.set("names"sv, JsonArray {});
+    line.set("negativeNumber"sv, negative_number);
+    line.set("number"sv, number);
+    line.set("start"sv, start);
+    line.set("type"sv, "explicit"sv);
+    return line;
+}
+
+static JsonObject make_grid_track(double start, double breadth)
+{
+    JsonObject track;
+    track.set("breadth"sv, breadth);
+    track.set("start"sv, start);
+    track.set("state"sv, "static"sv);
+    track.set("type"sv, "explicit"sv);
+    return track;
+}
+
+static JsonObject make_grid_dimension()
+{
+    JsonArray lines;
+    lines.must_append(make_grid_line(0, 1, -2));
+    lines.must_append(make_grid_line(100, 2, -1));
+
+    JsonArray tracks;
+    tracks.must_append(make_grid_track(0, 100));
+
+    JsonObject dimension;
+    dimension.set("lines"sv, move(lines));
+    dimension.set("tracks"sv, move(tracks));
+    return dimension;
+}
+
+static JsonObject make_grid_layout(Web::UniqueNodeID container_node_id, StringView area_name)
+{
+    JsonObject area;
+    area.set("columnEnd"sv, 2);
+    area.set("columnStart"sv, 1);
+    area.set("name"sv, area_name);
+    area.set("rowEnd"sv, 2);
+    area.set("rowStart"sv, 1);
+    area.set("type"sv, "explicit"sv);
+
+    JsonArray areas;
+    areas.must_append(move(area));
+
+    JsonObject fragment;
+    fragment.set("areas"sv, move(areas));
+    fragment.set("cols"sv, make_grid_dimension());
+    fragment.set("rows"sv, make_grid_dimension());
+
+    JsonArray fragments;
+    fragments.must_append(move(fragment));
+
+    JsonObject layout;
+    layout.set("containerNodeId"sv, container_node_id.value());
+    layout.set("direction"sv, "ltr"sv);
+    layout.set("gridFragments"sv, move(fragments));
+    layout.set("isSubgrid"sv, false);
+    layout.set("writingMode"sv, "horizontal-tb"sv);
+    return layout;
+}
+
+static JsonArray make_grid_layouts()
+{
+    JsonArray grids;
+    grids.must_append(make_grid_layout(Web::UniqueNodeID { 4 }, "content"sv));
+    grids.must_append(make_grid_layout(Web::UniqueNodeID { 8 }, "subframe"sv));
+    return grids;
+}
+
 class TestDevToolsDelegate final : public DevTools::DevToolsDelegate {
 public:
     virtual Vector<DevTools::TabDescription> tab_list() const override
@@ -232,6 +307,26 @@ public:
 
     virtual void clear_inspected_dom_node(DevTools::TabDescription const&) const override { ++clear_inspected_dom_node_call_count; }
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override { ++clear_highlighted_dom_node_call_count; }
+
+    virtual void inspect_grid_layouts(DevTools::TabDescription const&, Web::UniqueNodeID root_node_id, OnGridLayoutsReceived callback) const override
+    {
+        ++inspect_grid_layouts_call_count;
+        last_grid_root_node = root_node_id;
+        callback(make_grid_layouts());
+    }
+
+    virtual void inspect_current_grid(DevTools::TabDescription const&, Web::UniqueNodeID node_id, OnCurrentGridReceived callback) const override
+    {
+        ++inspect_current_grid_call_count;
+        last_current_grid_node = node_id;
+
+        if (node_id == Web::UniqueNodeID { 4 }) {
+            callback(make_grid_layout(node_id, "content"sv));
+            return;
+        }
+
+        callback({});
+    }
 
     virtual void highlight_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const override
     {
@@ -484,6 +579,8 @@ public:
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
     mutable size_t inspect_dom_node_call_count { 0 };
     mutable size_t clear_inspected_dom_node_call_count { 0 };
+    mutable size_t inspect_grid_layouts_call_count { 0 };
+    mutable size_t inspect_current_grid_call_count { 0 };
     mutable size_t highlight_dom_node_call_count { 0 };
     mutable size_t clear_highlighted_dom_node_call_count { 0 };
     mutable size_t listen_for_dom_mutations_call_count { 0 };
@@ -516,6 +613,8 @@ public:
     mutable Optional<Web::CSS::PseudoElement> last_highlighted_pseudo_element;
     mutable Optional<Web::UniqueNodeID> last_inspected_dom_node;
     mutable Optional<Web::CSS::PseudoElement> last_inspected_pseudo_element;
+    mutable Optional<Web::UniqueNodeID> last_grid_root_node;
+    mutable Optional<Web::UniqueNodeID> last_current_grid_node;
     mutable Optional<Web::UniqueNodeID> last_edited_node;
     mutable Optional<Web::UniqueNodeID> last_parent_node;
     mutable Optional<Web::UniqueNodeID> last_sibling_node;
@@ -862,6 +961,7 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     EXPECT_EQ(children_response.get_array("nodes"sv)->size(), 1u);
 
     auto div_actor = query_selector(client, walker_actor, root_node_actor, "div"sv);
+    auto span_actor = query_selector(client, walker_actor, root_node_actor, "span"sv);
     JsonObject previous_sibling;
     previous_sibling.set("to"sv, walker_actor);
     previous_sibling.set("type"sv, "previousSibling"sv);
@@ -917,7 +1017,41 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     EXPECT_EQ(client.request(highlighter_actor, "hide"sv).get_string("from"sv).value(), highlighter_actor);
 
     auto layout_actor = client.request(walker_actor, "getLayoutInspector"sv).get_object("actor"sv)->get_string("actor"sv).release_value();
-    EXPECT(client.request(layout_actor, "getGrids"sv).get_array("grids"sv)->is_empty());
+
+    JsonObject get_grids;
+    get_grids.set("to"sv, layout_actor);
+    get_grids.set("type"sv, "getGrids"sv);
+    get_grids.set("rootNode"sv, root_node_actor);
+    auto grids = client.request(move(get_grids)).get_array("grids"sv).release_value();
+    EXPECT_EQ(session->delegate.inspect_grid_layouts_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_grid_root_node.value(), 1u);
+    EXPECT_EQ(grids.size(), 2u);
+
+    auto const& content_grid = grids.at(0).as_object();
+    EXPECT(!content_grid.has("containerNodeId"sv));
+    EXPECT(content_grid.has_string("actor"sv));
+    EXPECT_EQ(content_grid.get_string("containerNodeActorID"sv).value(), div_actor);
+    EXPECT_EQ(content_grid.get_string("direction"sv).value(), "ltr"sv);
+    EXPECT_EQ(content_grid.get_string("writingMode"sv).value(), "horizontal-tb"sv);
+    EXPECT_EQ(content_grid.get_bool("isSubgrid"sv).value(), false);
+    auto const& content_grid_fragment = content_grid.get_array("gridFragments"sv)->at(0).as_object();
+    EXPECT_EQ(content_grid_fragment.get_array("areas"sv)->at(0).as_object().get_string("name"sv).value(), "content"sv);
+    EXPECT_EQ(content_grid_fragment.get_object("cols"sv)->get_array("lines"sv)->at(0).as_object().get_integer<i32>("negativeNumber"sv).value(), -2);
+
+    auto const& subframe_grid = grids.at(1).as_object();
+    EXPECT_EQ(subframe_grid.get_string("containerNodeActorID"sv).value(), span_actor);
+    EXPECT_EQ(subframe_grid.get_array("gridFragments"sv)->at(0).as_object().get_array("areas"sv)->at(0).as_object().get_string("name"sv).value(), "subframe"sv);
+
+    JsonObject get_current_grid;
+    get_current_grid.set("to"sv, layout_actor);
+    get_current_grid.set("type"sv, "getCurrentGrid"sv);
+    get_current_grid.set("node"sv, div_actor);
+    auto current_grid = client.request(move(get_current_grid)).get_object("grid"sv).release_value();
+    EXPECT_EQ(session->delegate.inspect_current_grid_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_current_grid_node.value(), 4u);
+    EXPECT_EQ(current_grid.get_string("actor"sv).value(), content_grid.get_string("actor"sv).value());
+    EXPECT_EQ(current_grid.get_string("containerNodeActorID"sv).value(), div_actor);
+
     EXPECT(client.request(layout_actor, "getCurrentFlexbox"sv).get("flexbox"sv).value().is_null());
 
     JsonObject set_outer_html;

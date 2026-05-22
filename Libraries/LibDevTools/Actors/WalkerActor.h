@@ -31,6 +31,7 @@ public:
 
     static Optional<Node> dom_node_for(WeakPtr<WalkerActor> const&, StringView actor);
     Optional<Node> dom_node(StringView actor);
+    Optional<String> node_actor_name_for(Web::UniqueNodeID) const;
 
 private:
     WalkerActor(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);
