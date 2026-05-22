@@ -45,6 +45,11 @@ DevToolsServer::DevToolsServer(DevToolsDelegate& delegate, NonnullRefPtr<Core::T
 
 DevToolsServer::~DevToolsServer() = default;
 
+Optional<u16> DevToolsServer::local_port() const
+{
+    return m_server->local_port();
+}
+
 void DevToolsServer::refresh_tab_list()
 {
     if (!m_root_actor)
