@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<script id="target" async src="script-adopted-before-fetch-completion.js"></script>
+<script>
+    const target = document.getElementById("target");
+    const newDocument = document.implementation.createHTMLDocument("new document");
+    newDocument.documentElement.appendChild(target);
+
+    setTimeout(() => {
+        if (window.scriptAdoptedBeforeFetchCompletionRan)
+            throw new Error("Adopted script should not have executed");
+        document.documentElement.classList.remove("test-wait");
+    }, 200);
+</script>
+</html>
