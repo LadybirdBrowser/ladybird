@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // At-rules that aren't covered by the WPT test.
+        let cases = [
+            '@container',
+            '@font-face',
+            '@font-feature-values',
+            '@function',
+            '@keyframes',
+            '@-webkit-keyframes',
+            '@layer',
+            '@namespace',
+            '@page',
+            '@property',
+            '@scope',
+            
+            // Font features
+            '@stylistic',
+            '@historical-forms',
+            '@styleset',
+            '@character-variant',
+            '@swash',
+            '@ornaments',
+            '@annotation',
+            
+            // Margins
+            '@top-left-corner',
+            '@top-left',
+            '@top-center',
+            '@top-right',
+            '@top-right-corner',
+            '@bottom-left-corner',
+            '@bottom-left',
+            '@bottom-center',
+            '@bottom-right',
+            '@bottom-right-corner',
+            '@left-top',
+            '@left-middle',
+            '@left-bottom',
+            '@right-top',
+            '@right-middle',
+            '@right-bottom',
+        ];
+        for (let name of cases) {
+            println(`@supports at-rule(${name}): ` + CSS.supports(`at-rule(${name}`));
+        }
+    
+    });
+</script>
