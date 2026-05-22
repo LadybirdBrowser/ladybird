@@ -69,7 +69,8 @@ public:
     Web::Compositor::CompositorContextId compositor_context_id_for_page(u64 page_id);
     Optional<u64> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;
     bool send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
-    bool send_mouse_event_to_compositor(u64 page_id, Web::MouseEvent const&);
+    bool handle_mouse_event_in_compositor(u64 page_id, Web::MouseEvent const&);
+    void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&);
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     void did_present_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
     void did_present_bitmap(u64 page_id, Gfx::IntRect, i32 bitmap_id);
@@ -85,7 +86,7 @@ private:
     virtual void die() override;
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
-    virtual void destroy_compositor_context(Web::Compositor::CompositorContextId) override;
+    virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
     virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url) override;
     virtual void did_finish_loading(u64 page_id, URL::URL) override;
     virtual void did_request_refresh(u64 page_id) override;

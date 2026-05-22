@@ -69,11 +69,6 @@ void ConnectionFromClient::create_context(Web::Compositor::CompositorContextId c
     m_compositor_state->create_context(context_id, page_id, page_presentation_registration, *connection);
 }
 
-void ConnectionFromClient::destroy_context(Web::Compositor::CompositorContextId context_id)
-{
-    m_compositor_state->destroy_context(context_id);
-}
-
 void ConnectionFromClient::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     m_compositor_state->viewport_size_updated(context_id, viewport_size, is_top_level_traversable, window_resize_in_progress);

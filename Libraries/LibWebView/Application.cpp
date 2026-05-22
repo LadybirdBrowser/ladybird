@@ -20,6 +20,7 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Loader/UserAgent.h>
+#include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CookieJar.h>
@@ -532,13 +533,43 @@ void Application::register_compositor_context(WebContentClient& web_content_clie
     m_compositor_client->create_context(context_id, page_id, page_presentation_registration, *web_content_connection_id);
 }
 
-void Application::destroy_compositor_context(Web::Compositor::CompositorContextId context_id)
+void Application::update_compositor_viewport(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     if (should_skip_compositor_process_ipc(m_compositor_client))
         return;
     VERIFY(m_compositor_client);
 
-    m_compositor_client->async_destroy_context(context_id);
+    m_compositor_client->async_viewport_size_updated(context_id, viewport_size, true, window_resize_in_progress);
+}
+
+bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
+{
+    VERIFY(m_compositor_client);
+    return m_compositor_client->async_scroll_by(context_id, position, delta_in_device_pixels);
+}
+
+bool Application::handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
+{
+    VERIFY(m_compositor_client);
+    return m_compositor_client->handle_mouse_event(context_id, event.clone_without_browser_data());
+}
+
+void Application::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
+{
+    if (should_skip_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_dispatch_mouse_event_to_web_content(context_id, event.clone_without_browser_data());
+}
+
+void Application::notify_compositor_presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id)
+{
+    if (should_skip_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)

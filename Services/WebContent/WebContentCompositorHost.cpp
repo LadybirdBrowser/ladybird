@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/HashMap.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
@@ -20,12 +21,25 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <WebContent/CompositorClientEndpoint.h>
+#include <WebContent/CompositorConnection.h>
 #include <WebContent/CompositorServerEndpoint.h>
+#include <WebContent/ConnectionFromClient.h>
 #include <WebContent/WebContentCompositorClientEndpoint.h>
 #include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebContentCompositorServerEndpoint.h>
 
 namespace WebContent {
+
+static bool& should_use_compositor_process()
+{
+    static bool flag = false;
+    return flag;
+}
+
+void set_should_use_compositor_process(bool enabled)
+{
+    should_use_compositor_process() = enabled;
+}
 
 class WebContentCompositorActor;
 
@@ -388,7 +402,7 @@ void CompositorConnectionFromClient::ready_to_paint(u64 page_id, i32 bitmap_id)
     m_actor.presented_bitmap_ready_to_paint(page_id, bitmap_id);
 }
 
-class WebContentCompositorHost final : public Web::Compositor::CompositorHost {
+class LocalWebContentCompositorHost final : public Web::Compositor::CompositorHost {
 public:
     virtual void start(Web::DisplayListPlayerType display_list_player_type) override
     {
@@ -525,9 +539,128 @@ private:
     RefPtr<Threading::Thread> m_actor_thread;
 };
 
-NonnullOwnPtr<Web::Compositor::CompositorHost> create_web_content_compositor_host()
+class ProcessWebContentCompositorHost final : public Web::Compositor::CompositorHost {
+public:
+    explicit ProcessWebContentCompositorHost(ConnectionFromClient& client)
+        : m_client(client)
+    {
+    }
+
+    virtual void start(Web::DisplayListPlayerType) override
+    {
+    }
+
+private:
+    virtual void register_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) override
+    {
+        if (page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes) {
+            VERIFY(page_id.has_value());
+        } else {
+            VERIFY(!page_id.has_value());
+            VERIFY(!Web::Compositor::is_page_presenting_compositor_context_id(context_id));
+        }
+    }
+
+    virtual void destroy_context(Web::Compositor::CompositorContextId context_id) override
+    {
+        connection().destroy_context(context_id);
+        m_client.did_destroy_compositor_context(context_id);
+    }
+
+    virtual void stop_presenting_to_client(Web::Compositor::CompositorContextId context_id) override
+    {
+        connection().stop_presenting_to_client(context_id);
+    }
+
+    virtual void set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode mode) override
+    {
+        connection().set_presentation_mode(context_id, mode);
+    }
+
+    virtual void update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::DisplayListResourceTransaction&& resource_transaction, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot) override
+    {
+        connection().update_display_list(context_id, display_list, resource_transaction, scroll_state_snapshot);
+    }
+
+    virtual void update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame) override
+    {
+        connection().update_video_frame(context_id, frame_id, frame);
+    }
+
+    virtual void clear_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id) override
+    {
+        connection().clear_video_frame(context_id, frame_id);
+    }
+
+    virtual void update_compositor_surface(Web::Compositor::CompositorContextId context_id, Web::Painting::CompositorSurfaceId surface_id, Gfx::SharedImage&& shared_image) override
+    {
+        connection().update_compositor_surface(context_id, surface_id, shared_image);
+    }
+
+    virtual void clear_compositor_surface(Web::Compositor::CompositorContextId context_id, Web::Painting::CompositorSurfaceId surface_id) override
+    {
+        connection().clear_compositor_surface(context_id, surface_id);
+    }
+
+    virtual void update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot) override
+    {
+        connection().update_scroll_state(context_id, scroll_state_snapshot);
+    }
+
+    virtual void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation) override
+    {
+        connection().invalidate_wheel_event_listener_state(context_id, generation);
+    }
+
+    virtual Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking) override
+    {
+        return connection().async_scroll_by(context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
+    }
+
+    virtual bool should_defer_async_scroll_offset_adoption(Web::Compositor::CompositorContextId) const override
+    {
+        return false;
+    }
+
+    virtual bool should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id) const override
+    {
+        return connection().should_defer_main_thread_present_for_async_scroll(context_id);
+    }
+
+    virtual Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id) override
+    {
+        return connection().take_pending_async_scroll_updates(context_id);
+    }
+
+    virtual void viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress) override
+    {
+        connection().viewport_size_updated(context_id, viewport_size, is_top_level_traversable, window_resize_in_progress);
+    }
+
+    virtual void present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect) override
+    {
+        connection().present_frame(context_id, viewport_rect);
+    }
+
+    virtual void request_screenshot(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback) override
+    {
+        connection().request_screenshot(context_id, move(target_surface), move(callback));
+    }
+
+    CompositorConnection& connection() const
+    {
+        return m_client.compositor_process_connection();
+    }
+
+    ConnectionFromClient& m_client;
+};
+
+NonnullOwnPtr<Web::Compositor::CompositorHost> create_web_content_compositor_host(ConnectionFromClient& client)
 {
-    return make<WebContentCompositorHost>();
+    if (should_use_compositor_process())
+        return make<ProcessWebContentCompositorHost>(client);
+    return make<LocalWebContentCompositorHost>();
 }
 
 }

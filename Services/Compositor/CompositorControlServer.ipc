@@ -12,7 +12,6 @@ endpoint CompositorControlServer
     connect_web_content() => (IPC::TransportHandle handle, i32 web_content_connection_id)
 
     create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration, i32 web_content_connection_id) => ()
-    destroy_context(Web::Compositor::CompositorContextId context_id) =|
 
     viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|
 
