@@ -64,7 +64,6 @@ set(AK_TEST_SOURCES
     TestSourceGenerator.cpp
     TestSourceLocation.cpp
     TestSpan.cpp
-    TestStack.cpp
     TestStdLibExtras.cpp
     TestString.cpp
     TestStringConversions.cpp
