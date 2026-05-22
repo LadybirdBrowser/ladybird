@@ -33,6 +33,7 @@ set(SOURCES
     WebUI/ProcessesUI.cpp
     WebUI/SettingsUI.cpp
     WebUI/VersionUI.cpp
+    CompositorClient.cpp
 )
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
@@ -48,12 +49,18 @@ embed_as_string(
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)
 compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/Compositor)
+
 if (NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
     set_source_files_properties(Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
 endif()
 
 set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
+    ../../Services/Compositor/CompositorControlClientEndpoint.h
+    ../../Services/Compositor/CompositorControlServerEndpoint.h
+    ../../Services/Compositor/CompositorWebContentClientEndpoint.h
+    ../../Services/Compositor/CompositorWebContentServerEndpoint.h
     ../../Services/RequestServer/RequestClientEndpoint.h
     ../../Services/RequestServer/RequestServerEndpoint.h
     ../../Services/WebContent/CompositorClientEndpoint.h
@@ -71,6 +78,10 @@ set(GENERATED_SOURCES
     UIProcessServerEndpoint.h
 )
 
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/CompositorClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/CompositorClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/CompositorServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/CompositorServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentClientEndpoint.h)

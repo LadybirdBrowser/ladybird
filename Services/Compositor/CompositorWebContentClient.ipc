@@ -1,0 +1,4 @@
+endpoint CompositorWebContentClient
+{
+    did_connect() =|
+}

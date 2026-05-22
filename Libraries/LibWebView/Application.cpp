@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CompositorClient.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
@@ -97,6 +98,8 @@ Application::~Application()
     // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
     m_settings_observer.clear();
     m_bookmark_store_observer.clear();
+    if (m_compositor_client)
+        m_compositor_client->on_death = nullptr;
 
     s_the = nullptr;
 }
@@ -164,6 +167,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
+    bool enable_compositor_process = false;
     Vector<StringView> content_blocker_list_paths;
     Optional<StringView> resource_substitution_map_path;
     bool enable_autoplay = false;
@@ -238,6 +242,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(disable_content_blocker, "Disable content blocker", "disable-content-blocker");
+    args_parser.add_option(enable_compositor_process, "Enable the out-of-process compositor", "enable-compositor-process");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Path to a content blocker list. May be specified multiple times.",
@@ -353,6 +358,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
                 : OptionalNone()),
         .devtools_port = devtools_port,
         .enable_content_blocker = disable_content_blocker ? EnableContentBlocker::No : EnableContentBlocker::Yes,
+        .enable_compositor_process = enable_compositor_process ? EnableCompositorProcess::Yes : EnableCompositorProcess::No,
         .content_blocker_list_paths = move(content_blocker_list_paths_as_byte_strings),
     };
 
@@ -481,8 +487,24 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
 
     client->async_connect_to_request_server(move(request_server_handle));
     client->async_connect_to_image_decoder(move(image_decoder_handle));
+    TRY(Application::the().connect_web_content_to_compositor(*client));
 
     return client;
+}
+
+ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& web_content_client)
+{
+    if (m_browser_options.enable_compositor_process == EnableCompositorProcess::No)
+        return {};
+    if (web_content_client.compositor_connection_id({}).has_value())
+        return {};
+
+    VERIFY(m_compositor_client);
+    auto response = m_compositor_client->connect_web_content();
+
+    web_content_client.set_compositor_connection_id({}, response.web_content_connection_id());
+    web_content_client.async_connect_to_compositor_process(response.take_handle());
+    return {};
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
@@ -582,9 +604,28 @@ ErrorOr<void> Application::launch_services()
 
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
+    if (m_browser_options.enable_compositor_process == EnableCompositorProcess::Yes)
+        TRY(launch_compositor_process());
 
     if (m_browser_options.devtools_port.has_value())
         TRY(launch_devtools_server());
+
+    return {};
+}
+
+ErrorOr<void> Application::launch_compositor_process()
+{
+    VERIFY(!m_compositor_client);
+    m_compositor_client = TRY(WebView::launch_compositor_process());
+    m_compositor_client->on_death = [this]() {
+        m_compositor_client = nullptr;
+
+        if (Core::EventLoop::current().was_exit_requested())
+            return;
+
+        dbgln("Compositor process died");
+        VERIFY_NOT_REACHED();
+    };
 
     return {};
 }
@@ -806,6 +847,12 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
     dbgln_if(WEBVIEW_PROCESS_DEBUG, "Process {} died, type: {}", process.pid(), process_name_from_type(process.type()));
 
     switch (process.type()) {
+    case ProcessType::Compositor:
+        if (auto client = process.client<CompositorClient>(); client.has_value()) {
+            if (auto on_death = move(client->on_death))
+                on_death();
+        }
+        break;
     case ProcessType::ImageDecoder:
         if (auto client = process.client<ImageDecoderClient::Client>(); client.has_value()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart ImageDecoder process");

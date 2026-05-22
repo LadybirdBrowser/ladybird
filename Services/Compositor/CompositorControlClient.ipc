@@ -1,0 +1,4 @@
+endpoint CompositorControlClient
+{
+    did_connect_web_content(i32 web_content_connection_id) =|
+}
