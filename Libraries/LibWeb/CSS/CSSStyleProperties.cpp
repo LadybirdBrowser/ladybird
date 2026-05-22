@@ -1065,14 +1065,16 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
         if (property_id == PropertyID::GridTemplateColumns) {
             if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = as_if<Painting::PaintableBox>(first_paintable.ptr())) {
-                if (auto used_values_for_grid_template_columns = paintable_box->used_values_for_grid_template_columns()) {
-                    return used_values_for_grid_template_columns;
+                if (auto const* grid_layout_data = paintable_box->grid_layout_data()) {
+                    if (auto const& resolved_grid_template_columns = grid_layout_data->resolved_grid_template_columns)
+                        return resolved_grid_template_columns;
                 }
             }
         } else if (property_id == PropertyID::GridTemplateRows) {
             if (auto first_paintable = layout_node.first_paintable(); auto const* paintable_box = as_if<Painting::PaintableBox>(first_paintable.ptr())) {
-                if (auto used_values_for_grid_template_rows = paintable_box->used_values_for_grid_template_rows()) {
-                    return used_values_for_grid_template_rows;
+                if (auto const* grid_layout_data = paintable_box->grid_layout_data()) {
+                    if (auto const& resolved_grid_template_rows = grid_layout_data->resolved_grid_template_rows)
+                        return resolved_grid_template_rows;
                 }
             }
         }

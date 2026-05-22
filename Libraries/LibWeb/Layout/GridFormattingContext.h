@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/Layout/FormattingContext.h>
+#include <LibWeb/Layout/GridLayoutData.h>
 
 namespace Web::Layout {
 
@@ -204,8 +205,9 @@ private:
 
         bool is_gap { false };
         bool is_auto_fit { false };
+        bool is_auto_repeat { false };
 
-        static GridTrack create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit);
+        static GridTrack create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit = false, bool is_auto_repeat = false);
         static GridTrack create_auto();
         static GridTrack create_from_subgrid_parent_track(GridTrack const&);
         static GridTrack create_fixed(CSSPixels size);
@@ -291,6 +293,8 @@ private:
 
     size_t m_explicit_rows_line_count { 0 };
     size_t m_explicit_columns_line_count { 0 };
+    size_t m_explicit_rows_start_line_index { 0 };
+    size_t m_explicit_columns_start_line_index { 0 };
 
     bool m_has_flexible_row_tracks { false };
     bool m_has_flexible_column_tracks { false };
@@ -318,6 +322,7 @@ private:
     void resolve_grid_item_sizes(GridDimension dimension);
 
     void resolve_track_spacing(GridDimension dimension);
+    void save_grid_layout_data(CSS::GridTrackSizeList&& columns, CSS::GridTrackSizeList&& rows);
     CSSPixels grid_container_size_for_track_alignment(GridDimension dimension) const;
 
     AvailableSize get_free_space(AvailableSpace const&, GridDimension) const;
