@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+27 Pass
+1 Fail
+Pass	Checking invalid combination - align-self: legacy
+Pass	Checking invalid combination - align-self: space-around
+Pass	Checking invalid combination - align-self: left
+Pass	Checking invalid combination - align-self: safe right
+Pass	Checking invalid combination - align-self: auto safe
+Pass	Checking invalid combination - align-self: auto left
+Pass	Checking invalid combination - align-self: normal unsafe
+Pass	Checking invalid combination - align-self: normal stretch
+Pass	Checking invalid combination - align-self: baseline normal
+Pass	Checking invalid combination - align-self: baseline center
+Pass	Checking invalid combination - align-self: first baseline center
+Pass	Checking invalid combination - align-self: last baseline center
+Pass	Checking invalid combination - align-self: baseline last
+Pass	Checking invalid combination - align-self: baseline first
+Pass	Checking invalid combination - align-self: stretch unsafe
+Pass	Checking invalid combination - align-self: stretch right
+Pass	Checking invalid combination - align-self: unsafe unsafe
+Pass	Checking invalid combination - align-self: unsafe safe
+Pass	Checking invalid combination - align-self: center start
+Pass	Checking invalid combination - align-self: unsafe stretch
+Pass	Checking invalid combination - align-self: safe stretch
+Pass	Checking invalid combination - align-self: baseline safe
+Pass	Checking invalid combination - align-self: unsafe baseline
+Pass	Checking invalid combination - align-self: unsafe safe left
+Pass	Checking invalid combination - align-self: unsafe left safe
+Pass	Checking invalid combination - align-self: left safe unsafe safe
+Pass	Checking invalid combination - align-self: start safe
+Fail	Checking invalid combination - align-self: safe

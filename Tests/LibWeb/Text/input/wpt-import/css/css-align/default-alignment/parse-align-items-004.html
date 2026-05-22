@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Default-Alignment: align-items - invalid values</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#default-alignment" />
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-items" />
+<meta name="assert" content="Check bad combinations of specified values."/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/css-align/resources/alignment-parsing-utils.js"></script>
+<div id="log"></div>
+<script>
+    element = document.createElement("div");
+    document.body.appendChild(element);
+
+    let values = ["auto", "legacy", "space-around", "left", "safe right"].concat(invalidPositionValues);
+
+    values.forEach(function(value) {
+        test(function() {
+            checkBadValues(element, "alignItems", "align-items",  value);
+        }, "Checking invalid combination - align-items: " + value);
+    });
+</script>
