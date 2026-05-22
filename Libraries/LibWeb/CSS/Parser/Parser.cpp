@@ -362,6 +362,7 @@ static bool at_rule_is_supported(FlyString const& name)
         || name.equals_ignoring_ascii_case("namespace"sv)
         || name.equals_ignoring_ascii_case("page"sv)
         || name.equals_ignoring_ascii_case("property"sv)
+        || name.equals_ignoring_ascii_case("scope"sv)
         || name.equals_ignoring_ascii_case("supports"sv))
         return true;
 
