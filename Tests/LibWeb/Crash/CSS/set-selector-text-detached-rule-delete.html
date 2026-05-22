@@ -1,0 +1,14 @@
+<!doctype html>
+<script>
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(".a { .b { .c {} } }");
+
+    const a = sheet.cssRules[0];
+    const b = a.cssRules[0];
+    b.cssRules[0];
+
+    sheet.deleteRule(0);
+    b.selectorText = ".bb";
+    b.insertRule(".r {}");
+    a.selectorText = ".aa";
+</script>
