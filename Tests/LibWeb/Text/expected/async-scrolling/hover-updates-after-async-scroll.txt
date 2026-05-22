@@ -1,0 +1,16 @@
+before scroll line1: true
+before scroll line2: false
+before scroll mousemove count: 1
+before scroll pointermove count: 1
+before scroll mouseover count: 1
+before scroll mouseout count: 0
+before scroll stop line1: true
+before scroll stop line2: false
+before scroll stop mouseover count: 1
+before scroll stop mouseout count: 0
+after scroll stop line1: false
+after scroll stop line2: true
+after scroll stop mousemove count: 1
+after scroll stop pointermove count: 1
+after scroll stop mouseover count: 2
+after scroll stop mouseout count: 1

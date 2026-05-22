@@ -48,6 +48,7 @@ public:
     EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr);
     EventResult handle_mouseleave();
+    void update_hover_after_scroll();
 
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
@@ -121,6 +122,8 @@ private:
     void clear_mousedown_tracking();
     void stop_updating_selection();
 
+    void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
+
     enum class PointerEventType : u8 {
         PointerDown,
         PointerUp,
@@ -134,6 +137,7 @@ private:
     void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);
 
     void update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget> chrome_widget);
+    void record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers);
 
     void handle_gamepad_connected(SDL_JoystickID);
     void handle_gamepad_updated(SDL_JoystickID);
@@ -166,6 +170,10 @@ private:
     bool m_prevent_mouse_event { false };
 
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
+    Optional<CSSPixelPoint> m_last_known_mouse_visual_viewport_position;
+    CSSPixelPoint m_last_known_mouse_screen_position;
+    unsigned m_last_known_mouse_buttons { 0 };
+    unsigned m_last_known_mouse_modifiers { 0 };
 
     OwnPtr<Unicode::Segmenter> m_word_segmenter;
 

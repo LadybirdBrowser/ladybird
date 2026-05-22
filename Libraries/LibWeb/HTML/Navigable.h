@@ -12,6 +12,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Tuple.h>
+#include <LibCore/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -291,6 +292,8 @@ private:
     void inform_the_navigation_api_about_aborting_navigation();
     void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID);
     void resolve_all_pending_async_scroll_operations();
+    void schedule_hover_update_after_async_scroll();
+    void update_hover_after_async_scroll_stops();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-id
     String m_id;
@@ -345,6 +348,7 @@ private:
     Painting::DisplayListResourceSet m_rendering_thread_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     Optional<Painting::CompositorSurfaceId> m_compositor_surface_id;
+    RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
 
     struct PendingAsyncScrollOperation {
         Compositor::AsyncScrollOperationID operation_id { 0 };
