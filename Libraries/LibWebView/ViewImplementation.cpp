@@ -462,6 +462,16 @@ void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProp
     client().async_inspect_dom_node(page_id(), property_type, node_id, pseudo_element);
 }
 
+void ViewImplementation::inspect_grid_layouts(Web::UniqueNodeID root_node_id)
+{
+    client().async_inspect_grid_layouts(page_id(), root_node_id);
+}
+
+void ViewImplementation::inspect_current_grid(Web::UniqueNodeID node_id)
+{
+    client().async_inspect_current_grid(page_id(), node_id);
+}
+
 void ViewImplementation::clear_inspected_dom_node()
 {
     client().async_clear_inspected_dom_node(page_id());
@@ -475,6 +485,16 @@ void ViewImplementation::highlight_dom_node(Web::UniqueNodeID node_id, Optional<
 void ViewImplementation::clear_highlighted_dom_node()
 {
     highlight_dom_node(0, {});
+}
+
+void ViewImplementation::highlight_grid(Web::UniqueNodeID node_id, JsonValue options)
+{
+    client().async_highlight_grid(page_id(), node_id, move(options));
+}
+
+void ViewImplementation::clear_grid_highlight(Web::UniqueNodeID node_id)
+{
+    client().async_clear_grid_highlight(page_id(), node_id);
 }
 
 void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutations)

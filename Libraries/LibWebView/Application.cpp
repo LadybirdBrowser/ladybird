@@ -6,6 +6,8 @@
 
 #include <AK/Checked.h>
 #include <AK/Debug.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -1753,6 +1755,38 @@ void Application::inspect_dom_node(DevTools::TabDescription const& description, 
     view->inspect_dom_node(node_id, property_type, pseudo_element);
 }
 
+void Application::inspect_grid_layouts(DevTools::TabDescription const& description, Web::UniqueNodeID root_node_id, OnGridLayoutsReceived on_grid_layouts_received) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_grid_layouts_received({});
+        return;
+    }
+
+    view->on_received_grid_layouts = [&view = *view, on_grid_layouts_received = move(on_grid_layouts_received)](JsonArray grid_layouts) {
+        view.on_received_grid_layouts = nullptr;
+        on_grid_layouts_received(move(grid_layouts));
+    };
+
+    view->inspect_grid_layouts(root_node_id);
+}
+
+void Application::inspect_current_grid(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, OnCurrentGridReceived on_current_grid_received) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_current_grid_received({});
+        return;
+    }
+
+    view->on_received_current_grid = [&view = *view, on_current_grid_received = move(on_current_grid_received)](Optional<JsonObject> grid_layout) {
+        view.on_received_current_grid = nullptr;
+        on_current_grid_received(move(grid_layout));
+    };
+
+    view->inspect_current_grid(node_id);
+}
+
 void Application::clear_inspected_dom_node(DevTools::TabDescription const& description) const
 {
     if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
@@ -1769,6 +1803,18 @@ void Application::clear_highlighted_dom_node(DevTools::TabDescription const& des
 {
     if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
         view->clear_highlighted_dom_node();
+}
+
+void Application::highlight_grid(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, JsonValue options) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->highlight_grid(node_id, move(options));
+}
+
+void Application::clear_grid_highlight(DevTools::TabDescription const& description, Web::UniqueNodeID node_id) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->clear_grid_highlight(node_id);
 }
 
 void Application::listen_for_dom_mutations(DevTools::TabDescription const& description, OnDOMMutationReceived on_dom_mutation_received) const

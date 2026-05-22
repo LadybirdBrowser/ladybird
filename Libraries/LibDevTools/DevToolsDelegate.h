@@ -8,6 +8,8 @@
 
 #include <AK/Error.h>
 #include <AK/Function.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
@@ -45,8 +47,15 @@ public:
     virtual void inspect_dom_node(TabDescription const&, WebView::DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const { }
     virtual void clear_inspected_dom_node(TabDescription const&) const { }
 
+    using OnGridLayoutsReceived = Function<void(JsonArray)>;
+    using OnCurrentGridReceived = Function<void(Optional<JsonObject>)>;
+    virtual void inspect_grid_layouts(TabDescription const&, Web::UniqueNodeID, OnGridLayoutsReceived) const { }
+    virtual void inspect_current_grid(TabDescription const&, Web::UniqueNodeID, OnCurrentGridReceived) const { }
+
     virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const { }
     virtual void clear_highlighted_dom_node(TabDescription const&) const { }
+    virtual void highlight_grid(TabDescription const&, Web::UniqueNodeID, JsonValue) const { }
+    virtual void clear_grid_highlight(TabDescription const&, Web::UniqueNodeID) const { }
 
     using OnDOMMutationReceived = Function<void(WebView::Mutation)>;
     virtual void listen_for_dom_mutations(TabDescription const&, OnDOMMutationReceived) const { }

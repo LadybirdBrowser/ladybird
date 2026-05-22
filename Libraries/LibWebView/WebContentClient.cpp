@@ -5,6 +5,10 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/JsonArray.h>
+#include <AK/JsonObject.h>
+#include <AK/NeverDestroyed.h>
+#include <AK/WeakPtr.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Timer.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -654,6 +658,41 @@ static JsonObject parse_json(StringView json, StringView name)
     return move(parsed_tree.release_value().as_object());
 }
 
+static JsonArray parse_json_array(StringView json, StringView name)
+{
+    auto parsed_tree = JsonValue::from_string(json);
+    if (parsed_tree.is_error()) {
+        dbgln("Unable to parse {}: {}", name, parsed_tree.error());
+        return {};
+    }
+
+    if (!parsed_tree.value().is_array()) {
+        dbgln("Expected {} to be an array: {}", name, parsed_tree.value());
+        return {};
+    }
+
+    return move(parsed_tree.release_value().as_array());
+}
+
+static Optional<JsonObject> parse_optional_json_object(StringView json, StringView name)
+{
+    auto parsed_tree = JsonValue::from_string(json);
+    if (parsed_tree.is_error()) {
+        dbgln("Unable to parse {}: {}", name, parsed_tree.error());
+        return {};
+    }
+
+    if (parsed_tree.value().is_null())
+        return {};
+
+    if (!parsed_tree.value().is_object()) {
+        dbgln("Expected {} to be an object or null: {}", name, parsed_tree.value());
+        return {};
+    }
+
+    return move(parsed_tree.release_value().as_object());
+}
+
 void WebContentClient::did_inspect_dom_tree(u64 page_id, String dom_tree)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
@@ -667,6 +706,22 @@ void WebContentClient::did_inspect_dom_node(u64 page_id, DOMNodeProperties prope
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_dom_node_properties)
             view->on_received_dom_node_properties(move(properties));
+    }
+}
+
+void WebContentClient::did_inspect_grid_layouts(u64 page_id, String grid_layouts)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_grid_layouts)
+            view->on_received_grid_layouts(parse_json_array(grid_layouts, "grid layouts"sv));
+    }
+}
+
+void WebContentClient::did_inspect_current_grid(u64 page_id, String grid_layout)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_current_grid)
+            view->on_received_current_grid(parse_optional_json_object(grid_layout, "current grid"sv));
     }
 }
 

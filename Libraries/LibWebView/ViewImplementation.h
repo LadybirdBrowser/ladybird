@@ -9,7 +9,9 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/OwnPtr.h>
 #include <AK/Queue.h>
@@ -120,10 +122,14 @@ public:
     void get_hovered_node_id();
 
     void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element);
+    void inspect_grid_layouts(Web::UniqueNodeID root_node_id);
+    void inspect_current_grid(Web::UniqueNodeID node_id);
     void clear_inspected_dom_node();
 
     void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element);
     void clear_highlighted_dom_node();
+    void highlight_grid(Web::UniqueNodeID node_id, JsonValue options);
+    void clear_grid_highlight(Web::UniqueNodeID node_id);
 
     void set_listen_for_dom_mutations(bool);
     void did_connect_devtools_client();
@@ -232,6 +238,8 @@ public:
     Function<void()> on_request_dismiss_dialog;
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
+    Function<void(JsonArray)> on_received_grid_layouts;
+    Function<void(Optional<JsonObject>)> on_received_current_grid;
     Function<void(JsonObject)> on_received_accessibility_tree;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;
