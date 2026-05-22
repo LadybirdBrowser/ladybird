@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .hoverme {
+        height: 300px;
+    }
+</style>
+<div class="hoverme" id="line1">line 1</div>
+<div class="hoverme" id="line2">line 2</div>
+<div class="hoverme" id="line3">line 3</div>
+<script>
+    async function waitForHover(element) {
+        for (let i = 0; i < 60; ++i) {
+            if (element.matches(":hover"))
+                return;
+            await timeout(50);
+        }
+        println("timed out waiting for hover update");
+    }
+
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        let mouseMoves = 0;
+        let pointerMoves = 0;
+        let mouseOvers = 0;
+        let mouseOuts = 0;
+        document.addEventListener("mousemove", () => ++mouseMoves);
+        document.addEventListener("pointermove", () => ++pointerMoves);
+        document.addEventListener("mouseover", () => ++mouseOvers);
+        document.addEventListener("mouseout", () => ++mouseOuts);
+
+        internals.mouseMove(1, 1);
+
+        println(`before scroll line1: ${line1.matches(":hover")}`);
+        println(`before scroll line2: ${line2.matches(":hover")}`);
+        println(`before scroll mousemove count: ${mouseMoves}`);
+        println(`before scroll pointermove count: ${pointerMoves}`);
+        println(`before scroll mouseover count: ${mouseOvers}`);
+        println(`before scroll mouseout count: ${mouseOuts}`);
+
+        await internals.wheel(1, 1, 0, 500);
+
+        println(`before scroll stop line1: ${line1.matches(":hover")}`);
+        println(`before scroll stop line2: ${line2.matches(":hover")}`);
+        println(`before scroll stop mouseover count: ${mouseOvers}`);
+        println(`before scroll stop mouseout count: ${mouseOuts}`);
+
+        await waitForHover(line2);
+
+        println(`after scroll stop line1: ${line1.matches(":hover")}`);
+        println(`after scroll stop line2: ${line2.matches(":hover")}`);
+        println(`after scroll stop mousemove count: ${mouseMoves}`);
+        println(`after scroll stop pointermove count: ${pointerMoves}`);
+        println(`after scroll stop mouseover count: ${mouseOvers}`);
+        println(`after scroll stop mouseout count: ${mouseOuts}`);
+    });
+</script>

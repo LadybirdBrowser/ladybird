@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Timer.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SystemColor.h>
@@ -296,6 +297,8 @@ Navigable::~Navigable() = default;
 
 void Navigable::set_has_been_destroyed()
 {
+    if (m_async_scroll_hover_update_timer)
+        m_async_scroll_hover_update_timer->stop();
     destroy_compositor_context();
     m_has_been_destroyed = true;
     resolve_all_pending_async_scroll_operations();
@@ -303,6 +306,8 @@ void Navigable::set_has_been_destroyed()
 
 void Navigable::remove_from_all_navigables()
 {
+    if (m_async_scroll_hover_update_timer)
+        m_async_scroll_hover_update_timer->stop();
     destroy_compositor_context();
     resolve_all_pending_async_scroll_operations();
 
@@ -313,6 +318,8 @@ void Navigable::remove_from_all_navigables()
 
 void Navigable::finalize()
 {
+    if (m_async_scroll_hover_update_timer)
+        m_async_scroll_hover_update_timer->stop();
     destroy_compositor_context();
     all_navigables().remove(*this);
     Base::finalize();
@@ -3126,12 +3133,14 @@ void Navigable::adopt_pending_async_scroll_offsets()
     }
 
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
+    bool adopted_any_scroll_delta = false;
     for (auto const& async_scroll_offset : async_scroll_updates.scroll_offsets) {
         auto css_scroll_delta = async_scroll_offset_to_css_pixels(async_scroll_offset.unadopted_scroll_delta, device_pixels_per_css_pixel);
         if (async_scroll_offset.stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
             if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
                 continue;
             if (adopt_async_viewport_scroll_delta(*this, css_scroll_delta)) {
+                adopted_any_scroll_delta = true;
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async viewport delta {},{}",
                     async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
             }
@@ -3139,13 +3148,39 @@ void Navigable::adopt_pending_async_scroll_offsets()
         }
 
         if (adopt_async_element_scroll_delta(*document, async_scroll_offset.stable_node_id, css_scroll_delta)) {
+            adopted_any_scroll_delta = true;
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async element delta {},{}",
                 async_scroll_offset.unadopted_scroll_delta.x(), async_scroll_offset.unadopted_scroll_delta.y());
         }
     }
 
+    if (adopted_any_scroll_delta)
+        schedule_hover_update_after_async_scroll();
+
     for (auto operation_id : async_scroll_updates.completed_operation_ids)
         resolve_async_scroll_operation(operation_id);
+}
+
+void Navigable::schedule_hover_update_after_async_scroll()
+{
+    static constexpr int hover_update_after_async_scroll_delay_ms = 100;
+
+    if (!m_async_scroll_hover_update_timer) {
+        m_async_scroll_hover_update_timer = Core::Timer::create_single_shot(hover_update_after_async_scroll_delay_ms, [this] {
+            update_hover_after_async_scroll_stops();
+        });
+        m_async_scroll_hover_update_timer->start();
+        return;
+    }
+
+    m_async_scroll_hover_update_timer->restart(hover_update_after_async_scroll_delay_ms);
+}
+
+void Navigable::update_hover_after_async_scroll_stops()
+{
+    if (has_been_destroyed())
+        return;
+    event_handler().update_hover_after_scroll();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity

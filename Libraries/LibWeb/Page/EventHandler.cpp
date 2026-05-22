@@ -244,6 +244,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
 EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
 {
+    record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
+
     if (should_ignore_device_input_event()) {
         if (m_mousedown_target_is_drag_candidate)
             return handle_drag_and_drop_event(DragEvent::Type::DragMove, visual_viewport_position, screen_position, UIEvents::MouseButton::Primary, buttons, modifiers, {});
@@ -509,6 +511,8 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
 
 EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
+    record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
+
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
 
@@ -677,11 +681,84 @@ EventResult EventHandler::handle_mouseleave()
 
     update_hovered_chrome_widget(nullptr);
     update_cursor(nullptr, nullptr, nullptr);
+    m_last_known_mouse_visual_viewport_position.clear();
 
     if (!m_mousedown_target)
         track_the_effective_position_of_the_legacy_mouse_pointer(nullptr);
 
     return EventResult::Handled;
+}
+
+void EventHandler::update_hover_after_scroll()
+{
+    if (!m_last_known_mouse_visual_viewport_position.has_value())
+        return;
+    if (m_mousedown_target)
+        return;
+
+    update_hover_after_scroll(*m_last_known_mouse_visual_viewport_position, m_last_known_mouse_screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
+}
+
+void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return;
+
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+
+    if (!paint_root())
+        return;
+
+    RefPtr<Painting::Paintable> paintable;
+    RefPtr<Painting::ChromeWidget> chrome_widget;
+    if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
+        paintable = result->paintable;
+        chrome_widget = result->chrome_widget;
+    }
+
+    ArmedScopeGuard clear_hover = [&] {
+        update_hovered_chrome_widget(nullptr);
+        update_cursor(nullptr, nullptr, nullptr);
+        track_the_effective_position_of_the_legacy_mouse_pointer(nullptr);
+    };
+
+    if (!paintable)
+        return;
+
+    auto node = dom_node_for_event_dispatch(*paintable);
+    if (!node)
+        return;
+
+    auto dispatch_result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
+        event_handler.update_hover_after_scroll(position, screen_position, button, buttons, modifiers);
+        return EventResult::Handled;
+    });
+    if (dispatch_result.has_value()) {
+        clear_hover.disarm();
+        return;
+    }
+
+    GC::Ptr<Layout::Node> layout_node;
+    if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
+        return;
+
+    update_hovered_chrome_widget(chrome_widget);
+    update_cursor(*paintable, *node, chrome_widget);
+
+    auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
+    track_the_effective_position_of_the_legacy_mouse_pointer(node, DOM::HoverEventData {
+                                                                       .screen_position = screen_position,
+                                                                       .page_offset = coordinates.page_offset,
+                                                                       .viewport_position = coordinates.viewport_position,
+                                                                       .offset = coordinates.offset,
+                                                                       .movement = {},
+                                                                       .button = button,
+                                                                       .buttons = buttons,
+                                                                       .modifiers = modifiers,
+                                                                   });
+    clear_hover.disarm();
 }
 
 // https://w3c.github.io/uievents/#unicode-character-categories
@@ -2124,6 +2201,14 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
         page.client().page_did_unhover_link();
         page.set_is_hovering_link(false);
     }
+}
+
+void EventHandler::record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers)
+{
+    m_last_known_mouse_visual_viewport_position = visual_viewport_position;
+    m_last_known_mouse_screen_position = screen_position;
+    m_last_known_mouse_buttons = buttons;
+    m_last_known_mouse_modifiers = modifiers;
 }
 
 bool EventHandler::dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget> target, FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
