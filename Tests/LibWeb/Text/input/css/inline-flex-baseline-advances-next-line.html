@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.container {
+    font: 16px/24px sans-serif;
+}
+
+.icon {
+    display: inline-flex;
+    height: 32px;
+    width: 32px;
+}
+
+.top {
+    vertical-align: top;
+}
+
+.next {
+    display: inline-block;
+    height: 1px;
+    width: 1px;
+}
+</style>
+<div id="baseline" class="container"><span class="icon"></span><br><span class="next"></span></div>
+<div id="top" class="container"><span class="icon top"></span><br><span class="next"></span></div>
+<script>
+test(() => {
+    const baselineRect = document.getElementById("baseline").getBoundingClientRect();
+    const baselineNextRect = document.querySelector("#baseline .next").getBoundingClientRect();
+    const topRect = document.getElementById("top").getBoundingClientRect();
+    const topNextRect = document.querySelector("#top .next").getBoundingClientRect();
+
+    const baselineNextLineY = Math.round(baselineNextRect.y - baselineRect.y);
+    const topNextLineY = Math.round(topNextRect.y - topRect.y);
+    println(`baseline advances next line: ${baselineNextLineY > topNextLineY ? "PASS" : "FAIL"}`);
+});
+</script>

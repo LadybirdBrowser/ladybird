@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../data/fonts/Ahem.ttf");
+    }
+
+    body {
+        background: #111;
+        margin: 0;
+    }
+
+    nav {
+        border-bottom: 1px solid white;
+        color: white;
+        left: 18px;
+        padding-bottom: 2px;
+        position: absolute;
+        top: 55px;
+        width: 808px;
+    }
+
+    ul {
+        display: flex;
+        gap: 21px;
+        height: 33.953125px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .logo {
+        background: white;
+        height: 27px;
+        width: 135px;
+    }
+
+    li {
+        height: 33.953125px;
+        position: relative;
+    }
+
+    a,
+    button {
+        color: inherit;
+        font: 16px/24px Ahem;
+        margin: -14px 0 -14px -14px;
+        padding: 14px 0 14px 14px;
+    }
+
+    button {
+        background: transparent;
+        border: 0;
+    }
+
+    .word {
+        background: white;
+        display: inline-flex;
+        height: 23px;
+        margin-right: 16px;
+        width: 40px;
+    }
+
+    .hamburger {
+        height: 38.953125px;
+        margin-top: -5px;
+    }
+
+    .icon {
+        background: white;
+        display: inline-flex;
+        height: 32px;
+        width: 32px;
+    }
+</style>
+<nav>
+    <ul>
+        <div class="logo"></div>
+        <li><a><span class="word"></span></a></li>
+        <li><a><span class="word"></span></a></li>
+        <li class="hamburger"><button><span class="icon"></span></button></li>
+    </ul>
+</nav>

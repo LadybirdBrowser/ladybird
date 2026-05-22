@@ -69,6 +69,7 @@ private:
     CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
     bool m_last_line_needs_update { false };
+    bool m_should_advance_to_last_line_box_bottom { false };
 };
 
 }
