@@ -17,6 +17,8 @@ ProcessType process_type_from_name(StringView name)
 {
     if (name == "Browser"sv)
         return ProcessType::Browser;
+    if (name == "Compositor"sv)
+        return ProcessType::Compositor;
     if (name == "WebContent"sv)
         return ProcessType::WebContent;
     if (name == "WebWorker"sv)
@@ -35,6 +37,8 @@ StringView process_name_from_type(ProcessType type)
     switch (type) {
     case ProcessType::Browser:
         return "Browser"sv;
+    case ProcessType::Compositor:
+        return "Compositor"sv;
     case ProcessType::WebContent:
         return "WebContent"sv;
     case ProcessType::WebWorker:

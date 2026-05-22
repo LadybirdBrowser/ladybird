@@ -82,6 +82,7 @@ public:
 #endif
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
+    ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);
 
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
@@ -207,6 +208,7 @@ protected:
 private:
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
+    ErrorOr<void> launch_compositor_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
@@ -277,6 +279,7 @@ private:
 
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
+    RefPtr<CompositorClient> m_compositor_client;
 
     RefPtr<WebContentClient> m_spare_web_content_process;
     bool m_has_queued_task_to_launch_spare_web_content_process { false };

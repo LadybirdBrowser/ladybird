@@ -8,6 +8,7 @@
 
 namespace WebContent {
 
+class CompositorConnection;
 class ConnectionFromClient;
 class ConsoleGlobalEnvironmentExtensions;
 class DevToolsConsoleClient;

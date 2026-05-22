@@ -128,6 +128,11 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     m_views.set(0, view);
 }
 
+void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
+{
+    m_compositor_connection_id = compositor_connection_id;
+}
+
 void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 {
     VERIFY(page_id > 0);

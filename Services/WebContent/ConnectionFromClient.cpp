@@ -61,6 +61,7 @@
 #include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ViewImplementation.h>
+#include <WebContent/CompositorConnection.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
@@ -153,6 +154,11 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
 void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
 {
     m_page_host->attach_compositor_ui_client(move(handle));
+}
+
+void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle)
+{
+    (void)handle;
 }
 
 void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle)

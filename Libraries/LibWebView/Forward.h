@@ -16,6 +16,7 @@ class Action;
 class Application;
 class Autocomplete;
 class BookmarkStore;
+class CompositorClient;
 class CookieJar;
 class HistoryStore;
 class Menu;

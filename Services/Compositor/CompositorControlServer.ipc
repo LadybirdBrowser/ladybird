@@ -1,0 +1,8 @@
+#include <LibIPC/TransportHandle.h>
+
+endpoint CompositorControlServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+
+    connect_web_content() => (IPC::TransportHandle handle, i32 web_content_connection_id)
+}

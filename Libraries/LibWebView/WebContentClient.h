@@ -54,6 +54,8 @@ public:
     ~WebContentClient();
 
     void assign_view(Badge<Application>, ViewImplementation&);
+    void set_compositor_connection_id(Badge<Application>, i32);
+    Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
 
@@ -168,6 +170,7 @@ private:
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
     HashMap<u64, String> m_history_recorded_urls_for_current_load;
+    Optional<i32> m_compositor_connection_id;
 
     ProcessHandle m_process_handle;
 

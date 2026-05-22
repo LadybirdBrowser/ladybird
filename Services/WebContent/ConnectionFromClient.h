@@ -10,6 +10,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/Queue.h>
+#include <AK/RefPtr.h>
 #include <AK/SourceLocation.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGC/Root.h>
@@ -68,6 +69,7 @@ private:
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor(IPC::TransportHandle handle) override;
+    virtual void connect_to_compositor_process(IPC::TransportHandle handle) override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL) override;
@@ -185,6 +187,7 @@ private:
     void enqueue_input_event(Web::QueuedInputEvent);
 
     Queue<Web::QueuedInputEvent> m_input_event_queue;
+    RefPtr<CompositorConnection> m_compositor_connection;
 };
 
 }
