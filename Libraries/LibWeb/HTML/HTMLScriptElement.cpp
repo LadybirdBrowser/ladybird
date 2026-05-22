@@ -120,10 +120,6 @@ void HTMLScriptElement::begin_delaying_document_load_event(DOM::Document& docume
 // https://html.spec.whatwg.org/multipage/scripting.html#execute-the-script-block
 void HTMLScriptElement::execute_script()
 {
-    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
-    // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
-    VERIFY(document().ready_to_run_scripts());
-
     // 1. Let document be el's node document.
     GC::Ref<DOM::Document> document = this->document();
 
@@ -132,6 +128,10 @@ void HTMLScriptElement::execute_script()
         dbgln("HTMLScriptElement: Refusing to run script because the preparation time document is not the same as the node document.");
         return;
     }
+
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
+    // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
+    VERIFY(document->ready_to_run_scripts());
 
     // 3. Unblock rendering on el.
     unblock_rendering();
