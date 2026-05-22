@@ -108,8 +108,8 @@ void WebViewImplementationNative::initialize_client(WebView::ViewImplementation:
     m_client_state.client_handle = Web::Crypto::generate_random_uuid();
     client().async_set_window_handle(0, m_client_state.client_handle);
 
-    client().async_set_zoom_level(0, m_zoom_level);
     client().async_set_viewport(0, viewport_size(), m_device_pixel_ratio, Web::ViewportIsFullscreen::No);
+    client().async_set_zoom_level(0, m_zoom_level);
 
     set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
@@ -123,15 +123,21 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
 
     auto android_bitmap = MUST(Gfx::Bitmap::create_wrapper(to_gfx_bitmap_format(info.format), Gfx::AlphaType::Premultiplied, { info.width, info.height }, info.stride, android_bitmap_raw));
     auto painter = Gfx::Painter::create(android_bitmap);
+
+    // Always start with a neutral background so partial-source renders don't show through to
+    // the gray Android window background on the side(s).
+    painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color::White);
+
     Gfx::Bitmap const* bitmap = nullptr;
     if (m_client_state.has_usable_bitmap && m_client_state.front_bitmap.shared_image_buffer)
         bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
     else if (m_backup_shared_image_buffer)
         bitmap = m_backup_shared_image_buffer->bitmap().ptr();
-    if (bitmap)
-        painter->draw_bitmap(android_bitmap->rect().to_type<float>(), Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
-    else
-        painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color(0xF5, 0xF6, 0xF8));
+    if (bitmap) {
+        // Scale-blit the source backing store into the Android bitmap so we always cover the
+        // full surface, even if the WebContent backing store hasn't caught up to a new viewport size yet.
+        painter->draw_bitmap(android_bitmap->rect().to_type<float>(), Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), bitmap->rect(), Gfx::ScalingMode::Bilinear, {}, 1.0f, Gfx::CompositingAndBlendingOperator::SourceOver);
+    }
 }
 
 void WebViewImplementationNative::set_viewport_geometry(int w, int h)
@@ -150,7 +156,6 @@ void WebViewImplementationNative::set_zoom_level(double f)
 {
     m_zoom_level = f;
     client().async_set_zoom_level(0, m_zoom_level);
-    handle_resize();
 }
 
 void WebViewImplementationNative::mouse_event(Web::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y)
