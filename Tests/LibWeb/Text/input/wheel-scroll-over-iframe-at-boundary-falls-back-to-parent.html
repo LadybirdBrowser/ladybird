@@ -22,6 +22,7 @@
     promiseTest(async () => {
         const iframe = document.createElement("iframe");
         iframe.id = "iframe";
+        const iframeLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
         iframe.srcdoc = `
             <!DOCTYPE html>
             <style>
@@ -34,7 +35,10 @@
         `;
         document.body.prepend(iframe);
 
-        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        await iframeLoaded;
+        // Let the iframe compute its scroll range before clamping scrollTop to its bottom edge.
+        await animationFrame();
+        await animationFrame();
 
         const scrollingElement = iframe.contentDocument.scrollingElement;
         scrollingElement.scrollTop = 10000;
