@@ -267,6 +267,31 @@ impl GenericSelectorListRules {
 
         selectors
     }
+
+    fn has_hidden_selectors_for_class_or_id(
+        &self,
+        classes: impl IntoIterator<Item = impl AsRef<str>>,
+        ids: impl IntoIterator<Item = impl AsRef<str>>,
+        exceptions: &HashSet<String>,
+    ) -> bool {
+        for class in classes {
+            if let Some(class_selectors) = self.by_class.get(class.as_ref())
+                && class_selectors.iter().any(|selector| !exceptions.contains(selector))
+            {
+                return true;
+            }
+        }
+
+        for id in ids {
+            if let Some(id_selectors) = self.by_id.get(id.as_ref())
+                && id_selectors.iter().any(|selector| !exceptions.contains(selector))
+            {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 fn cosmetic_css_for_url(engine: &ContentBlockerEngine, url: &str, classes: &[&str], ids: &[&str]) -> String {
@@ -315,6 +340,28 @@ fn cosmetic_css_for_url(engine: &ContentBlockerEngine, url: &str, classes: &[&st
         css.push_str(" }\n");
     }
     css
+}
+
+fn has_generic_cosmetic_selectors_for_url(
+    engine: &ContentBlockerEngine,
+    url: &str,
+    classes: &[&str],
+    ids: &[&str],
+) -> bool {
+    let resources = engine.engine.url_cosmetic_resources(url);
+    if resources.generichide {
+        return false;
+    }
+
+    !engine
+        .engine
+        .hidden_class_id_selectors(classes.iter().copied(), ids.iter().copied(), &resources.exceptions)
+        .is_empty()
+        || engine.generic_selector_list_rules.has_hidden_selectors_for_class_or_id(
+            classes.iter().copied(),
+            ids.iter().copied(),
+            &resources.exceptions,
+        )
 }
 
 /// # Safety
@@ -414,6 +461,39 @@ pub unsafe extern "C" fn rust_content_blocker_cosmetic_css(
         let classes: Vec<_> = classes.lines().collect();
         let ids: Vec<_> = ids.lines().collect();
         string_to_ffi(cosmetic_css_for_url(engine, url, &classes, &ids))
+    })
+}
+
+/// # Safety
+/// - `engine` must be null or a valid pointer returned by `rust_content_blocker_create`
+/// - String pointers and lengths must point to valid UTF-8 strings
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_content_blocker_has_generic_cosmetic_selectors(
+    engine: *const c_void,
+    url: *const u8,
+    url_len: usize,
+    classes: *const u8,
+    classes_len: usize,
+    ids: *const u8,
+    ids_len: usize,
+) -> bool {
+    abort_on_panic(|| {
+        let Some(engine) = (unsafe { engine_from_raw(engine) }) else {
+            return false;
+        };
+        let Some(url) = (unsafe { string_from_raw(url, url_len) }) else {
+            return false;
+        };
+        let Some(classes) = (unsafe { string_from_raw(classes, classes_len) }) else {
+            return false;
+        };
+        let Some(ids) = (unsafe { string_from_raw(ids, ids_len) }) else {
+            return false;
+        };
+
+        let classes: Vec<_> = classes.lines().collect();
+        let ids: Vec<_> = ids.lines().collect();
+        has_generic_cosmetic_selectors_for_url(engine, url, &classes, &ids)
     })
 }
 
