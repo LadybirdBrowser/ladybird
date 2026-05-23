@@ -10,6 +10,7 @@ crate-type = ["staticlib"]
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 libweb_html_tokenizer = { path = "../HTML/Parser/Rust" }
+chardetng = "1.0.0"
 
 [build-dependencies]
 cbindgen = "0.29"

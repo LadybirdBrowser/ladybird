@@ -1,0 +1,14 @@
+<!doctype html>
+<title>uk KOI8-U</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Це тест на кодування символ╕в.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "KOI8-U", 'Expected KOI8-U');
+    }, "Check detection result");
+      done();
+};
+</script>

@@ -1,0 +1,14 @@
+<!doctype html>
+<title>ja Shift_JIS</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Ç±ÇÍÇÕï∂éöé¿å±Ç≈Ç∑ÅB</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "Shift_JIS", 'Expected Shift_JIS');
+    }, "Check detection result");
+      done();
+};
+</script>

@@ -1,0 +1,14 @@
+<!doctype html>
+<title>en windows-1252 euro sign</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>It costs €9.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1252", 'Expected windows-1252');
+    }, "Check detection result");
+      done();
+};
+</script>

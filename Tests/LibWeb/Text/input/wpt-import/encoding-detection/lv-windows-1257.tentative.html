@@ -1,0 +1,14 @@
+<!doctype html>
+<title>lv windows-1257</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Ðis ir rakstzîmju kodçðanas tests. Daþâs valodâs, kurâs tiek izmantotas latîòu valodas burti, lçmuma pieòemðanai mums ir nepiecieðams vairâk ieguldîjuma.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1257", 'Expected windows-1257');
+    }, "Check detection result");
+      done();
+};
+</script>

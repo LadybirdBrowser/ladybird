@@ -1,0 +1,14 @@
+<!doctype html>
+<title>zh Big5</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>這是一個字符編碼測試。</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "Big5", 'Expected Big5');
+    }, "Check detection result");
+      done();
+};
+</script>

@@ -1,0 +1,14 @@
+<!doctype html>
+<title>zh GBK</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>这是一个字符编码测试。</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "GBK", 'Expected GBK');
+    }, "Check detection result");
+      done();
+};
+</script>

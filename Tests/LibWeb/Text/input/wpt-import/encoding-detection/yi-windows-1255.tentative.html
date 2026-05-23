@@ -1,0 +1,14 @@
+<!doctype html>
+<title>yi windows-1255</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>דאָס איז אַ טעסט פֿאַר קאָדירונג פון כאַראַקטער.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1255", 'Expected windows-1255');
+    }, "Check detection result");
+      done();
+};
+</script>

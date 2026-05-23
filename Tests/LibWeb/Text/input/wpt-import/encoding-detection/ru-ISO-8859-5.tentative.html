@@ -1,0 +1,14 @@
+<!doctype html>
+<title>ru ISO-8859-5</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Это тест кодировки символов.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "ISO-8859-5", 'Expected ISO-8859-5');
+    }, "Check detection result");
+      done();
+};
+</script>

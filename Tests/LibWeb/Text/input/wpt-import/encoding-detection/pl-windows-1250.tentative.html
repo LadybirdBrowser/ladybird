@@ -1,0 +1,14 @@
+<!doctype html>
+<title>pl windows-1250</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>To jest test kodowania znaków. W przypadku niektórych jêzyków, które u¿ywaj¹ znaków ³aciñskich, potrzebujemy wiêcej danych, aby podj¹æ decyzjê.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1250", 'Expected windows-1250');
+    }, "Check detection result");
+      done();
+};
+</script>

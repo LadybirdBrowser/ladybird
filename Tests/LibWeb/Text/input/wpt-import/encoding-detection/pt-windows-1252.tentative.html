@@ -1,0 +1,14 @@
+<!doctype html>
+<title>pt windows-1252</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Este é um teste de codificação de caracteres.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1252", 'Expected windows-1252');
+    }, "Check detection result");
+      done();
+};
+</script>

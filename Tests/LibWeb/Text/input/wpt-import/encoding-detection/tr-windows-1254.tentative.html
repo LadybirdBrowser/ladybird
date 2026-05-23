@@ -1,0 +1,14 @@
+<!doctype html>
+<title>tr windows-1254</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Bu bir karakter kodlama testidir. Latince karakterleri kullanan bazý dillerde karar vermek için daha fazla girdiye ihtiyacýmýz var.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1254", 'Expected windows-1254');
+    }, "Check detection result");
+      done();
+};
+</script>

@@ -1,0 +1,14 @@
+<!doctype html>
+<title>th windows-874</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>นี่คือการทดสอบการเข้ารหัสอักขระ</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-874", 'Expected windows-874');
+    }, "Check detection result");
+      done();
+};
+</script>
