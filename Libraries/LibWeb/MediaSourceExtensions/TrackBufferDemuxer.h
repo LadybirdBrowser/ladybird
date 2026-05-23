@@ -33,6 +33,14 @@ public:
     void add_coded_frame(Media::CodedFrame);
     void remove_coded_frames_and_dependants_in_range(AK::Duration start, AK::Duration end);
 
+    size_t total_bytes() const;
+
+    Optional<AK::Duration> earliest_evictable_frame_timestamp(AK::Duration current_time) const;
+    size_t take_earliest_frame();
+
+    Optional<AK::Duration> latest_evictable_frame_timestamp(AK::Duration current_time) const;
+    size_t take_latest_frame();
+
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
 
@@ -56,6 +64,7 @@ public:
 private:
     AK::Duration maximum_time_range_gap() const;
     bool next_frame_is_in_gap_while_locked() const;
+    bool is_frame_evictable_while_locked(Media::CodedFrame const&, AK::Duration current_time) const;
 
     Media::Track m_track;
     Media::CodecID m_codec_id;
@@ -72,6 +81,7 @@ private:
 
     Media::TimeRanges m_track_buffer_ranges;
     AK::Duration m_last_frame_duration;
+    size_t m_total_bytes { 0 };
     Atomic<bool> m_aborted { false };
 };
 

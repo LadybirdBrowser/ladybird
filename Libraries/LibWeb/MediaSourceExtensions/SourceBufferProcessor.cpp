@@ -52,6 +52,40 @@ bool SourceBufferProcessor::is_buffer_full() const
     return m_buffer_full_flag;
 }
 
+static constexpr size_t AUDIO_TRACK_BYTE_CAPACITY = 12 * MiB;
+static constexpr size_t VIDEO_TRACK_BYTE_CAPACITY = 150 * MiB;
+static constexpr size_t TEXT_TRACK_BYTE_CAPACITY = 1 * MiB;
+
+size_t SourceBufferProcessor::total_buffered_bytes() const
+{
+    size_t total = 0;
+    for (auto const& [track_id, track_buffer] : m_track_buffers)
+        total += track_buffer->demuxer().total_bytes();
+    return total;
+}
+
+size_t SourceBufferProcessor::capacity_in_bytes() const
+{
+    VERIFY(!m_track_buffers.is_empty());
+    size_t total = 0;
+    for (auto const& [track_id, track_buffer] : m_track_buffers) {
+        switch (track_buffer->demuxer().track().type()) {
+        case Media::TrackType::Audio:
+            total += AUDIO_TRACK_BYTE_CAPACITY;
+            break;
+        case Media::TrackType::Video:
+            total += VIDEO_TRACK_BYTE_CAPACITY;
+            break;
+        case Media::TrackType::Subtitles:
+            total += TEXT_TRACK_BYTE_CAPACITY;
+            break;
+        case Media::TrackType::Unknown:
+            break;
+        }
+    }
+    return total;
+}
+
 void SourceBufferProcessor::set_mode(AppendMode mode)
 {
     m_mode = mode;
@@ -524,14 +558,111 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
-void SourceBufferProcessor::run_coded_frame_eviction()
+void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::Duration current_time)
 {
-    // FIXME: 1. Let new data equal the data that is about to be appended to this SourceBuffer.
-    //        2. If the [[buffer full flag]] equals false, then abort these steps.
-    //        3. Let removal ranges equal a list of presentation time ranges that can be evicted from the presentation
-    //           to make room for the new data.
-    //        4. For each range in removal ranges, run the coded frame removal algorithm with start and end equal to
-    //           the removal range start and end timestamp respectively.
+    // https://w3c.github.io/media-source/#dfn-coded-frame-removal
+    // AD-HOC: We'll run some of the final steps from the coded frame removal algorithm below.
+    //         We explicitly do not remove dependencies here (step 4), since that may evict data ahead of what the
+    //         demuxer needs still for its clients.
+    //         We also skip the ready state change here (step 5), since we explicitly avoid evicting current data.
+
+    // NB: Before the first initialization segment has been parsed, no track buffers exist and there is nothing to
+    //     evict.
+    // AD-HOC: Set the buffer full flag based on the projected size of the buffer after appending the new data.
+    //         If we don't do so here, we will not trigger removal until after an append throws a QuotaExceededError.
+    //         https://github.com/w3c/media-source/issues/289
+    if (m_track_buffers.is_empty())
+        return;
+    auto current_bytes = total_buffered_bytes();
+    auto current_capacity_in_bytes = capacity_in_bytes();
+    auto consumed_bytes_after_append = current_bytes + new_data_size;
+    m_buffer_full_flag = consumed_bytes_after_append > current_capacity_in_bytes;
+
+    // 1. Let new data equal the data that is about to be appended to this SourceBuffer.
+    // 2. If the [[buffer full flag]] equals false, then abort these steps.
+    if (!m_buffer_full_flag)
+        return;
+
+    // 3. Let removal ranges equal a list of presentation time ranges that can be evicted from the presentation to make
+    //    room for the new data.
+    // 4. For each range in removal ranges, run the coded frame removal algorithm with start and end equal to the
+    //    removal range start and end timestamp respectively.
+    // AD-HOC: Steps 3 and 4 are completed together by removing frames relative to the current playback position. We
+    //         first evict frames strictly before current_time across all tracks (oldest first), and if more room is
+    //         needed, evict frames beyond the buffered segment containing current_time (latest first). The per-track
+    //         demuxer enforces the "don't break the currently-playing segment" boundary so seeks naturally preserve
+    //         data around the new position.
+    VERIFY(consumed_bytes_after_append > current_capacity_in_bytes);
+    auto bytes_to_evict = consumed_bytes_after_append - current_capacity_in_bytes;
+    size_t bytes_evicted = 0;
+
+    while (bytes_evicted < bytes_to_evict) {
+        TrackBuffer* oldest_track_buffer = nullptr;
+        AK::Duration oldest_timestamp;
+        for (auto& [track_id, track_buffer] : m_track_buffers) {
+            auto candidate = track_buffer->demuxer().earliest_evictable_frame_timestamp(current_time);
+            if (!candidate.has_value())
+                continue;
+            if (!oldest_track_buffer || candidate.value() < oldest_timestamp) {
+                oldest_track_buffer = track_buffer.ptr();
+                oldest_timestamp = candidate.value();
+            }
+        }
+        if (!oldest_track_buffer)
+            break;
+        bytes_evicted += oldest_track_buffer->demuxer().take_earliest_frame();
+    }
+
+    while (bytes_evicted < bytes_to_evict) {
+        TrackBuffer* latest_track_buffer = nullptr;
+        AK::Duration latest_timestamp;
+        for (auto& [track_id, track_buffer] : m_track_buffers) {
+            auto candidate = track_buffer->demuxer().latest_evictable_frame_timestamp(current_time);
+            if (!candidate.has_value())
+                continue;
+            if (!latest_track_buffer || candidate.value() > latest_timestamp) {
+                latest_track_buffer = track_buffer.ptr();
+                latest_timestamp = candidate.value();
+            }
+        }
+        if (!latest_track_buffer)
+            break;
+        auto last_decode_timestamp = latest_track_buffer->last_decode_timestamp();
+        bytes_evicted += latest_track_buffer->demuxer().take_latest_frame();
+
+        // https://w3c.github.io/media-source/#dfn-coded-frame-removal
+        // AD-HOC: Steps starting from 3.3.1 are implemented here.
+
+        // 1. For each removed frame, if the frame has a decode timestamp equal to the last decode timestamp for the
+        //    frame's track, run the following steps:
+        // AD-HOC: The spec doesn't nest steps 2-5 below under step 1's if statement, but clearing the last decode
+        //         timestamp upon every removal here would potentially force a RAP unexpectedly.
+        //         https://github.com/w3c/media-source/issues/290
+        if (last_decode_timestamp.has_value() && latest_timestamp == last_decode_timestamp.value()) {
+            // -> If mode equals "segments":
+            if (m_mode == AppendMode::Segments) {
+                // Set [[group end timestamp]] to presentation timestamp.
+                m_group_end_timestamp = latest_timestamp;
+            }
+            // -> If mode equals "sequence":
+            else if (m_mode == AppendMode::Sequence) {
+                // Set [[group start timestamp]] equal to the [[group end timestamp]].
+                m_group_start_timestamp = m_group_end_timestamp;
+            }
+            // 2. Unset the last decode timestamp on all track buffers.
+            // 3. Unset the last frame duration on all track buffers.
+            // 4. Unset the highest end timestamp on all track buffers.
+            unset_all_track_buffer_timestamps();
+            // 5. Set the need random access point flag on all track buffers to true.
+            set_need_random_access_point_flag_on_all_track_buffers(true);
+        }
+    }
+
+    // https://w3c.github.io/media-source/#dfn-coded-frame-removal
+    // 4. If the [[buffer full flag]] equals true and this object is ready to accept more bytes, then set the
+    //    [[buffer full flag]] to false.
+    if (total_buffered_bytes() + new_data_size < current_capacity_in_bytes)
+        m_buffer_full_flag = false;
 }
 
 void SourceBufferProcessor::drop_consumed_bytes_from_input_buffer()
