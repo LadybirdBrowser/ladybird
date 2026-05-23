@@ -45,6 +45,7 @@ namespace Web::DOM {
     X(NodeRemove)                                   \
     X(NodeSetTextContent)                           \
     X(Other)                                        \
+    X(PseudoClassStateChange)                       \
     X(SetSelectorText)                              \
     X(SettingsChange)                               \
     X(StyleSheetDisabledStateChange)                \

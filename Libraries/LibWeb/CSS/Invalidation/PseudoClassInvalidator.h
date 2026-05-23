@@ -7,19 +7,11 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/CSS/Selector.h>
-
-namespace Web::DOM {
-
-class Document;
-class Element;
-class Node;
-
-}
+#include <LibWeb/CSS/PseudoClass.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS::Invalidation {
 
-void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass, DOM::Document&, GC::Ptr<DOM::Node>& state_slot, DOM::Node& invalidation_root, GC::Ptr<DOM::Node> new_state);
-void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass, DOM::Document&, GC::Ptr<DOM::Element>& state_slot, DOM::Node& invalidation_root, GC::Ptr<DOM::Element> new_state);
+void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass, GC::Ptr<DOM::Node> old_state, GC::Ptr<DOM::Node> new_state);
 
 }

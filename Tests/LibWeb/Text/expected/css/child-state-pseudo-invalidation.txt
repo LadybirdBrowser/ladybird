@@ -11,18 +11,18 @@ focus fragment old before append: rgb(0, 128, 0)
 focus fragment new before append: rgb(0, 0, 0)
 focus fragment old after append: rgb(0, 0, 0)
 focus fragment new after append: rgb(0, 128, 0)
-focus pseudo old before append: none
+focus pseudo old before append: focus
 focus pseudo new before append: none
 focus pseudo old after append: none
 focus pseudo new after append: focus
 focus pseudo new after remove: none
-focus pseudo move old before moveBefore: none
+focus pseudo move old before moveBefore: focus
 focus pseudo move new before moveBefore: none
 focus pseudo move old after moveBefore: none
 focus pseudo move new after moveBefore: focus
 focus pseudo move old after moveBefore back: focus
 focus pseudo move new after moveBefore back: none
-focus pseudo fragment old before append: none
+focus pseudo fragment old before append: focus
 focus pseudo fragment new before append: none
 focus pseudo fragment old after append: none
 focus pseudo fragment new after append: focus
@@ -75,18 +75,18 @@ hover pseudo fragment old after append: none
 hover pseudo fragment new after append: hover
 hover pseudo fragment old after moveBefore back: hover
 hover pseudo fragment new after moveBefore back: none
-shadow hover pseudo old before append: none
+shadow hover pseudo old before append: shadow hover
 shadow hover pseudo new before append: none
 shadow hover pseudo old after append: none
 shadow hover pseudo new after append: shadow hover
 shadow hover pseudo new after remove: none
-shadow hover pseudo move old before moveBefore: none
+shadow hover pseudo move old before moveBefore: shadow hover
 shadow hover pseudo move new before moveBefore: none
 shadow hover pseudo move old after moveBefore: none
 shadow hover pseudo move new after moveBefore: shadow hover
 shadow hover pseudo move old after moveBefore back: shadow hover
 shadow hover pseudo move new after moveBefore back: none
-shadow hover pseudo fragment old before append: none
+shadow hover pseudo fragment old before append: shadow hover
 shadow hover pseudo fragment new before append: none
 shadow hover pseudo fragment old after append: none
 shadow hover pseudo fragment new after append: shadow hover
