@@ -1,0 +1,15 @@
+<!doctype html>
+<title>el ISO-8859-7</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Πρόκειται για δοκιμή κωδικοποίησης χαρακτήρων: ¶ρης
+<!-- I needed to work capital alpha with tonos into the test somehow... --></p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "ISO-8859-7", 'Expected ISO-8859-7');
+    }, "Check detection result");
+      done();
+};
+</script>

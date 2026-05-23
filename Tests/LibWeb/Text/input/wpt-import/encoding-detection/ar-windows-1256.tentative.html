@@ -1,0 +1,14 @@
+<!doctype html>
+<title>ar windows-1256</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Â–« ÂÊ «Œ »«—  —„Ì“ «·√Õ—›.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1256", 'Expected windows-1256');
+    }, "Check detection result");
+      done();
+};
+</script>

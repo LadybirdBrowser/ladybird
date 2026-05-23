@@ -1,0 +1,14 @@
+<!doctype html>
+<title>pl ISO-8859-2</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>To jest test kodowania znaków. W przypadku niektórych jêzyków, które u¿ywaj± znaków ³aciñskich, potrzebujemy wiêcej danych, aby podj±æ decyzjê.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "ISO-8859-2", 'Expected ISO-8859-2');
+    }, "Check detection result");
+      done();
+};
+</script>

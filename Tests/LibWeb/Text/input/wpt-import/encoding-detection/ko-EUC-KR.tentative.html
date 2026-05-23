@@ -1,0 +1,14 @@
+<!doctype html>
+<title>ko EUC-KR</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>이것은 문자 인코딩 테스트입니다.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "EUC-KR", 'Expected EUC-KR');
+    }, "Check detection result");
+      done();
+};
+</script>

@@ -1,0 +1,14 @@
+<!doctype html>
+<title>lt windows-1257</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Tai simboliø kodavimo testas. Kai kurioms kalboms, naudojanèioms lotyniðkus raðmenis, mums reikia daugiau informacijos, kad galëtume priimti sprendimà.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1257", 'Expected windows-1257');
+    }, "Check detection result");
+      done();
+};
+</script>

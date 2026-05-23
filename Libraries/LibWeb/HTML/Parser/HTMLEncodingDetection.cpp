@@ -8,12 +8,13 @@
 #include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/StringView.h>
-#include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibURL/URL.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
+#include <LibWeb/HTML/Parser/RustFFI.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
@@ -459,6 +460,23 @@ Optional<ByteString> run_bom_sniff(ReadonlyBytes input)
     return {};
 }
 
+ByteString extract_tld_hint(URL::URL const& url)
+{
+    // Extract the rightmost DNS label from the URL's host as a TLD hint for chardetng.
+    // chardetng uses this to improve detection accuracy for country-code TLDs (.jp, .ru, .cn, …).
+    // Skip IP addresses — only domain names have meaningful TLDs.
+    auto const& maybe_host = url.host();
+    if (!maybe_host.has_value() || !maybe_host->is_domain())
+        return {};
+    auto host_string = maybe_host->serialize();
+    StringView host_view = host_string;
+    auto last_dot = host_view.find_last('.');
+    StringView tld_label = last_dot.has_value()
+        ? host_view.substring_view(*last_dot + 1)
+        : host_view;
+    return tld_label.is_empty() ? ByteString {} : ByteString { tld_label };
+}
+
 // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
 ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyBytes input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
@@ -499,12 +517,27 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyByte
     // 7. Otherwise, if the user agent has information on the likely encoding for this page, e.g. based on the encoding of the page when it was last visited, then return
     //    that encoding, with the confidence tentative.
 
-    // 8. FIXME: The user agent may attempt to autodetect the character encoding from applying frequency analysis or other algorithms to the data stream. Such algorithms
-    //    may use information about the resource other than the resource's contents, including the address of the resource. If autodetection succeeds in determining a
-    //    character encoding, and that encoding is a supported encoding, then return that encoding, with the confidence tentative. [UNIVCHARDET]
-    if (!Utf8View(StringView(input)).validate()) {
-        // FIXME: As soon as Locale is supported, this should sometimes return a different encoding based on the locale.
-        return "windows-1252";
+    // 8. The user agent may attempt to autodetect the character encoding from applying frequency analysis
+    //    or other algorithms to the data stream. Such algorithms may use information about the resource
+    //    other than the resource's contents, including the address of the resource.
+    //    If autodetection succeeds in determining a character encoding, and that encoding is a supported encoding,
+    //    then return that encoding, with the confidence tentative. [UNIVCHARDET]
+
+    auto tld_hint = extract_tld_hint(document.url());
+    u8 const* tld_data = tld_hint.is_empty() ? nullptr : reinterpret_cast<u8 const*>(tld_hint.characters());
+    size_t tld_size = tld_hint.length();
+
+    u8 const* encoding_name_ptr = nullptr;
+    size_t encoding_name_len = 0;
+
+    if (Parser::rust_detect_encoding(
+            input.data(), input.size(),
+            tld_data, tld_size,
+            &encoding_name_ptr, &encoding_name_len)) {
+        auto detected = StringView { reinterpret_cast<char const*>(encoding_name_ptr), encoding_name_len };
+        auto standardized = TextCodec::get_standardized_encoding(detected);
+        if (standardized.has_value())
+            return ByteString { standardized.value() };
     }
 
     // 9. Otherwise, return an implementation-defined or user-specified default character encoding, with the confidence tentative.

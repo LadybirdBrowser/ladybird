@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/HTMLBaseElement.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 
 namespace Web::HTML {
@@ -113,8 +114,8 @@ String HTMLBaseElement::href() const
     auto url = attribute(AttributeNames::href).value_or(String {});
 
     // 3. Let urlRecord be the result of parsing url with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by other base elements or itself.)
-    // FIXME: Pass in document's character encoding.
-    auto url_record = document.fallback_base_url().complete_url(url);
+    auto encoding = document.encoding_or_default();
+    auto url_record = DOMURL::parse(url, document.fallback_base_url(), encoding.bytes_as_string_view());
 
     // 4. If urlRecord is failure, return url.
     if (!url_record.has_value())

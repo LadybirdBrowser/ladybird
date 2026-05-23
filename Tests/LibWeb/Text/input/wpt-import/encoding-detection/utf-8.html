@@ -1,0 +1,14 @@
+<!doctype html>
+<title>UTF-8</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>これは文字実験です。</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_not_equals(document.characterSet.toUpperCase(), "UTF-8", 'Must not detect UTF-8');
+    }, "Check detection result");
+      done();
+};
+</script>

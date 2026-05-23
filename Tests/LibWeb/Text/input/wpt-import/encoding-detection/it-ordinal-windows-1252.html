@@ -1,0 +1,14 @@
+<!doctype html>
+<title>it windows-1252</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>42º</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1252", 'Expected windows-1252');
+    }, "Check detection result");
+      done();
+};
+</script>

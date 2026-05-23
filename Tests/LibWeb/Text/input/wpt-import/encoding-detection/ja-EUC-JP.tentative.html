@@ -1,0 +1,14 @@
+<!doctype html>
+<title>ja EUC-JP</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>これは文字実験です。</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "EUC-JP", 'Expected EUC-JP');
+    }, "Check detection result");
+      done();
+};
+</script>

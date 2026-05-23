@@ -1,0 +1,14 @@
+<!doctype html>
+<title>vi windows-1258</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>Ğây laÌ môòt thıÒ nghiêòm maŞ hoìa kyì tıò.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1258", 'Expected windows-1258');
+    }, "Check detection result");
+      done();
+};
+</script>

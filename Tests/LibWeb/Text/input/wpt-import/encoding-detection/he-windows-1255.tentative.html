@@ -1,0 +1,14 @@
+<!doctype html>
+<title>he windows-1255</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<p>זהו מבחן קידוד תווים.</p>
+<script>
+setup({explicit_done:true});
+onload = function() {
+    test(function() {
+        assert_equals(document.characterSet, "windows-1255", 'Expected windows-1255');
+    }, "Check detection result");
+      done();
+};
+</script>
