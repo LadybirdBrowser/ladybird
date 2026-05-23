@@ -5,6 +5,7 @@
  */
 
 #include "WebViewImplementationNative.h"
+#include <AK/ByteString.h>
 #include <AK/String.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <jni.h>
@@ -315,4 +316,26 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeSelectAll(JNIEnv*, jobj
 {
     auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
     impl->select_all();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeDebugRequest(JNIEnv*, jobject, jlong, jstring, jstring);
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_serenityos_ladybird_WebViewImplementation_nativeDebugRequest(JNIEnv* env, jobject /* thiz */, jlong instance, jstring request, jstring argument)
+{
+    auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
+
+    char const* req_raw = env->GetStringUTFChars(request, nullptr);
+    ByteString req { StringView { req_raw, strlen(req_raw) } };
+    env->ReleaseStringUTFChars(request, req_raw);
+
+    ByteString arg {};
+    if (argument != nullptr) {
+        char const* arg_raw = env->GetStringUTFChars(argument, nullptr);
+        arg = ByteString { StringView { arg_raw, strlen(arg_raw) } };
+        env->ReleaseStringUTFChars(argument, arg_raw);
+    }
+
+    impl->debug_request(req, arg);
 }

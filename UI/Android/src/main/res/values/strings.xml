@@ -103,4 +103,22 @@
     <string name="bookmarks_subtitle">%1$d saved</string>
     <string name="history_subtitle">%1$d visited</string>
     <string name="bookmark_removed">Bookmark removed</string>
+
+    <string name="context_copy_url">Copy URL</string>
+    <string name="context_view_source">View source</string>
+    <string name="menu_reload">Reload</string>
+    <string name="menu_find">Find on page</string>
+    <string name="menu_bookmark">Bookmark this page</string>
+
+    <string name="settings_section_engine">Engine compatibility</string>
+    <string name="settings_user_agent">User agent</string>
+    <string name="settings_user_agent_summary">Identity sent to web sites (helps bypass captchas)</string>
+    <string name="settings_navigator_compat">Navigator compatibility</string>
+    <string name="settings_navigator_compat_summary">Which engine the JavaScript API pretends to be</string>
+    <string name="settings_pinch_zoom">Pinch to zoom</string>
+    <string name="settings_pinch_zoom_summary">Use two-finger gestures to zoom the page</string>
+    <string name="settings_clear_data">Clear browsing data</string>
+    <string name="settings_clear_data_summary">Removes history and bookmarks stored on this device</string>
+    <string name="settings_clear_data_confirm">Clear history and bookmarks?</string>
+    <string name="settings_clear_data_done">Browsing data cleared</string>
 </resources>

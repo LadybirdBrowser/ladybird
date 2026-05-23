@@ -240,6 +240,163 @@
                     android:layout_marginStart="12dp" />
             </LinearLayout>
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_pinch_zoom"
+                        android:textColor="@color/ladybird_on_surface"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/settings_pinch_zoom_summary"
+                        android:textColor="@color/ladybird_on_surface_muted"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/pinchSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/clearDataRow"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_clear_data"
+                    android:textColor="@color/ladybird_on_surface"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/settings_clear_data_summary"
+                    android:textColor="@color/ladybird_on_surface_muted"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:gravity="bottom|start"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="8dp"
+                android:text="@string/settings_section_engine"
+                android:textAllCaps="true"
+                android:textColor="@color/ladybird_on_surface_muted"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="8dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_user_agent"
+                        android:textColor="@color/ladybird_on_surface"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/settings_user_agent_summary"
+                        android:textColor="@color/ladybird_on_surface_muted"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <Spinner
+                    android:id="@+id/userAgentSpinner"
+                    android:layout_width="160dp"
+                    android:layout_height="48dp"
+                    android:background="@android:color/transparent"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:popupBackground="@color/ladybird_surface" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="8dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_navigator_compat"
+                        android:textColor="@color/ladybird_on_surface"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/settings_navigator_compat_summary"
+                        android:textColor="@color/ladybird_on_surface_muted"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <Spinner
+                    android:id="@+id/navCompatSpinner"
+                    android:layout_width="160dp"
+                    android:layout_height="48dp"
+                    android:background="@android:color/transparent"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:popupBackground="@color/ladybird_surface" />
+            </LinearLayout>
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="40dp"

@@ -125,6 +125,12 @@ class WebViewImplementation(private val view: WebView) {
         nativeSelectAll(nativeInstance)
     }
 
+    fun debugRequest(request: String, argument: String? = null) {
+        if (nativeInstance == 0L)
+            return
+        nativeDebugRequest(nativeInstance, request, argument)
+    }
+
     fun drawIntoBitmap(bitmap: Bitmap) {
         if (nativeInstance == 0L)
             return
@@ -227,6 +233,7 @@ class WebViewImplementation(private val view: WebView) {
     private external fun nativeSetPreferredColorScheme(instance: Long, scheme: Int)
     private external fun nativeRunJavascript(instance: Long, js: String)
     private external fun nativeSelectAll(instance: Long)
+    private external fun nativeDebugRequest(instance: Long, request: String, argument: String?)
 
     companion object {
         /*

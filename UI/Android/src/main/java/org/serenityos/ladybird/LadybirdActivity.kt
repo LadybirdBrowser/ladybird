@@ -126,6 +126,12 @@ class LadybirdActivity : AppCompatActivity() {
                     .show()
             }
         }
+        view.onLongPress = { _, _ ->
+            showPageContextMenu()
+        }
+        view.onSwipeRefresh = {
+            if (currentUrl.isNotBlank()) view.loadURL(currentUrl) else view.reload()
+        }
 
         urlEditText.setOnEditorActionListener { textView: TextView, actionId: Int, _: KeyEvent? ->
             when (actionId) {
@@ -189,6 +195,9 @@ class LadybirdActivity : AppCompatActivity() {
 
     private fun applySettingsToView() {
         view.setPreferredColorScheme(settings.colorScheme.nativeValue)
+        view.setUserAgent(settings.userAgent)
+        view.setNavigatorCompatibility(settings.navigatorCompatibility)
+        view.setPinchZoomEnabled(settings.pinchZoomEnabled)
     }
 
     private fun navigateToInput(input: String) {
@@ -526,6 +535,26 @@ class LadybirdActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun showPageContextMenu() {
+        val items = mutableListOf<Pair<Int, () -> Unit>>()
+        if (currentUrl.isNotBlank()) {
+            items += R.string.context_copy_url to { copyCurrentUrl() }
+            items += R.string.menu_share to { shareCurrent() }
+            items += R.string.menu_reload to { view.reload() }
+            items += R.string.context_view_source to { openViewSource() }
+            items += R.string.menu_find to { showFindBar() }
+        }
+        items += R.string.menu_bookmark to { addCurrentBookmark() }
+        items += R.string.menu_select_all to { view.selectAllOnPage() }
+
+        val labels = items.map { getString(it.first) }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(if (currentTitle.isNotBlank()) currentTitle else getString(R.string.app_name))
+            .setItems(labels) { _, idx -> items[idx].second() }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .show()
     }
 
     private fun showAboutDialog() {
