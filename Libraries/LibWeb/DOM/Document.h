@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -1099,6 +1100,7 @@ public:
     CSS::StyleScope& style_scope() { return m_style_scope; }
     String const& content_blocker_style_sheet();
     void invalidate_content_blocker_style_sheet();
+    bool content_blocker_style_sheet_may_need_refresh_for_class_or_id(FlyString const* id, ReadonlySpan<FlyString> class_names);
 
     void exit_pointer_lock();
 
@@ -1469,6 +1471,9 @@ private:
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
 
     Optional<String> m_content_blocker_style_sheet;
+    // Class/id tokens already covered by the cached content blocker stylesheet.
+    HashTable<FlyString> m_content_blocker_style_sheet_checked_classes;
+    HashTable<FlyString> m_content_blocker_style_sheet_checked_ids;
 
     Optional<AK::UnixDateTime> m_last_modified;
 

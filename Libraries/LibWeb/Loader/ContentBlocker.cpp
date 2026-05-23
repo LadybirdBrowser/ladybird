@@ -9,8 +9,6 @@
 #include <AK/Vector.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/ContentBlockerRustFFI.h>
-#include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 
 namespace Web {
@@ -232,32 +230,31 @@ String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, Readonl
         ids_bytes.length()));
 }
 
-String ContentBlocker::cosmetic_style_sheet_for_document(DOM::Document const& document) const
+bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url, ReadonlySpan<String> classes, ReadonlySpan<String> ids) const
 {
     if (!filtering_enabled() || !m_engine || !m_has_cosmetic_rules)
-        return {};
+        return false;
 
-    Vector<String> classes;
-    Vector<String> ids;
-    const_cast<DOM::Document&>(document).for_each_shadow_including_descendant([&](DOM::Node& node) {
-        auto* element = as_if<DOM::Element>(node);
-        if (!element)
-            return TraversalDecision::Continue;
+    auto url_string = serialized_url(url);
+    auto classes_string = join_lines(classes);
+    if (classes_string.is_error())
+        return false;
 
-        if (auto const& id = element->id(); id.has_value()) {
-            if (auto id_string = id->to_string(); !id_string.is_empty())
-                ids.append(move(id_string));
-        }
+    auto ids_string = join_lines(ids);
+    if (ids_string.is_error())
+        return false;
 
-        for (auto const& class_name : element->class_names()) {
-            if (auto class_string = class_name.to_string(); !class_string.is_empty())
-                classes.append(move(class_string));
-        }
+    auto classes_bytes = classes_string.value().bytes_as_string_view();
+    auto ids_bytes = ids_string.value().bytes_as_string_view();
 
-        return TraversalDecision::Continue;
-    });
-
-    return cosmetic_style_sheet_for_url(document.fallback_base_url(), classes, ids);
+    return ContentBlocking::FFI::rust_content_blocker_has_generic_cosmetic_selectors(
+        m_engine,
+        reinterpret_cast<u8 const*>(url_string.characters()),
+        url_string.length(),
+        reinterpret_cast<u8 const*>(classes_bytes.characters_without_null_termination()),
+        classes_bytes.length(),
+        reinterpret_cast<u8 const*>(ids_bytes.characters_without_null_termination()),
+        ids_bytes.length());
 }
 
 ContentBlocker::ResourceType ContentBlocker::resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const& destination, Optional<Fetch::Infrastructure::Request::InitiatorType> const& initiator_type, Fetch::Infrastructure::Request::Mode mode)

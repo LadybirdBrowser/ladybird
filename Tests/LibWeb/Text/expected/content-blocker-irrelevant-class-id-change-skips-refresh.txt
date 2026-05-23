@@ -1,0 +1,7 @@
+block
+block
+rgb(1, 2, 3)
+rgb(4, 5, 6)
+PASS: irrelevant class/id changes skipped content blocker refresh
+none
+none

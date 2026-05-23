@@ -13,7 +13,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Forward.h>
 
 namespace Web {
 
@@ -50,9 +49,9 @@ public:
     ErrorOr<void> set_patterns(ReadonlySpan<String>);
     ErrorOr<void> set_rules_from_bytes(ReadonlyBytes);
 
-    String cosmetic_style_sheet_for_document(DOM::Document const&) const;
     String cosmetic_style_sheet_for_url(URL::URL const&) const;
     String cosmetic_style_sheet_for_url(URL::URL const&, ReadonlySpan<String> classes, ReadonlySpan<String> ids) const;
+    bool has_generic_cosmetic_selectors_for_url(URL::URL const&, ReadonlySpan<String> classes, ReadonlySpan<String> ids) const;
 
     static ResourceType resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const&, Optional<Fetch::Infrastructure::Request::InitiatorType> const&, Fetch::Infrastructure::Request::Mode);
     static URL::URL source_url_for_matching(URL::URL const&);

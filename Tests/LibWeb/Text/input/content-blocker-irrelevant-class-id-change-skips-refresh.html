@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<style>
+    .irrelevant {
+        color: rgb(1, 2, 3);
+    }
+
+    #unrelated {
+        color: rgb(4, 5, 6);
+    }
+</style>
+<body></body>
+<script>
+    test(() => {
+        internals.setContentBlockers("##.ad\n###sponsor");
+
+        const classTarget = document.createElement("div");
+        document.body.appendChild(classTarget);
+
+        const idTarget = document.createElement("div");
+        document.body.appendChild(idTarget);
+
+        println(getComputedStyle(classTarget).display);
+        println(getComputedStyle(idTarget).display);
+
+        internals.resetStyleInvalidationCounters();
+
+        classTarget.className = "irrelevant";
+        idTarget.id = "unrelated";
+
+        println(getComputedStyle(classTarget).color);
+        println(getComputedStyle(idTarget).color);
+
+        const counters = internals.getStyleInvalidationCounters();
+        if (counters.fullStyleInvalidations == 0)
+            println("PASS: irrelevant class/id changes skipped content blocker refresh");
+        else
+            println(`FAIL: irrelevant class/id changes caused ${counters.fullStyleInvalidations} full invalidations`);
+
+        classTarget.className = "ad";
+        idTarget.id = "sponsor";
+
+        println(getComputedStyle(classTarget).display);
+        println(getComputedStyle(idTarget).display);
+
+        internals.setContentBlockers("");
+    });
+</script>

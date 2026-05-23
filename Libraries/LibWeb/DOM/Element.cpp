@@ -110,6 +110,7 @@
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
@@ -132,6 +133,20 @@
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Element);
+
+static void invalidate_content_blocker_style_if_needed(Element& element)
+{
+    if (!element.is_connected())
+        return;
+    if (!ContentBlocker::the().filtering_enabled() || !ContentBlocker::the().has_cosmetic_rules())
+        return;
+
+    auto const& id = element.id();
+    if (!element.document().content_blocker_style_sheet_may_need_refresh_for_class_or_id(id.has_value() ? &id.value() : nullptr, element.class_names()))
+        return;
+
+    element.document().page().invalidate_user_style();
+}
 
 Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
@@ -862,6 +877,8 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<S
 
     if (old_value != value) {
         CSS::Invalidation::invalidate_style_after_attribute_change(*this, local_name, old_value, value);
+        if (local_name == HTML::AttributeNames::id || local_name == HTML::AttributeNames::class_)
+            invalidate_content_blocker_style_if_needed(*this);
         document().bump_dom_tree_version();
     }
 }
@@ -1708,6 +1725,8 @@ void Element::inserted()
             document().element_with_id_was_added({}, *this);
         if (m_name.has_value())
             document().element_with_name_was_added({}, *this);
+        if (m_id.has_value() || !m_classes.is_empty())
+            invalidate_content_blocker_style_if_needed(*this);
     }
 
     play_or_cancel_animations_after_display_property_change();
