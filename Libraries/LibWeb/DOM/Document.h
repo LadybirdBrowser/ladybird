@@ -1204,7 +1204,7 @@ private:
     bool m_active_parser_was_aborted { false };
 
     bool m_has_been_destroyed { false };
-    bool m_has_fired_document_became_inactive { false };
+    bool m_observers_consider_document_fully_active { false };
 
     String m_source;
 

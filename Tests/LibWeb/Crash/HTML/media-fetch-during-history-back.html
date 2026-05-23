@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Test: A <video> element starts loading a remote resource. A pushState adds a new session history entry that points
+     to the same Document. The back button then traverses to a different session history entry that still resolves to
+     the same Document. In apply_the_history_step's deactivate decision, "resolved == displayed" causes the deactivate
+     path to be skipped (so the inactive observer never fires and fetch_controller is not cleared), but
+     activate_history_entry is still called, firing document_became_active on the already-active document while a fetch
+     is in flight. -->
+<html class="test-wait">
+<body>
+<video id="video" src="../../Assets/test-webm.webm" preload="auto"></video>
+<script>
+    video.addEventListener("progress", () => {
+        history.pushState({}, "", "#second");
+        setTimeout(() => {
+            history.back();
+            setTimeout(() => {
+                document.documentElement.classList.remove("test-wait");
+            }, 200);
+        }, 50);
+    }, { once: true });
+</script>
+</body>
+</html>

@@ -5200,15 +5200,10 @@ void Document::destroy()
     abort();
 
     // AD-HOC: Notify document observers that this document became inactive.
-    //         This allows observers (e.g. HTMLImageElement) to clear resources like
-    //         DocumentLoadEventDelayers that would otherwise block the parent
-    //         document's load event forever.
-    //         Note: did_stop_being_active_document_in_navigable() handles the navigation case,
-    //         but document destruction (e.g. iframe removal) takes a different path.
-    //         The flag ensures we don't fire the callback twice for the same document
-    //         (once from navigation, then again from destruction).
-    if (!m_has_fired_document_became_inactive) {
-        m_has_fired_document_became_inactive = true;
+    //         This handles iframe-removal destruction, which doesn't otherwise go through
+    //         did_stop_being_active_document_in_navigable().
+    if (m_observers_consider_document_fully_active) {
+        m_observers_consider_document_fully_active = false;
         notify_each_document_observer([&](auto const& document_observer) {
             return document_observer.document_became_inactive();
         });
@@ -5644,8 +5639,8 @@ void Document::did_stop_being_active_document_in_navigable()
 
     schedule_html_parser_end_check();
 
-    if (!m_has_fired_document_became_inactive) {
-        m_has_fired_document_became_inactive = true;
+    if (m_observers_consider_document_fully_active) {
+        m_observers_consider_document_fully_active = false;
         notify_each_document_observer([&](auto const& document_observer) {
             return document_observer.document_became_inactive();
         });
@@ -5764,9 +5759,12 @@ void Document::make_active()
         m_needs_to_call_page_did_load = false;
     }
 
-    notify_each_document_observer([&](auto const& document_observer) {
-        return document_observer.document_became_active();
-    });
+    if (!m_observers_consider_document_fully_active) {
+        m_observers_consider_document_fully_active = true;
+        notify_each_document_observer([&](auto const& document_observer) {
+            return document_observer.document_became_active();
+        });
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#set-the-initial-visibility-state
