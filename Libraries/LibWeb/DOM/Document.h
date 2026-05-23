@@ -869,6 +869,7 @@ public:
         u64 has_ancestor_walk_visits { 0 };
         u64 has_ancestor_sibling_element_checks { 0 };
         u64 has_invalidation_metadata_candidates { 0 };
+        u64 has_invalidation_rule_cache_builds { 0 };
         u64 has_match_invocations { 0 };
         u64 has_result_cache_hits { 0 };
         u64 has_result_cache_misses { 0 };

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function settleDocumentStyle() {
+        document.documentElement.classList.toggle("__settle__");
+        getComputedStyle(document.body).color;
+        document.documentElement.classList.toggle("__settle__");
+        getComputedStyle(document.body).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    test(() => {
+        const noHasSheet = new CSSStyleSheet();
+        noHasSheet.replaceSync(".target { color: green; }");
+
+        settleDocumentStyle();
+
+        const shadowRoots = [];
+        for (let i = 0; i < 25; ++i) {
+            const host = document.createElement("div");
+            document.body.appendChild(host);
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.adoptedStyleSheets = [noHasSheet];
+            shadowRoots.push(shadowRoot);
+        }
+
+        for (const shadowRoot of shadowRoots) {
+            const target = document.createElement("span");
+            target.className = "target";
+            shadowRoot.appendChild(target);
+        }
+        getComputedStyle(document.body).color;
+
+        const countersAfterNoHasMutation = internals.getStyleInvalidationCounters();
+        println("[cold shadow roots without :has()]");
+        println(`  hasInvalidationRuleCacheBuilds: ${countersAfterNoHasMutation.hasInvalidationRuleCacheBuilds}`);
+        println(`  hasAncestorWalkInvocations: ${countersAfterNoHasMutation.hasAncestorWalkInvocations}`);
+
+        const hasSheet = new CSSStyleSheet();
+        hasSheet.replaceSync(":host(:has(.target)) { color: red; }");
+
+        settleDocumentStyle();
+
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.adoptedStyleSheets = [hasSheet];
+
+        const target = document.createElement("span");
+        target.className = "target";
+        host.appendChild(target);
+        println(getComputedStyle(host).color);
+
+        const countersAfterHasMutation = internals.getStyleInvalidationCounters();
+        println("[cold shadow root with :has()]");
+        println(`  hasInvalidationRuleCacheBuilds: ${countersAfterHasMutation.hasInvalidationRuleCacheBuilds}`);
+        println(`  hasAncestorWalkInvocations: ${countersAfterHasMutation.hasAncestorWalkInvocations}`);
+    });
+</script>
