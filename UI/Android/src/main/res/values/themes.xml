@@ -19,5 +19,7 @@
         <item name="android:editTextBackground">@android:color/transparent</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Ladybird.Dialog</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Ladybird.BottomSheet</item>
     </style>
 </resources>

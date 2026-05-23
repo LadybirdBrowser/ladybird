@@ -17,16 +17,19 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.KeyEvent
-import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import android.widget.PopupMenu
+import android.widget.ImageView
+import android.widget.PopupWindow
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import org.serenityos.ladybird.databinding.ActivityMainBinding
@@ -133,12 +136,10 @@ class LadybirdActivity : AppCompatActivity() {
                 else -> false
             }
         }
-        binding.backButton.setOnClickListener { view.goBack() }
-        binding.forwardButton.setOnClickListener { view.goForward() }
-        binding.reloadButton.setOnClickListener { view.reload() }
-        binding.homeButton.setOnClickListener { navigateToInput(settings.homePage) }
-        binding.bookmarksButton.setOnClickListener { showBookmarksDialog() }
-        binding.menuButton.setOnClickListener { showBrowserMenu(it) }
+        binding.menuButton.setOnClickListener { showBrowserMenu() }
+        binding.tabCountButton.setOnClickListener {
+            Toast.makeText(this, R.string.browser_tabs_single, Toast.LENGTH_SHORT).show()
+        }
 
         setupFindBar()
 
@@ -231,38 +232,6 @@ class LadybirdActivity : AppCompatActivity() {
         startupOverlayShownAt = SystemClock.elapsedRealtime()
         binding.startupOverlay.alpha = 1f
         binding.startupOverlay.visibility = View.VISIBLE
-        binding.startupPulse.alpha = 0.22f
-        binding.startupPulse.scaleX = 0.72f
-        binding.startupPulse.scaleY = 0.72f
-        binding.startupLogo.alpha = 0f
-        binding.startupLogo.scaleX = 0.92f
-        binding.startupLogo.scaleY = 0.92f
-        binding.startupLogo.animate()
-            .alpha(1f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .setDuration(260)
-            .start()
-        loopStartupPulse()
-    }
-
-    private fun loopStartupPulse() {
-        if (startupOverlayDismissed)
-            return
-        binding.startupPulse.animate()
-            .alpha(0.04f)
-            .scaleX(1.16f)
-            .scaleY(1.16f)
-            .setDuration(920)
-            .withEndAction {
-                if (startupOverlayDismissed)
-                    return@withEndAction
-                binding.startupPulse.alpha = 0.22f
-                binding.startupPulse.scaleX = 0.72f
-                binding.startupPulse.scaleY = 0.72f
-                loopStartupPulse()
-            }
-            .start()
     }
 
     private fun hideStartupOverlayIfNeeded() {
@@ -330,81 +299,119 @@ class LadybirdActivity : AppCompatActivity() {
         else ""
     }
 
-    private fun showBrowserMenu(anchor: View) {
-        PopupMenu(this, anchor).apply {
-            menuInflater.inflate(R.menu.browser_menu, menu)
-            // Mark currently active color scheme.
-            when (settings.colorScheme) {
-                ColorSchemePreference.Auto -> menu.findItem(R.id.menu_color_scheme_auto)?.isChecked = true
-                ColorSchemePreference.Light -> menu.findItem(R.id.menu_color_scheme_light)?.isChecked = true
-                ColorSchemePreference.Dark -> menu.findItem(R.id.menu_color_scheme_dark)?.isChecked = true
-            }
-            setOnMenuItemClickListener { item: MenuItem -> handleMenu(item) }
-            show()
+    private fun showBrowserMenu() {
+        val popupView = layoutInflater.inflate(R.layout.popup_overflow_menu, null)
+        val popup = PopupWindow(
+            popupView,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+        popup.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        popup.elevation = resources.displayMetrics.density * 8f
+        popup.isOutsideTouchable = true
+
+        // Top icon row
+        popupView.findViewById<View>(R.id.menuForward).setOnClickListener {
+            popup.dismiss(); view.goForward()
         }
+        popupView.findViewById<View>(R.id.menuBookmarkAdd).setOnClickListener {
+            popup.dismiss(); addCurrentBookmark()
+        }
+        popupView.findViewById<View>(R.id.menuHome).setOnClickListener {
+            popup.dismiss(); navigateToInput(settings.homePage)
+        }
+        popupView.findViewById<View>(R.id.menuShare).setOnClickListener {
+            popup.dismiss(); shareCurrent()
+        }
+        popupView.findViewById<View>(R.id.menuRefresh).setOnClickListener {
+            popup.dismiss(); view.reload()
+        }
+
+        // List rows
+        popupView.findViewById<View>(R.id.rowNewPage).setOnClickListener {
+            popup.dismiss(); navigateToInput(settings.homePage)
+        }
+        popupView.findViewById<View>(R.id.rowHistory).setOnClickListener {
+            popup.dismiss(); showHistorySheet()
+        }
+        popupView.findViewById<View>(R.id.rowBookmarks).setOnClickListener {
+            popup.dismiss(); showBookmarksSheet()
+        }
+        popupView.findViewById<View>(R.id.rowFindInPage).setOnClickListener {
+            popup.dismiss(); showFindBar()
+        }
+        popupView.findViewById<View>(R.id.rowViewSource).setOnClickListener {
+            popup.dismiss(); openViewSource()
+        }
+        popupView.findViewById<View>(R.id.rowOpenExternal).setOnClickListener {
+            popup.dismiss(); openCurrentInSystemBrowser()
+        }
+        popupView.findViewById<View>(R.id.rowSettings).setOnClickListener {
+            popup.dismiss()
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        popupView.findViewById<View>(R.id.rowAbout).setOnClickListener {
+            popup.dismiss(); showAboutDialog()
+        }
+
+        // Zoom controls
+        val zoomLabel = popupView.findViewById<TextView>(R.id.zoomLabel)
+        fun updateZoom() {
+            val pct = (view.zoomLevel() * 100).toInt()
+            zoomLabel.text = "$pct%"
+        }
+        updateZoom()
+        popupView.findViewById<View>(R.id.zoomInButton).setOnClickListener {
+            view.zoomIn(); updateZoom()
+        }
+        popupView.findViewById<View>(R.id.zoomOutButton).setOnClickListener {
+            view.zoomOut(); updateZoom()
+        }
+        zoomLabel.setOnClickListener { view.zoomReset(); updateZoom() }
+
+        // Anchor at top-right under the 3-dot button, like Chromium
+        popup.showAsDropDown(binding.menuButton, 0, 0, android.view.Gravity.END)
     }
 
-    private fun handleMenu(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.menu_find_in_page -> { showFindBar(); true }
-            R.id.menu_add_bookmark -> {
-                if (currentUrl.isBlank()) return true
-                val added = bookmarks.add(currentUrl, currentTitle.ifBlank { currentUrl })
-                Toast.makeText(
-                    this,
-                    if (added) R.string.bookmark_added else R.string.bookmark_already_exists,
-                    Toast.LENGTH_SHORT
-                ).show()
-                true
-            }
-            R.id.menu_bookmarks -> { showBookmarksDialog(); true }
-            R.id.menu_history -> { showHistoryDialog(); true }
-            R.id.menu_downloads -> {
-                Toast.makeText(this, R.string.feature_not_available, Toast.LENGTH_SHORT).show(); true
-            }
-            R.id.menu_zoom_in -> { view.zoomIn(); true }
-            R.id.menu_zoom_out -> { view.zoomOut(); true }
-            R.id.menu_zoom_reset -> { view.zoomReset(); true }
-            R.id.menu_color_scheme_auto -> { setColorScheme(ColorSchemePreference.Auto); true }
-            R.id.menu_color_scheme_light -> { setColorScheme(ColorSchemePreference.Light); true }
-            R.id.menu_color_scheme_dark -> { setColorScheme(ColorSchemePreference.Dark); true }
-            R.id.menu_view_source -> {
-                if (currentUrl.isNotBlank() && !currentUrl.startsWith("view-source:"))
-                    view.loadURL("view-source:$currentUrl")
-                true
-            }
-            R.id.menu_select_all -> { view.selectAllOnPage(); true }
-            R.id.menu_share -> {
-                if (currentUrl.isBlank()) return true
-                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, currentUrl)
-                    putExtra(Intent.EXTRA_SUBJECT, currentTitle)
-                }
-                startActivity(Intent.createChooser(sendIntent, getString(R.string.menu_share)))
-                true
-            }
-            R.id.menu_copy_url -> {
-                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText("url", currentUrl))
-                Toast.makeText(this, R.string.menu_copy_url, Toast.LENGTH_SHORT).show()
-                true
-            }
-            R.id.menu_open_external -> {
-                if (currentUrl.isNotBlank()) {
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl)))
-                    } catch (_: Exception) {
-                        Toast.makeText(this, R.string.feature_not_available, Toast.LENGTH_SHORT).show()
-                    }
-                }
-                true
-            }
-            R.id.menu_settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java)); true
-            }
-            R.id.menu_about -> { showAboutDialog(); true }
-            else -> false
+    private fun addCurrentBookmark() {
+        if (currentUrl.isBlank()) return
+        val added = bookmarks.add(currentUrl, currentTitle.ifBlank { currentUrl })
+        Toast.makeText(
+            this,
+            if (added) R.string.bookmark_added else R.string.bookmark_already_exists,
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun shareCurrent() {
+        if (currentUrl.isBlank()) return
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, currentUrl)
+            putExtra(Intent.EXTRA_SUBJECT, currentTitle)
+        }
+        startActivity(Intent.createChooser(sendIntent, getString(R.string.menu_share)))
+    }
+
+    private fun copyCurrentUrl() {
+        if (currentUrl.isBlank()) return
+        val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("url", currentUrl))
+        Toast.makeText(this, R.string.menu_copy_url, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun openViewSource() {
+        if (currentUrl.isNotBlank() && !currentUrl.startsWith("view-source:"))
+            view.loadURL("view-source:$currentUrl")
+    }
+
+    private fun openCurrentInSystemBrowser() {
+        if (currentUrl.isBlank()) return
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl)))
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.feature_not_available, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -413,50 +420,112 @@ class LadybirdActivity : AppCompatActivity() {
         view.setPreferredColorScheme(scheme.nativeValue)
     }
 
-    private fun showBookmarksDialog() {
-        val items = bookmarks.all()
-        if (items.isEmpty()) {
-            Toast.makeText(this, R.string.bookmarks_empty, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val titles = items.map { it.title.ifBlank { it.url } }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.menu_bookmarks)
-            .setItems(titles) { _, which -> navigateToInput(items[which].url) }
-            .setNegativeButton(R.string.bookmark_remove) { _, _ -> showBookmarkRemoveDialog(items) }
-            .setPositiveButton(R.string.dialog_ok, null)
-            .show()
+    private fun showBookmarksSheet() {
+        val initial = bookmarks.all().map { UrlRow(it.url, it.title.ifBlank { it.url }) }
+        showUrlListSheet(
+            iconRes = R.drawable.ic_bookmark,
+            titleRes = R.string.bookmarks_title,
+            emptyRes = R.string.bookmarks_empty,
+            subtitleFormat = R.string.bookmarks_subtitle,
+            actionLabel = if (initial.isNotEmpty()) R.string.dialog_done else 0,
+            initial = initial,
+            onActivate = { row -> navigateToInput(row.url) },
+            onDelete = { row ->
+                bookmarks.remove(row.url)
+                Toast.makeText(this, R.string.bookmark_removed, Toast.LENGTH_SHORT).show()
+            },
+            onAction = null
+        )
     }
 
-    private fun showBookmarkRemoveDialog(items: List<Bookmark>) {
-        val titles = items.map { it.title.ifBlank { it.url } }.toTypedArray()
-        val checked = BooleanArray(items.size)
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.bookmark_remove)
-            .setMultiChoiceItems(titles, checked) { _, which, isChecked -> checked[which] = isChecked }
-            .setPositiveButton(R.string.dialog_ok) { _, _ ->
-                items.forEachIndexed { i, b -> if (checked[i]) bookmarks.remove(b.url) }
+    private fun showHistorySheet() {
+        val initial = history.all().map { UrlRow(it.url, it.title.ifBlank { it.url }) }
+        showUrlListSheet(
+            iconRes = R.drawable.ic_history,
+            titleRes = R.string.history_title,
+            emptyRes = R.string.history_empty,
+            subtitleFormat = R.string.history_subtitle,
+            actionLabel = if (initial.isNotEmpty()) R.string.history_clear else 0,
+            initial = initial,
+            onActivate = { row -> navigateToInput(row.url) },
+            onDelete = { row -> history.remove(row.url) },
+            onAction = { dismiss ->
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.history_clear)
+                    .setPositiveButton(R.string.dialog_clear) { _, _ ->
+                        history.clear()
+                        dismiss()
+                        Toast.makeText(this, R.string.history_cleared, Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton(R.string.dialog_cancel, null)
+                    .show()
             }
-            .setNegativeButton(R.string.dialog_cancel, null)
-            .show()
+        )
     }
 
-    private fun showHistoryDialog() {
-        val items = history.all()
-        if (items.isEmpty()) {
-            Toast.makeText(this, R.string.history_empty, Toast.LENGTH_SHORT).show()
-            return
+    private fun showUrlListSheet(
+        iconRes: Int,
+        titleRes: Int,
+        emptyRes: Int,
+        subtitleFormat: Int,
+        actionLabel: Int,
+        initial: List<UrlRow>,
+        onActivate: (UrlRow) -> Unit,
+        onDelete: ((UrlRow) -> Unit)?,
+        onAction: ((() -> Unit) -> Unit)?
+    ) {
+        val dialog = BottomSheetDialog(this)
+        val sheet = layoutInflater.inflate(R.layout.sheet_url_list, null)
+        dialog.setContentView(sheet)
+
+        sheet.findViewById<ImageView>(R.id.sheetIcon).setImageResource(iconRes)
+        sheet.findViewById<TextView>(R.id.sheetTitle).setText(titleRes)
+        val subtitle = sheet.findViewById<TextView>(R.id.sheetSubtitle)
+        subtitle.text = getString(subtitleFormat, initial.size)
+
+        val list = sheet.findViewById<RecyclerView>(R.id.sheetList)
+        list.layoutManager = LinearLayoutManager(this)
+        val emptyState = sheet.findViewById<View>(R.id.sheetEmptyState)
+        sheet.findViewById<TextView>(R.id.sheetEmptyText).setText(emptyRes)
+
+        val rows = initial.toMutableList()
+        lateinit var adapter: UrlListAdapter
+        val deleteCallback = onDelete
+
+        fun refreshState() {
+            emptyState.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+            list.visibility = if (rows.isEmpty()) View.GONE else View.VISIBLE
+            subtitle.text = getString(subtitleFormat, rows.size)
         }
-        val titles = items.map { it.title.ifBlank { it.url } }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.menu_history)
-            .setItems(titles) { _, which -> navigateToInput(items[which].url) }
-            .setNegativeButton(R.string.history_clear) { _, _ ->
-                history.clear()
-                Toast.makeText(this, R.string.history_cleared, Toast.LENGTH_SHORT).show()
+
+        adapter = UrlListAdapter(
+            rows,
+            onClick = { row -> dialog.dismiss(); onActivate(row) },
+            onDelete = if (deleteCallback != null) { row ->
+                val idx = rows.indexOf(row)
+                if (idx >= 0) {
+                    adapter.removeAt(idx)
+                    deleteCallback(row)
+                    refreshState()
+                }
+            } else null
+        )
+        list.adapter = adapter
+        refreshState()
+
+        val actionButton = sheet.findViewById<com.google.android.material.button.MaterialButton>(R.id.sheetActionButton)
+        if (actionLabel != 0) {
+            actionButton.visibility = View.VISIBLE
+            actionButton.setText(actionLabel)
+            actionButton.setOnClickListener {
+                if (onAction != null) onAction { dialog.dismiss() }
+                else dialog.dismiss()
             }
-            .setPositiveButton(R.string.dialog_ok, null)
-            .show()
+        } else {
+            actionButton.visibility = View.GONE
+        }
+
+        dialog.show()
     }
 
     private fun showAboutDialog() {

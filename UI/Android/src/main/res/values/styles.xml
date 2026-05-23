@@ -63,4 +63,118 @@
         <item name="android:paddingBottom">6dp</item>
         <item name="buttonTint">@color/ladybird_accent</item>
     </style>
+
+    <!-- Bottom sheet menu styles -->
+    <style name="Ladybird.SheetSection" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/ladybird_on_surface_muted</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.10</item>
+    </style>
+
+    <style name="Ladybird.SheetItem" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">52dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+    </style>
+
+    <style name="Ladybird.SheetItemIcon" parent="">
+        <item name="android:layout_width">22dp</item>
+        <item name="android:layout_height">22dp</item>
+        <item name="android:tint">@color/ladybird_on_surface_muted</item>
+        <item name="android:contentDescription">@null</item>
+    </style>
+
+    <style name="Ladybird.SheetItemText" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">18dp</item>
+        <item name="android:textColor">@color/ladybird_on_surface</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="Ladybird.SchemeChip" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">32dp</item>
+        <item name="android:layout_marginStart">6dp</item>
+        <item name="android:background">@drawable/bg_scheme_chip</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:textColor">@color/scheme_chip_text</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- Themed dialog overlay -->
+    <style name="ThemeOverlay.Ladybird.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/ladybird_accent</item>
+        <item name="colorSurface">@color/ladybird_surface</item>
+        <item name="colorOnSurface">@color/ladybird_on_surface</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/Ladybird.DialogTitle</item>
+        <item name="dialogCornerRadius">22dp</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Ladybird.DialogPositiveButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Ladybird.DialogNeutralButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Ladybird.DialogNeutralButton</item>
+    </style>
+
+    <style name="Ladybird.DialogTitle" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">@color/ladybird_on_surface</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">17sp</item>
+    </style>
+
+    <style name="Ladybird.DialogPositiveButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/ladybird_accent</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Ladybird.DialogNeutralButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/ladybird_on_surface_muted</item>
+    </style>
+
+    <style name="ThemeOverlay.Ladybird.BottomSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Ladybird.BottomSheet</item>
+        <item name="android:navigationBarColor">@color/ladybird_surface</item>
+    </style>
+
+    <style name="Ladybird.BottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:background">@android:color/transparent</item>
+    </style>
+
+    <!-- Chromium-style anchored overflow popup -->
+    <style name="Chromium.OverflowItem" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+
+    <style name="Chromium.OverflowText" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/ladybird_on_surface</item>
+        <item name="android:textSize">15sp</item>
+    </style>
 </resources>

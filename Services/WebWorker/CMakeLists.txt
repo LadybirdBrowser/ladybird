@@ -4,8 +4,6 @@ set(WEBWORKER_SOURCES
     WorkerHost.cpp
 )
 
-# FIXME: Add Android service
-
 add_library(webworkerservice STATIC ${WEBWORKER_SOURCES})
 set_target_properties(webworkerservice PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
 

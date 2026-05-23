@@ -33,6 +33,10 @@ class HistoryStore(context: Context) {
         save()
     }
 
+    fun remove(url: String) {
+        if (entries.removeAll { it.url == url }) save()
+    }
+
     private fun load() {
         entries.clear()
         if (!file.exists()) return

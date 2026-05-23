@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Ladybird-style palette (dark). Soft charcoal surfaces, ladybug-red accent. -->
-    <color name="ladybird_accent">#FFEF5350</color>
-    <color name="ladybird_accent_pressed">#FFFF7E7B</color>
-    <color name="ladybird_accent_container">#FF3A1F1F</color>
-    <color name="ladybird_secondary">#FF9AA4B2</color>
+    <!-- Chromium-style palette (dark). Neutral charcoal surfaces with a restrained blue accent. -->
+    <color name="ladybird_accent">#FF8AB4F8</color>
+    <color name="ladybird_accent_pressed">#FFAECBFA</color>
+    <color name="ladybird_accent_container">#FF2B2F36</color>
+    <color name="ladybird_secondary">#FFBDC1C6</color>
 
     <color name="ladybird_background">#FF15171A</color>
     <color name="ladybird_surface">#FF1E2024</color>
@@ -17,6 +17,6 @@
     <color name="ladybird_outline_soft">#FF2E3138</color>
     <color name="ladybird_divider">#FF2E3138</color>
 
-    <color name="ladybird_progress">#FFEF5350</color>
+    <color name="ladybird_progress">#FF8AB4F8</color>
     <color name="ladybird_chip">#FF272A30</color>
 </resources>

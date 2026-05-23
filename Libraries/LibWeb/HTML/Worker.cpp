@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Platform.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -43,6 +44,10 @@ void Worker::visit_edges(Cell::Visitor& visitor)
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
 WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options)
 {
+#if defined(AK_OS_ANDROID)
+    return WebIDL::NotSupportedError::create(realm, "Workers are not supported on Android yet"_utf16);
+#endif
+
     // Returns a new Worker object. scriptURL will be fetched and executed in the background,
     // creating a new global environment for which worker represents the communication channel.
     // options can be used to define the name of that global environment via the name option,

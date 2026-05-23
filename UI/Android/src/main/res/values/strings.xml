@@ -86,4 +86,21 @@
 
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_ok">OK</string>
+    <string name="dialog_clear">Clear</string>
+    <string name="dialog_done">Done</string>
+
+    <string name="menu_section_places">Places</string>
+    <string name="menu_section_page">This page</string>
+    <string name="menu_section_app">App</string>
+    <string name="menu_zoom">Zoom</string>
+    <string name="menu_quick_find">Find</string>
+    <string name="menu_quick_bookmark_add">Bookmark</string>
+    <string name="menu_quick_share">Share</string>
+    <string name="menu_quick_copy">Copy</string>
+
+    <string name="bookmarks_title">Bookmarks</string>
+    <string name="history_title">History</string>
+    <string name="bookmarks_subtitle">%1$d saved</string>
+    <string name="history_subtitle">%1$d visited</string>
+    <string name="bookmark_removed">Bookmark removed</string>
 </resources>

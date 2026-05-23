@@ -37,6 +37,7 @@ Java_org_serenityos_ladybird_WebContentService_nativeInit(JNIEnv* env, jobject t
     if (!method)
         TODO();
     bind_image_decoder_method = method;
+
 }
 
 void bind_request_server_java(int ipc_socket)

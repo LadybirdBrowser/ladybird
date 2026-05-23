@@ -27,6 +27,10 @@ GC_DEFINE_ALLOCATOR(SharedWorker);
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
 WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Variant<String, WorkerOptions>& options_value)
 {
+#if defined(AK_OS_ANDROID)
+    return WebIDL::NotSupportedError::create(realm, "Shared workers are not supported on Android yet"_utf16);
+#endif
+
     // 1. Let compliantScriptURL be the result of invoking the get trusted type compliant string algorithm with
     //    TrustedScriptURL, this's relevant global object, scriptURL, "SharedWorker constructor", and "script".
     auto const compliant_script_url = TRY(get_trusted_type_compliant_string(

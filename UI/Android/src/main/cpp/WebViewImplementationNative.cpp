@@ -129,14 +129,24 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
     painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color::White);
 
     Gfx::Bitmap const* bitmap = nullptr;
-    if (m_client_state.has_usable_bitmap && m_client_state.front_bitmap.shared_image_buffer)
+    Gfx::IntSize painted_size;
+    if (m_client_state.has_usable_bitmap && m_client_state.front_bitmap.shared_image_buffer) {
         bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
-    else if (m_backup_shared_image_buffer)
+        painted_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
+    } else if (m_backup_shared_image_buffer) {
         bitmap = m_backup_shared_image_buffer->bitmap().ptr();
+        painted_size = m_backup_bitmap_size.to_type<int>();
+    }
     if (bitmap) {
-        // Scale-blit the source backing store into the Android bitmap so we always cover the
-        // full surface, even if the WebContent backing store hasn't caught up to a new viewport size yet.
-        painter->draw_bitmap(android_bitmap->rect().to_type<float>(), Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), bitmap->rect(), Gfx::ScalingMode::Bilinear, {}, 1.0f, Gfx::CompositingAndBlendingOperator::SourceOver);
+        // The backing store may be larger than the actually-painted region (WebContent allocates a
+        // bitmap big enough for the largest viewport seen so far, but only paints `last_painted_size`).
+        // Use only the valid painted region as the source; if it's smaller than the Android surface,
+        // we draw 1:1 from origin and leave the prefill (white) where there is no content yet.
+        auto src_rect = Gfx::IntRect { {}, painted_size.is_empty() ? bitmap->size() : painted_size };
+        // Clamp to bitmap bounds just in case.
+        src_rect.intersect(bitmap->rect());
+        auto dst_rect = Gfx::FloatRect { 0.0f, 0.0f, static_cast<float>(src_rect.width()), static_cast<float>(src_rect.height()) };
+        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), src_rect, Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
     }
 }
 
@@ -162,16 +172,22 @@ void WebViewImplementationNative::mouse_event(Web::MouseEvent::Type event_type, 
 {
     Gfx::IntPoint position = { x, y };
     Gfx::IntPoint screen_position = { raw_x, raw_y };
+    auto button = (event_type == Web::MouseEvent::Type::MouseMove)
+        ? Web::UIEvents::MouseButton::None
+        : Web::UIEvents::MouseButton::Primary;
+    auto buttons = (event_type == Web::MouseEvent::Type::MouseUp)
+        ? Web::UIEvents::MouseButton::None
+        : Web::UIEvents::MouseButton::Primary;
     auto event = Web::MouseEvent {
         event_type,
         position.to_type<Web::DevicePixels>(),
         screen_position.to_type<Web::DevicePixels>(),
-        Web::UIEvents::MouseButton::Primary,
-        Web::UIEvents::MouseButton::Primary,
+        button,
+        buttons,
         Web::UIEvents::KeyModifier::Mod_None,
         0,
         0,
-        0,
+        1,
         nullptr
     };
 

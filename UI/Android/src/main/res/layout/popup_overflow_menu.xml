@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="288dp"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/ladybird_surface"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="8dp">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fadeScrollbars="true"
+        android:scrollbarStyle="insideOverlay">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+
+            <!-- Top icon row: forward / bookmark-add / home / share / refresh -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp">
+
+                <ImageButton
+                    android:id="@+id/menuForward"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/browser_forward"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_arrow_forward"
+                    android:tint="@color/ladybird_on_surface" />
+
+                <ImageButton
+                    android:id="@+id/menuBookmarkAdd"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/menu_add_bookmark"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_bookmark_add"
+                    android:tint="@color/ladybird_on_surface" />
+
+                <ImageButton
+                    android:id="@+id/menuHome"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/browser_home"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_home"
+                    android:tint="@color/ladybird_on_surface" />
+
+                <ImageButton
+                    android:id="@+id/menuShare"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/menu_share"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_share"
+                    android:tint="@color/ladybird_on_surface" />
+
+                <ImageButton
+                    android:id="@+id/menuRefresh"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/browser_reload"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_refresh"
+                    android:tint="@color/ladybird_on_surface" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:background="@color/ladybird_divider" />
+
+            <LinearLayout android:id="@+id/rowNewPage" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_new_tab" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/rowHistory" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_history" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/rowBookmarks" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_bookmarks" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/rowFindInPage" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_find_in_page" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/rowViewSource" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_view_source" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/rowOpenExternal" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_open_external" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:background="@color/ladybird_divider" />
+
+            <!-- Zoom row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="4dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/menu_view"
+                    android:textColor="@color/ladybird_on_surface"
+                    android:textSize="15sp" />
+
+                <ImageButton
+                    android:id="@+id/zoomOutButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/menu_zoom_out"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_zoom_out"
+                    android:tint="@color/ladybird_on_surface" />
+
+                <TextView
+                    android:id="@+id/zoomLabel"
+                    android:layout_width="52dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="@color/ladybird_on_surface"
+                    android:textSize="14sp" />
+
+                <ImageButton
+                    android:id="@+id/zoomInButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/menu_zoom_in"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_zoom_in"
+                    android:tint="@color/ladybird_on_surface" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
+                android:background="@color/ladybird_divider" />
+
+            <LinearLayout android:id="@+id/rowSettings" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_settings" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/rowAbout" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_about" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</com.google.android.material.card.MaterialCardView>

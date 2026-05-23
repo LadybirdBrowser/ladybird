@@ -45,6 +45,12 @@ Imported Targets
 ``WebP::webpdecoder``
   The WebP decoder library, if found.
 
+``WebP::sharpyuv``
+    The WebP sharp RGB to YUV conversion library, if found.
+
+``WebP::cpufeatures-webp``
+    The WebP CPU feature detection library, if found.
+
 Result Variables
 ^^^^^^^^^^^^^^^^
 
@@ -159,6 +165,16 @@ else ()
     endif ()
 endif ()
 
+find_library(WebP_SHARPYUV_LIBRARY
+    NAMES ${WebP_SHARPYUV_NAMES} sharpyuv libsharpyuv
+    HINTS ${PC_WEBP_LIBDIR} ${PC_WEBP_LIBRARY_DIRS}
+)
+
+find_library(WebP_CPUFEATURES_LIBRARY
+    NAMES ${WebP_CPUFEATURES_NAMES} cpufeatures-webp libcpufeatures-webp
+    HINTS ${PC_WEBP_LIBDIR} ${PC_WEBP_LIBRARY_DIRS}
+)
+
 if (NOT WebP_FIND_QUIETLY)
     if (WebP_LIBS_FOUND)
         message(STATUS "Found the following WebP libraries:")
@@ -220,12 +236,36 @@ if (WebP_DECODER_LIBRARY AND NOT TARGET WebP::webpdecoder)
     target_link_libraries(WebP::webpdecoder INTERFACE WebP::webp)
 endif ()
 
+if (WebP_CPUFEATURES_LIBRARY AND NOT TARGET WebP::cpufeatures-webp)
+    add_library(WebP::cpufeatures-webp UNKNOWN IMPORTED GLOBAL)
+    set_target_properties(WebP::cpufeatures-webp PROPERTIES
+        IMPORTED_LOCATION "${WebP_CPUFEATURES_LIBRARY}"
+        INTERFACE_COMPILE_OPTIONS "${WebP_COMPILE_OPTIONS}"
+        INTERFACE_INCLUDE_DIRECTORIES "${WebP_INCLUDE_DIR}"
+        INTERFACE_LINK_LIBRARIES "dl"
+    )
+endif ()
+
+if (WebP_SHARPYUV_LIBRARY AND NOT TARGET WebP::sharpyuv)
+    add_library(WebP::sharpyuv UNKNOWN IMPORTED GLOBAL)
+    set_target_properties(WebP::sharpyuv PROPERTIES
+        IMPORTED_LOCATION "${WebP_SHARPYUV_LIBRARY}"
+        INTERFACE_COMPILE_OPTIONS "${WebP_COMPILE_OPTIONS}"
+        INTERFACE_INCLUDE_DIRECTORIES "${WebP_INCLUDE_DIR}"
+    )
+    if (TARGET WebP::cpufeatures-webp)
+        target_link_libraries(WebP::sharpyuv INTERFACE WebP::cpufeatures-webp)
+    endif ()
+endif ()
+
 mark_as_advanced(
     WebP_INCLUDE_DIR
     WebP_LIBRARY
     WebP_DEMUX_LIBRARY
     WebP_MUX_LIBRARY
     WebP_DECODER_LIBRARY
+    WebP_SHARPYUV_LIBRARY
+    WebP_CPUFEATURES_LIBRARY
 )
 
 if (WebP_FOUND)

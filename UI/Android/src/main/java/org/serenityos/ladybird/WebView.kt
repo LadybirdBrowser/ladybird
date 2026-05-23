@@ -95,6 +95,7 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
                 lastY = event.y
                 isScrollingGesture = false
                 parent?.requestDisallowInterceptTouchEvent(true)
+                viewImpl.mouseEvent(MotionEvent.ACTION_MOVE, event.x, event.y, event.rawX, event.rawY)
                 return true
             }
 
@@ -158,7 +159,7 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
     }
 
     companion object {
-        private const val SCROLL_MULTIPLIER = 2.25f
+        private const val SCROLL_MULTIPLIER = 5.0f
     }
 
 }

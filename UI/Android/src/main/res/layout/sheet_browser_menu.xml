@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="20dp">
+
+    <!-- drag handle -->
+    <View
+        android:layout_width="44dp"
+        android:layout_height="5dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_sheet_handle" />
+
+    <!-- Chromium-style top nav row: back / forward / home / bookmark-add / share -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="6dp">
+
+        <ImageButton
+            android:id="@+id/menuBack"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/browser_back"
+            android:padding="12dp"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="@color/ladybird_on_surface" />
+
+        <ImageButton
+            android:id="@+id/menuForward"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/browser_forward"
+            android:padding="12dp"
+            android:src="@drawable/ic_arrow_forward"
+            android:tint="@color/ladybird_on_surface" />
+
+        <ImageButton
+            android:id="@+id/menuHome"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/browser_home"
+            android:padding="12dp"
+            android:src="@drawable/ic_home"
+            android:tint="@color/ladybird_on_surface" />
+
+        <ImageButton
+            android:id="@+id/menuBookmarkAdd"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/menu_quick_bookmark_add"
+            android:padding="12dp"
+            android:src="@drawable/ic_bookmark_add"
+            android:tint="@color/ladybird_on_surface" />
+
+        <ImageButton
+            android:id="@+id/menuRefresh"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/browser_reload"
+            android:padding="12dp"
+            android:src="@drawable/ic_refresh"
+            android:tint="@color/ladybird_on_surface" />
+    </LinearLayout>
+
+    <!-- compact page title row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/sheetPageTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/ladybird_on_surface"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="Page Title" />
+
+        <TextView
+            android:id="@+id/sheetPageUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textColor="@color/ladybird_on_surface_muted"
+            android:textSize="12sp"
+            tools:text="https://example.com/" />
+    </LinearLayout>
+
+    <!-- quick action grid (4 columns) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <include layout="@layout/menu_quick_tile" android:id="@+id/quickFind"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" />
+        <include layout="@layout/menu_quick_tile" android:id="@+id/quickBookmarkAdd"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" />
+        <include layout="@layout/menu_quick_tile" android:id="@+id/quickShare"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" />
+        <include layout="@layout/menu_quick_tile" android:id="@+id/quickCopy"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <!-- zoom control row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_zoom_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="6dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/menu_zoom"
+            android:textColor="@color/ladybird_on_surface"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/zoomOutButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/menu_zoom_out"
+            android:padding="8dp"
+            android:src="@drawable/ic_zoom_out"
+            android:tint="@color/ladybird_on_surface" />
+
+        <TextView
+            android:id="@+id/zoomLabel"
+            android:layout_width="56dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="@color/ladybird_accent"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="100%" />
+
+        <ImageButton
+            android:id="@+id/zoomInButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/menu_zoom_in"
+            android:padding="8dp"
+            android:src="@drawable/ic_zoom_in"
+            android:tint="@color/ladybird_on_surface" />
+    </LinearLayout>
+
+    <!-- color scheme chip row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_zoom_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_color_scheme"
+            android:textColor="@color/ladybird_on_surface"
+            android:textSize="14sp" />
+
+        <TextView android:id="@+id/chipSchemeAuto"
+            style="@style/Ladybird.SchemeChip"
+            android:text="@string/menu_color_scheme_auto" />
+        <TextView android:id="@+id/chipSchemeLight"
+            style="@style/Ladybird.SchemeChip"
+            android:text="@string/menu_color_scheme_light" />
+        <TextView android:id="@+id/chipSchemeDark"
+            style="@style/Ladybird.SchemeChip"
+            android:text="@string/menu_color_scheme_dark" />
+    </LinearLayout>
+
+    <!-- section: places -->
+    <TextView
+        style="@style/Ladybird.SheetSection"
+        android:layout_marginTop="18dp"
+        android:text="@string/menu_section_places" />
+
+    <LinearLayout android:id="@+id/itemBookmarks" style="@style/Ladybird.SheetItem">
+        <ImageView style="@style/Ladybird.SheetItemIcon" android:src="@drawable/ic_bookmark" />
+        <TextView style="@style/Ladybird.SheetItemText" android:text="@string/menu_bookmarks" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/itemHistory" style="@style/Ladybird.SheetItem">
+        <ImageView style="@style/Ladybird.SheetItemIcon" android:src="@drawable/ic_history" />
+        <TextView style="@style/Ladybird.SheetItemText" android:text="@string/menu_history" />
+    </LinearLayout>
+
+    <!-- section: page -->
+    <TextView
+        style="@style/Ladybird.SheetSection"
+        android:text="@string/menu_section_page" />
+
+    <LinearLayout android:id="@+id/itemViewSource" style="@style/Ladybird.SheetItem">
+        <ImageView style="@style/Ladybird.SheetItemIcon" android:src="@drawable/ic_source" />
+        <TextView style="@style/Ladybird.SheetItemText" android:text="@string/menu_view_source" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/itemOpenExternal" style="@style/Ladybird.SheetItem">
+        <ImageView style="@style/Ladybird.SheetItemIcon" android:src="@drawable/ic_external" />
+        <TextView style="@style/Ladybird.SheetItemText" android:text="@string/menu_open_external" />
+    </LinearLayout>
+
+    <!-- section: app -->
+    <TextView
+        style="@style/Ladybird.SheetSection"
+        android:text="@string/menu_section_app" />
+
+    <LinearLayout android:id="@+id/itemSettings" style="@style/Ladybird.SheetItem">
+        <ImageView style="@style/Ladybird.SheetItemIcon" android:src="@drawable/ic_settings" />
+        <TextView style="@style/Ladybird.SheetItemText" android:text="@string/menu_settings" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/itemAbout" style="@style/Ladybird.SheetItem">
+        <ImageView style="@style/Ladybird.SheetItemIcon" android:src="@drawable/ic_info" />
+        <TextView style="@style/Ladybird.SheetItemText" android:text="@string/menu_about" />
+    </LinearLayout>
+
+</LinearLayout>
