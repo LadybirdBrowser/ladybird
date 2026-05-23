@@ -31,7 +31,9 @@ TEST_CASE(seek_past_eos)
     EXPECT_EQ(last_timestamp, AK::Duration::from_milliseconds(30126));
 
     auto seek_time = AK::Duration::from_milliseconds(31000);
-    MUST(demuxer->seek_to_most_recent_keyframe(track, seek_time, Media::DemuxerSeekOptions::None));
-    auto sample_after_seek = MUST(demuxer->get_next_sample_for_track(track));
-    EXPECT_EQ(sample_after_seek.timestamp(), AK::Duration::zero());
+    auto seek_result = MUST(demuxer->seek_to_most_recent_keyframe(track, seek_time, Media::DemuxerSeekOptions::None));
+    EXPECT_EQ(seek_result, Media::DemuxerSeekResult::KeptCurrentPosition);
+    auto sample_result_after_seek = demuxer->get_next_sample_for_track(track);
+    EXPECT(sample_result_after_seek.is_error());
+    EXPECT_EQ(sample_result_after_seek.error().category(), Media::DecoderErrorCategory::EndOfStream);
 }
