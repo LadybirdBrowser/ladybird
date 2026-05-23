@@ -1,0 +1,6 @@
+hover before: block
+hover after enter: none
+hover after leave: block
+modal before: block
+modal after showModal: none
+modal after close: block

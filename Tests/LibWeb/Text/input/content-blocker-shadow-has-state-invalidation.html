@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body></body>
+<script>
+    asyncTest(done => {
+        spoofCurrentURL("https://example.com/content-blocker-shadow-has-state-invalidation.html");
+        internals.setContentBlockers("example.com##div.hover-anchor:has(:hover)\nexample.com##div.modal-anchor:has(dialog:modal)");
+
+        const host = document.createElement("section");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        document.body.appendChild(host);
+
+        const hoverAnchor = document.createElement("div");
+        hoverAnchor.className = "hover-anchor";
+        hoverAnchor.style.cssText = "width: 100px; height: 100px";
+
+        const hoverTarget = document.createElement("span");
+        hoverTarget.style.cssText = "display: block; width: 80px; height: 80px";
+        hoverAnchor.appendChild(hoverTarget);
+        shadowRoot.appendChild(hoverAnchor);
+
+        const modalAnchor = document.createElement("div");
+        modalAnchor.className = "modal-anchor";
+
+        const dialog = document.createElement("dialog");
+        modalAnchor.appendChild(dialog);
+        shadowRoot.appendChild(modalAnchor);
+
+        println(`hover before: ${getComputedStyle(hoverAnchor).display}`);
+
+        const hoverRect = hoverTarget.getBoundingClientRect();
+        internals.mouseMove(hoverRect.left + 5, hoverRect.top + 5);
+        println(`hover after enter: ${getComputedStyle(hoverAnchor).display}`);
+
+        internals.mouseMove(200, 200);
+        println(`hover after leave: ${getComputedStyle(hoverAnchor).display}`);
+
+        println(`modal before: ${getComputedStyle(modalAnchor).display}`);
+
+        dialog.showModal();
+        println(`modal after showModal: ${getComputedStyle(modalAnchor).display}`);
+
+        dialog.close();
+        println(`modal after close: ${getComputedStyle(modalAnchor).display}`);
+
+        internals.setContentBlockers("");
+        done();
+    });
+</script>

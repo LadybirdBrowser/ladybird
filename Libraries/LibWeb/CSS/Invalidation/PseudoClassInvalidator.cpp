@@ -23,9 +23,34 @@ enum class RequireAffectedByPseudoClassMetadata : u8 {
     No,
 };
 
+enum class RuleOriginFilter : u8 {
+    All,
+    User,
+};
+
 static bool pseudo_class_state_can_be_observed_across_style_scopes(CSS::PseudoClass pseudo_class)
 {
     return first_is_one_of(pseudo_class, CSS::PseudoClass::Focus, CSS::PseudoClass::FocusWithin, CSS::PseudoClass::FocusVisible);
+}
+
+static void schedule_document_user_has_invalidation_for_shadow_pseudo_class_state_change(CSS::PseudoClass pseudo_class, DOM::Node& node)
+{
+    if (!is<DOM::ShadowRoot>(node.root()))
+        return;
+
+    auto& document_style_scope = node.document().style_scope();
+    if (&node.style_scope() == &document_style_scope)
+        return;
+
+    if (!document_style_scope.may_have_user_has_selectors())
+        return;
+
+    Vector<CSS::InvalidationSet::Property> properties {
+        { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = pseudo_class },
+    };
+
+    document_style_scope.record_pending_has_invalidation_mutation_features(node, properties);
+    document_style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(node);
 }
 
 static CSS::StyleScope& style_scope_for_invalidation_root(DOM::Document& document, DOM::Node& invalidation_root)
@@ -55,7 +80,7 @@ static GC::Ptr<DOM::Element const> shadow_host_for_rule_matching(DOM::Element co
 }
 
 template<typename StateSlot, typename NewState>
-static void invalidate_style_after_pseudo_class_state_change_in_style_scope(CSS::PseudoClass pseudo_class, DOM::Document& document, StateSlot& state_slot, DOM::Node& invalidation_root, NewState new_state, CSS::StyleScope& style_scope, RequireAffectedByPseudoClassMetadata require_metadata)
+static void invalidate_style_after_pseudo_class_state_change_in_style_scope(CSS::PseudoClass pseudo_class, DOM::Document& document, StateSlot& state_slot, DOM::Node& invalidation_root, NewState new_state, CSS::StyleScope& style_scope, RequireAffectedByPseudoClassMetadata require_metadata, RuleOriginFilter rule_origin_filter = RuleOriginFilter::All)
 {
     auto rule_shadow_root = as_if<DOM::ShadowRoot>(style_scope.node());
 
@@ -80,6 +105,9 @@ static void invalidate_style_after_pseudo_class_state_change_in_style_scope(CSS:
         bool result = false;
         auto check_matching_rules = [&](auto const& matching_rules) {
             for (auto& rule : matching_rules) {
+                if (rule_origin_filter == RuleOriginFilter::User && rule.cascade_origin != CascadeOrigin::User)
+                    continue;
+
                 bool before = does_rule_match_on_element(element, rule);
                 TemporaryChange change { state_slot, new_state };
                 bool after = does_rule_match_on_element(element, rule);
@@ -147,10 +175,29 @@ static void invalidate_style_after_pseudo_class_state_change_in_style_scope(CSS:
 }
 
 template<typename StateSlot, typename NewState>
+static void invalidate_document_user_style_after_shadow_pseudo_class_state_change(CSS::PseudoClass pseudo_class, DOM::Document& document, StateSlot& state_slot, DOM::Node& invalidation_root, NewState new_state)
+{
+    if (!is<DOM::ShadowRoot>(invalidation_root.root()))
+        return;
+
+    auto& document_style_scope = document.style_scope();
+    if (!document_style_scope.may_have_user_pseudo_class_selectors(pseudo_class))
+        return;
+
+    invalidate_style_after_pseudo_class_state_change_in_style_scope(pseudo_class, document, state_slot, invalidation_root, new_state, document_style_scope, RequireAffectedByPseudoClassMetadata::Yes, RuleOriginFilter::User);
+}
+
+template<typename StateSlot, typename NewState>
 static void invalidate_style_after_pseudo_class_state_change_impl(CSS::PseudoClass pseudo_class, DOM::Document& document, StateSlot& state_slot, DOM::Node& invalidation_root, NewState new_state)
 {
+    if (state_slot)
+        schedule_document_user_has_invalidation_for_shadow_pseudo_class_state_change(pseudo_class, *state_slot);
+    if (new_state)
+        schedule_document_user_has_invalidation_for_shadow_pseudo_class_state_change(pseudo_class, *new_state);
+
     auto& root_style_scope = style_scope_for_invalidation_root(document, invalidation_root);
     invalidate_style_after_pseudo_class_state_change_in_style_scope(pseudo_class, document, state_slot, invalidation_root, new_state, root_style_scope, RequireAffectedByPseudoClassMetadata::Yes);
+    invalidate_document_user_style_after_shadow_pseudo_class_state_change(pseudo_class, document, state_slot, invalidation_root, new_state);
 
     if (!pseudo_class_state_can_be_observed_across_style_scopes(pseudo_class))
         return;

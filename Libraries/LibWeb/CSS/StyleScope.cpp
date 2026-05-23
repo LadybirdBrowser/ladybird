@@ -514,6 +514,9 @@ void StyleScope::collect_selector_insights(Selector const& selector, SelectorIns
     for (auto const& compound_selector : selector.compound_selectors()) {
         for (auto const& simple_selector : compound_selector.simple_selectors) {
             if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
+                insights.pseudo_classes.set(simple_selector.pseudo_class().type, true);
+                if (simple_selector.pseudo_class().type == PseudoClass::LocalLink)
+                    insights.has_local_link_selectors = true;
                 if (simple_selector.pseudo_class().type == PseudoClass::Has) {
                     insights.has_has_selectors = true;
                     for (auto const& argument_selector : simple_selector.pseudo_class().argument_selector_list) {
@@ -931,6 +934,26 @@ bool StyleScope::may_have_has_selectors() const
 
     build_rule_cache_if_needed();
     return m_rule_cache->selector_insights.has_has_selectors;
+}
+
+bool StyleScope::may_have_user_has_selectors() const
+{
+    bool may_have_user_has_selectors = false;
+    for_each_stylesheet(CascadeOrigin::User, [&](auto& style_sheet) {
+        if (style_sheet.selector_insights().has_has_selectors)
+            may_have_user_has_selectors = true;
+    });
+    return may_have_user_has_selectors;
+}
+
+bool StyleScope::may_have_user_pseudo_class_selectors(PseudoClass pseudo_class) const
+{
+    bool may_have_user_pseudo_class_selectors = false;
+    for_each_stylesheet(CascadeOrigin::User, [&](auto& style_sheet) {
+        if (style_sheet.selector_insights().pseudo_classes.get(pseudo_class))
+            may_have_user_pseudo_class_selectors = true;
+    });
+    return may_have_user_pseudo_class_selectors;
 }
 
 bool StyleScope::have_has_selectors() const
