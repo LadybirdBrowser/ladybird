@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body></body>
+<script>
+    asyncTest(done => {
+        spoofCurrentURL("https://example.com/content-blocker-shadow-pseudo-class-invalidation.html");
+        internals.setContentBlockers("example.com##span:hover");
+
+        const host = document.createElement("section");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        document.body.appendChild(host);
+
+        const target = document.createElement("span");
+        target.style.cssText = "display: block; width: 100px; height: 100px";
+        shadowRoot.appendChild(target);
+
+        println(`hover before: ${getComputedStyle(target).display}`);
+
+        const rect = target.getBoundingClientRect();
+        internals.mouseMove(rect.left + 5, rect.top + 5);
+        println(`hover after enter: ${getComputedStyle(target).display}`);
+
+        internals.mouseMove(200, 200);
+        println(`hover after leave: ${getComputedStyle(target).display}`);
+
+        internals.setContentBlockers("");
+        done();
+    });
+</script>

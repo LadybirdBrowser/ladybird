@@ -1,0 +1,5 @@
+rgb(0, 0, 0)
+inline
+rgb(1, 2, 3)
+none
+hasInvalidationRuleCacheBuilds: 0

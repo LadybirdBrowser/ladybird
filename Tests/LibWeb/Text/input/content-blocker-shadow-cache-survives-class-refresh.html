@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body></body>
+<script>
+    test(() => {
+        internals.setContentBlockers("##.ad");
+
+        const hasSheet = new CSSStyleSheet();
+        hasSheet.replaceSync("div:has(.target) { color: rgb(1, 2, 3); }");
+
+        const wrappers = [];
+        const targets = [];
+        for (let i = 0; i < 4; ++i) {
+            const host = document.createElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.adoptedStyleSheets = [hasSheet];
+            document.body.appendChild(host);
+
+            const wrapper = document.createElement("div");
+            const target = document.createElement("span");
+            wrapper.appendChild(target);
+            shadowRoot.appendChild(wrapper);
+
+            wrappers.push(wrapper);
+            targets.push(target);
+        }
+
+        println(getComputedStyle(wrappers[0]).color);
+        println(getComputedStyle(targets[0]).display);
+        internals.resetStyleInvalidationCounters();
+
+        for (const target of targets)
+            target.className = "target ad";
+
+        println(getComputedStyle(wrappers[0]).color);
+        println(getComputedStyle(targets[0]).display);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`hasInvalidationRuleCacheBuilds: ${counters.hasInvalidationRuleCacheBuilds}`);
+
+        internals.setContentBlockers("");
+    });
+</script>

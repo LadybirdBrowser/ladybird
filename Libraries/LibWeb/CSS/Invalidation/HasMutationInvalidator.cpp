@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 
 namespace Web::CSS::Invalidation {
 
@@ -458,6 +459,31 @@ static void schedule_has_invalidation_for_child_list_mutation(DOM::Node& parent,
         invalidate_children_affected_by_has_sibling_combinators(parent);
 }
 
+static void schedule_has_invalidation_for_node_in_scope(DOM::Node& node, StyleScope& style_scope)
+{
+    if (!style_scope.may_have_has_selectors())
+        return;
+
+    style_scope.record_pending_has_invalidation_mutation_features(node, node, false);
+    style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(node);
+}
+
+static void schedule_document_user_has_invalidation_for_shadow_node(DOM::Node& node, StyleScope& node_style_scope)
+{
+    if (!is<DOM::ShadowRoot>(node.root()))
+        return;
+
+    auto& document_style_scope = node.document().style_scope();
+    if (&node_style_scope == &document_style_scope)
+        return;
+
+    if (!document_style_scope.may_have_user_has_selectors())
+        return;
+
+    document_style_scope.record_pending_has_invalidation_mutation_features(node, node, false);
+    document_style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(node);
+}
+
 void schedule_has_invalidation_for_node(DOM::Node& node, DOM::StyleInvalidationReason reason)
 {
     auto is_child_list_mutation = reason == DOM::StyleInvalidationReason::NodeRemove
@@ -480,11 +506,12 @@ void schedule_has_invalidation_for_node(DOM::Node& node, DOM::StyleInvalidationR
         return;
     }
 
-    auto& style_scope = node.style_scope();
-    if (!style_scope.may_have_has_selectors() || !reason_may_affect_has_selectors(reason))
+    if (!reason_may_affect_has_selectors(reason))
         return;
-    style_scope.record_pending_has_invalidation_mutation_features(node, node, false);
-    style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(node);
+
+    auto& style_scope = node.style_scope();
+    schedule_has_invalidation_for_node_in_scope(node, style_scope);
+    schedule_document_user_has_invalidation_for_shadow_node(node, style_scope);
 }
 
 void schedule_has_invalidation_for_same_parent_move(DOM::Node& node)
