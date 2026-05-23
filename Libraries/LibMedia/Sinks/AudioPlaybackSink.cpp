@@ -135,11 +135,11 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         if (output_thread_data->m_playback_stream)
                             output_thread_data->m_playback_stream->notify_data_available();
 
-                        output_thread_data->m_waiting_for_upstream_data = false;
-
                         if (status == PipelineStatus::HaveData)
                             output_thread_data->m_last_real_data_end_in_frames = output_block.end_timestamp_in_frames();
                     }
+
+                    output_thread_data->m_waiting_for_upstream_data = !can_carry_data(status);
 
                     if (!can_carry_data(output_thread_data->m_last_dispatched_status) && can_carry_data(status))
                         output_thread_data->dispatch_state_if_changed(status, seek_id_at_pull);

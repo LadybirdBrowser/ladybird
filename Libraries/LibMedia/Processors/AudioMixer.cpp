@@ -33,20 +33,9 @@ ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& inpu
     VERIFY(!m_inputs.contains(input));
     m_inputs.set(input, InputMixingData());
     input->set_wake_handler([this, input] {
-        auto input_status = input->status();
         bool should_wake_downstream;
         {
             Sync::MutexLocker locker { m_mutex };
-            auto& input_data = m_inputs.get(input).value();
-            if (input_data.last_status == input_status)
-                return;
-            input_data.last_status = input_status;
-            while (input_data.last_status == PipelineStatus::MovedPosition) {
-                input->pull(input_data.current_block);
-                VERIFY(input_data.current_block.is_empty());
-                input_data.last_status = input->status();
-            }
-
             m_status = combined_input_status();
             should_wake_downstream = m_downstream_needs_wake && !is_waiting_for_data(m_status);
             if (m_moved_position_pending)
@@ -172,6 +161,9 @@ void AudioMixer::seek(AK::Duration timestamp)
 PipelineStatus AudioMixer::status() const
 {
     Sync::MutexLocker locker { m_mutex };
+    m_status = combined_input_status();
+    if (m_moved_position_pending)
+        m_status = PipelineStatus::MovedPosition;
     m_downstream_needs_wake = is_waiting_for_data(m_status);
     return m_status;
 }
@@ -192,8 +184,23 @@ void AudioMixer::dispatch_wake()
 PipelineStatus AudioMixer::combined_input_status() const
 {
     auto status = PipelineStatus::EndOfStream;
-    for (auto const& [input, input_data] : m_inputs)
+    for (auto& [input, input_data] : m_inputs) {
+        if (!input_data.current_block.is_empty()
+            && input_data.current_block.sample_specification() == m_sample_specification
+            && input_data.current_block.end_timestamp_in_frames() > m_next_frame_to_write) {
+            status = select_combined_pipeline_status(status, PipelineStatus::HaveData);
+            continue;
+        }
+
+        if (!can_carry_data(input_data.last_status)) {
+            while ((input_data.last_status = input->status()) == PipelineStatus::MovedPosition) {
+                input->pull(input_data.current_block);
+                VERIFY(input_data.current_block.is_empty());
+            }
+        }
+
         status = select_combined_pipeline_status(status, input_data.last_status);
+    }
     VERIFY(status != PipelineStatus::MovedPosition);
     return status;
 }
@@ -208,6 +215,11 @@ void AudioMixer::pull(AudioBlock& into)
     Sync::MutexLocker locker { m_mutex };
     if (m_moved_position_pending) {
         m_moved_position_pending = false;
+        into.clear();
+        m_status = combined_input_status();
+        return;
+    }
+    if (m_status == PipelineStatus::Pending) {
         into.clear();
         m_status = combined_input_status();
         return;
@@ -325,7 +337,8 @@ void AudioMixer::pull(AudioBlock& into)
 
     if (frame_count == 0) {
         into.clear();
-        VERIFY(combined_status_after_mix != PipelineStatus::HaveData);
+        if (combined_status_after_mix == PipelineStatus::HaveData)
+            combined_status_after_mix = PipelineStatus::Pending;
         VERIFY(combined_status_after_mix != PipelineStatus::MovedPosition);
         VERIFY(combined_status_after_mix != PipelineStatus::EndOfStream);
         m_status = combined_status_after_mix;

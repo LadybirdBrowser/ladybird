@@ -58,14 +58,14 @@ private:
 
     mutable Sync::Mutex m_mutex;
     Audio::SampleSpecification m_sample_specification;
-    HashMap<NonnullRefPtr<AudioProducer>, InputMixingData> m_inputs;
+    mutable HashMap<NonnullRefPtr<AudioProducer>, InputMixingData> m_inputs;
     i64 m_next_frame_to_write { 0 };
     bool m_started { false };
     bool m_moved_position_pending { false };
     mutable bool m_downstream_needs_wake { true };
 
     PipelineWakeHandler m_wake_handler;
-    PipelineStatus m_status { PipelineStatus::Pending };
+    mutable PipelineStatus m_status { PipelineStatus::Pending };
 };
 
 }
