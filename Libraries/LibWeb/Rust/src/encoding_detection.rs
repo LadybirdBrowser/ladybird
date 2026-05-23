@@ -31,6 +31,7 @@ pub unsafe extern "C" fn rust_detect_encoding(
     input_len: usize,
     tld: *const u8,
     tld_len: usize,
+    allow_utf8: bool,
     out_encoding_name: *mut *const u8,
     out_encoding_name_len: *mut usize,
 ) -> bool {
@@ -60,10 +61,12 @@ pub unsafe extern "C" fn rust_detect_encoding(
             // the prefix of a longer stream, do not pass last=true."
             detector.feed(input_slice, false);
 
-            // `Utf8Detection::Deny`: chardetng never returns UTF-8 here; valid-UTF-8
-            // content (including pure ASCII) gets the TLD-based default (windows-1252
-            // for generic), while content in a non-UTF-8 encoding gets that encoding.
-            let encoding = detector.guess(tld_slice, Utf8Detection::Deny);
+            let utf8_detection = if allow_utf8 {
+                Utf8Detection::Allow
+            } else {
+                Utf8Detection::Deny
+            };
+            let encoding = detector.guess(tld_slice, utf8_detection);
             let name = encoding.name().as_bytes();
             *out_encoding_name = name.as_ptr();
             *out_encoding_name_len = name.len();
