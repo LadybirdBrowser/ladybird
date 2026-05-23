@@ -176,7 +176,6 @@ TEST_CASE(human_readable_short_time)
     EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(3600001)), "1h 0.001s");
     EXPECT_EQ(human_readable_short_time(AK::Duration::from_microseconds(3601001001)), "1h 1.001s");
     EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(3661)), "1h 1m 1s");
-    EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(3661)), "1h 1m 1s");
     EXPECT_EQ(human_readable_short_time(AK::Duration::from_seconds(86399)), "23h 59m 59s");
     EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(86399001)), "23h 59m 59.001s");
     EXPECT_EQ(human_readable_short_time(AK::Duration::from_milliseconds(86399999)), "23h 59m 59.999s");
