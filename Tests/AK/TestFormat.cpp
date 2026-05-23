@@ -44,7 +44,6 @@ TEST_CASE(format_integers)
     EXPECT_EQ(ByteString::formatted("{:'}", 4096), "4,096");
     EXPECT_EQ(ByteString::formatted("{:'}", 16777216), "16,777,216");
     EXPECT_EQ(ByteString::formatted("{:'}", AK::NumericLimits<u64>::max()), "18,446,744,073,709,551,615");
-    EXPECT_EQ(ByteString::formatted("{:'}", AK::NumericLimits<u64>::max()), "18,446,744,073,709,551,615");
     EXPECT_EQ(ByteString::formatted("{:'}", AK::NumericLimits<i64>::min() + 1), "-9,223,372,036,854,775,807");
     EXPECT_EQ(ByteString::formatted("{:'x}", 0), "0");
     EXPECT_EQ(ByteString::formatted("{:'x}", 16777216), "1,000,000");
