@@ -67,6 +67,9 @@ public:
     AK::Duration group_end_timestamp() const;
     bool is_buffer_full() const;
 
+    size_t total_buffered_bytes() const;
+    size_t capacity_in_bytes() const;
+
     void set_mode(AppendMode);
     void set_generate_timestamps_flag(bool);
     void set_group_start_timestamp(Optional<AK::Duration>);
@@ -90,7 +93,7 @@ public:
 
     void run_segment_parser_loop();
     void reset_parser_state();
-    void run_coded_frame_eviction();
+    void run_coded_frame_eviction(size_t new_data_size, AK::Duration current_time);
 
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
