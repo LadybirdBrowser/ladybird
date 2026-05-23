@@ -44,7 +44,6 @@ TEST_CASE(find_one_anywhere_set)
         EXPECT_EQ(bitmap.find_one_anywhere_set(63).value(), 34u);
         EXPECT_EQ(bitmap.find_one_anywhere_set(64).value(), 97u);
         EXPECT_EQ(bitmap.find_one_anywhere_set(96).value(), 97u);
-        EXPECT_EQ(bitmap.find_one_anywhere_set(96).value(), 97u);
         EXPECT_EQ(bitmap.find_one_anywhere_set(97).value(), 97u);
         EXPECT_EQ(bitmap.find_one_anywhere_set(127).value(), 97u);
         EXPECT_EQ(bitmap.find_one_anywhere_set(128).value(), 34u);
@@ -79,7 +78,6 @@ TEST_CASE(find_one_anywhere_unset)
         EXPECT_EQ(bitmap.find_one_anywhere_unset(36).value(), 34u);
         EXPECT_EQ(bitmap.find_one_anywhere_unset(63).value(), 34u);
         EXPECT_EQ(bitmap.find_one_anywhere_unset(64).value(), 97u);
-        EXPECT_EQ(bitmap.find_one_anywhere_unset(96).value(), 97u);
         EXPECT_EQ(bitmap.find_one_anywhere_unset(96).value(), 97u);
         EXPECT_EQ(bitmap.find_one_anywhere_unset(97).value(), 97u);
         EXPECT_EQ(bitmap.find_one_anywhere_unset(127).value(), 97u);
