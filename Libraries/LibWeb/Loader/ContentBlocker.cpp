@@ -1,17 +1,16 @@
 /*
- * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/BinarySearch.h>
-#include <AK/Queue.h>
-#include <AK/QuickSort.h>
-#include <AK/Span.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
+#include <AK/Vector.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/ContentBlockerRustFFI.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 
 namespace Web {
@@ -24,23 +23,153 @@ ContentBlocker& ContentBlocker::the()
 
 ContentBlocker::ContentBlocker() = default;
 
-ContentBlocker::~ContentBlocker() = default;
+ContentBlocker::~ContentBlocker()
+{
+    ContentBlocking::FFI::rust_content_blocker_free(m_engine);
+}
+
+static StringView resource_type_to_adblock_request_type(ContentBlocker::ResourceType type)
+{
+    switch (type) {
+    case ContentBlocker::ResourceType::Document:
+        return "document"sv;
+    case ContentBlocker::ResourceType::Font:
+        return "font"sv;
+    case ContentBlocker::ResourceType::Image:
+        return "image"sv;
+    case ContentBlocker::ResourceType::Media:
+        return "media"sv;
+    case ContentBlocker::ResourceType::Object:
+        return "object"sv;
+    case ContentBlocker::ResourceType::Other:
+        return "other"sv;
+    case ContentBlocker::ResourceType::Ping:
+        return "ping"sv;
+    case ContentBlocker::ResourceType::Script:
+        return "script"sv;
+    case ContentBlocker::ResourceType::Stylesheet:
+        return "stylesheet"sv;
+    case ContentBlocker::ResourceType::Subdocument:
+        return "subdocument"sv;
+    case ContentBlocker::ResourceType::WebSocket:
+        return "websocket"sv;
+    case ContentBlocker::ResourceType::XMLHttpRequest:
+        return "xmlhttprequest"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static ByteString serialized_url(URL::URL const& url)
+{
+    return url.serialize().to_byte_string();
+}
+
+static ByteString serialized_url_for_matching(URL::URL const& url)
+{
+    if (url.scheme() == "file"sv)
+        return ByteString::formatted("http://local-file.invalid/{}", serialized_url(url));
+    return serialized_url(url);
+}
+
+static String take_rust_string(ContentBlocking::FFI::ContentBlockerString rust_string)
+{
+    if (!rust_string.data)
+        return {};
+
+    ArmedScopeGuard free_string = [&] {
+        ContentBlocking::FFI::rust_content_blocker_free_string(rust_string.data, rust_string.length);
+    };
+
+    auto maybe_string = String::from_utf8({ reinterpret_cast<char const*>(rust_string.data), rust_string.length });
+    if (maybe_string.is_error())
+        return {};
+    return maybe_string.release_value();
+}
+
+static ErrorOr<String> join_lines(ReadonlySpan<String> lines)
+{
+    StringBuilder builder;
+    for (auto const& line : lines) {
+        builder.append(line);
+        builder.append('\n');
+    }
+    return builder.to_string();
+}
+
+static bool line_looks_like_supported_cosmetic_rule(StringView line)
+{
+    auto trimmed_line = line.trim_whitespace();
+    if (trimmed_line.is_empty() || trimmed_line.starts_with('!') || trimmed_line.starts_with('['))
+        return false;
+
+    auto sharp_index = trimmed_line.find('#');
+    if (!sharp_index.has_value())
+        return false;
+
+    auto after_sharp_index = *sharp_index + 1;
+    if (after_sharp_index >= trimmed_line.length())
+        return false;
+
+    auto second_sharp_index = trimmed_line.find('#', after_sharp_index);
+    if (!second_sharp_index.has_value())
+        return false;
+
+    auto between_sharps = trimmed_line.substring_view(after_sharp_index, *second_sharp_index - after_sharp_index);
+    if (between_sharps.starts_with('@')) {
+        if (*sharp_index == 0)
+            return false;
+        between_sharps = between_sharps.substring_view(1);
+    }
+    if (between_sharps.starts_with('?'))
+        between_sharps = between_sharps.substring_view(1);
+
+    return between_sharps.is_empty();
+}
+
+static bool rules_contain_cosmetic_rules(ReadonlyBytes rules_bytes)
+{
+    bool has_cosmetic_rules = false;
+    StringView { rules_bytes }.for_each_split_view('\n', SplitBehavior::Nothing, [&](StringView line) {
+        if (line_looks_like_supported_cosmetic_rule(line))
+            has_cosmetic_rules = true;
+    });
+    return has_cosmetic_rules;
+}
+
+ErrorOr<void> ContentBlocker::set_patterns(ReadonlySpan<String> patterns)
+{
+    StringBuilder builder;
+    for (auto const& pattern : patterns) {
+        if (pattern.is_empty())
+            continue;
+        builder.append(pattern);
+        builder.append('\n');
+    }
+
+    auto patterns_string = TRY(builder.to_string());
+    auto patterns_bytes = patterns_string.bytes_as_string_view().bytes();
+    return set_rules_from_bytes(patterns_bytes);
+}
+
+ErrorOr<void> ContentBlocker::set_rules_from_bytes(ReadonlyBytes rules_bytes)
+{
+    auto* engine = ContentBlocking::FFI::rust_content_blocker_create(
+        rules_bytes.data(),
+        rules_bytes.size());
+    if (!engine)
+        return Error::from_string_literal("Failed to create content blocker");
+
+    auto has_cosmetic_rules = rules_contain_cosmetic_rules(rules_bytes);
+
+    ContentBlocking::FFI::rust_content_blocker_free(m_engine);
+    m_engine = engine;
+    m_has_cosmetic_rules = has_cosmetic_rules;
+    return {};
+}
 
 bool ContentBlocker::is_filtered(URL::URL const& url) const
 {
-    if (!filtering_enabled())
-        return false;
-
-    if (url.scheme() == "data")
-        return false;
-    return contains(url.to_string());
-}
-
-bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url, ResourceType resource_type) const
-{
-    (void)source_url;
-    (void)resource_type;
-    return is_filtered(url);
+    return is_filtered(url, url, ResourceType::Other);
 }
 
 bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url, Optional<Fetch::Infrastructure::Request::Destination> const& destination, Optional<Fetch::Infrastructure::Request::InitiatorType> const& initiator_type, Fetch::Infrastructure::Request::Mode mode) const
@@ -48,90 +177,87 @@ bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url
     return is_filtered(url, source_url_for_matching(source_url), resource_type_from_fetch_metadata(destination, initiator_type, mode));
 }
 
-bool ContentBlocker::contains(StringView text) const
+bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url, ResourceType resource_type) const
 {
-    if (!m_matcher)
-        return false;
-    return m_matcher->contains(text);
-}
-
-ErrorOr<void> ContentBlocker::set_patterns(ReadonlySpan<String> patterns)
-{
-    Vector<String> network_patterns;
-    m_cosmetic_rules.clear();
-
-    for (auto const& pattern : patterns) {
-        auto pattern_view = pattern.bytes_as_string_view();
-        auto cosmetic_marker = pattern_view.find("##"sv);
-        if (!cosmetic_marker.has_value()) {
-            network_patterns.append(pattern);
-            continue;
-        }
-
-        auto selector = pattern_view.substring_view(cosmetic_marker.value() + 2);
-        if (selector.is_empty())
-            continue;
-
-        auto domains = pattern_view.substring_view(0, cosmetic_marker.value());
-        if (domains.is_empty()) {
-            CosmeticRule rule;
-            rule.selector = TRY(String::from_utf8(selector));
-            m_cosmetic_rules.append(move(rule));
-            continue;
-        }
-
-        for (auto domain : domains.split_view(',')) {
-            if (domain.is_empty())
-                continue;
-            CosmeticRule rule;
-            rule.domain = TRY(String::from_utf8(domain));
-            rule.selector = TRY(String::from_utf8(selector));
-            m_cosmetic_rules.append(move(rule));
-        }
-    }
-
-    m_matcher = make<AsciiStringMatcher>(network_patterns);
-    return {};
-}
-
-static bool cosmetic_rule_domain_matches(StringView domain, URL::URL const& url)
-{
-    auto const& host = url.host();
-    if (!host.has_value())
+    if (!filtering_enabled() || !m_engine)
         return false;
 
-    auto host_string = host->serialize();
-    auto host_view = host_string.bytes_as_string_view();
-    if (host_view == domain)
-        return true;
-
-    if (!host_view.ends_with(domain))
-        return false;
-    if (host_view.length() <= domain.length())
+    if (url.scheme() == "data"sv)
         return false;
 
-    return host_view[host_view.length() - domain.length() - 1] == '.';
-}
+    auto url_string = serialized_url_for_matching(url);
+    auto normalized_source_url = source_url_for_matching(source_url);
+    auto source_url_string = serialized_url_for_matching(normalized_source_url);
+    auto request_type = resource_type_to_adblock_request_type(resource_type);
 
-String ContentBlocker::cosmetic_style_sheet_for_document(DOM::Document const& document) const
-{
-    return cosmetic_style_sheet_for_url(document.fallback_base_url());
+    return ContentBlocking::FFI::rust_content_blocker_matches(
+        m_engine,
+        reinterpret_cast<u8 const*>(url_string.characters()),
+        url_string.length(),
+        reinterpret_cast<u8 const*>(source_url_string.characters()),
+        source_url_string.length(),
+        reinterpret_cast<u8 const*>(request_type.characters_without_null_termination()),
+        request_type.length());
 }
 
 String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url) const
 {
-    if (!filtering_enabled())
+    return cosmetic_style_sheet_for_url(url, {}, {});
+}
+
+String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, ReadonlySpan<String> classes, ReadonlySpan<String> ids) const
+{
+    if (!filtering_enabled() || !m_engine || !m_has_cosmetic_rules)
         return {};
 
-    StringBuilder builder;
-    for (auto const& rule : m_cosmetic_rules) {
-        if (rule.domain.has_value() && !cosmetic_rule_domain_matches(rule.domain->bytes_as_string_view(), url))
-            continue;
+    auto url_string = serialized_url(url);
+    auto classes_string = join_lines(classes);
+    if (classes_string.is_error())
+        return {};
 
-        builder.append(rule.selector);
-        builder.append(" { display: none !important; }\n"sv);
-    }
-    return builder.to_string_without_validation();
+    auto ids_string = join_lines(ids);
+    if (ids_string.is_error())
+        return {};
+
+    auto classes_bytes = classes_string.value().bytes_as_string_view();
+    auto ids_bytes = ids_string.value().bytes_as_string_view();
+
+    return take_rust_string(ContentBlocking::FFI::rust_content_blocker_cosmetic_css(
+        m_engine,
+        reinterpret_cast<u8 const*>(url_string.characters()),
+        url_string.length(),
+        reinterpret_cast<u8 const*>(classes_bytes.characters_without_null_termination()),
+        classes_bytes.length(),
+        reinterpret_cast<u8 const*>(ids_bytes.characters_without_null_termination()),
+        ids_bytes.length()));
+}
+
+String ContentBlocker::cosmetic_style_sheet_for_document(DOM::Document const& document) const
+{
+    if (!filtering_enabled() || !m_engine || !m_has_cosmetic_rules)
+        return {};
+
+    Vector<String> classes;
+    Vector<String> ids;
+    const_cast<DOM::Document&>(document).for_each_shadow_including_descendant([&](DOM::Node& node) {
+        auto* element = as_if<DOM::Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+
+        if (auto const& id = element->id(); id.has_value()) {
+            if (auto id_string = id->to_string(); !id_string.is_empty())
+                ids.append(move(id_string));
+        }
+
+        for (auto const& class_name : element->class_names()) {
+            if (auto class_string = class_name.to_string(); !class_string.is_empty())
+                classes.append(move(class_string));
+        }
+
+        return TraversalDecision::Continue;
+    });
+
+    return cosmetic_style_sheet_for_url(document.fallback_base_url(), classes, ids);
 }
 
 ContentBlocker::ResourceType ContentBlocker::resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const& destination, Optional<Fetch::Infrastructure::Request::InitiatorType> const& initiator_type, Fetch::Infrastructure::Request::Mode mode)
@@ -204,6 +330,7 @@ ContentBlocker::ResourceType ContentBlocker::resource_type_from_fetch_metadata(O
         case Request::InitiatorType::Script:
             return ResourceType::Script;
         case Request::InitiatorType::CSS:
+            return ResourceType::Stylesheet;
         case Request::InitiatorType::EarlyHint:
         case Request::InitiatorType::Body:
         case Request::InitiatorType::Input:
@@ -227,140 +354,6 @@ URL::URL ContentBlocker::source_url_for_matching(URL::URL const& source_url)
         return source_url;
 
     return parsed_url.release_value();
-}
-
-AsciiStringMatcher::AsciiStringMatcher(ReadonlySpan<String> patterns)
-{
-    struct BuildTimeNode {
-        Vector<Transition> children;
-        bool is_output { false };
-    };
-
-    Vector<BuildTimeNode> build_time_nodes;
-    build_time_nodes.append({});
-
-    for (u32 i = 0; i < patterns.size(); ++i) {
-        auto const& pattern = patterns[i];
-        u32 node = 0;
-        for (u8 ch : pattern.bytes_as_string_view()) {
-            VERIFY(is_ascii(ch));
-            auto it = build_time_nodes[node].children.find_if(
-                [ch](Transition const& t) { return t.character == ch; });
-
-            if (it != build_time_nodes[node].children.end()) {
-                node = it->next_state;
-            } else {
-                u32 new_node = build_time_nodes.size();
-                build_time_nodes.append({});
-                build_time_nodes[node].children.empend(ch, new_node);
-                node = new_node;
-            }
-        }
-
-        if (!build_time_nodes[node].is_output)
-            build_time_nodes[node].is_output = true;
-    }
-
-    Vector<u32> failure_links;
-    failure_links.resize(build_time_nodes.size());
-
-    Queue<u32> queue;
-    for (auto const& transition : build_time_nodes[0].children) {
-        u32 child = transition.next_state;
-        failure_links[child] = 0;
-        queue.enqueue(child);
-    }
-
-    while (!queue.is_empty()) {
-        u32 current = queue.dequeue();
-        for (auto& [character, child] : build_time_nodes[current].children) {
-            u32 failure_link = failure_links[current];
-            while (failure_link != 0) {
-                auto it = build_time_nodes[failure_link].children.find_if(
-                    [character](Transition const& tr) { return tr.character == character; });
-                if (it != build_time_nodes[failure_link].children.end()) {
-                    failure_link = it->next_state;
-                    break;
-                }
-                failure_link = failure_links[failure_link];
-            }
-
-            u32 next_failure_link = failure_link;
-            failure_links[child] = next_failure_link;
-
-            bool inherited = build_time_nodes[next_failure_link].is_output;
-            if (inherited && !build_time_nodes[child].is_output)
-                build_time_nodes[child].is_output = true;
-
-            queue.enqueue(child);
-        }
-    }
-
-    for (auto& node : build_time_nodes) {
-        quick_sort(node.children, [](Transition const& a, Transition const& b) {
-            return a.character < b.character;
-        });
-    }
-
-    m_nodes.resize(build_time_nodes.size());
-    m_transitions.clear_with_capacity();
-
-    u32 transition_index = 0;
-    for (u32 i = 0; i < build_time_nodes.size(); ++i) {
-        auto& build_time_node = build_time_nodes[i];
-        m_nodes[i].first_transition = transition_index;
-        m_nodes[i].transition_count = build_time_node.children.size();
-        m_nodes[i].output = build_time_node.is_output;
-        m_transitions.extend(build_time_node.children);
-
-        transition_index += build_time_node.children.size();
-    }
-}
-
-bool AsciiStringMatcher::contains(StringView text) const
-{
-    if (m_nodes.is_empty())
-        return false;
-
-    auto get_children = [this](u32 state) -> ReadonlySpan<Transition> {
-        return m_transitions.span().slice(m_nodes[state].first_transition, m_nodes[state].transition_count);
-    };
-
-    u32 state = 0;
-    for (u8 ch : text.bytes()) {
-        auto const& children = get_children(state);
-
-        auto const* found = AK::binary_search(
-            children,
-            ch,
-            nullptr,
-            [](u8 needle, Transition const& transition) {
-                if (needle > transition.character)
-                    return needle < transition.character ? -1 : 1;
-                return needle < transition.character ? -1 : 0;
-            });
-
-        if (!found) {
-            state = 0;
-            auto const& root_children = get_children(0);
-            found = AK::binary_search(
-                root_children,
-                ch,
-                nullptr,
-                [](u8 needle, Transition const& transition) {
-                    if (needle > transition.character)
-                        return needle < transition.character ? -1 : 1;
-                    return needle < transition.character ? -1 : 0;
-                });
-            if (!found)
-                continue;
-        }
-
-        state = found->next_state;
-        if (m_nodes[state].output)
-            return true;
-    }
-    return false;
 }
 
 }

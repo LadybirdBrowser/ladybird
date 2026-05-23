@@ -296,7 +296,7 @@ static ErrorOr<void> load_content_blockers(StringView config_path)
             continue;
 
         auto pattern = TRY(String::from_utf8(line));
-        TRY(patterns.try_append(move(pattern)));
+        patterns.append(move(pattern));
     }
 
     auto& content_blocker = Web::ContentBlocker::the();
