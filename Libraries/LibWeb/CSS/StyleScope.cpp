@@ -170,8 +170,11 @@ void StyleScope::build_user_style_sheet_if_needed()
     if (m_user_style_sheet)
         return;
 
+    if (!is<DOM::Document>(*m_node))
+        return;
+
     auto user_style_source = document().page().user_style();
-    auto content_blocker_style_source = ContentBlocker::the().cosmetic_style_sheet_for_document(document());
+    auto const& content_blocker_style_source = document().content_blocker_style_sheet();
     if (!user_style_source.has_value() && content_blocker_style_source.is_empty())
         return;
 

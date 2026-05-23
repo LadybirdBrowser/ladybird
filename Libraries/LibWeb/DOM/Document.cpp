@@ -183,6 +183,7 @@
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -770,6 +771,18 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_style_invalidator);
     visitor.visit(m_deferred_parser_start);
     visitor.visit(m_custom_element_registry);
+}
+
+String const& Document::content_blocker_style_sheet()
+{
+    if (!m_content_blocker_style_sheet.has_value())
+        m_content_blocker_style_sheet = ContentBlocker::the().cosmetic_style_sheet_for_document(*this);
+    return m_content_blocker_style_sheet.value();
+}
+
+void Document::invalidate_content_blocker_style_sheet()
+{
+    m_content_blocker_style_sheet.clear();
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection

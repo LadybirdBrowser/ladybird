@@ -1096,6 +1096,8 @@ public:
 
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
+    String const& content_blocker_style_sheet();
+    void invalidate_content_blocker_style_sheet();
 
     void exit_pointer_lock();
 
@@ -1464,6 +1466,8 @@ private:
     // Document should not visit ShadowRoot list to avoid leaks.
     // It's responsibility of object that allocated ShadowRoot to keep it alive.
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
+
+    Optional<String> m_content_blocker_style_sheet;
 
     Optional<AK::UnixDateTime> m_last_modified;
 
