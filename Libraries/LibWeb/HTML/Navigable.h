@@ -343,9 +343,9 @@ private:
     bool m_needs_to_record_display_list { true };
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
-    Optional<PaintConfig> m_rendering_thread_display_list_paint_config;
+    Optional<PaintConfig> m_compositor_display_list_paint_config;
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
-    Painting::DisplayListResourceSet m_rendering_thread_display_list_resources;
+    Painting::DisplayListResourceSet m_compositor_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     Optional<Painting::CompositorSurfaceId> m_compositor_surface_id;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
