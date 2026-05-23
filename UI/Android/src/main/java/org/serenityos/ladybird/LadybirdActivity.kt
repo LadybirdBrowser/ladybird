@@ -79,12 +79,14 @@ class LadybirdActivity : AppCompatActivity() {
         startStartupOverlayAnimation()
 
         view.onLoadStart = { url: String, _ ->
+            Log.i("LadybirdLoad", "onLoadStart: $url")
             setLoading(true)
             currentUrl = url
             if (!urlEditText.hasFocus())
                 urlEditText.setText(url, TextView.BufferType.EDITABLE)
         }
         view.onLoadFinish = { url: String ->
+            Log.i("LadybirdLoad", "onLoadFinish: $url")
             currentUrl = url
             setLoading(false)
             history.record(url, currentTitle.ifBlank { url })
@@ -93,6 +95,7 @@ class LadybirdActivity : AppCompatActivity() {
             view.post { view.syncViewport(); view.invalidate() }
         }
         view.onUrlChange = { url: String ->
+            Log.i("LadybirdLoad", "onUrlChange: $url")
             currentUrl = url
             if (!urlEditText.hasFocus())
                 urlEditText.setText(url, TextView.BufferType.EDITABLE)
@@ -108,13 +111,17 @@ class LadybirdActivity : AppCompatActivity() {
                 Log.d("Ladybird", "Hover: $url")
         }
         view.onContentReady = {
+            Log.i("LadybirdLoad", "onContentReady")
             hasRenderedContent = true
             if (isLoading)
                 setLoading(false)
             hideStartupOverlayIfNeeded()
         }
         view.onWebContentCrash = {
+            Log.e("LadybirdLoad", "onWebContentCrash")
             setLoading(false)
+            applySettingsToView()
+            view.syncViewport()
             // Suppress the spurious crash signal that fires once during initial
             // WebContent service bind, before any content has rendered.
             if (hasRenderedContent) {
@@ -133,13 +140,14 @@ class LadybirdActivity : AppCompatActivity() {
             if (currentUrl.isNotBlank()) view.loadURL(currentUrl) else view.reload()
         }
 
-        urlEditText.setOnEditorActionListener { textView: TextView, actionId: Int, _: KeyEvent? ->
-            when (actionId) {
-                EditorInfo.IME_ACTION_GO, EditorInfo.IME_ACTION_SEARCH -> {
-                    navigateToInput(textView.text.toString())
-                    true
-                }
-                else -> false
+        urlEditText.setOnEditorActionListener { textView: TextView, actionId: Int, keyEvent: KeyEvent? ->
+            val isImeSubmit = actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_SEARCH
+            val isHardwareEnter = keyEvent?.keyCode == KeyEvent.KEYCODE_ENTER && keyEvent.action == KeyEvent.ACTION_DOWN
+            if (isImeSubmit || isHardwareEnter) {
+                navigateToInput(textView.text.toString())
+                true
+            } else {
+                false
             }
         }
         binding.menuButton.setOnClickListener { showBrowserMenu() }
@@ -197,6 +205,7 @@ class LadybirdActivity : AppCompatActivity() {
         view.setPreferredColorScheme(settings.colorScheme.nativeValue)
         view.setUserAgent(settings.userAgent)
         view.setNavigatorCompatibility(settings.navigatorCompatibility)
+        view.setScriptingEnabled(settings.javascriptHelpersEnabled)
         view.setPinchZoomEnabled(settings.pinchZoomEnabled)
     }
 

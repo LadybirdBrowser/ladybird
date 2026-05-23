@@ -160,6 +160,10 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
         viewImpl.debugRequest("navigator-compatibility-mode", mode.nativeName)
     }
 
+    fun setScriptingEnabled(enabled: Boolean) {
+        viewImpl.debugRequest("scripting", if (enabled) "on" else "off")
+    }
+
     fun setPinchZoomEnabled(enabled: Boolean) {
         pinchZoomEnabled = enabled
     }

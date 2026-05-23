@@ -55,7 +55,7 @@ enum class UserAgentPreset(val displayName: String, val uaString: String?) {
     );
 
     companion object {
-        fun from(name: String?): UserAgentPreset = entries.firstOrNull { it.name == name } ?: ChromeAndroid
+        fun from(name: String?): UserAgentPreset = entries.firstOrNull { it.name == name } ?: ChromeDesktop
     }
 }
 
@@ -90,12 +90,14 @@ class AppSettings(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_JS, value).apply()
 
     /**
-     * Default to Chrome-on-Android so popular sites (Google search, reCAPTCHA,
-     * Cloudflare challenges) accept the page request out of the box. Users can
-     * switch to "Default" to advertise Ladybird again.
+      * Default to desktop Chrome for now. Google mobile search still tends to
+      * route Ladybird-like clients through anti-bot flows, while the desktop UA
+      * produces simpler layouts and has been a better compatibility baseline on
+      * Android during bring-up. Users can still switch to mobile Chrome in
+      * Settings once site compatibility improves.
      */
     var userAgent: UserAgentPreset
-        get() = UserAgentPreset.from(prefs.getString(KEY_UA, UserAgentPreset.ChromeAndroid.name))
+          get() = UserAgentPreset.from(prefs.getString(KEY_UA, UserAgentPreset.ChromeDesktop.name))
         set(value) = prefs.edit().putString(KEY_UA, value.name).apply()
 
     var navigatorCompatibility: NavigatorCompatibility
