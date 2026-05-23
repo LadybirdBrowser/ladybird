@@ -3431,8 +3431,8 @@ bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     adopt_pending_async_scroll_offsets();
 
     auto should_record_display_list = m_needs_to_record_display_list
-        || !m_rendering_thread_display_list_paint_config.has_value()
-        || !(m_rendering_thread_display_list_paint_config.value() == paint_config);
+        || !m_compositor_display_list_paint_config.has_value()
+        || !(m_compositor_display_list_paint_config.value() == paint_config);
 
     RefPtr<Painting::DisplayList> display_list;
     Painting::DisplayListResourceSet display_list_resources;
@@ -3443,7 +3443,7 @@ bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
             return false;
         display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
         resource_transaction = m_display_list_resource_storage.create_transaction(
-            m_rendering_thread_display_list_resources,
+            m_compositor_display_list_resources,
             display_list_resources);
     }
 
@@ -3455,9 +3455,9 @@ bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     if (should_record_display_list) {
         compositor_context().update_display_list(*display_list, move(resource_transaction), move(scroll_state_snapshot));
         m_display_list_resource_storage.retain_only(display_list_resources);
-        m_rendering_thread_display_list_resources = move(display_list_resources);
+        m_compositor_display_list_resources = move(display_list_resources);
         m_needs_to_record_display_list = false;
-        m_rendering_thread_display_list_paint_config = paint_config;
+        m_compositor_display_list_paint_config = paint_config;
     } else {
         compositor_context().update_scroll_state(move(scroll_state_snapshot));
     }
