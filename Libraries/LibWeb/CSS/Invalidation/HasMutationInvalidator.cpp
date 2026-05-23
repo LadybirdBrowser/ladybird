@@ -409,6 +409,16 @@ void invalidate_style_for_pending_has_mutations(DOM::Document& document)
 {
     invalidate_style_of_elements_affected_by_pending_has_mutations(document.style_scope());
     document.for_each_shadow_root([&](auto& shadow_root) {
+        bool has_active_style_sheets = false;
+        shadow_root.for_each_active_css_style_sheet([&](auto&) {
+            has_active_style_sheets = true;
+        });
+        if (!has_active_style_sheets) {
+            // Without shadow stylesheets, this scope cannot contain :has() selectors.
+            // Document-level user rules are handled by the document style scope above.
+            shadow_root.style_scope().m_pending_has_invalidations.clear();
+            return;
+        }
         invalidate_style_of_elements_affected_by_pending_has_mutations(shadow_root.style_scope());
     });
 }

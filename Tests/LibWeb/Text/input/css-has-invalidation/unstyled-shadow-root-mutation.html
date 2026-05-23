@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(.match) { color: red; }
+</style>
+<div class="anchor" id="anchor">
+    <span class="match"></span>
+</div>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        settleAndReset(anchor);
+
+        const child = document.createElement("span");
+        child.className = "match";
+        shadowRoot.appendChild(child);
+
+        println(getComputedStyle(anchor).color);
+        printCounters("insert matching element into unstyled shadow root");
+    });
+</script>
