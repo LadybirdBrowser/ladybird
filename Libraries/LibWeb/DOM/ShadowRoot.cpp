@@ -120,6 +120,14 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
     auto fragment = TRY(context->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
 
+    if (auto registry = custom_element_registry()) {
+        fragment->for_each_in_subtree_of_type<Element>([&](auto& element) {
+            element.set_custom_element_registry(registry);
+            element.try_to_upgrade();
+            return TraversalDecision::Continue;
+        });
+    }
+
     // 4. Replace all with fragment within this.
     this->replace_all(fragment);
 
