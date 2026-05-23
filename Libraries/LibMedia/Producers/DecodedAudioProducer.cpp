@@ -407,10 +407,12 @@ DecoderErrorOr<void> DecodedAudioProducer::ThreadData::retrieve_next_block(Audio
 
 void DecodedAudioProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_position)
 {
-    m_queue.clear();
     m_last_processed_seek_id = seek_id;
     VERIFY(m_current_halting_status != PipelineStatus::HaveData);
-    m_moved_position_pending = moved_position;
+    if (moved_position) {
+        m_moved_position_pending = true;
+        m_queue.clear();
+    }
 }
 
 bool DecodedAudioProducer::ThreadData::handle_seek()
