@@ -32,13 +32,14 @@
             const { target, subject } = build(fixture);
             assertEqual(`${name} initial`, readProbe(target), MATCH);
 
-            resetStyleCounters();
+            flushPendingStyleWork();
             subject.removeAttribute("id");
             assertEqual(`${name} after id removal`, readProbe(target), BASE);
             printPassWithCounters(name);
         } finally {
             style.remove();
             fixture.remove();
+            flushPendingStyleWork();
         }
     }
 
@@ -50,7 +51,7 @@
         assertEqual("initial unmatched", readProbe(unmatched), BASE);
         assertEqual("initial matched", readProbe(matched), BASE);
 
-        resetStyleCounters();
+        flushPendingStyleWork();
         ancestor.classList.add("active");
         assertEqual("unmatched after ancestor class change", readProbe(unmatched), BASE);
         assertEqual("matched after ancestor class change", readProbe(matched), MATCH);

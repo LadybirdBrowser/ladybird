@@ -16,6 +16,7 @@
     function cleanupFixture(fixture, style) {
         style.remove();
         fixture.remove();
+        flushPendingStyleWork();
     }
 
     function runClassPresenceCase(name, selector, build, mutate) {
@@ -26,7 +27,7 @@
             for (const [label, target, expected] of targets.before)
                 assertEqual(`${name} initial ${label}`, readProbe(target), expected);
 
-            resetStyleCounters();
+            flushPendingStyleWork();
             mutate(targets);
 
             for (const [label, target, expected] of targets.after)
@@ -52,7 +53,7 @@
 
             assertEqual("generic attribute removal initial", readProbe(target), MATCH);
 
-            resetStyleCounters();
+            flushPendingStyleWork();
             subject.removeAttribute("data-state");
             assertEqual("generic attribute removal after mutation", readProbe(target), BASE);
             printPassWithCounters("generic attribute removal keeps descendants current");
@@ -85,7 +86,7 @@
             assertEqual("shadow initial unmatched 2", readProbe(unmatched2), BASE);
             assertEqual("shadow initial matched", readProbe(matched), BASE);
 
-            resetStyleCounters();
+            flushPendingStyleWork();
             ancestor.setAttribute("data-active", "");
 
             assertEqual("shadow after mutation unmatched", readProbe(unmatched), BASE);
@@ -95,6 +96,7 @@
         } finally {
             style.remove();
             host.remove();
+            flushPendingStyleWork();
         }
     }
 

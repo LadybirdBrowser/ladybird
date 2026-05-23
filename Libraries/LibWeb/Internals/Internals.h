@@ -114,6 +114,7 @@ public:
 
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
+    void update_style();
     WebIDL::UnsignedLongLong active_image_style_value_animation_count();
     JS::Object* async_scrolling_state();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
