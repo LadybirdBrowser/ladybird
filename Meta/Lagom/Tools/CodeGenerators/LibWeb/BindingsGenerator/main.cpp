@@ -157,7 +157,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto implementation_path = ByteString::formatted("{}.cpp", path_prefix);
 
         if constexpr (BINDINGS_GENERATOR_DEBUG) {
-            if (module->interface.has_value() && module->interface->will_generate_code())
+            if (module->interface.has_value())
                 module->interface->dump();
         }
 

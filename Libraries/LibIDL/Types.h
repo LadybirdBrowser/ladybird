@@ -234,8 +234,6 @@ public:
 
     virtual ~ParameterizedType() override = default;
 
-    void generate_sequence_from_iterable(SourceGenerator& generator, ByteString const& cpp_name, ByteString const& iterable_cpp_name, ByteString const& iterator_method_cpp_name, Context const&, size_t recursion_depth) const;
-
     Vector<NonnullRefPtr<Type const>> const& parameters() const { return m_parameters; }
     Vector<NonnullRefPtr<Type const>>& parameters() { return m_parameters; }
 
@@ -335,8 +333,6 @@ public:
 
     // https://webidl.spec.whatwg.org/#dfn-legacy-platform-object
     bool is_legacy_platform_object() const { return !extended_attributes.contains("Global") && (supports_indexed_properties() || supports_named_properties()); }
-
-    bool will_generate_code() const;
 
     void extend_with_partial_interface(Interface const&);
 };

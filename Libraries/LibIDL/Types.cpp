@@ -338,14 +338,6 @@ bool Type::is_json(Context const& context) const
     return false;
 }
 
-bool Interface::will_generate_code() const
-{
-    return !is_partial
-        && (!name.is_empty()
-            || !own_dictionaries.is_empty()
-            || !own_enumerations.is_empty());
-}
-
 void EffectiveOverloadSet::remove_all_other_entries()
 {
     Vector<Item> new_items;
