@@ -1192,6 +1192,10 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
         }
     }
 
+    // This is only reached via a media element task which is only processed once the document is fully active.
+    // The observer callbacks that stop/restart the fetch depend on this invariant, so ensure it here.
+    VERIFY(document().is_fully_active());
+
     m_remote_fetch_data = make<RemoteFetchData>();
     m_remote_fetch_data->url_record = url_record;
     m_remote_fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
