@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body>
+    <div id="html-target" class="ad"></div>
+</body>
+<script>
+    asyncTest((done) => {
+        internals.setContentBlockers("##.ad");
+
+        println(`html display: ${getComputedStyle(document.querySelector("#html-target")).display}`);
+
+        const image = document.createElement("img");
+        image.width = 10;
+        image.height = 10;
+
+        function finish() {
+            internals.setContentBlockers("");
+            done();
+        }
+
+        image.onload = () => {
+            try {
+                const canvas = document.createElement("canvas");
+                canvas.width = 10;
+                canvas.height = 10;
+
+                const context = canvas.getContext("2d");
+                context.drawImage(image, 0, 0);
+
+                const pixel = context.getImageData(5, 5, 1, 1).data;
+                println(`svg pixel: ${Array.from(pixel).join(",")}`);
+            } catch (error) {
+                println(`Caught error while inspecting SVG image: ${error}`);
+            }
+            finish();
+        };
+
+        image.onerror = () => {
+            println("SVG image failed to load");
+            finish();
+        };
+
+        document.body.appendChild(image);
+
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect class="ad" width="10" height="10" fill="red"/></svg>`;
+        image.src = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    });
+</script>

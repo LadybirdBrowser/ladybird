@@ -775,6 +775,12 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
 String const& Document::content_blocker_style_sheet()
 {
+    if (is_decoded_svg()) {
+        if (!m_content_blocker_style_sheet.has_value())
+            m_content_blocker_style_sheet = String {};
+        return m_content_blocker_style_sheet.value();
+    }
+
     if (!m_content_blocker_style_sheet.has_value()) {
         m_content_blocker_style_sheet_checked_classes.clear();
         m_content_blocker_style_sheet_checked_ids.clear();
@@ -816,6 +822,9 @@ void Document::invalidate_content_blocker_style_sheet()
 
 bool Document::content_blocker_style_sheet_may_need_refresh_for_class_or_id(FlyString const* id, ReadonlySpan<FlyString> class_names)
 {
+    if (is_decoded_svg())
+        return false;
+
     if (!m_content_blocker_style_sheet.has_value())
         return false;
 
