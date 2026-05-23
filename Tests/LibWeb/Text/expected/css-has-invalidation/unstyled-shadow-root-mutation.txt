@@ -1,0 +1,8 @@
+rgb(255, 0, 0)
+[insert matching element into unstyled shadow root]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 0
+  hasMatchInvocations: 0
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 0
+  styleInvalidations: 3
