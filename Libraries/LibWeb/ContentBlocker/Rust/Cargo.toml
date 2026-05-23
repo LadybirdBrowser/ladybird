@@ -1,0 +1,19 @@
+[package]
+name = "libweb_content_blocker_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+adblock = "0.12.5"
+serde_json = "1.0"
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[lints]
+workspace = true
