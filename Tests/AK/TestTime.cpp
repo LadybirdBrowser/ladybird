@@ -945,7 +945,6 @@ TEST_CASE(time_units)
     EXPECT_EQ(Duration::from_time_units(1, 1, 1), Duration::from_seconds(1));
     EXPECT_EQ(Duration::from_time_units(-312, 1, 48'000), Duration::from_microseconds(-6'500));
     EXPECT_EQ(Duration::from_time_units(960, 1, 48'000), Duration::from_microseconds(20'000));
-    EXPECT_EQ(Duration::from_time_units(960, 1, 48'000), Duration::from_microseconds(20'000));
     EXPECT_EQ(Duration::from_time_units(8, 4, 1), Duration::from_seconds(32));
     EXPECT_EQ(Duration::from_time_units(3, 3, 2'000'000'000), Duration::from_nanoseconds(5));
     EXPECT_EQ(Duration::from_time_units(4, 3, 2'000'000'000), Duration::from_nanoseconds(6));
@@ -969,7 +968,6 @@ TEST_CASE(time_units)
     EXPECT_EQ(Duration::from_time_units(-2, 1, 2'000'000'000), Duration::from_nanoseconds(-1));
 
     EXPECT_EQ(Duration::from_milliseconds(999).to_time_units(1, 48'000), 47'952);
-    EXPECT_EQ(Duration::from_milliseconds(-12'500).to_time_units(1, 1'000), -12'500);
     EXPECT_EQ(Duration::from_milliseconds(-12'500).to_time_units(1, 1'000), -12'500);
 
     EXPECT_EQ(Duration::from_nanoseconds(154'489'696).to_time_units(1, 48'000), 7'416);
