@@ -60,7 +60,6 @@
 #include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
-#include <LibWeb/Loader/ProxyMappings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Namespace.h>
@@ -1707,22 +1706,6 @@ void ConnectionFromClient::set_autoplay_allowlist(u64, Vector<String> allowlist)
 {
     auto& autoplay_allowlist = Web::PermissionsPolicy::AutoplayAllowlist::the();
     autoplay_allowlist.enable_for_origins(allowlist);
-}
-
-void ConnectionFromClient::set_proxy_mappings(u64, Vector<ByteString> proxies, HashMap<ByteString, size_t> mappings)
-{
-    auto keys = mappings.keys();
-    quick_sort(keys, [&](auto& a, auto& b) { return a.length() < b.length(); });
-
-    OrderedHashMap<ByteString, size_t> sorted_mappings;
-    for (auto& key : keys) {
-        auto value = *mappings.get(key);
-        if (value >= proxies.size())
-            continue;
-        sorted_mappings.set(key, value);
-    }
-
-    Web::ProxyMappings::the().set_mappings(move(proxies), move(sorted_mappings));
 }
 
 void ConnectionFromClient::set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme)
