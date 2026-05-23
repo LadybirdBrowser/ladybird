@@ -123,7 +123,13 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
 
     auto qualified_name = qualified_name_or_error.value();
 
-    auto node_or_error = DOM::create_element(m_document, qualified_name.local_name(), qualified_name.namespace_(), qualified_name.prefix());
+    Optional<String> is_value;
+    if (qualified_name.namespace_() == Namespace::HTML) {
+        if (auto it = attributes.find("is"sv); it != attributes.end())
+            is_value = MUST(String::from_byte_string(it->value));
+    }
+
+    auto node_or_error = DOM::create_element(m_document, qualified_name.local_name(), qualified_name.namespace_(), qualified_name.prefix(), move(is_value));
 
     if (node_or_error.is_error()) {
         m_has_error = true;
