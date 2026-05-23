@@ -1,0 +1,3 @@
+first draw: 255,0,0,51
+transparent copy: 0,0,0,0
+second draw: 255,0,0,51

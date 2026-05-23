@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+
+        const context = canvas.getContext("2d");
+
+        context.fillStyle = "rgba(255, 0, 0, 0.2)";
+        context.fillRect(0, 0, 1, 1);
+        println(`first draw: ${Array.from(context.getImageData(0, 0, 1, 1).data).join(",")}`);
+
+        context.globalCompositeOperation = "copy";
+        context.fillStyle = "rgba(0, 0, 0, 0)";
+        context.fillRect(0, 0, 1, 1);
+        println(`transparent copy: ${Array.from(context.getImageData(0, 0, 1, 1).data).join(",")}`);
+
+        context.globalCompositeOperation = "source-over";
+        context.fillStyle = "rgba(255, 0, 0, 0.2)";
+        context.fillRect(0, 0, 1, 1);
+        println(`second draw: ${Array.from(context.getImageData(0, 0, 1, 1).data).join(",")}`);
+    });
+</script>

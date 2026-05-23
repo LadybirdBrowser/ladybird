@@ -440,6 +440,13 @@ static Gfx::Path::JoinStyle to_gfx_join(Bindings::CanvasLineJoin const& join_sty
     VERIFY_NOT_REACHED();
 }
 
+static bool transparent_source_paint_can_be_ignored(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
+{
+    // https://html.spec.whatwg.org/multipage/canvas.html#drawing-model
+    // Composite B within the clipping region over the current output bitmap using the current compositing and blending operator.
+    return compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::SourceOver;
+}
+
 // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
 Gfx::Color CanvasRenderingContext2D::clear_color() const
 {
@@ -454,7 +461,7 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
 
     auto& state = drawing_state();
     auto paint_style = state.stroke_style.to_gfx_paint_style();
-    if (!paint_style->is_visible())
+    if (!paint_style->is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
         return;
 
     auto line_cap = to_gfx_cap(state.line_cap);
@@ -500,7 +507,7 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
 
     auto& state = this->drawing_state();
     auto paint_style = state.fill_style.to_gfx_paint_style();
-    if (!paint_style->is_visible())
+    if (!paint_style->is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
         return;
 
     paint_shadow_for_fill_internal(path, winding_rule);
