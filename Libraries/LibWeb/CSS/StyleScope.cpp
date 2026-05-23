@@ -125,7 +125,7 @@ void StyleScope::build_rule_cache()
             constructed_style_sheet = style_sheet;
         });
 
-        if (constructed_style_sheet && !saw_more_than_one_style_sheet && constructed_style_sheet->constructed() && !document().page().user_style().has_value() && !ContentBlocker::the().has_cosmetic_rules()) {
+        if (constructed_style_sheet && !saw_more_than_one_style_sheet && constructed_style_sheet->constructed() && !document().page().user_style().has_value()) {
             m_rule_cache = constructed_style_sheet->shared_single_constructed_sheet_style_cache(*this);
             return;
         }
