@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        setTimeout(async () => {
+            // We need to do this spoofing later in the event loop so that we don't end up
+            // telling the test runner the wrong URL in page_did_finish_loading.
+            spoofCurrentURL("https://example.com/service-worker-get-registrations.html");
+
+            println(`getRegistrations is a function: ${typeof navigator.serviceWorker.getRegistrations === "function"}`);
+
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            println(`getRegistrations resolves with an array: ${Array.isArray(registrations)}`);
+            println(`getRegistrations resolves with a frozen array: ${Object.isFrozen(registrations)}`);
+            println(`getRegistrations resolves with an empty array: ${registrations.length === 0}`);
+
+            done();
+        }, 0);
+    });
+</script>

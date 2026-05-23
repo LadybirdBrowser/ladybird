@@ -1,0 +1,4 @@
+getRegistrations is a function: true
+getRegistrations resolves with an array: true
+getRegistrations resolves with a frozen array: true
+getRegistrations resolves with an empty array: true
