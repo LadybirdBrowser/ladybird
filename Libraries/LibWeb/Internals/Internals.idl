@@ -90,12 +90,14 @@ interface Internals {
     undefined clearElement(HTMLElement element);
 
     // Returns a snapshot of the style-invalidation and recomputation counters for the current document.
-    // Keys include hasAncestorWalkInvocations, styleInvalidations, elementStyleRecomputations, and
-    // elementStyleNoopRecomputations.
+    // Keys include hasAncestorWalkInvocations, hasInvalidationRuleCacheBuilds,
+    // styleInvalidations, elementStyleRecomputations, and elementStyleNoopRecomputations.
     object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
     // Flushes pending style work without forcing layout.
     undefined updateStyle();
+    // Returns the selector-insight cache state for stylesheet invalidation tests.
+    boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
     unsigned long long activeImageStyleValueAnimationCount();
 
     object asyncScrollingState();

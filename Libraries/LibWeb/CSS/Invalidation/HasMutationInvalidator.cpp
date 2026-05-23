@@ -328,13 +328,16 @@ static void invalidate_style_of_elements_affected_by_pending_has_mutations(Style
         style_scope.m_pending_has_invalidations.clear();
     };
 
+    auto& counters = style_scope.document().style_invalidation_counters();
+    if (!style_scope.has_valid_rule_cache())
+        ++counters.has_invalidation_rule_cache_builds;
+
     // It's ok to call have_has_selectors() instead of may_have_has_selectors() here and force
     // rule cache build, because it's going to be built soon anyway, since we could get here
     // only from update_style().
     if (!style_scope.have_has_selectors())
         return;
 
-    auto& counters = style_scope.document().style_invalidation_counters();
     ++counters.has_ancestor_walk_invocations;
 
     GC::RootHashTable<GC::Ref<DOM::Element>> elements_already_invalidated_for_has;

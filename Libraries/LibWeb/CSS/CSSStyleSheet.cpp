@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -446,7 +447,36 @@ NonnullRefPtr<StyleCache> CSSStyleSheet::shared_single_constructed_sheet_style_c
 
 void CSSStyleSheet::invalidate_shared_style_cache()
 {
+    m_selector_insights = {};
     m_shared_single_constructed_sheet_style_cache = nullptr;
+
+    // Imported rules contribute to their parent sheet's effective rules.
+    if (auto* import_rule = as_if<CSSImportRule>(owner_rule().ptr())) {
+        if (auto* parent_style_sheet = import_rule->parent_style_sheet())
+            parent_style_sheet->invalidate_shared_style_cache();
+    }
+}
+
+SelectorInsights const& CSSStyleSheet::selector_insights() const
+{
+    if (m_selector_insights.has_value())
+        return *m_selector_insights;
+
+    SelectorInsights insights;
+    for_each_effective_style_producing_rule([&](auto const& rule) {
+        SelectorList const& absolutized_selectors = [&]() -> SelectorList const& {
+            if (rule.type() == CSSRule::Type::Style)
+                return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
+            if (rule.type() == CSSRule::Type::NestedDeclarations)
+                return static_cast<CSSNestedDeclarations const&>(rule).absolutized_selectors();
+            VERIFY_NOT_REACHED();
+        }();
+
+        for (auto const& selector : absolutized_selectors)
+            StyleScope::collect_selector_insights(selector, insights);
+    });
+    m_selector_insights = insights;
+    return *m_selector_insights;
 }
 
 void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason, ShadowRootStylesheetEffects const* previous_sheet_effects)

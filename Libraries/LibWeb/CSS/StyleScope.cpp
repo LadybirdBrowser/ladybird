@@ -918,8 +918,16 @@ void StyleScope::build_counter_style_cache()
 
 bool StyleScope::may_have_has_selectors() const
 {
-    if (!has_valid_rule_cache())
-        return true;
+    if (!has_valid_rule_cache()) {
+        bool may_have_has_selectors = false;
+        for (auto cascade_origin : { CascadeOrigin::Author, CascadeOrigin::User, CascadeOrigin::UserAgent }) {
+            for_each_stylesheet(cascade_origin, [&](auto& style_sheet) {
+                if (style_sheet.selector_insights().has_has_selectors)
+                    may_have_has_selectors = true;
+            });
+        }
+        return may_have_has_selectors;
+    }
 
     build_rule_cache_if_needed();
     return m_rule_cache->selector_insights.has_has_selectors;
@@ -933,8 +941,16 @@ bool StyleScope::have_has_selectors() const
 
 bool StyleScope::may_have_has_selectors_with_relative_selector_that_has_sibling_combinator() const
 {
-    if (!has_valid_rule_cache())
-        return true;
+    if (!has_valid_rule_cache()) {
+        bool may_have_has_selectors_with_relative_selector_that_has_sibling_combinator = false;
+        for (auto cascade_origin : { CascadeOrigin::Author, CascadeOrigin::User, CascadeOrigin::UserAgent }) {
+            for_each_stylesheet(cascade_origin, [&](auto& style_sheet) {
+                if (style_sheet.selector_insights().has_has_selectors_with_relative_selector_that_has_sibling_combinator)
+                    may_have_has_selectors_with_relative_selector_that_has_sibling_combinator = true;
+            });
+        }
+        return may_have_has_selectors_with_relative_selector_that_has_sibling_combinator;
+    }
 
     build_rule_cache_if_needed();
     return m_rule_cache->selector_insights.has_has_selectors_with_relative_selector_that_has_sibling_combinator;

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body></body>
+<script>
+    async function waitForImportedSheet(styleElement) {
+        while (styleElement.sheet.cssRules.length === 0 || styleElement.sheet.cssRules[0].styleSheet === null)
+            await animationFrame();
+        return styleElement.sheet.cssRules[0].styleSheet;
+    }
+
+    asyncTest(async done => {
+        internals.setTestTimeout(5000);
+
+        const httpServer = httpTestServer();
+        const importUrl = await httpServer.createEcho("GET", "/imported-selector-insights-invalidated.css", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "no-store",
+                "Content-Type": "text/css",
+            },
+            body: ".anchor:has(.hit) { color: rgb(255, 0, 0); }",
+            delay_ms: 200,
+        });
+
+        const style = document.createElement("style");
+        style.textContent = `
+            @import "${importUrl}";
+            .anchor { color: rgb(0, 128, 0); }
+        `;
+        document.head.appendChild(style);
+
+        const unrelatedStyle = document.createElement("style");
+        document.head.appendChild(unrelatedStyle);
+
+        const anchor = document.createElement("div");
+        anchor.className = "anchor";
+        document.body.appendChild(anchor);
+
+        println(`before: ${getComputedStyle(anchor).color}`);
+        println(`cached before import: ${internals.styleSheetMayHaveHasSelectors(style.sheet)}`);
+
+        await waitForImportedSheet(style);
+        println(`after import: ${getComputedStyle(anchor).color}`);
+        println(`cached after import: ${internals.styleSheetMayHaveHasSelectors(style.sheet)}`);
+
+        unrelatedStyle.sheet.insertRule(".not-matching { color: blue; }", 0);
+
+        const hit = document.createElement("span");
+        hit.className = "hit";
+        anchor.appendChild(hit);
+
+        println(`after: ${getComputedStyle(anchor).color}`);
+        done();
+    });
+</script>

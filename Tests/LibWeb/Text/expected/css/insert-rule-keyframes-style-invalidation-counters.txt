@@ -1,1 +1,1 @@
-FAIL: keyframes insertRule only invalidates animation users (2 invalidations)
+PASS: keyframes insertRule only invalidates animation users (1 invalidations)

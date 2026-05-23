@@ -12,6 +12,12 @@
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::CSS {
+
+class CSSStyleSheet;
+
+}
+
 namespace Web::Internals {
 
 class WEB_API Internals final : public InternalsBase {
@@ -115,6 +121,7 @@ public:
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
     void update_style();
+    bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
     WebIDL::UnsignedLongLong active_image_style_value_animation_count();
     JS::Object* async_scrolling_state();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
