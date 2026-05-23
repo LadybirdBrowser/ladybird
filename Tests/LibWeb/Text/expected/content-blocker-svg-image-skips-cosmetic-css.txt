@@ -1,0 +1,2 @@
+html display: none
+svg pixel: 255,0,0,255
