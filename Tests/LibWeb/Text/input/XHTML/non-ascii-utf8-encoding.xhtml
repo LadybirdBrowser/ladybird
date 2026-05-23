@@ -1,0 +1,13 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<body>
+<p id="p" data-中文="日本語">café</p>
+<script src="../include.js"></script>
+<script>
+    test(() =&gt; {
+        let p = document.getElementById("p");
+        println(p.textContent);
+        println(p.getAttribute("data-中文"));
+    });
+</script>
+</body>
+</html>
