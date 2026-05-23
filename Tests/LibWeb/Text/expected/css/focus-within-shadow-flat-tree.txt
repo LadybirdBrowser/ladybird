@@ -1,11 +1,17 @@
 host before light input focus: none
 shadow target before light input focus: none
+slot before light input focus: none
+slotted focus target before light input focus: none
 slotted input before light input focus: none
 host after light input focus: host
 shadow target after light input focus: shadow-target
+slot after light input focus: slot
+slotted focus target after light input focus: slotted-focus-target
 slotted input after light input focus: slotted
 host after light input blur: none
 shadow target after light input blur: none
+slot after light input blur: none
+slotted focus target after light input blur: none
 slotted input after light input blur: none
 host after shadow input focus: host
 shadow target after shadow input focus: shadow-target

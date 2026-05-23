@@ -16,28 +16,39 @@
             <style>
                 :host(:focus-within)::before { content: ""; --state: host; }
                 :host(:focus-within) #shadow-target { --state: shadow-target; }
+                slot:focus-within { --state: slot; }
+                slot:focus-within + #slotted-focus-target { --state: slotted-focus-target; }
                 ::slotted(:focus) { --state: slotted; }
             </style>
             <span id="shadow-target"></span>
             <slot></slot>
+            <span id="slotted-focus-target"></span>
         `;
 
         const shadowTarget = shadowRoot.getElementById("shadow-target");
+        const slot = shadowRoot.querySelector("slot");
+        const slottedFocusTarget = shadowRoot.getElementById("slotted-focus-target");
 
         println(`host before light input focus: ${state(host, "::before")}`);
         println(`shadow target before light input focus: ${state(shadowTarget)}`);
+        println(`slot before light input focus: ${state(slot)}`);
+        println(`slotted focus target before light input focus: ${state(slottedFocusTarget)}`);
         println(`slotted input before light input focus: ${state(lightInput)}`);
 
         lightInput.focus();
 
         println(`host after light input focus: ${state(host, "::before")}`);
         println(`shadow target after light input focus: ${state(shadowTarget)}`);
+        println(`slot after light input focus: ${state(slot)}`);
+        println(`slotted focus target after light input focus: ${state(slottedFocusTarget)}`);
         println(`slotted input after light input focus: ${state(lightInput)}`);
 
         lightInput.blur();
 
         println(`host after light input blur: ${state(host, "::before")}`);
         println(`shadow target after light input blur: ${state(shadowTarget)}`);
+        println(`slot after light input blur: ${state(slot)}`);
+        println(`slotted focus target after light input blur: ${state(slottedFocusTarget)}`);
         println(`slotted input after light input blur: ${state(lightInput)}`);
 
         const shadowInput = document.createElement("input");

@@ -2656,20 +2656,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             entered_ancestors.append(make_hover_event_target(*target));
     }
 
-    GC::Ptr<Node> old_hovered_node_root = nullptr;
-    GC::Ptr<Node> new_hovered_node_root = nullptr;
-    if (old_hovered_node)
-        old_hovered_node_root = old_hovered_node->root();
-    if (node)
-        new_hovered_node_root = node->root();
-    if (old_hovered_node_root != new_hovered_node_root) {
-        if (old_hovered_node_root)
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Hover, *this, m_hovered_node, *old_hovered_node_root, node);
-        if (new_hovered_node_root)
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Hover, *this, m_hovered_node, *new_hovered_node_root, node);
-    } else {
-        CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Hover, *this, m_hovered_node, *common_ancestor, node);
-    }
+    CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Hover, old_hovered_node, node);
 
     m_hovered_node = node;
 
@@ -3359,30 +3346,9 @@ void Document::set_focused_area(GC::Ptr<Node> node)
     if (auto* old_focused_element = as_if<Element>(old_focused_area.ptr()))
         old_focused_element->did_lose_focus();
 
-    auto* common_ancestor = find_common_ancestor(old_focused_area, node);
-
-    GC::Ptr<Node> old_focused_node_root = nullptr;
-    GC::Ptr<Node> new_focused_node_root = nullptr;
-    if (old_focused_area)
-        old_focused_node_root = old_focused_area->root();
-    if (node)
-        new_focused_node_root = node->root();
-    if (old_focused_node_root != new_focused_node_root) {
-        if (old_focused_node_root) {
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Focus, *this, m_focused_area, *old_focused_node_root, node);
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusWithin, *this, m_focused_area, *old_focused_node_root, node);
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusVisible, *this, m_focused_area, *old_focused_node_root, node);
-        }
-        if (new_focused_node_root) {
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Focus, *this, m_focused_area, *new_focused_node_root, node);
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusWithin, *this, m_focused_area, *new_focused_node_root, node);
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusVisible, *this, m_focused_area, *new_focused_node_root, node);
-        }
-    } else {
-        CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Focus, *this, m_focused_area, *common_ancestor, node);
-        CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusWithin, *this, m_focused_area, *common_ancestor, node);
-        CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusVisible, *this, m_focused_area, *common_ancestor, node);
-    }
+    CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Focus, old_focused_area, node);
+    CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusWithin, old_focused_area, node);
+    CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusVisible, old_focused_area, node);
 
     m_focused_area = node;
 
@@ -3431,24 +3397,7 @@ void Document::set_target_element(GC::Ptr<Element> element)
 
     GC::Ptr<Element> old_target_element = move(m_target_element);
 
-    auto* common_ancestor = find_common_ancestor(old_target_element, element);
-
-    GC::Ptr<Node> old_target_node_root = nullptr;
-    GC::Ptr<Node> new_target_node_root = nullptr;
-    if (old_target_element)
-        old_target_node_root = old_target_element->root();
-    if (element)
-        new_target_node_root = element->root();
-    if (old_target_node_root != new_target_node_root) {
-        if (old_target_node_root) {
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Target, *this, m_target_element, *old_target_node_root, element);
-        }
-        if (new_target_node_root) {
-            CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Target, *this, m_target_element, *new_target_node_root, element);
-        }
-    } else {
-        CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Target, *this, m_target_element, *common_ancestor, element);
-    }
+    CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Target, old_target_element, element);
 
     m_target_element = element;
 
