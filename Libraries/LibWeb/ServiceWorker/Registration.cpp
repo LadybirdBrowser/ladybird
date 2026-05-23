@@ -13,7 +13,7 @@ namespace Web::ServiceWorker {
 
 // FIXME: Surely this needs hooks to be cleared and manipulated at the UA level
 //        Does this need to be serialized to disk as well?
-static HashMap<RegistrationKey, Registration> s_registrations;
+static OrderedHashMap<RegistrationKey, Registration> s_registrations;
 
 Registration::Registration(StorageAPI::StorageKey storage_key, URL::URL scope, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
     : m_storage_key(move(storage_key))
@@ -124,6 +124,18 @@ Optional<Registration&> Registration::match(StorageAPI::StorageKey const& storag
 
     // 9. Return the result of running Get Registration given storage key and matchingScope.
     return get(storage_key, matching_scope);
+}
+
+Vector<Registration*> Registration::for_storage_key(StorageAPI::StorageKey const& storage_key)
+{
+    Vector<Registration*> registrations;
+
+    for (auto& [registration_key, registration] : s_registrations) {
+        if (registration_key.key == storage_key)
+            registrations.append(&registration);
+    }
+
+    return registrations;
 }
 
 void Registration::remove(StorageAPI::StorageKey const& key, URL::URL const& scope)

@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/RootVector.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ServiceWorkerContainer.h>
@@ -147,6 +149,63 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& 
         WebIDL::resolve_promise(realm, promise, registration_object);
     }));
 
+    return promise;
+}
+
+// https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistrations
+GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registrations()
+{
+    auto& realm = this->realm();
+
+    // 1. Let client be this's service worker client.
+    auto client = m_service_worker_client;
+
+    // 2. Let client storage key be the result of running obtain a storage key given client.
+    auto client_storage_key = StorageAPI::obtain_a_storage_key(client);
+
+    if (!client_storage_key.has_value())
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Failed to obtain a storage key"sv));
+
+    // 3. Let promise be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 4. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [promise, client_storage_key = client_storage_key.release_value()]() {
+        auto& realm = HTML::relevant_realm(promise->promise());
+
+        // 1. Let registrations be a new list.
+        // 2. For each (storage key, scope) → registration of registration map:
+        //     1. If storage key equals client storage key, then append registration to registrations.
+        auto registrations = Registration::for_storage_key(client_storage_key);
+
+        GC::RootVector<GC::Ref<ServiceWorkerRegistration>> registration_objects;
+        for (auto const* registration : registrations)
+            registration_objects.append(HTML::relevant_settings_object(promise->promise()).get_service_worker_registration_object(*registration));
+
+        // 3. Queue a task on promise's relevant settings object's responsible event loop, using the DOM manipulation task source, to run the following steps:
+        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, HTML::relevant_settings_object(promise->promise()).responsible_event_loop(), {}, GC::create_function(realm.heap(), [promise, registration_objects = move(registration_objects)]() {
+            auto& realm = HTML::relevant_realm(promise->promise());
+            HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+            // 1. Let registrationObjects be a new list.
+            GC::RootVector<JS::Value> registration_object_values;
+
+            // 2. For each registration of registrations:
+            for (auto registration_object : registration_objects) {
+                // 1. Let registrationObj be the result of getting the service worker registration object that represents registration in promise's relevant settings object.
+
+                // 2. Append registrationObj to registrationObjects.
+                registration_object_values.append(registration_object);
+            }
+
+            // 3. Resolve promise with a new frozen array of registrationObjects in promise's relevant Realm.
+            auto array = JS::Array::create_from(realm, registration_object_values);
+            MUST(array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
+            WebIDL::resolve_promise(realm, promise, array);
+        }));
+    }));
+
+    // 5. Return promise.
     return promise;
 }
 

@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Traits.h>
+#include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerRecord.h>
@@ -33,6 +34,8 @@ public:
 
     // https://w3c.github.io/ServiceWorker/#scope-match-algorithm
     static Optional<Registration&> match(StorageAPI::StorageKey const&, URL::URL const&);
+
+    static Vector<Registration*> for_storage_key(StorageAPI::StorageKey const&);
 
     static void remove(StorageAPI::StorageKey const&, URL::URL const&);
 
