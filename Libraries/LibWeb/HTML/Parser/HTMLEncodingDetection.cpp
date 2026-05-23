@@ -530,9 +530,12 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyByte
     u8 const* encoding_name_ptr = nullptr;
     size_t encoding_name_len = 0;
 
+    bool allow_utf8_detection = document.url().scheme() == "file"sv;
+
     if (Parser::rust_detect_encoding(
             input.data(), input.size(),
             tld_data, tld_size,
+            allow_utf8_detection,
             &encoding_name_ptr, &encoding_name_len)) {
         auto detected = StringView { reinterpret_cast<char const*>(encoding_name_ptr), encoding_name_len };
         auto standardized = TextCodec::get_standardized_encoding(detected);
