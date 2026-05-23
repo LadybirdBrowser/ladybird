@@ -27,7 +27,7 @@
         assertEqual("initial late target", readProbe(lateTarget), MATCH);
         assertEqual("initial other target", readProbe(otherTarget), MATCH);
 
-        resetStyleCounters();
+        flushPendingStyleWork();
         customElements.define("x-late", class extends HTMLElement {});
         assertEqual("late target after definition", readProbe(lateTarget), BASE);
         assertEqual("other target after unrelated definition", readProbe(otherTarget), MATCH);

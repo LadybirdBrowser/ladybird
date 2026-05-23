@@ -10,6 +10,7 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
+        internals.updateStyle();
         internals.resetStyleInvalidationCounters();
     }
 

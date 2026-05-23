@@ -702,6 +702,11 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
+void Internals::update_style()
+{
+    window().associated_document().update_style();
+}
+
 WebIDL::UnsignedLongLong Internals::active_image_style_value_animation_count()
 {
     return CSS::ImageStyleValue::active_animation_timer_count(window().associated_document());

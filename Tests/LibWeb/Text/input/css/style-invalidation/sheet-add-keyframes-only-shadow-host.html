@@ -6,6 +6,7 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).animationName;
         getComputedStyle(triggerElement).animationName;
+        internals.updateStyle();
         internals.resetStyleInvalidationCounters();
     }
 

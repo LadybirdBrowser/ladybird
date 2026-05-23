@@ -94,6 +94,8 @@ interface Internals {
     // elementStyleNoopRecomputations.
     object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
+    // Flushes pending style work without forcing layout.
+    undefined updateStyle();
     unsigned long long activeImageStyleValueAnimationCount();
 
     object asyncScrollingState();

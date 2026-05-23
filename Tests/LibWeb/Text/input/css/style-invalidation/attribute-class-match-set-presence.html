@@ -34,13 +34,14 @@
             const { target, subject } = build(fixture);
             assertEqual(`${name} initial`, readProbe(target), MATCH);
 
-            resetStyleCounters();
+            flushPendingStyleWork();
             subject.removeAttribute("class");
             assertEqual(`${name} after class removal`, readProbe(target), BASE);
             printPassWithCounters(name);
         } finally {
             style.remove();
             fixture.remove();
+            flushPendingStyleWork();
         }
     }
 
@@ -56,7 +57,7 @@
         assertEqual("initial unmatched 3", readProbe(unmatched3), BASE);
         assertEqual("initial matched", readProbe(matched), BASE);
 
-        resetStyleCounters();
+        flushPendingStyleWork();
         ancestor.setAttribute("data-active", "");
         assertEqual("unmatched after ancestor attribute change", readProbe(unmatched), BASE);
         assertEqual("unmatched 2 after ancestor attribute change", readProbe(unmatched2), BASE);
@@ -64,6 +65,7 @@
         assertEqual("matched after ancestor attribute change", readProbe(matched), MATCH);
         printPassWithoutRecomputeCounters("attribute class match set requires class attribute presence");
         document.getElementById("class-presence-style").remove();
+        flushPendingStyleWork();
 
         runClassRemovalCase("[class] descendant loses match", "[class] .target", fixture => {
             const subject = makeElement("div", { className: "holder" });
