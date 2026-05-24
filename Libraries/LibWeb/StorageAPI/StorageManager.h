@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::StorageAPI {
 
@@ -17,6 +18,8 @@ class StorageManager final : public Bindings::PlatformObject {
 public:
     static WebIDL::ExceptionOr<GC::Ref<StorageManager>> create(JS::Realm&);
     virtual ~StorageManager() override = default;
+
+    GC::Ref<WebIDL::Promise> estimate();
 
 private:
     StorageManager(JS::Realm&);
