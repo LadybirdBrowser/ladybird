@@ -74,11 +74,6 @@ enum class EnableContentBlocker {
     Yes,
 };
 
-enum class EnableCompositorProcess {
-    No,
-    Yes,
-};
-
 struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
@@ -97,7 +92,6 @@ struct BrowserOptions {
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
     EnableContentBlocker enable_content_blocker { EnableContentBlocker::Yes };
-    EnableCompositorProcess enable_compositor_process { EnableCompositorProcess::Yes };
     Vector<ByteString> content_blocker_list_paths {};
 };
 

@@ -30,17 +30,6 @@
 
 namespace WebContent {
 
-static bool& should_use_compositor_process()
-{
-    static bool flag = false;
-    return flag;
-}
-
-void set_should_use_compositor_process(bool enabled)
-{
-    should_use_compositor_process() = enabled;
-}
-
 class WebContentCompositorActor;
 
 class WebContentCompositorConnectionToServer final
@@ -681,9 +670,7 @@ private:
 
 NonnullOwnPtr<Web::Compositor::CompositorHost> create_web_content_compositor_host(ConnectionFromClient& client)
 {
-    if (should_use_compositor_process())
-        return make<ProcessWebContentCompositorHost>(client);
-    return make<LocalWebContentCompositorHost>();
+    return make<ProcessWebContentCompositorHost>(client);
 }
 
 }

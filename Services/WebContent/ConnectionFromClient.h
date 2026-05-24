@@ -71,7 +71,6 @@ private:
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
-    virtual void connect_to_compositor(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor_process(IPC::TransportHandle handle) override;
     virtual void compositor_process_reconnected() override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
