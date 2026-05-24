@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/GenericShorthands.h>
 #include <AK/Optional.h>
 #include <LibWeb/CSS/Selector.h>
@@ -47,9 +48,32 @@ static void append_or_merge_sibling_rule(Vector<SiblingInvalidationRule>& rules,
     rules.append(rule);
 }
 
+static void append_or_merge_guarded_rule(Vector<GuardedInvalidationRule>& rules, GuardedInvalidationRule const& rule)
+{
+    for (auto& existing_rule : rules) {
+        if (existing_rule.guard != rule.guard)
+            continue;
+
+        existing_rule.payload->include_all_from(*rule.payload);
+        return;
+    }
+    rules.append(rule);
+}
+
 bool InvalidationPlan::is_empty() const
 {
-    return !invalidate_self && !invalidate_whole_subtree && descendant_rules.is_empty() && sibling_rules.is_empty();
+    return !invalidate_self && !invalidate_whole_subtree && descendant_rules.is_empty() && sibling_rules.is_empty() && guarded_rules.is_empty();
+}
+
+bool InvalidationGuard::operator==(InvalidationGuard const& other) const
+{
+    return property_sets == other.property_sets;
+}
+
+bool GuardedInvalidationRule::operator==(GuardedInvalidationRule const& other) const
+{
+    return guard == other.guard
+        && *payload == *other.payload;
 }
 
 bool DescendantInvalidationRule::operator==(DescendantInvalidationRule const& other) const
@@ -102,7 +126,8 @@ bool InvalidationPlan::operator==(InvalidationPlan const& other) const
         return false;
 
     return rule_lists_are_equal_ignoring_order(descendant_rules, other.descendant_rules)
-        && rule_lists_are_equal_ignoring_order(sibling_rules, other.sibling_rules);
+        && rule_lists_are_equal_ignoring_order(sibling_rules, other.sibling_rules)
+        && rule_lists_are_equal_ignoring_order(guarded_rules, other.guarded_rules);
 }
 
 void InvalidationPlan::include_all_from(InvalidationPlan const& other)
@@ -116,6 +141,7 @@ void InvalidationPlan::include_all_from(InvalidationPlan const& other)
         invalidate_whole_subtree = true;
         descendant_rules.clear();
         sibling_rules.clear();
+        guarded_rules.clear();
         return;
     }
 
@@ -123,6 +149,8 @@ void InvalidationPlan::include_all_from(InvalidationPlan const& other)
         append_or_merge_descendant_rule(descendant_rules, descendant_rule);
     for (auto const& sibling_rule : other.sibling_rules)
         append_or_merge_sibling_rule(sibling_rules, sibling_rule);
+    for (auto const& guarded_rule : other.guarded_rules)
+        append_or_merge_guarded_rule(guarded_rules, guarded_rule);
 }
 
 // Iterates over the given selector, grouping consecutive simple selectors that have no combinator (Combinator::None).
@@ -327,6 +355,63 @@ static bool should_register_invalidation_property(InvalidationSet::Property cons
     return !AK::first_is_one_of(property.type, InvalidationSet::Property::Type::InvalidateSelf, InvalidationSet::Property::Type::InvalidateWholeSubtree);
 }
 
+static void collect_guard_properties_for_simple_selector(Selector::SimpleSelector const&, InvalidationSet&);
+
+static Optional<InvalidationSet> build_invalidation_guard_property_set_for_selector_subject(Selector const& selector)
+{
+    if (selector.compound_selectors().is_empty())
+        return {};
+
+    InvalidationSet property_set;
+    for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors)
+        collect_guard_properties_for_simple_selector(simple_selector, property_set);
+    if (property_set.is_empty())
+        return {};
+    return property_set;
+}
+
+static void collect_guard_properties_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& property_set)
+{
+    // Only class and id selectors are safe to use as coarse guard properties. Tag
+    // and attribute matching depends on document and namespace case-sensitivity.
+    switch (selector.type) {
+    case Selector::SimpleSelector::Type::Class:
+        property_set.set_needs_invalidate_class(selector.name());
+        break;
+    case Selector::SimpleSelector::Type::Id:
+        property_set.set_needs_invalidate_id(selector.name());
+        break;
+    case Selector::SimpleSelector::Type::PseudoClass: {
+        auto const& pseudo_class = selector.pseudo_class();
+        if (pseudo_class.type == PseudoClass::Is || pseudo_class.type == PseudoClass::Where) {
+            InvalidationSet selector_list_property_set;
+            for (auto const& nested_selector : pseudo_class.argument_selector_list) {
+                auto nested_property_set = build_invalidation_guard_property_set_for_selector_subject(*nested_selector);
+                if (!nested_property_set.has_value())
+                    return;
+                selector_list_property_set.include_all_from(*nested_property_set);
+            }
+            property_set.include_all_from(selector_list_property_set);
+        }
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+static InvalidationGuard build_invalidation_guard_for_simple_selectors(Vector<Selector::SimpleSelector const&> const& simple_selectors)
+{
+    InvalidationGuard guard;
+    for (auto const& simple_selector : simple_selectors) {
+        InvalidationSet property_set;
+        collect_guard_properties_for_simple_selector(simple_selector, property_set);
+        if (!property_set.is_empty())
+            guard.property_sets.append(move(property_set));
+    }
+    return guard;
+}
+
 static InvalidationSet build_invalidation_set_for_simple_selectors(Vector<Selector::SimpleSelector const&> const& simple_selectors, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_pseudo_class)
 {
     InvalidationSet invalidation_set;
@@ -354,7 +439,14 @@ static NonnullRefPtr<InvalidationPlan> make_invalidate_whole_subtree_invalidatio
     return invalidation;
 }
 
-static void add_invalidation_plan_for_properties(StyleInvalidationData& style_invalidation_data, InvalidationSet const& invalidation_properties, InvalidationPlan const& plan)
+static NonnullRefPtr<InvalidationPlan> copy_invalidation_plan(InvalidationPlan const& plan)
+{
+    auto copy = InvalidationPlan::create();
+    copy->include_all_from(plan);
+    return copy;
+}
+
+static void add_invalidation_plan_for_properties(StyleInvalidationData& style_invalidation_data, InvalidationSet const& invalidation_properties, InvalidationPlan const& plan, InvalidationGuard const& guard = {})
 {
     invalidation_properties.for_each_property([&](auto const& invalidation_property) {
         if (!should_register_invalidation_property(invalidation_property))
@@ -363,7 +455,15 @@ static void add_invalidation_plan_for_properties(StyleInvalidationData& style_in
         auto& stored_invalidation = style_invalidation_data.invalidation_plans.ensure(invalidation_property, [] {
             return InvalidationPlan::create();
         });
-        stored_invalidation->include_all_from(plan);
+        if (invalidation_property.type != InvalidationSet::Property::Type::PseudoClass || guard.is_empty()) {
+            stored_invalidation->include_all_from(plan);
+        } else {
+            GuardedInvalidationRule guarded_rule {
+                .guard = guard,
+                .payload = copy_invalidation_plan(plan),
+            };
+            append_or_merge_guarded_rule(stored_invalidation->guarded_rules, guarded_rule);
+        }
         return IterationDecision::Continue;
     });
 }
@@ -554,6 +654,7 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
 
         auto invalidation_properties = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, inside_nth_child_pseudo_class);
         auto subject_match_set = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::Yes, style_invalidation_data, inside_nth_child_pseudo_class);
+        auto subject_guard = build_invalidation_guard_for_simple_selectors(simple_selectors);
         bool subject_matches_any = subject_match_set.is_empty() && simple_selector_group_matches_any(simple_selectors);
 
         if (is_rightmost) {
@@ -584,7 +685,7 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
             VERIFY(selector_righthand.has_value());
 
             auto plan = build_invalidation_for_combinator(previous_compound_combinator, *selector_righthand);
-            add_invalidation_plan_for_properties(style_invalidation_data, invalidation_properties, *plan);
+            add_invalidation_plan_for_properties(style_invalidation_data, invalidation_properties, *plan, subject_guard);
 
             selector_righthand = SelectorRighthand {
                 .subject_match_set = move(subject_match_set),

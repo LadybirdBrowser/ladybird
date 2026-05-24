@@ -20,6 +20,39 @@ static bool element_matches_invalidation_rule(DOM::Element const& element, CSS::
     return match_any || element_matches_any_invalidation_set_property(element, match_set);
 }
 
+static bool element_matches_invalidation_guard(DOM::Element const& element, CSS::InvalidationGuard const& guard)
+{
+    for (auto const& property_set : guard.property_sets) {
+        if (!element_matches_any_invalidation_set_property(element, property_set))
+            return false;
+    }
+    return true;
+}
+
+static NonnullRefPtr<CSS::InvalidationPlan> resolve_guarded_invalidation_plan(DOM::Element const* element, CSS::InvalidationPlan const& plan)
+{
+    auto resolved_plan = CSS::InvalidationPlan::create();
+    resolved_plan->invalidate_self = plan.invalidate_self;
+
+    if (plan.invalidate_whole_subtree) {
+        resolved_plan->invalidate_whole_subtree = true;
+        return resolved_plan;
+    }
+
+    resolved_plan->descendant_rules = plan.descendant_rules;
+    resolved_plan->sibling_rules = plan.sibling_rules;
+
+    if (!element)
+        return resolved_plan;
+
+    for (auto const& guarded_rule : plan.guarded_rules) {
+        if (!element_matches_invalidation_guard(*element, guarded_rule.guard))
+            continue;
+        resolved_plan->include_all_from(*guarded_rule.payload);
+    }
+    return resolved_plan;
+}
+
 void StyleInvalidator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -35,21 +68,30 @@ void StyleInvalidator::invalidate(DOM::Node& node)
 
 bool StyleInvalidator::enqueue_invalidation_plan(DOM::Node& node, DOM::StyleInvalidationReason reason, CSS::InvalidationPlan const& plan)
 {
-    if (plan.is_empty())
+    RefPtr<CSS::InvalidationPlan> resolved_plan;
+    auto* element = as_if<DOM::Element>(node);
+    auto const& plan_to_apply = [&]() -> CSS::InvalidationPlan const& {
+        if (plan.guarded_rules.is_empty())
+            return plan;
+        resolved_plan = resolve_guarded_invalidation_plan(element, plan);
+        return *resolved_plan;
+    }();
+
+    if (plan_to_apply.is_empty())
         return false;
 
-    if (plan.invalidate_whole_subtree) {
+    if (plan_to_apply.invalidate_whole_subtree) {
         node.invalidate_style(reason);
         return true;
     }
 
-    if (plan.invalidate_self)
+    if (plan_to_apply.invalidate_self)
         node.set_needs_style_update(true);
 
-    add_pending_invalidation(node, reason, plan);
+    add_pending_invalidation(node, reason, plan_to_apply);
 
-    if (auto* element = as_if<DOM::Element>(node)) {
-        for (auto const& sibling_rule : plan.sibling_rules)
+    if (element) {
+        for (auto const& sibling_rule : plan_to_apply.sibling_rules)
             apply_sibling_invalidation(*element, reason, sibling_rule);
     }
 
@@ -73,10 +115,18 @@ void StyleInvalidator::add_pending_invalidation(GC::Ref<DOM::Node> node, DOM::St
 
 void StyleInvalidator::apply_invalidation_plan(DOM::Element& element, DOM::StyleInvalidationReason reason, CSS::InvalidationPlan const& plan, bool& invalidate_entire_subtree)
 {
-    if (plan.is_empty())
+    RefPtr<CSS::InvalidationPlan> resolved_plan;
+    auto const& plan_to_apply = [&]() -> CSS::InvalidationPlan const& {
+        if (plan.guarded_rules.is_empty())
+            return plan;
+        resolved_plan = resolve_guarded_invalidation_plan(&element, plan);
+        return *resolved_plan;
+    }();
+
+    if (plan_to_apply.is_empty())
         return;
 
-    if (plan.invalidate_whole_subtree) {
+    if (plan_to_apply.invalidate_whole_subtree) {
         element.invalidate_style(reason);
         invalidate_entire_subtree = true;
         element.set_needs_style_update_internal(true);
@@ -85,16 +135,16 @@ void StyleInvalidator::apply_invalidation_plan(DOM::Element& element, DOM::Style
         return;
     }
 
-    if (plan.invalidate_self)
+    if (plan_to_apply.invalidate_self)
         element.set_needs_style_update(true);
 
-    for (auto const& descendant_rule : plan.descendant_rules) {
+    for (auto const& descendant_rule : plan_to_apply.descendant_rules) {
         PendingDescendantInvalidation pending_invalidation { reason, descendant_rule };
         if (!m_active_descendant_invalidations.contains_slow(pending_invalidation))
             m_active_descendant_invalidations.append(move(pending_invalidation));
     }
 
-    for (auto const& sibling_rule : plan.sibling_rules)
+    for (auto const& sibling_rule : plan_to_apply.sibling_rules)
         apply_sibling_invalidation(element, reason, sibling_rule);
 }
 

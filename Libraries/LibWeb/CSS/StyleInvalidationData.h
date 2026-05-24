@@ -36,6 +36,21 @@ enum class HasArgumentScope : u8 {
 
 struct InvalidationPlan;
 
+struct InvalidationGuard {
+    bool is_empty() const { return property_sets.is_empty(); }
+    bool operator==(InvalidationGuard const&) const;
+
+    // Every set is an OR group; the guard matches when every group matches.
+    Vector<InvalidationSet> property_sets;
+};
+
+struct GuardedInvalidationRule {
+    InvalidationGuard guard;
+    NonnullRefPtr<InvalidationPlan> payload;
+
+    bool operator==(GuardedInvalidationRule const&) const;
+};
+
 struct DescendantInvalidationRule {
     InvalidationSet match_set;
     bool match_any { false };
@@ -69,6 +84,7 @@ struct InvalidationPlan final : RefCounted<InvalidationPlan> {
     bool invalidate_whole_subtree { false };
     Vector<DescendantInvalidationRule> descendant_rules;
     Vector<SiblingInvalidationRule> sibling_rules;
+    Vector<GuardedInvalidationRule> guarded_rules;
 };
 
 struct HasInvalidationMetadata {
