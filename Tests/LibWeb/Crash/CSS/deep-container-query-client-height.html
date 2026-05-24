@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    .container {
+        width: 100px;
+        height: 20px;
+        container-type: size;
+    }
+
+    #level0 {
+        container-name: level0;
+    }
+
+    #level1 { container-name: level1; }
+    #level2 { container-name: level2; }
+    #level3 { container-name: level3; }
+    #level4 { container-name: level4; }
+    #level5 { container-name: level5; }
+    #level6 { container-name: level6; }
+    #level7 { container-name: level7; }
+    #level8 { container-name: level8; }
+    #level9 { container-name: level9; }
+    #level10 { container-name: level10; }
+
+    @container level0 (width = 200px) { #level1 { width: 200px; } }
+    @container level1 (width = 200px) { #level2 { width: 200px; } }
+    @container level2 (width = 200px) { #level3 { width: 200px; } }
+    @container level3 (width = 200px) { #level4 { width: 200px; } }
+    @container level4 (width = 200px) { #level5 { width: 200px; } }
+    @container level5 (width = 200px) { #level6 { width: 200px; } }
+    @container level6 (width = 200px) { #level7 { width: 200px; } }
+    @container level7 (width = 200px) { #level8 { width: 200px; } }
+    @container level8 (width = 200px) { #level9 { width: 200px; } }
+    @container level9 (width = 200px) { #level10 { width: 200px; } }
+</style>
+<body>
+<div id="level0" class="container">
+    <div id="level1" class="container">
+        <div id="level2" class="container">
+            <div id="level3" class="container">
+                <div id="level4" class="container">
+                    <div id="level5" class="container">
+                        <div id="level6" class="container">
+                            <div id="level7" class="container">
+                                <div id="level8" class="container">
+                                    <div id="level9" class="container">
+                                        <div id="level10" class="container">PASS</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    setTimeout(() => {
+        level0.style.width = "200px";
+        document.body.clientHeight;
+        document.documentElement.classList.remove("test-wait");
+    }, 0);
+</script>

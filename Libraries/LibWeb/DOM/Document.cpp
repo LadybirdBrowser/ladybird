@@ -1903,7 +1903,12 @@ void Document::update_layout(UpdateLayoutReason reason)
             }
         }
 
-        if (!needs_style_update_after_layout())
+        if (needs_style_update_after_layout())
+            continue;
+
+        // The pass cap above bounds repeated container query style/layout cycles.
+        // Layout-only invalidations still need to be flushed before we can exit.
+        if (layout_is_up_to_date())
             break;
     }
 
