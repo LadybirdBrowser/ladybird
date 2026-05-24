@@ -56,7 +56,7 @@ ErrorOr<int> service_main(int ipc_socket)
     auto socket_or_error = Core::LocalSocket::adopt_fd(ipc_socket);
     if (socket_or_error.is_error()) {
         dbgln("WebWorkerService: failed to adopt fd: {}", socket_or_error.error());
-        _exit(1);
+        return socket_or_error.release_error();
     }
     auto client = WebWorker::ConnectionFromClient::construct(make<IPC::Transport>(socket_or_error.release_value()));
 
@@ -69,8 +69,8 @@ ErrorOr<int> service_main(int ipc_socket)
             dbgln("WebWorkerService: failed to connect to image decoder: {}", result.error());
     };
 
-    // Each WebWorkerService process serves exactly one worker. Once the event loop
-    // exits (worker closed), we exit the process so that static state (JS VM, etc.)
-    // is fully reset for the next worker — matching desktop WebWorker behaviour.
-    _exit(event_loop.exec());
+    // Note: do NOT _exit() here. On Android multiple workers may run in the same process
+    // via the LadybirdServiceBase thread pool, and exiting would kill sibling worker threads.
+    // Singletons (JS VM, FontPlugin, etc.) are made idempotent to safely allow reuse.
+    return event_loop.exec();
 }

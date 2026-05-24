@@ -26,7 +26,8 @@ bool ImageCodecPlugin::is_initialized()
 
 void ImageCodecPlugin::install(ImageCodecPlugin& plugin)
 {
-    VERIFY(!s_the);
+    if (s_the)
+        return;
     s_the = &plugin;
 }
 

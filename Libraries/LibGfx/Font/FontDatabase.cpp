@@ -32,7 +32,10 @@ FontDatabase& FontDatabase::the()
 
 SystemFontProvider& FontDatabase::install_system_font_provider(NonnullOwnPtr<SystemFontProvider> provider)
 {
-    VERIFY(!m_system_font_provider);
+    // Idempotent: on Android the WebWorker service process may be reused across multiple workers,
+    // so install_system_font_provider can be called more than once for the same singleton.
+    if (m_system_font_provider)
+        return *m_system_font_provider;
     m_system_font_provider = move(provider);
     return *m_system_font_provider;
 }
