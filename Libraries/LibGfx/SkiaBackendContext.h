@@ -45,11 +45,14 @@ public:
     SkiaBackendContext() { }
     virtual ~SkiaBackendContext() { }
 
-    virtual void flush_and_submit(SkSurface*) { }
+    void flush_and_submit(SkSurface*);
     virtual GrDirectContext* sk_context() const = 0;
 
     virtual MetalContext& metal_context() = 0;
     virtual VulkanContext const& vulkan_context() = 0;
+
+protected:
+    virtual void flush_and_submit_impl(SkSurface*) = 0;
 };
 
 }

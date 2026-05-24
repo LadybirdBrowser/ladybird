@@ -6,6 +6,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/Time.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
 
@@ -30,8 +31,45 @@ namespace Gfx {
 #if defined(AK_OS_MACOS) || USE_VULKAN
 static constexpr size_t skia_resource_cache_limit = 256 * MiB;
 #endif
+static constexpr auto skia_deferred_cleanup_interval = AK::Duration::from_seconds(1);
+static constexpr auto skia_aggressive_cleanup_interval = AK::Duration::from_seconds(5);
+static constexpr auto skia_deferred_cleanup_resource_age = std::chrono::seconds(5);
+static constexpr auto skia_resource_cache_high_watermark = 384 * MiB;
+static constexpr auto skia_resource_cache_critical_watermark = 512 * MiB;
 
 static RefPtr<SkiaBackendContext> s_main_thread_context;
+
+void SkiaBackendContext::flush_and_submit(SkSurface* surface)
+{
+    flush_and_submit_impl(surface);
+
+    auto* context = sk_context();
+    if (!context)
+        return;
+
+    static thread_local Optional<MonotonicTime> s_last_deferred_cleanup;
+    static thread_local Optional<MonotonicTime> s_last_aggressive_cleanup;
+
+    auto const now = MonotonicTime::now();
+    if (s_last_deferred_cleanup.has_value() && now - *s_last_deferred_cleanup < skia_deferred_cleanup_interval)
+        return;
+
+    s_last_deferred_cleanup = now;
+    context->performDeferredCleanup(skia_deferred_cleanup_resource_age);
+
+    size_t resource_bytes = 0;
+    context->getResourceCacheUsage(nullptr, &resource_bytes);
+    if (resource_bytes < skia_resource_cache_high_watermark)
+        return;
+    if (s_last_aggressive_cleanup.has_value() && now - *s_last_aggressive_cleanup < skia_aggressive_cleanup_interval)
+        return;
+
+    s_last_aggressive_cleanup = now;
+    context->performDeferredCleanup(std::chrono::milliseconds(0));
+    context->getResourceCacheUsage(nullptr, &resource_bytes);
+    if (resource_bytes >= skia_resource_cache_critical_watermark)
+        context->purgeUnlockedResources(GrPurgeResourceOptions::kScratchResourcesOnly);
+}
 
 void SkiaBackendContext::initialize_gpu_backend()
 {
@@ -91,7 +129,7 @@ public:
             vkDestroyInstance(m_vulkan_context.instance, nullptr);
     }
 
-    void flush_and_submit(SkSurface* surface) override
+    void flush_and_submit_impl(SkSurface* surface) override
     {
         GrFlushInfo const flush_info {};
         m_context->flush(surface, SkSurfaces::BackendSurfaceAccess::kPresent, flush_info);
@@ -156,7 +194,7 @@ public:
         m_context.reset();
     }
 
-    void flush_and_submit(SkSurface* surface) override
+    void flush_and_submit_impl(SkSurface* surface) override
     {
         GrFlushInfo const flush_info {};
         m_context->flush(surface, SkSurfaces::BackendSurfaceAccess::kPresent, flush_info);
