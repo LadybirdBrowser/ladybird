@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use chardetng::{EncodingDetector, Iso2022JpDetection, Utf8Detection};
+use chardetng::EncodingDetector;
+use chardetng::Iso2022JpDetection;
+use chardetng::Utf8Detection;
 
 /// Attempts to detect the character encoding of a byte stream using frequency analysis.
 ///

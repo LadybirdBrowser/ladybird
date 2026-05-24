@@ -1,3 +1,4 @@
 [toolchain]
-channel = "1.95.0"
+# TODO: Pin to a stable version once `imports_granularity` rustfmt option is stable. https://rust-lang.github.io/rustfmt/?version=v1.9.0&search=group#imports_granularity
+channel = "nightly"
 components = ["rustfmt", "clippy"]

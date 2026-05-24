@@ -48,10 +48,10 @@ else
     ((FAILURES+=1))
 fi
 
-if cargo fmt --check ; then
-    echo -e "[${GREEN}OK${NC}]: cargo fmt --check"
+if cargo +nightly fmt --check ; then
+    echo -e "[${GREEN}OK${NC}]: cargo +nightly fmt --check"
 else
-    echo -e "[${BOLD_RED}FAIL${NC}]: cargo fmt --check"
+    echo -e "[${BOLD_RED}FAIL${NC}]: cargo +nightly fmt --check"
     ((FAILURES+=1))
 fi
 

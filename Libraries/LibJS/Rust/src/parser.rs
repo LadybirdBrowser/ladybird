@@ -32,16 +32,34 @@
 //! save and restore the full parser state including lexer position, current
 //! token, error list, and all boolean flags.
 
-use crate::fast_hash::{HashMap, HashSet};
+use crate::fast_hash::HashMap;
+use crate::fast_hash::HashSet;
 
-use crate::ast::{
-    AstArena, BindingPattern, Expression, ExpressionKind, FunctionData, FunctionId, FunctionParameter, FunctionTable,
-    Identifier, IdentifierId, PrivateIdentifier, ProgramData, ScopeData, ScopeId, SourceRange, Statement,
-    StatementKind, StringId, Utf16String,
-};
-use crate::lexer::{Lexer, ch};
-use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
-use crate::token::{Token, TokenType};
+use crate::ast::AstArena;
+use crate::ast::BindingPattern;
+use crate::ast::Expression;
+use crate::ast::ExpressionKind;
+use crate::ast::FunctionData;
+use crate::ast::FunctionId;
+use crate::ast::FunctionParameter;
+use crate::ast::FunctionTable;
+use crate::ast::Identifier;
+use crate::ast::IdentifierId;
+use crate::ast::PrivateIdentifier;
+use crate::ast::ProgramData;
+use crate::ast::ScopeData;
+use crate::ast::ScopeId;
+use crate::ast::SourceRange;
+use crate::ast::Statement;
+use crate::ast::StatementKind;
+use crate::ast::StringId;
+use crate::ast::Utf16String;
+use crate::lexer::Lexer;
+use crate::lexer::ch;
+use crate::scope_collector::ScopeCollector;
+use crate::scope_collector::ScopeCollectorState;
+use crate::token::Token;
+use crate::token::TokenType;
 
 mod declarations;
 mod expressions;

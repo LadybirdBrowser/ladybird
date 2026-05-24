@@ -4,22 +4,36 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::{CraneliftInsn, RuntimeHelpers};
+use crate::CompiledFunction;
+use crate::CraneliftInsn;
+use crate::HelperId;
+use crate::HelperReloc;
+use crate::RuntimeHelpers;
 
+use cranelift_codegen::Context;
 use cranelift_codegen::FinalizedRelocTarget;
 use cranelift_codegen::binemit::Reloc;
-use cranelift_codegen::ir::condcodes::{FloatCC, IntCC};
+use cranelift_codegen::ir::AbiParam;
+use cranelift_codegen::ir::ExtFuncData;
+use cranelift_codegen::ir::ExternalName;
+use cranelift_codegen::ir::Function;
+use cranelift_codegen::ir::InstBuilder;
+use cranelift_codegen::ir::MemFlags;
+use cranelift_codegen::ir::Signature;
+use cranelift_codegen::ir::StackSlotData;
+use cranelift_codegen::ir::StackSlotKind;
+use cranelift_codegen::ir::UserExternalName;
+use cranelift_codegen::ir::UserFuncName;
+use cranelift_codegen::ir::condcodes::FloatCC;
+use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::types;
-use cranelift_codegen::ir::{
-    AbiParam, ExtFuncData, ExternalName, Function, InstBuilder, MemFlags, Signature, StackSlotData, StackSlotKind,
-    UserExternalName, UserFuncName,
-};
-use cranelift_codegen::settings::{self, Configurable};
-use cranelift_codegen::{self, Context};
-use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
+use cranelift_codegen::settings::Configurable;
+use cranelift_codegen::settings::{self};
+use cranelift_codegen::{self};
+use cranelift_frontend::FunctionBuilder;
+use cranelift_frontend::FunctionBuilderContext;
+use cranelift_frontend::Variable;
 use cranelift_native;
-
-use crate::{CompiledFunction, HelperId, HelperReloc};
 
 // Opcode constants generated from Opcode.h (see build.rs.)
 #[allow(dead_code)]

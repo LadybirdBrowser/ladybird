@@ -6,9 +6,14 @@
 
 #![allow(clippy::manual_let_else)]
 
-use libwasm_cranelift::{CompiledFunction, CraneliftInsn, HelperReloc, RuntimeHelpers, compile_to_bytes};
+use libwasm_cranelift::CompiledFunction;
+use libwasm_cranelift::CraneliftInsn;
+use libwasm_cranelift::HelperReloc;
+use libwasm_cranelift::RuntimeHelpers;
+use libwasm_cranelift::compile_to_bytes;
 use std::env;
-use std::mem::{size_of, size_of_val};
+use std::mem::size_of;
+use std::mem::size_of_val;
 
 #[cfg(all(unix, not(target_os = "macos")))]
 use std::fs::File;

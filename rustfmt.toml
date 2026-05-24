@@ -3,3 +3,4 @@ hard_tabs = false
 tab_spaces = 4
 edition = "2024"
 style_edition = "2024"
+imports_granularity = "Item"

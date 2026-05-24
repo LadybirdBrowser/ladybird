@@ -24,10 +24,13 @@
 use std::ffi::c_void;
 use std::mem::align_of;
 
-use super::generator::{
-    AssembledBytecode, ConstantValue, ExceptionHandler, Generator, PendingClassBlueprint, PendingClassElement,
-    PendingLiteralValueKind,
-};
+use super::generator::AssembledBytecode;
+use super::generator::ConstantValue;
+use super::generator::ExceptionHandler;
+use super::generator::Generator;
+use super::generator::PendingClassBlueprint;
+use super::generator::PendingClassElement;
+use super::generator::PendingLiteralValueKind;
 use crate::ast::Utf16String;
 use crate::bytecode::basic_block::SourceMapEntry;
 use crate::u32_from_usize;

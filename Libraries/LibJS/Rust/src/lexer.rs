@@ -35,7 +35,8 @@
 //! used as identifiers in some contexts).
 
 use crate::ast::Utf16String;
-use crate::token::{Token, TokenType};
+use crate::token::Token;
+use crate::token::TokenType;
 use crate::u32_from_usize;
 
 /// State for tracking template literal nesting.

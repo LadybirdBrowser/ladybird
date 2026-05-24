@@ -7,7 +7,8 @@
 use std::env;
 use std::error::Error;
 use std::fmt::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 fn generate_opcodes(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
     let opcode_h = manifest_dir.join("../Opcode.h");

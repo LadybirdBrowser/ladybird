@@ -9,10 +9,13 @@
 use crate::fast_hash::HashSet;
 
 use crate::ast::*;
-use crate::parser::{
-    Associativity, ForbiddenTokens, PRECEDENCE_COMMA, Parser, Position, is_strict_reserved_word,
-    is_unconditional_reserved_word,
-};
+use crate::parser::Associativity;
+use crate::parser::ForbiddenTokens;
+use crate::parser::PRECEDENCE_COMMA;
+use crate::parser::Parser;
+use crate::parser::Position;
+use crate::parser::is_strict_reserved_word;
+use crate::parser::is_unconditional_reserved_word;
 use crate::token::TokenType;
 
 /// Used locally during for-statement parsing before converting to `ast::ForInit`.

@@ -7,7 +7,12 @@
 use std::collections::VecDeque;
 
 use crate::entities::NamedCharacterReferenceMatcher;
-use crate::token::{Attribute, DoctypeData, Position, Token, TokenPayload, TokenType};
+use crate::token::Attribute;
+use crate::token::DoctypeData;
+use crate::token::Position;
+use crate::token::Token;
+use crate::token::TokenPayload;
+use crate::token::TokenType;
 
 /// Tokenizer states per the WHATWG HTML spec section 13.2.5.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -10,9 +10,14 @@
 //! code instead of C++. The generated code lives in $OUT_DIR/instruction_generated.rs
 //! and is included! from src/bytecode/instruction.rs.
 
-use bytecode_def::{
-    Field, OpDef, STRUCT_ALIGN, compute_layouts, field_type_info, find_m_length_offset, round_up, user_fields,
-};
+use bytecode_def::Field;
+use bytecode_def::OpDef;
+use bytecode_def::STRUCT_ALIGN;
+use bytecode_def::compute_layouts;
+use bytecode_def::field_type_info;
+use bytecode_def::find_m_length_offset;
+use bytecode_def::round_up;
+use bytecode_def::user_fields;
 use std::env;
 use std::fs;
 use std::io::Write;

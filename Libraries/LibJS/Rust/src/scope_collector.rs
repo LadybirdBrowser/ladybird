@@ -49,13 +49,24 @@
 //! - `IdentifierGroup` — a set of identifier references with the same
 //!   name within one scope (multiple `foo` refs are grouped together)
 
-use crate::fast_hash::{HashMap, IndexMap};
+use crate::fast_hash::HashMap;
+use crate::fast_hash::IndexMap;
 
-use crate::ast::{
-    FunctionScopeData, IdentifierArena, IdentifierId, LocalBinding, LocalVarKind, LocalVariable, ScopeId, Statement,
-    StringId, Utf16String, VarToInit,
-};
-use crate::parser::{DeclarationKind, FunctionKind, ParseError, ProgramType};
+use crate::ast::FunctionScopeData;
+use crate::ast::IdentifierArena;
+use crate::ast::IdentifierId;
+use crate::ast::LocalBinding;
+use crate::ast::LocalVarKind;
+use crate::ast::LocalVariable;
+use crate::ast::ScopeId;
+use crate::ast::Statement;
+use crate::ast::StringId;
+use crate::ast::Utf16String;
+use crate::ast::VarToInit;
+use crate::parser::DeclarationKind;
+use crate::parser::FunctionKind;
+use crate::parser::ParseError;
+use crate::parser::ProgramType;
 use crate::u32_from_usize;
 
 // === Enums ===

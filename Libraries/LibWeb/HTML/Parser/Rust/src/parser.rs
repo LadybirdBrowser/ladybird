@@ -5,11 +5,16 @@
  */
 
 use crate::RustFfiTokenizerHandle;
-use crate::token::{Token, TokenPayload, TokenType};
-use crate::tokenizer::{HtmlTokenizer, State};
+use crate::token::Token;
+use crate::token::TokenPayload;
+use crate::token::TokenType;
+use crate::tokenizer::HtmlTokenizer;
+use crate::tokenizer::State;
 use std::ffi::c_void;
-use std::ops::{Deref, DerefMut};
-use std::ptr::{NonNull, addr_of_mut};
+use std::ops::Deref;
+use std::ops::DerefMut;
+use std::ptr::NonNull;
+use std::ptr::addr_of_mut;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

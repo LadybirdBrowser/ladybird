@@ -17,7 +17,9 @@
 //! the Rust `Instruction` enum, so it works on freshly-encoded as well as
 //! freshly-deserialized bytecode.
 
-use super::instruction::{NUM_OPCODES, instruction_length_from_bytes, validate_instruction};
+use super::instruction::NUM_OPCODES;
+use super::instruction::instruction_length_from_bytes;
+use super::instruction::validate_instruction;
 
 /// Sentinel u32 used by `Operand::INVALID` and by `Optional<*TableIndex>` for
 /// "no value". Mirrors the C++ `0xFFFFFFFF` constant used throughout

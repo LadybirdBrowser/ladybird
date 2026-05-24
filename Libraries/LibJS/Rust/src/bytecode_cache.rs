@@ -15,18 +15,31 @@ use std::ffi::c_void;
 use std::ops::Range;
 use std::rc::Rc;
 
+use crate::CompiledProgram;
+use crate::CompiledProgramBytecode;
+use crate::ModuleCallbacks;
+use crate::ast;
 use crate::bytecode::basic_block::SourceMapEntry;
-use crate::bytecode::ffi::{
-    AbstractOperationKind, ConstantTag, FFISharedFunctionData, FFIUtf16Slice, WellKnownSymbolKind,
-};
-use crate::bytecode::generator::{
-    AssembledBytecode, ConstantValue, ExceptionHandler, FunctionSfdMetadata, Generator, PendingClassBlueprint,
-    PendingClassElement, PendingLiteralValueKind, PendingSharedFunctionData, PrecompiledFunction,
-};
-use crate::bytecode::validator::{
-    FFIExceptionHandlerOffsets, FFIValidatorBounds, ValidationErrorKind, validate_bytecode,
-};
-use crate::{CompiledProgram, CompiledProgramBytecode, ModuleCallbacks, ast, u32_from_usize};
+use crate::bytecode::ffi::AbstractOperationKind;
+use crate::bytecode::ffi::ConstantTag;
+use crate::bytecode::ffi::FFISharedFunctionData;
+use crate::bytecode::ffi::FFIUtf16Slice;
+use crate::bytecode::ffi::WellKnownSymbolKind;
+use crate::bytecode::generator::AssembledBytecode;
+use crate::bytecode::generator::ConstantValue;
+use crate::bytecode::generator::ExceptionHandler;
+use crate::bytecode::generator::FunctionSfdMetadata;
+use crate::bytecode::generator::Generator;
+use crate::bytecode::generator::PendingClassBlueprint;
+use crate::bytecode::generator::PendingClassElement;
+use crate::bytecode::generator::PendingLiteralValueKind;
+use crate::bytecode::generator::PendingSharedFunctionData;
+use crate::bytecode::generator::PrecompiledFunction;
+use crate::bytecode::validator::FFIExceptionHandlerOffsets;
+use crate::bytecode::validator::FFIValidatorBounds;
+use crate::bytecode::validator::ValidationErrorKind;
+use crate::bytecode::validator::validate_bytecode;
+use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
 const FORMAT_VERSION: u32 = 12;
@@ -1050,10 +1063,12 @@ unsafe fn materialize_script_declaration_metadata(
     gdi_context: *mut c_void,
 ) -> bool {
     unsafe {
-        use crate::bytecode::ffi::{
-            script_gdi_push_annex_b_name, script_gdi_push_function, script_gdi_push_lexical_binding,
-            script_gdi_push_lexical_name, script_gdi_push_var_name, script_gdi_push_var_scoped_name,
-        };
+        use crate::bytecode::ffi::script_gdi_push_annex_b_name;
+        use crate::bytecode::ffi::script_gdi_push_function;
+        use crate::bytecode::ffi::script_gdi_push_lexical_binding;
+        use crate::bytecode::ffi::script_gdi_push_lexical_name;
+        use crate::bytecode::ffi::script_gdi_push_var_name;
+        use crate::bytecode::ffi::script_gdi_push_var_scoped_name;
 
         for name in &metadata.lexical_names {
             script_gdi_push_lexical_name(gdi_context, name.as_ptr(), name.len());

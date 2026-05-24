@@ -98,10 +98,13 @@ pub(crate) fn u32_from_usize(value: usize) -> u32 {
 
 use ast::StatementKind;
 use bytecode::generator::PendingSharedFunctionData;
-use parser::{ParseError, Parser, ProgramType};
+use parser::ParseError;
+use parser::Parser;
+use parser::ProgramType;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::panic::AssertUnwindSafe;
+use std::panic::catch_unwind;
 
 // Compile-time assertion: `ParsedProgram` travels between the parse worker
 // thread and the main thread, so it must be `Send`. After the StringId and
@@ -2125,7 +2128,8 @@ pub unsafe extern "C" fn rust_compile_module(
 /// Extract import/export metadata from a module's scope and call C++ callbacks.
 unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: &ModuleCallbacks) {
     unsafe {
-        use ast::{ExportEntryKind, StatementKind};
+        use ast::ExportEntryKind;
+        use ast::StatementKind;
 
         // Collect all import entries with their module requests.
         struct ImportEntryWithRequest {
@@ -2585,7 +2589,8 @@ fn extract_gdi_common(
     function_table: &mut ast::FunctionTable,
     arena: &std::sync::Arc<ast::AstArena>,
 ) {
-    use ast::{DeclarationKind, StatementKind};
+    use ast::DeclarationKind;
+    use ast::StatementKind;
 
     // Var names (var declarations at any nesting level + top-level function declarations)
     for child in &scope.children {
@@ -2683,10 +2688,13 @@ unsafe fn extract_eval_gdi(
     referenced_private_names: &[ast::Utf16String],
 ) {
     unsafe {
-        use bytecode::ffi::{
-            eval_gdi_push_annex_b_name, eval_gdi_push_function, eval_gdi_push_lexical_binding,
-            eval_gdi_push_private_name, eval_gdi_push_var_name, eval_gdi_push_var_scoped_name, eval_gdi_set_strict,
-        };
+        use bytecode::ffi::eval_gdi_push_annex_b_name;
+        use bytecode::ffi::eval_gdi_push_function;
+        use bytecode::ffi::eval_gdi_push_lexical_binding;
+        use bytecode::ffi::eval_gdi_push_private_name;
+        use bytecode::ffi::eval_gdi_push_var_name;
+        use bytecode::ffi::eval_gdi_push_var_scoped_name;
+        use bytecode::ffi::eval_gdi_set_strict;
 
         eval_gdi_set_strict(ctx, is_strict);
 
@@ -2724,11 +2732,14 @@ unsafe fn extract_script_gdi(
     arena: &std::sync::Arc<ast::AstArena>,
 ) {
     unsafe {
-        use ast::{DeclarationKind, StatementKind};
-        use bytecode::ffi::{
-            script_gdi_push_annex_b_name, script_gdi_push_function, script_gdi_push_lexical_binding,
-            script_gdi_push_lexical_name, script_gdi_push_var_name, script_gdi_push_var_scoped_name,
-        };
+        use ast::DeclarationKind;
+        use ast::StatementKind;
+        use bytecode::ffi::script_gdi_push_annex_b_name;
+        use bytecode::ffi::script_gdi_push_function;
+        use bytecode::ffi::script_gdi_push_lexical_binding;
+        use bytecode::ffi::script_gdi_push_lexical_name;
+        use bytecode::ffi::script_gdi_push_var_name;
+        use bytecode::ffi::script_gdi_push_var_scoped_name;
 
         // Lexical names (let/const/using/class at top level) — script-only step.
         for child in &scope.children {
@@ -3589,7 +3600,9 @@ pub unsafe extern "C" fn rust_validate_bytecode(
 ) -> bool {
     unsafe {
         abort_on_panic(|| {
-            use bytecode::validator::{FFIValidationError, ValidationErrorKind, validate_bytecode};
+            use bytecode::validator::FFIValidationError;
+            use bytecode::validator::ValidationErrorKind;
+            use bytecode::validator::validate_bytecode;
 
             let write_error = |err: FFIValidationError| {
                 if !error_out.is_null() {
@@ -3653,7 +3666,8 @@ pub unsafe extern "C" fn rust_validate_bytecode(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
 
     static FREED_FOREIGN_OWNERS: AtomicUsize = AtomicUsize::new(0);
 

@@ -5,7 +5,10 @@
  */
 
 use crate::decode_utf8_to_u32;
-use crate::token::{Attribute, Token, TokenPayload, TokenType};
+use crate::token::Attribute;
+use crate::token::Token;
+use crate::token::TokenPayload;
+use crate::token::TokenType;
 use crate::tokenizer::HtmlTokenizer;
 use std::ffi::c_void;
 

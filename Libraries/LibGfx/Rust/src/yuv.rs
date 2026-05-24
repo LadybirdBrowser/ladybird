@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use yuv::{YuvPlanarImage, YuvRange, YuvStandardMatrix};
+use yuv::YuvPlanarImage;
+use yuv::YuvRange;
+use yuv::YuvStandardMatrix;
 
 #[repr(u8)]
 pub enum YUVRange {
