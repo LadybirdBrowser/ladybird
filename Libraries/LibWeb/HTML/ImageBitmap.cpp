@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/ImageBitmap.h>
@@ -16,10 +17,11 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ImageBitmap);
 
-[[nodiscard]] static auto create_bitmap_from_bitmap_data(Gfx::BitmapFormat const format, Gfx::AlphaType const alpha_type, u32 const width, u32 const height, u32 const pitch, ByteBuffer data)
+[[nodiscard]] static WebIDL::ExceptionOr<NonnullRefPtr<Gfx::Bitmap>> create_bitmap_from_bitmap_data(JS::Realm& realm, Gfx::BitmapFormat const format, Gfx::AlphaType const alpha_type, int const width, int const height, size_t const pitch, ByteBuffer data)
 {
-    // NB: The data is captured by value in the destruction callback lambda to ensure its lifetime.
-    return Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, data.data(), [data = move(data)] { });
+    auto bitmap_data = TRY_OR_THROW_OOM(realm.vm(), try_make<ByteBuffer>(move(data)));
+    auto* pixels = bitmap_data->data();
+    return TRY_OR_THROW_OOM(realm.vm(), Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, pixels, [bitmap_data = move(bitmap_data)] { }));
 }
 
 static void serialize_bitmap(HTML::TransferDataEncoder& encoder, RefPtr<Gfx::Bitmap> const& bitmap)
@@ -46,8 +48,8 @@ static void serialize_bitmap(HTML::TransferDataEncoder& encoder, RefPtr<Gfx::Bit
     auto const pitch = decoder.decode<size_t>();
     auto const format = decoder.decode<Gfx::BitmapFormat>();
     auto const alpha_type = decoder.decode<Gfx::AlphaType>();
-    auto const data = TRY(decoder.decode_buffer(realm));
-    return TRY_OR_THROW_OOM(realm.vm(), create_bitmap_from_bitmap_data(format, alpha_type, width, height, pitch, data));
+    auto data = TRY(decoder.decode_buffer(realm));
+    return TRY(create_bitmap_from_bitmap_data(realm, format, alpha_type, width, height, pitch, move(data)));
 }
 
 GC::Ref<ImageBitmap> ImageBitmap::create(JS::Realm& realm)
