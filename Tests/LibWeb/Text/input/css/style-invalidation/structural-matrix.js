@@ -1658,6 +1658,10 @@ const partChildMutationCases = [
         selector: ":empty",
         initial: true,
         after: false,
+        // This is the first case to run in this test. whichever scope runs first triggers some lazy style-system
+        // initialization whose recomputation counters differ depending on non-deterministic state — so the counters
+        // here aren't a stable thing to assert on. childMutationCases sets the same flag on its equivalent first case.
+        omitRecomputeCounters: true,
         mutate: subject => subject.appendChild(makeElement("span")),
     },
     {
