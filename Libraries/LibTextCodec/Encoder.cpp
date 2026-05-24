@@ -272,7 +272,16 @@ ErrorOr<ISO2022JPEncoder::State> ISO2022JPEncoder::process_item(u32 item, State 
     }
 
     // 10. Let pointer be the index pointer for code point in index jis0208.
-    auto pointer = code_point_jis0208_index(item);
+    //
+    // AD-HOC: The jis0208 index contains 0xFFFD placeholder entries for unmapped pointers.
+    // The generated inverse accessor code_point_jis0208_index() would match these
+    // and return a bogus pointer for U+FFFD itself. We guard here rather than in
+    // the Python generator to avoid changing inverse accessors for other indexes.
+    Optional<u32> pointer;
+    if (item == 0xFFFD)
+        pointer = {};
+    else
+        pointer = code_point_jis0208_index(item);
 
     // 11. If pointer is null, then:
     if (!pointer.has_value()) {
