@@ -5,8 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteString.h>
 #include <AK/Debug.h>
 #include <AK/Find.h>
+#include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
@@ -43,7 +45,10 @@ Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView 
 }
 
 Autocomplete::Autocomplete() = default;
-Autocomplete::~Autocomplete() = default;
+Autocomplete::~Autocomplete()
+{
+    cancel_pending_query();
+}
 
 void Autocomplete::cancel_pending_query()
 {
@@ -56,20 +61,6 @@ void Autocomplete::cancel_pending_query()
     // the active query as well and let the stale-response check discard them.
     m_query = {};
     m_history_suggestions.clear();
-}
-
-StringView autocomplete_section_title(AutocompleteSuggestionSection section)
-{
-    switch (section) {
-    case AutocompleteSuggestionSection::None:
-        return {};
-    case AutocompleteSuggestionSection::History:
-        return "History"sv;
-    case AutocompleteSuggestionSection::SearchSuggestions:
-        return "Search Suggestions"sv;
-    }
-
-    VERIFY_NOT_REACHED();
 }
 
 [[maybe_unused]] static ByteString log_autocomplete_suggestions(Vector<AutocompleteSuggestion> const& suggestions)
@@ -91,7 +82,7 @@ static Vector<AutocompleteSuggestion> make_history_suggestions(Vector<HistoryEnt
     for (auto& entry : history_entries) {
         suggestions.unchecked_append({
             .source = AutocompleteSuggestionSource::History,
-            .section = AutocompleteSuggestionSection::History,
+            .relevance_score = entry.relevance_score,
             .text = move(entry.url),
             .title = move(entry.title),
             .subtitle = {},
@@ -116,7 +107,7 @@ static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView q
 
     return AutocompleteSuggestion {
         .source = AutocompleteSuggestionSource::Search,
-        .section = AutocompleteSuggestionSection::SearchSuggestions,
+        .relevance_score = 1300,
         .text = query_string,
         .title = query_string,
         .subtitle = move(subtitle),
@@ -131,7 +122,7 @@ static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
 
     return AutocompleteSuggestion {
         .source = AutocompleteSuggestionSource::LiteralURL,
-        .section = AutocompleteSuggestionSection::None,
+        .relevance_score = 1600,
         .text = MUST(String::from_utf8(query)),
         .title = {},
         .subtitle = {},
@@ -197,7 +188,7 @@ static Vector<AutocompleteSuggestion> merge_suggestions(
     Optional<AutocompleteSuggestion> search_for_query_suggestion,
     Optional<AutocompleteSuggestion> literal_url_suggestion,
     Vector<AutocompleteSuggestion> history_suggestions,
-    Vector<String> remote_suggestions,
+    Vector<AutocompleteSuggestion> remote_suggestions,
     size_t max_suggestions)
 {
     Vector<AutocompleteSuggestion> suggestions;
@@ -221,17 +212,16 @@ static Vector<AutocompleteSuggestion> merge_suggestions(
     if (search_for_query_suggestion.has_value())
         append_suggestion_if_unique(suggestions, max_suggestions, search_for_query_suggestion.release_value());
 
+    int remote_score = 1100;
     for (auto& suggestion : remote_suggestions) {
-        auto remote_suggestion = AutocompleteSuggestion {
-            .source = AutocompleteSuggestionSource::Search,
-            .section = AutocompleteSuggestionSection::SearchSuggestions,
-            .text = move(suggestion),
-            .title = {},
-            .subtitle = {},
-            .favicon_base64_png = {},
-        };
-        append_suggestion_if_unique(suggestions, max_suggestions, move(remote_suggestion));
+        suggestion.relevance_score = remote_score;
+        remote_score = max(600, remote_score - 100);
+        append_suggestion_if_unique(suggestions, max_suggestions, move(suggestion));
     }
+
+    quick_sort(suggestions, [](auto const& a, auto const& b) {
+        return a.relevance_score > b.relevance_score;
+    });
 
     return suggestions;
 }
@@ -302,6 +292,10 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
         return;
 
     m_request = Application::request_server_client().start_request("GET"sv, *url);
+    if (!m_request) {
+        invoke_autocomplete_query_complete(merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
+        return;
+    }
 
     m_request->set_buffered_request_finished_callback(
         [this, engine = engine.release_value(), query = m_query, literal_suggestion, search_suggestion](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Core::ImmutableBytes payload) {
@@ -331,7 +325,7 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
             } else {
                 auto remote_suggestions = result.release_value();
 
-                dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Remote autocomplete suggestions for '{}': {}", query, history_log_suggestions(remote_suggestions));
+                dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Remote autocomplete suggestions for '{}': {}", query, log_autocomplete_suggestions(remote_suggestions));
 
                 auto merged_suggestions = merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, move(remote_suggestions), m_max_suggestions);
 
@@ -342,20 +336,28 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
         });
 }
 
-static ErrorOr<Vector<String>> parse_duckduckgo_autocomplete(JsonValue const& json)
+static ErrorOr<Vector<AutocompleteSuggestion>> parse_duckduckgo_autocomplete(JsonValue const& json)
 {
     if (!json.is_array())
         return Error::from_string_literal("Expected DuckDuckGo autocomplete response to be a JSON array");
 
-    Vector<String> results;
+    Vector<AutocompleteSuggestion> results;
     results.ensure_capacity(json.as_array().size());
 
     TRY(json.as_array().try_for_each([&](JsonValue const& suggestion) -> ErrorOr<void> {
         if (!suggestion.is_object())
             return Error::from_string_literal("Invalid DuckDuckGo autocomplete response, expected value to be an object");
 
-        if (auto value = suggestion.as_object().get_string("phrase"sv); value.has_value())
-            results.unchecked_append(*value);
+        if (auto value = suggestion.as_object().get_string("phrase"sv); value.has_value()) {
+            results.unchecked_append(AutocompleteSuggestion {
+                .source = AutocompleteSuggestionSource::Search,
+                .relevance_score = 0,
+                .text = *value,
+                .title = {},
+                .subtitle = {},
+                .favicon_base64_png = {},
+            });
+        }
 
         return {};
     }));
@@ -363,35 +365,42 @@ static ErrorOr<Vector<String>> parse_duckduckgo_autocomplete(JsonValue const& js
     return results;
 }
 
-static ErrorOr<Vector<String>> parse_google_autocomplete(JsonValue const& json)
+static ErrorOr<Vector<AutocompleteSuggestion>> parse_google_autocomplete(JsonValue const& json)
 {
     if (!json.is_array())
         return Error::from_string_literal("Expected Google autocomplete response to be a JSON array");
 
     auto const& values = json.as_array();
 
-    if (values.size() != 5)
-        return Error::from_string_literal("Invalid Google autocomplete response, expected 5 elements in array");
+    if (values.size() < 4)
+        return Error::from_string_literal("Invalid Google autocomplete response, expected at least 4 elements in array");
     if (!values[1].is_array())
         return Error::from_string_literal("Invalid Google autocomplete response, expected second element to be an array");
 
     auto const& suggestions = values[1].as_array();
 
-    Vector<String> results;
+    Vector<AutocompleteSuggestion> results;
     results.ensure_capacity(suggestions.size());
 
-    TRY(suggestions.try_for_each([&](JsonValue const& suggestion) -> ErrorOr<void> {
+    for (size_t i = 0; i < suggestions.size(); ++i) {
+        auto const& suggestion = suggestions[i];
         if (!suggestion.is_string())
             return Error::from_string_literal("Invalid Google autocomplete response, expected value to be a string");
 
-        results.unchecked_append(suggestion.as_string());
-        return {};
-    }));
+        results.unchecked_append(AutocompleteSuggestion {
+            .source = AutocompleteSuggestionSource::Search,
+            .relevance_score = 0,
+            .text = suggestion.as_string(),
+            .title = {},
+            .subtitle = {},
+            .favicon_base64_png = {},
+        });
+    }
 
     return results;
 }
 
-static ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const& json)
+static ErrorOr<Vector<AutocompleteSuggestion>> parse_yahoo_autocomplete(JsonValue const& json)
 {
     if (!json.is_object())
         return Error::from_string_literal("Expected Yahoo autocomplete response to be a JSON array");
@@ -400,25 +409,32 @@ static ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const& json)
     if (!suggestions.has_value())
         return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"r\" to be an object");
 
-    Vector<String> results;
+    Vector<AutocompleteSuggestion> results;
     results.ensure_capacity(suggestions->size());
 
     TRY(suggestions->try_for_each([&](JsonValue const& suggestion) -> ErrorOr<void> {
         if (!suggestion.is_object())
             return Error::from_string_literal("Invalid Yahoo autocomplete response, expected value to be an object");
 
-        auto result = suggestion.as_object().get_string("k"sv);
-        if (!result.has_value())
+        auto yahoo_suggestion_text = suggestion.as_object().get_string("k"sv);
+        if (!yahoo_suggestion_text.has_value())
             return Error::from_string_literal("Invalid Yahoo autocomplete response, expected \"k\" to be a string");
 
-        results.unchecked_append(*result);
+        results.unchecked_append(AutocompleteSuggestion {
+            .source = AutocompleteSuggestionSource::Search,
+            .relevance_score = 0,
+            .text = *yahoo_suggestion_text,
+            .title = {},
+            .subtitle = {},
+            .favicon_base64_png = {},
+        });
         return {};
     }));
 
     return results;
 }
 
-ErrorOr<Vector<String>> Autocomplete::received_autocomplete_respsonse(AutocompleteEngine const& engine, Optional<ByteString const&> content_type, StringView response)
+ErrorOr<Vector<AutocompleteSuggestion>> Autocomplete::received_autocomplete_respsonse(AutocompleteEngine const& engine, Optional<ByteString const&> content_type, StringView response)
 {
     auto decoder = [&]() -> Optional<TextCodec::Decoder&> {
         if (!content_type.has_value())

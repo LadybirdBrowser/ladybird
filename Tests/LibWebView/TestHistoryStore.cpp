@@ -120,6 +120,38 @@ TEST_CASE(history_autocomplete_prefers_url_prefix_then_recency)
     EXPECT_EQ(entries[2].url, "https://beta.example.com/"_string);
 }
 
+TEST_CASE(history_autocomplete_frecency_breaks_same_rank_ties)
+{
+    auto store = WebView::HistoryStore::create();
+
+    auto high_frequency_url = parse_url("https://alpha-docs.example.com/"sv);
+    auto low_frequency_url = parse_url("https://alpha-blog.example.com/"sv);
+
+    store->record_visit(low_frequency_url, "Alpha blog"_string, UnixDateTime::now());
+    for (int i = 0; i < 5; ++i)
+        store->record_visit(high_frequency_url, "Alpha docs"_string, UnixDateTime::now());
+
+    auto entries = store->autocomplete_entries("alpha"sv, 8);
+
+    VERIFY(entries.size() == 2);
+    EXPECT_EQ(entries[0].url, "https://alpha-docs.example.com/"_string);
+    EXPECT_EQ(entries[1].url, "https://alpha-blog.example.com/"_string);
+}
+
+TEST_CASE(history_autocomplete_prefers_host_root_over_host_path)
+{
+    auto store = WebView::HistoryStore::create();
+
+    store->record_visit(parse_url("https://alpha.example.com/docs"sv), "Alpha docs"_string, UnixDateTime::now());
+    store->record_visit(parse_url("https://alpha.example.com/"sv), "Alpha"_string, UnixDateTime::now());
+
+    auto entries = store->autocomplete_entries("alpha"sv, 8);
+
+    VERIFY(entries.size() == 2);
+    EXPECT_EQ(entries[0].url, "https://alpha.example.com/"_string);
+    EXPECT_EQ(entries[1].url, "https://alpha.example.com/docs"_string);
+}
+
 TEST_CASE(history_autocomplete_trims_whitespace)
 {
     auto store = WebView::HistoryStore::create();

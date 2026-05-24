@@ -46,6 +46,7 @@ public:
 
     void clear_selection();
     Optional<String> selected_suggestion() const;
+    bool is_user_selected() const { return m_user_selected; }
     bool select_next_suggestion();
     bool select_previous_suggestion();
 
@@ -70,6 +71,7 @@ private:
     AutocompleteDelegate* m_delegate { nullptr };
     bool m_is_updating_chrome_style { false };
     bool m_has_pending_chrome_style_update { false };
+    bool m_user_selected { false };
 
     NonnullOwnPtr<WebView::Autocomplete> m_autocomplete;
 };

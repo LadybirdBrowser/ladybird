@@ -32,6 +32,7 @@ static constexpr auto MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS = 8uz;
 - (void)clearSelection;
 - (BOOL)close;
 - (BOOL)isVisible;
+- (BOOL)isUserSelected;
 
 - (Optional<String>)selectedSuggestion;
 

@@ -8,37 +8,21 @@
 #import <Utilities/Conversions.h>
 
 static NSString* const AUTOCOMPLETE_IDENTIFIER = @"Autocomplete";
-static NSString* const AUTOCOMPLETE_SECTION_HEADER_IDENTIFIER = @"AutocompleteSectionHeader";
-static constexpr CGFloat const POPOVER_PADDING = 8;
+static constexpr CGFloat const POPOVER_PADDING = 0;
 static constexpr CGFloat const MINIMUM_WIDTH = 100;
 static constexpr CGFloat const CELL_HORIZONTAL_PADDING = 8;
 static constexpr CGFloat const CELL_VERTICAL_PADDING = 10;
 static constexpr CGFloat const CELL_ICON_SIZE = 16;
 static constexpr CGFloat const CELL_ICON_TEXT_SPACING = 6;
 static constexpr CGFloat const CELL_LABEL_VERTICAL_SPACING = 5;
-static constexpr CGFloat const SECTION_HEADER_HORIZONTAL_PADDING = 10;
-static constexpr CGFloat const SECTION_HEADER_VERTICAL_PADDING = 4;
 
 static NSFont* autocomplete_primary_font();
 static NSFont* autocomplete_secondary_font();
-static NSFont* autocomplete_section_header_font();
-
-enum class AutocompleteRowKind {
-    SectionHeader,
-    Suggestion,
-};
-
-struct AutocompleteRowModel {
-    AutocompleteRowKind kind;
-    String text;
-    size_t suggestion_index { 0 };
-};
 
 static CGFloat autocomplete_text_field_height(NSFont* font)
 {
     static CGFloat primary_text_field_height = 0;
     static CGFloat secondary_text_field_height = 0;
-    static CGFloat section_header_text_field_height = 0;
     static dispatch_once_t token;
     dispatch_once(&token, ^{
         auto* text_field = [[NSTextField alloc] initWithFrame:NSZeroRect];
@@ -52,15 +36,10 @@ static CGFloat autocomplete_text_field_height(NSFont* font)
 
         [text_field setFont:autocomplete_secondary_font()];
         secondary_text_field_height = ceil([text_field fittingSize].height);
-
-        [text_field setFont:autocomplete_section_header_font()];
-        section_header_text_field_height = ceil([text_field fittingSize].height);
     });
 
     if (font == autocomplete_secondary_font())
         return secondary_text_field_height;
-    if (font == autocomplete_section_header_font())
-        return section_header_text_field_height;
     return primary_text_field_height;
 }
 
@@ -74,16 +53,6 @@ static CGFloat autocomplete_row_height()
                 + CELL_LABEL_VERTICAL_SPACING
                 + autocomplete_text_field_height(autocomplete_secondary_font()));
         row_height = ceil(content_height + (CELL_VERTICAL_PADDING * 2));
-    });
-    return row_height;
-}
-
-static CGFloat autocomplete_section_header_height()
-{
-    static CGFloat row_height = 0;
-    static dispatch_once_t token;
-    dispatch_once(&token, ^{
-        row_height = ceil(autocomplete_text_field_height(autocomplete_section_header_font()) + (SECTION_HEADER_VERTICAL_PADDING * 2));
     });
     return row_height;
 }
@@ -104,16 +73,6 @@ static NSFont* autocomplete_secondary_font()
     static dispatch_once_t token;
     dispatch_once(&token, ^{
         font = [NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
-    });
-    return font;
-}
-
-static NSFont* autocomplete_section_header_font()
-{
-    static NSFont* font;
-    static dispatch_once_t token;
-    dispatch_once(&token, ^{
-        font = [NSFont systemFontOfSize:[NSFont smallSystemFontSize] weight:NSFontWeightSemibold];
     });
     return font;
 }
@@ -178,15 +137,6 @@ static CGFloat autocomplete_visible_width(NSView* view)
 @end
 
 @implementation AutocompleteSuggestionView
-@end
-
-@interface AutocompleteSectionHeaderView : NSTableCellView
-
-@property (nonatomic, strong) NSTextField* text_field;
-
-@end
-
-@implementation AutocompleteSectionHeaderView
 @end
 
 @interface AutocompleteScrollView : NSScrollView
@@ -259,7 +209,6 @@ static CGFloat autocomplete_visible_width(NSView* view)
 @interface Autocomplete () <AutocompleteTableViewHoverObserver, NSTableViewDataSource, NSTableViewDelegate>
 {
     Vector<WebView::AutocompleteSuggestion> m_suggestions;
-    Vector<AutocompleteRowModel> m_rows;
 }
 
 @property (nonatomic, weak) id<AutocompleteObserver> observer;
@@ -270,12 +219,12 @@ static CGFloat autocomplete_visible_width(NSView* view)
 @property (nonatomic, strong) NSScrollView* scroll_view;
 @property (nonatomic, strong) NSTableView* table_view;
 @property (nonatomic, strong) NSMutableDictionary<NSString*, NSImage*>* suggestion_icons;
+@property (nonatomic, assign) BOOL user_selected;
 
 - (NSInteger)tableRowForSuggestionIndex:(NSInteger)suggestion_index;
 - (BOOL)isSelectableRow:(NSInteger)row;
 - (CGFloat)heightOfRowAtIndex:(size_t)row;
 - (CGFloat)tableHeightForVisibleSuggestionCount:(size_t)visible_suggestion_count;
-- (void)rebuildRows;
 - (void)selectRow:(NSInteger)row notifyObserver:(BOOL)notify_observer;
 - (NSInteger)stepToSelectableRowFrom:(NSInteger)row direction:(NSInteger)direction;
 
@@ -347,9 +296,10 @@ static CGFloat autocomplete_visible_width(NSView* view)
 - (void)showWithSuggestions:(Vector<WebView::AutocompleteSuggestion>)suggestions
                 selectedRow:(NSInteger)selected_row
 {
+    auto previously_selected = [self selectedSuggestion];
+    auto had_user_selection = self.user_selected;
+
     m_suggestions = move(suggestions);
-    [self rebuildRows];
-    [self.suggestion_icons removeAllObjects];
 
     for (auto const& suggestion : m_suggestions) {
         if (suggestion.favicon_base64_png.has_value()) {
@@ -361,12 +311,25 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
     [self.table_view reloadData];
 
-    if (m_rows.is_empty())
+    if (m_suggestions.is_empty())
         [self close];
     else
         [self show];
 
-    auto table_row = [self tableRowForSuggestionIndex:selected_row];
+    NSInteger table_row = NSNotFound;
+    if (had_user_selection && previously_selected.has_value()) {
+        for (size_t i = 0; i < m_suggestions.size(); ++i) {
+            if (m_suggestions[i].text == *previously_selected) {
+                table_row = static_cast<NSInteger>(i);
+                break;
+            }
+        }
+    }
+
+    self.user_selected = table_row != NSNotFound && had_user_selection;
+    if (table_row == NSNotFound)
+        table_row = [self tableRowForSuggestionIndex:selected_row];
+
     if (table_row == NSNotFound)
         [self clearSelection];
     else if (table_row != self.table_view.selectedRow) {
@@ -384,6 +347,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
     if (auto* parent_window = [self.toolbar_item.view window])
         [parent_window removeChildWindow:self.popup_window];
 
+    self.user_selected = NO;
     [self.popup_window orderOut:nil];
     [self.observer onAutocompleteDidClose];
     return YES;
@@ -394,8 +358,14 @@ static CGFloat autocomplete_visible_width(NSView* view)
     return self.popup_window.isVisible;
 }
 
+- (BOOL)isUserSelected
+{
+    return self.user_selected;
+}
+
 - (void)clearSelection
 {
+    self.user_selected = NO;
     [self.table_view deselectAll:nil];
 }
 
@@ -408,7 +378,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
     if (![self isSelectableRow:row])
         return {};
 
-    return m_suggestions[m_rows[row].suggestion_index].text;
+    return m_suggestions[row].text;
 }
 
 - (BOOL)selectNextSuggestion
@@ -418,13 +388,17 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
     if (!self.popup_window.isVisible) {
         [self show];
-        if (auto row = [self stepToSelectableRowFrom:-1 direction:1]; row != NSNotFound)
+        if (auto row = [self stepToSelectableRowFrom:-1 direction:1]; row != NSNotFound) {
+            self.user_selected = YES;
             [self selectRow:row notifyObserver:YES];
+        }
         return YES;
     }
 
-    if (auto row = [self stepToSelectableRowFrom:[self.table_view selectedRow] direction:1]; row != NSNotFound)
+    if (auto row = [self stepToSelectableRowFrom:[self.table_view selectedRow] direction:1]; row != NSNotFound) {
+        self.user_selected = YES;
         [self selectRow:row notifyObserver:YES];
+    }
     return YES;
 }
 
@@ -435,13 +409,17 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
     if (!self.popup_window.isVisible) {
         [self show];
-        if (auto row = [self stepToSelectableRowFrom:0 direction:-1]; row != NSNotFound)
+        if (auto row = [self stepToSelectableRowFrom:0 direction:-1]; row != NSNotFound) {
+            self.user_selected = YES;
             [self selectRow:row notifyObserver:YES];
+        }
         return YES;
     }
 
-    if (auto row = [self stepToSelectableRowFrom:[self.table_view selectedRow] direction:-1]; row != NSNotFound)
+    if (auto row = [self stepToSelectableRowFrom:[self.table_view selectedRow] direction:-1]; row != NSNotFound) {
+        self.user_selected = YES;
         [self selectRow:row notifyObserver:YES];
+    }
     return YES;
 }
 
@@ -453,74 +431,30 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
 #pragma mark - Private methods
 
-- (void)rebuildRows
-{
-    m_rows.clear();
-    m_rows.ensure_capacity(m_suggestions.size() * 2);
-
-    auto current_section = WebView::AutocompleteSuggestionSection::None;
-    for (size_t suggestion_index = 0; suggestion_index < m_suggestions.size(); ++suggestion_index) {
-        auto const& suggestion = m_suggestions[suggestion_index];
-        if (suggestion.section != WebView::AutocompleteSuggestionSection::None && suggestion.section != current_section) {
-            current_section = suggestion.section;
-            m_rows.append({
-                .kind = AutocompleteRowKind::SectionHeader,
-                .text = MUST(String::from_utf8(WebView::autocomplete_section_title(current_section))),
-            });
-        }
-
-        m_rows.append({ .kind = AutocompleteRowKind::Suggestion, .text = {}, .suggestion_index = suggestion_index });
-    }
-}
-
 - (BOOL)isSelectableRow:(NSInteger)row
 {
-    if (row < 0 || row >= static_cast<NSInteger>(m_rows.size()))
+    if (row < 0 || row >= static_cast<NSInteger>(m_suggestions.size()))
         return NO;
-    return m_rows[row].kind == AutocompleteRowKind::Suggestion;
+    return YES;
 }
 
 - (NSInteger)tableRowForSuggestionIndex:(NSInteger)suggestion_index
 {
-    if (suggestion_index < 0)
+    if (suggestion_index < 0 || suggestion_index >= static_cast<NSInteger>(m_suggestions.size()))
         return NSNotFound;
 
-    for (size_t row = 0; row < m_rows.size(); ++row) {
-        auto const& row_model = m_rows[row];
-        if (row_model.kind == AutocompleteRowKind::Suggestion
-            && row_model.suggestion_index == static_cast<size_t>(suggestion_index))
-            return static_cast<NSInteger>(row);
-    }
-
-    return NSNotFound;
+    return suggestion_index;
 }
 
 - (CGFloat)heightOfRowAtIndex:(size_t)row
 {
-    VERIFY(row < m_rows.size());
-    return m_rows[row].kind == AutocompleteRowKind::SectionHeader
-        ? autocomplete_section_header_height()
-        : autocomplete_row_height();
+    VERIFY(row < m_suggestions.size());
+    return autocomplete_row_height();
 }
 
 - (CGFloat)tableHeightForVisibleSuggestionCount:(size_t)visible_suggestion_count
 {
-    if (visible_suggestion_count == 0)
-        return 0;
-
-    CGFloat total_height = 0;
-    size_t seen_suggestion_count = 0;
-
-    for (size_t row = 0; row < m_rows.size(); ++row) {
-        total_height += [self heightOfRowAtIndex:row];
-        if (m_rows[row].kind == AutocompleteRowKind::Suggestion) {
-            ++seen_suggestion_count;
-            if (seen_suggestion_count >= visible_suggestion_count)
-                break;
-        }
-    }
-
-    return ceil(total_height);
+    return ceil(visible_suggestion_count * autocomplete_row_height());
 }
 
 - (NSInteger)stepToSelectableRowFrom:(NSInteger)row direction:(NSInteger)direction
@@ -562,11 +496,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
         return;
     auto was_visible = self.popup_window.isVisible;
 
-    size_t visible_suggestion_count = 0;
-    for (auto const& row_model : m_rows) {
-        if (row_model.kind == AutocompleteRowKind::Suggestion)
-            ++visible_suggestion_count;
-    }
+    size_t visible_suggestion_count = min(m_suggestions.size(), MAXIMUM_VISIBLE_AUTOCOMPLETE_SUGGESTIONS);
 
     auto visible_table_height = [self tableHeightForVisibleSuggestionCount:visible_suggestion_count];
     auto width = max<CGFloat>(toolbar_view.frame.size.width, MINIMUM_WIDTH);
@@ -617,7 +547,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView*)tableView
 {
-    return static_cast<NSInteger>(m_rows.size());
+    return static_cast<NSInteger>(m_suggestions.size());
 }
 
 #pragma mark - NSTableViewDelegate
@@ -640,37 +570,7 @@ static CGFloat autocomplete_visible_width(NSView* view)
 {
     auto visible_width = autocomplete_visible_width(table_view);
 
-    auto const& row_model = m_rows[row];
-    if (row_model.kind == AutocompleteRowKind::SectionHeader) {
-        AutocompleteSectionHeaderView* view = (AutocompleteSectionHeaderView*)[table_view makeViewWithIdentifier:AUTOCOMPLETE_SECTION_HEADER_IDENTIFIER owner:self];
-
-        if (view == nil) {
-            view = [[AutocompleteSectionHeaderView alloc] initWithFrame:NSZeroRect];
-
-            NSTextField* text_field = [[NSTextField alloc] initWithFrame:NSZeroRect];
-            [text_field setBezeled:NO];
-            [text_field setDrawsBackground:NO];
-            [text_field setEditable:NO];
-            [text_field setFont:autocomplete_section_header_font()];
-            [text_field setSelectable:NO];
-            [view addSubview:text_field];
-            [view setText_field:text_field];
-            [view setIdentifier:AUTOCOMPLETE_SECTION_HEADER_IDENTIFIER];
-        }
-
-        auto* header_text = Ladybird::string_to_ns_string(row_model.text);
-        auto header_height = autocomplete_text_field_height(autocomplete_section_header_font());
-        [view setFrame:NSMakeRect(0, 0, visible_width, [self tableView:table_view heightOfRow:row])];
-        [view.text_field setStringValue:header_text];
-        [view.text_field setTextColor:[NSColor tertiaryLabelColor]];
-        [view.text_field setFrame:NSMakeRect(
-                                      SECTION_HEADER_HORIZONTAL_PADDING,
-                                      floor((NSHeight(view.bounds) - header_height) / 2.f),
-                                      NSWidth(view.bounds) - (SECTION_HEADER_HORIZONTAL_PADDING * 2),
-                                      header_height)];
-        return view;
-    }
-
+    // Reuse or create a suggestion cell view.
     AutocompleteSuggestionView* view = (AutocompleteSuggestionView*)[table_view makeViewWithIdentifier:AUTOCOMPLETE_IDENTIFIER owner:self];
 
     if (view == nil) {
@@ -703,15 +603,16 @@ static CGFloat autocomplete_visible_width(NSView* view)
         [view setIdentifier:AUTOCOMPLETE_IDENTIFIER];
     }
 
-    auto const& suggestion = m_suggestions[row_model.suggestion_index];
+    auto const& suggestion = m_suggestions[row];
     auto* suggestion_text = Ladybird::string_to_ns_string(suggestion.text);
     auto* title_text = suggestion.title.has_value() ? Ladybird::string_to_ns_string(*suggestion.title) : nil;
     auto* secondary_text = suggestion.subtitle.has_value() ? Ladybird::string_to_ns_string(*suggestion.subtitle) : suggestion_text;
     auto* favicon = [self.suggestion_icons objectForKey:suggestion_text];
-    auto* icon = suggestion.source == WebView::AutocompleteSuggestionSource::LiteralURL
-        ? literal_url_suggestion_icon()
-        : suggestion.source == WebView::AutocompleteSuggestionSource::Search ? search_suggestion_icon()
-                                                                             : favicon;
+    auto* icon = favicon != nil
+        ? favicon
+        : (suggestion.source == WebView::AutocompleteSuggestionSource::LiteralURL
+                  ? literal_url_suggestion_icon()
+                  : (suggestion.source == WebView::AutocompleteSuggestionSource::Search ? search_suggestion_icon() : nil));
 
     [view setFrame:NSMakeRect(0, 0, visible_width, [self tableView:table_view heightOfRow:row])];
 

@@ -229,6 +229,14 @@ TEST_CASE(location_to_search_or_url)
     expect_search_url_equals_sanitized_url("mailto:hello@example.com"sv); // For now, unsupported scheme.
     // FIXME: Add support for opening mailto: scheme (below). Firefox opens mailto: locations
     // expect_url_equals_sanitized_url("mailto:hello@example.com"sv, "mailto:hello@example.com"sv);
+
+    // Test cases for registry-less hosts with trailing slashes or explicit port numbers (Chromium-like heuristics)
+    expect_url_equals_sanitized_url("https://foo/"sv, "foo/"sv);
+    expect_url_equals_sanitized_url("https://foo/bar/"sv, "foo/bar/"sv);
+    expect_search_url_equals_sanitized_url("foo/bar"sv);
+    expect_url_equals_sanitized_url("https://google.com:80/"sv, "google.com:80"sv);
+    expect_url_equals_sanitized_url("https://myrouter:80/"sv, "myrouter:80"sv);
+    expect_search_url_equals_sanitized_url("foo:bar"sv);
 }
 
 TEST_CASE(location_looks_like_url)
@@ -244,6 +252,13 @@ TEST_CASE(location_looks_like_url)
     expect_location_does_not_look_like_url("example.def"sv);
 
     expect_location_looks_like_url("example"sv, WebView::AppendTLD::Yes);
+
+    expect_location_looks_like_url("foo/"sv);
+    expect_location_looks_like_url("foo/bar/"sv);
+    expect_location_does_not_look_like_url("foo/bar"sv);
+    expect_location_looks_like_url("google.com:80"sv);
+    expect_location_looks_like_url("myrouter:80"sv);
+    expect_location_does_not_look_like_url("foo:bar"sv);
 }
 
 TEST_CASE(autocomplete_url_matching)

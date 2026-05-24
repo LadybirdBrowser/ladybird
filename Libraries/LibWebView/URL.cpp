@@ -39,18 +39,32 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
 
     auto url = URL::create_with_url_or_path(location);
 
-    if (!url.has_value() || url->scheme() == "localhost"sv) {
-        url = URL::create_with_url_or_path(ByteString::formatted("https://{}", location));
-        if (!url.has_value())
-            return search_url_or_error();
+    static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
+    bool scheme_is_supported = url.has_value() && any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); });
 
-        https_scheme_was_guessed = true;
+    // Check if the query looks like "host:port", where the port starts with a digit.
+    // This allows us to distinguish hostnames with ports (e.g. google.com:80) from unsupported schemes (e.g. mailto:example).
+    bool is_likely_host_and_port = false;
+    if (url.has_value() && !scheme_is_supported) {
+        if (auto colon_index = location.find(':'); colon_index.has_value()) {
+            auto remainder = location.substring_view(*colon_index + 1);
+            if (!remainder.is_empty() && remainder[0] >= '0' && remainder[0] <= '9') {
+                is_likely_host_and_port = true;
+            }
+        }
     }
 
-    // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
-    static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
-    if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))
+    if (!url.has_value() || url->scheme() == "localhost"sv || (url.has_value() && !scheme_is_supported && is_likely_host_and_port)) {
+        auto guessed_url = URL::create_with_url_or_path(ByteString::formatted("https://{}", location));
+        if (guessed_url.has_value()) {
+            url = move(guessed_url);
+            https_scheme_was_guessed = true;
+        } else if (!url.has_value() || !scheme_is_supported) {
+            return search_url_or_error();
+        }
+    } else if (url.has_value() && !scheme_is_supported) {
         return search_url_or_error();
+    }
 
     if (auto const& host = url->host(); host.has_value() && host->is_domain()) {
         auto const& domain = host->get<String>();
@@ -63,12 +77,18 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         if (any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); }))
             return url;
 
-        auto public_suffix = URL::PublicSuffixData::the()->get_public_suffix(domain);
-        if (!public_suffix.has_value() || *public_suffix == domain) {
-            if (append_tld == AppendTLD::Yes)
+        auto domain_to_check = domain.bytes_as_string_view().trim("."sv, TrimMode::Right);
+        auto public_suffix = URL::PublicSuffixData::the()->get_public_suffix(domain_to_check);
+        if (!public_suffix.has_value() || public_suffix->bytes_as_string_view() == domain_to_check) {
+            if (append_tld == AppendTLD::Yes) {
                 url->set_host(MUST(String::formatted("{}.com", domain)));
-            else if (https_scheme_was_guessed && domain != "localhost"sv)
-                return search_url_or_error();
+            } else if (https_scheme_was_guessed && domain != "localhost"sv) {
+                // Allow registry-less hosts if they contain a port or the user explicitly added a trailing slash (e.g. "foo/" or "foo:80/").
+                bool has_port = url->port().has_value();
+                bool ends_with_slash = location.ends_with('/') || location.ends_with('\\');
+                if (!has_port && !ends_with_slash)
+                    return search_url_or_error();
+            }
         }
     }
 

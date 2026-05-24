@@ -37,15 +37,9 @@ enum class AutocompleteSuggestionSource {
     Search,
 };
 
-enum class AutocompleteSuggestionSection {
-    None,
-    History,
-    SearchSuggestions,
-};
-
 struct WEBVIEW_API AutocompleteSuggestion {
     AutocompleteSuggestionSource source { AutocompleteSuggestionSource::Search };
-    AutocompleteSuggestionSection section { AutocompleteSuggestionSection::None };
+    int relevance_score { 0 };
     String text;
     Optional<String> title;
     Optional<String> subtitle;
@@ -54,7 +48,6 @@ struct WEBVIEW_API AutocompleteSuggestion {
 
 WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();
 WEBVIEW_API Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView name);
-WEBVIEW_API StringView autocomplete_section_title(AutocompleteSuggestionSection);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 
@@ -69,7 +62,7 @@ public:
     void cancel_pending_query();
 
 private:
-    static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
+    static ErrorOr<Vector<AutocompleteSuggestion>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
     void invoke_autocomplete_query_complete(Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
 
     String m_query;

@@ -74,6 +74,15 @@ static QString inline_autocomplete_text_for_candidate(QString const& query, QStr
         return {};
     if (!candidate.startsWith(query, Qt::CaseInsensitive))
         return {};
+
+    int slash_index = candidate.indexOf('/');
+    if (slash_index != -1) {
+        QString host = candidate.left(slash_index);
+        if (host.length() > query.length() && host.startsWith(query, Qt::CaseInsensitive)) {
+            return query + host.mid(query.length());
+        }
+    }
+
     return query + candidate.mid(query.length());
 }
 
@@ -197,6 +206,85 @@ LocationEdit::LocationEdit(QWidget* parent)
     update_location_icon();
 
     m_autocomplete->on_query_complete = [this](auto suggestions, WebView::AutocompleteResultKind result_kind) {
+        auto query = current_query();
+
+        bool has_inline_history = false;
+        auto query_q = current_query();
+        for (auto const& suggestion : suggestions) {
+            if (suggestion.source == WebView::AutocompleteSuggestionSource::History) {
+                auto text_q = qstring_from_ak_string(suggestion.text);
+                if (suggestion_matches_query_exactly(query_q, text_q) || !inline_autocomplete_text_for_suggestion(query_q, text_q).isEmpty()) {
+                    has_inline_history = true;
+                    break;
+                }
+            }
+        }
+
+        auto query_str = ak_string_from_qstring(query);
+        auto trimmed_query_str = MUST(query_str.trim_whitespace());
+
+        bool is_backspace_suppressed = !m_suppressed_inline_autocomplete_query.isNull() && m_suppressed_inline_autocomplete_query == query;
+        bool should_promote_fallback = is_backspace_suppressed || !has_inline_history;
+
+        if (should_promote_fallback && !trimmed_query_str.is_empty()) {
+            if (WebView::location_looks_like_url(trimmed_query_str)) {
+                size_t literal_index = -1;
+                for (size_t i = 0; i < suggestions.size(); ++i) {
+                    if (suggestions[i].source == WebView::AutocompleteSuggestionSource::LiteralURL && suggestions[i].text == trimmed_query_str) {
+                        literal_index = i;
+                        break;
+                    }
+                }
+                if (literal_index != (size_t)-1) {
+                    if (literal_index != 0) {
+                        auto literal_suggestion = AK::move(suggestions[literal_index]);
+                        suggestions.remove(literal_index);
+                        suggestions.insert(0, AK::move(literal_suggestion));
+                    }
+                } else {
+                    WebView::AutocompleteSuggestion literal_suggestion {
+                        .source = WebView::AutocompleteSuggestionSource::LiteralURL,
+                        .text = trimmed_query_str,
+                        .title = {},
+                        .subtitle = {},
+                        .favicon_base64_png = {},
+                    };
+                    suggestions.insert(0, AK::move(literal_suggestion));
+                }
+            } else {
+                size_t search_index = -1;
+                for (size_t i = 0; i < suggestions.size(); ++i) {
+                    if (suggestions[i].source == WebView::AutocompleteSuggestionSource::Search && suggestions[i].text == trimmed_query_str) {
+                        search_index = i;
+                        break;
+                    }
+                }
+                if (search_index != (size_t)-1) {
+                    if (search_index != 0) {
+                        auto search_suggestion = AK::move(suggestions[search_index]);
+                        suggestions.remove(search_index);
+                        suggestions.insert(0, AK::move(search_suggestion));
+                    }
+                } else {
+                    auto const& search_engine = WebView::Application::settings().search_engine();
+                    Optional<String> title;
+                    Optional<String> subtitle;
+                    if (search_engine.has_value()) {
+                        title = trimmed_query_str;
+                        subtitle = MUST(String::formatted("Search with {}", search_engine->name));
+                    }
+                    WebView::AutocompleteSuggestion search_suggestion {
+                        .source = WebView::AutocompleteSuggestionSource::Search,
+                        .text = trimmed_query_str,
+                        .title = AK::move(title),
+                        .subtitle = AK::move(subtitle),
+                        .favicon_base64_png = {},
+                    };
+                    suggestions.insert(0, AK::move(search_suggestion));
+                }
+            }
+        }
+
         int selected_row = apply_inline_autocomplete(suggestions);
 
         if (result_kind == WebView::AutocompleteResultKind::Intermediate && m_autocomplete->is_visible()) {
@@ -373,16 +461,32 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
     }
 
     if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) && m_autocomplete->is_visible()) {
-        if (auto selected = m_autocomplete->selected_suggestion(); selected.has_value()) {
+        if (m_autocomplete->is_user_selected()) {
+            // The user explicitly moved the selection via arrow keys,
+            // so navigate to the chosen suggestion.
+            if (auto selected = m_autocomplete->selected_suggestion(); selected.has_value()) {
+                m_is_applying_inline_autocomplete = true;
+                setText(qstring_from_ak_string(*selected));
+                m_is_applying_inline_autocomplete = false;
+            }
+        } else if (hasSelectedText() && !m_current_inline_autocomplete_suggestion.isEmpty()) {
+            // Chromium-style: If there is an active inline autocomplete preview, commit it
+            // by clearing the selection before the autocomplete popup closes. This ensures
+            // restore_query() won't slice the suffix off.
             m_is_applying_inline_autocomplete = true;
-            setText(qstring_from_ak_string(*selected));
+            setCursorPosition(text().length());
             m_is_applying_inline_autocomplete = false;
         }
         m_autocomplete->close();
     }
 
-    if (should_suppress_inline_autocomplete_for_key(event))
+    // Suppress inline autocomplete on backspace/delete keys to prevent aggressive auto-fill while backspacing.
+    // Clear the suppression on any other key presses (normal typing).
+    if (should_suppress_inline_autocomplete_for_key(event)) {
         m_should_suppress_inline_autocomplete_on_next_change = true;
+    } else {
+        m_suppressed_inline_autocomplete_query = QString();
+    }
 
     QLineEdit::keyPressEvent(event);
 }
@@ -613,6 +717,19 @@ int LocationEdit::apply_inline_autocomplete(Vector<WebView::AutocompleteSuggesti
         return -1;
     }
 
+    auto query_str = ak_string_from_qstring(query);
+    auto trimmed_query_str = MUST(query_str.trim_whitespace());
+
+    // If the top suggestion is the fallback suggestion itself, highlight it.
+    if ((suggestions.first().source == WebView::AutocompleteSuggestionSource::Search || suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL)
+        && suggestions.first().text == trimmed_query_str) {
+        m_current_inline_autocomplete_suggestion.clear();
+        if (hasSelectedText() || current_text != query)
+            restore_query();
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: fallback query at top, selected=0");
+        return 0;
+    }
+
     // Row 0 drives both the visible highlight and (if its text prefix-matches
     // the query) the inline completion preview. This is a deliberate
     // simplification over the exact/inline/fallback fan-out we used to have:
@@ -630,13 +747,29 @@ int LocationEdit::apply_inline_autocomplete(Vector<WebView::AutocompleteSuggesti
     }
 
     // Backspace suppression: the user just deleted into this query, so don't
-    // re-apply an inline preview — but still honor the "highlight the top row"
-    // rule.
+    // re-apply an inline preview.
     if (!m_suppressed_inline_autocomplete_query.isNull() && m_suppressed_inline_autocomplete_query == query) {
         m_current_inline_autocomplete_suggestion.clear();
         if (hasSelectedText() || current_text != query)
             restore_query();
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: suppressed query, selected=0 (no preview)");
+
+        // Allow an exact query match to be selected as the default action without an inline preview.
+        if (row_0_text_q == query) {
+            dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: suppressed query, but exact match, selected=0");
+            return 0;
+        }
+
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: suppressed query, selected=-1 (no preview)");
+        return -1;
+    }
+
+    // Try to inline-preview row 0 specifically.
+    auto row_0_inline = inline_autocomplete_text_for_suggestion(query, row_0_text_q);
+    if (!row_0_inline.isEmpty()) {
+        m_current_inline_autocomplete_suggestion = row_0_text_q;
+        apply_inline_autocomplete_text(row_0_inline, query);
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: row 0 inline match, inline='{}'",
+            ak_string_from_qstring(row_0_inline));
         return 0;
     }
 
@@ -656,23 +789,13 @@ int LocationEdit::apply_inline_autocomplete(Vector<WebView::AutocompleteSuggesti
         }
     }
 
-    // Try to inline-preview row 0 specifically.
-    auto row_0_inline = inline_autocomplete_text_for_suggestion(query, row_0_text_q);
-    if (!row_0_inline.isEmpty()) {
-        m_current_inline_autocomplete_suggestion = row_0_text_q;
-        apply_inline_autocomplete_text(row_0_inline, query);
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: row 0 inline match, inline='{}'",
-            ak_string_from_qstring(row_0_inline));
-        return 0;
-    }
-
     // Row 0 does not prefix-match the query: clear any stale inline preview,
-    // restore the typed text, and still highlight row 0.
+    // restore the typed text.
     m_current_inline_autocomplete_suggestion.clear();
     if (hasSelectedText() || current_text != query)
         restore_query();
-    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: row 0 not a prefix match, selected=0 (highlight only)");
-    return 0;
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] apply_inline_autocomplete: row 0 not a prefix match, selected=-1 (no highlight)");
+    return -1;
 }
 
 bool LocationEdit::apply_inline_autocomplete_suggestion_text(QString const& suggestion_text, QString const& query)

@@ -49,6 +49,18 @@ static NSString* inline_autocomplete_text_for_candidate(NSString* query, NSStrin
     if (prefix_range.location == NSNotFound)
         return nil;
 
+    auto slash_range = [candidate rangeOfString:@"/"];
+    if (slash_range.location != NSNotFound) {
+        auto* host = [candidate substringToIndex:slash_range.location];
+        if (host.length > query.length) {
+            auto host_prefix_range = [host rangeOfString:query options:NSCaseInsensitiveSearch | NSAnchoredSearch];
+            if (host_prefix_range.location != NSNotFound) {
+                auto* host_suffix = [host substringFromIndex:query.length];
+                return [query stringByAppendingString:host_suffix];
+            }
+        }
+    }
+
     auto* suffix = [candidate substringFromIndex:query.length];
     return [query stringByAppendingString:suffix];
 }
@@ -373,6 +385,82 @@ static NSImage* location_field_globe_icon()
                 return;
             }
 
+            auto* query = [self currentLocationFieldQuery];
+
+            bool has_inline_history = false;
+            for (auto const& suggestion : suggestions) {
+                if (suggestion.source != WebView::AutocompleteSuggestionSource::History)
+                    continue;
+
+                auto* suggestion_text = Ladybird::string_to_ns_string(suggestion.text);
+                if (suggestion_matches_query_exactly(query, suggestion_text) || inline_autocomplete_text_for_suggestion(query, suggestion_text) != nil) {
+                    has_inline_history = true;
+                    break;
+                }
+            }
+
+            auto query_string = Ladybird::ns_string_to_string(query);
+            auto trimmed_query = MUST(query_string.trim_whitespace());
+            bool is_backspace_suppressed = self.suppressed_inline_autocomplete_query != nil && [self.suppressed_inline_autocomplete_query isEqualToString:query];
+            bool should_promote_fallback = is_backspace_suppressed || !has_inline_history;
+
+            if (should_promote_fallback && !trimmed_query.is_empty()) {
+                if (WebView::location_looks_like_url(trimmed_query)) {
+                    size_t literal_index = static_cast<size_t>(-1);
+                    for (size_t i = 0; i < suggestions.size(); ++i) {
+                        if (suggestions[i].source == WebView::AutocompleteSuggestionSource::LiteralURL && suggestions[i].text == trimmed_query) {
+                            literal_index = i;
+                            break;
+                        }
+                    }
+                    if (literal_index != static_cast<size_t>(-1)) {
+                        if (literal_index != 0) {
+                            auto literal_suggestion = move(suggestions[literal_index]);
+                            suggestions.remove(literal_index);
+                            suggestions.insert(0, move(literal_suggestion));
+                        }
+                    } else {
+                        suggestions.insert(0, WebView::AutocompleteSuggestion {
+                                                  .source = WebView::AutocompleteSuggestionSource::LiteralURL,
+                                                  .text = trimmed_query,
+                                                  .title = {},
+                                                  .subtitle = {},
+                                                  .favicon_base64_png = {},
+                                              });
+                    }
+                } else {
+                    size_t search_index = static_cast<size_t>(-1);
+                    for (size_t i = 0; i < suggestions.size(); ++i) {
+                        if (suggestions[i].source == WebView::AutocompleteSuggestionSource::Search && suggestions[i].text == trimmed_query) {
+                            search_index = i;
+                            break;
+                        }
+                    }
+                    if (search_index != static_cast<size_t>(-1)) {
+                        if (search_index != 0) {
+                            auto search_suggestion = move(suggestions[search_index]);
+                            suggestions.remove(search_index);
+                            suggestions.insert(0, move(search_suggestion));
+                        }
+                    } else {
+                        auto const& search_engine = WebView::Application::settings().search_engine();
+                        Optional<String> title;
+                        Optional<String> subtitle;
+                        if (search_engine.has_value()) {
+                            title = trimmed_query;
+                            subtitle = MUST(String::formatted("Search with {}", search_engine->name));
+                        }
+                        suggestions.insert(0, WebView::AutocompleteSuggestion {
+                                                  .source = WebView::AutocompleteSuggestionSource::Search,
+                                                  .text = trimmed_query,
+                                                  .title = move(title),
+                                                  .subtitle = move(subtitle),
+                                                  .favicon_base64_png = {},
+                                              });
+                    }
+                }
+            }
+
             auto selected_row = [self applyInlineAutocomplete:suggestions];
             if (result_kind == WebView::AutocompleteResultKind::Intermediate && [self.autocomplete isVisible]) {
                 if (auto selected_suggestion = [self.autocomplete selectedSuggestion];
@@ -595,10 +683,23 @@ static NSImage* location_field_globe_icon()
     if (suggestions.is_empty())
         return NSNotFound;
 
+    auto query_string = Ladybird::ns_string_to_string(query);
+    auto trimmed_query = MUST(query_string.trim_whitespace());
+
+    if ((suggestions.first().source == WebView::AutocompleteSuggestionSource::Search || suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL)
+        && suggestions.first().text == trimmed_query) {
+        self.current_inline_autocomplete_suggestion = nil;
+        if (selected_range.length != 0 || ![current_text isEqualToString:query])
+            [self restoreLocationFieldQuery];
+        return 0;
+    }
+
     // Row 0 drives both the visible highlight and (if its text prefix-matches
     // the query) the inline completion preview. The user-visible rule is
     // "the top row is the default action"; see the Qt implementation in
     // UI/Qt/LocationEdit.cpp for a longer discussion.
+
+    auto* row_0_text = Ladybird::string_to_ns_string(suggestions.first().text);
 
     // A literal URL always wins: no preview, restore the typed text.
     if (suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL) {
@@ -609,12 +710,22 @@ static NSImage* location_field_globe_icon()
     }
 
     // Backspace suppression: the user just deleted into this query, so don't
-    // re-apply an inline preview — but still honor the "highlight the top
-    // row" rule.
+    // re-apply an inline preview.
     if (self.suppressed_inline_autocomplete_query != nil && [self.suppressed_inline_autocomplete_query isEqualToString:query]) {
         self.current_inline_autocomplete_suggestion = nil;
         if (selected_range.length != 0 || ![current_text isEqualToString:query])
             [self restoreLocationFieldQuery];
+
+        if ([row_0_text isEqualToString:query])
+            return 0;
+
+        return NSNotFound;
+    }
+
+    // Try to inline-preview row 0 specifically.
+    if (auto* row_0_inline = inline_autocomplete_text_for_suggestion(query, row_0_text); row_0_inline != nil) {
+        self.current_inline_autocomplete_suggestion = row_0_text;
+        [self applyLocationFieldInlineAutocompleteText:row_0_inline forQuery:query];
         return 0;
     }
 
@@ -631,20 +742,12 @@ static NSImage* location_field_globe_icon()
         }
     }
 
-    // Try to inline-preview row 0 specifically.
-    auto* row_0_text = Ladybird::string_to_ns_string(suggestions.first().text);
-    if (auto* row_0_inline = inline_autocomplete_text_for_suggestion(query, row_0_text); row_0_inline != nil) {
-        self.current_inline_autocomplete_suggestion = row_0_text;
-        [self applyLocationFieldInlineAutocompleteText:row_0_inline forQuery:query];
-        return 0;
-    }
-
     // Row 0 does not prefix-match the query: clear any stale inline preview,
-    // restore the typed text, and still highlight row 0.
+    // restore the typed text.
     self.current_inline_autocomplete_suggestion = nil;
     if (selected_range.length != 0 || ![current_text isEqualToString:query])
         [self restoreLocationFieldQuery];
-    return 0;
+    return NSNotFound;
 }
 
 - (BOOL)applyInlineAutocompleteSuggestionText:(NSString*)suggestion_text
@@ -1108,11 +1211,22 @@ static NSImage* location_field_globe_icon()
         return NO;
     }
 
-    auto location = [self.autocomplete selectedSuggestion].value_or_lazy_evaluated([&]() {
-        return Ladybird::ns_string_to_string([[text_view textStorage] string]);
-    });
+    Optional<String> location;
+    if ([self.autocomplete isVisible] && [self.autocomplete isUserSelected])
+        location = [self.autocomplete selectedSuggestion];
 
-    [self navigateToLocation:move(location)];
+    if (!location.has_value()) {
+        if ([self.autocomplete isVisible] && self.current_inline_autocomplete_suggestion != nil) {
+            auto* text = [[text_view textStorage] string];
+            auto selected_range = [text_view selectedRange];
+            if (selected_range.location != NSNotFound && selected_range.length != 0 && NSMaxRange(selected_range) == text.length)
+                [text_view setSelectedRange:NSMakeRange(text.length, 0)];
+        }
+
+        location = Ladybird::ns_string_to_string([self currentLocationFieldQuery]);
+    }
+
+    [self navigateToLocation:location.release_value()];
     return YES;
 }
 

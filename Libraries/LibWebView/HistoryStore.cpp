@@ -175,14 +175,13 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
         WHERE url = ?;
     )#"sv));
     statements.search_entries = TRY(database.prepare_statement(R"#(
-        SELECT url, title, visit_count, last_visited_time, COALESCE(favicon, '')
+        SELECT url, title, visit_count, last_visited_time
         FROM (
             SELECT
                 url,
                 title,
                 visit_count,
                 last_visited_time,
-                COALESCE(favicon, '') AS favicon,
                 CASE
                     WHEN LOWER(CASE
                         WHEN INSTR(url, '://') > 0 THEN SUBSTR(url, INSTR(url, '://') + 3)
@@ -408,7 +407,65 @@ Vector<HistoryEntry> HistoryStore::autocomplete_entries(StringView query, size_t
     auto title_query = autocomplete_title_query(trimmed_query);
     auto url_query = autocomplete_url_query(trimmed_query);
 
-    auto entries = m_storage->autocomplete_entries(title_query, url_query, limit);
+    // Fetch a larger pool of candidates to score them mathematically
+    auto entries = m_storage->autocomplete_entries(title_query, url_query, 50);
+
+    auto now = UnixDateTime::now().seconds_since_epoch();
+    for (auto& entry : entries) {
+        auto rank = match_rank(entry, title_query, url_query);
+        int base_score = 0;
+        if (rank == 0) {
+            base_score = 1900;
+        } else if (rank == 1) {
+            auto searchable_url = autocomplete_searchable_url(entry.url.bytes_as_string_view());
+            auto first_slash = searchable_url.find('/');
+            auto host = first_slash.has_value() ? searchable_url.substring_view(0, *first_slash) : searchable_url;
+            if (host.starts_with(url_query, CaseSensitivity::CaseInsensitive)) {
+                bool is_root = !first_slash.has_value() || *first_slash == searchable_url.length() - 1;
+                if (is_root)
+                    base_score = 1800;
+                else
+                    base_score = 1400;
+            } else {
+                base_score = 1000;
+            }
+        } else if (rank == 2) {
+            base_score = 800;
+        } else {
+            base_score = 500;
+        }
+
+        auto age_seconds = now > entry.last_visited_time.seconds_since_epoch() ? now - entry.last_visited_time.seconds_since_epoch() : 0;
+        auto age_days = age_seconds / 86400;
+
+        double decay = 0.1;
+        if (age_days < 1)
+            decay = 1.0;
+        else if (age_days < 7)
+            decay = 0.7;
+        else if (age_days < 30)
+            decay = 0.5;
+
+        int frecency_bonus = static_cast<int>(entry.visit_count * decay * 10.0);
+        frecency_bonus = min(frecency_bonus, 300);
+
+        entry.relevance_score = base_score + frecency_bonus;
+    }
+
+    quick_sort(entries, [](auto const& a, auto const& b) {
+        if (a.relevance_score != b.relevance_score)
+            return a.relevance_score > b.relevance_score;
+        return a.visit_count > b.visit_count;
+    });
+
+    if (entries.size() > limit)
+        entries.shrink(limit);
+
+    for (auto& entry : entries) {
+        auto db_entry = entry_for_url(URL::Parser::basic_parse(entry.url).value());
+        if (db_entry.has_value() && db_entry->favicon_base64_png.has_value())
+            entry.favicon_base64_png = move(db_entry->favicon_base64_png);
+    }
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] {} history autocomplete suggestions for '{}' (title_query='{}', url_query='{}', limit={}): {}",
         m_storage->name(),
@@ -598,12 +655,11 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::autocomplete_entries(String
         m_statements.search_entries,
         [&](auto statement_id) {
             auto title = m_database.result_column<String>(statement_id, 1);
-            auto favicon = m_database.result_column<String>(statement_id, 4);
 
             entries.append(HistoryEntry {
                 .url = m_database.result_column<String>(statement_id, 0),
                 .title = title.is_empty() ? Optional<String> {} : Optional<String> { move(title) },
-                .favicon_base64_png = favicon.is_empty() ? Optional<String> {} : Optional<String> { move(favicon) },
+                .favicon_base64_png = {},
                 .visit_count = m_database.result_column<u64>(statement_id, 2),
                 .last_visited_time = m_database.result_column<UnixDateTime>(statement_id, 3),
             });

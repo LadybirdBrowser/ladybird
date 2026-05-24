@@ -24,6 +24,7 @@ struct WEBVIEW_API HistoryEntry {
     Optional<String> favicon_base64_png;
     u64 visit_count { 0 };
     UnixDateTime last_visited_time;
+    int relevance_score { 0 };
 };
 
 struct WEBVIEW_API RecentlyClosedEntry {
