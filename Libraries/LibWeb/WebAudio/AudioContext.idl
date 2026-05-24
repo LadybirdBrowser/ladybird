@@ -17,13 +17,14 @@ interface AudioContext : BaseAudioContext {
     [FIXME] MediaStreamAudioDestinationNode createMediaStreamDestination ();
 };
 
+// https://webaudio.github.io/web-audio-api/#AudioContextOptions
 dictionary AudioContextOptions {
     (AudioContextLatencyCategory or double) latencyHint = "interactive";
     float sampleRate;
 };
 
+// https://webaudio.github.io/web-audio-api/#AudioTimestamp
 dictionary AudioTimestamp {
     double contextTime;
-    // FIXME: Should be DOMHighResTimeStamp, but DOMHighResTimeStamp doesn't get parsed as a double during codegen
-    double performanceTime;
+    DOMHighResTimeStamp performanceTime;
 };
