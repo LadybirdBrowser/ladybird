@@ -49,6 +49,11 @@ class WEBVIEW_API ViewImplementation
     friend class WebContentClient;
 
 public:
+    struct WorkerConnectHandles {
+        int worker_fd { -1 };
+        int request_server_fd { -1 };
+        int image_decoder_fd { -1 };
+    };
     virtual ~ViewImplementation();
 
     static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
@@ -300,6 +305,14 @@ protected:
         Yes,
     };
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes);
+
+    // On Android, helper processes are Android Services rather than fork/exec'd binaries.
+    // This method creates socket pairs for a web worker and its associated RequestServer/
+    // ImageDecoder connections, binding the appropriate Android services.
+    virtual ErrorOr<WorkerConnectHandles> create_worker_connect_handles()
+    {
+        return Error::from_string_literal("Worker process spawning not supported on this platform");
+    }
 
     enum class LoadErrorPage {
         No,

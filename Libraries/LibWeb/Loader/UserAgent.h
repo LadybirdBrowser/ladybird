@@ -32,7 +32,7 @@ namespace Web {
 #if defined(AK_OS_SERENITY)
 #    define OS_STRING "SerenityOS"
 #elif defined(AK_OS_ANDROID)
-#    define OS_STRING "Android 10"
+#    define OS_STRING "Linux; Android 14; K"
 #elif defined(AK_OS_LINUX)
 #    define OS_STRING "Linux"
 #elif defined(AK_OS_MACOS)
@@ -65,10 +65,23 @@ namespace Web {
 // NB: Some web servers treat us very badly unless we pretend to be one of the major browsers.
 //     This token is appended to the User-Agent string to improve compatibility.
 //     We will need to update this periodically to match a somewhat recent version.
-#define SAD_COMPATIBILITY_HACK "Chrome/146.0.0.0 AppleWebKit/537.36 Safari/537.36"
+#if defined(AK_OS_ANDROID)
+#    define SAD_COMPATIBILITY_HACK "Chrome/146.0.0.0 Mobile Safari/537.36"
+#else
+#    define SAD_COMPATIBILITY_HACK "Chrome/146.0.0.0 AppleWebKit/537.36 Safari/537.36"
+#endif
 
+#if defined(AK_OS_ANDROID)
+// Real mobile Chrome UA format: "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/X Mobile Safari/537.36"
+constexpr auto default_user_agent = "Mozilla/5.0 (" OS_STRING ") AppleWebKit/537.36 (KHTML, like Gecko) " SAD_COMPATIBILITY_HACK ""sv;
+#else
 constexpr auto default_user_agent = "Mozilla/5.0 (" OS_STRING "; " CPU_STRING ") " BROWSER_NAME "/" BROWSER_VERSION " " SAD_COMPATIBILITY_HACK ""sv;
+#endif
+#if defined(AK_OS_ANDROID)
+constexpr auto default_platform = "Linux armv8l"sv;
+#else
 constexpr auto default_platform = OS_STRING " " CPU_STRING ""sv;
+#endif
 constexpr auto default_navigator_compatibility_mode = NavigatorCompatibilityMode::Chrome;
 
 }

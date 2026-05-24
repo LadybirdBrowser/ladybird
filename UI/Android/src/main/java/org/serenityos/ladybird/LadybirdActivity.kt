@@ -90,9 +90,11 @@ class LadybirdActivity : AppCompatActivity() {
             currentUrl = url
             setLoading(false)
             history.record(url, currentTitle.ifBlank { url })
-            // Some pages (Google search, dynamic SPAs) compute layout against an
-            // outdated viewport. Re-emit the current geometry once load settles.
-            view.post { view.syncViewport(); view.invalidate() }
+            // Nudge a single repaint once load settles; do NOT spam
+            // setViewportGeometry on every load-finish (Google/SPAs trigger many
+            // of these per click) — the engine already has the correct geometry
+            // from onSizeChanged and per-rebind initialize_client.
+            view.postInvalidateOnAnimation()
         }
         view.onUrlChange = { url: String ->
             Log.i("LadybirdLoad", "onUrlChange: $url")
@@ -364,6 +366,12 @@ class LadybirdActivity : AppCompatActivity() {
         }
         popupView.findViewById<View>(R.id.rowOpenExternal).setOnClickListener {
             popup.dismiss(); openCurrentInSystemBrowser()
+        }
+        popupView.findViewById<View>(R.id.rowClearCache).setOnClickListener {
+            popup.dismiss()
+            view.clearCache()
+            view.collectGarbage()
+            Toast.makeText(this, R.string.menu_clear_cache_done, Toast.LENGTH_SHORT).show()
         }
         popupView.findViewById<View>(R.id.rowSettings).setOnClickListener {
             popup.dismiss()

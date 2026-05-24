@@ -99,7 +99,13 @@ else()
     )
 endif()
 
-set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
+if (ANDROID)
+    # On Android, WebWorker runs as an Android Service (libwebworkerservice.so),
+    # not as a standalone executable target named WebWorker.
+    set(ladybird_helper_processes ImageDecoder RequestServer WebContent)
+else()
+    set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
+endif()
 
 add_dependencies(ladybird ${ladybird_helper_processes})
 # FIXME: Increase support for building targets on Windows

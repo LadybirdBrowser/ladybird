@@ -54,6 +54,21 @@ class WebContentService : LadybirdServiceBase("WebContentService") {
         Log.i(TAG, "bindService(ImageDecoderService) returned $bound")
     }
 
+    private fun bindWebWorker(ipcFd: Int)
+    {
+        Log.i(TAG, "Binding WebWorker with IPC fd $ipcFd")
+        val connector = LadybirdServiceConnection(ipcFd, resourceDir)
+        connector.onDisconnect = {
+            Log.e(TAG, "WebWorker Died! :(")
+        }
+        val bound = bindService(
+            Intent(this, WebWorkerService::class.java),
+            connector,
+            Context.BIND_AUTO_CREATE
+        )
+        Log.i(TAG, "bindService(WebWorkerService) returned $bound")
+    }
+
     external fun nativeInit()
 
     companion object {

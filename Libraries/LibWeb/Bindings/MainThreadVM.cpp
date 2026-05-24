@@ -90,7 +90,11 @@ static NonnullOwnPtr<JS::Agent> create_agent(GC::Heap& heap, AgentType type)
 
 void initialize_main_thread_vm(AgentType type)
 {
-    VERIFY(!s_main_thread_vm);
+    // On Android, the WebWorker service process may receive multiple MSG_TRANSFER_SOCKET
+    // messages if the previous worker's event loop has not yet exited. Allow the second
+    // call to reuse the already-initialized VM rather than crashing.
+    if (s_main_thread_vm)
+        return;
 
     s_main_thread_vm = JS::VM::create();
     s_main_thread_vm->set_agent(create_agent(s_main_thread_vm->heap(), type));

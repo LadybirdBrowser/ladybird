@@ -16,7 +16,6 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewConfiguration
 import android.widget.OverScroller
-import androidx.core.view.ViewCompat
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -101,7 +100,7 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
                 Int.MIN_VALUE, Int.MAX_VALUE,
                 Int.MIN_VALUE, Int.MAX_VALUE
             )
-            ViewCompat.postInvalidateOnAnimation(this@WebView)
+            this@WebView.postInvalidateOnAnimation()
             return true
         }
 
@@ -152,6 +151,9 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
     fun selectAllOnPage() = viewImpl.selectAllOnPage()
 
     fun setUserAgent(preset: UserAgentPreset) {
+        // Keep navigator.platform in sync with the spoofed UA so sites don't see
+        // an Android platform string paired with a desktop Chrome UA.
+        viewImpl.debugRequest("platform", preset.platformString ?: "")
         // Pass the full UA string as argument; null/empty means "reset to default".
         viewImpl.debugRequest("spoof-user-agent", preset.uaString ?: "")
     }
@@ -162,6 +164,14 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
 
     fun setScriptingEnabled(enabled: Boolean) {
         viewImpl.debugRequest("scripting", if (enabled) "on" else "off")
+    }
+
+    fun clearCache() {
+        viewImpl.debugRequest("clear-cache")
+    }
+
+    fun collectGarbage() {
+        viewImpl.debugRequest("collect-garbage")
     }
 
     fun setPinchZoomEnabled(enabled: Boolean) {
@@ -280,13 +290,21 @@ class WebView(context: Context, attributeSet: AttributeSet) : View(context, attr
                     dx, dy
                 )
             }
-            ViewCompat.postInvalidateOnAnimation(this)
+            postInvalidateOnAnimation()
         }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        contentBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        // Only (re)allocate the scratch bitmap when it actually needs to grow.
+        // System bar animations cause a flood of small size changes; allocating
+        // a screen-sized RGBA8888 each time costs several MB of GC pressure and
+        // visibly hurts scroll smoothness.
+        if (!::contentBitmap.isInitialized || contentBitmap.width < w || contentBitmap.height < h) {
+            val targetW = maxOf(w, if (::contentBitmap.isInitialized) contentBitmap.width else 0)
+            val targetH = maxOf(h, if (::contentBitmap.isInitialized) contentBitmap.height else 0)
+            contentBitmap = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
+        }
 
         val pixelDensity = context.resources.displayMetrics.density
         viewImpl.setDevicePixelRatio(pixelDensity)

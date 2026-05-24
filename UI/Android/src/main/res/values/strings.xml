@@ -37,6 +37,8 @@
     <string name="menu_share">Share link</string>
     <string name="menu_copy_url">Copy URL</string>
     <string name="menu_open_external">Open in system browser</string>
+    <string name="menu_clear_cache">Clear cache</string>
+    <string name="menu_clear_cache_done">Cache cleared</string>
     <string name="menu_select_all">Select all</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_about">About Ladybird</string>

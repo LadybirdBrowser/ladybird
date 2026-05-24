@@ -20,7 +20,8 @@ EventLoopPlugin& EventLoopPlugin::the()
 
 void EventLoopPlugin::install(EventLoopPlugin& plugin)
 {
-    VERIFY(!s_the);
+    if (s_the)
+        return;
     s_the = &plugin;
 }
 

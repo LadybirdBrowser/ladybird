@@ -34,6 +34,9 @@
 
 -keep class org.serenityos.ladybird.WebViewImplementation {
 	void bindWebContentService(int);
+	void bindRequestServerForWorker(int);
+	void bindImageDecoderForWorker(int);
+	void bindWebWorkerService(int);
 	void invalidateLayout();
 	void onLoadStart(java.lang.String, boolean);
 	void onLoadFinish(java.lang.String);
@@ -46,7 +49,12 @@
 -keep class org.serenityos.ladybird.WebContentService {
 	void bindRequestServer(int);
 	void bindImageDecoder(int);
+	void bindWebWorker(int);
 }
+
+-keep class org.serenityos.ladybird.WebWorkerService { *; }
+-keep class org.serenityos.ladybird.RequestServerService { *; }
+-keep class org.serenityos.ladybird.ImageDecoderService { *; }
 
 -keep class org.serenityos.ladybird.TimerExecutorService {
 	long registerTimer(org.serenityos.ladybird.TimerExecutorService$Timer, boolean, long);

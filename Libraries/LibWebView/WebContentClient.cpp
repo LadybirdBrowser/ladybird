@@ -854,6 +854,21 @@ void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap
 
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)
 {
+#if defined(AK_OS_ANDROID)
+    // On Android, helper processes are Android Services. We cannot use fork/exec or
+    // Application::request_server_client() (which relies on a spawned RequestServer process).
+    // Instead, ask the view to create socket pairs and bind the Android services.
+    VERIFY(worker_type == Web::Bindings::AgentType::DedicatedWorker);
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto handles = MUST(view->create_worker_connect_handles());
+        return {
+            IPC::TransportHandle(IPC::File::adopt_fd(handles.worker_fd)),
+            IPC::TransportHandle(IPC::File::adopt_fd(handles.request_server_fd)),
+            IPC::TransportHandle(IPC::File::adopt_fd(handles.image_decoder_fd)),
+        };
+    }
+    VERIFY_NOT_REACHED();
+#else
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto request_server_handle_or_error = connect_new_request_server_client();
         if (request_server_handle_or_error.is_error()) {
@@ -880,6 +895,7 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
     }
 
     return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
+#endif
 }
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)

@@ -119,6 +119,10 @@
                 <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_open_external" />
             </LinearLayout>
 
+            <LinearLayout android:id="@+id/rowClearCache" style="@style/Chromium.OverflowItem">
+                <TextView style="@style/Chromium.OverflowText" android:text="@string/menu_clear_cache" />
+            </LinearLayout>
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"

@@ -6,12 +6,14 @@
 
 #include "WebViewImplementationNative.h"
 #include "JNIHelpers.h"
+#include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
 #include <LibCore/System.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Painter.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWebView/ConsoleOutput.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <android/bitmap.h>
@@ -75,6 +77,38 @@ WebViewImplementationNative::WebViewImplementationNative(jobject thiz)
         env.get()->CallVoidMethod(m_java_instance, on_find_in_page_method, current, total);
     };
 
+    on_console_message = [](WebView::ConsoleOutput console_output) {
+        console_output.output.visit(
+            [](WebView::ConsoleLog const& log) {
+                if (log.level != JS::Console::LogLevel::Error && log.level != JS::Console::LogLevel::Warn)
+                    return;
+
+                StringBuilder builder;
+                bool first = true;
+                for (auto const& argument : log.arguments) {
+                    if (!first)
+                        builder.append(" "sv);
+                    argument.serialize(builder);
+                    first = false;
+                }
+                warnln("JS console (level={}): {}", static_cast<int>(log.level), builder.string_view());
+            },
+            [](WebView::ConsoleError const& error) {
+                warnln("JS exception: {}: {}", error.name, error.message);
+                if (!error.trace.is_empty()) {
+                    auto const& frame = error.trace.first();
+                    warnln("  at {}:{}:{} in {}",
+                        frame.file.value_or("<unknown>"_string),
+                        frame.line.value_or(0),
+                        frame.column.value_or(0),
+                        frame.function.value_or("<anonymous>"_string));
+                }
+            },
+            [](WebView::ConsoleTrace const& trace) {
+                dbgln("JS trace: {} ({} frames)", trace.label, trace.stack.size());
+            });
+    };
+
     on_link_hover = [this](URL::URL const& url) {
         JavaEnvironment env(global_vm);
         auto url_string = env.jstring_from_ak_string(url.to_string());
@@ -128,13 +162,13 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
     // the gray Android window background on the side(s).
     painter->fill_rect(android_bitmap->rect().to_type<float>(), Gfx::Color::White);
 
-    Gfx::Bitmap const* bitmap = nullptr;
+    RefPtr<Gfx::Bitmap> bitmap;
     Gfx::IntSize painted_size;
     if (m_client_state.has_usable_bitmap && m_client_state.front_bitmap.shared_image_buffer) {
-        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
+        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap();
         painted_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
     } else if (m_backup_shared_image_buffer) {
-        bitmap = m_backup_shared_image_buffer->bitmap().ptr();
+        bitmap = m_backup_shared_image_buffer->bitmap();
         painted_size = m_backup_bitmap_size.to_type<int>();
     }
     if (bitmap) {
@@ -146,7 +180,11 @@ void WebViewImplementationNative::paint_into_bitmap(void* android_bitmap_raw, An
         // Clamp to bitmap bounds just in case.
         src_rect.intersect(bitmap->rect());
         auto dst_rect = Gfx::FloatRect { 0.0f, 0.0f, static_cast<float>(src_rect.width()), static_cast<float>(src_rect.height()) };
-        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(MUST(bitmap->clone())), src_rect, Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
+        // Wrap the front buffer directly — no per-frame clone. The other UIs (Qt, AppKit)
+        // also read the front_bitmap by reference. This is a major smoothness win because
+        // cloning copied the entire framebuffer on every animation tick.
+        auto immutable = Gfx::ImmutableBitmap::create(*bitmap);
+        painter->draw_bitmap(dst_rect, *immutable, src_rect, Gfx::ScalingMode::NearestNeighbor, {}, 1.0f, Gfx::CompositingAndBlendingOperator::Copy);
     }
 }
 
@@ -233,6 +271,46 @@ NonnullRefPtr<WebView::WebContentClient> WebViewImplementationNative::bind_web_c
     auto new_client = make_ref_counted<WebView::WebContentClient>(make<IPC::Transport>(move(socket)), *this);
 
     return new_client;
+}
+
+ErrorOr<WebView::ViewImplementation::WorkerConnectHandles> WebViewImplementationNative::create_worker_connect_handles()
+{
+    JavaEnvironment env(global_vm);
+
+    // Create socket pair for WebWorker <-> WebContent IPC
+    int worker_fds[2] {};
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, worker_fds));
+
+    // Create socket pair for WebWorker <-> RequestServer IPC
+    int rs_fds[2] {};
+    if (auto result = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, rs_fds); result.is_error()) {
+        close(worker_fds[0]);
+        close(worker_fds[1]);
+        return result.release_error();
+    }
+
+    // Create socket pair for WebWorker <-> ImageDecoder IPC
+    int id_fds[2] {};
+    if (auto result = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, id_fds); result.is_error()) {
+        close(worker_fds[0]);
+        close(worker_fds[1]);
+        close(rs_fds[0]);
+        close(rs_fds[1]);
+        return result.release_error();
+    }
+
+    // Bind the three Android services with their respective service-side fds.
+    // The bindings are asynchronous; the services will connect and start event loops
+    // on the service-side fds once Android delivers the bound service callback.
+    env.get()->CallVoidMethod(m_java_instance, bind_request_server_for_worker_method, rs_fds[1]);
+    env.get()->CallVoidMethod(m_java_instance, bind_image_decoder_for_worker_method, id_fds[1]);
+    env.get()->CallVoidMethod(m_java_instance, bind_web_worker_method, worker_fds[1]);
+
+    return WorkerConnectHandles {
+        .worker_fd = worker_fds[0],
+        .request_server_fd = rs_fds[0],
+        .image_decoder_fd = id_fds[0],
+    };
 }
 
 }

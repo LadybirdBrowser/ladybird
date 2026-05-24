@@ -181,6 +181,37 @@ class WebViewImplementation(private val view: WebView) {
             view.onWebContentCrash()
     }
 
+    // Functions called from native code to bind worker-related services
+    fun bindRequestServerForWorker(ipcFd: Int) {
+        Log.i("WebContentView", "Binding RequestServer for worker with IPC fd $ipcFd")
+        val connector = LadybirdServiceConnection(ipcFd, resourceDir)
+        view.context.bindService(
+            Intent(view.context, RequestServerService::class.java),
+            connector,
+            Context.BIND_AUTO_CREATE
+        )
+    }
+
+    fun bindImageDecoderForWorker(ipcFd: Int) {
+        Log.i("WebContentView", "Binding ImageDecoder for worker with IPC fd $ipcFd")
+        val connector = LadybirdServiceConnection(ipcFd, resourceDir)
+        view.context.bindService(
+            Intent(view.context, ImageDecoderService::class.java),
+            connector,
+            Context.BIND_AUTO_CREATE
+        )
+    }
+
+    fun bindWebWorkerService(ipcFd: Int) {
+        Log.i("WebContentView", "Binding WebWorker service with IPC fd $ipcFd")
+        val connector = LadybirdServiceConnection(ipcFd, resourceDir)
+        view.context.bindService(
+            Intent(view.context, WebWorkerService::class.java),
+            connector,
+            Context.BIND_AUTO_CREATE
+        )
+    }
+
     fun invalidateLayout() {
         view.requestLayout()
         view.invalidate()

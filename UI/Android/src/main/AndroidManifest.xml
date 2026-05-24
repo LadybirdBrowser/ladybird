@@ -76,6 +76,11 @@
             android:enabled="true"
             android:exported="false"
             android:process=":ImageDecoder" />
+        <service
+            android:name=".WebWorkerService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":WebWorker" />
     </application>
 
 </manifest>

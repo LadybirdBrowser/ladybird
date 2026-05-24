@@ -41,6 +41,18 @@
 #include <WebContent/WebDriverConnection.h>
 #include <WebContent/WebUIConnection.h>
 
+#if defined(AK_OS_ANDROID)
+#    include <LibCore/System.h>
+#    include <LibImageDecoderClient/Client.h>
+#    include <LibRequests/RequestClient.h>
+#    include <LibWeb/Loader/ResourceLoader.h>
+#    include <LibWeb/Platform/ImageCodecPlugin.h>
+#    include <LibWebView/Plugins/ImageCodecPlugin.h>
+#    include <RequestServer/RequestServerEndpoint.h>
+#    include <ImageDecoder/ImageDecoderServerEndpoint.h>
+extern void bind_web_worker_java(int ipc_socket);
+#endif
+
 namespace WebContent {
 
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
@@ -738,6 +750,48 @@ void PageClient::page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::Shar
 
 Web::PageClient::WorkerAgentResponse PageClient::request_worker_agent(Web::Bindings::AgentType type)
 {
+#if defined(AK_OS_ANDROID)
+    // On Android, do everything locally in the WebContent process:
+    //  - reuse our existing RS/ID connections via connect_new_client() IPC
+    //  - bind WebWorkerService from WebContent (which has the bind permission)
+    (void)type;
+    VERIFY(type == Web::Bindings::AgentType::DedicatedWorker);
+
+    auto make_worker_handle = []() -> ErrorOr<IPC::TransportHandle> {
+        int worker_fds[2] {};
+        TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, worker_fds));
+        // Hand server-side fd to the WebWorker service process.
+        bind_web_worker_java(worker_fds[1]);
+        return IPC::TransportHandle(IPC::File::adopt_fd(worker_fds[0]));
+    };
+
+    auto worker_handle_or_error = make_worker_handle();
+    if (worker_handle_or_error.is_error()) {
+        dbgln("request_worker_agent: failed to create worker socketpair: {}", worker_handle_or_error.error());
+        exit(0);
+    }
+
+    auto& request_client = *Web::ResourceLoader::the().request_client();
+    auto rs_response = request_client.send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
+    if (!rs_response) {
+        dbgln("request_worker_agent: RS ConnectNewClient failed");
+        exit(0);
+    }
+
+    auto& image_plugin = static_cast<WebView::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the());
+    auto id_response = image_plugin.client().send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
+    if (!id_response) {
+        dbgln("request_worker_agent: ID ConnectNewClients failed");
+        exit(0);
+    }
+    auto id_handles = id_response->take_handles();
+    if (id_handles.is_empty()) {
+        dbgln("request_worker_agent: ID returned no handles");
+        exit(0);
+    }
+
+    return { worker_handle_or_error.release_value(), rs_response->take_handle(), id_handles.take_last() };
+#else
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
     if (!response) {
         dbgln("WebContent client disconnected during RequestWorkerAgent. Exiting peacefully.");
@@ -745,6 +799,7 @@ Web::PageClient::WorkerAgentResponse PageClient::request_worker_agent(Web::Bindi
     }
 
     return { response->take_handle(), response->take_request_server_handle(), response->take_image_decoder_handle() };
+#endif
 }
 
 void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<String> const& attribute_name)

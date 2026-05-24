@@ -14,6 +14,9 @@ using namespace Ladybird;
 
 jclass WebViewImplementationNative::global_class_reference;
 jmethodID WebViewImplementationNative::bind_webcontent_method;
+jmethodID WebViewImplementationNative::bind_request_server_for_worker_method;
+jmethodID WebViewImplementationNative::bind_image_decoder_for_worker_method;
+jmethodID WebViewImplementationNative::bind_web_worker_method;
 jmethodID WebViewImplementationNative::invalidate_layout_method;
 jmethodID WebViewImplementationNative::on_load_start_method;
 jmethodID WebViewImplementationNative::on_load_finish_method;
@@ -38,6 +41,21 @@ Java_org_serenityos_ladybird_WebViewImplementation_00024Companion_nativeClassIni
     if (!method)
         TODO();
     WebViewImplementationNative::bind_webcontent_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "bindRequestServerForWorker", "(I)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::bind_request_server_for_worker_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "bindImageDecoderForWorker", "(I)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::bind_image_decoder_for_worker_method = method;
+
+    method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "bindWebWorkerService", "(I)V");
+    if (!method)
+        TODO();
+    WebViewImplementationNative::bind_web_worker_method = method;
 
     method = env->GetMethodID(WebViewImplementationNative::global_class_reference, "invalidateLayout", "()V");
     if (!method)

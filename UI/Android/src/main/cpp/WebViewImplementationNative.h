@@ -27,6 +27,7 @@ public:
     NonnullRefPtr<WebView::WebContentClient> bind_web_content_client();
 
     virtual void initialize_client(CreateNewClient) override;
+    virtual ErrorOr<WorkerConnectHandles> create_worker_connect_handles() override;
 
     void paint_into_bitmap(void* android_bitmap_raw, AndroidBitmapInfo const& info);
 
@@ -39,6 +40,9 @@ public:
 
     static jclass global_class_reference;
     static jmethodID bind_webcontent_method;
+    static jmethodID bind_request_server_for_worker_method;
+    static jmethodID bind_image_decoder_for_worker_method;
+    static jmethodID bind_web_worker_method;
     static jmethodID invalidate_layout_method;
     static jmethodID on_load_start_method;
     static jmethodID on_load_finish_method;

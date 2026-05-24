@@ -13,3 +13,4 @@ ErrorOr<NonnullRefPtr<Client>> bind_service(void (*bind_method)(int));
 
 void bind_request_server_java(int ipc_socket);
 void bind_image_decoder_java(int ipc_socket);
+void bind_web_worker_java(int ipc_socket);

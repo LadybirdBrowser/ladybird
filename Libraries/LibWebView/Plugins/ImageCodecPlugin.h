@@ -25,6 +25,8 @@ public:
 
     void set_client(NonnullRefPtr<ImageDecoderClient::Client>);
 
+    ImageDecoderClient::Client& client() { return *m_client; }
+
 private:
     void setup_client_callbacks();
 

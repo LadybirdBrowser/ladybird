@@ -30,7 +30,8 @@ FontPlugin& FontPlugin::the()
 
 void FontPlugin::install(FontPlugin& plugin)
 {
-    VERIFY(!s_the);
+    if (s_the)
+        return;
     s_the = &plugin;
 }
 

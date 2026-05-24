@@ -402,6 +402,14 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
+    if (request == "platform") {
+        if (argument.is_empty())
+            Web::ResourceLoader::the().set_platform(MUST(String::from_utf8(Web::default_platform)));
+        else
+            Web::ResourceLoader::the().set_platform(MUST(String::from_byte_string(argument)));
+        return;
+    }
+
     if (request == "spoof-user-agent") {
         Web::ResourceLoader::the().set_user_agent(MUST(String::from_byte_string(argument)));
         return;

@@ -35,23 +35,27 @@ enum class ColorSchemePreference(val nativeValue: Int) {
  * `Default` keeps the engine-provided UA (which advertises Ladybird and is
  * frequently misclassified by anti-bot services such as reCAPTCHA).
  */
-enum class UserAgentPreset(val displayName: String, val uaString: String?) {
-    Default("Default (Ladybird)", null),
+enum class UserAgentPreset(val displayName: String, val uaString: String?, val platformString: String?) {
+    Default("Default (Ladybird)", null, null),
     ChromeAndroid(
         "Chrome (Android)",
-        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36"
+        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
+        "Linux armv81"
     ),
     ChromeDesktop(
         "Chrome (Desktop)",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        "Linux x86_64"
     ),
     FirefoxAndroid(
         "Firefox (Android)",
-        "Mozilla/5.0 (Android 13; Mobile; rv:129.0) Gecko/129.0 Firefox/129.0"
+        "Mozilla/5.0 (Android 13; Mobile; rv:129.0) Gecko/129.0 Firefox/129.0",
+        "Linux armv81"
     ),
     SafariIOS(
         "Safari (iOS)",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+        "iPhone"
     );
 
     companion object {

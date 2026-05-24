@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -147,8 +148,13 @@ GC::Ref<WebXR::XRSystem> Navigator::xr()
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
 WebIDL::Long Navigator::max_touch_points()
 {
-    // FIXME: Implement this for touch-capable devices.
+    // Returning 0 on Android is a very strong anti-bot / non-mobile signal.
+    // Use a conservative touchscreen value until this is plumbed from the host.
+#if defined(AK_OS_ANDROID)
+    return 5;
+#else
     return 0;
+#endif
 }
 
 GC::Ref<ServiceWorker::ServiceWorkerContainer> Navigator::service_worker()
