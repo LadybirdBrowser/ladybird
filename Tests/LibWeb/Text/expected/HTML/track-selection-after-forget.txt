@@ -1,0 +1,9 @@
+video metadata loaded
+captured video track (selected=true) and audio track (enabled=true)
+audioTracks change event fired
+videoTracks change event fired
+reset video src (videoTracks.length is now 0)
+orphaned video track selected=false (now false)
+orphaned video track selected=true (now true)
+orphaned audio track enabled=false (now false)
+orphaned audio track enabled=true (now true)

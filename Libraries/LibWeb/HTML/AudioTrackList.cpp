@@ -52,8 +52,10 @@ void AudioTrackList::add_track(GC::Ref<AudioTrack> audio_track)
 
 void AudioTrackList::remove_all_tracks()
 {
-    for (auto& audio_track : m_audio_tracks)
+    for (auto& audio_track : m_audio_tracks) {
         audio_track->set_enabled(false);
+        audio_track->set_audio_track_list({}, nullptr);
+    }
     m_audio_tracks.clear();
 }
 
