@@ -59,24 +59,19 @@ void WebGLRenderingContextImpl::attach_shader(GC::Root<WebGLProgram> program, GC
     m_context->make_current();
 
     GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    program_handle = handle_or_error.release_value();
 
-    GLuint shader_handle = 0;
-    if (shader) {
-        auto handle_or_error = shader->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        shader_handle = handle_or_error.release_value();
+    handle_or_error = shader->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    GLuint shader_handle = handle_or_error.release_value();
 
     if (program->attached_vertex_shader() == shader || program->attached_fragment_shader() == shader) {
         dbgln("WebGL: Shader is already attached to program");
@@ -114,15 +109,12 @@ void WebGLRenderingContextImpl::bind_attrib_location(GC::Root<WebGLProgram> prog
 {
     m_context->make_current();
 
-    auto program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto program_handle = handle_or_error.release_value();
 
     auto name_null_terminated = null_terminated_string(name);
     glBindAttribLocation(program_handle, index, name_null_terminated.data());
@@ -351,15 +343,12 @@ void WebGLRenderingContextImpl::compile_shader(GC::Root<WebGLShader> shader)
 {
     m_context->make_current();
 
-    auto shader_handle = 0;
-    if (shader) {
-        auto handle_or_error = shader->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        shader_handle = handle_or_error.release_value();
+    auto handle_or_error = shader->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto shader_handle = handle_or_error.release_value();
     glCompileShader(shader_handle);
 }
 
@@ -570,25 +559,19 @@ void WebGLRenderingContextImpl::detach_shader(GC::Root<WebGLProgram> program, GC
 {
     m_context->make_current();
 
-    auto program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto program_handle = handle_or_error.release_value();
 
-    auto shader_handle = 0;
-    if (shader) {
-        auto handle_or_error = shader->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        shader_handle = handle_or_error.release_value();
+    handle_or_error = shader->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto shader_handle = handle_or_error.release_value();
 
     glDetachShader(program_handle, shader_handle);
 
@@ -703,15 +686,12 @@ GC::Root<WebGLActiveInfo> WebGLRenderingContextImpl::get_active_attrib(GC::Root<
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return {};
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
     }
+    auto program_handle = handle_or_error.release_value();
 
     GLint size = 0;
     GLenum type = 0;
@@ -727,15 +707,12 @@ GC::Root<WebGLActiveInfo> WebGLRenderingContextImpl::get_active_uniform(GC::Root
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return {};
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
     }
+    auto program_handle = handle_or_error.release_value();
 
     GLint size = 0;
     GLenum type = 0;
@@ -751,15 +728,12 @@ Optional<Vector<GC::Root<WebGLShader>>> WebGLRenderingContextImpl::get_attached_
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return OptionalNone {};
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return OptionalNone {};
     }
+    auto program_handle = handle_or_error.release_value();
 
     (void)program_handle;
 
@@ -778,15 +752,12 @@ WebIDL::Long WebGLRenderingContextImpl::get_attrib_location(GC::Root<WebGLProgra
 {
     m_context->make_current();
 
-    auto program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return -1;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return -1;
     }
+    auto program_handle = handle_or_error.release_value();
 
     auto name_null_terminated = null_terminated_string(name);
     return glGetAttribLocation(program_handle, name_null_terminated.data());
@@ -1610,15 +1581,12 @@ JS::Value WebGLRenderingContextImpl::get_program_parameter(GC::Root<WebGLProgram
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return JS::js_null();
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return JS::js_null();
     }
+    auto program_handle = handle_or_error.release_value();
 
     GLint result = 0;
     glGetProgramivRobustANGLE(program_handle, pname, 1, nullptr, &result);
@@ -1652,15 +1620,12 @@ Optional<String> WebGLRenderingContextImpl::get_program_info_log(GC::Root<WebGLP
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return {};
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
     }
+    auto program_handle = handle_or_error.release_value();
 
     GLint info_log_length = 0;
     glGetProgramiv(program_handle, GL_INFO_LOG_LENGTH, &info_log_length);
@@ -1702,15 +1667,12 @@ JS::Value WebGLRenderingContextImpl::get_shader_parameter(GC::Root<WebGLShader> 
 {
     m_context->make_current();
 
-    GLuint shader_handle = 0;
-    if (shader) {
-        auto handle_or_error = shader->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return JS::js_null();
-        }
-        shader_handle = handle_or_error.release_value();
+    auto handle_or_error = shader->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return JS::js_null();
     }
+    auto shader_handle = handle_or_error.release_value();
 
     GLint result = 0;
     glGetShaderivRobustANGLE(shader_handle, pname, 1, nullptr, &result);
@@ -1741,15 +1703,12 @@ Optional<String> WebGLRenderingContextImpl::get_shader_info_log(GC::Root<WebGLSh
 {
     m_context->make_current();
 
-    GLuint shader_handle = 0;
-    if (shader) {
-        auto handle_or_error = shader->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return {};
-        }
-        shader_handle = handle_or_error.release_value();
+    auto handle_or_error = shader->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
     }
+    auto shader_handle = handle_or_error.release_value();
 
     GLint info_log_length = 0;
     glGetShaderiv(shader_handle, GL_INFO_LOG_LENGTH, &info_log_length);
@@ -1765,15 +1724,12 @@ Optional<String> WebGLRenderingContextImpl::get_shader_source(GC::Root<WebGLShad
 {
     m_context->make_current();
 
-    GLuint shader_handle = 0;
-    if (shader) {
-        auto handle_or_error = shader->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return {};
-        }
-        shader_handle = handle_or_error.release_value();
+    auto handle_or_error = shader->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
     }
+    auto shader_handle = handle_or_error.release_value();
 
     GLint shader_source_length = 0;
     glGetShaderiv(shader_handle, GL_SHADER_SOURCE_LENGTH, &shader_source_length);
@@ -1850,15 +1806,12 @@ GC::Root<WebGLUniformLocation> WebGLRenderingContextImpl::get_uniform_location(G
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return {};
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
     }
+    auto program_handle = handle_or_error.release_value();
 
     auto name_null_terminated = null_terminated_string(name);
 
@@ -2071,15 +2024,12 @@ void WebGLRenderingContextImpl::link_program(GC::Root<WebGLProgram> program)
 {
     m_context->make_current();
 
-    auto program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto program_handle = handle_or_error.release_value();
     glLinkProgram(program_handle);
 }
 
@@ -2134,15 +2084,12 @@ void WebGLRenderingContextImpl::shader_source(GC::Root<WebGLShader> shader, Stri
 {
     m_context->make_current();
 
-    GLuint shader_handle = 0;
-    if (shader) {
-        auto handle_or_error = shader->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        shader_handle = handle_or_error.release_value();
+    auto handle_or_error = shader->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto shader_handle = handle_or_error.release_value();
 
     Vector<GLchar*> strings;
     auto string = null_terminated_string(source);
@@ -2310,15 +2257,12 @@ void WebGLRenderingContextImpl::validate_program(GC::Root<WebGLProgram> program)
 {
     m_context->make_current();
 
-    auto program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto program_handle = handle_or_error.release_value();
     glValidateProgram(program_handle);
 }
 
