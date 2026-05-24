@@ -59,18 +59,23 @@ static void convert_to_xml_error_document(DOM::Document& document, Utf16String e
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<String> content_encoding)
 {
     Optional<TextCodec::Decoder&> decoder;
+    ByteString document_encoding;
     // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
     // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
-    if (content_encoding.has_value())
+    if (content_encoding.has_value()) {
         decoder = TextCodec::decoder_for(*content_encoding);
+        document_encoding = content_encoding->to_byte_string();
+    }
     if (!decoder.has_value()) {
         // https://www.w3.org/TR/xml/#charencoding
         // [...] it is a fatal error [...] for an entity which begins with neither a Byte Order Mark nor an encoding
         // declaration to use an encoding other than UTF-8.
         auto bom_encoding = HTML::run_bom_sniff(data);
-        decoder = TextCodec::decoder_for(bom_encoding.value_or("UTF-8"));
+        document_encoding = bom_encoding.value_or("UTF-8");
+        decoder = TextCodec::decoder_for(document_encoding);
     }
     VERIFY(decoder.has_value());
+    document.set_encoding(MUST(String::from_byte_string(document_encoding)));
     // Well-formed XML documents contain only properly encoded characters
     if (!decoder->validate(data)) {
         convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_utf16);
@@ -184,18 +189,23 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
 
     auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
         Optional<TextCodec::Decoder&> decoder;
+        ByteString document_encoding;
         // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
         // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
-        if (content_encoding.has_value())
+        if (content_encoding.has_value()) {
             decoder = TextCodec::decoder_for(*content_encoding);
+            document_encoding = content_encoding->to_byte_string();
+        }
         if (!decoder.has_value()) {
             // https://www.w3.org/TR/xml/#charencoding
             // [...] it is a fatal error [...] for an entity which begins with neither a Byte Order Mark nor an encoding
             // declaration to use an encoding other than UTF-8.
             auto bom_encoding = HTML::run_bom_sniff(data);
-            decoder = TextCodec::decoder_for(bom_encoding.value_or("UTF-8"));
+            document_encoding = bom_encoding.value_or("UTF-8");
+            decoder = TextCodec::decoder_for(document_encoding);
         }
         VERIFY(decoder.has_value());
+        document->set_encoding(MUST(String::from_byte_string(document_encoding)));
         // Well-formed XML documents contain only properly encoded characters
         if (!decoder->validate(data)) {
             // FIXME: Insert error message into the document.
