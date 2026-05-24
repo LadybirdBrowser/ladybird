@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Assertions.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibMedia/VideoFrame.h>
@@ -23,16 +22,6 @@ public:
     }
 
 private:
-    virtual void register_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) override
-    {
-        if (page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes) {
-            VERIFY(page_id.has_value());
-        } else {
-            VERIFY(!page_id.has_value());
-            VERIFY(!Web::Compositor::is_page_presenting_compositor_context_id(context_id));
-        }
-    }
-
     virtual void destroy_context(Web::Compositor::CompositorContextId context_id) override
     {
         if (auto* connection = compositor_connection())

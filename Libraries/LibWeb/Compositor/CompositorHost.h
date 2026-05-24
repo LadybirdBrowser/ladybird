@@ -72,7 +72,7 @@ class WEB_API CompositorHost {
 public:
     virtual ~CompositorHost();
 
-    OwnPtr<CompositorContextHandle> create_context(CompositorContextId, Optional<u64> page_id, PagePresentationRegistration);
+    OwnPtr<CompositorContextHandle> create_context(CompositorContextId);
 
     virtual void destroy_context(CompositorContextId) = 0;
     virtual void stop_presenting_to_client(CompositorContextId) = 0;
@@ -96,9 +96,6 @@ public:
 
 protected:
     CompositorHost() = default;
-
-private:
-    virtual void register_context(CompositorContextId, Optional<u64> page_id, PagePresentationRegistration) = 0;
 };
 
 }
