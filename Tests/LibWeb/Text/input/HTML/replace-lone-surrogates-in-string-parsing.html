@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function dumpText(label, text) {
+            const codePoints = Array.from(text, character => character.codePointAt(0).toString(16)).join(",");
+            println(`${label}: length=${text.length}, codePoints=${codePoints}`);
+        }
+
+        const textMarkup = "\uFEFF\uD800A\uDC00B\uD83D\uDE00";
+
+        const parsedDocument = new DOMParser().parseFromString(textMarkup, "text/html");
+        dumpText("DOMParser text", parsedDocument.body.textContent);
+
+        const div = document.createElement("div");
+        div.innerHTML = textMarkup;
+        dumpText("innerHTML text", div.textContent);
+
+        const attributeMarkup = `<span title="${textMarkup}"></span>`;
+
+        const parsedAttributeDocument = new DOMParser().parseFromString(attributeMarkup, "text/html");
+        dumpText("DOMParser attribute", parsedAttributeDocument.body.firstChild.getAttribute("title"));
+
+        div.innerHTML = attributeMarkup;
+        dumpText("innerHTML attribute", div.firstChild.getAttribute("title"));
+    });
+</script>

@@ -103,8 +103,13 @@ class HTMLParser;
 
 class WEB_API HTMLTokenizer {
 public:
+    enum class InputType {
+        EncodedBytes,
+        DecodedString,
+    };
+
     explicit HTMLTokenizer();
-    explicit HTMLTokenizer(StringView input, ByteString const& encoding);
+    explicit HTMLTokenizer(StringView input, ByteString const& encoding, InputType = InputType::EncodedBytes);
     ~HTMLTokenizer();
 
     enum class State {

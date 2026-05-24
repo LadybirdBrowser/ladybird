@@ -1,0 +1,2 @@
+DOMParser: length=4, codePoints=feff,54,68,65
+innerHTML: length=4, codePoints=feff,54,68,65

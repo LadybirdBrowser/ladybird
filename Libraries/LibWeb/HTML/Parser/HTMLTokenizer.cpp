@@ -7,6 +7,8 @@
 
 #include <AK/Debug.h>
 #include <AK/FlyString.h>
+#include <AK/StringBuilder.h>
+#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
@@ -37,6 +39,22 @@ static RustFfiTokenizerHandle* create_tokenizer_from_utf8(StringView utf8_bytes)
     if (bytes == nullptr)
         bytes = reinterpret_cast<u8 const*>("");
     return rust_html_tokenizer_create_from_utf8(bytes, utf8_bytes.length());
+}
+
+static String decoded_string_for_utf8_tokenizer(StringView input)
+{
+    Utf8View utf8_view { input };
+    if (utf8_view.validate(AllowLonelySurrogates::No))
+        return String::from_utf8_without_validation(input.bytes());
+
+    // Decoded strings may come from WTF-16 JS strings. Rust's UTF-8 path
+    // requires scalar-value UTF-8, so replace lone surrogates but keep BOMs.
+    VERIFY(utf8_view.validate());
+
+    StringBuilder builder(input.length());
+    for (auto code_point : utf8_view)
+        builder.append_code_point(is_unicode_surrogate(code_point) ? AK::UnicodeUtils::REPLACEMENT_CODE_POINT : code_point);
+    return builder.to_string_without_validation();
 }
 
 static Vector<FlyString> build_interned_name_table(size_t count, void (*fetch)(uint16_t, uint8_t const**, size_t*))
@@ -90,11 +108,15 @@ HTMLTokenizer::~HTMLTokenizer()
         rust_html_tokenizer_destroy(m_tokenizer);
 }
 
-HTMLTokenizer::HTMLTokenizer(StringView input, ByteString const& encoding)
+HTMLTokenizer::HTMLTokenizer(StringView input, ByteString const& encoding, InputType input_type)
 {
-    auto decoder = TextCodec::decoder_for(encoding);
-    VERIFY(decoder.has_value());
-    m_source = MUST(decoder->to_utf8(input));
+    if (input_type == InputType::EncodedBytes) {
+        auto decoder = TextCodec::decoder_for(encoding);
+        VERIFY(decoder.has_value());
+        m_source = MUST(decoder->to_utf8(input));
+    } else {
+        m_source = decoded_string_for_utf8_tokenizer(input);
+    }
     m_input_stream_closed = true;
     m_tokenizer = create_tokenizer_from_utf8(m_source.bytes_as_string_view());
 }
