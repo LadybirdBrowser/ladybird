@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Function.h>
+#include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibCore/Resource.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/ViewImplementation.h>
+#include <LibWebView/WebContentClient.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/BookmarksBar.h>
@@ -27,6 +30,22 @@ static constexpr CGFloat const WINDOW_WIDTH = 1000;
 static constexpr CGFloat const WINDOW_HEIGHT = 800;
 static constexpr CGFloat const TAB_ICON_SIZE = 16;
 static constexpr NSUInteger const TAB_LOADING_SPINNER_SEGMENT_COUNT = 12;
+
+class TabSettingsObserver final : public WebView::SettingsObserver {
+public:
+    explicit TabSettingsObserver(Function<void(WebView::ConfigVariableID)> callback)
+        : m_callback(move(callback))
+    {
+    }
+
+    virtual void config_variable_changed(WebView::ConfigVariableID variable) override
+    {
+        m_callback(variable);
+    }
+
+private:
+    Function<void(WebView::ConfigVariableID)> m_callback;
+};
 
 static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 {
@@ -66,6 +85,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     BOOL m_loading;
     NSUInteger m_loading_spinner_frame;
     __strong NSTimer* m_loading_spinner_timer;
+    OwnPtr<TabSettingsObserver> m_settings_observer;
 }
 
 @property (nonatomic, strong) NSString* title;
@@ -121,6 +141,15 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
         self.favicon = [Tab defaultFavicon];
         self.title = @"New Tab";
+        __weak Tab* weak_self = self;
+        m_settings_observer = make<TabSettingsObserver>([weak_self](WebView::ConfigVariableID variable) {
+            if (variable != WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
+                return;
+            Tab* strong_self = weak_self;
+            if (strong_self == nil)
+                return;
+            [strong_self updateTabTitleAndFavicon];
+        });
         [self updateTabTitleAndFavicon];
 
         [self setTitleVisibility:NSWindowTitleHidden];
@@ -193,6 +222,15 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     return self.favicon;
 }
 
+- (NSString*)displayTitle
+{
+    if (!WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
+        return self.title;
+
+    auto title = MUST(String::formatted("{} [{}]", Ladybird::ns_string_to_string(self.title), [[self web_view] view].client().pid()));
+    return Ladybird::string_to_ns_string(title);
+}
+
 - (void)updateLoadingSpinner
 {
     if (!m_loading)
@@ -255,7 +293,8 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
         NSFontAttributeName : title_font
     };
 
-    auto* title_attribute = [[NSAttributedString alloc] initWithString:self.title
+    auto* display_title = [self displayTitle];
+    auto* title_attribute = [[NSAttributedString alloc] initWithString:display_title
                                                             attributes:title_attributes];
 
     auto* spacing_attribute = [[NSAttributedString alloc] initWithString:@"  "
@@ -267,6 +306,8 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     [title_and_favicon appendAttributedString:title_attribute];
 
     [[self tab] setAttributedTitle:title_and_favicon];
+    if ([[self tab] respondsToSelector:@selector(setToolTip:)])
+        [(id)[self tab] setToolTip:display_title];
 }
 
 - (void)togglePageMuteState:(id)button

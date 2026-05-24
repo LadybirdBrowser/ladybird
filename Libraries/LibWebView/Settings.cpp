@@ -60,7 +60,15 @@ static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
 
 static constexpr auto CONFIG_VARIABLES_KEY = "configVariables"sv;
 
-static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Count)> const CONFIG_VARIABLE_DEFINITIONS {};
+static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Count)> const CONFIG_VARIABLE_DEFINITIONS { {
+    {
+        .id = ConfigVariableID::ShowWebContentProcessIDInTabTitle,
+        .name = "debug.process.show_web_content_process_id"sv,
+        .title = "Show WebContent process ID in tab titles"sv,
+        .description = "Append the active WebContent process ID to each tab title and tooltip."sv,
+        .default_value = false,
+    },
+} };
 
 ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions()
 {

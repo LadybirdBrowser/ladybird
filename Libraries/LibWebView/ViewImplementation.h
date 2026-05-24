@@ -277,6 +277,9 @@ public:
     Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
+    WebContentClient& client();
+    WebContentClient const& client() const;
+
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
@@ -288,8 +291,6 @@ protected:
 
     ViewImplementation();
 
-    WebContentClient& client();
-    WebContentClient const& client() const;
     u64 page_id() const;
 
     void set_url(URL::URL);

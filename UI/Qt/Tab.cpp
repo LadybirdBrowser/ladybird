@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/WebContentClient.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
@@ -184,7 +185,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         auto url_serialized = qstring_from_ak_string(url.serialize());
 
         m_title = url_serialized;
-        emit title_changed(tab_index(), url_serialized);
+        update_tab_title();
 
         m_favicon = default_favicon();
         set_loading(true);
@@ -213,7 +214,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_title_change = [this](auto const& title) {
         m_title = qstring_from_utf16_string(title);
-        emit title_changed(tab_index(), m_title);
+        update_tab_title();
     };
 
     view().on_favicon_change = [this](auto const& bitmap) {
@@ -523,6 +524,25 @@ QIcon Tab::tab_icon() const
     if (m_is_loading)
         return loading_spinner_icon(palette(), m_loading_animation_frame);
     return m_favicon;
+}
+
+QString Tab::title() const
+{
+    if (!WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
+        return m_title;
+
+    return QString("%1 [%2]").arg(m_title).arg(view().client().pid());
+}
+
+void Tab::update_tab_title()
+{
+    emit title_changed(tab_index(), title());
+}
+
+void Tab::config_variable_changed(WebView::ConfigVariableID variable)
+{
+    if (variable == WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
+        update_tab_title();
 }
 
 void Tab::set_loading(bool is_loading)
