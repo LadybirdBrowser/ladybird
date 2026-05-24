@@ -7721,8 +7721,15 @@ void Document::add_render_blocking_element(GC::Ref<Element> element)
 void Document::remove_render_blocking_element(GC::Ref<Element> element)
 {
     m_render_blocking_elements.remove(element);
-    if (m_render_blocking_elements.is_empty())
-        page().client().request_frame();
+    if (!m_render_blocking_elements.is_empty())
+        return;
+
+    if (auto navigable = this->navigable()) {
+        if (auto container = navigable->container())
+            container->set_needs_repaint(InvalidateDisplayList::Yes);
+    }
+
+    page().client().request_frame();
 }
 
 // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps

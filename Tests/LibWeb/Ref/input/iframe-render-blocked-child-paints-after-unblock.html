@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <head>
+        <link
+            rel="match"
+            href="../expected/iframe-render-blocked-child-paints-after-unblock-ref.html"
+        />
+        <script src="../../Text/input/include.js"></script>
+        <style>
+            body {
+                margin: 0;
+                background: white;
+            }
+
+            iframe {
+                display: block;
+                width: 120px;
+                height: 120px;
+                border: 0;
+                background: red;
+            }
+        </style>
+    </head>
+    <body>
+        <iframe></iframe>
+        <script>
+            const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+            window.addEventListener("load", async () => {
+                const server = httpTestServer();
+                const unblockToken = "iframe-render-blocked-child-paints-after-unblock";
+                const stylesheetURL = await server.createEcho("GET", "/iframe-render-blocked-child-paints-after-unblock.css", {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "text/css",
+                    },
+                    body: "body { margin: 0; }",
+                    wait_for_unblock: unblockToken,
+                });
+
+                const childHTML = "\x3C!DOCTYPE html>"
+                    + '\x3Clink id="blocker" rel="stylesheet" href="' + stylesheetURL + '">'
+                    + '\x3Cbody style="margin: 0; background: green;">\x3C/body>';
+                const childURL = await server.createEcho("GET", "/iframe-render-blocked-child-paints-after-unblock-child.html", {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "text/html",
+                    },
+                    body: childHTML,
+                });
+
+                const iframe = document.querySelector("iframe");
+                const iframeLoaded = new Promise(resolve => {
+                    iframe.addEventListener("load", resolve, { once: true });
+                });
+                iframe.src = childURL;
+
+                let blocker = null;
+                while (!blocker) {
+                    blocker = iframe.contentDocument && iframe.contentDocument.getElementById("blocker");
+                    if (!blocker)
+                        await nextFrame();
+                }
+
+                const blockerLoaded = new Promise(resolve => {
+                    blocker.addEventListener("load", resolve);
+                });
+
+                await nextFrame();
+                await nextFrame();
+
+                await fetch(`${server.baseURL}/unblock/${unblockToken}`);
+                await blockerLoaded;
+                await iframeLoaded;
+
+                await nextFrame();
+                await nextFrame();
+                document.documentElement.className = "";
+            });
+        </script>
+    </body>
+</html>
