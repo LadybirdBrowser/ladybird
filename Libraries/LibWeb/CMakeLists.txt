@@ -33,7 +33,6 @@ set(SOURCES
     Compositor/AsyncScrollTree.cpp
     Compositor/AsyncScrollingState.cpp
     Compositor/BackingStoreManager.cpp
-    Compositor/CompositorContextState.cpp
     Compositor/CompositorHost.cpp
     Compositor/Types.cpp
     Compression/CompressionStream.cpp
