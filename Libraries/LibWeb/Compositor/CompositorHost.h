@@ -17,18 +17,11 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
-#include <LibIPC/TransportHandle.h>
 #include <LibMedia/Forward.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
-
-namespace Web {
-
-enum class DisplayListPlayerType;
-
-}
 
 namespace Web::Compositor {
 
@@ -80,7 +73,6 @@ class WEB_API CompositorHost {
 public:
     virtual ~CompositorHost();
 
-    virtual void start(DisplayListPlayerType) = 0;
     OwnPtr<CompositorContextHandle> create_context(CompositorContextId, Optional<u64> page_id, PagePresentationRegistration);
 
     virtual void destroy_context(CompositorContextId) = 0;
@@ -103,8 +95,6 @@ public:
     virtual void viewport_size_updated(CompositorContextId, Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress) = 0;
     virtual void present_frame(CompositorContextId, Gfx::IntRect) = 0;
     virtual void request_screenshot(CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) = 0;
-
-    virtual void attach_ui_client(IPC::TransportHandle) { }
 
 protected:
     CompositorHost() = default;

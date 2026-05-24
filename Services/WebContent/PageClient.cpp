@@ -1029,7 +1029,7 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
 
 void PageClient::ensure_compositor_host()
 {
-    m_owner.ensure_compositor_host(display_list_player_type());
+    m_owner.ensure_compositor_host();
 }
 
 Web::Compositor::CompositorHost* PageClient::compositor_host()
