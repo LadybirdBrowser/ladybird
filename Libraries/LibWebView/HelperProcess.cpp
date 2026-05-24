@@ -121,8 +121,8 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--disable-scrollbar-painting"sv);
     if (web_content_options.enable_async_scrolling == EnableAsyncScrolling::No)
         arguments.append("--disable-async-scrolling"sv);
-    if (WebView::Application::the().should_use_compositor_process())
-        arguments.append("--enable-compositor-process"sv);
+    if (!WebView::Application::the().should_use_compositor_process())
+        arguments.append("--disable-compositor-process"sv);
     if (web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         arguments.append("--tuple-file-origins"sv);
 
