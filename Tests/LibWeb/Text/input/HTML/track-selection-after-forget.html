@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+
+        try {
+            await new Promise((resolve, reject) => {
+                video.addEventListener("loadedmetadata", resolve, { once: true });
+                video.addEventListener("error", () => reject(new Error("load failed")), { once: true });
+                video.src = "../../../Assets/test-webm.webm";
+            });
+            println("video metadata loaded");
+
+            const videoTrackList = video.videoTracks;
+            const audioTrackList = video.audioTracks;
+            videoTrackList.addEventListener("change", () => println("videoTracks change event fired"));
+            videoTrackList.addEventListener("removetrack", () => println("videoTracks removetrack event fired"));
+            audioTrackList.addEventListener("change", () => println("audioTracks change event fired"));
+            audioTrackList.addEventListener("removetrack", () => println("audioTracks removetrack event fired"));
+
+            const orphanedVideoTrack = videoTrackList[0];
+            const orphanedAudioTrack = audioTrackList[0];
+            println(`captured video track (selected=${orphanedVideoTrack.selected}) and audio track (enabled=${orphanedAudioTrack.enabled})`);
+
+            video.removeAttribute("src");
+            video.load();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            println(`reset video src (videoTracks.length is now ${videoTrackList.length})`);
+
+            orphanedVideoTrack.selected = false;
+            println(`orphaned video track selected=false (now ${orphanedVideoTrack.selected})`);
+            orphanedVideoTrack.selected = true;
+            println(`orphaned video track selected=true (now ${orphanedVideoTrack.selected})`);
+
+            orphanedAudioTrack.enabled = false;
+            println(`orphaned audio track enabled=false (now ${orphanedAudioTrack.enabled})`);
+            orphanedAudioTrack.enabled = true;
+            println(`orphaned audio track enabled=true (now ${orphanedAudioTrack.enabled})`);
+
+            await new Promise(resolve => setTimeout(resolve, 0));
+            done();
+        } catch (e) {
+            println(`error: ${e}`);
+            done();
+        }
+    });
+</script>
