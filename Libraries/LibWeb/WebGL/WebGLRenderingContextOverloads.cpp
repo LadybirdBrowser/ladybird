@@ -179,6 +179,11 @@ void WebGLRenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target
 {
     m_context->make_current();
 
+    if (!pixels) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
     auto span = MUST(get_offset_span<u8>(*pixels, /* src_offset= */ 0));
     glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, type, span.size(), span.data());
 }
