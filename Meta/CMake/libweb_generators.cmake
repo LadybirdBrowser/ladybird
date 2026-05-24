@@ -352,6 +352,8 @@ function (generate_js_bindings target)
         OUTPUT ${LIBWEB_ALL_BINDINGS_SOURCES}
         COMMAND "${CMAKE_COMMAND}" -E make_directory "Bindings"
         COMMAND "$<TARGET_FILE:Lagom::BindingsGenerator>" -o "Bindings" --depfile "Bindings/all_bindings.d"
+                --header-include-path "${CMAKE_CURRENT_SOURCE_DIR}/.."
+                --header-include-path "${CMAKE_CURRENT_BINARY_DIR}/.."
                 ${LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT}
         VERBATIM
         COMMENT "Generating LibWeb bindings"

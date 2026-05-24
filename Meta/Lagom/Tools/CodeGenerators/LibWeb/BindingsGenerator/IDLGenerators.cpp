@@ -21,7 +21,7 @@
 
 namespace IDL {
 
-Vector<StringView> g_header_search_paths;
+Vector<ByteString> g_header_search_paths;
 
 enum class TypeOptionality {
     Required,
