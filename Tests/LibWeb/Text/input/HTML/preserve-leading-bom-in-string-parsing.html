@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function dumpText(label, text) {
+            const codePoints = Array.from(text, character => character.codePointAt(0).toString(16)).join(",");
+            println(`${label}: length=${text.length}, codePoints=${codePoints}`);
+        }
+
+        const parsedDocument = new DOMParser().parseFromString("\uFEFFThe", "text/html");
+        dumpText("DOMParser", parsedDocument.body.textContent);
+
+        const div = document.createElement("div");
+        div.innerHTML = "\uFEFFThe";
+        dumpText("innerHTML", div.textContent);
+    });
+</script>

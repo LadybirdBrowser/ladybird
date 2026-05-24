@@ -90,8 +90,8 @@ extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t, Ru
 extern "C" void ladybird_html_parser_set_template_content(size_t, size_t);
 extern "C" bool ladybird_html_parser_allows_declarative_shadow_roots(size_t);
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding)
-    : m_tokenizer(input, encoding)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding, HTMLTokenizer::InputType input_type)
+    : m_tokenizer(input, encoding, input_type)
     , m_scripting_mode(scripting_mode)
     , m_document(document)
 {
@@ -923,7 +923,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     if (context_element.document().is_scripting_disabled())
         scripting_mode = HTML::ParserScriptingMode::Disabled;
 
-    auto parser = HTMLParser::create(*temp_document, markup, scripting_mode, "utf-8"sv);
+    auto parser = HTMLParser::create_for_decoded_string(*temp_document, markup, scripting_mode, "utf-8"sv);
     parser->m_context_element = context_element;
     parser->m_parsing_fragment = true;
 
@@ -1059,6 +1059,11 @@ GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& do
 GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
     return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+}
+
+GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
+{
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding, HTMLTokenizer::InputType::DecodedString);
 }
 
 enum class AttributeMode {

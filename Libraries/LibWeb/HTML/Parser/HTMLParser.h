@@ -41,6 +41,7 @@ public:
     static GC::Ref<HTMLParser> create_with_open_input_stream(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
     static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
+    static GC::Ref<HTMLParser> create_for_decoded_string(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
 
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
@@ -93,7 +94,7 @@ private:
         Yes,
     };
 
-    HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding);
+    HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding, HTMLTokenizer::InputType = HTMLTokenizer::InputType::EncodedBytes);
     HTMLParser(DOM::Document&, ParserScriptingMode, ScriptCreatedParser);
 
     virtual void visit_edges(Cell::Visitor&) override;
