@@ -423,21 +423,12 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
     bool do_wrap_lines = text_wrap_mode == CSS::TextWrapMode::Wrap;
     bool do_respect_linebreaks = first_is_one_of(white_space_collapse, CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces);
 
-    // Pre-generate all chunks for this text node upfront.
-    // This allows O(1) peek() and next() operations instead of lazy generation with O(n) queue operations.
-    TextNode::ChunkIterator chunk_iterator { text_node, do_wrap_lines, do_respect_linebreaks };
-    Vector<TextNode::Chunk> chunks;
-    while (true) {
-        auto chunk = chunk_iterator.next();
-        if (!chunk.has_value())
-            break;
-        chunks.append(chunk.release_value());
-    }
+    auto const& chunks = text_node.chunks_for_layout(do_wrap_lines, do_respect_linebreaks);
 
     m_text_node_context = TextNodeContext {
-        .chunks = move(chunks),
+        .chunks = chunks.chunks,
         .next_chunk_index = 0,
-        .should_collapse_whitespace = chunk_iterator.should_collapse_whitespace(),
+        .should_collapse_whitespace = chunks.should_collapse_whitespace,
         .should_wrap_lines = do_wrap_lines,
         .should_respect_linebreaks = do_respect_linebreaks,
     };

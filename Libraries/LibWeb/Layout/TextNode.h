@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGfx/TextLayout.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -83,6 +85,13 @@ public:
         mutable RefPtr<Gfx::Font const> m_last_non_whitespace_font;
     };
 
+    struct ChunkList {
+        Vector<Chunk> chunks;
+        bool should_collapse_whitespace { false };
+    };
+
+    ChunkList const& chunks_for_layout(bool should_wrap_lines, bool should_respect_linebreaks) const;
+
     void invalidate_text_for_rendering();
 
     Unicode::Segmenter& grapheme_segmenter() const;
@@ -96,11 +105,45 @@ protected:
 private:
     virtual bool is_text_node() const final { return true; }
 
-    void compute_text_for_rendering();
+    struct TextForRenderingCacheKey {
+        CSS::TextTransform text_transform { CSS::TextTransform::None };
+        CSS::WhiteSpaceCollapse white_space_collapse { CSS::WhiteSpaceCollapse::Collapse };
+        Optional<String> lang;
+        bool is_password_input { false };
+        size_t dom_start_offset { 0 };
+        size_t dom_length { 0 };
 
-    Optional<Utf16String> m_text_for_rendering;
-    mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
-    mutable OwnPtr<Unicode::Segmenter> m_line_segmenter;
+        bool operator==(TextForRenderingCacheKey const&) const = default;
+    };
+
+    struct ChunkCacheKey {
+        bool should_wrap_lines { false };
+        bool should_respect_linebreaks { false };
+        CSS::WhiteSpaceCollapse white_space_collapse { CSS::WhiteSpaceCollapse::Collapse };
+        CSS::WordBreak word_break { CSS::WordBreak::Normal };
+        RefPtr<Gfx::FontCascadeList const> font_cascade_list;
+
+        bool operator==(ChunkCacheKey const&) const = default;
+    };
+
+    struct ChunkCacheEntry {
+        ChunkCacheKey key;
+        ChunkList chunk_list;
+    };
+
+    struct TextDependentCache {
+        TextForRenderingCacheKey key;
+        Utf16String text_for_rendering;
+        mutable OwnPtr<Unicode::Segmenter> grapheme_segmenter;
+        mutable OwnPtr<Unicode::Segmenter> line_segmenter;
+        mutable Optional<ChunkCacheEntry> chunk_cache;
+    };
+
+    TextForRenderingCacheKey create_text_for_rendering_cache_key() const;
+    Utf16String compute_text_for_rendering(TextForRenderingCacheKey const&) const;
+    TextDependentCache const& ensure_text_dependent_cache() const;
+
+    mutable Optional<TextDependentCache> m_text_dependent_cache;
 };
 
 class TextSliceNode final : public TextNode {
