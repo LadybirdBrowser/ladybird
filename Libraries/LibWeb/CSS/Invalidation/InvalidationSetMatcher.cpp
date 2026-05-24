@@ -23,8 +23,12 @@ bool element_matches_any_invalidation_set_property(DOM::Element const& element, 
 {
     auto includes_property = [&](InvalidationSet::Property const& property) {
         switch (property.type) {
-        case InvalidationSet::Property::Type::Class:
-            return element.class_names().contains_slow(property.name());
+        case InvalidationSet::Property::Type::Class: {
+            auto case_sensitivity = CaseSensitivity::CaseSensitive;
+            if (element.document().in_quirks_mode())
+                case_sensitivity = CaseSensitivity::CaseInsensitive;
+            return element.has_class(property.name(), case_sensitivity);
+        }
         case InvalidationSet::Property::Type::Id:
             return element.id() == property.name();
         case InvalidationSet::Property::Type::TagName:

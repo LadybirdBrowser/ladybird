@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .action:not([data-is-disabled], [data-has-subitem="true"]):where([data-inactive="true"]):hover * :not([popover], .warning) {
+        --style-invalidation-probe: match;
+    }
+
+    .hit-area,
+    .action {
+        display: block;
+        width: 100px;
+        height: 20px;
+    }
+
+    .hit-area span,
+    .action span {
+        display: block;
+    }
+
+    .link-state-guard .target,
+    .partial-alternative-guard .target,
+    .complex-alternative-guard .target,
+    .svg-tag-guard .target,
+    .svg-attribute-guard .target {
+        color: rgb(4, 5, 6);
+    }
+
+    .link-state-guard a:link:any-link .target,
+    .partial-alternative-guard input:where(:first-child, .foo):checked + .target,
+    .complex-alternative-guard input:is(.scope *):checked + .target,
+    .svg-tag-guard foreignObject:hover .target,
+    .svg-attribute-guard [viewBox]:hover .target {
+        color: rgb(1, 2, 3);
+    }
+
+    .svg-tag-guard svg,
+    .svg-attribute-guard svg,
+    .svg-tag-guard foreignObject,
+    .svg-attribute-guard foreignObject,
+    .svg-tag-guard .target,
+    .svg-attribute-guard .target {
+        display: block;
+        width: 100px;
+        height: 30px;
+    }
+</style>
+<section id="fixture"></section>
+<script>
+    const BASE_COLOR = "rgb(4, 5, 6)";
+    const MATCH_COLOR = "rgb(1, 2, 3)";
+
+    function makeNestedSpan(className) {
+        const outer = makeElement("div", { className });
+        const middle = makeElement("span");
+        const inner = makeElement("span");
+        middle.appendChild(inner);
+        outer.appendChild(middle);
+        return { outer, inner };
+    }
+
+    function hover(element) {
+        const rect = element.getBoundingClientRect();
+        internals.mouseMove(Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.height / 2));
+    }
+
+    function settleAndReset() {
+        internals.updateStyle();
+        resetStyleCounters();
+    }
+
+    function assertNoSubtreeRestyle(label, maxNoopRecomputations) {
+        const counters = styleCounters();
+        if (counters.elementStyleNoopRecomputations > maxNoopRecomputations) {
+            throw new Error(
+                `${label}: expected at most ${maxNoopRecomputations} no-op recomputations, got ` +
+                counters.elementStyleNoopRecomputations
+            );
+        }
+        printPassWithCounters(label);
+    }
+
+    function assertColor(label, element, expected) {
+        assertEqual(label, getComputedStyle(element).color, expected);
+    }
+
+    function appendCheckbox(parent) {
+        const input = makeElement("input", {
+            attributes: { type: "checkbox" },
+        });
+        parent.appendChild(input);
+        return input;
+    }
+
+    function runColorInvalidationCase(label, className, build, mutate, expectedInitial, expectedAfter) {
+        const container = makeElement("section", { className });
+        document.getElementById("fixture").appendChild(container);
+        const state = build(container);
+
+        internals.updateStyle();
+        assertColor(`${label} initial`, state.target, expectedInitial);
+
+        resetStyleCounters();
+        mutate(state);
+        internals.updateStyle();
+        assertColor(`${label} after mutation`, state.target, expectedAfter);
+        printPassWithCounters(label);
+    }
+
+    function runHoverColorInvalidationCase(label, className, build) {
+        const container = makeElement("section", { className });
+        document.getElementById("fixture").appendChild(container);
+        const state = build(container);
+
+        internals.updateStyle();
+        assertColor(`${label} initial`, state.target, BASE_COLOR);
+
+        resetStyleCounters();
+        hover(state.hoverTarget);
+        internals.updateStyle();
+        assertColor(`${label} after hover`, state.target, MATCH_COLOR);
+        printPassWithCounters(label);
+    }
+
+    function appendSvgHoverTarget(container, svgAttributes) {
+        const svg = makeSvgElement("svg", { attributes: svgAttributes });
+        const foreignObject = makeSvgElement("foreignObject", {
+            attributes: { width: "100", height: "30" },
+        });
+        const target = makeElement("div", {
+            className: "target",
+            text: "target",
+        });
+        foreignObject.appendChild(target);
+        svg.appendChild(foreignObject);
+        container.appendChild(svg);
+        return { target, hoverTarget: target };
+    }
+
+    test(() => {
+        const fixture = document.getElementById("fixture");
+
+        const action = makeElement("div", {
+            className: "action",
+            attributes: { "data-inactive": "true" },
+        });
+        const actionMiddle = makeElement("span");
+        const actionTarget = makeElement("span");
+        actionMiddle.appendChild(actionTarget);
+        action.appendChild(actionMiddle);
+        fixture.appendChild(action);
+
+        const hitArea = makeElement("div", { className: "hit-area" });
+        const bystanders = [];
+        for (let i = 0; i < 60; ++i) {
+            const { outer, inner } = makeNestedSpan("show-top-border");
+            hitArea.appendChild(outer);
+            bystanders.push(inner);
+        }
+        fixture.appendChild(hitArea);
+
+        assertEqual("action target initial", readProbe(actionTarget), BASE);
+        settleAndReset();
+
+        hover(hitArea);
+        internals.updateStyle();
+        assertEqual("action target after unrelated hover", readProbe(actionTarget), BASE);
+        assertEqual("bystander after unrelated hover", readProbe(bystanders[0]), BASE);
+        assertNoSubtreeRestyle("compound :hover descendant invalidation ignores unrelated hover", 6);
+
+        resetStyleCounters();
+        hover(actionTarget);
+        internals.updateStyle();
+        assertEqual("action target after guarded hover", readProbe(actionTarget), MATCH);
+        printPassWithCounters("compound :hover descendant invalidation applies to matching guard");
+
+        runColorInvalidationCase(
+            "co-invalidated pseudo-class guard updates descendant",
+            "link-state-guard",
+            container => {
+                const anchor = makeElement("a");
+                anchor.href = location.href;
+                const target = makeElement("span", { className: "target" });
+                anchor.appendChild(target);
+                container.appendChild(anchor);
+                return { anchor, target };
+            },
+            ({ anchor }) => anchor.removeAttribute("href"),
+            MATCH_COLOR,
+            BASE_COLOR
+        );
+
+        runColorInvalidationCase(
+            "partial :where() alternative guard updates sibling",
+            "partial-alternative-guard",
+            container => {
+                const input = appendCheckbox(container);
+                const target = makeElement("label", { className: "target" });
+                container.appendChild(target);
+                return { input, target };
+            },
+            ({ input }) => input.checked = true,
+            BASE_COLOR,
+            MATCH_COLOR
+        );
+
+        runColorInvalidationCase(
+            "complex :is() alternative guard updates sibling",
+            "complex-alternative-guard",
+            container => {
+                const scope = makeElement("div", { className: "scope" });
+                const input = appendCheckbox(scope);
+                const target = makeElement("label", { className: "target" });
+                scope.appendChild(target);
+                container.appendChild(scope);
+                return { input, target };
+            },
+            ({ input }) => input.checked = true,
+            BASE_COLOR,
+            MATCH_COLOR
+        );
+
+        runHoverColorInvalidationCase(
+            "case-sensitive SVG tag guard updates descendant",
+            "svg-tag-guard",
+            container => appendSvgHoverTarget(container, {
+                width: "100",
+                height: "30",
+            })
+        );
+
+        runHoverColorInvalidationCase(
+            "case-sensitive SVG attribute guard updates descendant",
+            "svg-attribute-guard",
+            container => appendSvgHoverTarget(container, {
+                width: "100",
+                height: "30",
+                viewBox: "0 0 100 30",
+            })
+        );
+    });
+</script>
