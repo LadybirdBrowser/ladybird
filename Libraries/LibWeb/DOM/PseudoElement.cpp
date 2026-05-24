@@ -45,6 +45,12 @@ void SyntheticPseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counter
     m_counters_set = move(counters_set);
 }
 
+void SyntheticPseudoElementTreeNode::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    TreeNode::visit_edges(visitor);
+}
+
 GC::Ptr<Layout::NodeWithStyle> ElementReferencePseudoElement::layout_node() const
 {
     return m_referenced_element->layout_node();
@@ -68,6 +74,12 @@ RefPtr<CSS::CustomPropertyData const> ElementReferencePseudoElement::custom_prop
 void ElementReferencePseudoElement::set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value)
 {
     m_referenced_element->set_custom_property_data({}, move(value));
+}
+
+void ElementReferencePseudoElement::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_referenced_element);
 }
 
 }
