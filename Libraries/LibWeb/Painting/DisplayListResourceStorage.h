@@ -73,8 +73,6 @@ public:
     DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>);
     void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
     void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
-    void set_video_frame(VideoFrameResourceId, RefPtr<Media::VideoFrame const> = nullptr);
-    void set_display_list(DisplayListResourceId, NonnullRefPtr<DisplayList const>);
     void append_referenced_resources_from(DisplayListResourceStorage const& source, ReadonlyBytes command_bytes);
     void apply_transaction(DisplayListResourceTransaction&&);
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
