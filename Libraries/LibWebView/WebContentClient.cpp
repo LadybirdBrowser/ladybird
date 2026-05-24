@@ -1105,6 +1105,12 @@ void WebContentClient::did_change_theme_color(u64 page_id, Gfx::Color color)
     }
 }
 
+void WebContentClient::did_change_background_color(u64 page_id, Gfx::Color color)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_change_background_color({}, color);
+}
+
 void WebContentClient::did_insert_clipboard_entry(u64, Web::Clipboard::SystemClipboardRepresentation entry, String)
 {
     Application::the().insert_clipboard_entry(move(entry));

@@ -20,6 +20,16 @@
 
 namespace Ladybird {
 
+static GdkRGBA to_gdk_rgba(Gfx::Color color)
+{
+    return GdkRGBA {
+        static_cast<float>(color.red()) / 255.0f,
+        static_cast<float>(color.green()) / 255.0f,
+        static_cast<float>(color.blue()) / 255.0f,
+        static_cast<float>(color.alpha()) / 255.0f
+    };
+}
+
 WebContentView::WebContentView(LadybirdWebView* widget, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : m_widget(widget)
 {
@@ -196,9 +206,7 @@ void WebContentView::paint(GtkSnapshot* snapshot)
         graphene_rect_t texture_rect = GRAPHENE_RECT_INIT(0, 0, draw_width, draw_height);
         gtk_snapshot_append_texture(snapshot, m_cached_texture, &texture_rect);
 
-        // Fill uncovered areas with theme-appropriate background
-        auto is_dark = adw_style_manager_get_dark(adw_style_manager_get_default());
-        GdkRGBA bg = is_dark ? GdkRGBA { 0.14, 0.14, 0.14, 1.0 } : GdkRGBA { 1.0, 1.0, 1.0, 1.0 };
+        auto bg = to_gdk_rgba(page_background_color());
 
         if (draw_width < width) {
             graphene_rect_t right_rect = GRAPHENE_RECT_INIT(draw_width, 0, static_cast<float>(width) - draw_width, static_cast<float>(height));
@@ -209,8 +217,7 @@ void WebContentView::paint(GtkSnapshot* snapshot)
             gtk_snapshot_append_color(snapshot, &bg, &bottom_rect);
         }
     } else {
-        auto is_dark = adw_style_manager_get_dark(adw_style_manager_get_default());
-        GdkRGBA bg = is_dark ? GdkRGBA { 0.14, 0.14, 0.14, 1.0 } : GdkRGBA { 1.0, 1.0, 1.0, 1.0 };
+        auto bg = to_gdk_rgba(page_background_color());
         graphene_rect_t full_rect = GRAPHENE_RECT_INIT(0, 0, static_cast<float>(width), static_cast<float>(height));
         gtk_snapshot_append_color(snapshot, &bg, &full_rect);
     }

@@ -1381,6 +1381,17 @@ Color Document::background_color() const
     return Color::Transparent;
 }
 
+Color Document::canvas_background_color() const
+{
+    auto color_scheme = CSS::PreferredColorScheme::Light;
+    if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
+        if (html_element->layout_node()->computed_values().color_scheme() == CSS::PreferredColorScheme::Dark)
+            color_scheme = CSS::PreferredColorScheme::Dark;
+    }
+
+    return CSS::SystemColor::canvas(color_scheme).blend(background_color());
+}
+
 Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
 {
     auto* body_element = body();
@@ -8209,7 +8220,11 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (opaque_canvas)
         display_list_recorder.fill_rect(bitmap_rect, CSS::SystemColor::canvas(color_scheme));
 
-    display_list_recorder.fill_rect(bitmap_rect, background_color());
+    auto background_color = this->background_color();
+    if (navigable()->is_top_level_traversable())
+        page().client().page_did_change_background_color(canvas_background_color());
+
+    display_list_recorder.fill_rect(bitmap_rect, background_color);
 
     Web::DisplayListRecordingContext context(display_list_recorder, page().palette(), page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
     context.set_device_viewport_rect(viewport_rect);

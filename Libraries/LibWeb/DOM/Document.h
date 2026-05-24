@@ -354,6 +354,7 @@ public:
     Page const& page() const;
 
     Color background_color() const;
+    Color canvas_background_color() const;
     Vector<CSS::BackgroundLayerData> const* background_layers() const;
     CSS::ImageRendering background_image_rendering() const;
 

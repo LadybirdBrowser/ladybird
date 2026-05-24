@@ -876,7 +876,7 @@ struct HideCursor {
         [self.observer onExitFullscreenWindow];
     };
 
-    m_web_view_bridge->on_theme_color_change = [weak_self](auto color) {
+    m_web_view_bridge->on_page_background_color_change = [weak_self](auto color) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return;
