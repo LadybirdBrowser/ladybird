@@ -333,8 +333,16 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (profile_process.has_value())
         profile_process_type = process_type_from_name(*profile_process);
 
+    auto configured_content_blocker_list_paths = m_settings.config_variable_as_string_array(ConfigVariableID::ContentBlockerListPaths);
+
     Vector<ByteString> content_blocker_list_paths_as_byte_strings;
-    TRY(content_blocker_list_paths_as_byte_strings.try_ensure_capacity(content_blocker_list_paths.size()));
+    TRY(content_blocker_list_paths_as_byte_strings.try_ensure_capacity(configured_content_blocker_list_paths.size() + content_blocker_list_paths.size()));
+    for (auto const& path : configured_content_blocker_list_paths) {
+        if (path.is_empty())
+            continue;
+
+        content_blocker_list_paths_as_byte_strings.unchecked_append(path.to_byte_string());
+    }
     for (auto path : content_blocker_list_paths)
         content_blocker_list_paths_as_byte_strings.unchecked_append(path);
 

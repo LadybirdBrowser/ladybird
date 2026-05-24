@@ -12,9 +12,9 @@
 
 namespace WebView {
 
-static StringView config_variable_type_to_string(JsonValue const& value)
+static StringView config_variable_type_to_string(JsonValue::Type type)
 {
-    switch (value.type()) {
+    switch (type) {
     case JsonValue::Type::Null:
         return "null"sv;
     case JsonValue::Type::Bool:
@@ -114,7 +114,9 @@ void SettingsUI::load_current_settings()
         variable_object.set("name"sv, variable.name);
         variable_object.set("title"sv, variable.title);
         variable_object.set("description"sv, variable.description);
-        variable_object.set("type"sv, config_variable_type_to_string(variable.default_value));
+        variable_object.set("type"sv, config_variable_type_to_string(variable.default_value.type()));
+        if (variable.array_element_type.has_value())
+            variable_object.set("elementType"sv, config_variable_type_to_string(*variable.array_element_type));
         variable_object.set("defaultValue"sv, variable.default_value);
         variable_object.set("value"sv, WebView::Application::settings().config_variable(variable.id));
 

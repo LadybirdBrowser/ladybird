@@ -67,6 +67,15 @@ static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Cou
         .title = "Show WebContent process ID in tab titles"sv,
         .description = "Append the active WebContent process ID to each tab title and tooltip."sv,
         .default_value = false,
+        .array_element_type = {},
+    },
+    {
+        .id = ConfigVariableID::ContentBlockerListPaths,
+        .name = "content_blocking.list_paths"sv,
+        .title = "Content blocker list paths"sv,
+        .description = "Load content blocker lists from these filesystem paths on startup, in order."sv,
+        .default_value = JsonArray {},
+        .array_element_type = JsonValue::Type::String,
     },
 } };
 
@@ -90,22 +99,47 @@ static ConfigVariableDefinition const& config_variable_definition(ConfigVariable
     return config_variable_definitions()[static_cast<size_t>(id)];
 }
 
-static bool config_variable_value_matches_type(JsonValue const& default_value, JsonValue const& value)
+static bool json_value_matches_type(JsonValue const& value, JsonValue::Type type)
 {
-    switch (default_value.type()) {
+    switch (type) {
+    case JsonValue::Type::Null:
+        return value.is_null();
     case JsonValue::Type::Bool:
         return value.is_bool();
     case JsonValue::Type::Number:
         return value.is_number();
     case JsonValue::Type::String:
         return value.is_string();
-    case JsonValue::Type::Null:
     case JsonValue::Type::Array:
+        return value.is_array();
     case JsonValue::Type::Object:
-        return value.type() == default_value.type();
+        return value.is_object();
     }
 
     VERIFY_NOT_REACHED();
+}
+
+static bool json_array_contains_only_type(JsonArray const& array, JsonValue::Type type)
+{
+    bool contains_only_type = true;
+
+    array.for_each([&](JsonValue const& value) {
+        if (!json_value_matches_type(value, type))
+            contains_only_type = false;
+    });
+
+    return contains_only_type;
+}
+
+static bool config_variable_value_is_valid(ConfigVariableDefinition const& variable, JsonValue const& value)
+{
+    if (!json_value_matches_type(value, variable.default_value.type()))
+        return false;
+
+    if (variable.default_value.is_array() && variable.array_element_type.has_value())
+        return json_array_contains_only_type(value.as_array(), *variable.array_element_type);
+
+    return true;
 }
 
 Settings Settings::create(Badge<Application>)
@@ -200,7 +234,7 @@ Settings Settings::create(Badge<Application>)
     if (auto config_variables = settings_json.value().get_object(CONFIG_VARIABLES_KEY); config_variables.has_value()) {
         for (auto const& variable : config_variable_definitions()) {
             if (auto value = config_variables->get(variable.name); value.has_value()) {
-                if (config_variable_value_matches_type(variable.default_value, *value))
+                if (config_variable_value_is_valid(variable, *value))
                     settings.m_config_variables[static_cast<size_t>(variable.id)] = *value;
             }
         }
@@ -651,10 +685,29 @@ bool Settings::config_variable_as_bool(ConfigVariableID id) const
     return *value;
 }
 
+Vector<String> Settings::config_variable_as_string_array(ConfigVariableID id) const
+{
+    auto const& variable = config_variable_definition(id);
+    VERIFY(variable.default_value.is_array());
+
+    auto const& value = config_variable(id);
+    VERIFY(value.is_array());
+
+    Vector<String> values;
+    values.ensure_capacity(value.as_array().size());
+
+    value.as_array().for_each([&](JsonValue const& entry) {
+        if (entry.is_string())
+            values.append(entry.as_string());
+    });
+
+    return values;
+}
+
 void Settings::set_config_variable(ConfigVariableID id, JsonValue value)
 {
     auto const& variable = config_variable_definition(id);
-    if (!config_variable_value_matches_type(variable.default_value, value))
+    if (!config_variable_value_is_valid(variable, value))
         return;
 
     if (m_config_variables[static_cast<size_t>(id)].equals(value))
