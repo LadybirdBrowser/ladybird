@@ -4430,6 +4430,9 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     auto event = DOM::Event::create(realm(), HTML::EventNames::visibilitychange);
     event->set_bubbles(true);
     dispatch_event(event);
+
+    if (m_visibility_state == HTML::VisibilityState::Visible)
+        page().client().request_frame();
 }
 
 // https://drafts.csswg.org/cssom-view/#document-run-the-resize-steps
