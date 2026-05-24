@@ -107,18 +107,18 @@ Optional<SelectorList> const& CSSScopeRule::end_selectors_for_matching() const
 
 GC::Ptr<CSSScopeRule const> CSSScopeRule::nearest_ancestor_scope_rule() const
 {
-    if (m_cached_nearest_ancestor_scope_rule.has_value())
-        return m_cached_nearest_ancestor_scope_rule.value();
+    if (m_cached_nearest_ancestor_scope_rule)
+        return m_cached_nearest_ancestor_scope_rule;
 
     for (auto const* parent = parent_rule(); parent; parent = parent->parent_rule()) {
         if (auto const* scope_rule = as_if<CSSScopeRule const>(parent)) {
             m_cached_nearest_ancestor_scope_rule = scope_rule;
-            return m_cached_nearest_ancestor_scope_rule.value();
+            return m_cached_nearest_ancestor_scope_rule;
         }
     }
 
     m_cached_nearest_ancestor_scope_rule = nullptr;
-    return m_cached_nearest_ancestor_scope_rule.value();
+    return m_cached_nearest_ancestor_scope_rule;
 }
 
 void CSSScopeRule::clear_caches()
@@ -126,7 +126,7 @@ void CSSScopeRule::clear_caches()
     Base::clear_caches();
     m_cached_start_selectors_for_matching.clear();
     m_cached_end_selectors_for_matching.clear();
-    m_cached_nearest_ancestor_scope_rule.clear();
+    m_cached_nearest_ancestor_scope_rule = nullptr;
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule

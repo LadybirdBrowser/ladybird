@@ -45,7 +45,7 @@ private:
     Optional<SelectorList> m_end_selectors;
     mutable Optional<SelectorList> m_cached_start_selectors_for_matching;
     mutable Optional<SelectorList> m_cached_end_selectors_for_matching;
-    mutable Optional<GC::Ptr<CSSScopeRule const>> m_cached_nearest_ancestor_scope_rule;
+    mutable GC::Ptr<CSSScopeRule const> m_cached_nearest_ancestor_scope_rule;
 };
 
 template<>
