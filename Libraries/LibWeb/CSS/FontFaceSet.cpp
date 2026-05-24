@@ -63,7 +63,7 @@ void FontFaceSet::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
-WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> FontFaceSet::add(GC::Root<FontFace> face)
+WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> FontFaceSet::add(GC::Ref<FontFace> face)
 {
     // 1. If font is already in the FontFaceSet’s set entries, skip to the last step of this algorithm immediately.
     if (m_set_entries->set_has(face))
@@ -107,7 +107,7 @@ void FontFaceSet::add_css_connected_font(GC::Ref<FontFace> face)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
-bool FontFaceSet::delete_(GC::Root<FontFace> face)
+bool FontFaceSet::delete_(GC::Ref<FontFace> face)
 {
     // 1. If font is CSS-connected, return false and exit this algorithm immediately.
     if (face->is_css_connected()) {

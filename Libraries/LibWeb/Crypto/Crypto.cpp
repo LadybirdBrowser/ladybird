@@ -49,7 +49,7 @@ GC::Ref<SubtleCrypto> Crypto::subtle() const
 }
 
 // https://w3c.github.io/webcrypto/#dfn-Crypto-method-getRandomValues
-WebIDL::ExceptionOr<GC::Root<WebIDL::ArrayBufferView>> Crypto::get_random_values(GC::Root<WebIDL::ArrayBufferView> array) const
+WebIDL::ExceptionOr<GC::Ref<WebIDL::ArrayBufferView>> Crypto::get_random_values(GC::Ref<WebIDL::ArrayBufferView> array) const
 {
     // 1. If array is not an Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array, then throw a TypeMismatchError and terminate the algorithm.
     if (!array->is_typed_array_base())

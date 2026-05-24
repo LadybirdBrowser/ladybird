@@ -49,7 +49,7 @@ void WebGLRenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, GC
     glBufferData(target, static_cast<GLsizeiptr>(span.size()), span.data(), usage);
 }
 
-void WebGLRenderingContextOverloads::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong offset, GC::Root<WebIDL::BufferSource> data)
+void WebGLRenderingContextOverloads::buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong offset, GC::Ref<WebIDL::BufferSource> data)
 {
     m_context->make_current();
 
@@ -57,7 +57,7 @@ void WebGLRenderingContextOverloads::buffer_sub_data(WebIDL::UnsignedLong target
     glBufferSubData(target, offset, span.size(), span.data());
 }
 
-void WebGLRenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> data)
+void WebGLRenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, GC::Ref<WebIDL::ArrayBufferView> data)
 {
     m_context->make_current();
 
@@ -70,7 +70,7 @@ void WebGLRenderingContextOverloads::compressed_tex_image2d(WebIDL::UnsignedLong
     glCompressedTexImage2DRobustANGLE(target, level, internalformat, width, height, border, span.size(), span.size(), span.data());
 }
 
-void WebGLRenderingContextOverloads::compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> data)
+void WebGLRenderingContextOverloads::compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Ref<WebIDL::ArrayBufferView> data)
 {
     m_context->make_current();
 
@@ -83,7 +83,7 @@ void WebGLRenderingContextOverloads::compressed_tex_sub_image2d(WebIDL::Unsigned
     glCompressedTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, width, height, format, span.size(), span.size(), span.data());
 }
 
-void WebGLRenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
+void WebGLRenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Ptr<WebIDL::ArrayBufferView> pixels)
 {
     m_context->make_current();
 
@@ -96,7 +96,7 @@ void WebGLRenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y,
     glReadPixelsRobustANGLE(x, y, width, height, format, type, span.size(), nullptr, nullptr, nullptr, span.data());
 }
 
-void WebGLRenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
+void WebGLRenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Ptr<WebIDL::ArrayBufferView> pixels)
 {
     m_context->make_current();
 
@@ -175,7 +175,7 @@ void WebGLRenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, We
     glTexImage2DRobustANGLE(target, level, internalformat, converted_texture.width, converted_texture.height, 0, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 }
 
-void WebGLRenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Root<WebIDL::ArrayBufferView> pixels)
+void WebGLRenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Ptr<WebIDL::ArrayBufferView> pixels)
 {
     m_context->make_current();
 
@@ -200,7 +200,7 @@ void WebGLRenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target
     glTexSubImage2DRobustANGLE(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.size(), converted_texture.buffer.data());
 }
 
-void WebGLRenderingContextOverloads::uniform1fv(GC::Root<WebGLUniformLocation> location, Float32List v)
+void WebGLRenderingContextOverloads::uniform1fv(GC::Ptr<WebGLUniformLocation> location, Float32List v)
 {
     m_context->make_current();
 
@@ -213,7 +213,7 @@ void WebGLRenderingContextOverloads::uniform1fv(GC::Root<WebGLUniformLocation> l
     glUniform1fv(location_handle, span.size(), span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform2fv(GC::Root<WebGLUniformLocation> location, Float32List v)
+void WebGLRenderingContextOverloads::uniform2fv(GC::Ptr<WebGLUniformLocation> location, Float32List v)
 {
     m_context->make_current();
 
@@ -230,7 +230,7 @@ void WebGLRenderingContextOverloads::uniform2fv(GC::Root<WebGLUniformLocation> l
     glUniform2fv(location_handle, span.size() / 2, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform3fv(GC::Root<WebGLUniformLocation> location, Float32List v)
+void WebGLRenderingContextOverloads::uniform3fv(GC::Ptr<WebGLUniformLocation> location, Float32List v)
 {
     m_context->make_current();
 
@@ -247,7 +247,7 @@ void WebGLRenderingContextOverloads::uniform3fv(GC::Root<WebGLUniformLocation> l
     glUniform3fv(location_handle, span.size() / 3, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform4fv(GC::Root<WebGLUniformLocation> location, Float32List v)
+void WebGLRenderingContextOverloads::uniform4fv(GC::Ptr<WebGLUniformLocation> location, Float32List v)
 {
     m_context->make_current();
 
@@ -264,7 +264,7 @@ void WebGLRenderingContextOverloads::uniform4fv(GC::Root<WebGLUniformLocation> l
     glUniform4fv(location_handle, span.size() / 4, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform1iv(GC::Root<WebGLUniformLocation> location, Int32List v)
+void WebGLRenderingContextOverloads::uniform1iv(GC::Ptr<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
@@ -277,7 +277,7 @@ void WebGLRenderingContextOverloads::uniform1iv(GC::Root<WebGLUniformLocation> l
     glUniform1iv(location_handle, span.size(), span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform2iv(GC::Root<WebGLUniformLocation> location, Int32List v)
+void WebGLRenderingContextOverloads::uniform2iv(GC::Ptr<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
@@ -294,7 +294,7 @@ void WebGLRenderingContextOverloads::uniform2iv(GC::Root<WebGLUniformLocation> l
     glUniform2iv(location_handle, span.size() / 2, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform3iv(GC::Root<WebGLUniformLocation> location, Int32List v)
+void WebGLRenderingContextOverloads::uniform3iv(GC::Ptr<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
@@ -311,7 +311,7 @@ void WebGLRenderingContextOverloads::uniform3iv(GC::Root<WebGLUniformLocation> l
     glUniform3iv(location_handle, span.size() / 3, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform4iv(GC::Root<WebGLUniformLocation> location, Int32List v)
+void WebGLRenderingContextOverloads::uniform4iv(GC::Ptr<WebGLUniformLocation> location, Int32List v)
 {
     m_context->make_current();
 
@@ -328,7 +328,7 @@ void WebGLRenderingContextOverloads::uniform4iv(GC::Root<WebGLUniformLocation> l
     glUniform4iv(location_handle, span.size() / 4, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform_matrix2fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value)
+void WebGLRenderingContextOverloads::uniform_matrix2fv(GC::Ptr<WebGLUniformLocation> location, bool transpose, Float32List value)
 {
     m_context->make_current();
 
@@ -346,7 +346,7 @@ void WebGLRenderingContextOverloads::uniform_matrix2fv(GC::Root<WebGLUniformLoca
     glUniformMatrix2fv(location_handle, span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform_matrix3fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value)
+void WebGLRenderingContextOverloads::uniform_matrix3fv(GC::Ptr<WebGLUniformLocation> location, bool transpose, Float32List value)
 {
     m_context->make_current();
 
@@ -364,7 +364,7 @@ void WebGLRenderingContextOverloads::uniform_matrix3fv(GC::Root<WebGLUniformLoca
     glUniformMatrix3fv(location_handle, span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGLRenderingContextOverloads::uniform_matrix4fv(GC::Root<WebGLUniformLocation> location, bool transpose, Float32List value)
+void WebGLRenderingContextOverloads::uniform_matrix4fv(GC::Ptr<WebGLUniformLocation> location, bool transpose, Float32List value)
 {
     m_context->make_current();
 

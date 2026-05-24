@@ -20,9 +20,9 @@ public:
     static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLVertexArrayObjectOES> create_vertex_array_oes();
-    void delete_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);
-    bool is_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);
-    void bind_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);
+    void delete_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object);
+    bool is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object);
+    void bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object);
 
 protected:
     void initialize(JS::Realm&) override;
