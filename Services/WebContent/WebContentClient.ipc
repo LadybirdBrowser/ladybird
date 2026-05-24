@@ -114,6 +114,7 @@ endpoint WebContentClient
     did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
     did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) =|
     did_change_theme_color(u64 page_id, Gfx::Color color) =|
+    did_change_background_color(u64 page_id, Gfx::Color color) =|
 
     did_insert_clipboard_entry(u64 page_id, Web::Clipboard::SystemClipboardRepresentation entry, String presentation_style) =|
     did_request_clipboard_entries(u64 page_id, u64 request_id) =|

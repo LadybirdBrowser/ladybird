@@ -523,17 +523,20 @@ void WebContentView::paintEvent(QPaintEvent*)
         QImage q_image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
         painter.drawImage(QPoint(0, 0), q_image, QRect(0, 0, bitmap_size.width(), bitmap_size.height()));
 
+        auto background_color = page_background_color();
+        auto fallback_color = QColor(background_color.red(), background_color.green(), background_color.blue());
         if (bitmap_size.width() < width()) {
-            painter.fillRect(bitmap_size.width(), 0, width() - bitmap_size.width(), bitmap->height(), palette().base());
+            painter.fillRect(bitmap_size.width(), 0, width() - bitmap_size.width(), bitmap->height(), fallback_color);
         }
         if (bitmap_size.height() < height()) {
-            painter.fillRect(0, bitmap_size.height(), width(), height() - bitmap_size.height(), palette().base());
+            painter.fillRect(0, bitmap_size.height(), width(), height() - bitmap_size.height(), fallback_color);
         }
 
         return;
     }
 
-    painter.fillRect(rect(), palette().base());
+    auto background_color = page_background_color();
+    painter.fillRect(rect(), QColor(background_color.red(), background_color.green(), background_color.blue()));
 }
 
 void WebContentView::resizeEvent(QResizeEvent* event)
