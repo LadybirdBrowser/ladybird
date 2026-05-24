@@ -23,21 +23,13 @@
 #include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/Queue.h>
-#include <AK/Time.h>
 
 #include <core/SkCanvas.h>
 #include <core/SkColor.h>
-#include <gpu/ganesh/GrDirectContext.h>
 
 #include <LibCore/Platform/ScopedAutoreleasePool.h>
 
 namespace Web::Compositor {
-
-static constexpr auto skia_deferred_cleanup_interval = AK::Duration::from_seconds(1);
-static constexpr auto skia_aggressive_cleanup_interval = AK::Duration::from_seconds(5);
-static constexpr auto skia_deferred_cleanup_resource_age = std::chrono::seconds(5);
-static constexpr auto skia_resource_cache_high_watermark = 384 * MiB;
-static constexpr auto skia_resource_cache_critical_watermark = 512 * MiB;
 
 struct UpdateDisplayListCommand {
     NonnullRefPtr<Painting::DisplayList> display_list;
@@ -107,29 +99,8 @@ struct CompositorCommandEnvelope {
 
 static void flush_surface(Gfx::PaintingSurface& surface)
 {
-    if (auto context = surface.skia_backend_context()) {
+    if (auto context = surface.skia_backend_context())
         context->flush_and_submit(&surface.sk_surface());
-        auto* skia_context = context->sk_context();
-
-        static thread_local Optional<MonotonicTime> s_last_deferred_cleanup;
-        static thread_local Optional<MonotonicTime> s_last_aggressive_cleanup;
-
-        auto const now = MonotonicTime::now();
-        if (!s_last_deferred_cleanup.has_value() || now - *s_last_deferred_cleanup >= skia_deferred_cleanup_interval) {
-            s_last_deferred_cleanup = now;
-            skia_context->performDeferredCleanup(skia_deferred_cleanup_resource_age);
-
-            size_t resource_bytes = 0;
-            skia_context->getResourceCacheUsage(nullptr, &resource_bytes);
-            if (resource_bytes >= skia_resource_cache_high_watermark && (!s_last_aggressive_cleanup.has_value() || now - *s_last_aggressive_cleanup >= skia_aggressive_cleanup_interval)) {
-                s_last_aggressive_cleanup = now;
-                skia_context->performDeferredCleanup(std::chrono::milliseconds(0));
-                skia_context->getResourceCacheUsage(nullptr, &resource_bytes);
-                if (resource_bytes >= skia_resource_cache_critical_watermark)
-                    skia_context->purgeUnlockedResources(GrPurgeResourceOptions::kScratchResourcesOnly);
-            }
-        }
-    }
     surface.flush();
 }
 
