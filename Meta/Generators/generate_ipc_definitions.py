@@ -503,9 +503,17 @@ def write_proxy_method(
         else:
             out.write(f"\n        return move(*{sync_call});")
     elif is_try:
+        if inner_return_type == "void":
+            success_return = "{}"
+        elif len(message.outputs) == 1:
+            output = message.outputs[0]
+            accessor = output.name if is_primitive_or_simple_type(output.type) else f"take_{output.name}"
+            success_return = f"result->{accessor}()"
+        else:
+            success_return = "move(*result)"
         out.write(f"""
         if (auto result = m_connection.template send_sync_but_allow_failure<Messages::{endpoint.name}::{pascal_name}>({call_args}))
-            return {"{}" if inner_return_type == "void" else "move(*result)"};
+            return {success_return};
         m_connection.shutdown();
         return IPC::ErrorCode::PeerDisconnected;""")
     else:
