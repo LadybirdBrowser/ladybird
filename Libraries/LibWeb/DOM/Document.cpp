@@ -74,7 +74,6 @@
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
@@ -8233,10 +8232,10 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 
     auto& viewport_paintable = *paintable();
     viewport_paintable.refresh_scroll_state();
-    Compositor::initialize_async_scrolling_metadata_recording(context, viewport_paintable);
+    viewport_paintable.initialize_async_scrolling_metadata_recording(context);
 
     viewport_paintable.paint_all_phases(context);
-    Compositor::finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>());
+    viewport_paintable.finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>());
 
     if (highlighted_node() && highlighted_node()->paintable()) {
         highlighted_node()->paintable()->paint_inspector_overlay(context);

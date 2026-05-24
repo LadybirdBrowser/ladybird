@@ -8,18 +8,20 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <AK/StdLibExtras.h>
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
@@ -28,6 +30,7 @@
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/SVGPaintable.h>
@@ -83,6 +86,198 @@ void set_paint_viewport_scrollbars(bool const enabled)
 bool should_paint_viewport_scrollbars()
 {
     return g_paint_viewport_scrollbars;
+}
+
+static Gfx::FloatPoint css_point_to_device_point(CSSPixelPoint point, double device_pixels_per_css_pixel)
+{
+    auto scale = static_cast<float>(device_pixels_per_css_pixel);
+    return { point.x().to_float() * scale, point.y().to_float() * scale };
+}
+
+static Gfx::FloatSize css_size_to_device_size(CSSPixelSize size, double device_pixels_per_css_pixel)
+{
+    auto scale = static_cast<float>(device_pixels_per_css_pixel);
+    return { size.width().to_float() * scale, size.height().to_float() * scale };
+}
+
+static Gfx::FloatRect css_rect_to_device_rect(CSSPixelRect rect, double device_pixels_per_css_pixel)
+{
+    return { css_point_to_device_point(rect.location(), device_pixels_per_css_pixel), css_size_to_device_size(rect.size(), device_pixels_per_css_pixel) };
+}
+
+static Optional<float> css_inset_to_device_inset(Optional<CSSPixels> inset, double device_pixels_per_css_pixel)
+{
+    if (!inset.has_value())
+        return {};
+    return inset->to_float() * static_cast<float>(device_pixels_per_css_pixel);
+}
+
+static Optional<CompositorScrollNodeKind> scroll_node_kind_for(PaintableBox const& paintable_box)
+{
+    if (paintable_box.is_viewport_paintable())
+        return CompositorScrollNodeKind::Viewport;
+    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
+        return CompositorScrollNodeKind::PseudoElement;
+    if (paintable_box.dom_node() && is<DOM::Element>(*paintable_box.dom_node()))
+        return CompositorScrollNodeKind::Element;
+    return {};
+}
+
+static UniqueNodeID scrollable_node_id_for(PaintableBox const& paintable_box)
+{
+    if (paintable_box.is_viewport_paintable())
+        return paintable_box.document().unique_id();
+    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
+        return paintable_box.layout_node().pseudo_element_generator()->unique_id();
+    return paintable_box.dom_node()->unique_id();
+}
+
+static u8 pseudo_element_type_for(PaintableBox const& paintable_box)
+{
+    auto pseudo_element = paintable_box.layout_node().generated_for_pseudo_element();
+    if (!pseudo_element.has_value())
+        return 0;
+    return static_cast<u8>(to_underlying(*pseudo_element));
+}
+
+static bool is_nested_navigable_container(PaintableBox const& paintable_box)
+{
+    auto node = paintable_box.dom_node();
+    return node && node->is_navigable_container() && as<HTML::NavigableContainer const>(*node).content_navigable();
+}
+
+static CSSPixelPoint maximum_scroll_offset_for(PaintableBox const& paintable_box)
+{
+    CSSPixelPoint max_scroll_offset;
+    auto scrollable_overflow_rect = paintable_box.scrollable_overflow_rect();
+    if (!scrollable_overflow_rect.has_value())
+        return max_scroll_offset;
+
+    auto scrollport_rect = paintable_box.absolute_padding_box_rect();
+
+    max_scroll_offset.set_x(max(CSSPixels(0), scrollable_overflow_rect->width() - scrollport_rect.width()));
+    max_scroll_offset.set_y(max(CSSPixels(0), scrollable_overflow_rect->height() - scrollport_rect.height()));
+    return max_scroll_offset;
+}
+
+static void record_scroll_node(PaintableBox const& paintable_box, DisplayListRecordingContext& context)
+{
+    auto scroll_node_kind = scroll_node_kind_for(paintable_box);
+    if (!scroll_node_kind.has_value())
+        return;
+
+    auto parent_scroll_frame_index = ScrollFrameIndex {};
+    if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
+        parent_scroll_frame_index = scrollable_ancestor->own_scroll_frame_index();
+
+    auto scrollport_rect = paintable_box.is_viewport_paintable()
+        ? Gfx::IntRect { {}, context.device_viewport_rect().size().to_type<int>() }
+        : context.rounded_device_rect(paintable_box.absolute_padding_box_rect()).to_type<int>();
+
+    auto& recorder = context.display_list_recorder();
+    recorder.compositor_scroll_node({
+        .document_id = paintable_box.document().unique_id(),
+        .scrollable_node_id = scrollable_node_id_for(paintable_box),
+        .scroll_frame_index = paintable_box.own_scroll_frame_index(),
+        .parent_scroll_frame_index = parent_scroll_frame_index,
+        .scrollport_rect = scrollport_rect,
+        .max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel()),
+        .scroll_node_kind = *scroll_node_kind,
+        .pseudo_element_type = pseudo_element_type_for(paintable_box),
+        .is_viewport = paintable_box.is_viewport_paintable(),
+        .can_be_wheel_scrolled_horizontally = paintable_box.could_be_scrolled_by_wheel_event(PaintableBox::ScrollDirection::Horizontal),
+        .can_be_wheel_scrolled_vertically = paintable_box.could_be_scrolled_by_wheel_event(PaintableBox::ScrollDirection::Vertical),
+    });
+}
+
+static void record_main_thread_wheel_event_region(PaintableBox const& paintable_box, DisplayListRecordingContext& context)
+{
+    auto rect = css_rect_to_device_rect(paintable_box.absolute_united_border_box_rect(), context.device_pixels_per_css_pixel());
+    if (rect.is_empty())
+        return;
+
+    context.display_list_recorder().compositor_main_thread_wheel_event_region({
+        .rect = rect,
+    });
+}
+
+static Optional<ScrollFrameIndex> wheel_hit_test_target_scroll_frame_index_for(PaintableBox const& paintable_box)
+{
+    if (paintable_box.own_scroll_frame_index().value() && paintable_box.could_be_scrolled_by_wheel_event())
+        return paintable_box.own_scroll_frame_index();
+    if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
+        return scrollable_ancestor->own_scroll_frame_index();
+    if (auto viewport_paintable = paintable_box.document().paintable(); viewport_paintable && viewport_paintable->could_be_scrolled_by_wheel_event())
+        return viewport_paintable->own_scroll_frame_index();
+    return {};
+}
+
+static void record_wheel_hit_test_target(PaintableBox const& paintable_box, DisplayListRecordingContext& context)
+{
+    if (!paintable_box.is_visible() || !paintable_box.visible_for_hit_testing())
+        return;
+
+    auto rect = css_rect_to_device_rect(paintable_box.absolute_border_box_rect(), context.device_pixels_per_css_pixel());
+    if (rect.is_empty())
+        return;
+
+    context.display_list_recorder().compositor_wheel_hit_test_target({
+        .document_id = paintable_box.document().unique_id(),
+        .target_scroll_frame_index = wheel_hit_test_target_scroll_frame_index_for(paintable_box).value_or({}),
+        .rect = rect,
+        .corner_radii = paintable_box.border_radii_data().as_corners(context.device_pixel_converter()),
+    });
+}
+
+static void record_viewport_scrollbar_state(PaintableBox const& paintable_box, DisplayListRecordingContext& context)
+{
+    if (!paintable_box.is_viewport_paintable())
+        return;
+    if (!paintable_box.document().page().async_scrolling_enabled())
+        return;
+    if (!should_paint_viewport_scrollbars())
+        return;
+    if (paintable_box.computed_values().scrollbar_width() == CSS::ScrollbarWidth::None)
+        return;
+
+    auto scrollbar_colors = paintable_box.computed_values().scrollbar_color();
+    auto const& metrics = context.chrome_metrics();
+
+    for (auto direction : { PaintableBox::ScrollDirection::Vertical, PaintableBox::ScrollDirection::Horizontal }) {
+        auto scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics, nullptr, PaintableBox::ScrollbarSizing::Regular);
+        if (!scrollbar_data.has_value())
+            continue;
+        auto expanded_scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics, nullptr, PaintableBox::ScrollbarSizing::Enlarged);
+        VERIFY(expanded_scrollbar_data.has_value());
+
+        auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
+        auto max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel());
+        auto orientation = direction == PaintableBox::ScrollDirection::Horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
+        auto thumb_color = scrollbar_colors.thumb_color;
+        if (gutter_rect.is_empty() && thumb_color == CSS::InitialValues::scrollbar_color().thumb_color)
+            thumb_color = thumb_color.with_alpha(128);
+
+        context.display_list_recorder().compositor_viewport_scrollbar({
+            .document_id = paintable_box.document().unique_id(),
+            .scroll_frame_index = paintable_box.own_scroll_frame_index(),
+            .gutter_rect = gutter_rect,
+            .thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
+            .expanded_gutter_rect = context.rounded_device_rect(expanded_scrollbar_data->gutter_rect).to_type<int>(),
+            .expanded_thumb_rect = context.rounded_device_rect(expanded_scrollbar_data->thumb_rect).to_type<int>(),
+            .scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
+            .expanded_scroll_size = expanded_scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
+            .max_scroll_offset = max_scroll_offset.primary_offset_for_orientation(orientation),
+            .thumb_color = thumb_color,
+            .track_color = scrollbar_colors.track_color,
+            .vertical = direction == PaintableBox::ScrollDirection::Vertical,
+        });
+    }
+}
+
+static bool is_root_wheel_event_target(DOM::Node const& node)
+{
+    auto& document = node.document();
+    return &node == document.document_element() || &node == document.body();
 }
 
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box)
@@ -740,10 +935,62 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     return scrollbar_data;
 }
 
+void PaintableBox::record_async_scrolling_metadata(DisplayListRecordingContext& context) const
+{
+    if (!context.is_recording_async_scrolling_metadata())
+        return;
+
+    auto device_pixels_per_css_pixel = context.device_pixels_per_css_pixel();
+    auto& recorder = context.display_list_recorder();
+
+    record_wheel_hit_test_target(*this, context);
+
+    if (!context.has_blocking_wheel_event_region_covering_viewport()) {
+        if (auto node = dom_node(); node && !is_root_wheel_event_target(*node) && node->has_blocking_wheel_event_listener()) {
+            context.set_has_blocking_wheel_event_listeners(true);
+            recorder.compositor_blocking_wheel_event_region({
+                .rect = css_rect_to_device_rect(absolute_united_border_box_rect(), device_pixels_per_css_pixel),
+            });
+        }
+    }
+
+    if (is_nested_navigable_container(*this)) {
+        record_main_thread_wheel_event_region(*this, context);
+    } else if (own_scroll_frame_index().value() && could_be_scrolled_by_wheel_event()) {
+        record_scroll_node(*this, context);
+    }
+    record_viewport_scrollbar_state(*this, context);
+
+    auto const& scroll_state = context.async_scrolling_scroll_state();
+    auto sticky_frame_index = enclosing_scroll_frame_index();
+    if (is_sticky_position() && sticky_frame_index.value()) {
+        auto const& frame = scroll_state.frame_at(sticky_frame_index);
+        if (frame.is_sticky() && frame.has_sticky_constraints()) {
+            auto const& constraints = frame.sticky_constraints();
+            auto const& insets = constraints.insets;
+            recorder.compositor_sticky_area({
+                .document_id = context.async_scrolling_document_id(),
+                .scroll_frame_index = sticky_frame_index,
+                .parent_scroll_frame_index = frame.parent_index(),
+                .nearest_scrolling_ancestor_index = scroll_state.nearest_scrolling_ancestor(sticky_frame_index),
+                .position_relative_to_scroll_ancestor = css_point_to_device_point(constraints.position_relative_to_scroll_ancestor, device_pixels_per_css_pixel),
+                .border_box_size = css_size_to_device_size(constraints.border_box_size, device_pixels_per_css_pixel),
+                .scrollport_size = css_size_to_device_size(constraints.scrollport_size, device_pixels_per_css_pixel),
+                .containing_block_region = css_rect_to_device_rect(constraints.containing_block_region, device_pixels_per_css_pixel),
+                .needs_parent_offset_adjustment = constraints.needs_parent_offset_adjustment,
+                .inset_top = css_inset_to_device_inset(insets.top, device_pixels_per_css_pixel),
+                .inset_right = css_inset_to_device_inset(insets.right, device_pixels_per_css_pixel),
+                .inset_bottom = css_inset_to_device_inset(insets.bottom, device_pixels_per_css_pixel),
+                .inset_left = css_inset_to_device_inset(insets.left, device_pixels_per_css_pixel),
+            });
+        }
+    }
+}
+
 void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (phase == PaintPhase::Background)
-        Compositor::record_async_scrolling_metadata_for_paintable(*this, context);
+        record_async_scrolling_metadata(context);
 
     if (!is_visible())
         return;
