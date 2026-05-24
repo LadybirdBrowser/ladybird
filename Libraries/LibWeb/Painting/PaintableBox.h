@@ -44,6 +44,7 @@ public:
     virtual void reset_for_relayout();
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
+    void record_async_scrolling_metadata(DisplayListRecordingContext&) const;
 
     RefPtr<StackingContext> stacking_context();
     RefPtr<StackingContext const> stacking_context() const;

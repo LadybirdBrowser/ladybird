@@ -8,9 +8,12 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -19,6 +22,7 @@
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -38,6 +42,53 @@ ViewportPaintable::ViewportPaintable(Layout::Viewport const& layout_viewport)
 }
 
 ViewportPaintable::~ViewportPaintable() = default;
+
+struct BlockingWheelEventRegionState {
+    bool has_blocking_wheel_event_listeners { false };
+    bool has_blocking_wheel_event_region_covering_viewport { false };
+};
+
+static BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document& document)
+{
+    DOM::EventTarget* roots[] = {
+        document.navigable() ? document.navigable()->active_window() : nullptr,
+        &document,
+        document.document_element(),
+        document.body(),
+    };
+    for (auto* target : roots) {
+        if (target && target->has_blocking_wheel_event_listener()) {
+            return {
+                .has_blocking_wheel_event_listeners = true,
+                .has_blocking_wheel_event_region_covering_viewport = true,
+            };
+        }
+    }
+    return {};
+}
+
+void ViewportPaintable::initialize_async_scrolling_metadata_recording(DisplayListRecordingContext& context)
+{
+    auto blocking_wheel_event_region_state = collect_root_blocking_wheel_event_regions(document());
+    context.set_async_scrolling_metadata_context(
+        document().unique_id(),
+        scroll_state(),
+        blocking_wheel_event_region_state.has_blocking_wheel_event_listeners,
+        blocking_wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport);
+}
+
+void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext& context, HTML::Navigable& navigable, Gfx::IntRect viewport_rect)
+{
+    if (!context.is_recording_async_scrolling_metadata())
+        return;
+
+    context.display_list_recorder().set_async_scrolling_metadata({
+        .viewport_rect = viewport_rect,
+        .wheel_event_listener_state_generation = navigable.page().wheel_event_listener_state_generation(),
+        .has_blocking_wheel_event_listeners = context.has_blocking_wheel_event_listeners(),
+        .has_blocking_wheel_event_region_covering_viewport = context.has_blocking_wheel_event_region_covering_viewport(),
+    });
+}
 
 void ViewportPaintable::reset_for_relayout()
 {

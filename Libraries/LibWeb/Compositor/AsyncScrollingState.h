@@ -155,9 +155,6 @@ enum class WheelScrollAdmission {
     BlockedByWheelEventRegion,
 };
 
-WEB_API void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&, Painting::ViewportPaintable&);
-WEB_API void record_async_scrolling_metadata_for_paintable(Painting::PaintableBox const&, DisplayListRecordingContext&);
-WEB_API void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext&, HTML::Navigable&, Gfx::IntRect viewport_rect);
 WEB_API AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayList const&);
 WEB_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
 WEB_API StringView wheel_routing_admission_to_string(WheelRoutingAdmission);
