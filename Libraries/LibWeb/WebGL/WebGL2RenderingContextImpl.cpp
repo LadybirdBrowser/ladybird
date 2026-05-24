@@ -206,10 +206,7 @@ void WebGL2RenderingContextImpl::tex_image3d(WebIDL::UnsignedLong target, WebIDL
 {
     m_context->make_current();
 
-    ReadonlyBytes src_data_span;
-    if (src_data) {
-        src_data_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset), GL_INVALID_OPERATION);
-    }
+    auto src_data_span = SET_ERROR_VALUE_IF_ERROR(get_offset_span<u8 const>(*src_data, src_offset), GL_INVALID_OPERATION);
 
     glTexImage3DRobustANGLE(target, level, internalformat, width, height, depth, border, format, type, src_data_span.size(), src_data_span.data());
 }
@@ -651,15 +648,12 @@ void WebGL2RenderingContextImpl::begin_query(WebIDL::UnsignedLong target, GC::Ro
 {
     m_context->make_current();
 
-    GLuint query_handle = 0;
-    if (query) {
-        auto handle_or_error = query->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        query_handle = handle_or_error.release_value();
+    auto handle_or_error = query->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto query_handle = handle_or_error.release_value();
 
     switch (target) {
     case GL_ANY_SAMPLES_PASSED:
@@ -719,15 +713,12 @@ JS::Value WebGL2RenderingContextImpl::get_query_parameter(GC::Root<WebGLQuery> q
 {
     m_context->make_current();
 
-    GLuint query_handle = 0;
-    if (query) {
-        auto handle_or_error = query->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return JS::js_null();
-        }
-        query_handle = handle_or_error.release_value();
+    auto handle_or_error = query->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return JS::js_null();
     }
+    auto query_handle = handle_or_error.release_value();
 
     GLuint result { 0 };
     glGetQueryObjectuivRobustANGLE(query_handle, pname, 1, nullptr, &result);
@@ -788,15 +779,12 @@ void WebGL2RenderingContextImpl::sampler_parameteri(GC::Root<WebGLSampler> sampl
 {
     m_context->make_current();
 
-    GLuint sampler_handle = 0;
-    if (sampler) {
-        auto handle_or_error = sampler->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        sampler_handle = handle_or_error.release_value();
+    auto handle_or_error = sampler->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto sampler_handle = handle_or_error.release_value();
 
     switch (pname) {
     case GL_TEXTURE_COMPARE_FUNC:
@@ -828,15 +816,12 @@ void WebGL2RenderingContextImpl::sampler_parameterf(GC::Root<WebGLSampler> sampl
 {
     m_context->make_current();
 
-    GLuint sampler_handle = 0;
-    if (sampler) {
-        auto handle_or_error = sampler->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        sampler_handle = handle_or_error.release_value();
+    auto handle_or_error = sampler->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto sampler_handle = handle_or_error.release_value();
 
     switch (pname) {
     case GL_TEXTURE_COMPARE_FUNC:
@@ -893,15 +878,12 @@ WebIDL::UnsignedLong WebGL2RenderingContextImpl::client_wait_sync(GC::Root<WebGL
 {
     m_context->make_current();
 
-    GLsync sync_handle = nullptr;
-    if (sync) {
-        auto handle_or_error = sync->sync_handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return GL_WAIT_FAILED;
-        }
-        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
+    auto handle_or_error = sync->sync_handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return GL_WAIT_FAILED;
     }
+    auto sync_handle = static_cast<GLsync>(handle_or_error.release_value());
 
     return glClientWaitSync(sync_handle, flags, timeout);
 }
@@ -910,15 +892,12 @@ void WebGL2RenderingContextImpl::wait_sync(GC::Root<WebGLSync> sync, WebIDL::Uns
 {
     m_context->make_current();
 
-    GLsync sync_handle = nullptr;
-    if (sync) {
-        auto handle_or_error = sync->sync_handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
+    auto handle_or_error = sync->sync_handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto sync_handle = static_cast<GLsync>(handle_or_error.release_value());
 
     glWaitSync(sync_handle, flags, timeout);
 }
@@ -927,15 +906,12 @@ JS::Value WebGL2RenderingContextImpl::get_sync_parameter(GC::Root<WebGLSync> syn
 {
     m_context->make_current();
 
-    GLsync sync_handle = nullptr;
-    if (sync) {
-        auto handle_or_error = sync->sync_handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return JS::js_null();
-        }
-        sync_handle = static_cast<GLsync>(handle_or_error.release_value());
+    auto handle_or_error = sync->sync_handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return JS::js_null();
     }
+    auto sync_handle = static_cast<GLsync>(handle_or_error.release_value());
 
     GLint result = 0;
     glGetSynciv(sync_handle, pname, 1, nullptr, &result);
@@ -1001,15 +977,12 @@ void WebGL2RenderingContextImpl::transform_feedback_varyings(GC::Root<WebGLProgr
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto program_handle = handle_or_error.release_value();
 
     Vector<Vector<GLchar>> varying_strings;
     varying_strings.ensure_capacity(varyings.size());
@@ -1114,15 +1087,12 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniforms(GC::Root<WebGLProgram>
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return {};
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
     }
+    auto program_handle = handle_or_error.release_value();
 
     auto params = MUST(ByteBuffer::create_zeroed(uniform_indices.size() * sizeof(GLint)));
     Span<GLint> params_span(reinterpret_cast<GLint*>(params.data()), uniform_indices.size());
@@ -1161,15 +1131,12 @@ WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Roo
 {
     m_context->make_current();
 
-    auto program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return -1;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return -1;
     }
+    auto program_handle = handle_or_error.release_value();
 
     auto uniform_block_name_null_terminated = null_terminated_string(uniform_block_name);
     return glGetUniformBlockIndex(program_handle, uniform_block_name_null_terminated.data());
@@ -1179,15 +1146,12 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniform_block_parameter(GC::Roo
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return JS::js_null();
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return JS::js_null();
     }
+    auto program_handle = handle_or_error.release_value();
 
     switch (pname) {
     case GL_UNIFORM_BLOCK_BINDING:
@@ -1223,15 +1187,12 @@ Optional<String> WebGL2RenderingContextImpl::get_active_uniform_block_name(GC::R
 {
     m_context->make_current();
 
-    GLuint program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return OptionalNone {};
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return OptionalNone {};
     }
+    auto program_handle = handle_or_error.release_value();
 
     GLint uniform_block_name_length = 0;
     glGetActiveUniformBlockivRobustANGLE(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_NAME_LENGTH, 1, nullptr, &uniform_block_name_length);
@@ -1247,15 +1208,12 @@ void WebGL2RenderingContextImpl::uniform_block_binding(GC::Root<WebGLProgram> pr
 {
     m_context->make_current();
 
-    auto program_handle = 0;
-    if (program) {
-        auto handle_or_error = program->handle(this);
-        if (handle_or_error.is_error()) {
-            set_error(GL_INVALID_OPERATION);
-            return;
-        }
-        program_handle = handle_or_error.release_value();
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return;
     }
+    auto program_handle = handle_or_error.release_value();
     glUniformBlockBinding(program_handle, uniform_block_index, uniform_block_binding);
 }
 
