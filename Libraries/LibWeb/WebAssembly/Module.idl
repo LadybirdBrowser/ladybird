@@ -6,14 +6,14 @@ enum ImportExportKind {
 };
 
 dictionary ModuleExportDescriptor {
-    required [GenerateAsRequired] USVString name;
-    required [GenerateAsRequired] ImportExportKind kind;
+    required USVString name;
+    required ImportExportKind kind;
 };
 
 dictionary ModuleImportDescriptor {
-    required [GenerateAsRequired] USVString module;
-    required [GenerateAsRequired] USVString name;
-    required [GenerateAsRequired] ImportExportKind kind;
+    required USVString module;
+    required USVString name;
+    required ImportExportKind kind;
 };
 
 // https://webassembly.github.io/spec/js-api/#modules
