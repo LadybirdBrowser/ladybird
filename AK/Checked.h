@@ -45,12 +45,41 @@ struct TypeBoundsChecker<Destination, Source, false, false, false> {
     }
 };
 
+// Computes 2^N as a floating-point Source value. The result is exactly representable in any IEEE floating-point type
+// for any N within that type's exponent range — since 2^N has mantissa 1.0.
+template<FloatingPoint Source>
+static constexpr Source two_to_the(size_t n)
+{
+    Source result = 1;
+    for (size_t i = 0; i < n; ++i)
+        result *= 2;
+    return result;
+}
+
 template<typename Destination, typename Source>
 struct TypeBoundsChecker<Destination, Source, false, true, true> {
     static constexpr bool is_within_range(Source value)
     {
-        return value <= NumericLimits<Destination>::max()
-            && NumericLimits<Destination>::min() <= value;
+        if constexpr (IsFloatingPoint<Source>) {
+            // The value must lie in [Destination::min, Destination::max] *and* must be exactly representable as
+            // Destination; that is, the float must be integer-valued — with no fractional part.
+            //
+            // First gate: the value must fit in the safe-cast window — so static_cast<Destination> below is defined.
+            // Comparing directly against NumericLimits<Destination>::max() doesn't work when max isn't exactly
+            // representable in Source (e.g., INT_MAX = 2^31-1 in float rounds up to 2^31). Use 2^digits as a strict
+            // upper bound instead: exactly representable in any IEEE float — covering the range [-2^digits, 2^digits)
+            // for two's-complement signed destinations.
+            auto const boundary = two_to_the<Source>(NumericLimits<Destination>::digits());
+            if (!(value >= -boundary && value < boundary))
+                return false;
+            // Second gate: reject fractional values (round-trip check). Values in (-boundary, boundary) with a
+            // fractional part would truncate to an in-range integer — but aren't themselves within Destination's range.
+            auto const truncated = static_cast<Destination>(value);
+            return static_cast<Source>(truncated) == value;
+        } else {
+            return value <= NumericLimits<Destination>::max()
+                && NumericLimits<Destination>::min() <= value;
+        }
     }
 };
 
@@ -58,7 +87,18 @@ template<typename Destination, typename Source>
 struct TypeBoundsChecker<Destination, Source, false, false, true> {
     static constexpr bool is_within_range(Source value)
     {
-        return value >= 0 && value <= NumericLimits<Destination>::max();
+        if constexpr (IsFloatingPoint<Source>) {
+            // See the signed case above. The first gate is [0, 2^digits). 2^digits is exactly representable in any IEEE
+            // float. The second gate is the round-trip check: rejecting fractional values whose magnitudes exceed
+            // Destination::max.
+            auto const upper_exclusive = two_to_the<Source>(NumericLimits<Destination>::digits());
+            if (!(value >= 0 && value < upper_exclusive))
+                return false;
+            auto const truncated = static_cast<Destination>(value);
+            return static_cast<Source>(truncated) == value;
+        } else {
+            return value >= 0 && value <= NumericLimits<Destination>::max();
+        }
     }
 };
 
