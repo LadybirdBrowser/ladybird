@@ -14,9 +14,9 @@
 
 namespace WebContent {
 
-class ProcessWebContentCompositorHost final : public Web::Compositor::CompositorHost {
+class WebContentCompositorHost final : public Web::Compositor::CompositorHost {
 public:
-    explicit ProcessWebContentCompositorHost(ConnectionFromClient& client)
+    explicit WebContentCompositorHost(ConnectionFromClient& client)
         : m_client(client)
     {
     }
@@ -137,7 +137,7 @@ private:
 
 NonnullOwnPtr<Web::Compositor::CompositorHost> create_web_content_compositor_host(ConnectionFromClient& client)
 {
-    return make<ProcessWebContentCompositorHost>(client);
+    return make<WebContentCompositorHost>(client);
 }
 
 }
