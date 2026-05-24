@@ -10,6 +10,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/IncrementalDocumentParser.h>
@@ -18,16 +19,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(IncrementalDocumentParser);
 
-GC::Ref<IncrementalDocumentParser> IncrementalDocumentParser::create(GC::Ref<DOM::Document> document, GC::Ref<Fetch::Infrastructure::Body> body, URL::URL url, Optional<MimeSniff::MimeType> mime_type)
+GC::Ref<IncrementalDocumentParser> IncrementalDocumentParser::create(GC::Ref<DOM::Document> document, GC::Ref<Fetch::Infrastructure::Body> body, URL::URL url, Optional<MimeSniff::MimeType> mime_type, GC::Ptr<HTML::Navigable> navigable)
 {
-    return document->realm().create<IncrementalDocumentParser>(document, body, move(url), move(mime_type));
+    return document->realm().create<IncrementalDocumentParser>(document, body, move(url), move(mime_type), navigable);
 }
 
-IncrementalDocumentParser::IncrementalDocumentParser(GC::Ref<DOM::Document> document, GC::Ref<Fetch::Infrastructure::Body> body, URL::URL url, Optional<MimeSniff::MimeType> mime_type)
+IncrementalDocumentParser::IncrementalDocumentParser(GC::Ref<DOM::Document> document, GC::Ref<Fetch::Infrastructure::Body> body, URL::URL url, Optional<MimeSniff::MimeType> mime_type, GC::Ptr<HTML::Navigable> navigable)
     : m_document(document)
     , m_body(body)
     , m_url(move(url))
     , m_mime_type(move(mime_type))
+    , m_navigable(navigable)
 {
 }
 
@@ -37,6 +39,7 @@ void IncrementalDocumentParser::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document);
     visitor.visit(m_body);
     visitor.visit(m_parser);
+    visitor.visit(m_navigable);
 }
 
 void IncrementalDocumentParser::start()
@@ -63,7 +66,7 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
     auto encoding = m_document->has_encoding()
         ? m_document->encoding().value().to_byte_string()
-        : run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type);
+        : run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type, m_navigable);
     dbgln_if(HTML_PARSER_DEBUG, "The incremental HTML parser selected encoding '{}'", encoding);
 
     auto decoder = TextCodec::decoder_for(encoding);

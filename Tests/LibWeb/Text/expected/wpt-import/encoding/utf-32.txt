@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-5 Pass
-3 Fail
-Fail	Expect resources/utf-32-big-endian-bom.html to parse as UTF-8
+8 Pass
+Pass	Expect resources/utf-32-big-endian-bom.html to parse as UTF-8
 Pass	Expect resources/utf-32-big-endian-bom.xml to parse as UTF-8
-Fail	Expect resources/utf-32-big-endian-nobom.html to parse as UTF-8
+Pass	Expect resources/utf-32-big-endian-nobom.html to parse as UTF-8
 Pass	Expect resources/utf-32-big-endian-nobom.xml to parse as UTF-8
 Pass	Expect resources/utf-32-little-endian-bom.html to parse as UTF-16LE
 Pass	Expect resources/utf-32-little-endian-bom.xml to parse as UTF-16LE
-Fail	Expect resources/utf-32-little-endian-nobom.html to parse as UTF-8
+Pass	Expect resources/utf-32-little-endian-nobom.html to parse as UTF-8
 Pass	Expect resources/utf-32-little-endian-nobom.xml to parse as UTF-8

@@ -75,7 +75,11 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
         decoder = TextCodec::decoder_for(document_encoding);
     }
     VERIFY(decoder.has_value());
-    document.set_encoding(MUST(String::from_byte_string(document_encoding)));
+
+    auto standardized_encoding = TextCodec::get_standardized_encoding(document_encoding);
+    VERIFY(standardized_encoding.has_value());
+    document.set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
+
     // Well-formed XML documents contain only properly encoded characters
     if (!decoder->validate(data)) {
         convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_utf16);
@@ -95,6 +99,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
 
     // 1. Let document be the result of creating and initializing a Document object given "html", "text/html", and navigationParams.
     auto document = TRY(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
+
+    auto navigable = navigation_params.navigable;
 
     // 2. If document's URL is about:blank, then populate with html/head/body given document.
     // FIXME: The additional check for a non-empty body fixes issues with loading javascript urls in iframes, which
@@ -123,7 +129,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
         data && document->url() == URL::about_srcdoc()) {
         auto mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
         auto url = navigation_params.response->url().value();
-        auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *data, mime_type);
+        auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *data, mime_type, navigable);
         document->set_deferred_parser_start(GC::create_function(document->heap(), [parser, url] {
             parser->run(url);
         }));
@@ -143,7 +149,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     //    causes a load event to be fired.
     else {
         auto body = GC::Ref { *navigation_params.response->body() };
-        auto parser = HTML::IncrementalDocumentParser::create(document, body, navigation_params.response->url().value(), Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list()));
+        auto parser = HTML::IncrementalDocumentParser::create(document, body, navigation_params.response->url().value(), Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list()), navigable);
         parser->start();
     }
 
@@ -205,7 +211,11 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             decoder = TextCodec::decoder_for(document_encoding);
         }
         VERIFY(decoder.has_value());
-        document->set_encoding(MUST(String::from_byte_string(document_encoding)));
+
+        auto standardized_encoding = TextCodec::get_standardized_encoding(document_encoding);
+        VERIFY(standardized_encoding.has_value());
+        document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
+
         // Well-formed XML documents contain only properly encoded characters
         if (!decoder->validate(data)) {
             // FIXME: Insert error message into the document.
@@ -275,8 +285,9 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually causes a
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
-        auto encoding = run_encoding_sniffing_algorithm(document, data, mime);
+    auto navigable = navigation_params.navigable;
+    auto process_body = GC::create_function(document->heap(), [document, url = navigation_params.response->url().value(), mime = type, navigable](ByteBuffer data) {
+        auto encoding = run_encoding_sniffing_algorithm(document, data, mime, navigable);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
         auto run_text_parser = [document, data = move(data), url, encoding = move(encoding)] {

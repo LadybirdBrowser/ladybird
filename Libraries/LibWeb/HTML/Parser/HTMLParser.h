@@ -39,7 +39,7 @@ public:
 
     static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_open_input_stream(DOM::Document&);
-    static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
+    static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {}, GC::Ptr<HTML::Navigable> navigable = nullptr);
     static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
     static GC::Ref<HTMLParser> create_for_decoded_string(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
 

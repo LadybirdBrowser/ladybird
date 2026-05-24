@@ -27,6 +27,7 @@ Optional<ByteString> run_bom_sniff(ReadonlyBytes input);
 ByteString extract_tld_hint(URL::URL const&);
 
 ByteString run_encoding_sniffing_algorithm(DOM::Document&, ReadonlyBytes input,
-    Optional<MimeSniff::MimeType> maybe_mime_type = {});
+    Optional<MimeSniff::MimeType> maybe_mime_type = {},
+    GC::Ptr<HTML::Navigable> navigable = nullptr);
 
 }

@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/RustFFI.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -478,7 +479,7 @@ ByteString extract_tld_hint(URL::URL const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyBytes input, Optional<MimeSniff::MimeType> maybe_mime_type)
+ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyBytes input, Optional<MimeSniff::MimeType> maybe_mime_type, GC::Ptr<HTML::Navigable> explicit_navigable)
 {
     // 1. If the result of BOM sniffing is an encoding, return that encoding with confidence certain.
     // FIXME: There is no concept of decoding certainty yet.
@@ -509,10 +510,20 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyByte
     if (prescan.has_value())
         return prescan.value();
 
-    // 6. FIXME: If the HTML parser for which this algorithm is being run is associated with a Document d whose container document is non-null, then:
+    // 6. If the HTML parser for which this algorithm is being run is associated with a Document d whose container document is non-null, then:
     // 1. Let parentDocument be d's container document.
-    // 2. If parentDocument's origin is same origin with d's origin and parentDocument's character encoding is not UTF-16BE/LE, then return parentDocument's character
-    //    encoding, with the confidence tentative.
+    auto container_document = explicit_navigable.ptr() ? explicit_navigable->container_document() : document.container_document();
+    if (auto parent_document = container_document) {
+        // 2. If parentDocument's origin is same origin with d's origin and parentDocument's character encoding is not UTF-16BE/LE, then return parentDocument's character
+        //    encoding, with the confidence tentative.
+        if (parent_document->origin().is_same_origin(document.origin())) {
+            auto parent_encoding = parent_document->encoding_or_default();
+            if (!parent_encoding.equals_ignoring_ascii_case("UTF-16BE"sv)
+                && !parent_encoding.equals_ignoring_ascii_case("UTF-16LE"sv)) {
+                return ByteString(parent_encoding.bytes_as_string_view());
+            }
+        }
+    }
 
     // 7. Otherwise, if the user agent has information on the likely encoding for this page, e.g. based on the encoding of the page when it was last visited, then return
     //    that encoding, with the confidence tentative.

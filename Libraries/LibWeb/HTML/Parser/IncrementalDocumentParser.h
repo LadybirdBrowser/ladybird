@@ -24,12 +24,12 @@ class WEB_API IncrementalDocumentParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(IncrementalDocumentParser);
 
 public:
-    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, GC::Ref<Fetch::Infrastructure::Body>, URL::URL, Optional<MimeSniff::MimeType>);
+    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, GC::Ref<Fetch::Infrastructure::Body>, URL::URL, Optional<MimeSniff::MimeType>, GC::Ptr<HTML::Navigable> navigable = nullptr);
 
     void start();
 
 private:
-    IncrementalDocumentParser(GC::Ref<DOM::Document>, GC::Ref<Fetch::Infrastructure::Body>, URL::URL, Optional<MimeSniff::MimeType>);
+    IncrementalDocumentParser(GC::Ref<DOM::Document>, GC::Ref<Fetch::Infrastructure::Body>, URL::URL, Optional<MimeSniff::MimeType>, GC::Ptr<HTML::Navigable> navigable);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -48,6 +48,7 @@ private:
     GC::Ref<Fetch::Infrastructure::Body> m_body;
     URL::URL m_url;
     Optional<MimeSniff::MimeType> m_mime_type;
+    GC::Ptr<HTML::Navigable> m_navigable;
 
     GC::Ptr<HTMLParser> m_parser;
     OwnPtr<TextCodec::StreamingDecoder> m_decoder;

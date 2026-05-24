@@ -1047,12 +1047,12 @@ GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& doc
     return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
 }
 
-GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
+GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type, GC::Ptr<HTML::Navigable> navigable)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
     if (document.has_encoding())
         return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
-    auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
+    auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type, navigable);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
     return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
