@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">a  b</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        println(`initial: "${target.innerText}"`);
+
+        target.style.textTransform = "uppercase";
+        println(`after text-transform: "${target.innerText}"`);
+
+        target.style.whiteSpace = "pre";
+        println(`after white-space: "${target.innerText}"`);
+    });
+</script>
