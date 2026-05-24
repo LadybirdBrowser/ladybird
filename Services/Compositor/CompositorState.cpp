@@ -504,7 +504,8 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorState::take_pending_async_s
 void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     auto* context = context_if_present(context_id);
-    VERIFY(context);
+    if (!context)
+        return;
 
     context->viewport_size = viewport_size;
     context->is_top_level_traversable = is_top_level_traversable;
