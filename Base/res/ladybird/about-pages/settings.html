@@ -114,6 +114,7 @@
             }
 
             input[type="number"],
+            input[type="search"],
             input[type="text"],
             input[type="url"],
             select {
@@ -283,6 +284,56 @@
                 flex-grow: 1;
             }
 
+            #config-filter {
+                width: 100%;
+            }
+
+            .config-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 20px;
+                align-items: center;
+            }
+
+            .config-row + .config-row {
+                border-top: 1px solid var(--border-color);
+                padding-top: 16px;
+                margin-top: 16px;
+            }
+
+            .config-name {
+                font-family: monospace;
+                font-size: 13px;
+                opacity: 0.7;
+                overflow-wrap: anywhere;
+            }
+
+            .config-title {
+                margin-top: 6px;
+
+                font-size: 14px;
+            }
+
+            .config-control {
+                min-width: 180px;
+            }
+
+            .config-control input[type="text"],
+            .config-control input[type="number"] {
+                width: 100%;
+            }
+
+            @media (max-width: 600px) {
+                .config-row {
+                    grid-template-columns: minmax(0, 1fr);
+                    align-items: stretch;
+                }
+
+                .config-control {
+                    min-width: 0;
+                }
+            }
+
             .tab-bar {
                 display: flex;
                 gap: 4px;
@@ -339,6 +390,7 @@
             <button class="tab-button" data-tab="permissions">Permissions</button>
             <button class="tab-button" data-tab="privacy">Privacy</button>
             <button class="tab-button" data-tab="network">Network</button>
+            <button class="tab-button" data-tab="advanced">Advanced</button>
         </div>
 
         <div class="tab-panel active" id="tab-general">
@@ -532,6 +584,18 @@
             </div>
         </div>
 
+        <div class="tab-panel" id="tab-advanced">
+            <h3 class="card-title">Configuration Variables</h3>
+            <div class="card">
+                <div class="card-body">
+                    <div class="card-group">
+                        <input id="config-filter" type="search" placeholder="Filter configuration keys" />
+                    </div>
+                    <div id="config-list"></div>
+                </div>
+            </div>
+        </div>
+
         <dialog id="languages-dialog" closedby="any">
             <div class="dialog-header">
                 <h3 class="dialog-title">Languages</h3>
@@ -652,6 +716,7 @@
             };
         </script>
 
+        <script src="resource://ladybird/about-pages/settings/advanced.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/browsing-behavior.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/default-zoom-level.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>

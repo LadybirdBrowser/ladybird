@@ -58,6 +58,48 @@ static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
 
 static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
 
+static constexpr auto CONFIG_VARIABLES_KEY = "configVariables"sv;
+
+static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Count)> const CONFIG_VARIABLE_DEFINITIONS {};
+
+ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions()
+{
+    return CONFIG_VARIABLE_DEFINITIONS;
+}
+
+Optional<ConfigVariableID> config_variable_id_from_name(StringView name)
+{
+    for (auto const& variable : config_variable_definitions()) {
+        if (variable.name == name)
+            return variable.id;
+    }
+
+    return {};
+}
+
+static ConfigVariableDefinition const& config_variable_definition(ConfigVariableID id)
+{
+    return config_variable_definitions()[static_cast<size_t>(id)];
+}
+
+static bool config_variable_value_matches_type(JsonValue const& default_value, JsonValue const& value)
+{
+    switch (default_value.type()) {
+    case JsonValue::Type::Bool:
+        return value.is_bool();
+    case JsonValue::Type::Number:
+        return value.is_number();
+    case JsonValue::Type::String:
+        return value.is_string();
+    case JsonValue::Type::Null:
+    case JsonValue::Type::Array:
+    case JsonValue::Type::Object:
+        return value.type() == default_value.type();
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 Settings Settings::create(Badge<Application>)
 {
     // FIXME: Move this to a generic "Ladybird config directory" helper.
@@ -147,6 +189,15 @@ Settings Settings::create(Badge<Application>)
     if (auto dns_settings = settings_json.value().get(DNS_SETTINGS_KEY); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
 
+    if (auto config_variables = settings_json.value().get_object(CONFIG_VARIABLES_KEY); config_variables.has_value()) {
+        for (auto const& variable : config_variable_definitions()) {
+            if (auto value = config_variables->get(variable.name); value.has_value()) {
+                if (config_variable_value_matches_type(variable.default_value, *value))
+                    settings.m_config_variables[static_cast<size_t>(variable.id)] = *value;
+            }
+        }
+    }
+
     return settings;
 }
 
@@ -157,6 +208,9 @@ Settings::Settings(ByteString settings_path)
     , m_default_zoom_level_factor(INITIAL_ZOOM_LEVEL_FACTOR)
     , m_languages({ DEFAULT_LANGUAGE })
 {
+    for (auto const& variable : config_variable_definitions()) {
+        m_config_variables[static_cast<size_t>(variable.id)] = variable.default_value;
+    }
 }
 
 JsonValue Settings::serialize_json() const
@@ -261,6 +315,11 @@ JsonValue Settings::serialize_json() const
             dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
         });
     settings.set(DNS_SETTINGS_KEY, move(dns_settings));
+
+    JsonObject config_variables;
+    for (auto const& variable : config_variable_definitions())
+        config_variables.set(variable.name, m_config_variables[static_cast<size_t>(variable.id)]);
+    settings.set(CONFIG_VARIABLES_KEY, move(config_variables));
 
     return settings;
 }
@@ -567,6 +626,46 @@ void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_b
 
     for (auto& observer : m_observers)
         observer.dns_settings_changed();
+}
+
+JsonValue const& Settings::config_variable(ConfigVariableID id) const
+{
+    return m_config_variables[static_cast<size_t>(id)];
+}
+
+bool Settings::config_variable_as_bool(ConfigVariableID id) const
+{
+    auto const& variable = config_variable_definition(id);
+    VERIFY(variable.default_value.is_bool());
+
+    auto value = config_variable(id).get_bool();
+    VERIFY(value.has_value());
+    return *value;
+}
+
+void Settings::set_config_variable(ConfigVariableID id, JsonValue value)
+{
+    auto const& variable = config_variable_definition(id);
+    if (!config_variable_value_matches_type(variable.default_value, value))
+        return;
+
+    if (m_config_variables[static_cast<size_t>(id)].equals(value))
+        return;
+
+    m_config_variables[static_cast<size_t>(id)] = move(value);
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.config_variable_changed(id);
+}
+
+void Settings::set_config_variable(StringView name, JsonValue const& value)
+{
+    auto id = config_variable_id_from_name(name);
+    if (!id.has_value())
+        return;
+
+    set_config_variable(*id, value);
 }
 
 void Settings::persist_settings()
