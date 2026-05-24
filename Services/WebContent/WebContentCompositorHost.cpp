@@ -22,10 +22,6 @@ public:
     {
     }
 
-    virtual void start(Web::DisplayListPlayerType) override
-    {
-    }
-
 private:
     virtual void register_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) override
     {
