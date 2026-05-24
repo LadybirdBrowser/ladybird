@@ -2145,33 +2145,31 @@ static void generate_sequence_from_iterable(SourceGenerator& generator, IDL::Par
     sequence_generator.set("sequence.type", sequence_cpp_type.name);
     sequence_generator.set("sequence.storage_type", contained_storage_type_to_cpp_name(sequence_cpp_type.contained_storage_type));
 
-    // To create an IDL value of type sequence<T> given an iterable iterable and an iterator getter method, perform the following steps:
-    // 1. Let iter be ? GetIterator(iterable, sync, method).
-    // 2. Initialize i to be 0.
-    // 3. Repeat
-    //      1. Let next be ? IteratorStep(iter).
-    //      2. If next is false, then return an IDL sequence value of type sequence<T> of length i, where the value of the element at index j is Sj.
-    //      3. Let nextItem be ? IteratorValue(next).
-    //      4. Initialize Si to the result of converting nextItem to an IDL value of type T.
-    //      5. Set i to i + 1.
-
-    // FIXME: The WebIDL spec is out of date - it should be using GetIteratorFromMethod.
     sequence_generator.append(R"~~~(
+    // To create an IDL value of type sequence<T> given an iterable iterable and an iterator getter method, perform the following steps:
+    // 1. Let iteratorRecord be ? GetIteratorFromMethod(iterable, method).
     auto @iterable_cpp_name@_iterator@recursion_depth@ = TRY(JS::get_iterator_from_method(vm, @iterable_cpp_name@, *@iterator_method_cpp_name@));
 
     @sequence.storage_type@<@sequence.type@> @cpp_name@;
 
+    // 2. Initialize i to be 0.
+    // 3. Repeat
     for (;;) {
-        auto next@recursion_depth@ = TRY(JS::iterator_step(vm, @iterable_cpp_name@_iterator@recursion_depth@));
-        if (!next@recursion_depth@.has<JS::IterationResult>())
+        // 1. Let next be ? IteratorStepValue(iteratorRecord).
+        auto next@recursion_depth@ = TRY(JS::iterator_step_value(vm, @iterable_cpp_name@_iterator@recursion_depth@));
+
+        // 2. If next is done, then return an IDL sequence value of type sequence<T> of length i, where the value of the element at index j is Sj.
+        if (!next@recursion_depth@.has_value())
             break;
 
-        auto next_item@recursion_depth@ = TRY(next@recursion_depth@.get<JS::IterationResult>().value);
+        // 3. Initialize Si to the result of converting next to an IDL value of type T.
+        // 4. Set i to i + 1.
+        auto next_value@recursion_depth@ = next@recursion_depth@.release_value();
 )~~~");
 
     // FIXME: Sequences types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
     IDL::Parameter parameter { .type = type.parameters().first(), .name = iterable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-    generate_to_cpp(sequence_generator, parameter, "next_item", ByteString::number(recursion_depth), ByteString::formatted("sequence_item{}", recursion_depth), context, includes, false, {}, false, recursion_depth, TypeOptionality::OptionalArgument);
+    generate_to_cpp(sequence_generator, parameter, "next_value", ByteString::number(recursion_depth), ByteString::formatted("sequence_item{}", recursion_depth), context, includes, false, {}, false, recursion_depth, TypeOptionality::OptionalArgument);
 
     sequence_generator.append(R"~~~(
     @cpp_name@.append(sequence_item@recursion_depth@);
