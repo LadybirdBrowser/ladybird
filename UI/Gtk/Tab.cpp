@@ -8,8 +8,10 @@
 #include <LibGfx/Cursor.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectItem.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/URL.h>
+#include <LibWebView/WebContentClient.h>
 #include <UI/Gtk/BrowserWindow.h>
 #include <UI/Gtk/Dialogs.h>
 #include <UI/Gtk/Events.h>
@@ -89,16 +91,20 @@ Tab::Tab(BrowserWindow& window, RefPtr<WebView::WebContentClient> parent_client,
 
 Tab::~Tab() = default;
 
+void Tab::set_tab_page(AdwTabPage* page)
+{
+    m_tab_page = page;
+    update_tab_title();
+}
+
 void Tab::setup_callbacks()
 {
     auto* root = GTK_WIDGET(m_web_view);
 
     m_view->on_title_change = [this](auto const& title) {
-        if (m_tab_page) {
-            auto utf8 = title.to_utf8();
-            auto byte_str = ByteString(utf8.bytes_as_string_view());
-            adw_tab_page_set_title(m_tab_page, byte_str.characters());
-        }
+        auto utf8 = title.to_utf8();
+        m_title = ByteString(utf8.bytes_as_string_view());
+        update_tab_title();
     };
 
     m_view->on_url_change = [this](auto const& url) {
@@ -271,6 +277,30 @@ void Tab::setup_callbacks()
     create_context_menu(*root, *m_view, m_view->link_context_menu());
     create_context_menu(*root, *m_view, m_view->image_context_menu());
     create_context_menu(*root, *m_view, m_view->media_context_menu());
+}
+
+ByteString Tab::tab_title() const
+{
+    if (!WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
+        return m_title;
+
+    return ByteString::formatted("{} [{}]", m_title, m_view->client().pid());
+}
+
+void Tab::update_tab_title()
+{
+    if (!m_tab_page)
+        return;
+
+    auto title = tab_title();
+    adw_tab_page_set_title(m_tab_page, title.characters());
+    adw_tab_page_set_tooltip(m_tab_page, title.characters());
+}
+
+void Tab::config_variable_changed(WebView::ConfigVariableID variable)
+{
+    if (variable == WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
+        update_tab_title();
 }
 
 void Tab::navigate(URL::URL const& url)

@@ -44,6 +44,7 @@ enum class GlobalPrivacyControl {
 };
 
 enum class ConfigVariableID : u8 {
+    ShowWebContentProcessIDInTabTitle,
     Count,
 };
 

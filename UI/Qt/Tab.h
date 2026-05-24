@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
@@ -46,7 +47,9 @@ signals:
     void mouse_entered(QEnterEvent*);
 };
 
-class Tab final : public QWidget {
+class Tab final
+    : public QWidget
+    , public WebView::SettingsObserver {
     Q_OBJECT
 
 public:
@@ -54,6 +57,7 @@ public:
     virtual ~Tab() override;
 
     WebContentView& view() { return *m_view; }
+    WebContentView const& view() const { return *m_view; }
 
     void navigate(URL::URL const&);
     void load_html(StringView);
@@ -70,7 +74,7 @@ public:
 
     QIcon const& favicon() const { return m_favicon; }
     QIcon tab_icon() const;
-    QString const& title() const { return m_title; }
+    QString title() const;
 
     QMenu* context_menu() const { return m_context_menu; }
 
@@ -93,8 +97,10 @@ signals:
 private:
     virtual void resizeEvent(QResizeEvent*) override;
     virtual bool event(QEvent*) override;
+    virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     void recreate_toolbar_icons();
+    void update_tab_title();
     void set_loading(bool);
     void update_tab_icon();
     int tab_index();
