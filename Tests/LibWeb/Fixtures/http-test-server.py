@@ -8,6 +8,7 @@ import os
 import socket
 import socketserver
 import sys
+import threading
 import time
 import urllib.parse
 
@@ -35,6 +36,7 @@ class Echo:
     reason_phrase: Optional[str]
     reflect_headers_in_body: bool
     close_connection: bool
+    wait_for_unblock: Optional[str]
 
     def __eq__(self, other):
         if not isinstance(other, Echo):
@@ -51,6 +53,7 @@ class Echo:
             and self.reason_phrase == other.reason_phrase
             and self.reflect_headers_in_body == other.reflect_headers_in_body
             and self.close_connection == other.close_connection
+            and self.wait_for_unblock == other.wait_for_unblock
         )
 
 
@@ -59,6 +62,9 @@ echo_store: Dict[str, Echo] = {}
 
 # Headers from the most recent request at each echo path, queryable via GET /recorded-request-headers<echo-path>.
 recorded_request_headers: Dict[str, Dict[str, list]] = {}
+
+# Named events used by tests that need deterministic delayed responses.
+unblock_events: Dict[str, threading.Event] = {}
 
 
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -115,7 +121,9 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_GET(self):
-        if self.path.startswith("/echo"):
+        if self.path.startswith("/unblock/"):
+            self._serve_unblock()
+        elif self.path.startswith("/echo"):
             self.handle_echo()
         elif self.path.startswith("/recorded-request-headers/"):
             self._serve_recorded_request_headers()
@@ -173,6 +181,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         echo.reason_phrase = data.get("reason_phrase", None)
         echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
         echo.close_connection = data.get("close_connection", False)
+        echo.wait_for_unblock = data.get("wait_for_unblock", None)
 
         is_invalid_echo_path = echo.path is None or not echo.path.startswith("/echo/")
 
@@ -205,6 +214,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         echo_store[key] = echo
+        if echo.wait_for_unblock is not None:
+            unblock_events[echo.wait_for_unblock] = threading.Event()
 
         host = self.headers.get("host", "localhost")
         path = echo.path.lstrip("/")
@@ -221,6 +232,14 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
+
+    def _serve_unblock(self):
+        token = urllib.parse.unquote(self.path[len("/unblock/") :])
+        event = unblock_events.setdefault(token, threading.Event())
+        event.set()
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
 
     def _serve_recorded_request_headers(self):
         echo_path = self.path[len("/recorded-request-headers") :]
@@ -267,6 +286,10 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.connection.shutdown(socket.SHUT_WR)
             self.connection.close()
             return
+
+        if echo.wait_for_unblock is not None:
+            event = unblock_events.setdefault(echo.wait_for_unblock, threading.Event())
+            event.wait()
 
         response_headers = echo.headers.copy()
 
@@ -363,7 +386,8 @@ def start_server(port, static_directory):
     TestHTTPRequestHandler.wpt_directory = os.path.join(
         TestHTTPRequestHandler.static_directory, "Text", "input", "wpt-import"
     )
-    httpd = socketserver.TCPServer(("127.0.0.1", port), TestHTTPRequestHandler)
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), TestHTTPRequestHandler)
+    httpd.daemon_threads = True
 
     print(httpd.socket.getsockname()[1])
     sys.stdout.flush()
