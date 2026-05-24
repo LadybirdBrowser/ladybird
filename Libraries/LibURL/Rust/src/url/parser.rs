@@ -81,7 +81,71 @@ pub(super) fn is_url_code_point(code_point: char) -> bool {
     // U+003B (;), U+003D (=), U+003F (?), U+0040 (@), U+005F (_), U+007E (~), and code
     // points in the range U+00A0 to U+10FFFD, inclusive, excluding surrogates and
     // noncharacters.
-    code_point.is_ascii_alphanumeric() || "!$&'()*+,-./:;=?@_~".contains(code_point)
+    code_point.is_ascii() && is_ascii_url_code_point_byte(code_point as u8)
+}
+
+#[inline]
+fn is_ascii_url_code_point_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric()
+        || matches!(
+            byte,
+            b'!' | b'$'
+                | b'&'
+                | b'\''
+                | b'('
+                | b')'
+                | b'*'
+                | b'+'
+                | b','
+                | b'-'
+                | b'.'
+                | b'/'
+                | b':'
+                | b';'
+                | b'='
+                | b'?'
+                | b'@'
+                | b'_'
+                | b'~'
+        )
+}
+
+#[inline]
+fn is_ascii_path_state_copyable_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric()
+        || matches!(
+            byte,
+            b'!' | b'$'
+                | b'&'
+                | b'\''
+                | b'('
+                | b')'
+                | b'*'
+                | b'+'
+                | b','
+                | b'-'
+                | b'.'
+                | b':'
+                | b';'
+                | b'='
+                | b'@'
+                | b'_'
+                | b'~'
+        )
+}
+
+#[inline]
+fn is_ascii_query_state_copyable_byte(byte: u8) -> bool {
+    is_ascii_url_code_point_byte(byte)
+}
+
+#[inline]
+fn ascii_copyable_state_prefix_length(input: &str, is_copyable_byte: impl Fn(u8) -> bool) -> usize {
+    input
+        .as_bytes()
+        .iter()
+        .position(|&byte| !is_copyable_byte(byte))
+        .unwrap_or(input.len())
 }
 
 // https://url.spec.whatwg.org/#single-dot-path-segment
@@ -1061,6 +1125,16 @@ pub(crate) fn basic_parse_into(
                 }
                 // 2. Otherwise, run these steps:
                 else {
+                    // OPTIMIZATION: The spec processes one code point at a time here. Copy the prefix of ASCII
+                    // bytes that can be appended without changing parser state or requiring percent-encoding.
+                    let prefix_length =
+                        ascii_copyable_state_prefix_length(remaining, is_ascii_path_state_copyable_byte);
+                    if prefix_length > 0 {
+                        buffer.push_str(&remaining[..prefix_length]);
+                        pointer += prefix_length;
+                        continue;
+                    }
+
                     // 1. If c is not a URL code point and not U+0025 (%), invalid-URL-unit validation error.
                     if let Some(byte) = code_point {
                         if !is_url_code_point(byte) && byte != '%' {
@@ -1167,6 +1241,16 @@ pub(crate) fn basic_parse_into(
                 }
                 // 3. Otherwise, if c is not the EOF code point:
                 else if let Some(byte) = code_point {
+                    // OPTIMIZATION: The spec appends query code points one at a time before the final encoding pass.
+                    // Copy the matching ASCII URL-code-point prefix directly and resume normal handling at the first special byte.
+                    let prefix_length =
+                        ascii_copyable_state_prefix_length(remaining, is_ascii_query_state_copyable_byte);
+                    if prefix_length > 0 {
+                        buffer.push_str(&remaining[..prefix_length]);
+                        pointer += prefix_length;
+                        continue;
+                    }
+
                     // 1. If c is not a URL code point and not U+0025 (%), invalid-URL-unit validation error.
                     if !is_url_code_point(byte) && byte != '%' {
                         report_validation_error(State::Query, pointer, code_point, "invalid-URL-unit");
