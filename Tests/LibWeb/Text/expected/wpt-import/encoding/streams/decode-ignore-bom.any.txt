@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	ignoreBOM should work for encoding utf-8, split at character 0
+Pass	ignoreBOM should work for encoding utf-8, split at character 1
+Pass	ignoreBOM should work for encoding utf-8, split at character 2
+Pass	ignoreBOM should work for encoding utf-8, split at character 3
+Pass	ignoreBOM should work for encoding utf-16le, split at character 0
+Pass	ignoreBOM should work for encoding utf-16le, split at character 1
+Pass	ignoreBOM should work for encoding utf-16le, split at character 2
+Pass	ignoreBOM should work for encoding utf-16le, split at character 3
+Pass	ignoreBOM should work for encoding utf-16be, split at character 0
+Pass	ignoreBOM should work for encoding utf-16be, split at character 1
+Pass	ignoreBOM should work for encoding utf-16be, split at character 2
+Pass	ignoreBOM should work for encoding utf-16be, split at character 3

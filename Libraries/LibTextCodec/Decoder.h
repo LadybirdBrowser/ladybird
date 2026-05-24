@@ -21,7 +21,7 @@ namespace TextCodec {
 class TEXTCODEC_API Decoder {
 public:
     virtual bool validate(StringView);
-    virtual ErrorOr<String> to_utf8(StringView);
+    virtual ErrorOr<String> to_utf8(StringView, bool strip_bom = true);
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView);
     ErrorOr<void> process_code_points(StringView, Function<ErrorOr<void>(u32)>);
 
@@ -38,7 +38,7 @@ class TEXTCODEC_API UTF8Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView) override;
-    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView, bool strip_bom = true) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
     virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 };
@@ -46,7 +46,7 @@ public:
 class TEXTCODEC_API UTF16BEDecoder final : public Decoder {
 public:
     virtual bool validate(StringView) override;
-    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView, bool strip_bom = true) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
     virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 
@@ -57,7 +57,7 @@ private:
 class TEXTCODEC_API UTF16LEDecoder final : public Decoder {
 public:
     virtual bool validate(StringView) override;
-    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView, bool strip_bom = true) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
     virtual size_t incomplete_tail_length(ReadonlyBytes) const override;
 
@@ -152,8 +152,8 @@ public:
     {
     }
 
-    ErrorOr<String> to_utf8(ReadonlyBytes);
-    ErrorOr<String> finish();
+    ErrorOr<String> to_utf8(ReadonlyBytes, bool strip_bom = true);
+    ErrorOr<String> finish(bool strip_bom = true);
 
 private:
     Decoder& m_decoder;

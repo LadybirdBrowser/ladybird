@@ -73,7 +73,7 @@ WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVar
     if (data_buffer_or_error.is_error())
         return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_utf16);
     auto& data_buffer = data_buffer_or_error.value();
-    auto result = TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }));
+    auto result = TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }, !this->ignore_bom()));
     if (this->fatal() && result.contains(0xfffd))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
     return result;

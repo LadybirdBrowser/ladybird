@@ -186,16 +186,14 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value 
     m_io_queue.append(buffer.bytes());
 
     // NB: Only decode the prefix of m_io_queue that doesn't end mid-multi-byte-sequence; the remainder is held over
-    //     for the next chunk so we don't emit spurious replacement characters at chunk boundaries. We currently only
-    //     do this boundary search for UTF-8; the underlying decoders for other encodings are stateless across calls
-    //     so for those we just decode whatever's in the queue and don't carry anything over.
+    //     for the next chunk so we don't emit spurious replacement characters at chunk boundaries.
     auto safe_length = (m_encoding == "utf-8"_fly_string)
         ? find_utf8_safe_decode_boundary(m_io_queue.bytes())
-        : m_io_queue.size();
+        : m_io_queue.size() - m_decoder.incomplete_tail_length(m_io_queue.bytes());
     if (safe_length == 0)
         return {};
 
-    auto decoded = TRY_OR_THROW_OOM(vm, m_decoder.to_utf8(StringView { m_io_queue.data(), safe_length }));
+    auto decoded = TRY_OR_THROW_OOM(vm, m_decoder.to_utf8(StringView { m_io_queue.data(), safe_length }, !this->ignore_bom()));
 
     auto remaining = m_io_queue.size() - safe_length;
     if (remaining > 0)
@@ -231,9 +229,8 @@ WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(String const
     auto& vm = realm.vm();
 
     // https://encoding.spec.whatwg.org/#concept-td-serialize
-    // FIXME: The underlying TextCodec decoders currently strip leading BOMs unconditionally for UTF-8 and UTF-16BE/LE,
-    //        so the "ignore BOM" flag is effectively ignored here. Once the decoders accept a "preserve BOM" mode,
-    //        plumb m_ignore_bom through and strip the BOM from `decoded` only when m_ignore_bom is false.
+    // BOM stripping is handled by the decoder via the strip_bom flag passed to to_utf8,
+    // which is set to !this->ignore_bom().
     if (!m_bom_seen && !decoded.is_empty())
         m_bom_seen = true;
 

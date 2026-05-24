@@ -360,7 +360,7 @@ bool Decoder::validate(StringView input)
     return !result.is_error();
 }
 
-ErrorOr<String> Decoder::to_utf8(StringView input)
+ErrorOr<String> Decoder::to_utf8(StringView input, bool)
 {
     StringBuilder builder(input.length());
     TRY(process(input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
@@ -708,7 +708,7 @@ size_t ISO2022JPDecoder::incomplete_tail_length(ReadonlyBytes bytes) const
     return 0;
 }
 
-ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
+ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input, bool strip_bom)
 {
     ReadonlyBytes bytes;
     if (m_pending_input.is_empty()) {
@@ -719,7 +719,7 @@ ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
     }
 
     auto tail_length = m_decoder.incomplete_tail_length(bytes);
-    auto decoded = TRY(m_decoder.to_utf8(StringView(bytes.slice(0, bytes.size() - tail_length))));
+    auto decoded = TRY(m_decoder.to_utf8(StringView(bytes.slice(0, bytes.size() - tail_length)), strip_bom));
 
     if (tail_length == 0)
         m_pending_input.clear();
@@ -728,9 +728,9 @@ ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
     return decoded;
 }
 
-ErrorOr<String> StreamingDecoder::finish()
+ErrorOr<String> StreamingDecoder::finish(bool strip_bom)
 {
-    auto decoded = TRY(m_decoder.to_utf8(StringView(m_pending_input.bytes())));
+    auto decoded = TRY(m_decoder.to_utf8(StringView(m_pending_input.bytes()), strip_bom));
     m_pending_input.clear();
     return decoded;
 }
@@ -904,10 +904,13 @@ bool UTF8Decoder::validate(StringView input)
     return Utf8View(input).validate(AllowLonelySurrogates::No);
 }
 
-ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
+ErrorOr<String> UTF8Decoder::to_utf8(StringView input, bool strip_bom)
 {
-    if (auto bytes = input.bytes(); bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
-        input = input.substring_view(3);
+    if (strip_bom) {
+        auto bytes = input.bytes();
+        if (bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
+            input = input.substring_view(3);
+    }
 
     StringBuilder builder(input.length());
     TRY(process_utf8_with_replacement_character(input, [&](auto code_point) {
@@ -943,10 +946,10 @@ static size_t utf16_length_in_utf16_code_units(StringView input, bool big_endian
     return (bytes.size() + 1) / 2;
 }
 
-static ErrorOr<void> process_utf16(StringView input, bool big_endian, Function<ErrorOr<void>(u32)> on_code_point)
+static ErrorOr<void> process_utf16(StringView input, bool big_endian, Function<ErrorOr<void>(u32)> on_code_point, bool strip_bom = true)
 {
     auto bytes = input.bytes();
-    if (bytes.size() >= 2) {
+    if (strip_bom && bytes.size() >= 2) {
         if ((big_endian && bytes[0] == 0xFE && bytes[1] == 0xFF)
             || (!big_endian && bytes[0] == 0xFF && bytes[1] == 0xFE))
             bytes = bytes.slice(2);
@@ -992,9 +995,11 @@ ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u
     return process_utf16(input, true, move(on_code_point));
 }
 
-ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
+ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input, bool strip_bom)
 {
-    return Decoder::to_utf8(input);
+    StringBuilder builder(input.length());
+    TRY(process_utf16(input, true, [&](auto code_point) { return builder.try_append_code_point(code_point); }, strip_bom));
+    return builder.to_string_without_validation();
 }
 
 ErrorOr<size_t> UTF16BEDecoder::length_in_utf16_code_units(StringView input)
@@ -1014,9 +1019,11 @@ ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u
     return process_utf16(input, false, move(on_code_point));
 }
 
-ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
+ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input, bool strip_bom)
 {
-    return Decoder::to_utf8(input);
+    StringBuilder builder(input.length());
+    TRY(process_utf16(input, false, [&](auto code_point) { return builder.try_append_code_point(code_point); }, strip_bom));
+    return builder.to_string_without_validation();
 }
 
 ErrorOr<size_t> UTF16LEDecoder::length_in_utf16_code_units(StringView input)
