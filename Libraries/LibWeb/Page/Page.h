@@ -222,6 +222,7 @@ public:
     void unregister_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id);
 
     void present_all_canvas_element_surfaces();
+    void republish_all_canvas_element_surfaces();
 
     struct MediaContextMenu {
         URL::URL media_url;

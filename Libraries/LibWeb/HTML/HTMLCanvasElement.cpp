@@ -451,6 +451,21 @@ void HTMLCanvasElement::present()
             // Do nothing.
         });
 
+    update_compositor_surface();
+}
+
+void HTMLCanvasElement::republish_compositor_surface()
+{
+    if (m_canvas_content_dirty) {
+        present();
+        return;
+    }
+
+    update_compositor_surface();
+}
+
+void HTMLCanvasElement::update_compositor_surface()
+{
     if (auto surface = this->surface()) {
         surface->flush();
         if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())

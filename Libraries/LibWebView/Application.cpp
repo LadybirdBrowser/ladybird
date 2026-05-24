@@ -6,6 +6,7 @@
 
 #include <AK/Checked.h>
 #include <AK/Debug.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ArgsParser.h>
@@ -493,24 +494,29 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
     return client;
 }
 
-static bool should_skip_compositor_process_ipc(RefPtr<CompositorClient> const& compositor_client)
+static bool can_send_compositor_process_ipc(RefPtr<CompositorClient> const& compositor_client)
 {
-    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::No)
-        return true;
-    if (!compositor_client && Core::EventLoop::current().was_exit_requested())
-        return true;
-    return false;
+    if (!Application::the().should_use_compositor_process())
+        return false;
+    if (!compositor_client)
+        return false;
+    return compositor_client->is_open();
 }
 
 ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& web_content_client)
 {
-    if (m_browser_options.enable_compositor_process == EnableCompositorProcess::No)
+    if (!should_use_compositor_process())
         return {};
     if (web_content_client.compositor_connection_id({}).has_value())
         return {};
 
-    VERIFY(m_compositor_client);
-    auto response = m_compositor_client->connect_web_content();
+    if (!m_compositor_client)
+        return Error::from_string_literal("Compositor process is not available");
+
+    auto response_or_error = m_compositor_client->try_connect_web_content();
+    if (response_or_error.is_error())
+        return Error::from_string_literal("Compositor process disconnected while connecting WebContent");
+    auto response = response_or_error.release_value();
 
     web_content_client.set_compositor_connection_id({}, response.web_content_connection_id());
     web_content_client.async_connect_to_compositor_process(response.take_handle());
@@ -519,7 +525,7 @@ ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& w
 
 void Application::register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
 {
-    if (should_skip_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
     VERIFY(m_compositor_client);
 
@@ -533,9 +539,30 @@ void Application::register_compositor_context(WebContentClient& web_content_clie
     m_compositor_client->create_context(context_id, page_id, page_presentation_registration, *web_content_connection_id);
 }
 
+ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
+{
+    if (!should_use_compositor_process())
+        return {};
+    if (!m_compositor_client)
+        return Error::from_string_literal("Compositor process is not available");
+
+    auto web_content_connection_id = web_content_client.compositor_connection_id({});
+    if (!web_content_connection_id.has_value()) {
+        TRY(connect_web_content_to_compositor(web_content_client));
+        web_content_connection_id = web_content_client.compositor_connection_id({});
+    }
+    VERIFY(web_content_connection_id.has_value());
+
+    auto result = m_compositor_client->try_create_context(context_id, page_id, page_presentation_registration, *web_content_connection_id);
+    if (result.is_error())
+        return Error::from_string_literal("Compositor process disconnected while creating context");
+
+    return {};
+}
+
 void Application::update_compositor_viewport(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
-    if (should_skip_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
     VERIFY(m_compositor_client);
 
@@ -544,28 +571,39 @@ void Application::update_compositor_viewport(Web::Compositor::CompositorContextI
 
 bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
-    VERIFY(m_compositor_client);
-    return m_compositor_client->async_scroll_by(context_id, position, delta_in_device_pixels);
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return false;
+
+    auto result = m_compositor_client->try_async_scroll_by(context_id, position, delta_in_device_pixels);
+    if (result.is_error())
+        return false;
+    return result.release_value();
 }
 
 bool Application::handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
-    VERIFY(m_compositor_client);
-    return m_compositor_client->handle_mouse_event(context_id, event.clone_without_browser_data());
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return false;
+
+    auto result = m_compositor_client->try_handle_mouse_event(context_id, event.clone_without_browser_data());
+    if (result.is_error())
+        return false;
+    return result.release_value();
 }
 
-void Application::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
+bool Application::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
-    if (should_skip_compositor_process_ipc(m_compositor_client))
-        return;
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return false;
     VERIFY(m_compositor_client);
 
     m_compositor_client->async_dispatch_mouse_event_to_web_content(context_id, event.clone_without_browser_data());
+    return true;
 }
 
 void Application::notify_compositor_presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id)
 {
-    if (should_skip_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
     VERIFY(m_compositor_client);
 
@@ -669,7 +707,7 @@ ErrorOr<void> Application::launch_services()
 
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
-    if (m_browser_options.enable_compositor_process == EnableCompositorProcess::Yes)
+    if (should_use_compositor_process())
         TRY(launch_compositor_process());
 
     if (m_browser_options.devtools_port.has_value())
@@ -680,19 +718,95 @@ ErrorOr<void> Application::launch_services()
 
 ErrorOr<void> Application::launch_compositor_process()
 {
+    if (!should_use_compositor_process())
+        return {};
+
     VERIFY(!m_compositor_client);
     m_compositor_client = TRY(WebView::launch_compositor_process());
     m_compositor_client->on_death = [this]() {
-        m_compositor_client = nullptr;
-
-        if (Core::EventLoop::current().was_exit_requested())
-            return;
-
-        dbgln("Compositor process died");
-        VERIFY_NOT_REACHED();
+        handle_compositor_process_death();
     };
 
     return {};
+}
+
+bool Application::should_use_compositor_process() const
+{
+    return m_browser_options.enable_compositor_process == EnableCompositorProcess::Yes;
+}
+
+void Application::handle_compositor_process_death()
+{
+    m_compositor_client = nullptr;
+
+    if (Core::EventLoop::current().was_exit_requested())
+        return;
+    switch (m_compositor_recovery_state) {
+    case CompositorRecoveryState::Idle:
+        break;
+    case CompositorRecoveryState::Queued:
+        return;
+    case CompositorRecoveryState::Recovering:
+        warnln("Compositor process died while recovering, crashing Browser");
+        VERIFY_NOT_REACHED();
+    }
+
+    m_compositor_recovery_state = CompositorRecoveryState::Queued;
+    Core::deferred_invoke([this] {
+        VERIFY(m_compositor_recovery_state == CompositorRecoveryState::Queued);
+        m_compositor_recovery_state = CompositorRecoveryState::Idle;
+        recover_compositor_process();
+    });
+}
+
+void Application::recover_compositor_process()
+{
+    if (!should_use_compositor_process() || Core::EventLoop::current().was_exit_requested())
+        return;
+
+    constexpr size_t max_compositor_restart_count = 3;
+    if (m_compositor_restart_count >= max_compositor_restart_count) {
+        warnln("Compositor process crashed repeatedly, crashing Browser");
+        VERIFY_NOT_REACHED();
+    }
+
+    ++m_compositor_restart_count;
+    dbgln("Compositor process died, restarting ({}/{})", m_compositor_restart_count, max_compositor_restart_count);
+
+    VERIFY(m_compositor_recovery_state == CompositorRecoveryState::Idle);
+    m_compositor_recovery_state = CompositorRecoveryState::Recovering;
+    ScopeGuard clear_recovery_flag = [this] {
+        m_compositor_recovery_state = CompositorRecoveryState::Idle;
+    };
+
+    if (auto result = launch_compositor_process(); result.is_error()) {
+        warnln("Unable to restart Compositor process: {}", result.error());
+        VERIFY_NOT_REACHED();
+    }
+
+    Vector<NonnullRefPtr<WebContentClient>> clients;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (client.is_open())
+            clients.append(NonnullRefPtr { client });
+        return IterationDecision::Continue;
+    });
+
+    for (auto& client : clients) {
+        if (auto result = client->reconnect_to_compositor_process({}); result.is_error()) {
+            warnln("Unable to reconnect WebContent process {} to Compositor: {}", client->pid(), result.error());
+            VERIFY_NOT_REACHED();
+        }
+    }
+    for (auto& client : clients) {
+        if (auto result = client->recreate_compositor_contexts({}); result.is_error()) {
+            warnln("Unable to recreate Compositor contexts for WebContent process {}: {}", client->pid(), result.error());
+            VERIFY_NOT_REACHED();
+        }
+    }
+    for (auto& client : clients)
+        client->update_compositor_viewports_after_reconnect({});
+    for (auto& client : clients)
+        client->notify_compositor_process_reconnected({});
 }
 
 ErrorOr<void> Application::launch_request_server()

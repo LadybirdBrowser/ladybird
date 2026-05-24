@@ -45,6 +45,7 @@ public:
     ConnectionFromClient& client() const { return m_client; }
     void ensure_compositor_host(Web::DisplayListPlayerType);
     void attach_compositor_ui_client(IPC::TransportHandle);
+    void compositor_process_reconnected();
     Web::Compositor::CompositorHost* compositor_host() { return m_compositor_host.ptr(); }
     Web::Compositor::CompositorHost const* compositor_host() const { return m_compositor_host.ptr(); }
 

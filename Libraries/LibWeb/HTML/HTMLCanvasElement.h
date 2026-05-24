@@ -48,6 +48,7 @@ public:
     RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
 
     void present();
+    void republish_compositor_surface();
     void set_canvas_content_dirty();
 
     RefPtr<Gfx::PaintingSurface> surface() const;
@@ -75,6 +76,7 @@ private:
     void reset_context_to_default_state();
     void notify_context_about_canvas_size_change();
     void clear_compositor_surface();
+    void update_compositor_surface();
 
     Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
     Optional<Painting::CompositorSurfaceId> m_compositor_surface_id;

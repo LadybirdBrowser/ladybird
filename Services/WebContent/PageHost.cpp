@@ -60,4 +60,10 @@ void PageHost::attach_compositor_ui_client(IPC::TransportHandle handle)
         m_compositor_host->attach_ui_client(move(handle));
 }
 
+void PageHost::compositor_process_reconnected()
+{
+    for (auto& [_, page] : m_pages)
+        page->compositor_process_reconnected();
+}
+
 }

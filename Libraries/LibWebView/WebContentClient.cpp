@@ -101,7 +101,7 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, View
 {
     s_clients.set(this);
     m_views.set(0, view);
-    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::No)
+    if (!Application::the().should_use_compositor_process())
         initialize_compositor_connection(*this);
 }
 
@@ -109,7 +109,7 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
 {
     s_clients.set(this);
-    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::No)
+    if (!Application::the().should_use_compositor_process())
         initialize_compositor_connection(*this);
 }
 
@@ -143,9 +143,7 @@ Web::Compositor::CompositorContextId WebContentClient::compositor_context_id_for
 
     auto context_id = Web::Compositor::allocate_compositor_context_id();
     VERIFY(!Web::Compositor::is_page_presenting_compositor_context_id(context_id));
-    m_compositor_context_ids.set(context_id);
-    m_page_compositor_context_ids.set(page_id, context_id);
-    m_page_ids_for_compositor_context_ids.set(context_id, page_id);
+    remember_compositor_context(context_id, page_id, Web::Compositor::PagePresentationRegistration::Yes);
     Application::the().register_compositor_context(*this, context_id, page_id, Web::Compositor::PagePresentationRegistration::Yes);
     return context_id;
 }
@@ -164,7 +162,7 @@ Messages::WebContentClient::AllocateCompositorContextIdResponse WebContentClient
 
     auto context_id = Web::Compositor::allocate_compositor_context_id();
     VERIFY(!Web::Compositor::is_page_presenting_compositor_context_id(context_id));
-    m_compositor_context_ids.set(context_id);
+    remember_compositor_context(context_id, {}, page_presentation_registration);
     Application::the().register_compositor_context(*this, context_id, {}, page_presentation_registration);
     return context_id;
 }
@@ -176,11 +174,24 @@ void WebContentClient::did_destroy_compositor_context(Web::Compositor::Composito
 
 bool WebContentClient::forget_compositor_context(Web::Compositor::CompositorContextId context_id)
 {
-    if (!m_compositor_context_ids.remove(context_id))
+    if (!m_compositor_contexts.remove(context_id))
         return false;
     if (auto page_id = m_page_ids_for_compositor_context_ids.take(context_id); page_id.has_value())
         m_page_compositor_context_ids.remove(*page_id);
     return true;
+}
+
+void WebContentClient::remember_compositor_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
+{
+    m_compositor_contexts.set(context_id, CompositorContextRegistration {
+                                              .page_id = page_id,
+                                              .page_presentation_registration = page_presentation_registration,
+                                          });
+
+    if (page_id.has_value()) {
+        m_page_compositor_context_ids.set(*page_id, context_id);
+        m_page_ids_for_compositor_context_ids.set(context_id, *page_id);
+    }
 }
 
 void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
@@ -218,9 +229,51 @@ void WebContentClient::web_ui_disconnected(Badge<WebUI>)
 
 void WebContentClient::destroy_all_compositor_contexts()
 {
-    m_compositor_context_ids.clear();
+    m_compositor_contexts.clear();
     m_page_compositor_context_ids.clear();
     m_page_ids_for_compositor_context_ids.clear();
+}
+
+ErrorOr<void> WebContentClient::reconnect_to_compositor_process(Badge<Application>)
+{
+    if (!Application::the().should_use_compositor_process() || !is_open())
+        return {};
+
+    m_compositor_connection_id.clear();
+    TRY(Application::the().connect_web_content_to_compositor(*this));
+    return {};
+}
+
+ErrorOr<void> WebContentClient::recreate_compositor_contexts(Badge<Application>)
+{
+    if (!Application::the().should_use_compositor_process() || !is_open())
+        return {};
+
+    for (auto const& [context_id, registration] : m_compositor_contexts)
+        TRY(Application::the().try_register_compositor_context(*this, context_id, registration.page_id, registration.page_presentation_registration));
+
+    return {};
+}
+
+void WebContentClient::update_compositor_viewports_after_reconnect(Badge<Application>)
+{
+    if (!Application::the().should_use_compositor_process() || !is_open())
+        return;
+
+    for (auto const& [page_id, view] : m_views) {
+        auto context_id = m_page_compositor_context_ids.get(page_id);
+        if (!context_id.has_value())
+            continue;
+        Application::the().update_compositor_viewport(*context_id, view->viewport_size().to_type<int>());
+    }
+}
+
+void WebContentClient::notify_compositor_process_reconnected(Badge<Application>)
+{
+    if (!Application::the().should_use_compositor_process() || !is_open())
+        return;
+
+    async_compositor_process_reconnected();
 }
 
 void WebContentClient::notify_all_views_of_crash()
@@ -252,7 +305,7 @@ bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPo
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
     bool handled = false;
-    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::Yes) {
+    if (Application::the().should_use_compositor_process()) {
         handled = Application::the().send_async_scroll_to_compositor(compositor_context_id_for_page(page_id), position, delta_in_device_pixels);
     } else {
         auto connection = compositor_connections().get(this);
@@ -271,7 +324,7 @@ bool WebContentClient::handle_mouse_event_in_compositor(u64 page_id, Web::MouseE
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
     bool handled = false;
-    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::Yes) {
+    if (Application::the().should_use_compositor_process()) {
         handled = Application::the().handle_mouse_event_in_compositor(compositor_context_id_for_page(page_id), event);
     } else {
         auto connection = compositor_connections().get(this);
@@ -287,9 +340,15 @@ bool WebContentClient::handle_mouse_event_in_compositor(u64 page_id, Web::MouseE
 
 void WebContentClient::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
 {
-    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::Yes) {
-        Application::the().dispatch_mouse_event_to_web_content(compositor_context_id_for_page(page_id), event);
-        return;
+    if (Application::the().should_use_compositor_process()) {
+        auto context_id = m_page_compositor_context_ids.get(page_id);
+        if (context_id.has_value() && Application::the().dispatch_mouse_event_to_web_content(*context_id, event))
+            return;
+        if (!context_id.has_value()) {
+            auto new_context_id = compositor_context_id_for_page(page_id);
+            if (Application::the().dispatch_mouse_event_to_web_content(new_context_id, event))
+                return;
+        }
     }
 
     async_mouse_event(page_id, event.clone_without_browser_data());
@@ -297,7 +356,7 @@ void WebContentClient::dispatch_mouse_event_to_web_content(u64 page_id, Web::Mou
 
 void WebContentClient::notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id)
 {
-    if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::Yes) {
+    if (Application::the().should_use_compositor_process()) {
         auto context_id = m_page_compositor_context_ids.get(page_id);
         if (!context_id.has_value())
             return;
@@ -318,7 +377,7 @@ void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, i32 bi
     } else {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view",
             page_id, bitmap_id);
-        if (Application::browser_options().enable_compositor_process == EnableCompositorProcess::Yes)
+        if (Application::the().should_use_compositor_process())
             notify_presented_bitmap_ready_to_paint(page_id, bitmap_id);
         else
             try_notify_presented_bitmap_ready_to_paint(*this, page_id, bitmap_id);
