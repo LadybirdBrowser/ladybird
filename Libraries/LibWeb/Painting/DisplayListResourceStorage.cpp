@@ -52,16 +52,6 @@ void DisplayListResourceStorage::set_image_frame(ImageFrameResourceId id, Gfx::D
     m_image_frames.set(id.value(), move(frame));
 }
 
-void DisplayListResourceStorage::set_video_frame(VideoFrameResourceId id, RefPtr<Media::VideoFrame const> frame)
-{
-    m_video_frames.set(id.value(), move(frame));
-}
-
-void DisplayListResourceStorage::set_display_list(DisplayListResourceId id, NonnullRefPtr<DisplayList const> display_list)
-{
-    m_display_lists.set(id.value(), move(display_list));
-}
-
 static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
 {
     VERIFY(static_cast<size_t>(span.offset) + span.size <= payload.size());

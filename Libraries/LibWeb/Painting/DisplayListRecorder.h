@@ -154,8 +154,6 @@ public:
     DisplayListRecorder(DisplayList&, DisplayListResourceStorage&);
     ~DisplayListRecorder();
 
-    DisplayList& display_list() { return m_display_list; }
-    DisplayList const& display_list() const { return m_display_list; }
     DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
 
     int m_save_nesting_level { 0 };

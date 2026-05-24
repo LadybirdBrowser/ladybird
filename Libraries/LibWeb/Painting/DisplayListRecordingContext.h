@@ -40,7 +40,6 @@ public:
 
     DevicePixelRect device_viewport_rect() const { return m_device_viewport_rect; }
     void set_device_viewport_rect(DevicePixelRect const& rect) { m_device_viewport_rect = rect; }
-    CSSPixelRect css_viewport_rect() const;
 
     void set_svg_transform(Gfx::AffineTransform transform)
     {
@@ -71,10 +70,6 @@ public:
     DevicePixelRect rounded_device_rect(CSSPixelRect) const;
     DevicePixelSize enclosing_device_size(CSSPixelSize) const;
     DevicePixelSize rounded_device_size(CSSPixelSize) const;
-    CSSPixels scale_to_css_pixels(DevicePixels) const;
-    CSSPixelPoint scale_to_css_point(DevicePixelPoint) const;
-    CSSPixelSize scale_to_css_size(DevicePixelSize) const;
-    CSSPixelRect scale_to_css_rect(DevicePixelRect) const;
 
     DisplayListRecordingContext clone(Painting::DisplayListRecorder& painter) const
     {
