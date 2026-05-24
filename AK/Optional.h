@@ -209,7 +209,7 @@ public:
     }
 
     template<typename U>
-    requires(IsConstructible<T, U const&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional> && (!IsLvalueReference<U> || IsTriviallyCopyConstructible<U>)) ALWAYS_INLINE explicit constexpr Optional(Optional<U> const& other)
+    requires(!IsSame<U, T> && IsConstructible<T, U const&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional> && (!IsLvalueReference<U> || IsTriviallyCopyConstructible<U>)) ALWAYS_INLINE explicit constexpr Optional(Optional<U> const& other)
         : m_has_value(other.has_value())
     {
         if (other.has_value())
@@ -219,7 +219,7 @@ public:
     }
 
     template<typename U>
-    requires(IsConstructible<T, U &&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional> && (!IsLvalueReference<U> || IsTriviallyMoveConstructible<U>)) ALWAYS_INLINE explicit constexpr Optional(Optional<U>&& other)
+    requires(!IsSame<U, T> && IsConstructible<T, U &&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional> && (!IsLvalueReference<U> || IsTriviallyMoveConstructible<U>)) ALWAYS_INLINE explicit constexpr Optional(Optional<U>&& other)
         : m_has_value(other.has_value())
     {
         if (other.has_value())
