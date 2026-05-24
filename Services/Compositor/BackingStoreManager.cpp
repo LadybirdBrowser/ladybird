@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Compositor/BackingStoreManager.h>
-
+#include <Compositor/BackingStoreManager.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -16,7 +15,7 @@
 #    include <libdrm/drm_fourcc.h>
 #endif
 
-namespace Web::Compositor {
+namespace Compositor {
 
 struct BackingStorePair {
     RefPtr<Gfx::PaintingSurface> front;
@@ -90,14 +89,14 @@ static ErrorOr<DMABufBackingStorePair> create_linear_dmabuf_backing_stores(Gfx::
 #endif
 
 Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_stores_if_needed(
-    Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
+    Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     if (viewport_size.is_empty())
         return {};
 
     auto minimum_needed_size = viewport_size;
     bool force_reallocate = false;
-    if (window_resize_in_progress == WindowResizingInProgress::Yes && is_top_level_traversable) {
+    if (window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes && is_top_level_traversable) {
         // Pad the minimum needed size so that we don't have to keep reallocating backing stores while the window is being resized.
         minimum_needed_size = { viewport_size.width() + 256, viewport_size.height() + 256 };
     } else {

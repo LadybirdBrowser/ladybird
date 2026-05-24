@@ -32,7 +32,6 @@ set(SOURCES
     Clipboard/SystemClipboard.cpp
     Compositor/AsyncScrollTree.cpp
     Compositor/AsyncScrollingState.cpp
-    Compositor/BackingStoreManager.cpp
     Compositor/CompositorHost.cpp
     Compositor/Types.cpp
     Compression/CompressionStream.cpp

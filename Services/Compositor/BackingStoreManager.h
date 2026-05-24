@@ -14,11 +14,10 @@
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Compositor/Types.h>
-#include <LibWeb/Export.h>
 
-namespace Web::Compositor {
+namespace Compositor {
 
-class WEB_API BackingStoreManager {
+class BackingStoreManager {
     AK_MAKE_NONCOPYABLE(BackingStoreManager);
     AK_MAKE_NONMOVABLE(BackingStoreManager);
 
@@ -38,7 +37,7 @@ public:
     BackingStoreManager() = default;
 
     Optional<Allocation> resize_backing_stores_if_needed(
-        Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress);
+        Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress);
     Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish);
 
     bool is_valid() const;
