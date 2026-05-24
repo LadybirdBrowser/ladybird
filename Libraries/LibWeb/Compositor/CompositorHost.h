@@ -10,9 +10,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
-#include <AK/RefPtr.h>
 #include <AK/Types.h>
-#include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
@@ -60,9 +58,6 @@ private:
 
     CompositorHost& m_host;
     CompositorContextId m_context_id;
-    RefPtr<Core::Timer> m_backing_store_shrink_timer;
-    Gfx::IntSize m_last_viewport_size;
-    bool m_last_viewport_size_is_top_level_traversable { false };
 };
 
 class WEB_API CompositorHost {

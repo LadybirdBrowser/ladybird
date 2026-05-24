@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/Timer.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -15,15 +14,10 @@ CompositorContextHandle::CompositorContextHandle(CompositorHost& host, Composito
     : m_host(host)
     , m_context_id(context_id)
 {
-    m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this] {
-        m_host.viewport_size_updated(m_context_id, m_last_viewport_size, m_last_viewport_size_is_top_level_traversable, WindowResizingInProgress::No);
-    });
 }
 
 CompositorContextHandle::~CompositorContextHandle()
 {
-    m_backing_store_shrink_timer->on_timeout = {};
-    m_backing_store_shrink_timer->stop();
     m_host.destroy_context(m_context_id);
 }
 
@@ -90,10 +84,6 @@ PendingAsyncScrollUpdates CompositorContextHandle::take_pending_async_scroll_upd
 
 void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
 {
-    m_last_viewport_size = viewport_size;
-    m_last_viewport_size_is_top_level_traversable = is_top_level_traversable;
-    if (window_resize_in_progress == WindowResizingInProgress::Yes)
-        m_backing_store_shrink_timer->restart();
     m_host.viewport_size_updated(m_context_id, viewport_size, is_top_level_traversable, window_resize_in_progress);
 }
 

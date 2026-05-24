@@ -6,6 +6,7 @@
 
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
+#include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/PainterSkia.h>
@@ -148,6 +149,19 @@ CompositorState::CompositorState(RefPtr<Gfx::SkiaBackendContext> skia_backend_co
     , m_display_list_player(make<Web::Painting::DisplayListPlayerSkia>(m_skia_backend_context))
     , m_async_scrolling_enabled(async_scrolling_enabled)
 {
+}
+
+CompositorState::ContextState::~ContextState()
+{
+    stop_backing_store_shrink_timer();
+}
+
+void CompositorState::ContextState::stop_backing_store_shrink_timer()
+{
+    if (!backing_store_shrink_timer)
+        return;
+    backing_store_shrink_timer->on_timeout = {};
+    backing_store_shrink_timer->stop();
 }
 
 void CompositorState::set_client(CompositorStateClient& client)
@@ -511,6 +525,8 @@ void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId
     context->is_top_level_traversable = is_top_level_traversable;
     context->window_resize_in_progress = window_resize_in_progress;
     resize_backing_stores_if_needed(context_id, *context);
+    if (window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes)
+        schedule_backing_store_shrink(context_id, *context);
 }
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
@@ -885,6 +901,26 @@ void CompositorState::resize_backing_stores_if_needed(Web::Compositor::Composito
         publish_backing_stores(context_id, context, publication.release_value());
         present_current_frame(context_id, context);
     }
+}
+
+void CompositorState::schedule_backing_store_shrink(Web::Compositor::CompositorContextId context_id, ContextState& context)
+{
+    if (!context.backing_store_shrink_timer) {
+        context.backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this, context_id] {
+            shrink_backing_stores_after_resize(context_id);
+        });
+    }
+    context.backing_store_shrink_timer->restart();
+}
+
+void CompositorState::shrink_backing_stores_after_resize(Web::Compositor::CompositorContextId context_id)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+
+    context->window_resize_in_progress = Web::Compositor::WindowResizingInProgress::No;
+    resize_backing_stores_if_needed(context_id, *context);
 }
 
 void CompositorState::present_current_frame(Web::Compositor::CompositorContextId context_id, ContextState& context)
