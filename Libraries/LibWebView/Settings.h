@@ -45,6 +45,7 @@ enum class GlobalPrivacyControl {
 
 enum class ConfigVariableID : u8 {
     ShowWebContentProcessIDInTabTitle,
+    ContentBlockerListPaths,
     Count,
 };
 
@@ -54,6 +55,7 @@ struct ConfigVariableDefinition {
     StringView title;
     StringView description;
     JsonValue default_value;
+    Optional<JsonValue::Type> array_element_type;
 };
 
 WEBVIEW_API ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions();
@@ -134,6 +136,7 @@ public:
 
     JsonValue const& config_variable(ConfigVariableID) const;
     bool config_variable_as_bool(ConfigVariableID) const;
+    Vector<String> config_variable_as_string_array(ConfigVariableID) const;
     void set_config_variable(ConfigVariableID, JsonValue);
     void set_config_variable(StringView name, JsonValue const&);
 

@@ -117,7 +117,8 @@
             input[type="search"],
             input[type="text"],
             input[type="url"],
-            select {
+            select,
+            textarea {
                 background-color: var(--input-background-color);
 
                 width: 100%;
@@ -319,8 +320,14 @@
             }
 
             .config-control input[type="text"],
-            .config-control input[type="number"] {
+            .config-control input[type="number"],
+            .config-control textarea {
                 width: 100%;
+            }
+
+            .config-control textarea {
+                min-width: 280px;
+                resize: vertical;
             }
 
             @media (max-width: 600px) {

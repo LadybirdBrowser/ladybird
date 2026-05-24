@@ -24,6 +24,22 @@ function createControl(variable) {
         return control;
     }
 
+    if (variable.type === "array" && variable.elementType === "string") {
+        const input = document.createElement("textarea");
+        input.rows = 3;
+        input.value = Array.isArray(variable.value) ? variable.value.join("\n") : "";
+        input.addEventListener("change", () => {
+            const value = input.value
+                .split(/\r?\n/)
+                .map(entry => entry.trim())
+                .filter(entry => entry.length !== 0);
+
+            sendConfigVariableValue(variable, value);
+        });
+        control.append(input);
+        return control;
+    }
+
     const input = document.createElement("input");
     input.value = variable.value ?? "";
 
