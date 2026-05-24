@@ -171,7 +171,6 @@ private:
     }
 
     VisualContextIndex m_accumulated_visual_context_index {};
-    Vector<size_t> m_push_sc_index_stack;
     DisplayList& m_display_list;
     DisplayListResourceStorage& m_resource_storage;
     bool m_is_capturing { false };
