@@ -3115,13 +3115,8 @@ void Navigable::adopt_pending_async_scroll_offsets()
     if (!page().async_scrolling_enabled() || !has_compositor_context())
         return;
 
-    // The compositor thread may have already presented newer scroll offsets. Adopt the latest ones before running
+    // The compositor process may have already presented newer scroll offsets. Adopt the latest ones before running
     // rendering-update observers so they see the same scroll positions as the user.
-    if (compositor_context().should_defer_async_scroll_offset_adoption()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread deferred async scroll offset adoption");
-        return;
-    }
-
     auto async_scroll_updates = compositor_context().take_pending_async_scroll_updates();
     if (async_scroll_updates.scroll_offsets.is_empty() && async_scroll_updates.completed_operation_ids.is_empty())
         return;
