@@ -102,11 +102,6 @@ private:
         return {};
     }
 
-    virtual bool should_defer_async_scroll_offset_adoption(Web::Compositor::CompositorContextId) const override
-    {
-        return false;
-    }
-
     virtual bool should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id) const override
     {
         if (auto* connection = compositor_connection())
