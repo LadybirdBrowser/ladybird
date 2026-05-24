@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<style>
+    #custom-property-target {
+        height: var(--vh);
+    }
+</style>
 <div id="target">target</div>
+<div id="custom-property-target"></div>
 <script>
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
@@ -26,5 +32,18 @@
         target.setAttribute("style", "color: green");
         getComputedStyle(target).color;
         report("setting changed style text");
+
+        const customPropertyTarget = document.getElementById("custom-property-target");
+        document.documentElement.style.setProperty("--vh", "9px");
+        settleAndReset(customPropertyTarget);
+
+        document.documentElement.style.setProperty("--vh", "9px");
+        getComputedStyle(customPropertyTarget).height;
+        report("setting identical custom property");
+
+        settleAndReset(customPropertyTarget);
+        document.documentElement.style.setProperty("--vh", "10px");
+        getComputedStyle(customPropertyTarget).height;
+        report("setting changed custom property");
     });
 </script>

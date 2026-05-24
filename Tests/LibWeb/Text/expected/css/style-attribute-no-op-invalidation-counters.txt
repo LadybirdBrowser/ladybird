@@ -1,2 +1,4 @@
 setting identical style text: 1 invalidations
 setting changed style text: 1 invalidations
+setting identical custom property: 0 invalidations
+setting changed custom property: 1 invalidations
