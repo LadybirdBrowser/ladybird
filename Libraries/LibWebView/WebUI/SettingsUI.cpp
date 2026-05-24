@@ -12,6 +12,26 @@
 
 namespace WebView {
 
+static StringView config_variable_type_to_string(JsonValue const& value)
+{
+    switch (value.type()) {
+    case JsonValue::Type::Null:
+        return "null"sv;
+    case JsonValue::Type::Bool:
+        return "boolean"sv;
+    case JsonValue::Type::Number:
+        return "number"sv;
+    case JsonValue::Type::String:
+        return "string"sv;
+    case JsonValue::Type::Array:
+        return "array"sv;
+    case JsonValue::Type::Object:
+        return "object"sv;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 void SettingsUI::register_interfaces()
 {
     register_interface("loadCurrentSettings"sv, [this](auto const&) {
@@ -29,6 +49,9 @@ void SettingsUI::register_interfaces()
     });
     register_interface("setBrowsingBehavior"sv, [this](auto const& data) {
         set_browsing_behavior(data);
+    });
+    register_interface("setConfigVariable"sv, [this](auto const& data) {
+        set_config_variable(data);
     });
 
     register_interface("loadAvailableEngines"sv, [this](auto const&) {
@@ -84,6 +107,21 @@ void SettingsUI::register_interfaces()
 void SettingsUI::load_current_settings()
 {
     auto settings = WebView::Application::settings().serialize_json();
+
+    JsonArray config_variables;
+    for (auto const& variable : config_variable_definitions()) {
+        JsonObject variable_object;
+        variable_object.set("name"sv, variable.name);
+        variable_object.set("title"sv, variable.title);
+        variable_object.set("description"sv, variable.description);
+        variable_object.set("type"sv, config_variable_type_to_string(variable.default_value));
+        variable_object.set("defaultValue"sv, variable.default_value);
+        variable_object.set("value"sv, WebView::Application::settings().config_variable(variable.id));
+
+        config_variables.must_append(move(variable_object));
+    }
+
+    settings.as_object().set("configVariableDefinitions"sv, move(config_variables));
     async_send_message("loadSettings"sv, settings);
 }
 
@@ -120,6 +158,21 @@ void SettingsUI::set_browsing_behavior(JsonValue const& browsing_behavior)
 {
     auto parsed_browsing_behavior = Settings::parse_browsing_behavior(browsing_behavior);
     WebView::Application::settings().set_browsing_behavior(parsed_browsing_behavior);
+
+    load_current_settings();
+}
+
+void SettingsUI::set_config_variable(JsonValue const& variable)
+{
+    if (!variable.is_object())
+        return;
+
+    auto name = variable.as_object().get_string("name"sv);
+    auto value = variable.as_object().get("value"sv);
+    if (!name.has_value() || !value.has_value())
+        return;
+
+    WebView::Application::settings().set_config_variable(*name, *value);
 
     load_current_settings();
 }
