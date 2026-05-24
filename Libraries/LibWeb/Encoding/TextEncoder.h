@@ -32,7 +32,7 @@ public:
     virtual ~TextEncoder() override;
 
     GC::Ref<JS::Uint8Array> encode(String const& input) const;
-    Bindings::TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const;
+    Bindings::TextEncoderEncodeIntoResult encode_into(String const& source, GC::Ref<JS::Uint8Array> destination) const;
 
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder

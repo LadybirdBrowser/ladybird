@@ -24,10 +24,10 @@ class ImageData final
 public:
     [[nodiscard]] static GC::Ref<ImageData> create(JS::Realm&);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
 
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh = {}, Optional<Bindings::ImageDataSettings> const& settings = {});
 
     virtual ~ImageData() override;
 

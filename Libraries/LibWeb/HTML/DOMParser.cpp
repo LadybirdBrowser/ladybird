@@ -40,7 +40,7 @@ void DOMParser::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
-WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(TrustedTypes::TrustedHTMLOrString string, Bindings::DOMParserSupportedType type)
+WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(TrustedTypes::TrustedHTMLOrString string, Bindings::DOMParserSupportedType type)
 {
     // 1. Let compliantString to the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, string, "DOMParser parseFromString", and "script".
@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(Truste
     document->set_origin(associated_document.origin());
 
     // 3. Return document.
-    return document;
+    return GC::Ref { *document };
 }
 
 }

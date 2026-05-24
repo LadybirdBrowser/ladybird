@@ -26,8 +26,8 @@ public:
 
     GC::Ref<JS::Set> set_entries() const { return m_set_entries; }
 
-    WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Root<FontFace>);
-    bool delete_(GC::Root<FontFace>);
+    WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Ref<FontFace>);
+    bool delete_(GC::Ref<FontFace>);
     void clear();
 
     void add_css_connected_font(GC::Ref<FontFace>);

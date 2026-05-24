@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& rea
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata-with-data
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& uint8_clamped_array_data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::Ref<JS::Uint8ClampedArray> uint8_clamped_array_data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
     // 1. Let length be the number of bytes in data.
     auto length = uint8_clamped_array_data->byte_length().length();
@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::
     return initialize(realm, height, sw, settings, *uint8_clamped_array_data);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Root<JS::Uint8ClampedArray> const& data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
     return ImageData::create(realm, data, sw, move(sh), settings);
 }

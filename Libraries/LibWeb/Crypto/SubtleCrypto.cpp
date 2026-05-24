@@ -171,7 +171,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-encrypt
-GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -246,7 +246,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algori
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-decrypt
-GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -321,7 +321,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algori
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-digest
-GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, GC::Root<WebIDL::BufferSource> const& data)
+GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, GC::Ref<WebIDL::BufferSource> data)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -574,7 +574,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::export_key(Bindings::KeyFormat format, GC
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-sign
-GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -652,7 +652,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-verify
-GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& signature_data, GC::Root<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> signature_data, GC::Ref<WebIDL::BufferSource> data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -1386,7 +1386,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier enca
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Ref<WebIDL::BufferSource> ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = this->realm();
     auto& global = realm.global_object();
@@ -1494,7 +1494,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateBits
-GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext)
+GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Ref<WebIDL::BufferSource> ciphertext)
 {
     auto& realm = this->realm();
     auto& global = realm.global_object();

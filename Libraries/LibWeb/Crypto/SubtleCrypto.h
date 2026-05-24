@@ -26,12 +26,12 @@ public:
 
     virtual ~SubtleCrypto() override;
 
-    GC::Ref<WebIDL::Promise> encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter);
-    GC::Ref<WebIDL::Promise> decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter);
-    GC::Ref<WebIDL::Promise> sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter);
-    GC::Ref<WebIDL::Promise> verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& signature, GC::Root<WebIDL::BufferSource> const& data_parameter);
+    GC::Ref<WebIDL::Promise> encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter);
+    GC::Ref<WebIDL::Promise> decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter);
+    GC::Ref<WebIDL::Promise> sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter);
+    GC::Ref<WebIDL::Promise> verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> signature, GC::Ref<WebIDL::BufferSource> data_parameter);
 
-    GC::Ref<WebIDL::Promise> digest(AlgorithmIdentifier const& algorithm, GC::Root<WebIDL::BufferSource> const& data);
+    GC::Ref<WebIDL::Promise> digest(AlgorithmIdentifier const& algorithm, GC::Ref<WebIDL::BufferSource> data);
 
     GC::Ref<WebIDL::Promise> generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
     GC::Ref<WebIDL::Promise> derive_bits(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, Optional<u32> length_optional);
@@ -46,8 +46,8 @@ public:
     GC::Ref<WebIDL::Promise> encapsulate_key(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
     GC::Ref<WebIDL::Promise> encapsulate_bits(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key);
 
-    GC::Ref<WebIDL::Promise> decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages);
-    GC::Ref<WebIDL::Promise> decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext);
+    GC::Ref<WebIDL::Promise> decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Ref<WebIDL::BufferSource> ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages);
+    GC::Ref<WebIDL::Promise> decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Ref<WebIDL::BufferSource> ciphertext);
 
 private:
     explicit SubtleCrypto(JS::Realm&);
