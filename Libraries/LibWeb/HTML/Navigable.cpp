@@ -286,11 +286,8 @@ Navigable::Navigable(
     all_navigables().set(*this);
 
     if (!m_is_svg_page && page->has_compositor_host()) {
-        Optional<u64> page_id;
-        if (page_presentation_registration == Compositor::PagePresentationRegistration::Yes)
-            page_id = page->client().id();
         auto context_id = page->client().allocate_compositor_context_id(page_presentation_registration);
-        m_compositor_context = page->compositor_host().create_context(context_id, page_id, page_presentation_registration);
+        m_compositor_context = page->compositor_host().create_context(context_id);
     }
 }
 
