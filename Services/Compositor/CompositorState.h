@@ -12,6 +12,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
+#include <Compositor/BackingStoreManager.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -22,7 +23,6 @@
 #include <LibMedia/Forward.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
-#include <LibWeb/Compositor/BackingStoreManager.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -120,7 +120,7 @@ private:
         RefPtr<Web::Painting::DisplayList> display_list;
         Web::Painting::DisplayListResourceStorage display_list_resource_storage;
         Web::Painting::ScrollStateSnapshot scroll_state_snapshot;
-        Web::Compositor::BackingStoreManager backing_store_manager;
+        BackingStoreManager backing_store_manager;
 
         Web::Compositor::AsyncScrollTree async_scroll_tree;
         Vector<Web::Compositor::ViewportScrollbar> viewport_scrollbars;
@@ -168,7 +168,7 @@ private:
     void present_current_frame(Web::Compositor::CompositorContextId, ContextState&);
     void publish_to_parent_surface(ContextState&, Web::Compositor::PublishToCompositorSurface const&);
     void present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
-    void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, Web::Compositor::BackingStoreManager::Publication&&);
+    void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
     bool present_frame_to_client(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect const&, i32 bitmap_id);
 
     HashMap<Web::Compositor::CompositorContextId, OwnPtr<ContextState>> m_contexts;

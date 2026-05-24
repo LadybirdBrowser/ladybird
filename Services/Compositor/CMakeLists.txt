@@ -1,4 +1,5 @@
 set(SOURCES
+    BackingStoreManager.cpp
     CompositorState.cpp
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp

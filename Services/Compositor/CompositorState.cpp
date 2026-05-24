@@ -909,7 +909,7 @@ void CompositorState::publish_to_parent_surface(ContextState& context, Web::Comp
     present_current_frame(mode.target_context_id, *parent_context);
 }
 
-void CompositorState::publish_backing_stores(Web::Compositor::CompositorContextId context_id, ContextState& context, Web::Compositor::BackingStoreManager::Publication&& publication)
+void CompositorState::publish_backing_stores(Web::Compositor::CompositorContextId context_id, ContextState& context, BackingStoreManager::Publication&& publication)
 {
     VERIFY(m_client);
     if (!context.presents_to_client)
