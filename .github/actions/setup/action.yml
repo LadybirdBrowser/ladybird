@@ -114,6 +114,12 @@ runs:
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: dtolnay/rust-toolchain@stable
 
+      # TODO: Remove once `imports_granularity` rustfmt option is stable. https://rust-lang.github.io/rustfmt/?version=v1.9.0&search=group#imports_granularity
+    - name: 'Install Nightly Rust toolchain for linting'
+      if: ${{ inputs.type == 'lint' }}
+      shell: bash
+      run: rustup toolchain install nightly --component rustfmt
+
     - name: 'Install wasm-tools'
       if: ${{ inputs.type == 'build' }}
       shell: bash

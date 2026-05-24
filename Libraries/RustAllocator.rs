@@ -8,7 +8,8 @@
 // crate's unit tests don't need to link against the C++ runtime.
 #![cfg(not(test))]
 
-use std::alloc::{GlobalAlloc, Layout};
+use std::alloc::GlobalAlloc;
+use std::alloc::Layout;
 
 unsafe extern "C" {
     fn ladybird_rust_alloc(size: usize, alignment: usize) -> *mut u8;

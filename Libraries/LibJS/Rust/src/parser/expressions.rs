@@ -11,12 +11,22 @@ use std::sync::Arc;
 
 use crate::ast::*;
 use crate::lexer::ch;
-use crate::parser::{
-    Associativity, ForbiddenTokens, FunctionKind, MethodKind, PRECEDENCE_ASSIGNMENT, PRECEDENCE_COMMA,
-    PRECEDENCE_MEMBER, PRECEDENCE_UNARY, ParamInfo, ParsedParameters, Parser, Position, PropertyKey,
-    is_strict_reserved_word,
-};
-use crate::token::{Token, TokenType};
+use crate::parser::Associativity;
+use crate::parser::ForbiddenTokens;
+use crate::parser::FunctionKind;
+use crate::parser::MethodKind;
+use crate::parser::PRECEDENCE_ASSIGNMENT;
+use crate::parser::PRECEDENCE_COMMA;
+use crate::parser::PRECEDENCE_MEMBER;
+use crate::parser::PRECEDENCE_UNARY;
+use crate::parser::ParamInfo;
+use crate::parser::ParsedParameters;
+use crate::parser::Parser;
+use crate::parser::Position;
+use crate::parser::PropertyKey;
+use crate::parser::is_strict_reserved_word;
+use crate::token::Token;
+use crate::token::TokenType;
 
 #[derive(PartialEq, Eq)]
 enum EscapeMode {

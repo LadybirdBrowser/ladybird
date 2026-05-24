@@ -12,8 +12,12 @@ pub mod token;
 pub mod tokenizer;
 
 use std::ptr;
-use token::{Attribute, Position, TokenPayload, TokenType};
-use tokenizer::{HtmlTokenizer, State};
+use token::Attribute;
+use token::Position;
+use token::TokenPayload;
+use token::TokenType;
+use tokenizer::HtmlTokenizer;
+use tokenizer::State;
 
 /// Opaque handle for the Rust tokenizer, passed across the FFI boundary.
 pub struct RustFfiTokenizerHandle {

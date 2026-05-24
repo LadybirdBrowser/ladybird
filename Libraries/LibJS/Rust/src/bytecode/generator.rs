@@ -10,14 +10,24 @@
 //! needed for bytecode generation from the AST.
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
-use super::basic_block::{BasicBlock, SourceMapEntry};
-use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
+use super::basic_block::BasicBlock;
+use super::basic_block::SourceMapEntry;
+use super::ffi::AbstractOperationKind;
+use super::ffi::WellKnownSymbolKind;
 use super::instruction::Instruction;
 use super::operand::*;
-use crate::ast::{AstArena, FunctionData, FunctionId, FunctionTable, IdentifierId, LocalType, Position, Utf16String};
+use crate::ast::AstArena;
+use crate::ast::FunctionData;
+use crate::ast::FunctionId;
+use crate::ast::FunctionTable;
+use crate::ast::IdentifierId;
+use crate::ast::LocalType;
+use crate::ast::Position;
+use crate::ast::Utf16String;
 use crate::u32_from_usize;
 use std::sync::Arc;
 

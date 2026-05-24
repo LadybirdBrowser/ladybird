@@ -5,11 +5,14 @@
  */
 
 use calendrical_calculations::rata_die::RataDie;
-use icu_calendar::{
-    AnyCalendar, AnyCalendarKind, Date, Iso,
-    types::{DateFields, Month},
-};
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use icu_calendar::AnyCalendar;
+use icu_calendar::AnyCalendarKind;
+use icu_calendar::Date;
+use icu_calendar::Iso;
+use icu_calendar::types::DateFields;
+use icu_calendar::types::Month;
+use std::panic::AssertUnwindSafe;
+use std::panic::catch_unwind;
 
 #[repr(C)]
 pub struct FfiISODate {

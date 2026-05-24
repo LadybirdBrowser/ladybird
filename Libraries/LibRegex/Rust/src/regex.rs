@@ -7,9 +7,18 @@
 /// High-level regex API.
 ///
 /// This is the main entry point for using the regex engine.
-use crate::ast::{Alternative, Atom, Disjunction, Flags, Pattern, Term};
-use crate::bytecode::{Instruction, NamedGroupEntry, append_code_point_wtf16};
-use crate::{compiler, parser, vm};
+use crate::ast::Alternative;
+use crate::ast::Atom;
+use crate::ast::Disjunction;
+use crate::ast::Flags;
+use crate::ast::Pattern;
+use crate::ast::Term;
+use crate::bytecode::Instruction;
+use crate::bytecode::NamedGroupEntry;
+use crate::bytecode::append_code_point_wtf16;
+use crate::compiler;
+use crate::parser;
+use crate::vm;
 use std::cell::RefCell;
 use std::collections::HashSet;
 

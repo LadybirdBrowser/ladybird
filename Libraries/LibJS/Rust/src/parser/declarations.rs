@@ -6,14 +6,23 @@
 
 //! Declaration parsing: variables, functions, classes, imports, exports.
 
-use crate::fast_hash::{HashMap, HashSet};
+use crate::fast_hash::HashMap;
+use crate::fast_hash::HashSet;
 
 use crate::ast::*;
 use crate::lexer::ch;
-use crate::parser::{
-    Associativity, DeclarationKind, ForbiddenTokens, FunctionKind, MethodKind, PRECEDENCE_ASSIGNMENT, ParamInfo,
-    ParsedParameters, Parser, Position, ProgramType, PropertyKey,
-};
+use crate::parser::Associativity;
+use crate::parser::DeclarationKind;
+use crate::parser::ForbiddenTokens;
+use crate::parser::FunctionKind;
+use crate::parser::MethodKind;
+use crate::parser::PRECEDENCE_ASSIGNMENT;
+use crate::parser::ParamInfo;
+use crate::parser::ParsedParameters;
+use crate::parser::Parser;
+use crate::parser::Position;
+use crate::parser::ProgramType;
+use crate::parser::PropertyKey;
 use crate::token::TokenType;
 
 fn expression_into_identifier(expression: Expression) -> IdentifierId {

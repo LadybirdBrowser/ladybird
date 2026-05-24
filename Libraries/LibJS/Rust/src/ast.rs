@@ -24,9 +24,11 @@
 
 use std::ffi::c_void;
 use std::fmt;
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
+use std::ops::IndexMut;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::Ordering;
 
 use crate::fast_hash::HashMap;
 

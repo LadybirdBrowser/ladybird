@@ -41,17 +41,29 @@
 use std::collections::HashSet;
 
 use num_bigint::BigInt;
-use num_traits::{One, Signed, ToPrimitive, Zero};
+use num_traits::One;
+use num_traits::Signed;
+use num_traits::ToPrimitive;
+use num_traits::Zero;
 
 use crate::ast::*;
 use crate::lexer::ch;
 use crate::u32_from_usize;
 
-use super::ffi::{AbstractOperationKind, WellKnownSymbolKind};
-use super::generator::{
-    BlockBoundaryType, ConstantValue, FinallyContext, Generator, PendingClassBlueprint, PendingClassElement,
-    PendingLiteralValueKind, PendingSharedFunctionData, ScopedOperand, choose_dst, constant_to_boolean, parse_bigint,
-};
+use super::ffi::AbstractOperationKind;
+use super::ffi::WellKnownSymbolKind;
+use super::generator::BlockBoundaryType;
+use super::generator::ConstantValue;
+use super::generator::FinallyContext;
+use super::generator::Generator;
+use super::generator::PendingClassBlueprint;
+use super::generator::PendingClassElement;
+use super::generator::PendingLiteralValueKind;
+use super::generator::PendingSharedFunctionData;
+use super::generator::ScopedOperand;
+use super::generator::choose_dst;
+use super::generator::constant_to_boolean;
+use super::generator::parse_bigint;
 use super::instruction::Instruction;
 use super::operand::*;
 
@@ -6502,7 +6514,8 @@ fn generate_class_expression(
 
 /// Synthesize a default constructor SharedFunctionInstanceData.
 fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
-    use crate::parser::{Parser, ProgramType};
+    use crate::parser::Parser;
+    use crate::parser::ProgramType;
 
     // Wrap in "function" keyword so it parses as a FunctionDeclaration.
     let source: Utf16String = if has_super {
