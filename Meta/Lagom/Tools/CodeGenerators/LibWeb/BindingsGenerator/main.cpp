@@ -106,7 +106,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .short_name = 'i',
         .value_name = "path",
         .accept_value = [&](StringView s) {
-            IDL::g_header_search_paths.append(s);
+            IDL::g_header_search_paths.append(LexicalPath::canonicalized_path(s));
             return true;
         },
     });
