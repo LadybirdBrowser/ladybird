@@ -17,7 +17,7 @@ jobs:
       matrix:
         os_name: ['Linux']
         arch: ['x86_64']
-        build_preset: ['Sanitizer']
+        build_preset: ['Release']
         toolchain: ['GNU']
         clang_plugins: [false]
         runner_labels: ['["blacksmith-16vcpu-ubuntu-2404"]']
