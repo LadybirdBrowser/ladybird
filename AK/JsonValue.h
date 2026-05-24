@@ -198,16 +198,9 @@ public:
         return m_value.visit(
             [](bool const&) { return Optional<T> {}; },
             []<Arithmetic U>(U const& value) -> Optional<T> {
-                if constexpr (Integral<U>) {
-                    if (!is_within_range<T>(value))
-                        return {};
-                    return static_cast<T>(value);
-                } else {
-                    // FIXME: Make is_within_range work with floating point numbers.
-                    if (static_cast<U>(static_cast<T>(value)) != value)
-                        return {};
-                    return static_cast<T>(value);
-                }
+                if (!is_within_range<T>(value))
+                    return {};
+                return static_cast<T>(value);
             },
             [](auto const&) { return Optional<T> {}; });
     }

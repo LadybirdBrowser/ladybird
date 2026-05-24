@@ -460,4 +460,46 @@ TEST_CASE(is_within_range_float_to_int)
     static_assert(AK::is_within_range<long long>(0.0));
 
     static_assert(!AK::is_within_range<int>(NAN));
+
+    // Boundary checks: implicit float<->integer conversion can round the integer up to a value that's one past the
+    // actual destination range — so naive 'value <= max()' is too permissive. These cases must report false.
+    static_assert(!AK::is_within_range<int>(2147483648.0));  // INT_MAX + 1, exact in double
+    static_assert(!AK::is_within_range<int>(2147483648.0f)); // INT_MAX + 1 = 2^31, exact in float
+    static_assert(AK::is_within_range<int>(-2147483648.0));  // INT_MIN, exact in double
+    static_assert(AK::is_within_range<int>(-2147483648.0f)); // INT_MIN, exact in float
+    static_assert(!AK::is_within_range<int>(-2147483649.0)); // INT_MIN - 1
+
+    static_assert(AK::is_within_range<unsigned>(4294967295.0));   // UINT_MAX, exact in double
+    static_assert(!AK::is_within_range<unsigned>(4294967296.0));  // UINT_MAX + 1, exact in double
+    static_assert(!AK::is_within_range<unsigned>(4294967296.0f)); // UINT_MAX + 1 = 2^32, exact in float
+    static_assert(!AK::is_within_range<unsigned>(-1.0));
+
+    static_assert(AK::is_within_range<signed char>(127.0f));
+    static_assert(!AK::is_within_range<signed char>(128.0f));
+    static_assert(AK::is_within_range<signed char>(-128.0f));
+    static_assert(!AK::is_within_range<signed char>(-129.0f));
+
+    static_assert(AK::is_within_range<unsigned char>(255.0f));
+    static_assert(!AK::is_within_range<unsigned char>(256.0f));
+
+    // For 64-bit destinations the boundary is at the precision limit of double.
+    static_assert(!AK::is_within_range<long long>(9223372036854775808.0));           // INT64_MAX + 1 = 2^63
+    static_assert(AK::is_within_range<long long>(-9223372036854775808.0));           // INT64_MIN
+    static_assert(!AK::is_within_range<unsigned long long>(18446744073709551616.0)); // UINT64_MAX + 1 = 2^64
+
+    // Fractional floats are rejected. A value like 4294967295.5 isn't representable as an unsigned int (it has a
+    // fractional part) — even though its truncation would fit.
+    static_assert(!AK::is_within_range<unsigned>(4294967295.5));  // 4294967295.5 > UINT_MAX
+    static_assert(!AK::is_within_range<unsigned>(4294967295.5f)); // literal also rounds to 2^32, OOB
+    static_assert(!AK::is_within_range<int>(2147483647.5));       // 2147483647.5 > INT_MAX
+    static_assert(!AK::is_within_range<int>(2147483647.5f));      // literal rounds to 2^31, OOB
+    static_assert(!AK::is_within_range<int>(2.5));                // fractional, even well within INT bounds
+    static_assert(!AK::is_within_range<int>(-2.5));               // negative fractional, same reason
+    static_assert(!AK::is_within_range<unsigned>(-0.5));          // negative, can't be unsigned
+
+    // Integer-valued floats well within range remain in range.
+    static_assert(AK::is_within_range<int>(0.0));
+    static_assert(AK::is_within_range<int>(-2147483648.0));     // INT_MIN
+    static_assert(AK::is_within_range<int>(2147483647.0));      // INT_MAX
+    static_assert(AK::is_within_range<unsigned>(4294967295.0)); // UINT_MAX
 }
