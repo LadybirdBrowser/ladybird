@@ -169,7 +169,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
-    bool disable_compositor_process = false;
     Vector<StringView> content_blocker_list_paths;
     Optional<StringView> resource_substitution_map_path;
     bool enable_autoplay = false;
@@ -244,7 +243,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(disable_content_blocker, "Disable content blocker", "disable-content-blocker");
-    args_parser.add_option(disable_compositor_process, "Disable the out-of-process compositor", "disable-compositor-process");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Path to a content blocker list. May be specified multiple times.",
@@ -368,7 +366,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
                 : OptionalNone()),
         .devtools_port = devtools_port,
         .enable_content_blocker = disable_content_blocker ? EnableContentBlocker::No : EnableContentBlocker::Yes,
-        .enable_compositor_process = disable_compositor_process ? EnableCompositorProcess::No : EnableCompositorProcess::Yes,
         .content_blocker_list_paths = move(content_blocker_list_paths_as_byte_strings),
     };
 
@@ -504,8 +501,6 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
 
 static bool can_send_compositor_process_ipc(RefPtr<CompositorClient> const& compositor_client)
 {
-    if (!Application::the().should_use_compositor_process())
-        return false;
     if (!compositor_client)
         return false;
     return compositor_client->is_open();
@@ -513,8 +508,6 @@ static bool can_send_compositor_process_ipc(RefPtr<CompositorClient> const& comp
 
 ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& web_content_client)
 {
-    if (!should_use_compositor_process())
-        return {};
     if (web_content_client.compositor_connection_id({}).has_value())
         return {};
 
@@ -549,8 +542,6 @@ void Application::register_compositor_context(WebContentClient& web_content_clie
 
 ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
 {
-    if (!should_use_compositor_process())
-        return {};
     if (!m_compositor_client)
         return Error::from_string_literal("Compositor process is not available");
 
@@ -715,8 +706,7 @@ ErrorOr<void> Application::launch_services()
 
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
-    if (should_use_compositor_process())
-        TRY(launch_compositor_process());
+    TRY(launch_compositor_process());
 
     if (m_browser_options.devtools_port.has_value())
         TRY(launch_devtools_server());
@@ -726,9 +716,6 @@ ErrorOr<void> Application::launch_services()
 
 ErrorOr<void> Application::launch_compositor_process()
 {
-    if (!should_use_compositor_process())
-        return {};
-
     VERIFY(!m_compositor_client);
     m_compositor_client = TRY(WebView::launch_compositor_process());
     m_compositor_client->on_death = [this]() {
@@ -736,11 +723,6 @@ ErrorOr<void> Application::launch_compositor_process()
     };
 
     return {};
-}
-
-bool Application::should_use_compositor_process() const
-{
-    return m_browser_options.enable_compositor_process == EnableCompositorProcess::Yes;
 }
 
 void Application::handle_compositor_process_death()
@@ -769,7 +751,7 @@ void Application::handle_compositor_process_death()
 
 void Application::recover_compositor_process()
 {
-    if (!should_use_compositor_process() || Core::EventLoop::current().was_exit_requested())
+    if (Core::EventLoop::current().was_exit_requested())
         return;
 
     constexpr size_t max_compositor_restart_count = 3;

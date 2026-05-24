@@ -107,7 +107,6 @@ public:
 
     Main::Arguments const& command_line_arguments() const { return m_arguments; }
     virtual void open_url_in_new_window(URL::URL const& url);
-    bool should_use_compositor_process() const;
 
     void add_child_process(Process&&);
 

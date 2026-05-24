@@ -34,7 +34,6 @@ endpoint WebContentServer
     connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) =|
     connect_to_request_server(IPC::TransportHandle handle) =|
     connect_to_image_decoder(IPC::TransportHandle handle) =|
-    connect_to_compositor(IPC::TransportHandle handle) =|
     connect_to_compositor_process(IPC::TransportHandle handle) =|
     compositor_process_reconnected() =|
 

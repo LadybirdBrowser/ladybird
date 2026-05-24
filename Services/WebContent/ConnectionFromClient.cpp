@@ -164,11 +164,6 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
         on_image_decoder_connection(handle);
 }
 
-void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
-{
-    m_page_host->attach_compositor_ui_client(move(handle));
-}
-
 void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle)
 {
     auto transport = MUST(handle.create_transport());

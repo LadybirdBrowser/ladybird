@@ -15,6 +15,5 @@
 namespace WebContent {
 
 NonnullOwnPtr<Web::Compositor::CompositorHost> create_web_content_compositor_host(ConnectionFromClient&);
-void set_should_use_compositor_process(bool);
 
 }
