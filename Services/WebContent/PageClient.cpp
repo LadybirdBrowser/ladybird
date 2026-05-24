@@ -26,6 +26,7 @@
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -193,6 +194,14 @@ void PageClient::set_window_position(Web::DevicePixelPoint position)
 void PageClient::set_window_size(Web::DevicePixelSize size)
 {
     page().set_window_size(size);
+}
+
+void PageClient::compositor_process_reconnected()
+{
+    page().top_level_traversable()->repaint_after_compositor_process_reconnect();
+    page().republish_all_canvas_element_surfaces();
+    page().update_all_media_element_video_sinks();
+    Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
 }
 
 Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()

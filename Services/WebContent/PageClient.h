@@ -69,6 +69,7 @@ public:
     void set_is_scripting_enabled(bool);
     void set_window_position(Web::DevicePixelPoint);
     void set_window_size(Web::DevicePixelSize);
+    void compositor_process_reconnected();
 
     void toggle_media_play_state();
     void toggle_media_mute_state();

@@ -70,10 +70,12 @@ private:
     virtual void did_fail_screenshot(Web::Compositor::ScreenshotRequestId) override;
     virtual void did_lose_compositor() override;
 
+    bool can_send_message_to_compositor() const;
     Optional<PendingScreenshot> take_screenshot(Web::Compositor::ScreenshotRequestId);
 
     HashMap<Web::Compositor::ScreenshotRequestId, PendingScreenshot> m_screenshots;
     u64 m_next_screenshot_request_id { 1 };
+    bool m_has_lost_compositor { false };
 };
 
 }

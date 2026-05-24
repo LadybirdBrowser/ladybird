@@ -239,6 +239,7 @@ public:
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
     void set_needs_to_record_display_list() { m_needs_to_record_display_list = true; }
+    void repaint_after_compositor_process_reconnect();
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 

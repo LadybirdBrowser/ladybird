@@ -49,7 +49,7 @@ public:
 
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
-    CompositorConnection& compositor_process_connection() const;
+    CompositorConnection* compositor_process_connection() const;
     void did_destroy_compositor_context(Web::Compositor::CompositorContextId);
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
@@ -73,6 +73,7 @@ private:
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor_process(IPC::TransportHandle handle) override;
+    virtual void compositor_process_reconnected() override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL) override;

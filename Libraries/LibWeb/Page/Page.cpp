@@ -660,6 +660,13 @@ void Page::present_all_canvas_element_surfaces()
     });
 }
 
+void Page::republish_all_canvas_element_surfaces()
+{
+    for_each_canvas_element([](auto& canvas_element) {
+        canvas_element.republish_compositor_surface();
+    });
+}
+
 void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu)
 {
     m_media_context_menu_element_id = media_id;
