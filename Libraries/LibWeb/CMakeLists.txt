@@ -35,7 +35,6 @@ set(SOURCES
     Compositor/BackingStoreManager.cpp
     Compositor/CompositorContextState.cpp
     Compositor/CompositorHost.cpp
-    Compositor/CompositorThread.cpp
     Compositor/Types.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp

@@ -1,9 +1,0 @@
-#include <LibWeb/Compositor/Types.h>
-
-endpoint WebContentCompositorClient
-{
-    request_rendering_update() =|
-    did_complete_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
-    did_fail_screenshot(Web::Compositor::ScreenshotRequestId request_id) =|
-    did_lose_compositor() =|
-}
