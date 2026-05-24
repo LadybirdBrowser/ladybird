@@ -259,13 +259,20 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
     // 9. Otherwise,
     else {
         if (property.is_custom_property()) {
+            auto important = !priority.is_empty() ? Important::Yes : Important::No;
             StyleProperty style_property {
-                .important = !priority.is_empty() ? Important::Yes : Important::No,
+                .important = important,
                 .property_id = property.id(),
                 .value = component_value_list.release_nonnull(),
             };
-            m_custom_properties.set(property.name(), style_property);
-            updated = true;
+            if (auto existing_property = custom_property(property.name()); existing_property.has_value()
+                && existing_property->important == important
+                && *existing_property->value == *style_property.value) {
+                updated = false;
+            } else {
+                m_custom_properties.set(property.name(), style_property);
+                updated = true;
+            }
         } else {
             // let updated be the result of set the CSS declaration property with value component value list,
             // with the important flag set if priority is not the empty string, and unset otherwise,
@@ -422,7 +429,12 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
     }
 
     if (property.is_custom_property()) {
-        m_custom_properties.remove(property.name());
+        if (auto existing_property = custom_property(property.name()); existing_property.has_value()
+            && existing_property->important == Important::No
+            && *existing_property->value == *style_value) {
+            return {};
+        }
+
         m_custom_properties.set(property.name(),
             StyleProperty {
                 Important::No,
