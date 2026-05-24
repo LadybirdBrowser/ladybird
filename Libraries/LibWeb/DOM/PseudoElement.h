@@ -71,11 +71,7 @@ class SyntheticPseudoElementTreeNode
     GC_DECLARE_ALLOCATOR(SyntheticPseudoElementTreeNode);
 
 protected:
-    virtual void visit_edges(JS::Cell::Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        TreeNode::visit_edges(visitor);
-    }
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 };
 
 class WEB_API ElementReferencePseudoElement : public PseudoElement {
@@ -98,11 +94,7 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
     GC::Ref<Element> const& referenced_element() const { return m_referenced_element; }
 
 protected:
-    virtual void visit_edges(JS::Cell::Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        visitor.visit(m_referenced_element);
-    }
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 
 private:
     GC::Ref<Element> m_referenced_element;
