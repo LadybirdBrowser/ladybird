@@ -1,0 +1,3 @@
+wrapper: 456x260
+canvas: 448x252
+height delta: 8

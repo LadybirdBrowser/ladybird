@@ -2289,14 +2289,29 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
 
     VERIFY(!height.is_auto());
 
+    auto const& box_state = m_state.get(box);
+    auto width_for_intrinsic_height = [&] {
+        // https://drafts.csswg.org/css-sizing-3/#max-content-block-size
+        // The max-content block size is the block size of the content after layout.
+        if (box_state.has_definite_width())
+            return box_state.content_width();
+        return available_space.width.to_px_or_zero();
+    };
+
     if (height.is_fit_content()) {
-        return calculate_fit_content_height(box, available_space);
+        // https://drafts.csswg.org/css-sizing-3/#fit-content-size
+        // If the available space in a given axis is indefinite, the
+        // fit-content size is the max-content size in that axis.
+        auto available_space_for_fit_content_height = available_space;
+        if (box_state.has_definite_width())
+            available_space_for_fit_content_height.width = AvailableSize::make_definite(box_state.content_width());
+        return calculate_fit_content_height(box, available_space_for_fit_content_height);
     }
     if (height.is_max_content()) {
-        return calculate_max_content_height(box, available_space.width.to_px_or_zero());
+        return calculate_max_content_height(box, width_for_intrinsic_height());
     }
     if (height.is_min_content()) {
-        return calculate_min_content_height(box, available_space.width.to_px_or_zero());
+        return calculate_min_content_height(box, width_for_intrinsic_height());
     }
 
     CSSPixels height_of_containing_block = available_space.height.to_px_or_zero();

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #wrapper {
+        display: inline-block;
+        width: 100%;
+        max-width: 448px;
+        height: fit-content;
+        padding: 4px;
+        line-height: 0;
+    }
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+</style>
+<div id="wrapper">
+    <canvas id="canvas" width="448" height="252"></canvas>
+</div>
+<script>
+    asyncTest(done => {
+        const wrapperRect = document.getElementById("wrapper").getBoundingClientRect();
+        const canvasRect = document.getElementById("canvas").getBoundingClientRect();
+        println(`wrapper: ${wrapperRect.width}x${wrapperRect.height}`);
+        println(`canvas: ${canvasRect.width}x${canvasRect.height}`);
+        println(`height delta: ${wrapperRect.height - canvasRect.height}`);
+        done();
+    });
+</script>
