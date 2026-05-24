@@ -124,6 +124,46 @@ static Interface const* callback_interface_for_type(Context const& context, Type
     return nullptr;
 }
 
+enum class TypeTraversalMode {
+    TypeStructureOnly,
+    ExpandDictionariesAndCallbacks,
+};
+
+template<typename Callback>
+static void for_each_type_reference(Context const& context, Type const& type, TypeTraversalMode traversal_mode, Callback&& callback)
+{
+    callback(type);
+
+    if (traversal_mode == TypeTraversalMode::ExpandDictionariesAndCallbacks) {
+        if (auto dictionary = context.dictionaries.find(type.name()); dictionary != context.dictionaries.end()) {
+            if (!dictionary->value.parent_name.is_empty()) {
+                auto parent_type = adopt_ref(*new Type(dictionary->value.parent_name, false));
+                for_each_type_reference(context, *parent_type, traversal_mode, callback);
+            }
+
+            for (auto const& member : dictionary->value.members)
+                for_each_type_reference(context, *member.type, traversal_mode, callback);
+        }
+
+        if (auto callback_function = context.callback_functions.find(type.name()); callback_function != context.callback_functions.end()) {
+            for_each_type_reference(context, *callback_function->value.return_type, traversal_mode, callback);
+            for (auto const& parameter : callback_function->value.parameters)
+                for_each_type_reference(context, *parameter.type, traversal_mode, callback);
+        }
+    }
+
+    if (type.is_parameterized()) {
+        for (auto const& parameter : type.as_parameterized().parameters())
+            for_each_type_reference(context, *parameter, traversal_mode, callback);
+        return;
+    }
+
+    if (type.is_union()) {
+        for (auto const& member_type : type.as_union().member_types())
+            for_each_type_reference(context, *member_type, traversal_mode, callback);
+    }
+}
+
 static StringView contained_storage_type_to_cpp_name(ContainedStorageType contained_storage_type)
 {
     switch (contained_storage_type) {
@@ -175,57 +215,19 @@ static ByteString union_type_to_variant(UnionType const& union_type, Context con
     return builder.to_byte_string();
 }
 
-static bool type_contains_gc_like_value(Context const&, Type const&);
-
-static bool dictionary_contains_gc_like_value(Context const& context, ByteString const& dictionary_name)
-{
-    auto dictionary = context.dictionaries.find(dictionary_name);
-    VERIFY(dictionary != context.dictionaries.end());
-
-    if (!dictionary->value.parent_name.is_empty() && dictionary_contains_gc_like_value(context, dictionary->value.parent_name))
-        return true;
-
-    for (auto const& member : dictionary->value.members) {
-        if (type_contains_gc_like_value(context, *member.type))
-            return true;
-    }
-
-    return false;
-}
-
 static bool type_contains_gc_like_value(Context const& context, Type const& type)
 {
-    if (is_platform_object(context, type)
-        || is_javascript_builtin_buffer_source_type(type)
-        || callback_interface_for_type(context, type)
-        || context.callback_functions.contains(type.name())
-        || type.name().is_one_of("any"sv, "object"sv, "BufferSource"sv, "ArrayBufferView"sv, "Promise"sv)) {
-        return true;
-    }
-
-    if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
-        auto const& parameterized_type = as<ParameterizedType>(type);
-        return type_contains_gc_like_value(context, parameterized_type.parameters().first());
-    }
-
-    if (type.name() == "record"sv) {
-        auto const& parameterized_type = as<ParameterizedType>(type);
-        return type_contains_gc_like_value(context, parameterized_type.parameters()[0])
-            || type_contains_gc_like_value(context, parameterized_type.parameters()[1]);
-    }
-
-    if (is<UnionType>(type)) {
-        for (auto const& member_type : as<UnionType>(type).flattened_member_types()) {
-            if (type_contains_gc_like_value(context, member_type))
-                return true;
+    bool contains_gc_like_value = false;
+    for_each_type_reference(context, type, TypeTraversalMode::ExpandDictionariesAndCallbacks, [&](Type const& referenced_type) {
+        if (is_platform_object(context, referenced_type)
+            || is_javascript_builtin_buffer_source_type(referenced_type)
+            || callback_interface_for_type(context, referenced_type)
+            || context.callback_functions.contains(referenced_type.name())
+            || referenced_type.name().is_one_of("any"sv, "object"sv, "BufferSource"sv, "ArrayBufferView"sv, "Promise"sv)) {
+            contains_gc_like_value = true;
         }
-        return false;
-    }
-
-    if (context.dictionaries.contains(type.name()))
-        return dictionary_contains_gc_like_value(context, type.name());
-
-    return false;
+    });
+    return contains_gc_like_value;
 }
 
 static ContainedStorageType contained_storage_type_for_aggregate_type(Context const& context, Type const& type)
@@ -587,51 +589,18 @@ static void collect_include_dependencies(Context const& context, Function const&
     collect_include_dependencies(context, function.parameters, includes);
 }
 
-static void collect_include_dependencies(Context const& context, CallbackFunction const& callback_function, GeneratedIncludes& includes)
-{
-    collect_include_dependencies(context, *callback_function.return_type, includes);
-    collect_include_dependencies(context, callback_function.parameters, includes);
-}
-
-static void collect_include_dependencies(Context const& context, Dictionary const& dictionary, GeneratedIncludes& includes)
-{
-    if (!dictionary.parent_name.is_empty()) {
-        includes.add_dictionary_dependency(context, dictionary.parent_name);
-        if (auto parent_dictionary = context.dictionaries.find(dictionary.parent_name); parent_dictionary != context.dictionaries.end())
-            collect_include_dependencies(context, parent_dictionary->value, includes);
-    }
-
-    for (auto const& member : dictionary.members)
-        collect_include_dependencies(context, *member.type, includes);
-}
-
 static void collect_include_dependencies(Context const& context, Type const& type, GeneratedIncludes& includes)
 {
-    if (type.name() == "WindowProxy"sv)
-        includes.add_header("LibWeb/HTML/WindowProxy.h"sv);
+    for_each_type_reference(context, type, TypeTraversalMode::ExpandDictionariesAndCallbacks, [&](Type const& referenced_type) {
+        if (referenced_type.name() == "WindowProxy"sv)
+            includes.add_header("LibWeb/HTML/WindowProxy.h"sv);
 
-    if (auto referenced_interface = context.interfaces.get(type.name()); referenced_interface.has_value())
-        includes.add_source_module(module_for_path(context, referenced_interface.value()->module_own_path));
+        if (auto referenced_interface = context.interfaces.get(referenced_type.name()); referenced_interface.has_value())
+            includes.add_source_module(module_for_path(context, referenced_interface.value()->module_own_path));
 
-    includes.add_dictionary_dependency(context, type.name());
-    includes.add_enumeration_dependency(context, type.name());
-
-    if (auto dictionary = context.dictionaries.find(type.name()); dictionary != context.dictionaries.end())
-        collect_include_dependencies(context, dictionary->value, includes);
-
-    if (auto callback_function = context.callback_functions.find(type.name()); callback_function != context.callback_functions.end())
-        collect_include_dependencies(context, callback_function->value, includes);
-
-    if (type.is_parameterized()) {
-        for (auto const& parameter : type.as_parameterized().parameters())
-            collect_include_dependencies(context, *parameter, includes);
-        return;
-    }
-
-    if (type.is_union()) {
-        for (auto const& member_type : type.as_union().member_types())
-            collect_include_dependencies(context, *member_type, includes);
-    }
+        includes.add_dictionary_dependency(context, referenced_type.name());
+        includes.add_enumeration_dependency(context, referenced_type.name());
+    });
 }
 
 static bool nullable_callback_function_treats_non_object_as_null(Context const& context, Type const& type)
@@ -3757,24 +3726,15 @@ JS::ThrowCompletionOr<@dictionary.name@> @dictionary.idl_value_conversion_functi
 
 static void generate_dictionary_dependencies(Context const& context, ByteString const& module_own_path, Type const& type, StringBuilder& builder, HashTable<ByteString>& emitted_dictionaries, GeneratedIncludes& includes)
 {
-    includes.add_dictionary_dependency(context, type.name());
-    includes.add_enumeration_dependency(context, type.name());
+    for_each_type_reference(context, type, TypeTraversalMode::TypeStructureOnly, [&](Type const& referenced_type) {
+        includes.add_dictionary_dependency(context, referenced_type.name());
+        includes.add_enumeration_dependency(context, referenced_type.name());
 
-    if (auto dictionary = context.dictionaries.find(type.name()); dictionary != context.dictionaries.end()) {
-        if (dictionary->value.module_own_path == module_own_path)
-            generate_dictionary_struct(context, type.name(), builder, emitted_dictionaries, includes);
-    }
-
-    if (type.is_parameterized()) {
-        for (auto const& parameter : type.as_parameterized().parameters())
-            generate_dictionary_dependencies(context, module_own_path, *parameter, builder, emitted_dictionaries, includes);
-        return;
-    }
-
-    if (type.is_union()) {
-        for (auto const& member_type : type.as_union().member_types())
-            generate_dictionary_dependencies(context, module_own_path, *member_type, builder, emitted_dictionaries, includes);
-    }
+        if (auto dictionary = context.dictionaries.find(referenced_type.name()); dictionary != context.dictionaries.end()) {
+            if (dictionary->value.module_own_path == module_own_path)
+                generate_dictionary_struct(context, referenced_type.name(), builder, emitted_dictionaries, includes);
+        }
+    });
 }
 
 static void generate_dictionary_structs(Context const& context, OrderedHashTable<ByteString> const& own_dictionaries, StringBuilder& builder, GeneratedIncludes& includes)
