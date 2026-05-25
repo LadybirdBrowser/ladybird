@@ -249,6 +249,12 @@ void ConnectionFromClient::key_event(u64 page_id, Web::KeyEvent event)
 
 void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent event)
 {
+    auto page = m_page_host->page(page_id);
+    if (!page.has_value()) {
+        async_did_finish_handling_input_event(page_id, Web::EventResult::Dropped);
+        return;
+    }
+
     // OPTIMIZATION: Coalesce consecutive unprocessed mouse move and wheel events.
     auto event_to_coalesce = [&]() -> Web::MouseEvent const* {
         if (m_input_event_queue.is_empty())
@@ -274,8 +280,7 @@ void ConnectionFromClient::mouse_event(u64 page_id, Web::MouseEvent event)
         m_input_event_queue.tail().event = move(event);
         ++m_input_event_queue.tail().coalesced_event_count;
 
-        if (auto page = this->page(page_id); page.has_value())
-            page->page().client().request_frame();
+        page->page().client().request_frame();
         return;
     }
 
@@ -295,10 +300,14 @@ void ConnectionFromClient::pinch_event(u64 page_id, Web::PinchEvent event)
 void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
 {
     auto page_id = event.page_id;
-    m_input_event_queue.enqueue(move(event));
+    auto page = m_page_host->page(page_id);
+    if (!page.has_value()) {
+        async_did_finish_handling_input_event(page_id, Web::EventResult::Dropped);
+        return;
+    }
 
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().client().request_frame();
+    m_input_event_queue.enqueue(move(event));
+    page->page().client().request_frame();
 }
 
 void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteString argument)
