@@ -23,15 +23,40 @@
                     color: rgb(255, 0, 0);
                 }
 
+                #nested-parent .nested-target {
+                    color: rgb(255, 0, 0);
+                }
+
                 @media (min-width: 400px) {
                     #target,
                     #canvas-target {
                         color: rgb(0, 128, 0);
                     }
                 }
+
+                #nested-parent {
+                    @media (min-width: 400px) {
+                        & .nested-target {
+                            color: rgb(0, 0, 255);
+                        }
+                    }
+                }
+
+                .bystander {
+                    color: rgb(0, 0, 0);
+                }
             </style>
             <div id="target">target</div>
             <canvas id="canvas-target"></canvas>
+            <div id="nested-parent"><span class="nested-target">nested target</span></div>
+            <script>
+                for (let i = 0; i < 40; ++i) {
+                    const bystander = document.createElement("div");
+                    bystander.className = "bystander";
+                    bystander.textContent = "bystander " + i;
+                    document.body.appendChild(bystander);
+                }
+            <\/script>
         `;
         document.body.appendChild(iframe);
         await loaded;
@@ -40,11 +65,13 @@
         const target = child.document.getElementById("target");
         const canvasTarget = child.document.getElementById("canvas-target");
         const context = canvasTarget.getContext("2d");
+        const nestedTarget = child.document.querySelector(".nested-target");
 
         child.internals.updateStyle();
         println(`initial color: ${child.getComputedStyle(target).color}`);
         context.fillStyle = "currentColor";
         println(`initial canvas fill style: ${context.fillStyle}`);
+        println(`initial nested color: ${child.getComputedStyle(nestedTarget).color}`);
 
         child.internals.resetStyleInvalidationCounters();
         iframe.style.width = "500px";
@@ -57,8 +84,24 @@
         child.internals.updateStyle();
 
         const counters = child.internals.getStyleInvalidationCounters();
+        const elementCount = child.document.querySelectorAll("*").length;
         println(`resized color: ${child.getComputedStyle(target).color}`);
+        println(`resized nested color: ${child.getComputedStyle(nestedTarget).color}`);
         println(`media query full invalidations: ${counters.fullStyleInvalidations}`);
+        println(`media query recomputations bounded: ${counters.elementStyleRecomputations < elementCount / 2}`);
+
+        child.internals.resetStyleInvalidationCounters();
+        iframe.style.width = "300px";
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+
+        const resizedBackCounters = child.internals.getStyleInvalidationCounters();
+        println(`resized back color: ${child.getComputedStyle(target).color}`);
+        println(`resized back nested color: ${child.getComputedStyle(nestedTarget).color}`);
+        println(`media query full invalidations after resize back: ${resizedBackCounters.fullStyleInvalidations}`);
+        println(`media query recomputations bounded after resize back: ${resizedBackCounters.elementStyleRecomputations < elementCount / 2}`);
 
         done();
     });

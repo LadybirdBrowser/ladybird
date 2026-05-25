@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    async function resizeIframe(iframe, child, width) {
+        iframe.style.width = `${width}px`;
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+    }
+
+    async function waitForImportedSheet(styleElement) {
+        while (styleElement.sheet.cssRules.length === 0 || styleElement.sheet.cssRules[0].styleSheet === null)
+            await animationFrame();
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style id="style">
+                @import "data:text/css;base64," layer(late) (min-width: 400px);
+
+                @layer early {
+                    #target {
+                        color: rgb(0, 128, 0);
+                    }
+                }
+
+                @layer late {
+                    #target {
+                        color: rgb(255, 0, 0);
+                    }
+                }
+            </style>
+            <div id="target">target</div>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const target = child.document.getElementById("target");
+        const styleElement = child.document.getElementById("style");
+        await waitForImportedSheet(styleElement);
+
+        child.internals.updateStyle();
+        println(`initial layered import color: ${child.getComputedStyle(target).color}`);
+
+        await resizeIframe(iframe, child, 500);
+        println(`resized layered import color: ${child.getComputedStyle(target).color}`);
+
+        await resizeIframe(iframe, child, 300);
+        println(`resized back layered import color: ${child.getComputedStyle(target).color}`);
+
+        done();
+    });
+</script>
