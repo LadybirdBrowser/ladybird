@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const img = iframe.contentDocument.createElement("img");
+
+            // See: https://github.com/whatwg/html/issues/8492
+            img.onload = () => {
+                println("image loaded after adoption");
+                println(`width=${img.width} height=${img.height} naturalWidth=${img.naturalWidth} naturalHeight=${img.naturalHeight} complete=${img.complete}`);
+                done();
+            };
+            img.onerror = () => {
+                println("image errored after adoption");
+                done();
+            };
+
+            img.src = new URL("../../../Assets/120.png", document.baseURI).href;
+            iframe.contentDocument.body.appendChild(img);
+
+            iframe.remove();
+            document.body.appendChild(document.adoptNode(img));
+        };
+
+        document.body.appendChild(iframe);
+    });
+</script>

@@ -1,0 +1,2 @@
+image loaded after adoption
+width=120 height=120 naturalWidth=120 naturalHeight=120 complete=true
