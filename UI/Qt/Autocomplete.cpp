@@ -32,12 +32,12 @@
 
 namespace Ladybird {
 
-static constexpr int POPUP_PADDING = 8;
+static constexpr int POPUP_PADDING = 6;
 static constexpr int CELL_HORIZONTAL_PADDING = 8;
-static constexpr int CELL_VERTICAL_PADDING = 10;
+static constexpr int CELL_VERTICAL_PADDING = 8;
 static constexpr int CELL_ICON_SIZE = 16;
 static constexpr int CELL_ICON_TEXT_SPACING = 6;
-static constexpr int CELL_LABEL_VERTICAL_SPACING = 4;
+static constexpr int CELL_LABEL_VERTICAL_SPACING = 3;
 static constexpr int SECTION_HEADER_HORIZONTAL_PADDING = 10;
 static constexpr int SECTION_HEADER_VERTICAL_PADDING = 4;
 static constexpr int MINIMUM_POPUP_WIDTH = 100;
@@ -85,18 +85,6 @@ static QFont autocomplete_section_header_font()
     QFont font = autocomplete_secondary_font();
     font.setWeight(QFont::DemiBold);
     return font;
-}
-
-static QIcon globe_icon()
-{
-    static QIcon icon = create_tvg_icon_with_theme_colors("globe", QApplication::palette());
-    return icon;
-}
-
-static QIcon search_icon()
-{
-    static QIcon icon = create_tvg_icon_with_theme_colors("search", QApplication::palette());
-    return icon;
 }
 
 class AutocompleteModel final : public QAbstractListModel {
@@ -269,7 +257,9 @@ public:
         if (kind == RowKind::SectionHeader) {
             auto text = index.data(HeaderTextRole).toString();
             painter->setFont(autocomplete_section_header_font());
-            painter->setPen(option.palette.color(QPalette::PlaceholderText));
+            auto header_color = option.palette.color(QPalette::PlaceholderText);
+            header_color.setAlpha(170);
+            painter->setPen(header_color);
             auto rect = option.rect.adjusted(
                 SECTION_HEADER_HORIZONTAL_PADDING, SECTION_HEADER_VERTICAL_PADDING,
                 -SECTION_HEADER_HORIZONTAL_PADDING, -SECTION_HEADER_VERTICAL_PADDING);
@@ -280,13 +270,15 @@ public:
 
         bool selected = option.state & QStyle::State_Selected;
         if (selected) {
-            auto accent = option.palette.color(QPalette::Highlight);
-            accent.setAlpha(64);
-            auto rect = option.rect.adjusted(2, 3, -2, -3);
+            auto fill = ChromeStyle::chrome_surface_hover(option.palette);
+            fill.setAlpha(190);
+            auto border = ChromeStyle::chrome_border(option.palette);
+            border.setAlpha(76);
+            auto rect = option.rect.adjusted(3, 2, -3, -2);
             painter->setRenderHint(QPainter::Antialiasing, true);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(accent);
-            painter->drawRoundedRect(rect, 6, 6);
+            painter->setPen(QPen(border, 1));
+            painter->setBrush(fill);
+            painter->drawRoundedRect(rect, 7, 7);
         }
 
         auto favicon = index.data(FaviconRole).value<QIcon>();
@@ -302,11 +294,11 @@ public:
         QRect icon_rect(icon_x, icon_y, CELL_ICON_SIZE, CELL_ICON_SIZE);
 
         if (source == WebView::AutocompleteSuggestionSource::Search) {
-            search_icon().paint(painter, icon_rect);
+            create_chrome_icon(ChromeIcon::Search, option.palette).paint(painter, icon_rect);
         } else if (source == WebView::AutocompleteSuggestionSource::History && !favicon.isNull()) {
             favicon.paint(painter, icon_rect);
         } else {
-            globe_icon().paint(painter, icon_rect);
+            create_chrome_icon(ChromeIcon::Globe, option.palette).paint(painter, icon_rect);
         }
 
         int text_x = icon_x + CELL_ICON_SIZE + CELL_ICON_TEXT_SPACING;
@@ -328,7 +320,9 @@ public:
                 Qt::AlignLeft | Qt::AlignVCenter, elided_title);
 
             painter->setFont(autocomplete_secondary_font());
-            painter->setPen(option.palette.color(QPalette::PlaceholderText));
+            auto secondary_color = option.palette.color(QPalette::PlaceholderText);
+            secondary_color.setAlpha(180);
+            painter->setPen(secondary_color);
             auto elided_secondary = secondary_fm.elidedText(secondary_text, Qt::ElideRight, text_width);
             painter->drawText(
                 QRect(text_x, block_y + primary_fm.height() + CELL_LABEL_VERTICAL_SPACING,

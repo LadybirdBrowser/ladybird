@@ -152,6 +152,9 @@ private:
 
     void set_current_tab(Tab* tab);
     Qt::Edges resize_edges_for_position(QPoint const&) const;
+    Optional<Qt::CursorShape> resize_cursor_for_edges(Qt::Edges) const;
+    void update_resize_cursor(QPoint const&);
+    void clear_resize_cursor();
 
     template<typename Callback>
     void for_each_tab(Callback&& callback)
@@ -188,6 +191,7 @@ private:
     // Determine if window should restore to maximized or normal, when exiting fullscreen.
     bool m_restore_to_maximized { false };
     bool m_should_record_closed_window_on_close { true };
+    bool m_resize_cursor_active { false };
 };
 
 }
