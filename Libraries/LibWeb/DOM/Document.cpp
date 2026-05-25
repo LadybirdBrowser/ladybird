@@ -5857,8 +5857,8 @@ void Document::inform_all_viewport_clients_about_the_current_viewport_rect()
 
 void Document::register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver& observer)
 {
-    auto result = m_intersection_observers.set(observer);
-    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+    VERIFY(!m_intersection_observers.contains(observer));
+    m_intersection_observers.set(observer);
 }
 
 void Document::unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver& observer)
@@ -5900,7 +5900,9 @@ void Document::queue_intersection_observer_task()
         m_intersection_observer_task_queued = false;
 
         // 2. Let notify list be a list of all IntersectionObservers whose root is in the DOM tree of document.
-        auto notify_list = GC::RootVector { m_intersection_observers.values() };
+        GC::RootVector<GC::Ref<IntersectionObserver::IntersectionObserver>> notify_list;
+        for (auto& observer : m_intersection_observers)
+            notify_list.append(observer);
 
         // 3. For each IntersectionObserver object observer in notify list, run these steps:
         for (auto& observer : notify_list) {
@@ -6014,7 +6016,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     // 2. For each observer in observer list:
 
     // NOTE: We make a copy of the intersection observers list to avoid modifying it while iterating.
-    auto intersection_observers = GC::RootVector { m_intersection_observers.values() };
+    GC::RootVector<GC::Ref<IntersectionObserver::IntersectionObserver>> intersection_observers;
+    for (auto& observer : m_intersection_observers)
+        intersection_observers.append(observer);
 
     update_paint_and_hit_testing_properties_if_needed();
 
