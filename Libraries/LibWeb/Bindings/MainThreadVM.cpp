@@ -267,9 +267,9 @@ void initialize_main_thread_vm(AgentType type)
             // 4. Clean up after running script with entry.
             HTML::clean_up_after_running_script(entry);
 
-            // 5. If result is an abrupt completion, then report the exception given by result.[[Value]].
+            // 5. If result is an abrupt completion, then report the exception given by result.[[Value]] for global.
             if (result.is_error())
-                HTML::report_exception(result, entry.realm());
+                HTML::report_exception(result, finalization_registry.realm());
         }));
     };
 
