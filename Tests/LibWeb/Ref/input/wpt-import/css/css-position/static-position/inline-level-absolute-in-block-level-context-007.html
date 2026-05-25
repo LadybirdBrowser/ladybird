@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#abs-non-replaced-width" />
+<link rel="match" href="../../../../../expected/wpt-import/css/css-position/static-position/../../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Tests the static position of inline-level absolute-positioned elements, with combinations of float, direction, and text-align." />
+<style>
+#container { position: relative; background: red; width: 100px; height: 100px; }
+#container > div { background: green; }
+#inflow { height: 50px; }
+#float { float: left; width: 50px; height: 50px; }
+#abs { display: inline; position: absolute; width: 50px; height: 50px; }
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div id=container style="direction: rtl; text-align: right;">
+  <div id=inflow></div>
+  <div id=float style="float: left;"></div>
+  <div id=abs style="transform: translateX(0%);"></div>
+</div>
