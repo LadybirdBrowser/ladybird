@@ -16,7 +16,7 @@ endpoint CompositorControlServer
     viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|
 
     handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool handled)
-    dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) =|
+    dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool dispatched)
     async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels) => (bool handled)
     presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id) =|
 }

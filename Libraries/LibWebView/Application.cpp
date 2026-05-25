@@ -596,8 +596,10 @@ bool Application::dispatch_mouse_event_to_web_content(Web::Compositor::Composito
         return false;
     VERIFY(m_compositor_client);
 
-    m_compositor_client->async_dispatch_mouse_event_to_web_content(context_id, event.clone_without_browser_data());
-    return true;
+    auto result = m_compositor_client->try_dispatch_mouse_event_to_web_content(context_id, event.clone_without_browser_data());
+    if (result.is_error())
+        return false;
+    return result.release_value();
 }
 
 void Application::notify_compositor_presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id)

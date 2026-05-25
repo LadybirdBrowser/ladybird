@@ -333,7 +333,8 @@ void CompositorState::invalidate_wheel_event_listener_state(Web::Compositor::Com
 bool CompositorState::handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
     auto* context = context_if_present(context_id);
-    VERIFY(context);
+    if (!context)
+        return false;
 
     auto& context_state = *context;
     if (!context_state.presents_to_client)
@@ -392,10 +393,12 @@ bool CompositorState::handle_mouse_event(Web::Compositor::CompositorContextId co
     VERIFY_NOT_REACHED();
 }
 
-void CompositorState::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
+bool CompositorState::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
     auto* context = context_if_present(context_id);
-    VERIFY(context);
+    if (!context)
+        return false;
+
     VERIFY(context->web_content_client);
 
     auto page_id = context->page_id;
@@ -404,6 +407,7 @@ void CompositorState::dispatch_mouse_event_to_web_content(Web::Compositor::Compo
     VERIFY(page_id.has_value());
 
     context->web_content_client->dispatch_mouse_event_to_web_content(*page_id, event);
+    return true;
 }
 
 Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
@@ -451,7 +455,8 @@ bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId conte
         return false;
 
     auto* context = context_if_present(context_id);
-    VERIFY(context);
+    if (!context)
+        return false;
 
     auto& context_state = *context;
     if (!context_state.presents_to_client)
