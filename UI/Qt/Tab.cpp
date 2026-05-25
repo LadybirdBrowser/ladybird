@@ -674,6 +674,10 @@ void Tab::recreate_toolbar_icons()
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
     m_window->new_tab_action().setIcon(create_chrome_icon(ChromeIcon::NewTab, palette()));
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
+    if (auto* action = m_location_edit->trailing_action()) {
+        auto icon = view().toggle_bookmark_action().engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star;
+        action->setIcon(create_chrome_icon(icon, palette()));
+    }
 }
 
 void Tab::show_find_in_page()

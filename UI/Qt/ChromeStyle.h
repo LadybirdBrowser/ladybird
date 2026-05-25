@@ -12,6 +12,10 @@
 
 namespace Ladybird::ChromeStyle {
 
+bool is_dark(QPalette const&);
+QColor mix(QColor const& from, QColor const& to, double amount);
+QColor chrome_text(QPalette const&);
+QColor chrome_button_text(QPalette const&);
 QColor chrome_background(QPalette const&);
 QColor chrome_surface(QPalette const&);
 QColor chrome_surface_hover(QPalette const&);

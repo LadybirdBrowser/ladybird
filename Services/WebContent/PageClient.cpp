@@ -150,8 +150,11 @@ Gfx::Palette PageClient::palette() const
 void PageClient::set_palette_impl(Gfx::PaletteImpl& impl)
 {
     m_palette_impl = impl;
-    if (auto* document = page().top_level_browsing_context().active_document())
+    if (auto* document = page().top_level_browsing_context().active_document()) {
         document->invalidate_style(Web::DOM::StyleInvalidationReason::SettingsChange);
+        document->set_needs_media_query_evaluation();
+    }
+    request_frame();
 }
 
 void PageClient::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)

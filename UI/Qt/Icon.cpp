@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/Resource.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TVGIconEngine.h>
@@ -198,12 +199,17 @@ static QIcon create_y_offset_icon(QIcon const& source, int y_offset)
 
 QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
 {
-    if (icon == ChromeIcon::Reload)
-        return create_y_offset_icon(create_tvg_icon_with_theme_colors("reload", palette), 1);
-    if (icon == ChromeIcon::Globe)
-        return create_y_offset_icon(create_tvg_icon_with_theme_colors("globe", palette, 202, 96, 236, 236), 1);
+    auto chrome_palette = palette;
+    chrome_palette.setColor(QPalette::Normal, QPalette::ButtonText, ChromeStyle::chrome_button_text(palette));
+    chrome_palette.setColor(QPalette::Active, QPalette::ButtonText, ChromeStyle::chrome_button_text(palette));
+    chrome_palette.setColor(QPalette::Disabled, QPalette::ButtonText, ChromeStyle::chrome_muted_text(palette));
 
-    auto normal = palette.color(QPalette::ColorGroup::Normal, QPalette::ColorRole::ButtonText);
+    if (icon == ChromeIcon::Reload)
+        return create_y_offset_icon(create_tvg_icon_with_theme_colors("reload", chrome_palette), 1);
+    if (icon == ChromeIcon::Globe)
+        return create_y_offset_icon(create_tvg_icon_with_theme_colors("globe", chrome_palette, 202, 96, 236, 236), 1);
+
+    auto normal = ChromeStyle::chrome_button_text(palette);
     auto normal_alpha = 216;
     if (icon == ChromeIcon::Close)
         normal_alpha = 172;
@@ -211,10 +217,10 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
         normal_alpha = 204;
     normal.setAlpha(normal_alpha);
 
-    auto active = palette.color(QPalette::ColorGroup::Active, QPalette::ColorRole::ButtonText);
+    auto active = ChromeStyle::chrome_button_text(palette);
     active.setAlpha(icon == ChromeIcon::Close ? 220 : 236);
 
-    auto disabled = palette.color(QPalette::ColorGroup::Disabled, QPalette::ColorRole::ButtonText);
+    auto disabled = ChromeStyle::chrome_muted_text(palette);
     disabled.setAlpha(icon == ChromeIcon::Close ? 78 : 96);
 
     QIcon qicon;
@@ -237,7 +243,7 @@ QIcon loading_spinner_icon(QPalette const& palette, int frame)
     painter.setRenderHint(QPainter::Antialiasing);
     painter.translate(icon_size / 2.0, icon_size / 2.0);
 
-    auto color = palette.color(QPalette::Text);
+    auto color = ChromeStyle::chrome_text(palette);
     for (int segment = 0; segment < segment_count; ++segment) {
         auto segment_color = color;
         segment_color.setAlpha(((segment - frame + segment_count) % segment_count + 1) * 255 / segment_count);

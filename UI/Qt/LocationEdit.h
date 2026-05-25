@@ -37,6 +37,7 @@ public:
     explicit LocationEdit(QWidget*);
 
     void set_trailing_action(QAction*);
+    QAction* trailing_action() const;
 
     Optional<URL::URL const&> url() const { return m_url; }
     void set_url(Optional<URL::URL>);
@@ -60,6 +61,7 @@ private:
     void update_location_icon();
     void update_loading_icon();
     void update_focus_glow(int alpha);
+    void schedule_chrome_style_update();
     void animate_focus_glow(int target_alpha);
     void highlight_location();
     bool text_matches_current_url() const;
@@ -83,6 +85,7 @@ private:
     bool m_url_is_hidden { false };
     bool m_is_loading { false };
     bool m_is_updating_chrome_style { false };
+    bool m_has_pending_chrome_style_update { false };
     int m_focus_glow_alpha { 0 };
     int m_loading_animation_frame { 0 };
 
