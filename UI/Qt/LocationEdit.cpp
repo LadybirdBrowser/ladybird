@@ -11,6 +11,7 @@
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Autocomplete.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LocationEdit.h>
 #include <UI/Qt/StringUtils.h>
@@ -133,6 +134,10 @@ LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
     , m_autocomplete(new Autocomplete(this))
 {
+    setObjectName("LadybirdLocationEdit");
+    setMinimumHeight(34);
+    update_chrome_style();
+
     m_leading_icon_action = addAction(create_tvg_icon_with_theme_colors("search", palette()), QLineEdit::LeadingPosition);
     m_leading_icon_action->setToolTip("Search");
 
@@ -229,8 +234,10 @@ LocationEdit::LocationEdit(QWidget* parent)
 void LocationEdit::changeEvent(QEvent* event)
 {
     QLineEdit::changeEvent(event);
-    if (event->type() == QEvent::PaletteChange)
+    if (event->type() == QEvent::PaletteChange) {
+        update_chrome_style();
         update_location_icon();
+    }
 }
 
 void LocationEdit::focusInEvent(QFocusEvent* event)
@@ -302,6 +309,16 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
 void LocationEdit::search_engine_changed()
 {
     update_placeholder();
+}
+
+void LocationEdit::update_chrome_style()
+{
+    if (m_is_updating_chrome_style)
+        return;
+
+    m_is_updating_chrome_style = true;
+    setStyleSheet(ChromeStyle::location_edit_style_sheet(palette()));
+    m_is_updating_chrome_style = false;
 }
 
 void LocationEdit::update_placeholder()

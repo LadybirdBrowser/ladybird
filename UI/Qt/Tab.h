@@ -100,6 +100,7 @@ private:
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     void recreate_toolbar_icons();
+    void update_chrome_style();
     void update_tab_title();
     void set_loading(bool);
     void update_tab_icon();
@@ -119,6 +120,7 @@ private:
     QIcon m_favicon;
     QTimer* m_loading_animation_timer { nullptr };
     bool m_is_loading { false };
+    bool m_is_updating_chrome_style { false };
     int m_loading_animation_frame { 0 };
 
     QMenu* m_context_menu { nullptr };

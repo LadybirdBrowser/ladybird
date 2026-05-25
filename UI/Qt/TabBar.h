@@ -20,6 +20,8 @@ class QAction;
 class QContextMenuEvent;
 class QEvent;
 class QIcon;
+class QMouseEvent;
+class QPaintEvent;
 class QToolButton;
 
 namespace Ladybird {
@@ -39,12 +41,19 @@ public:
     virtual void contextMenuEvent(QContextMenuEvent* event) override;
 
 private:
+    virtual void paintEvent(QPaintEvent*) override;
+    virtual void leaveEvent(QEvent*) override;
+    virtual void mouseDoubleClickEvent(QMouseEvent*) override;
     void mousePressEvent(QMouseEvent*) override;
     void mouseMoveEvent(QMouseEvent*) override;
+
+    bool start_window_move();
+    void toggle_window_maximized();
 
     QPointer<TabWidget> m_tab_widget;
 
     int m_available_width { 0 };
+    int m_hovered_tab_index { -1 };
     int m_x_position_in_selected_tab_while_dragging { 0 };
 };
 
@@ -82,16 +91,25 @@ signals:
 
 protected:
     virtual bool event(QEvent* event) override;
+    virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;
 
 private:
     void update_tab_layout();
     void recreate_icons();
+    void update_chrome_style();
+    void update_window_button_icons();
+    void toggle_window_maximized();
+    bool start_window_move();
 
     TabBar* m_tab_bar { nullptr };
     QStackedWidget* m_stacked_widget { nullptr };
     QToolButton* m_new_tab_button { nullptr };
+    QToolButton* m_minimize_window_button { nullptr };
+    QToolButton* m_maximize_window_button { nullptr };
+    QToolButton* m_close_window_button { nullptr };
     QWidget* m_tab_bar_row { nullptr };
+    bool m_is_updating_chrome_style { false };
 };
 
 class TabBarButton final : public QPushButton {
