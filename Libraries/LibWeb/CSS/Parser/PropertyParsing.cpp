@@ -5334,7 +5334,7 @@ RefPtr<GridAutoFlowStyleValue const> Parser::parse_grid_auto_flow_value(TokenStr
 // https://www.w3.org/TR/css-grid-2/#track-sizing
 RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<ComponentValue>& tokens)
 {
-    // none | <track-list> | <auto-track-list> | FIXME: subgrid <line-name-list>?
+    // none | <track-list> | <auto-track-list> | subgrid <line-name-list>?
 
     // none
     {
@@ -5344,6 +5344,40 @@ RefPtr<StyleValue const> Parser::parse_grid_track_size_list(TokenStream<Componen
             tokens.discard_a_token(); // none
             transaction.commit();
             return GridTrackSizeListStyleValue::make_none();
+        }
+    }
+
+    // subgrid <line-name-list>?
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+        if (tokens.has_next_token() && tokens.next_token().is_ident("subgrid"sv)) {
+            tokens.discard_a_token(); // subgrid
+
+            auto track_list = GridTrackSizeList::make_subgrid();
+            bool has_auto_fill_repeat = false;
+            tokens.discard_whitespace();
+            while (tokens.has_next_token()) {
+                if (tokens.next_token().is_block() && tokens.next_token().block().is_square()) {
+                    auto line_names = parse_grid_line_names(tokens);
+                    if (!line_names.has_value())
+                        return nullptr;
+                    track_list.append(line_names.release_value());
+                } else if (auto name_repeat = parse_grid_name_repeat(tokens); name_repeat.has_value()) {
+                    if (name_repeat->is_auto_fill()) {
+                        if (has_auto_fill_repeat)
+                            return nullptr;
+                        has_auto_fill_repeat = true;
+                    }
+                    track_list.append(ExplicitGridTrack(name_repeat.release_value()));
+                } else {
+                    return nullptr;
+                }
+                tokens.discard_whitespace();
+            }
+
+            transaction.commit();
+            return GridTrackSizeListStyleValue::create(move(track_list));
         }
     }
 

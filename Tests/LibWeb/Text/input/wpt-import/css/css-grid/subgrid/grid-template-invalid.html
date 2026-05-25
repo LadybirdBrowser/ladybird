@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing 'grid' with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2">
+<meta name="assert" content="grid-template supports the grammar `none | <track-list> | <auto-track-list> | subgrid <line-name-list>?`.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+
+// <'grid-template'> invalid values
+test_invalid_value("grid-template-rows", 'subgrid subgrid');
+test_invalid_value("grid-template-rows", 'subgrid none');
+test_invalid_value("grid-template-rows", 'subgrid 1px');
+test_invalid_value("grid-template-rows", 'subgrid [a] 1px');
+test_invalid_value("grid-template-rows", 'subgrid repeat(auto-fill, 1px)');
+test_invalid_value("grid-template-rows", 'subgrid repeat(auto-fill, line)');
+test_invalid_value("grid-template-rows", 'subgrid repeat(auto-fit, [a])');
+test_invalid_value("grid-template-rows", 'subgrid repeat(2, 1px)');
+test_invalid_value("grid-template-rows", 'subgrid repeat(2, line)');
+test_invalid_value("grid-template-rows", 'subgrid repeat(2,');
+test_invalid_value("grid-template-rows", 'subgrid repeat(auto-fill, [a]) repeat(auto-fill, [b]');
+
+test_invalid_value("grid-template-columns", 'subgrid subgrid');
+test_invalid_value("grid-template-columns", 'subgrid none');
+test_invalid_value("grid-template-columns", 'subgrid 1px');
+test_invalid_value("grid-template-columns", 'subgrid [a] 1px');
+test_invalid_value("grid-template-columns", 'subgrid repeat(auto-fill, 1px)');
+test_invalid_value("grid-template-columns", 'subgrid repeat(auto-fill, line)');
+test_invalid_value("grid-template-columns", 'subgrid repeat(auto-fit, [a])');
+test_invalid_value("grid-template-columns", 'subgrid repeat(2, 1px)');
+test_invalid_value("grid-template-columns", 'subgrid repeat(2, line)');
+test_invalid_value("grid-template-columns", 'subgrid repeat(2,');
+test_invalid_value("grid-template-columns", 'subgrid repeat(auto-fill, [a]) repeat(auto-fill, [b]');
+
+
+</script>
+</body>
+</html>

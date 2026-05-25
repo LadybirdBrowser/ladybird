@@ -343,6 +343,7 @@ private:
     Optional<GridRepeat> parse_grid_track_repeat(TokenStream<ComponentValue>&);
     Optional<GridRepeat> parse_grid_auto_repeat(TokenStream<ComponentValue>&);
     Optional<GridRepeat> parse_grid_fixed_repeat(TokenStream<ComponentValue>&);
+    Optional<GridRepeat> parse_grid_name_repeat(TokenStream<ComponentValue>&);
 
     using GridRepeatTypeParser = AK::Function<Optional<GridRepeatParams>(TokenStream<ComponentValue>&)>;
     using GridTrackParser = AK::Function<Optional<ExplicitGridTrack>(TokenStream<ComponentValue>&)>;

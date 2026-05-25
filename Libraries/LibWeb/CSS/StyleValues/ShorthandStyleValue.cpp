@@ -749,7 +749,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         auto& rows = rows_value->as_grid_track_size_list();
         auto& columns = columns_value->as_grid_track_size_list();
 
-        if (areas.row_count() == 0 && rows.grid_track_size_list().track_list().size() == 0 && columns.grid_track_size_list().track_list().size() == 0) {
+        if (areas.row_count() == 0 && rows.grid_track_size_list().is_empty() && columns.grid_track_size_list().is_empty()) {
             builder.append("none"sv);
             return;
         }

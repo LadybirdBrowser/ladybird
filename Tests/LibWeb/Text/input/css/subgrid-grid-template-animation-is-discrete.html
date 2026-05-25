@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-columns: 10px 20px;
+    }
+
+    .target {
+        display: grid;
+        grid-column: 1 / span 2;
+        grid-template-columns: subgrid [a] [b] [c];
+    }
+</style>
+<div class="parent"><div class="target"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.querySelector(".target");
+        const animation = target.animate([
+            { gridTemplateColumns: "subgrid [a] [b] [c]" },
+            { gridTemplateColumns: "subgrid [x] [y] [z]" },
+        ], { duration: 1000, fill: "both" });
+        animation.pause();
+
+        for (const time of [250, 500, 750]) {
+            animation.currentTime = time;
+            println(`${time}: ${getComputedStyle(target).gridTemplateColumns}`);
+        }
+    });
+</script>

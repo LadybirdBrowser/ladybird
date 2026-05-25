@@ -577,6 +577,15 @@ static void append_grid_track_with_line_names(GridTrackSizeList& list, ExplicitG
 
 static Optional<GridTrackSizeList> interpolate_grid_track_size_list(DOM::Element& element, CalculationContext const& calculation_context, GridTrackSizeList const& from, GridTrackSizeList const& to, float delta)
 {
+    // https://drafts.csswg.org/css-grid-2/#track-sizing
+    // Animation type: if the list lengths match, by computed value type per item in the computed track list;
+    // discrete otherwise.
+    //
+    // https://drafts.csswg.org/css-grid-2/#computed-track-list-subgrid
+    // The computed track list of a subgrid axis is the subgrid keyword followed by a list of line names.
+    if (from.is_subgrid() || to.is_subgrid())
+        return {};
+
     auto interpolate_grid_size = [&](GridSize const& from_grid_size, GridSize const& to_grid_size) -> GridSize {
         return GridSize { *interpolate_value(element, calculation_context, from_grid_size.style_value(), to_grid_size.style_value(), delta, AllowDiscrete::Yes) };
     };
@@ -2260,6 +2269,15 @@ static T composite_raw_values(T underlying_raw_value, T animated_raw_value)
 
 static Optional<GridTrackSizeList> composite_grid_track_size_list(PropertyID property_id, CalculationContext const& calculation_context, GridTrackSizeList const& underlying, GridTrackSizeList const& animated, Bindings::CompositeOperation composite_operation)
 {
+    // https://drafts.csswg.org/css-grid-2/#track-sizing
+    // Animation type: if the list lengths match, by computed value type per item in the computed track list;
+    // discrete otherwise.
+    //
+    // https://drafts.csswg.org/css-grid-2/#computed-track-list-subgrid
+    // The computed track list of a subgrid axis is the subgrid keyword followed by a list of line names.
+    if (underlying.is_subgrid() || animated.is_subgrid())
+        return {};
+
     auto composite_grid_size = [&](GridSize const& underlying_grid_size, GridSize const& animated_grid_size) -> Optional<GridSize> {
         if (auto composited_value = composite_value(property_id, underlying_grid_size.style_value(), animated_grid_size.style_value(), composite_operation))
             return GridSize { *composited_value };
