@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                #target {
+                    color: rgb(255, 0, 0);
+                }
+
+                #canvas-target {
+                    color: rgb(255, 0, 0);
+                }
+
+                @media (min-width: 400px) {
+                    #target,
+                    #canvas-target {
+                        color: rgb(0, 128, 0);
+                    }
+                }
+            </style>
+            <div id="target">target</div>
+            <canvas id="canvas-target"></canvas>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const target = child.document.getElementById("target");
+        const canvasTarget = child.document.getElementById("canvas-target");
+        const context = canvasTarget.getContext("2d");
+
+        child.internals.updateStyle();
+        println(`initial color: ${child.getComputedStyle(target).color}`);
+        context.fillStyle = "currentColor";
+        println(`initial canvas fill style: ${context.fillStyle}`);
+
+        child.internals.resetStyleInvalidationCounters();
+        iframe.style.width = "500px";
+        document.body.offsetWidth;
+        context.fillStyle = "currentColor";
+        println(`targeted canvas fill style: ${context.fillStyle}`);
+
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+
+        const counters = child.internals.getStyleInvalidationCounters();
+        println(`resized color: ${child.getComputedStyle(target).color}`);
+        println(`media query full invalidations: ${counters.fullStyleInvalidations}`);
+
+        done();
+    });
+</script>

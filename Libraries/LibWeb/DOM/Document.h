@@ -373,6 +373,7 @@ public:
     void obtain_theme_color();
 
     void update_style();
+    void invalidate_style_for_viewport_change();
     void update_style_if_needed_for_element(AbstractElement const&);
     enum class StyleUpdateMode : u8 {
         Normal,
