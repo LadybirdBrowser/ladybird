@@ -78,6 +78,7 @@ private:
 struct GridLineName {
     FlyString name;
     bool implicit { false };
+    bool adopted_from_parent_grid { false };
 
     bool operator==(GridLineName const& other) const = default;
 };
@@ -118,15 +119,18 @@ private:
 class GridTrackSizeList {
 public:
     static GridTrackSizeList make_none();
+    static GridTrackSizeList make_line_name_list();
+    static GridTrackSizeList make_subgrid();
 
     Vector<CSS::ExplicitGridTrack> track_list() const;
     auto const& list() const { return m_list; }
+    bool is_subgrid() const { return m_is_subgrid; }
 
     void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     bool operator==(GridTrackSizeList const& other) const;
 
-    bool is_empty() const { return m_list.is_empty(); }
+    bool is_empty() const { return !m_is_subgrid && m_list.is_empty(); }
 
     void append(GridLineNames&&);
     void append(ExplicitGridTrack&&);
@@ -136,6 +140,8 @@ public:
     bool is_computationally_independent() const;
 
 private:
+    bool m_is_subgrid { false };
+    bool m_preserve_line_name_sets { false };
     Vector<Variant<ExplicitGridTrack, GridLineNames>> m_list;
 };
 

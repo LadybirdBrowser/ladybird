@@ -239,8 +239,30 @@ GridTrackSizeList GridTrackSizeList::make_none()
     return GridTrackSizeList();
 }
 
+GridTrackSizeList GridTrackSizeList::make_line_name_list()
+{
+    GridTrackSizeList list;
+    list.m_preserve_line_name_sets = true;
+    return list;
+}
+
+GridTrackSizeList GridTrackSizeList::make_subgrid()
+{
+    GridTrackSizeList list;
+    list.m_is_subgrid = true;
+    list.m_preserve_line_name_sets = true;
+    return list;
+}
+
 void GridTrackSizeList::serialize(StringBuilder& builder, SerializationMode mode) const
 {
+    if (m_is_subgrid) {
+        builder.append("subgrid"sv);
+        if (m_list.is_empty())
+            return;
+        builder.append(" "sv);
+    }
+
     if (m_list.is_empty()) {
         builder.append("none"sv);
         return;
@@ -280,6 +302,11 @@ bool GridTrackSizeList::operator==(GridTrackSizeList const& other) const = defau
 
 void GridTrackSizeList::append(GridLineNames&& line_names)
 {
+    if (m_preserve_line_name_sets) {
+        m_list.append(move(line_names));
+        return;
+    }
+
     if (!m_list.is_empty() && m_list.last().has<GridLineNames>()) {
         auto& last_line_names = m_list.last().get<GridLineNames>();
         for (auto const& name : line_names.names())
@@ -297,6 +324,8 @@ void GridTrackSizeList::append(ExplicitGridTrack&& explicit_track)
 GridTrackSizeList GridTrackSizeList::absolutized(ComputationContext const& context) const
 {
     GridTrackSizeList result;
+    result.m_is_subgrid = m_is_subgrid;
+    result.m_preserve_line_name_sets = m_preserve_line_name_sets;
     for (auto const& item : m_list) {
         item.visit(
             [&result, &context](ExplicitGridTrack const& track) {

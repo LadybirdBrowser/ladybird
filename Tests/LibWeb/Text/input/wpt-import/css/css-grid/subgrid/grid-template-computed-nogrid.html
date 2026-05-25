@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridTemplateColumns</title>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#resolved-track-list" "title"="2.3. Resolved Value of a Track Listing">
+<meta name="assert" content="Checks the resolved value of grid-template-columns or grid-template-columns on an element which is not a grid container.">
+<style>
+#target {
+  display: block;
+  height: 1px;
+  font-size: 1px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_computed_value("grid-template-columns", "subgrid []");
+test_computed_value("grid-template-columns", "subgrid [a]");
+test_computed_value("grid-template-columns", "subgrid [a] [b]");
+test_computed_value("grid-template-columns", "subgrid [] [b]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] [b] [c]");
+test_computed_value("grid-template-columns", "subgrid [a] [b c d] [e f] [e f] [g]");
+test_computed_value("grid-template-columns", "subgrid [a b c] [d] [e f]");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(auto-fill, [c]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a b] repeat(auto-fill, [c]) [g]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c]) [g h]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c d])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c d]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(auto-fill, [c d]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a b] repeat(auto-fill, [c d]) [g]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c d]) [g h]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c d])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c] [d])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c] [d]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(auto-fill, [c] [d]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a b] repeat(auto-fill, [c] [d]) [g]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c] [d]) [g h]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c] [d])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c] [d e])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [c] [d e]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(auto-fill, [c] [d e]) [g] [h i]");
+test_computed_value("grid-template-columns", "subgrid [a b] repeat(auto-fill, [c] [d e]) [g]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c] [d e]) [g h]");
+test_computed_value("grid-template-columns", "subgrid [a] [b] repeat(auto-fill, [c] [d e])");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(2, [c] [d e])");
+test_computed_value("grid-template-columns", "subgrid repeat(1, [])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a] [])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [] [a] [])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [] [] []) repeat(auto-fill, [] [] [])");
+test_computed_value("grid-template-columns", "subgrid repeat(1, [a b])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a b])");
+test_computed_value("grid-template-columns", "subgrid repeat(1, [a] [b])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a] [b])");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(2, [b])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a]) [b]");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(2, [b] [c d]) [e]");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a b]) repeat(auto-fill, [c] [d e])");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [a] [b c]) repeat(2, [d e])");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a b]) repeat(auto-fill, [c] [d e]) repeat(2, [f g])");
+test_computed_value("grid-template-columns", "subgrid [a] [b c] repeat(2, [d e]) [f] [g h] repeat(auto-fill, [i] [j k]) [l] repeat(2, [m n]) [o]");
+</script>

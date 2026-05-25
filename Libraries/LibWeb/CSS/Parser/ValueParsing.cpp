@@ -4642,6 +4642,67 @@ Optional<GridRepeat> Parser::parse_grid_fixed_repeat(TokenStream<ComponentValue>
     return parse_grid_track_repeat_impl(tokens, parse_repeat_type, parse_track);
 }
 
+// https://drafts.csswg.org/css-grid-2/#typedef-name-repeat
+Optional<GridRepeat> Parser::parse_grid_name_repeat(TokenStream<ComponentValue>& tokens)
+{
+    // <name-repeat> = repeat( [ <integer [1,∞]> | auto-fill ] , <line-names>+ )
+
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    if (!tokens.has_next_token())
+        return {};
+
+    auto const& token = tokens.consume_a_token();
+    if (!token.is_function())
+        return {};
+
+    auto const& function_token = token.function();
+    if (!function_token.name.equals_ignoring_ascii_case("repeat"sv))
+        return {};
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.name });
+
+    auto function_tokens = TokenStream(function_token.value);
+    auto comma_separated_list = parse_a_comma_separated_list_of_component_values(function_tokens);
+    if (comma_separated_list.size() != 2)
+        return {};
+
+    TokenStream first_arg_tokens { comma_separated_list[0] };
+    first_arg_tokens.discard_whitespace();
+    Optional<GridRepeatParams> repeat_params;
+    if (auto maybe_integer = parse_integer_value(first_arg_tokens, { .min = 1, .max = NumericLimits<i32>::max() })) {
+        repeat_params = GridRepeatParams { GridRepeatType::Fixed, maybe_integer };
+    } else if (first_arg_tokens.has_next_token() && first_arg_tokens.next_token().is_ident("auto-fill"sv)) {
+        first_arg_tokens.discard_a_token(); // auto-fill
+        repeat_params = GridRepeatParams { GridRepeatType::AutoFill };
+    } else {
+        return {};
+    }
+    first_arg_tokens.discard_whitespace();
+    if (first_arg_tokens.has_next_token())
+        return {};
+
+    TokenStream second_arg_tokens { comma_separated_list[1] };
+    GridTrackSizeList line_name_list = GridTrackSizeList::make_line_name_list();
+    size_t parsed_line_name_count = 0;
+    second_arg_tokens.discard_whitespace();
+    while (second_arg_tokens.has_next_token()) {
+        if (!second_arg_tokens.next_token().is_block() || !second_arg_tokens.next_token().block().is_square())
+            return {};
+        auto line_names = parse_grid_line_names(second_arg_tokens);
+        if (!line_names.has_value())
+            return {};
+        line_name_list.append(line_names.release_value());
+        ++parsed_line_name_count;
+        second_arg_tokens.discard_whitespace();
+    }
+    if (parsed_line_name_count == 0)
+        return {};
+
+    transaction.commit();
+    return GridRepeat(move(line_name_list), repeat_params.release_value());
+}
+
 // https://www.w3.org/TR/css-grid-2/#typedef-track-size
 Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentValue>& tokens)
 {

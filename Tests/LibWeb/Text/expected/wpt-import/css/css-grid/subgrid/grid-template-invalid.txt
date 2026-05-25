@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	e.style['grid-template-rows'] = "subgrid subgrid" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid none" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid 1px" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid [a] 1px" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid repeat(auto-fill, 1px)" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid repeat(auto-fill, line)" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid repeat(auto-fit, [a])" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid repeat(2, 1px)" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid repeat(2, line)" should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid repeat(2," should not set the property value
+Pass	e.style['grid-template-rows'] = "subgrid repeat(auto-fill, [a]) repeat(auto-fill, [b]" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid subgrid" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid none" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid 1px" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid [a] 1px" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid repeat(auto-fill, 1px)" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid repeat(auto-fill, line)" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid repeat(auto-fit, [a])" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid repeat(2, 1px)" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid repeat(2, line)" should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid repeat(2," should not set the property value
+Pass	e.style['grid-template-columns'] = "subgrid repeat(auto-fill, [a]) repeat(auto-fill, [b]" should not set the property value
