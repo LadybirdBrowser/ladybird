@@ -18,7 +18,6 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPointer>
-#include <QToolBar>
 #include <QToolButton>
 #include <QWidget>
 
@@ -109,10 +108,9 @@ private:
     int tab_index();
 
     QBoxLayout* m_layout { nullptr };
-    QToolBar* m_toolbar { nullptr };
+    QWidget* m_toolbar { nullptr };
     BookmarksBar* m_bookmarks_bar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
-    QAction* m_hamburger_button_action { nullptr };
     LocationEdit* m_location_edit { nullptr };
     WebContentView* m_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };

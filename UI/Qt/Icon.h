@@ -10,10 +10,31 @@
 
 #include <QIcon>
 
+class QPalette;
+
 namespace Ladybird {
+
+enum class ChromeIcon {
+    Back,
+    Forward,
+    Reload,
+    Stop,
+    NewTab,
+    Close,
+    Menu,
+    Star,
+    StarFilled,
+    Search,
+    Globe,
+    WindowMinimize,
+    WindowMaximize,
+    WindowRestore,
+    WindowClose,
+};
 
 QIcon load_icon_from_uri(StringView);
 QIcon create_tvg_icon_with_theme_colors(QString const& name, QPalette const& palette);
+QIcon create_chrome_icon(ChromeIcon, QPalette const&);
 QIcon loading_spinner_icon(QPalette const& palette, int frame);
 
 }

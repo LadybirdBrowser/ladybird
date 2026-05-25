@@ -57,8 +57,8 @@ public:
         case WebView::ActionID::ToggleBookmark:
         case WebView::ActionID::ToggleBookmarkViaToolbar:
             if (auto* parent = as_if<QWidget>(m_action->parent())) {
-                auto const* icon = action.engaged() ? "star-filled" : "star-countour";
-                m_action->setIcon(create_tvg_icon_with_theme_colors(icon, parent->palette()));
+                auto icon = action.engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star;
+                m_action->setIcon(create_chrome_icon(icon, parent->palette()));
             }
             break;
         default:
@@ -118,15 +118,15 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
 {
     switch (action.id()) {
     case WebView::ActionID::NavigateBack:
-        qaction.setIcon(create_tvg_icon_with_theme_colors("back", palette));
+        qaction.setIcon(create_chrome_icon(ChromeIcon::Back, palette));
         qaction.setShortcut(QKeySequence::StandardKey::Back);
         break;
     case WebView::ActionID::NavigateForward:
-        qaction.setIcon(create_tvg_icon_with_theme_colors("forward", palette));
+        qaction.setIcon(create_chrome_icon(ChromeIcon::Forward, palette));
         qaction.setShortcut(QKeySequence::StandardKey::Forward);
         break;
     case WebView::ActionID::Reload:
-        qaction.setIcon(create_tvg_icon_with_theme_colors("reload", palette));
+        qaction.setIcon(create_chrome_icon(ChromeIcon::Reload, palette));
         qaction.setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::Key_F5) });
         break;
 
@@ -152,7 +152,11 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         break;
 
     case WebView::ActionID::ToggleBookmark:
+        qaction.setIcon(create_chrome_icon(action.engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star, palette));
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
+        break;
+    case WebView::ActionID::ToggleBookmarkViaToolbar:
+        qaction.setIcon(create_chrome_icon(action.engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star, palette));
         break;
     case WebView::ActionID::ToggleBookmarksBar:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));

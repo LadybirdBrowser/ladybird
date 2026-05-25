@@ -28,6 +28,7 @@ class QMouseEvent;
 class QPaintEvent;
 class QPixmap;
 class QToolButton;
+class QVariantAnimation;
 
 namespace Ladybird {
 
@@ -62,12 +63,16 @@ private:
     QPixmap render_tab_drag_pixmap(int index) const;
     void toggle_window_maximized();
     void start_tab_drag(int index);
+    void start_hover_animation(int tab_index, qreal target_progress);
 
     QPointer<TabWidget> m_tab_widget;
 
     int m_available_width { 0 };
     int m_hovered_tab_index { -1 };
+    int m_hover_animation_tab_index { -1 };
+    qreal m_hover_progress { 0.0 };
     int m_drop_indicator_index { -1 };
+    QVariantAnimation* m_hover_animation { nullptr };
     QPointer<Tab> m_pressed_tab;
     QPoint m_position_in_selected_tab_while_dragging;
     QPoint m_drag_start_position;

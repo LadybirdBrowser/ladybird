@@ -18,7 +18,11 @@
 
 class QAction;
 class QEvent;
+class QGraphicsDropShadowEffect;
+class QResizeEvent;
 class QTimer;
+class QToolButton;
+class QVariantAnimation;
 
 namespace Ladybird {
 
@@ -31,6 +35,8 @@ class LocationEdit final
 
 public:
     explicit LocationEdit(QWidget*);
+
+    void set_trailing_action(QAction*);
 
     Optional<URL::URL const&> url() const { return m_url; }
     void set_url(Optional<URL::URL>);
@@ -45,6 +51,7 @@ private:
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
     virtual void keyPressEvent(QKeyEvent* event) override;
+    virtual void resizeEvent(QResizeEvent* event) override;
 
     virtual void search_engine_changed() override;
 
@@ -52,6 +59,8 @@ private:
     void update_chrome_style();
     void update_location_icon();
     void update_loading_icon();
+    void update_focus_glow(int alpha);
+    void animate_focus_glow(int target_alpha);
     void highlight_location();
     bool text_matches_current_url() const;
 
@@ -63,14 +72,18 @@ private:
     void reset_autocomplete_state();
 
     Autocomplete* m_autocomplete { nullptr };
-    QAction* m_leading_icon_action { nullptr };
+    QToolButton* m_leading_icon_button { nullptr };
+    QToolButton* m_trailing_action_button { nullptr };
     QTimer* m_loading_animation_timer { nullptr };
+    QVariantAnimation* m_focus_glow_animation { nullptr };
+    QGraphicsDropShadowEffect* m_focus_glow_effect { nullptr };
 
     Optional<URL::URL> m_url;
     QIcon m_favicon;
     bool m_url_is_hidden { false };
     bool m_is_loading { false };
     bool m_is_updating_chrome_style { false };
+    int m_focus_glow_alpha { 0 };
     int m_loading_animation_frame { 0 };
 
     bool m_is_applying_inline_autocomplete { false };
