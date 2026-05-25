@@ -10,7 +10,7 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Canvas/CanvasState.h>
+#include <LibWeb/HTML/Canvas/DrawingState.h>
 
 namespace Web::HTML {
 
@@ -37,8 +37,8 @@ protected:
 
 private:
     Variant<HTMLCanvasElement*, OffscreenCanvas*> my_canvas_element();
-    CanvasState::DrawingState& my_drawing_state();
-    CanvasState::DrawingState const& my_drawing_state() const;
+    DrawingState& my_drawing_state();
+    DrawingState const& my_drawing_state() const;
 };
 
 }
