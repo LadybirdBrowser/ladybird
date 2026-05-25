@@ -41,7 +41,7 @@ class OffscreenCanvasRenderingContext2D : public Bindings::PlatformObject
     , public CanvasState
     , public CanvasTransform<OffscreenCanvasRenderingContext2D>
     , public CanvasFillStrokeStyles<OffscreenCanvasRenderingContext2D>
-    , public CanvasShadowStyles<OffscreenCanvasRenderingContext2D>
+    , public CanvasShadowStyles
     , public CanvasFilters
     , public CanvasRect
     , public CanvasDrawPath
