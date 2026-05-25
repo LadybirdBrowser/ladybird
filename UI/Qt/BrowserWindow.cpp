@@ -10,6 +10,7 @@
  */
 
 #include <AK/RefPtr.h>
+#include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
@@ -559,6 +560,70 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->tab_icon());
     create_close_button_for_tab(tab);
+}
+
+void BrowserWindow::uninitialize_tab(Tab* tab)
+{
+    QObject::disconnect(tab, nullptr, this, nullptr);
+    QObject::disconnect(&tab->view(), nullptr, this, nullptr);
+}
+
+void BrowserWindow::adopt_tab(Tab& tab, int index)
+{
+    index = clamp(index, 0, m_tabs_container->count());
+
+    tab.set_window(*this);
+    m_tabs_container->insert_tab(index, &tab, "New Tab");
+    initialize_tab(&tab);
+    tab_title_changed(index, tab.title());
+
+    tab.view().set_device_pixel_ratio(m_device_pixel_ratio);
+    tab.view().set_maximum_frames_per_second(m_refresh_rate);
+
+    m_tabs_container->set_current_tab(&tab);
+}
+
+void BrowserWindow::move_tab_to_window(int index, BrowserWindow& target_window, int target_index)
+{
+    if (index < 0 || index >= m_tabs_container->count())
+        return;
+
+    if (&target_window == this) {
+        if (target_index > index)
+            --target_index;
+        target_index = clamp(target_index, 0, m_tabs_container->count() - 1);
+        move_tab(index, target_index);
+        return;
+    }
+
+    auto* tab = m_tabs_container->tab(index);
+    uninitialize_tab(tab);
+    m_tabs_container->take_tab(index);
+    if (m_current_tab == tab)
+        set_current_tab(m_tabs_container->count() > 0 ? m_tabs_container->tab(m_tabs_container->current_index()) : nullptr);
+
+    target_window.adopt_tab(*tab, target_index);
+
+    if (m_tabs_container->count() == 0) {
+        m_should_record_closed_window_on_close = false;
+        close();
+    }
+}
+
+void BrowserWindow::detach_tab_to_new_window(int index, QPoint global_position)
+{
+    if (index < 0 || index >= m_tabs_container->count())
+        return;
+
+    WindowConfiguration configuration {
+        .x = Web::DevicePixels { global_position.x() - 160 },
+        .y = Web::DevicePixels { global_position.y() - 18 },
+        .width = Web::DevicePixels { width() },
+        .height = Web::DevicePixels { height() },
+    };
+
+    auto& window = Application::the().new_window({}, configuration);
+    move_tab_to_window(index, window, 0);
 }
 
 void BrowserWindow::set_current_tab(Tab* tab)

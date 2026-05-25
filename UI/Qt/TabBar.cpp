@@ -7,19 +7,30 @@
  */
 
 #include <AK/StdLibExtras.h>
+#include <UI/Qt/Application.h>
+#include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 
+#include <QApplication>
 #include <QContextMenuEvent>
+#include <QCursor>
+#include <QDrag>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QHBoxLayout>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPixmap>
 #include <QStyle>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -27,15 +38,26 @@
 
 namespace Ladybird {
 
+static constexpr auto LADYBIRD_TAB_MIME_TYPE = "application/x-ladybird-tab";
+
+static QPointer<TabWidget> s_active_tab_drag_source;
+static QPointer<Tab> s_active_tab_dragged_tab;
+static QPointer<TabWidget> s_pending_tab_drop_target;
+static int s_pending_tab_drop_index { -1 };
+
 static QPainterPath active_tab_path(QRectF const& rect, qreal radius)
 {
+    constexpr qreal shoulder = 9.0;
+
     QPainterPath path;
     path.moveTo(rect.left(), rect.bottom());
-    path.lineTo(rect.left(), rect.top() + radius);
-    path.quadTo(rect.left(), rect.top(), rect.left() + radius, rect.top());
+    path.cubicTo(rect.left() + 4.0, rect.bottom(), rect.left() + 6.0, rect.bottom() - 5.0, rect.left() + shoulder, rect.bottom() - 8.0);
+    path.lineTo(rect.left() + shoulder, rect.top() + radius);
+    path.quadTo(rect.left() + shoulder, rect.top(), rect.left() + shoulder + radius, rect.top());
     path.lineTo(rect.right() - radius, rect.top());
     path.quadTo(rect.right(), rect.top(), rect.right(), rect.top() + radius);
-    path.lineTo(rect.right(), rect.bottom());
+    path.lineTo(rect.right() - shoulder, rect.bottom() - 8.0);
+    path.cubicTo(rect.right() - 6.0, rect.bottom() - 5.0, rect.right() - 4.0, rect.bottom(), rect.right(), rect.bottom());
     path.closeSubpath();
     return path;
 }
@@ -45,6 +67,7 @@ TabBar::TabBar(TabWidget* tab_widget)
     , m_tab_widget(tab_widget)
 {
     setMouseTracking(true);
+    setAcceptDrops(true);
     setMinimumHeight(38);
 }
 
@@ -150,6 +173,18 @@ void TabBar::paintEvent(QPaintEvent* event)
         painter.setPen(is_selected || is_hovered ? text_color : muted_text_color);
         painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter, title);
     }
+
+    if (m_drop_indicator_index >= 0 && count() > 0) {
+        auto indicator_x = m_drop_indicator_index >= count()
+            ? tabRect(count() - 1).right() + 3
+            : tabRect(m_drop_indicator_index).left() + 1;
+        indicator_x = max(2, min(width() - 3, indicator_x));
+        auto indicator_color = ChromeStyle::chrome_accent(palette());
+        indicator_color.setAlpha(220);
+
+        painter.setPen(QPen(indicator_color, 3, Qt::SolidLine, Qt::RoundCap));
+        painter.drawLine(QPointF(indicator_x, 9), QPointF(indicator_x, height() - 7));
+    }
 }
 
 void TabBar::contextMenuEvent(QContextMenuEvent* event)
@@ -165,28 +200,77 @@ void TabBar::contextMenuEvent(QContextMenuEvent* event)
         tab->context_menu()->exec(event->globalPos());
 }
 
+void TabBar::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (!m_tab_widget || !s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+        event->ignore();
+        return;
+    }
+
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+}
+
+void TabBar::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    m_drop_indicator_index = -1;
+    update();
+    QTabBar::dragLeaveEvent(event);
+}
+
+void TabBar::dragMoveEvent(QDragMoveEvent* event)
+{
+    if (!m_tab_widget || !s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+        event->ignore();
+        return;
+    }
+
+    auto drop_indicator_index = drop_indicator_index_for_insertion_index(insertion_index_at(event->position().toPoint()));
+    if (m_drop_indicator_index != drop_indicator_index) {
+        m_drop_indicator_index = drop_indicator_index;
+        update();
+    }
+
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+}
+
+void TabBar::dropEvent(QDropEvent* event)
+{
+    if (!m_tab_widget || !s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+        event->ignore();
+        return;
+    }
+
+    s_pending_tab_drop_target = m_tab_widget;
+    s_pending_tab_drop_index = insertion_index_at(event->position().toPoint());
+    m_drop_indicator_index = -1;
+    update();
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+}
+
 void TabBar::mousePressEvent(QMouseEvent* event)
 {
-    event->ignore();
-
     auto pressed_tab = tabAt(event->pos());
-    if (pressed_tab < 0 && event->button() == Qt::LeftButton) {
-        if (start_window_move())
-            return;
-    }
+    m_pressed_tab = (m_tab_widget && pressed_tab >= 0) ? m_tab_widget->tab(pressed_tab) : nullptr;
 
     if (pressed_tab >= 0) {
         auto rect_of_current_tab = tabRect(pressed_tab);
-        m_x_position_in_selected_tab_while_dragging = event->pos().x() - rect_of_current_tab.x();
+        m_position_in_selected_tab_while_dragging = event->pos() - rect_of_current_tab.topLeft();
+        m_drag_start_position = event->pos();
     }
 
     QTabBar::mousePressEvent(event);
+
+    if (m_pressed_tab)
+        event->accept();
+    else
+        event->ignore();
 }
 
 void TabBar::mouseMoveEvent(QMouseEvent* event)
 {
-    event->ignore();
-
     if (auto hovered_tab = tabAt(event->pos()); hovered_tab != m_hovered_tab_index) {
         m_hovered_tab_index = hovered_tab;
         update();
@@ -197,23 +281,21 @@ void TabBar::mouseMoveEvent(QMouseEvent* event)
         return;
     }
 
-    auto rect_of_first_tab = tabRect(0);
-    auto rect_of_last_tab = tabRect(count() - 1);
-
-    auto boundary_limit_for_dragging_tab = QRect(rect_of_first_tab.x() + m_x_position_in_selected_tab_while_dragging, 0,
-        rect_of_last_tab.x() + m_x_position_in_selected_tab_while_dragging, 0);
-
-    if (event->pos().x() >= boundary_limit_for_dragging_tab.x() && event->pos().x() <= boundary_limit_for_dragging_tab.width()) {
-        QTabBar::mouseMoveEvent(event);
-    } else {
-        auto pos = event->pos();
-        if (event->pos().x() > boundary_limit_for_dragging_tab.width())
-            pos.setX(boundary_limit_for_dragging_tab.width());
-        else if (event->pos().x() < boundary_limit_for_dragging_tab.x())
-            pos.setX(boundary_limit_for_dragging_tab.x());
-        QMouseEvent ev(event->type(), pos, event->globalPosition(), event->button(), event->buttons(), event->modifiers());
-        QTabBar::mouseMoveEvent(&ev);
+    if (m_pressed_tab && event->buttons().testFlag(Qt::LeftButton)) {
+        auto pressed_tab_index = m_tab_widget ? m_tab_widget->index_of(m_pressed_tab) : -1;
+        if (pressed_tab_index < 0) {
+            m_pressed_tab = nullptr;
+        } else if ((event->pos() - m_drag_start_position).manhattanLength() >= QApplication::startDragDistance()) {
+            start_tab_drag(pressed_tab_index);
+            event->accept();
+            return;
+        }
     }
+
+    if (m_pressed_tab)
+        event->accept();
+    else
+        event->ignore();
 }
 
 void TabBar::leaveEvent(QEvent* event)
@@ -221,6 +303,15 @@ void TabBar::leaveEvent(QEvent* event)
     m_hovered_tab_index = -1;
     update();
     QTabBar::leaveEvent(event);
+}
+
+void TabBar::mouseReleaseEvent(QMouseEvent* event)
+{
+    auto had_pressed_tab = !!m_pressed_tab;
+    m_pressed_tab = nullptr;
+    QTabBar::mouseReleaseEvent(event);
+    if (had_pressed_tab)
+        event->accept();
 }
 
 void TabBar::mouseDoubleClickEvent(QMouseEvent* event)
@@ -234,12 +325,86 @@ void TabBar::mouseDoubleClickEvent(QMouseEvent* event)
     QTabBar::mouseDoubleClickEvent(event);
 }
 
-bool TabBar::start_window_move()
+int TabBar::insertion_index_at(QPoint const& position) const
 {
-    auto* handle = window()->windowHandle();
-    if (!handle)
-        return false;
-    return handle->startSystemMove();
+    if (count() == 0)
+        return 0;
+
+    auto index = tabAt(position);
+    if (index < 0)
+        return position.x() < tabRect(0).center().x() ? 0 : count();
+
+    if (position.x() > tabRect(index).center().x())
+        return index + 1;
+    return index;
+}
+
+int TabBar::drop_indicator_index_for_insertion_index(int insertion_index) const
+{
+    if (s_active_tab_drag_source == m_tab_widget && s_active_tab_dragged_tab) {
+        auto dragged_tab_index = m_tab_widget->index_of(s_active_tab_dragged_tab);
+        if (dragged_tab_index >= 0 && (insertion_index == dragged_tab_index || insertion_index == dragged_tab_index + 1))
+            return -1;
+    }
+
+    return insertion_index;
+}
+
+QPixmap TabBar::render_tab_drag_pixmap(int index) const
+{
+    auto tab_rect = tabRect(index);
+    QPixmap pixmap(tab_rect.size() * devicePixelRatioF());
+    pixmap.setDevicePixelRatio(devicePixelRatioF());
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    const_cast<TabBar&>(*this).render(&painter, QPoint(-tab_rect.x(), -tab_rect.y()), QRegion(tab_rect), QWidget::DrawChildren);
+    return pixmap;
+}
+
+void TabBar::start_tab_drag(int index)
+{
+    if (!m_tab_widget)
+        return;
+
+    auto* tab = m_tab_widget->tab(index);
+    if (!tab)
+        return;
+
+    QPointer<Tab> dragged_tab = tab;
+    auto* drag = new QDrag(this);
+    auto* mime_data = new QMimeData;
+    mime_data->setData(LADYBIRD_TAB_MIME_TYPE, QByteArray {});
+    mime_data->setText(tab->title());
+    drag->setMimeData(mime_data);
+    drag->setPixmap(render_tab_drag_pixmap(index));
+    drag->setHotSpot(m_position_in_selected_tab_while_dragging);
+
+    s_active_tab_drag_source = m_tab_widget;
+    s_active_tab_dragged_tab = dragged_tab;
+    s_pending_tab_drop_target = nullptr;
+    s_pending_tab_drop_index = -1;
+
+    auto action = drag->exec(Qt::MoveAction, Qt::MoveAction);
+
+    auto* source_window = qobject_cast<BrowserWindow*>(window());
+    if (source_window && dragged_tab) {
+        auto current_index = source_window->tab_index(dragged_tab);
+        if (current_index >= 0) {
+            if (action == Qt::MoveAction && s_pending_tab_drop_target) {
+                if (auto* target_window = qobject_cast<BrowserWindow*>(s_pending_tab_drop_target->window()))
+                    source_window->move_tab_to_window(current_index, *target_window, s_pending_tab_drop_index);
+            } else if (action == Qt::IgnoreAction && !source_window->geometry().contains(QCursor::pos())) {
+                source_window->detach_tab_to_new_window(current_index, QCursor::pos());
+            }
+        }
+    }
+
+    s_active_tab_drag_source = nullptr;
+    s_active_tab_dragged_tab = nullptr;
+    s_pending_tab_drop_target = nullptr;
+    s_pending_tab_drop_index = -1;
+    m_pressed_tab = nullptr;
 }
 
 void TabBar::toggle_window_maximized()
@@ -255,10 +420,11 @@ TabWidget::TabWidget(QWidget* parent)
     : QWidget(parent)
 {
     m_tab_bar = new TabBar(this);
+    setAcceptDrops(true);
 
     m_tab_bar->setDocumentMode(true);
     m_tab_bar->setElideMode(Qt::TextElideMode::ElideRight);
-    m_tab_bar->setMovable(true);
+    m_tab_bar->setMovable(false);
     m_tab_bar->setTabsClosable(true);
     m_tab_bar->setExpanding(false);
     m_tab_bar->setUsesScrollButtons(true);
@@ -342,15 +508,28 @@ TabWidget::TabWidget(QWidget* parent)
 
 void TabWidget::add_tab(Tab* widget, QString const& label)
 {
-    m_stacked_widget->addWidget(widget);
-    m_tab_bar->addTab(label);
+    insert_tab(m_tab_bar->count(), widget, label);
+}
+
+void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
+{
+    m_stacked_widget->insertWidget(index, widget);
+    m_tab_bar->insertTab(index, label);
 
     update_tab_layout();
 }
 
 void TabWidget::remove_tab(int index)
 {
+    take_tab(index);
+}
+
+Tab* TabWidget::take_tab(int index)
+{
     auto* widget = m_stacked_widget->widget(index);
+    if (!widget)
+        return nullptr;
+
     m_stacked_widget->removeWidget(widget);
 
     m_tab_bar->removeTab(index);
@@ -359,6 +538,7 @@ void TabWidget::remove_tab(int index)
         m_stacked_widget->setCurrentIndex(m_tab_bar->currentIndex());
 
     update_tab_layout();
+    return as<Tab>(widget);
 }
 
 void TabWidget::set_current_tab(Tab* widget)
@@ -403,12 +583,31 @@ bool TabWidget::event(QEvent* event)
     return QWidget::event(event);
 }
 
+void TabWidget::dragEnterEvent(QDragEnterEvent* event)
+{
+    accept_tab_drag(event);
+}
+
+void TabWidget::dragMoveEvent(QDragMoveEvent* event)
+{
+    accept_tab_drag(event);
+}
+
+void TabWidget::dropEvent(QDropEvent* event)
+{
+    accept_tab_drop(event, m_tab_bar->count());
+}
+
 bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 {
     if (watched == m_tab_bar_row) {
+        auto is_empty_tab_strip_area = [this](QMouseEvent const& mouse_event) {
+            return m_tab_bar_row->childAt(mouse_event.pos()) == nullptr;
+        };
+
         if (event->type() == QEvent::MouseButtonDblClick) {
             auto* mouse_event = static_cast<QMouseEvent*>(event);
-            if (mouse_event->button() == Qt::LeftButton) {
+            if (mouse_event->button() == Qt::LeftButton && is_empty_tab_strip_area(*mouse_event)) {
                 toggle_window_maximized();
                 return true;
             }
@@ -416,12 +615,36 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 
         if (event->type() == QEvent::MouseButtonPress) {
             auto* mouse_event = static_cast<QMouseEvent*>(event);
-            if (mouse_event->button() == Qt::LeftButton && start_window_move())
+            if (mouse_event->button() == Qt::LeftButton && is_empty_tab_strip_area(*mouse_event) && start_window_move())
                 return true;
         }
     }
 
     return QWidget::eventFilter(watched, event);
+}
+
+void TabWidget::accept_tab_drag(QDragMoveEvent* event)
+{
+    if (!s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+        event->ignore();
+        return;
+    }
+
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+}
+
+void TabWidget::accept_tab_drop(QDropEvent* event, int index)
+{
+    if (!s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+        event->ignore();
+        return;
+    }
+
+    s_pending_tab_drop_target = this;
+    s_pending_tab_drop_index = index;
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
 }
 
 void TabWidget::resizeEvent(QResizeEvent* event)

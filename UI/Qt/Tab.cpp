@@ -123,13 +123,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button->setIcon(create_tvg_icon_with_theme_colors("hamburger", palette()));
     m_hamburger_button->setPopupMode(QToolButton::InstantPopup);
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
-
-    QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToShow, m_hamburger_button, [this]() {
-        m_hamburger_button->setDown(true);
-    });
-    QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToHide, m_hamburger_button, [this]() {
-        m_hamburger_button->setDown(false);
-    });
+    connect_hamburger_menu();
 
     m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
@@ -494,6 +488,31 @@ void Tab::focus_location_editor()
 {
     m_location_edit->setFocus();
     m_location_edit->selectAll();
+}
+
+void Tab::set_window(BrowserWindow& window)
+{
+    if (&window == m_window)
+        return;
+
+    QObject::disconnect(&m_window->hamburger_menu(), nullptr, m_hamburger_button, nullptr);
+
+    m_window = &window;
+    m_hamburger_button->setMenu(&m_window->hamburger_menu());
+    connect_hamburger_menu();
+    if (m_hamburger_button_action)
+        m_hamburger_button_action->setVisible(!Settings::the()->show_menubar());
+    recreate_toolbar_icons();
+}
+
+void Tab::connect_hamburger_menu()
+{
+    QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToShow, m_hamburger_button, [this]() {
+        m_hamburger_button->setDown(true);
+    });
+    QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToHide, m_hamburger_button, [this]() {
+        m_hamburger_button->setDown(false);
+    });
 }
 
 void Tab::navigate(URL::URL const& url)

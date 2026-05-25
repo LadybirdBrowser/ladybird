@@ -106,6 +106,9 @@ public:
     void rebuild_bookmarks_menu();
     void update_bookmarks_bar_display(bool show_bookmarks_bar);
     void update_reopen_recently_closed_action();
+    void detach_tab_to_new_window(int index, QPoint global_position);
+    void move_tab_to_window(int index, BrowserWindow& target_window, int target_index);
+    void adopt_tab(Tab&, int index);
 
     double refresh_rate() const { return m_refresh_rate; }
 
@@ -145,6 +148,7 @@ private:
 
     Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void initialize_tab(Tab*);
+    void uninitialize_tab(Tab*);
 
     void set_current_tab(Tab* tab);
     Qt::Edges resize_edges_for_position(QPoint const&) const;
