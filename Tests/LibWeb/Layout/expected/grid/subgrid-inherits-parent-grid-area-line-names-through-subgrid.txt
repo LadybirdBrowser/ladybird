@@ -1,0 +1,27 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] children: not-inline
+      Box <div.parent> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.top> at [0,0] [0+0+0 300 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        Box <div.content> at [0,20] [0+0+0 300 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+          Box <div.sidebar> at [0,20] [0+0+0 150 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+            BlockContainer <div.rail> at [0,20] [0+0+0 50 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+            BlockContainer <div.list> at [50,20] [0+0+0 100 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.page> at [150,20] [0+0+0 150 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+      BlockContainer <(anonymous)> at [0,60] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x60]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x60]
+      PaintableBox (Box<DIV>.parent) [0,0 800x60]
+        PaintableWithLines (BlockContainer<DIV>.top) [0,0 300x20]
+        PaintableBox (Box<DIV>.content) [0,20 300x40]
+          PaintableBox (Box<DIV>.sidebar) [0,20 150x40]
+            PaintableWithLines (BlockContainer<DIV>.rail) [0,20 50x40]
+            PaintableWithLines (BlockContainer<DIV>.list) [50,20 100x40]
+          PaintableWithLines (BlockContainer<DIV>.page) [150,20 150x40]
+      PaintableWithLines (BlockContainer(anonymous)) [0,60 800x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x60] [children: 0] (z-index: auto)

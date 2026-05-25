@@ -3002,6 +3002,118 @@ void GridFormattingContext::init_grid_lines(GridDimension dimension)
                             lines[i].append({ .name = parent_line_name.name, .adopted_from_parent_grid = true });
                     }
                 }
+
+                // https://drafts.csswg.org/css-grid-2/#subgrid-area-inheritance
+                // When a subgrid overlaps a named grid area in its parent that was created by a
+                // grid-template-areas property declaration, implicitly-assigned line names are assigned to represent
+                // the parent's named grid area within the subgrid.
+                //
+                // Note: If a named grid area only partially overlaps the subgrid, its implicitly-assigned line names
+                // will be assigned to the first and/or last line of the subgrid such that a named grid area exists
+                // representing that partially overlapped area of the subgrid; thus the line name assignments of the
+                // subgrid might not always correspond exactly to the line name assignments of the parent grid.
+                struct ParentGridArea {
+                    Optional<size_t> row_start;
+                    Optional<size_t> row_end;
+                    Optional<size_t> column_start;
+                    Optional<size_t> column_end;
+                };
+
+                struct AreaLineName {
+                    String area_name;
+                    bool is_start { false };
+                };
+
+                auto parse_implicit_area_line_name = [](CSS::GridLineName const& line_name) -> Optional<AreaLineName> {
+                    if (!line_name.implicit)
+                        return {};
+
+                    auto line_name_view = line_name.name.bytes_as_string_view();
+                    auto constexpr start_suffix = "-start"sv;
+                    auto constexpr end_suffix = "-end"sv;
+                    if (line_name_view.ends_with(start_suffix)) {
+                        return AreaLineName {
+                            .area_name = MUST(String::from_utf8(line_name_view.substring_view(0, line_name_view.length() - start_suffix.length()))),
+                            .is_start = true,
+                        };
+                    }
+                    if (line_name_view.ends_with(end_suffix)) {
+                        return AreaLineName {
+                            .area_name = MUST(String::from_utf8(line_name_view.substring_view(0, line_name_view.length() - end_suffix.length()))),
+                            .is_start = false,
+                        };
+                    }
+                    return {};
+                };
+
+                HashMap<String, ParentGridArea> parent_grid_areas;
+                auto collect_implicit_area_line_names = [&](GridDimension line_dimension) {
+                    auto const& parent_lines_for_dimension = line_dimension == GridDimension::Column ? parent_grid->m_column_lines : parent_grid->m_row_lines;
+                    for (size_t line_index = 0; line_index < parent_lines_for_dimension.size(); ++line_index) {
+                        for (auto const& line_name : parent_lines_for_dimension[line_index]) {
+                            auto area_line_name = parse_implicit_area_line_name(line_name);
+                            if (!area_line_name.has_value())
+                                continue;
+
+                            auto& area = parent_grid_areas.ensure(area_line_name->area_name, [] { return ParentGridArea {}; });
+                            auto& line = [&]() -> Optional<size_t>& {
+                                if (line_dimension == GridDimension::Column)
+                                    return area_line_name->is_start ? area.column_start : area.column_end;
+                                return area_line_name->is_start ? area.row_start : area.row_end;
+                            }();
+
+                            if (!line.has_value()) {
+                                line = line_index;
+                            } else if (area_line_name->is_start) {
+                                line = min(line.value(), line_index);
+                            } else {
+                                line = max(line.value(), line_index);
+                            }
+                        }
+                    }
+                };
+
+                collect_implicit_area_line_names(GridDimension::Column);
+                collect_implicit_area_line_names(GridDimension::Row);
+
+                auto subgrid_start_in_parent = [item](GridDimension dimension) {
+                    return item->raw_position(dimension);
+                };
+                auto subgrid_end_in_parent = [item](GridDimension dimension) {
+                    return item->raw_position(dimension) + static_cast<int>(item->span(dimension));
+                };
+                auto overlaps = [](int start_a, int end_a, int start_b, int end_b) {
+                    return max(start_a, start_b) < min(end_a, end_b);
+                };
+
+                for (auto const& [area_name, area] : parent_grid_areas) {
+                    if (!area.row_start.has_value() || !area.row_end.has_value() || !area.column_start.has_value() || !area.column_end.has_value())
+                        continue;
+
+                    auto area_row_start = static_cast<int>(area.row_start.value());
+                    auto area_row_end = static_cast<int>(area.row_end.value());
+                    auto area_column_start = static_cast<int>(area.column_start.value());
+                    auto area_column_end = static_cast<int>(area.column_end.value());
+
+                    if (!overlaps(area_row_start, area_row_end, subgrid_start_in_parent(GridDimension::Row), subgrid_end_in_parent(GridDimension::Row))
+                        || !overlaps(area_column_start, area_column_end, subgrid_start_in_parent(GridDimension::Column), subgrid_end_in_parent(GridDimension::Column))) {
+                        continue;
+                    }
+
+                    auto area_start = dimension == GridDimension::Column ? area_column_start : area_row_start;
+                    auto area_end = dimension == GridDimension::Column ? area_column_end : area_row_end;
+                    auto subgrid_start = subgrid_start_in_parent(dimension);
+                    auto subgrid_end = subgrid_end_in_parent(dimension);
+
+                    auto start_line_index = max(area_start, subgrid_start) - subgrid_start;
+                    auto end_line_index = min(area_end, subgrid_end) - subgrid_start;
+                    if (start_line_index >= 0 && static_cast<size_t>(start_line_index) < lines.size()) {
+                        lines[start_line_index].append({ .name = MUST(String::formatted("{}-start", area_name)), .implicit = true });
+                    }
+                    if (end_line_index >= 0 && static_cast<size_t>(end_line_index) < lines.size()) {
+                        lines[end_line_index].append({ .name = MUST(String::formatted("{}-end", area_name)), .implicit = true });
+                    }
+                }
             }
         }
 
