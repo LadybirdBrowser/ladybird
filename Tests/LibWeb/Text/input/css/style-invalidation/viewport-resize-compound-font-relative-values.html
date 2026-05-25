@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    async function resizeIframe(iframe, child, width) {
+        iframe.style.width = `${width}px`;
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                html {
+                    font-size: 10px;
+                }
+
+                @media (min-width: 400px) {
+                    html {
+                        font-size: 20px;
+                    }
+                }
+
+                #target {
+                    box-shadow: 0 0 1em rgb(0, 0, 0);
+                    filter: blur(1em);
+                }
+            </style>
+            <div id="target">target</div>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const target = child.document.getElementById("target");
+
+        child.internals.updateStyle();
+        println(`initial box shadow: ${child.getComputedStyle(target).boxShadow}`);
+        println(`initial filter: ${child.getComputedStyle(target).filter}`);
+
+        await resizeIframe(iframe, child, 500);
+        println(`resized box shadow: ${child.getComputedStyle(target).boxShadow}`);
+        println(`resized filter: ${child.getComputedStyle(target).filter}`);
+
+        await resizeIframe(iframe, child, 300);
+        println(`resized back box shadow: ${child.getComputedStyle(target).boxShadow}`);
+        println(`resized back filter: ${child.getComputedStyle(target).filter}`);
+
+        done();
+    });
+</script>

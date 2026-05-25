@@ -1,0 +1,6 @@
+initial box shadow: rgb(0, 0, 0) 0px 0px 10px 0px
+initial filter: blur(10px)
+resized box shadow: rgb(0, 0, 0) 0px 0px 20px 0px
+resized filter: blur(20px)
+resized back box shadow: rgb(0, 0, 0) 0px 0px 10px 0px
+resized back filter: blur(10px)

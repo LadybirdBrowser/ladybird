@@ -2340,9 +2340,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
         // Store the resolved specified value for properties whose computation depends on inherited info, so they can
         // be re-resolved when an ancestor changes without keeping CascadedProperties alive on the element.
-        // FIXME: Consider other style values that rely on relative lengths (e.g. CalculatedStyleValue, StyleValues
-        //        which contain lengths (e.g. StyleValueList)) - maybe we can use `is_computationally_independent()`
-        bool depends_on_inherited_info = (value->is_length() && value->as_length().length().is_font_relative())
+        bool depends_on_inherited_info = !value->is_computationally_independent()
             || (property_id == PropertyID::FontWeight && first_is_one_of(value->to_keyword(), Keyword::Bolder, Keyword::Lighter))
             || (property_id == PropertyID::FontSize && font_size_value_depends_on_inherited_font_size(*value))
             || (property_id == PropertyID::LineHeight && line_height_value_depends_on_computed_font_size(*value));
