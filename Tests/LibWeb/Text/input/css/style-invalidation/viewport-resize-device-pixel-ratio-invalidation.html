@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target {
+        border: 0.75px solid black;
+        outline: 0.75px solid black;
+    }
+</style>
+<div id="target">target</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+
+        internals.setDevicePixelRatio(1);
+        internals.updateStyle();
+
+        println(`initial device pixel ratio: ${devicePixelRatio}`);
+        println(`initial border width: ${getComputedStyle(target).borderTopWidth}`);
+        println(`initial outline width: ${getComputedStyle(target).outlineWidth}`);
+
+        internals.resetStyleInvalidationCounters();
+        internals.setDevicePixelRatio(2);
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`updated device pixel ratio: ${devicePixelRatio}`);
+        println(`updated border width: ${getComputedStyle(target).borderTopWidth}`);
+        println(`updated outline width: ${getComputedStyle(target).outlineWidth}`);
+        println(`full invalidation happened: ${counters.fullStyleInvalidations > 0}`);
+    });
+</script>
