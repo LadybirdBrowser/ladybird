@@ -13,7 +13,7 @@
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
-#include <LibWeb/HTML/Canvas/CanvasState.h>
+#include <LibWeb/HTML/Canvas/DrawingState.h>
 
 namespace Web::HTML {
 
@@ -140,8 +140,8 @@ protected:
     CanvasTransform() = default;
 
 private:
-    CanvasState::DrawingState& my_drawing_state() { return static_cast<IncludingClass&>(*this).drawing_state(); }
-    CanvasState::DrawingState const& my_drawing_state() const { return static_cast<IncludingClass const&>(*this).drawing_state(); }
+    DrawingState& my_drawing_state() { return static_cast<IncludingClass&>(*this).drawing_state(); }
+    DrawingState const& my_drawing_state() const { return static_cast<IncludingClass const&>(*this).drawing_state(); }
 };
 
 }

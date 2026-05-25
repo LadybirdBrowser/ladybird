@@ -288,7 +288,7 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
     }
 }
 
-static float resolved_letter_spacing(CanvasState::DrawingState const& drawing_state, HTMLCanvasElement& canvas_element)
+static float resolved_letter_spacing(DrawingState const& drawing_state, HTMLCanvasElement& canvas_element)
 {
     // FIXME: Font relative lengths should be resolved against the context's font, not the canvas element's
     CSS::Length::ResolutionContext context = [&] {

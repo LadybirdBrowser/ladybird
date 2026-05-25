@@ -140,13 +140,13 @@ Variant<HTMLCanvasElement*, OffscreenCanvas*> CanvasFillStrokeStyles<IncludingCl
 }
 
 template<typename IncludingClass>
-CanvasState::DrawingState& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state()
+DrawingState& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state()
 {
     return static_cast<IncludingClass&>(*this).drawing_state();
 }
 
 template<typename IncludingClass>
-CanvasState::DrawingState const& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state() const
+DrawingState const& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state() const
 {
     return static_cast<IncludingClass const&>(*this).drawing_state();
 }
