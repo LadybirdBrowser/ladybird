@@ -40,6 +40,9 @@
 #include <QPainter>
 #include <QPalette>
 #include <QScrollBar>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#    include <QStyleHints>
+#endif
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolTip>
@@ -70,6 +73,15 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     QObject::connect(qGuiApp, &QGuiApplication::screenAdded, [this](QScreen*) {
         update_screen_rects();
     });
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
+        QTimer::singleShot(0, this, [this] {
+            update_palette();
+            update();
+        });
+    });
+#endif
 
     m_tooltip_hover_timer.setSingleShot(true);
 
@@ -784,8 +796,11 @@ bool WebContentView::event(QEvent* event)
         return true;
     }
 
-    if (event->type() == QEvent::PaletteChange) {
-        update_palette();
+    if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange) {
+        QTimer::singleShot(0, this, [this] {
+            update_palette();
+            update();
+        });
         return QWidget::event(event);
     }
 

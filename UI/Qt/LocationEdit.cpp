@@ -20,10 +20,14 @@
 #include <QApplication>
 #include <QEasingCurve>
 #include <QGraphicsDropShadowEffect>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QLatin1String>
 #include <QPalette>
 #include <QResizeEvent>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#    include <QStyleHints>
+#endif
 #include <QTextLayout>
 #include <QTimer>
 #include <QToolButton>
@@ -33,7 +37,7 @@ namespace Ladybird {
 
 static QColor location_focus_glow_color(QPalette const& palette, int alpha)
 {
-    auto color = palette.color(QPalette::Highlight);
+    auto color = ChromeStyle::chrome_accent(palette);
     color.setAlpha(alpha);
     return color;
 }
@@ -270,6 +274,12 @@ LocationEdit::LocationEdit(QWidget* parent)
         highlight_location();
         update_location_icon();
     });
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
+        schedule_chrome_style_update();
+    });
+#endif
 }
 
 void LocationEdit::set_trailing_action(QAction* action)
@@ -278,13 +288,16 @@ void LocationEdit::set_trailing_action(QAction* action)
     m_trailing_action_button->setVisible(action != nullptr);
 }
 
+QAction* LocationEdit::trailing_action() const
+{
+    return m_trailing_action_button->defaultAction();
+}
+
 void LocationEdit::changeEvent(QEvent* event)
 {
     QLineEdit::changeEvent(event);
-    if (event->type() == QEvent::PaletteChange) {
-        update_chrome_style();
-        update_focus_glow(m_focus_glow_alpha);
-        update_location_icon();
+    if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange) {
+        schedule_chrome_style_update();
     }
 }
 
@@ -402,6 +415,23 @@ void LocationEdit::update_chrome_style()
     m_is_updating_chrome_style = false;
 }
 
+void LocationEdit::schedule_chrome_style_update()
+{
+    if (m_has_pending_chrome_style_update)
+        return;
+
+    m_has_pending_chrome_style_update = true;
+    QTimer::singleShot(0, this, [this] {
+        m_has_pending_chrome_style_update = false;
+        update_chrome_style();
+        m_autocomplete->schedule_chrome_style_update();
+        update_focus_glow(m_focus_glow_alpha);
+        update_location_icon();
+        highlight_location();
+        update();
+    });
+}
+
 void LocationEdit::update_placeholder()
 {
     if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value()) {
@@ -447,14 +477,14 @@ void LocationEdit::highlight_location()
     QList<QInputMethodEvent::Attribute> attributes;
 
     if (auto url_parts = WebView::break_url_into_parts(url); url_parts.has_value()) {
-        auto darkened_text_color = QPalette().color(QPalette::Text);
+        auto darkened_text_color = ChromeStyle::chrome_text(palette());
         darkened_text_color.setAlpha(127);
 
         QTextCharFormat dark_attributes;
         dark_attributes.setForeground(darkened_text_color);
 
         QTextCharFormat highlight_attributes;
-        highlight_attributes.setForeground(QPalette().color(QPalette::Text));
+        highlight_attributes.setForeground(ChromeStyle::chrome_text(palette()));
 
         attributes.append({
             QInputMethodEvent::TextFormat,

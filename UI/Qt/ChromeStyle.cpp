@@ -6,14 +6,75 @@
 
 #include <UI/Qt/ChromeStyle.h>
 
+#include <QGuiApplication>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#    include <QStyleHints>
+#endif
+
 namespace Ladybird::ChromeStyle {
 
-static bool is_dark(QPalette const& palette)
+static bool color_is_dark(QColor const& color)
 {
-    return palette.color(QPalette::Window).lightness() < 128;
+    return color.lightness() < 128;
 }
 
-static QColor mix(QColor const& from, QColor const& to, double amount)
+static bool palette_is_dark(QPalette const& palette)
+{
+    return color_is_dark(palette.color(QPalette::Window));
+}
+
+bool is_dark(QPalette const& palette)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    auto color_scheme = QGuiApplication::styleHints()->colorScheme();
+    if (color_scheme != Qt::ColorScheme::Unknown)
+        return color_scheme == Qt::ColorScheme::Dark;
+#endif
+
+    return palette_is_dark(palette);
+}
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+static bool palette_roles_match_color_scheme(QPalette const& palette, bool dark)
+{
+    return color_is_dark(palette.color(QPalette::Window)) == dark
+        && color_is_dark(palette.color(QPalette::Base)) == dark
+        && color_is_dark(palette.color(QPalette::Text)) != dark
+        && color_is_dark(palette.color(QPalette::ButtonText)) != dark;
+}
+#endif
+
+static bool palette_matches_current_color_scheme(QPalette const& palette)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    auto color_scheme = QGuiApplication::styleHints()->colorScheme();
+    if (color_scheme == Qt::ColorScheme::Dark)
+        return palette_roles_match_color_scheme(palette, true);
+    if (color_scheme == Qt::ColorScheme::Light)
+        return palette_roles_match_color_scheme(palette, false);
+#endif
+
+    Q_UNUSED(palette);
+    return true;
+}
+
+static QColor chrome_window(QPalette const& palette)
+{
+    if (palette_matches_current_color_scheme(palette))
+        return palette.color(QPalette::Window);
+
+    return is_dark(palette) ? QColor(26, 29, 36) : QColor(244, 246, 248);
+}
+
+static QColor chrome_base(QPalette const& palette)
+{
+    if (palette_matches_current_color_scheme(palette))
+        return palette.color(QPalette::Base);
+
+    return is_dark(palette) ? QColor(24, 29, 38) : QColor(255, 255, 255);
+}
+
+QColor mix(QColor const& from, QColor const& to, double amount)
 {
     auto channel = [&](int from_channel, int to_channel) {
         return static_cast<int>(from_channel + (to_channel - from_channel) * amount);
@@ -28,7 +89,7 @@ static QColor mix(QColor const& from, QColor const& to, double amount)
 
 QColor chrome_background(QPalette const& palette)
 {
-    auto window = palette.color(QPalette::Window);
+    auto window = chrome_window(palette);
     return is_dark(palette)
         ? mix(window, QColor(10, 16, 24), 0.72)
         : mix(window, QColor(241, 245, 249), 0.62);
@@ -36,7 +97,7 @@ QColor chrome_background(QPalette const& palette)
 
 QColor chrome_surface(QPalette const& palette)
 {
-    auto base = palette.color(QPalette::Base);
+    auto base = chrome_base(palette);
     return is_dark(palette)
         ? mix(base, QColor(31, 39, 52), 0.64)
         : mix(base, QColor(255, 255, 255), 0.72);
@@ -70,8 +131,27 @@ QColor chrome_accent(QPalette const& palette)
     return palette.color(QPalette::Highlight);
 }
 
+QColor chrome_text(QPalette const& palette)
+{
+    if (palette_matches_current_color_scheme(palette))
+        return palette.color(QPalette::Text);
+
+    return is_dark(palette) ? QColor(238, 241, 246) : QColor(24, 29, 36);
+}
+
+QColor chrome_button_text(QPalette const& palette)
+{
+    if (palette_matches_current_color_scheme(palette))
+        return palette.color(QPalette::ButtonText);
+
+    return chrome_text(palette);
+}
+
 QColor chrome_muted_text(QPalette const& palette)
 {
+    if (!palette_matches_current_color_scheme(palette))
+        return is_dark(palette) ? QColor(154, 163, 176) : QColor(98, 108, 122);
+
     return palette.color(QPalette::PlaceholderText);
 }
 
@@ -88,7 +168,7 @@ QString navigation_toolbar_style_sheet(QPalette const& palette)
     auto surface_pressed = style_sheet_color(chrome_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
     auto separator = style_sheet_color(mix(chrome_background(palette), chrome_border(palette), is_dark(palette) ? 0.28 : 0.56));
-    auto text = style_sheet_color(palette.color(QPalette::ButtonText));
+    auto text = style_sheet_color(chrome_button_text(palette));
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
 
     return QStringLiteral(R"(
@@ -143,7 +223,7 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto hover = style_sheet_color(hover_color);
     auto border = style_sheet_color(chrome_border(palette));
     auto focus_border = style_sheet_color(mix(chrome_border(palette), chrome_accent(palette), is_dark(palette) ? 0.46 : 0.58));
-    auto text = style_sheet_color(palette.color(QPalette::Text));
+    auto text = style_sheet_color(chrome_text(palette));
     auto placeholder = style_sheet_color(chrome_muted_text(palette));
     auto selection = style_sheet_color(chrome_accent(palette));
     auto selection_text = style_sheet_color(palette.color(QPalette::HighlightedText));
@@ -199,7 +279,7 @@ QString bookmarks_bar_style_sheet(QPalette const& palette)
     auto hover = style_sheet_color(chrome_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
-    auto text = style_sheet_color(palette.color(QPalette::ButtonText));
+    auto text = style_sheet_color(chrome_button_text(palette));
 
     return QStringLiteral(R"(
 QToolBar#LadybirdBookmarksBar {
@@ -241,7 +321,7 @@ QString find_in_page_style_sheet(QPalette const& palette)
     auto pressed = style_sheet_color(chrome_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
     auto accent = style_sheet_color(chrome_accent(palette));
-    auto text = style_sheet_color(palette.color(QPalette::Text));
+    auto text = style_sheet_color(chrome_text(palette));
     auto muted = style_sheet_color(chrome_muted_text(palette));
 
     return QStringLiteral(R"(
@@ -297,7 +377,7 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto hover = style_sheet_color(chrome_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
-    auto text = style_sheet_color(palette.color(QPalette::ButtonText));
+    auto text = style_sheet_color(chrome_button_text(palette));
     auto close_hover = style_sheet_color(QColor(196, 43, 28));
     auto close_text = style_sheet_color(QColor(255, 255, 255));
 
@@ -379,7 +459,7 @@ QString autocomplete_popup_style_sheet(QPalette const& palette)
 {
     auto surface = style_sheet_color(chrome_surface(palette));
     auto border = style_sheet_color(chrome_border(palette));
-    auto text = style_sheet_color(palette.color(QPalette::Text));
+    auto text = style_sheet_color(chrome_text(palette));
 
     return QStringLiteral(R"(
 QFrame#LadybirdAutocompletePopup {

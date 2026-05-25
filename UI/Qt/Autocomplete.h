@@ -37,6 +37,8 @@ public:
 
     void query_autocomplete_engine(String);
     void cancel_pending_query();
+    void update_chrome_style();
+    void schedule_chrome_style_update();
 
     void show_with_suggestions(Vector<WebView::AutocompleteSuggestion>, int selected_suggestion_index);
     bool close();
@@ -66,6 +68,8 @@ private:
     QListView* m_list_view { nullptr };
     AutocompleteModel* m_model { nullptr };
     AutocompleteDelegate* m_delegate { nullptr };
+    bool m_is_updating_chrome_style { false };
+    bool m_has_pending_chrome_style_update { false };
 
     NonnullOwnPtr<WebView::Autocomplete> m_autocomplete;
 };
