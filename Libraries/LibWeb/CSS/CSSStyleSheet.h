@@ -164,7 +164,7 @@ private:
 
     Vector<Subresource&> m_critical_subresources;
 
-    IGNORE_GC Vector<WeakPtr<ImageStyleValue>> m_pending_image_values;
+    Vector<WeakPtr<ImageStyleValue>> m_pending_image_values;
 };
 
 }

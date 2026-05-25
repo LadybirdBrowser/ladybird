@@ -90,8 +90,8 @@ private:
     void animate();
     Optional<Gfx::DecodedImageFrame> frame(size_t frame_index, Gfx::IntSize = {}) const;
 
-    GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
-    GC::Ptr<CSSStyleSheet> m_style_sheet;
+    GC::Weak<HTML::SharedResourceRequest> m_resource_request;
+    GC::Weak<CSSStyleSheet> m_style_sheet;
 
     URL m_url;
     GC::Weak<DOM::Document> m_document;
@@ -100,7 +100,7 @@ private:
     size_t m_loops_completed { 0 };
 
     mutable HashTable<Client*> m_clients;
-    mutable GC::Ptr<Platform::Timer> m_timer;
+    mutable GC::Weak<Platform::Timer> m_timer;
 };
 
 }

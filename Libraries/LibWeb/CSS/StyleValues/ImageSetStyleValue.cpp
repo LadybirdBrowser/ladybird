@@ -127,7 +127,7 @@ void ImageSetStyleValue::load_any_resources(DOM::Document& document)
 {
     auto dpr = document.page().client().device_pixels_per_css_pixel();
     if (auto const* image = select_image(dpr); image && image != m_selected_image) {
-        const_cast<AbstractImageStyleValue&>(*image).set_style_sheet(m_style_sheet);
+        const_cast<AbstractImageStyleValue&>(*image).set_style_sheet(m_style_sheet.ptr());
         m_selected_image = image;
     }
     if (m_selected_image)

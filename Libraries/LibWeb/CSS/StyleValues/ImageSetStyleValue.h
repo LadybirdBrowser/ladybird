@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 
 namespace Web::CSS {
@@ -54,7 +55,7 @@ private:
     AbstractImageStyleValue const* select_image(double device_pixels_per_css_pixel) const;
 
     Vector<Option> m_options;
-    GC::Ptr<CSSStyleSheet> m_style_sheet;
+    GC::Weak<CSSStyleSheet> m_style_sheet;
     mutable AbstractImageStyleValue const* m_selected_image { nullptr };
 };
 
