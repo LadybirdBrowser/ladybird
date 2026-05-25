@@ -7,11 +7,13 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <UI/Qt/BookmarksBar.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
 
 #include <QAction>
+#include <QEvent>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QToolButton>
@@ -35,13 +37,34 @@ static void install_menu_event_filter(QObject* filter, QMenu* menu)
 BookmarksBar::BookmarksBar(QWidget* parent)
     : QToolBar(parent)
 {
+    setObjectName("LadybirdBookmarksBar");
     setIconSize({ BOOKMARK_BUTTON_ICON_SIZE, BOOKMARK_BUTTON_ICON_SIZE });
     setVisible(WebView::Application::settings().show_bookmarks_bar());
     setMovable(false);
+    setFloatable(false);
+    update_chrome_style();
 
     installEventFilter(this);
 
     rebuild();
+}
+
+bool BookmarksBar::event(QEvent* event)
+{
+    if (event->type() == QEvent::PaletteChange)
+        update_chrome_style();
+
+    return QToolBar::event(event);
+}
+
+void BookmarksBar::update_chrome_style()
+{
+    if (m_is_updating_chrome_style)
+        return;
+
+    m_is_updating_chrome_style = true;
+    setStyleSheet(ChromeStyle::bookmarks_bar_style_sheet(palette()));
+    m_is_updating_chrome_style = false;
 }
 
 void BookmarksBar::rebuild()

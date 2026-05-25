@@ -49,6 +49,7 @@ private:
     virtual void search_engine_changed() override;
 
     void update_placeholder();
+    void update_chrome_style();
     void update_location_icon();
     void update_loading_icon();
     void highlight_location();
@@ -69,6 +70,7 @@ private:
     QIcon m_favicon;
     bool m_url_is_hidden { false };
     bool m_is_loading { false };
+    bool m_is_updating_chrome_style { false };
     int m_loading_animation_frame { 0 };
 
     bool m_is_applying_inline_autocomplete { false };

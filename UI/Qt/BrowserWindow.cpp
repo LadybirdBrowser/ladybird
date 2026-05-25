@@ -22,8 +22,10 @@
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WebContentView.h>
 
+#include <QAbstractButton>
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QGuiApplication>
 #include <QInputDialog>
 #include <QMenuBar>
@@ -187,7 +189,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 {
     auto const& browser_options = WebView::Application::browser_options();
 
+    setWindowFlag(Qt::FramelessWindowHint);
     setWindowIcon(app_icon());
+    qApp->installEventFilter(this);
 
     // Listen for DPI changes
     m_device_pixel_ratio = devicePixelRatio();
@@ -427,6 +431,11 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     if (browser_options.devtools_port.has_value())
         on_devtools_enabled();
+}
+
+BrowserWindow::~BrowserWindow()
+{
+    qApp->removeEventFilter(this);
 }
 
 void BrowserWindow::rebuild_bookmarks_menu()
@@ -817,6 +826,53 @@ bool BrowserWindow::event(QEvent* event)
         Application::the().set_active_window(*this);
 
     return QMainWindow::event(event);
+}
+
+bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
+{
+    if (event->type() != QEvent::MouseButtonPress)
+        return QMainWindow::eventFilter(object, event);
+
+    if (isMaximized() || isFullScreen())
+        return QMainWindow::eventFilter(object, event);
+
+    auto* widget = as_if<QWidget>(object);
+    if (!widget || widget->window() != this)
+        return QMainWindow::eventFilter(object, event);
+    if (qobject_cast<QAbstractButton*>(object))
+        return QMainWindow::eventFilter(object, event);
+
+    auto* mouse_event = static_cast<QMouseEvent*>(event);
+    if (mouse_event->button() != Qt::LeftButton)
+        return QMainWindow::eventFilter(object, event);
+
+    auto edges = resize_edges_for_position(widget->mapTo(this, mouse_event->position().toPoint()));
+    if (edges == Qt::Edges {})
+        return QMainWindow::eventFilter(object, event);
+
+    auto* handle = windowHandle();
+    if (!handle || !handle->startSystemResize(edges))
+        return QMainWindow::eventFilter(object, event);
+
+    return true;
+}
+
+Qt::Edges BrowserWindow::resize_edges_for_position(QPoint const& position) const
+{
+    static constexpr int resize_border_width = 6;
+
+    Qt::Edges edges;
+    if (position.x() <= resize_border_width)
+        edges |= Qt::LeftEdge;
+    if (position.x() >= width() - resize_border_width)
+        edges |= Qt::RightEdge;
+    if (position.y() <= resize_border_width
+        && (position.x() <= resize_border_width * 2 || position.x() >= width() - resize_border_width * 2))
+        edges |= Qt::TopEdge;
+    if (position.y() >= height() - resize_border_width)
+        edges |= Qt::BottomEdge;
+
+    return edges;
 }
 
 void BrowserWindow::resizeEvent(QResizeEvent* event)

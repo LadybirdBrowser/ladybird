@@ -12,6 +12,7 @@
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
@@ -88,6 +89,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
     m_toolbar = new QToolBar(this);
+    m_toolbar->setObjectName("LadybirdNavigationToolbar");
     m_location_edit = new LocationEdit(this);
     m_bookmarks_bar = new BookmarksBar(this);
     m_loading_animation_timer = new QTimer(this);
@@ -121,7 +123,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button->setIcon(create_tvg_icon_with_theme_colors("hamburger", palette()));
     m_hamburger_button->setPopupMode(QToolButton::InstantPopup);
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
-    m_hamburger_button->setStyleSheet(":menu-indicator {image: none}");
 
     QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToShow, m_hamburger_button, [this]() {
         m_hamburger_button->setDown(true);
@@ -153,9 +154,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     m_toolbar->setIconSize({ 16, 16 });
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
-    // This is a little awkward, but without this Qt shrinks the button to the size of the icon.
-    // Note: toolButtonStyle="0" -> ToolButtonIconOnly.
-    m_toolbar->setStyleSheet("QToolButton[toolButtonStyle=\"0\"]{padding:0px 4px 0px 4px;height:24px}");
+    m_toolbar->setMovable(false);
+    m_toolbar->setFloatable(false);
+    update_chrome_style();
 
     m_hamburger_button_action->setVisible(!Settings::the()->show_menubar());
 
@@ -609,6 +610,7 @@ void Tab::update_hover_label()
 bool Tab::event(QEvent* event)
 {
     if (event->type() == QEvent::PaletteChange) {
+        update_chrome_style();
         recreate_toolbar_icons();
         if (m_is_loading)
             update_tab_icon();
@@ -616,6 +618,17 @@ bool Tab::event(QEvent* event)
     }
 
     return QWidget::event(event);
+}
+
+void Tab::update_chrome_style()
+{
+    if (m_is_updating_chrome_style)
+        return;
+
+    m_is_updating_chrome_style = true;
+    m_toolbar->setStyleSheet(ChromeStyle::navigation_toolbar_style_sheet(palette()));
+    m_hover_label->setStyleSheet(QStringLiteral("padding: 2px 6px; border-radius: 6px;"));
+    m_is_updating_chrome_style = false;
 }
 
 void Tab::recreate_toolbar_icons()

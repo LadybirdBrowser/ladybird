@@ -86,6 +86,7 @@ public:
     };
 
     BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
 
@@ -135,6 +136,7 @@ public slots:
 
 private:
     virtual bool event(QEvent*) override;
+    virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void changeEvent(QEvent* event) override;
     virtual void moveEvent(QMoveEvent*) override;
@@ -145,6 +147,7 @@ private:
     void initialize_tab(Tab*);
 
     void set_current_tab(Tab* tab);
+    Qt::Edges resize_edges_for_position(QPoint const&) const;
 
     template<typename Callback>
     void for_each_tab(Callback&& callback)

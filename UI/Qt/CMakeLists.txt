@@ -9,6 +9,7 @@ target_sources(ladybird PRIVATE
     Autocomplete.cpp
     BookmarksBar.cpp
     BrowserWindow.cpp
+    ChromeStyle.cpp
     EventLoopImplementationQt.cpp
     EventLoopImplementationQtEventTarget.cpp
     FindInPageWidget.cpp

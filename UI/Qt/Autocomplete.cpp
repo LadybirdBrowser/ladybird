@@ -9,6 +9,7 @@
 #include <AK/Base64.h>
 #include <LibWebView/Autocomplete.h>
 #include <UI/Qt/Autocomplete.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -356,13 +357,16 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
     // position_popup() rather than made its own window, so that showing
     // it never causes the address bar to lose keyboard focus.
     m_popup = new QFrame();
+    m_popup->setObjectName("LadybirdAutocompletePopup");
     m_popup->setFocusPolicy(Qt::NoFocus);
     m_popup->setFrameShape(QFrame::StyledPanel);
     m_popup->setFrameShadow(QFrame::Raised);
     m_popup->setAutoFillBackground(true);
+    m_popup->setStyleSheet(ChromeStyle::autocomplete_popup_style_sheet(m_anchor->palette()));
     m_popup->hide();
 
     m_list_view = new QListView(m_popup);
+    m_list_view->setObjectName("LadybirdAutocompleteList");
     m_list_view->setFocusPolicy(Qt::NoFocus);
     m_list_view->setSelectionMode(QAbstractItemView::SingleSelection);
     m_list_view->setMouseTracking(true);
@@ -426,6 +430,7 @@ void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion>
         return;
     }
 
+    m_popup->setStyleSheet(ChromeStyle::autocomplete_popup_style_sheet(m_anchor->palette()));
     position_popup();
     if (!m_popup->isVisible())
         m_popup->show();
