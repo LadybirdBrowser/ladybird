@@ -114,6 +114,17 @@ ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
     auto& bitmaps = result.bitmaps;
     TRY(bitmaps.try_ensure_capacity(metadata_list.size()));
 
+    // Single-frame sequences can keep the transferred backing directly.
+    if (metadata_list.size() == 1 && metadata_list[0].has_value()) {
+        auto metadata = metadata_list[0].value();
+        if (!collated_buffer.is_valid() || metadata.size_in_bytes != total_buffer_size || metadata.size_in_bytes != collated_buffer.size())
+            return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence buffer data");
+
+        RefPtr<Gfx::Bitmap> bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(metadata.format, metadata.alpha_type, move(collated_buffer), metadata.size));
+        bitmaps.unchecked_append(move(bitmap));
+        return result;
+    }
+
     ReadonlyBytes bytes = ReadonlyBytes(collated_buffer.data<u8>(), collated_buffer.size());
     size_t bytes_read = 0;
 
