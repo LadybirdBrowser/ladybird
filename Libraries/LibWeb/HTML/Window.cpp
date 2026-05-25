@@ -1738,7 +1738,8 @@ void Window::cancel_animation_frame(WebIDL::UnsignedLong handle)
 
     // 2. Let callbacks be this's target object's map of animation frame callbacks.
     // 3. Remove callbacks[handle].
-    (void)animation_frame_callback_driver().remove(handle);
+    if (m_animation_frame_callback_driver)
+        (void)m_animation_frame_callback_driver->remove(handle);
 }
 
 AnimationFrameCallbackDriver& Window::animation_frame_callback_driver()
