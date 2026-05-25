@@ -42,6 +42,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Animation>> animate(GC::Ptr<JS::Object> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options = {});
     WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Optional<Bindings::GetAnimationsOptions> const& options = {});
     WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options = {});
+    bool has_relevant_animations() const;
 
     void associate_with_animation(GC::Ref<Animation>);
     void disassociate_with_animation(GC::Ref<Animation>);

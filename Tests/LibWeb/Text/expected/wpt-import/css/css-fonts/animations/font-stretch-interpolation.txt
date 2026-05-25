@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 185 tests
 
-184 Pass
-1 Fail
+185 Pass
 Pass	CSS Transitions: property <font-stretch> from [100%] to [200%] at (-2) should be [0%]
 Pass	CSS Transitions: property <font-stretch> from [100%] to [200%] at (-0.25) should be [75%]
 Pass	CSS Transitions: property <font-stretch> from [100%] to [200%] at (0) should be [100%]
@@ -188,4 +187,4 @@ Pass	Web Animations: property <font-stretch> from [normal] to [extra-expanded] a
 Pass	Web Animations: property <font-stretch> from [normal] to [extra-expanded] at (0.25) should be [112.5%]
 Pass	Web Animations: property <font-stretch> from [normal] to [extra-expanded] at (0.5) should be [125%]
 Pass	Web Animations: property <font-stretch> from [normal] to [extra-expanded] at (1) should be [150%]
-Fail	An interpolation to inherit updates correctly on a parent style change.
+Pass	An interpolation to inherit updates correctly on a parent style change.

@@ -1,0 +1,4 @@
+initial animated left: 10px
+resized animated left: 20px
+resized full invalidations: 0
+resized back animated left: 10px

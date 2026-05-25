@@ -1095,7 +1095,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     return invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(ScheduleAnimationUpdate schedule_animation_update)
 {
     auto& counters = document().style_invalidation_counters();
     counters.element_inherited_style_recomputations++;
@@ -1135,6 +1135,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &computed_properties->property(property_id));
     }
 
+    if (schedule_animation_update == ScheduleAnimationUpdate::Yes && has_relevant_animations())
+        document().set_needs_animated_style_update();
+
     if (invalidation.is_none() && property_values_affected_by_inherited_style.is_empty()) {
         counters.element_inherited_style_noop_recomputations++;
         return invalidation;
@@ -1151,9 +1154,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
             invalidation.inherited_style_changed = true;
         invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &new_value);
     }
-
-    if (!invalidation.is_none() && !computed_properties->animated_property_values().is_empty())
-        document().set_needs_animated_style_update();
 
     bool did_change_custom_properties = false;
     invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker);

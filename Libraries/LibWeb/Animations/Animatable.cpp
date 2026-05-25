@@ -123,6 +123,19 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
     return relevant_animations;
 }
 
+bool Animatable::has_relevant_animations() const
+{
+    if (!m_impl)
+        return false;
+
+    for (auto const& animation : m_impl->associated_animations) {
+        if (animation->is_relevant())
+            return true;
+    }
+
+    return false;
+}
+
 void Animatable::associate_with_animation(GC::Ref<Animation> animation)
 {
     auto& impl = ensure_impl();
