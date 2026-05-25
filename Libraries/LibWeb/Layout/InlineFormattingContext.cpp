@@ -565,13 +565,17 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
     VERIFY(box.parent());
     VERIFY(box.parent()->children_are_inline());
 
+    // We're calculating the position for an absolutely positioned box with a previous sibling in an IFC.
+    // We need to position the box...
+    // ...below the last fragment of this sibling, if the display-outside value (before box type transformation) is block.
+    // ...at the top right corner of the last fragment of this sibling otherwise.
+    // ...at the outer end of a preceding left-float — if the box is originally inline-outside and no line-box fragment
+    //    is found (floats don't produce line-box fragments).
     CSSPixelPoint position;
-    if (auto const* sibling = box.previous_sibling()) {
-        // We're calculating the position for an absolutely positioned box with a previous sibling in an IFC.
-        // We need to position the box...
-        // ...below the last fragment of this sibling, if the display-outside value (before box type transformation) is block.
-        // ...at the top right corner of the last fragment of this sibling otherwise.
-        LineBoxFragment const* last_fragment = nullptr;
+    LineBoxFragment const* last_fragment = nullptr;
+    Box const* preceding_left_float = nullptr;
+    auto box_is_inline_outside = !box.display_before_box_type_transformation().is_block_outside();
+    for (auto const* sibling = box.previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
         auto const& cb_state = m_state.get(*sibling->containing_block());
         for (auto const& line_box : cb_state.line_boxes) {
             for (auto const& fragment : line_box.fragments()) {
@@ -579,17 +583,34 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
                     last_fragment = &fragment;
             }
         }
-        if (last_fragment) {
-            if (box.display_before_box_type_transformation().is_block_outside()) {
-                // Display-outside value is block => position below
-                position.set_x(0);
-                position.set_y(last_fragment->offset().y() + last_fragment->height());
-            } else {
-                // Display-outside value is not block => position to the right
-                position.set_x(last_fragment->offset().x() + last_fragment->width());
-                position.set_y(last_fragment->offset().y());
-            }
+        if (last_fragment)
+            break;
+        if (!box_is_inline_outside)
+            continue;
+        if (auto const* sibling_box = as_if<Box>(sibling); sibling_box && sibling_box->is_floating()
+            && sibling_box->computed_values().float_() == CSS::Float::Left) {
+            preceding_left_float = sibling_box;
+            break;
         }
+    }
+    if (last_fragment) {
+        if (box.display_before_box_type_transformation().is_block_outside()) {
+            // Display-outside value is block => position below
+            position.set_x(0);
+            position.set_y(last_fragment->offset().y() + last_fragment->height());
+        } else {
+            // Display-outside value is not block => position to the right
+            position.set_x(last_fragment->offset().x() + last_fragment->width());
+            position.set_y(last_fragment->offset().y());
+        }
+    } else if (preceding_left_float) {
+        // https://drafts.csswg.org/css2/#abs-non-replaced-width: the hypothetical box assumes float:none — so, an
+        // originally inline-outside box following a left float would've been inline-level content in the line box
+        // wrapping the float. At this layout phase, the float's content offset isn't finalized yet — so approximate the
+        // static position using the float's margin-box width (valid for a single float touching the left edge of the
+        // containing block).
+        auto const& float_state = m_state.get(*preceding_left_float);
+        position.set_x(float_state.margin_box_width());
     }
 
     return { .rect = { position, { 0, 0 } } };
