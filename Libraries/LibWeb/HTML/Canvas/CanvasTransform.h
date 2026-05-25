@@ -12,18 +12,14 @@
 #include <LibGfx/Painter.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/HTML/Canvas/CanvasPath.h>
-#include <LibWeb/HTML/Canvas/DrawingState.h>
+#include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvastransform
-template<typename IncludingClass>
-class CanvasTransform {
+class CanvasTransform : protected virtual AbstractCanvasMixin {
 public:
     ~CanvasTransform() = default;
-
-    Gfx::Path& mutable_path() { return static_cast<IncludingClass&>(*this).path(); }
 
     void scale(float sx, float sy)
     {
@@ -78,10 +74,9 @@ public:
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-gettransform
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> get_transform()
     {
-        auto& realm = static_cast<IncludingClass&>(*this).realm();
         auto transform = my_drawing_state().transform;
         Bindings::DOMMatrix2DInit init = { transform.a(), transform.b(), transform.c(), transform.d(), transform.e(), transform.f(), {}, {}, {}, {}, {}, {} };
-        return Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm, init);
+        return Geometry::DOMMatrix::create_from_dom_matrix_2d_init(my_realm(), init);
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform
@@ -103,8 +98,7 @@ public:
     WebIDL::ExceptionOr<void> set_transform(Bindings::DOMMatrix2DInit& init)
     {
         // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-        auto& realm = static_cast<IncludingClass&>(*this).realm();
-        auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm, init));
+        auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(my_realm(), init));
 
         // 2. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
         if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
@@ -132,16 +126,12 @@ public:
 
     void flush_transform()
     {
-        if (auto* painter = static_cast<IncludingClass&>(*this).painter())
+        if (auto* painter = my_painter())
             painter->set_transform(my_drawing_state().transform);
     }
 
 protected:
     CanvasTransform() = default;
-
-private:
-    DrawingState& my_drawing_state() { return static_cast<IncludingClass&>(*this).drawing_state(); }
-    DrawingState const& my_drawing_state() const { return static_cast<IncludingClass const&>(*this).drawing_state(); }
 };
 
 }

@@ -21,8 +21,7 @@
 
 namespace Web::HTML {
 
-template<typename IncludingClass>
-void CanvasFillStrokeStyles<IncludingClass>::set_fill_style(FillOrStrokeStyleVariant style)
+void CanvasFillStrokeStyles::set_fill_style(FillOrStrokeStyleVariant style)
 {
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fillstyle
     style.visit(
@@ -71,14 +70,12 @@ void CanvasFillStrokeStyles<IncludingClass>::set_fill_style(FillOrStrokeStyleVar
         });
 }
 
-template<typename IncludingClass>
-CanvasFillStrokeStyles<IncludingClass>::FillOrStrokeStyleVariant CanvasFillStrokeStyles<IncludingClass>::fill_style() const
+CanvasFillStrokeStyles::FillOrStrokeStyleVariant CanvasFillStrokeStyles::fill_style() const
 {
     return my_drawing_state().fill_style.to_js_fill_or_stroke_style();
 }
 
-template<typename IncludingClass>
-void CanvasFillStrokeStyles<IncludingClass>::set_stroke_style(FillOrStrokeStyleVariant style)
+void CanvasFillStrokeStyles::set_stroke_style(FillOrStrokeStyleVariant style)
 {
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-strokestyle
 
@@ -128,57 +125,28 @@ void CanvasFillStrokeStyles<IncludingClass>::set_stroke_style(FillOrStrokeStyleV
         });
 }
 
-template<typename IncludingClass>
-CanvasFillStrokeStyles<IncludingClass>::FillOrStrokeStyleVariant CanvasFillStrokeStyles<IncludingClass>::stroke_style() const
+CanvasFillStrokeStyles::FillOrStrokeStyleVariant CanvasFillStrokeStyles::stroke_style() const
 {
     return my_drawing_state().stroke_style.to_js_fill_or_stroke_style();
 }
-template<typename IncludingClass>
-Variant<HTMLCanvasElement*, OffscreenCanvas*> CanvasFillStrokeStyles<IncludingClass>::my_canvas_element()
+
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
 {
-    return &static_cast<IncludingClass&>(*this).canvas_element();
+    return CanvasGradient::create_radial(my_realm(), x0, y0, r0, x1, y1, r1);
+}
+GC::Ref<CanvasGradient> CanvasFillStrokeStyles::create_linear_gradient(double x0, double y0, double x1, double y1)
+{
+    return CanvasGradient::create_linear(my_realm(), x0, y0, x1, y1).release_value_but_fixme_should_propagate_errors();
 }
 
-template<typename IncludingClass>
-DrawingState& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state()
+GC::Ref<CanvasGradient> CanvasFillStrokeStyles::create_conic_gradient(double start_angle, double x, double y)
 {
-    return static_cast<IncludingClass&>(*this).drawing_state();
+    return CanvasGradient::create_conic(my_realm(), start_angle, x, y).release_value_but_fixme_should_propagate_errors();
 }
 
-template<typename IncludingClass>
-DrawingState const& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state() const
+WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasFillStrokeStyles::create_pattern(CanvasImageSource const& image, StringView repetition)
 {
-    return static_cast<IncludingClass const&>(*this).drawing_state();
+    return CanvasPattern::create(my_realm(), image, repetition);
 }
-
-template<typename IncludingClass>
-WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles<IncludingClass>::create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
-{
-    auto& realm = static_cast<IncludingClass&>(*this).realm();
-    return CanvasGradient::create_radial(realm, x0, y0, r0, x1, y1, r1);
-}
-template<typename IncludingClass>
-GC::Ref<CanvasGradient> CanvasFillStrokeStyles<IncludingClass>::create_linear_gradient(double x0, double y0, double x1, double y1)
-{
-    auto& realm = static_cast<IncludingClass&>(*this).realm();
-    return CanvasGradient::create_linear(realm, x0, y0, x1, y1).release_value_but_fixme_should_propagate_errors();
-}
-
-template<typename IncludingClass>
-GC::Ref<CanvasGradient> CanvasFillStrokeStyles<IncludingClass>::create_conic_gradient(double start_angle, double x, double y)
-{
-    auto& realm = static_cast<IncludingClass&>(*this).realm();
-    return CanvasGradient::create_conic(realm, start_angle, x, y).release_value_but_fixme_should_propagate_errors();
-}
-
-template<typename IncludingClass>
-WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasFillStrokeStyles<IncludingClass>::create_pattern(CanvasImageSource const& image, StringView repetition)
-{
-    auto& realm = static_cast<IncludingClass&>(*this).realm();
-    return CanvasPattern::create(realm, image, repetition);
-}
-
-template class CanvasFillStrokeStyles<CanvasRenderingContext2D>;
-template class CanvasFillStrokeStyles<OffscreenCanvasRenderingContext2D>;
 
 }
