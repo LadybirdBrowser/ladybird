@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .grid {
+        display: inline-grid;
+        grid-template-columns: auto auto;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / span 2;
+        grid-template-columns: subgrid;
+    }
+
+    .item {
+        grid-column: 2;
+        height: 10px;
+        width: 200px;
+    }
+</style>
+<div class="grid"><div class="subgrid"><div class="item"></div></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(document.querySelector(".grid")).gridTemplateColumns);
+    });
+</script>

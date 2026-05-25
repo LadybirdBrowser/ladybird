@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 100px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / span 1;
+        grid-template-columns: subgrid;
+    }
+
+    .item {
+        grid-column: 2;
+        height: 10px;
+        width: 10px;
+    }
+</style>
+<div class="grid"><div class="subgrid"><div class="item" id="a"></div><div class="item" id="b"></div></div></div>
+<script src="../include.js"></script>
+<script>
+    function formatRect(id) {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        return `${rect.x},${rect.y} ${rect.width}x${rect.height}`;
+    }
+
+    test(() => {
+        println(`a: ${formatRect("a")}`);
+        println(`b: ${formatRect("b")}`);
+    });
+</script>

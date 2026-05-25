@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #parent {
+        display: grid;
+        grid-template-columns: 30px 30px;
+        grid-template-rows: 20px;
+    }
+
+    #subgrid {
+        display: grid;
+        grid-column: 1 / span 2;
+        grid-row: 1;
+        grid-template-columns: subgrid;
+        grid-template-rows: subgrid;
+    }
+
+    #subgrid > div {
+        grid-column: 1;
+        height: 10px;
+    }
+</style>
+<div id="parent">
+    <div id="subgrid">
+        <div id="first"></div>
+        <div id="second"></div>
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    function relativeRect(id) {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        const subgridRect = document.getElementById("subgrid").getBoundingClientRect();
+        return `${Math.round(rect.x - subgridRect.x)} ${Math.round(rect.y - subgridRect.y)} ${Math.round(rect.width)} ${Math.round(rect.height)}`;
+    }
+
+    test(() => {
+        println(`first: ${relativeRect("first")}`);
+        println(`second: ${relativeRect("second")}`);
+    });
+</script>

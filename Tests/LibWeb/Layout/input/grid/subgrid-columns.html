@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-columns: 50px 60px 70px 80px;
+        column-gap: 10px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 2 / 5;
+        grid-template-columns: subgrid;
+    }
+
+    .first {
+        grid-column: 1 / 2;
+        height: 20px;
+    }
+
+    .second {
+        grid-column: 2 / 4;
+        height: 20px;
+    }
+</style>
+<div class="parent"><div class="subgrid"><div class="first"></div><div class="second"></div></div></div>

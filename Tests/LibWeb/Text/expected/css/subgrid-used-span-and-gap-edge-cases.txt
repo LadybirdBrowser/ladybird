@@ -1,0 +1,5 @@
+no-parent: 10 10
+auto-span subgrid: 0 90
+auto-span target: 40 50
+gap left: 0 125
+gap right: 125 175

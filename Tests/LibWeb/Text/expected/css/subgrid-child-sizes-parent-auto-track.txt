@@ -1,0 +1,8 @@
+basic grid: 200
+basic subgrid: 200
+basic item: 200
+basic item x: 0
+edge-space grid: 170
+edge-space subgrid: 147
+edge-space item: 100
+edge-space item x: 30

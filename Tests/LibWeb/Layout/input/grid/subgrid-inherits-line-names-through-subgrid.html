@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-columns: [full-start] 40px [content-start] 60px [content-end] 80px [full-end];
+    }
+
+    .middle {
+        display: grid;
+        grid-column: full-start / full-end;
+        grid-template-columns: subgrid;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: full-start / full-end;
+        grid-template-columns: subgrid;
+    }
+
+    .item {
+        grid-column: content-start / content-end;
+        height: 20px;
+    }
+</style>
+<div class="parent"><div class="middle"><div class="subgrid"><div class="item"></div></div></div></div>
