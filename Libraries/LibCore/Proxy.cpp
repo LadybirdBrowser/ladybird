@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "Proxy.h"
 #include <AK/Error.h>
 #include <AK/IPv4Address.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
-#include <LibCore/Proxy.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 

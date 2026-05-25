@@ -494,15 +494,13 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
 
 RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request)
 {
-    auto proxy = Core::ProxyData();
-
     // FIXME: We could put this request in a queue until the client connection is re-established.
     if (!m_request_client) {
         log_failure(request, "RequestServer is currently unavailable"sv);
         return nullptr;
     }
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials());
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

@@ -31,6 +31,21 @@ struct CORE_API ProxyData {
 
     bool operator==(ProxyData const& other) const = default;
 
+    static constexpr StringView type_name(Type type)
+    {
+        switch (type) {
+        case Type::Direct:
+            return "Direct"sv;
+        case Type::SOCKS5:
+            return "SOCKS5"sv;
+        case Type::HTTP:
+            return "HTTP"sv;
+        case Type::HTTPS:
+            return "HTTPS"sv;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
     bool is_direct() const { return type == Type::Direct; }
 
     static ErrorOr<ProxyData> parse_url(URL::URL const& url);

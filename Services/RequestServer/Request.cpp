@@ -368,10 +368,9 @@ NonnullOwnPtr<Request> Request::fetch(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path,
-    Core::ProxyData proxy_data)
+    ByteString alt_svc_cache_path)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
     request->process();
 
     return request;
@@ -402,10 +401,9 @@ NonnullOwnPtr<Request> Request::revalidate(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path,
-    Core::ProxyData proxy_data)
+    ByteString alt_svc_cache_path)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
     request->process();
 
     return request;
@@ -424,8 +422,7 @@ Request::Request(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path,
-    Core::ProxyData proxy_data)
+    ByteString alt_svc_cache_path)
     : m_request_id(request_id)
     , m_type(type)
     , m_disk_cache(disk_cache)
@@ -439,7 +436,6 @@ Request::Request(
     , m_request_body(move(request_body))
     , m_include_credentials(include_credentials)
     , m_alt_svc_cache_path(move(alt_svc_cache_path))
-    , m_proxy_data(proxy_data)
     , m_response_headers(HTTP::HeaderList::create())
 {
     if constexpr (REQUESTSERVER_WIRE_DEBUG)
@@ -611,7 +607,7 @@ void Request::handle_initial_state()
 
                     if (m_cache_entry_reader.has_value()) {
                         if (m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::StaleWhileRevalidate)
-                            m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials, m_proxy_data);
+                            m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials);
 
                         if (is_revalidation_request())
                             transition_to_state(State::DNSLookup);
@@ -653,6 +649,18 @@ void Request::handle_initial_state()
 
         if (m_state != State::Init)
             return;
+    }
+
+    if (Core::ProxyData::use_system_proxy()) {
+        auto system_proxies = Core::ProxyData::get_proxies_for_url(m_url);
+        if (!system_proxies.is_empty()) {
+            m_proxy_data = system_proxies.first(); // FIXME: Support multiple proxies (e.g. fallback proxies).
+            if (!m_proxy_data.is_direct()) {
+                dbgln("Using system proxy {}:{} for {}", m_proxy_data.host, m_proxy_data.port, m_url.serialize());
+                transition_to_state(State::RetrieveCookie);
+                return;
+            }
+        }
     }
 
     transition_to_state(State::DNSLookup);
@@ -970,35 +978,27 @@ void Request::handle_fetch_state()
         m_curl_string_lists.append(curl_headers);
     }
 
-    auto proxy_data = m_proxy_data;
-    if (proxy_data.is_direct() && Core::ProxyData::use_system_proxy()) {
-        auto system_proxies = Core::ProxyData::get_proxies_for_url(m_url);
-        if (!system_proxies.is_empty()) {
-            proxy_data = system_proxies.first();
-            if (!proxy_data.is_direct()) {
-                dbgln("Using system proxy {}:{} for {}", proxy_data.host, proxy_data.port, m_url.serialize());
-            }
-        }
-    }
-
-    if (!proxy_data.is_direct()) {
-        auto proxy_host = proxy_data.host;
-        set_option(CURLOPT_PROXY, proxy_host.to_byte_string().characters());
-        set_option(CURLOPT_PROXYPORT, static_cast<long>(proxy_data.port));
-
-        switch (proxy_data.type) {
-        case Core::ProxyData::Type::HTTP:
-            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
-            break;
-        case Core::ProxyData::Type::HTTPS:
-            set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
-            break;
-        case Core::ProxyData::Type::SOCKS5:
-            set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
-            break;
-        default:
-            break;
-        }
+    switch (m_proxy_data.type) {
+    case Core::ProxyData::Type::Direct:
+        set_option(CURLOPT_PROXY, "");
+        break;
+    case Core::ProxyData::Type::HTTP:
+        set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+        set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
+        set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        break;
+    case Core::ProxyData::Type::HTTPS:
+        set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+        set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
+        set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        break;
+    case Core::ProxyData::Type::SOCKS5:
+        set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
+        set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
+        set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        break;
+    default:
+        VERIFY_NOT_REACHED();
     }
 
     set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
@@ -1013,14 +1013,16 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_XFERINFODATA, this);
     }
 
-    VERIFY(m_dns_result);
-    auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+    if (m_proxy_data.is_direct()) {
+        VERIFY(m_dns_result);
+        auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
 
-    if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
-        set_option(CURLOPT_RESOLVE, resolve_list);
-        m_curl_string_lists.append(resolve_list);
-    } else {
-        VERIFY_NOT_REACHED();
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            m_curl_string_lists.append(resolve_list);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
     }
 
     mark_lifecycle_event(this, &WireStats::curl_added_at);
