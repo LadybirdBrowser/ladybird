@@ -18,10 +18,15 @@
 
 class QAction;
 class QContextMenuEvent;
+class QDragEnterEvent;
+class QDragLeaveEvent;
+class QDragMoveEvent;
+class QDropEvent;
 class QEvent;
 class QIcon;
 class QMouseEvent;
 class QPaintEvent;
+class QPixmap;
 class QToolButton;
 
 namespace Ladybird {
@@ -41,20 +46,31 @@ public:
     virtual void contextMenuEvent(QContextMenuEvent* event) override;
 
 private:
+    virtual void dragEnterEvent(QDragEnterEvent*) override;
+    virtual void dragLeaveEvent(QDragLeaveEvent*) override;
+    virtual void dragMoveEvent(QDragMoveEvent*) override;
+    virtual void dropEvent(QDropEvent*) override;
     virtual void paintEvent(QPaintEvent*) override;
     virtual void leaveEvent(QEvent*) override;
     virtual void mouseDoubleClickEvent(QMouseEvent*) override;
-    void mousePressEvent(QMouseEvent*) override;
-    void mouseMoveEvent(QMouseEvent*) override;
+    virtual void mousePressEvent(QMouseEvent*) override;
+    virtual void mouseMoveEvent(QMouseEvent*) override;
+    virtual void mouseReleaseEvent(QMouseEvent*) override;
 
-    bool start_window_move();
+    int insertion_index_at(QPoint const&) const;
+    int drop_indicator_index_for_insertion_index(int insertion_index) const;
+    QPixmap render_tab_drag_pixmap(int index) const;
     void toggle_window_maximized();
+    void start_tab_drag(int index);
 
     QPointer<TabWidget> m_tab_widget;
 
     int m_available_width { 0 };
     int m_hovered_tab_index { -1 };
-    int m_x_position_in_selected_tab_while_dragging { 0 };
+    int m_drop_indicator_index { -1 };
+    QPointer<Tab> m_pressed_tab;
+    QPoint m_position_in_selected_tab_while_dragging;
+    QPoint m_drag_start_position;
 };
 
 class TabWidget final : public QWidget {
@@ -66,7 +82,9 @@ public:
     TabBar* tab_bar() const { return m_tab_bar; }
 
     void add_tab(Tab* widget, QString const& label);
+    void insert_tab(int index, Tab* widget, QString const& label);
     void remove_tab(int index);
+    Tab* take_tab(int index);
 
     int count() const { return m_tab_bar->count(); }
 
@@ -90,6 +108,9 @@ signals:
     void tab_close_requested(int index);
 
 protected:
+    virtual void dragEnterEvent(QDragEnterEvent*) override;
+    virtual void dragMoveEvent(QDragMoveEvent*) override;
+    virtual void dropEvent(QDropEvent*) override;
     virtual bool event(QEvent* event) override;
     virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;
@@ -101,6 +122,8 @@ private:
     void update_window_button_icons();
     void toggle_window_maximized();
     bool start_window_move();
+    void accept_tab_drag(QDragMoveEvent*);
+    void accept_tab_drop(QDropEvent*, int index);
 
     TabBar* m_tab_bar { nullptr };
     QStackedWidget* m_stacked_widget { nullptr };

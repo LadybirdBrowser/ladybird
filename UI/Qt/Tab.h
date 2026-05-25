@@ -80,6 +80,7 @@ public:
 
     QToolButton* hamburger_button() const { return m_hamburger_button; }
 
+    void set_window(BrowserWindow&);
     void update_hover_label();
 
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
@@ -100,6 +101,7 @@ private:
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     void recreate_toolbar_icons();
+    void connect_hamburger_menu();
     void update_chrome_style();
     void update_tab_title();
     void set_loading(bool);
