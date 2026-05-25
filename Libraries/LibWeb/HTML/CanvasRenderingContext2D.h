@@ -40,7 +40,7 @@ class CanvasRenderingContext2D
     , public CanvasState
     , public CanvasTransform<CanvasRenderingContext2D>
     , public CanvasFillStrokeStyles<CanvasRenderingContext2D>
-    , public CanvasShadowStyles<CanvasRenderingContext2D>
+    , public CanvasShadowStyles
     , public CanvasFilters
     , public CanvasRect
     , public CanvasDrawPath
