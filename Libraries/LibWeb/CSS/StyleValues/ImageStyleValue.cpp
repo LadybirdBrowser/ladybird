@@ -76,7 +76,7 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
     RuleOrDeclaration rule_or_declaration {
         .environment_settings_object = document.relevant_settings_object(),
         .value = RuleOrDeclaration::Rule {
-            .parent_style_sheet = m_style_sheet,
+            .parent_style_sheet = m_style_sheet.ptr(),
         }
     };
 
@@ -114,9 +114,10 @@ void ImageStyleValue::start_animation_timer_if_needed(DOM::Document& document) c
         return;
 
     if (!m_timer) {
-        m_timer = Platform::Timer::create(document.heap());
+        auto timer = Platform::Timer::create(document.heap());
+        m_timer = timer;
         auto weak_self = make_weak_ptr<ImageStyleValue>();
-        m_timer->on_timeout = GC::create_function(document.heap(), [weak_self] {
+        timer->on_timeout = GC::create_function(document.heap(), [weak_self] {
             if (weak_self)
                 weak_self->animate();
         });
