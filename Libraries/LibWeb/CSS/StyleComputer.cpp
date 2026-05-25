@@ -96,6 +96,11 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(StyleComputer);
 
+static bool property_affects_font_metrics(PropertyID property_id)
+{
+    return property_id == PropertyID::FontSize || property_id == PropertyID::LineHeight;
+}
+
 CSSStyleProperties const& MatchingRule::declaration() const
 {
     if (rule->type() == CSSRule::Type::Style)
@@ -953,7 +958,13 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
             auto const& computation_context = get_computation_context_for_property(property_id, computed_properties, abstract_element);
 
+            computation_context.reset_viewport_metric_dependency_tracking();
             result.set(property_id, compute_value_of_property(property_id, *style_value, get_property_specified_value, computation_context, m_document->page().client().device_pixels_per_css_pixel()));
+            if (computation_context.depends_on_viewport_metrics()) {
+                computed_properties.set_depends_on_viewport_metrics();
+                if (property_affects_font_metrics(property_id))
+                    computed_properties.set_font_metrics_depend_on_viewport_metrics();
+            }
         }
 
         return result;
@@ -1566,6 +1577,19 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
+static bool font_size_value_depends_on_inherited_font_size(StyleValue const& value)
+{
+    return value.is_percentage()
+        || (value.is_calculated() && value.as_calculated().contains_percentage())
+        || first_is_one_of(value.to_keyword(), Keyword::Larger, Keyword::Smaller, Keyword::Math);
+}
+
+static bool line_height_value_depends_on_computed_font_size(StyleValue const& value)
+{
+    return value.is_percentage()
+        || (value.is_calculated() && value.as_calculated().contains_percentage());
+}
+
 void StyleComputer::compute_property_values(ComputedProperties& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     VERIFY(computation_context_cache_is_empty());
@@ -1581,15 +1605,23 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
 
         auto const& specified_value = style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
+        computation_context.reset_viewport_metric_dependency_tracking();
         auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
+        if (computation_context.depends_on_viewport_metrics()) {
+            style.set_depends_on_viewport_metrics();
+            if (property_affects_font_metrics(property_id))
+                style.set_font_metrics_depend_on_viewport_metrics();
+        }
 
         style.set_property_without_modifying_flags(property_id, computed_value);
     }
 
     clear_computation_context_caches();
 
-    if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element()))
+    if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element())) {
         m_root_element_font_metrics = calculate_root_element_font_metrics(style);
+        m_root_element_font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics();
+    }
 }
 
 ComputationContext const& StyleComputer::get_computation_context_for_property(PropertyID property_id, ComputedProperties const& style, Optional<DOM::AbstractElement> abstract_element) const
@@ -1647,6 +1679,10 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
                     .root_font_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element()
                         ? line_height_font_metrics
                         : m_root_element_font_metrics,
+                    .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
+                    .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element()
+                        ? style.font_metrics_depend_on_viewport_metrics()
+                        : m_root_element_font_metrics_depend_on_viewport_metrics,
                 },
                 .abstract_element = abstract_element
             };
@@ -1664,6 +1700,8 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
                         style.first_available_computed_font(document().font_computer())->pixel_metrics(),
                         style.line_height() },
                     .root_font_metrics = m_root_element_font_metrics,
+                    .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
+                    .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element() ? style.font_metrics_depend_on_viewport_metrics() : m_root_element_font_metrics_depend_on_viewport_metrics,
                 },
                 .abstract_element = abstract_element,
                 .color_scheme = style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes())
@@ -2076,7 +2114,7 @@ static bool is_monospace(StyleValue const& value)
 //       instead of the default font size (16px).
 //       See this blog post for a lot more details about this weirdness:
 //       https://manishearth.github.io/blog/2017/08/10/font-size-an-unexpectedly-complex-css-property/
-RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties) const
+RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, bool& depends_on_viewport_metrics) const
 {
     // Check for `font-family: monospace`. Note that `font-family: monospace, AnythingElse` does not trigger this path.
     // Some CSS frameworks use `font-family: monospace, monospace` to work around this behavior.
@@ -2097,6 +2135,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
     NonnullRefPtr<StyleValue const> new_font_size = CSS::LengthStyleValue::create(CSS::Length::make_px(default_monospace_font_size_in_px));
     CSSPixels current_size_in_px = default_monospace_font_size_in_px;
+    bool current_size_depends_on_viewport_metrics = false;
 
     for (auto& ancestor : ancestors.in_reverse()) {
         auto ancestor_computed_properties = ancestor.computed_properties();
@@ -2108,6 +2147,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
             continue;
         if (font_size_value->is_initial() || font_size_value->is_unset()) {
             current_size_in_px = default_monospace_font_size_in_px;
+            current_size_depends_on_viewport_metrics = false;
             continue;
         }
         if (font_size_value->is_inherit()) {
@@ -2117,6 +2157,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
         if (auto absolute_size = keyword_to_absolute_size(font_size_value->to_keyword()); absolute_size.has_value()) {
             current_size_in_px = absolute_size_mapping(absolute_size.value(), default_monospace_font_size_in_px);
+            current_size_depends_on_viewport_metrics = false;
             continue;
         }
 
@@ -2142,11 +2183,28 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
         VERIFY(font_size_value->is_length());
 
-        auto inherited_line_height = ancestor.element_to_inherit_style_from().map([](auto&& parent_element) { return parent_element.computed_properties()->line_height(); }).value_or(InitialValues::line_height());
+        bool inherited_font_metrics_depend_on_viewport_metrics = false;
+        auto inherited_line_height = ancestor.element_to_inherit_style_from()
+                                         .map([&](auto&& parent_element) {
+                                             inherited_font_metrics_depend_on_viewport_metrics = parent_element.computed_properties()->font_metrics_depend_on_viewport_metrics();
+                                             return parent_element.computed_properties()->line_height();
+                                         })
+                                         .value_or(InitialValues::line_height());
 
-        current_size_in_px = font_size_value->as_length().length().to_px(viewport_rect(), Length::FontMetrics { current_size_in_px, monospace_font->with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height }, m_root_element_font_metrics);
+        bool did_resolve_viewport_relative_length = false;
+        Length::ResolutionContext resolution_context {
+            .viewport_rect = viewport_rect(),
+            .font_metrics = { current_size_in_px, monospace_font->with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height },
+            .root_font_metrics = m_root_element_font_metrics,
+            .font_metrics_depend_on_viewport_metrics = current_size_depends_on_viewport_metrics || inherited_font_metrics_depend_on_viewport_metrics,
+            .root_font_metrics_depend_on_viewport_metrics = m_root_element_font_metrics_depend_on_viewport_metrics,
+        };
+        resolution_context.set_did_resolve_viewport_relative_length(did_resolve_viewport_relative_length);
+        current_size_in_px = font_size_value->as_length().length().to_px(resolution_context);
+        current_size_depends_on_viewport_metrics = did_resolve_viewport_relative_length;
     };
 
+    depends_on_viewport_metrics = current_size_depends_on_viewport_metrics;
     return CSS::LengthStyleValue::create(CSS::Length::make_px(current_size_in_px));
 }
 
@@ -2156,9 +2214,15 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
     auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
-    auto new_font_size = recascade_font_size_if_needed(abstract_element, cascaded_properties);
-    if (new_font_size)
+    bool recascaded_font_size_depends_on_viewport_metrics = false;
+    auto new_font_size = recascade_font_size_if_needed(abstract_element, cascaded_properties, recascaded_font_size_depends_on_viewport_metrics);
+    if (new_font_size) {
         computed_style->set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
+        if (recascaded_font_size_depends_on_viewport_metrics) {
+            computed_style->set_depends_on_viewport_metrics();
+            computed_style->set_font_metrics_depend_on_viewport_metrics();
+        }
+    }
 
     auto const& computed_properties_to_inherit_from = abstract_element.element_to_inherit_style_from().map([](auto const& element) { return element.computed_properties(); }).value_or(nullptr);
 
@@ -2168,9 +2232,13 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
     auto const device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
 
-    auto const compute_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> const& style_value) {
+    auto const compute_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> const& style_value, bool& depends_on_viewport_metrics) {
         auto const& computation_context = get_computation_context_for_property(property_id, *computed_style, abstract_element);
-        return compute_value_of_property(property_id, style_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
+        computation_context.reset_viewport_metric_dependency_tracking();
+        auto computed_value = compute_value_of_property(property_id, style_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
+        if (computation_context.depends_on_viewport_metrics())
+            depends_on_viewport_metrics = true;
+        return computed_value;
     };
 
     Optional<LogicalAliasMappingContext> logical_alias_mapping_context;
@@ -2251,6 +2319,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             computed_style->set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
             value = computed_properties_to_inherit_from->property(inherited_property_id, ComputedProperties::WithAnimationsApplied::No);
             requires_computation = property_requires_computation_with_inherited_value(property_id);
+            if (property_affects_font_metrics(inherited_property_id) && computed_properties_to_inherit_from->font_metrics_depend_on_viewport_metrics())
+                computed_style->set_font_metrics_depend_on_viewport_metrics();
 
             // FIXME: Do we need to recompute animated inherited values?
             if (auto animated_value = computed_properties_to_inherit_from->animated_property_values().get(inherited_property_id); animated_value.has_value())
@@ -2274,17 +2344,29 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         //        which contain lengths (e.g. StyleValueList)) - maybe we can use `is_computationally_independent()`
         bool depends_on_inherited_info = (value->is_length() && value->as_length().length().is_font_relative())
             || (property_id == PropertyID::FontWeight && first_is_one_of(value->to_keyword(), Keyword::Bolder, Keyword::Lighter))
-            || (property_id == PropertyID::FontSize && first_is_one_of(value->to_keyword(), Keyword::Larger, Keyword::Smaller));
+            || (property_id == PropertyID::FontSize && font_size_value_depends_on_inherited_font_size(*value))
+            || (property_id == PropertyID::LineHeight && line_height_value_depends_on_computed_font_size(*value));
         if (depends_on_inherited_info)
             computed_style->add_inheritance_dependent_specified_value(property_id, *value);
 
         // NB: We compute using the inherited (physical) property to avoid having to add cases for all the logical
         //     alias properties in `compute_value_of_property`
-        computed_style->set_property_without_modifying_flags(property_id, requires_computation ? compute_property(inherited_property_id, value.release_nonnull()) : value.release_nonnull());
+        bool depends_on_viewport_metrics = false;
+        auto computed_value = requires_computation
+            ? compute_property(inherited_property_id, value.release_nonnull(), depends_on_viewport_metrics)
+            : value.release_nonnull();
+        if (depends_on_viewport_metrics) {
+            computed_style->set_depends_on_viewport_metrics();
+            if (property_affects_font_metrics(inherited_property_id))
+                computed_style->set_font_metrics_depend_on_viewport_metrics();
+        }
+        computed_style->set_property_without_modifying_flags(property_id, move(computed_value));
     }
 
-    if (is<HTML::HTMLHtmlElement>(abstract_element.element()))
+    if (is<HTML::HTMLHtmlElement>(abstract_element.element())) {
         m_root_element_font_metrics = calculate_root_element_font_metrics(computed_style);
+        m_root_element_font_metrics_depend_on_viewport_metrics = computed_style->font_metrics_depend_on_viewport_metrics();
+    }
 
     // Compute the value of custom properties
     compute_custom_properties(computed_style, abstract_element);
@@ -2556,8 +2638,15 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::CornerTopLeftShape:
     case PropertyID::CornerTopRightShape:
         return compute_corner_shape(absolutized_value);
-    case PropertyID::FontSize:
-        return compute_font_size(absolutized_value, get_property_specified_value(PropertyID::MathDepth)->as_integer().integer(), inheritance_parent());
+    case PropertyID::FontSize: {
+        auto parent = inheritance_parent();
+        if (font_size_value_depends_on_inherited_font_size(*absolutized_value) && parent.has_value()) {
+            auto parent_properties = parent->computed_properties();
+            if (parent_properties && parent_properties->font_metrics_depend_on_viewport_metrics())
+                computation_context.length_resolution_context.record_viewport_relative_length_resolution();
+        }
+        return compute_font_size(absolutized_value, get_property_specified_value(PropertyID::MathDepth)->as_integer().integer(), parent);
+    }
     case PropertyID::FontStyle:
         return compute_font_style(absolutized_value);
     case PropertyID::FontWeight:

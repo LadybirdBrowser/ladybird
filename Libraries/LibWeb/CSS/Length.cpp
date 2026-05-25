@@ -133,7 +133,9 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
         .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() },
-        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() }
+        .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() },
+        .font_metrics_depend_on_viewport_metrics = element.computed_properties()->font_metrics_depend_on_viewport_metrics(),
+        .root_font_metrics_depend_on_viewport_metrics = root_element->computed_properties()->font_metrics_depend_on_viewport_metrics(),
     };
 }
 
@@ -177,7 +179,7 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
 
 CSSPixels Length::to_px(ResolutionContext const& context) const
 {
-    return to_px(context.viewport_rect, context.font_metrics, context.root_font_metrics);
+    return CSSPixels::nearest_value_for(to_px_without_rounding(context));
 }
 
 CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
