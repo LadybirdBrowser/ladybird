@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function createUnreachableMediaElementWithControls() {
+        const video = document.createElement("video");
+        video.controls = true;
+    }
+
+    asyncTest(done => {
+        createUnreachableMediaElementWithControls();
+
+        requestIdleCallback(() => {
+            internals.gc();
+            println("PASS (didn't crash)");
+            done();
+        });
+    });
+</script>
