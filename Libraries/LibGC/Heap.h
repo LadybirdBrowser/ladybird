@@ -52,6 +52,7 @@ public:
     template<typename T, typename... Args>
     Ref<T> allocate(Args&&... args)
     {
+        VERIFY(!m_collecting_garbage);
         auto* memory = allocate_cell<T>();
         defer_gc();
         new (memory) T(forward<Args>(args)...);
