@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .grid {
+        display: inline-grid;
+        grid-template-columns: auto;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / span 1;
+        grid-template-columns: subgrid;
+    }
+
+    .item {
+        height: 10px;
+        width: 100px;
+    }
+
+    #basic .item {
+        width: 200px;
+    }
+
+    #edge-space .subgrid {
+        border-left: 5px solid;
+        border-right: 7px solid;
+        margin-left: 10px;
+        margin-right: 13px;
+        padding-left: 15px;
+        padding-right: 20px;
+    }
+</style>
+<div id="basic" class="grid"><div class="subgrid"><div class="item"></div></div></div>
+<div id="edge-space" class="grid"><div class="subgrid"><div class="item"></div></div></div>
+<script src="../include.js"></script>
+<script>
+    function roundedRect(selector) {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        return {
+            x: Math.round(rect.x),
+            width: Math.round(rect.width),
+        };
+    }
+
+    function roundedRelativeX(selector, ancestorSelector) {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        const ancestorRect = document.querySelector(ancestorSelector).getBoundingClientRect();
+        return Math.round(rect.x - ancestorRect.x);
+    }
+
+    function printCase(id) {
+        println(`${id} grid: ${roundedRect(`#${id}`).width}`);
+        println(`${id} subgrid: ${roundedRect(`#${id} .subgrid`).width}`);
+        println(`${id} item: ${roundedRect(`#${id} .item`).width}`);
+        println(`${id} item x: ${roundedRelativeX(`#${id} .item`, `#${id}`)}`);
+    }
+
+    test(() => {
+        printCase("basic");
+        printCase("edge-space");
+    });
+</script>

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/Layout/FormattingContext.h>
 
@@ -152,8 +153,6 @@ public:
     bool is_occupied(int column_index, int row_index) const;
     bool is_area_occupied(int column_start, int row_start, int column_span, int row_span) const;
 
-    FoundUnoccupiedPlace find_unoccupied_place(GridDimension dimension, int& column_index, int& row_index, int column_span, int row_span) const;
-
 private:
     HashTable<GridPosition> m_occupation_grid;
 
@@ -208,6 +207,8 @@ private:
 
         static GridTrack create_from_definition(CSS::ExplicitGridTrack const& definition, bool is_auto_fit);
         static GridTrack create_auto();
+        static GridTrack create_from_subgrid_parent_track(GridTrack const&);
+        static GridTrack create_fixed(CSSPixels size);
         static GridTrack create_gap(CSSPixels size);
     };
 
@@ -219,14 +220,20 @@ private:
     Vector<GridTrack> m_grid_rows;
     Vector<GridTrack> m_grid_columns;
 
-    bool has_gaps(GridDimension dimension) const
-    {
-        if (dimension == GridDimension::Column) {
-            return !grid_container().computed_values().column_gap().has<CSS::NormalGap>();
-        } else {
-            return !grid_container().computed_values().row_gap().has<CSS::NormalGap>();
-        }
-    }
+    bool is_subgridded_axis(GridDimension) const;
+    GridFormattingContext const* parent_grid_formatting_context() const;
+    GridItem const* grid_item_for_box(Box const&) const;
+    GridItem const* parent_grid_item() const;
+    bool grid_item_is_subgridded_in_axis(GridItem const&, GridDimension) const;
+    void for_each_item_contributing_to_track_sizing(GridDimension, Function<void(GridItem const&)> const&);
+    void for_each_subgrid_item_contributing_to_track_sizing(GridItem const&, GridDimension, Function<void(GridItem const&)> const&);
+    size_t subgrid_track_count(GridDimension) const;
+    CSSPixels parent_gap_size_for_subgrid(GridDimension) const;
+    CSSPixels subgrid_gap_extra_margin(GridDimension, AvailableSize const&) const;
+    void apply_subgrid_edge_extra_margins(GridItem&, GridDimension) const;
+    void apply_subgrid_gap_extra_margins(GridItem&, GridDimension, AvailableSize const&) const;
+    CSSPixels resolved_gap_size(GridDimension, AvailableSize const&) const;
+    bool has_gaps(GridDimension) const;
 
     template<typename Callback>
     void for_each_spanned_track_by_item(GridItem const& item, GridDimension dimension, Callback callback)
@@ -334,9 +341,14 @@ private:
     void place_item_with_row_position(Box const& child_box);
     void place_item_with_column_position(Box const& child_box, int& auto_placement_cursor_row);
     void place_item_with_no_declared_position(Box const& child_box, int& auto_placement_cursor_column, int& auto_placement_cursor_row);
+    void clamp_grid_area_to_subgrid(GridDimension, int&, size_t&) const;
+    void clamp_grid_area_to_subgrid(GridItem&) const;
+    bool grid_area_is_occupied(int column_start, int row_start, size_t column_span, size_t row_span) const;
+    FoundUnoccupiedPlace find_unoccupied_grid_area(GridDimension, int& column_index, int& row_index, size_t column_span, size_t row_span) const;
     void record_grid_placement(GridItem);
 
     void initialize_grid_tracks_from_definition(GridDimension);
+    void initialize_grid_tracks_from_subgrid(GridDimension);
     void initialize_grid_tracks_for_columns_and_rows();
     void initialize_gap_tracks(GridDimension, AvailableSize const&);
     void initialize_gap_tracks(AvailableSpace const&);

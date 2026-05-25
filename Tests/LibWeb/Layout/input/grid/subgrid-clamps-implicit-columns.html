@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-columns: 40px 60px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / 2;
+        grid-template-columns: subgrid;
+    }
+
+    .item {
+        grid-column: 2 / span 3;
+        height: 20px;
+    }
+</style>
+<div class="parent"><div class="subgrid"><div class="item"></div></div></div>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #no-parent {
+        display: grid;
+        grid-auto-columns: 10px;
+        grid-template-columns: subgrid [a] [b] [c] [d];
+        width: 100px;
+    }
+
+    #no-parent i {
+        grid-row: 1;
+        height: 10px;
+        width: 10px;
+    }
+
+    #no-parent .target {
+        grid-column: a / d;
+        height: 10px;
+    }
+
+    #auto-span {
+        display: grid;
+        grid-template-columns: 40px 50px 60px;
+    }
+
+    #auto-span .subgrid {
+        display: grid;
+        grid-template-columns: subgrid [a] [b] [c];
+    }
+
+    #auto-span .target {
+        grid-column: 2;
+        height: 10px;
+    }
+
+    #gap {
+        column-gap: 50px;
+        display: grid;
+        grid-template-columns: 100px 1fr;
+        width: 300px;
+    }
+
+    #gap .subgrid {
+        column-gap: 0;
+        display: grid;
+        grid-column: 1 / span 2;
+        grid-template-columns: subgrid;
+    }
+
+    #gap .left {
+        grid-column: 1;
+        height: 10px;
+    }
+
+    #gap .right {
+        grid-column: 2;
+        height: 10px;
+    }
+</style>
+<div id="no-parent">
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    <div class="target"></div>
+</div>
+<div id="auto-span">
+    <div class="subgrid">
+        <div class="target"></div>
+    </div>
+</div>
+<div id="gap">
+    <div class="subgrid">
+        <div class="left"></div>
+        <div class="right"></div>
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    function relativeInlineRect(selector, relativeTo) {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        const relativeRect = document.querySelector(relativeTo).getBoundingClientRect();
+        return `${Math.round(rect.x - relativeRect.x)} ${Math.round(rect.width)}`;
+    }
+
+    test(() => {
+        println(`no-parent: ${relativeInlineRect("#no-parent .target", "#no-parent")}`);
+        println(`auto-span subgrid: ${relativeInlineRect("#auto-span .subgrid", "#auto-span")}`);
+        println(`auto-span target: ${relativeInlineRect("#auto-span .target", "#auto-span")}`);
+        println(`gap left: ${relativeInlineRect("#gap .left", "#gap")}`);
+        println(`gap right: ${relativeInlineRect("#gap .right", "#gap")}`);
+    });
+</script>
