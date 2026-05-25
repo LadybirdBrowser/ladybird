@@ -1,5 +1,12 @@
 initial color: rgb(255, 0, 0)
 initial canvas fill style: #ff0000
+initial nested color: rgb(255, 0, 0)
 targeted canvas fill style: #008000
 resized color: rgb(0, 128, 0)
-media query full invalidations: 1
+resized nested color: rgb(0, 0, 255)
+media query full invalidations: 0
+media query recomputations bounded: true
+resized back color: rgb(255, 0, 0)
+resized back nested color: rgb(255, 0, 0)
+media query full invalidations after resize back: 0
+media query recomputations bounded after resize back: true

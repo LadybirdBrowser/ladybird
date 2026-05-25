@@ -1,0 +1,5 @@
+initial shadow host color: rgb(255, 0, 0)
+resized shadow host color: rgb(255, 0, 0)
+resized recomputed host side: true
+resized back shadow host color: rgb(255, 0, 0)
+resized back recomputed host side: true

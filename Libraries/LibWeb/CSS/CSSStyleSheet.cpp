@@ -518,6 +518,11 @@ void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)
 
 bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)
 {
+    return evaluate_media_queries(document, [](CSSRule const&) { });
+}
+
+bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document, Function<void(CSSRule const&)> const& changed_rule_callback)
+{
     bool any_media_queries_changed_match_state = false;
 
     bool now_matches = m_media->evaluate(document);
@@ -525,10 +530,18 @@ bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)
     // StyleSheetListAddSheet, AdoptedStyleSheetsList, or invalidate_owners (each of which performs its own
     // invalidation), so we don't need to also report a match-state change just because no prior result was
     // recorded.
-    if (m_did_match.has_value() && m_did_match.value() != now_matches)
+    bool did_match_state_change = m_did_match.has_value() && m_did_match.value() != now_matches;
+    if (did_match_state_change)
         any_media_queries_changed_match_state = true;
-    if (now_matches && m_rules->evaluate_media_queries(document))
+    if (now_matches && m_rules->evaluate_media_queries(document, changed_rule_callback))
         any_media_queries_changed_match_state = true;
+    if (did_match_state_change) {
+        // Imported stylesheets can also have cascade effects through their owning @import rule itself, for example
+        // when a layered import's media gate starts or stops contributing its layer declaration.
+        if (auto rule = owner_rule())
+            changed_rule_callback(*rule);
+        m_rules->for_each_effective_rule(TraversalOrder::Preorder, changed_rule_callback);
+    }
 
     m_did_match = now_matches;
     if (any_media_queries_changed_match_state)

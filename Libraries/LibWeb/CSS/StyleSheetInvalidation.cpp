@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -155,6 +157,8 @@ static bool is_pseudo_element_targeting_compound(Selector::CompoundSelector cons
         && compound_selector.simple_selectors.first().type == Selector::SimpleSelector::Type::PseudoElement;
 }
 
+static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const&);
+
 // :has() in the rightmost set filters by an element's previously recorded "affected by :has()" flags. Those flags
 // are not yet set for a brand-new rule that has never been matched, so :has() on its own can't narrow the walk.
 // Treat a rightmost set whose only targetable feature is :has() as if it had no targetable features, so we fall
@@ -223,13 +227,11 @@ static Optional<AnchorInvalidationRule> try_build_anchor_for_leading_compounds(V
     return {};
 }
 
-void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationSet& result, CSSStyleRule const& style_rule)
+static void extend_style_sheet_invalidation_set_with_selectors(StyleSheetInvalidationSet& result, SelectorList const& selectors, GC::Ptr<CSSStyleSheet const> style_sheet_for_rule)
 {
-    auto* style_sheet_for_rule = const_cast<CSSStyleRule&>(style_rule).parent_style_sheet();
-
     StyleInvalidationData throwaway_data;
 
-    for (auto const& selector : style_rule.absolutized_selectors()) {
+    for (auto const& selector : selectors) {
         result.may_match_light_dom_under_shadow_host |= selector_may_match_light_dom_under_shadow_host(*selector);
         result.may_match_light_dom_outside_shadow_host |= selector_may_match_light_dom_outside_shadow_host(*selector);
         result.may_match_shadow_host |= selector->contains_pseudo_class(PseudoClass::Host);
@@ -312,6 +314,29 @@ void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationS
         result.invalidation_set.set_needs_invalidate_whole_subtree();
         return;
     }
+}
+
+void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationSet& result, CSSStyleRule const& style_rule)
+{
+    auto* style_sheet_for_rule = const_cast<CSSStyleRule&>(style_rule).parent_style_sheet();
+    extend_style_sheet_invalidation_set_with_selectors(result, style_rule.absolutized_selectors(), style_sheet_for_rule);
+}
+
+void extend_style_sheet_invalidation_set_with_rule(StyleSheetInvalidationSet& result, CSSRule const& rule)
+{
+    if (auto const* style_rule = as_if<CSSStyleRule>(rule)) {
+        extend_style_sheet_invalidation_set_with_style_rule(result, *style_rule);
+        return;
+    }
+
+    if (auto const* nested_declarations = as_if<CSSNestedDeclarations>(rule)) {
+        auto* style_sheet_for_rule = const_cast<CSSNestedDeclarations&>(*nested_declarations).parent_style_sheet();
+        extend_style_sheet_invalidation_set_with_selectors(result, nested_declarations->absolutized_selectors(), style_sheet_for_rule);
+        return;
+    }
+
+    if (rule_requires_broad_add_or_remove_invalidation(rule))
+        result.invalidation_set.set_needs_invalidate_whole_subtree();
 }
 
 static GC::Ptr<DOM::Element const> shadow_host_for_targeted_shadow_root_invalidation(DOM::Node const& root)
@@ -520,8 +545,26 @@ void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidat
     }
 }
 
+void add_shadow_root_stylesheet_effects_for_broad_invalidation(DOM::Node& root, StyleSheetInvalidationSet& result, bool requires_broad_invalidation)
+{
+    if (!requires_broad_invalidation)
+        return;
+
+    auto* shadow_root = as_if<DOM::ShadowRoot>(root);
+    if (!shadow_root)
+        return;
+
+    auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
+    result.may_match_shadow_host |= effects.may_match_shadow_host;
+    result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
+    result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
+}
+
 static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
 {
+    if (auto const* import_rule = as_if<CSSImportRule>(rule))
+        return import_rule->layer_name().has_value();
+
     switch (rule.type()) {
     case CSSRule::Type::Property:
     case CSSRule::Type::CounterStyle:
@@ -586,14 +629,7 @@ void invalidate_style_for_stylesheet_change(DOM::Node& document_or_shadow_root, 
 
     bool requires_broad_invalidation = invalidation_set_result.invalidation_set.needs_invalidate_whole_subtree()
         || sheet_contains_broad_invalidation_rule;
-    if (requires_broad_invalidation) {
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root)) {
-            auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
-            invalidation_set_result.may_match_shadow_host |= effects.may_match_shadow_host;
-            invalidation_set_result.may_match_light_dom_under_shadow_host |= effects.may_match_light_dom_under_shadow_host;
-            invalidation_set_result.may_match_light_dom_outside_shadow_host |= effects.may_match_light_dom_outside_shadow_host;
-        }
-    }
+    add_shadow_root_stylesheet_effects_for_broad_invalidation(document_or_shadow_root, invalidation_set_result, requires_broad_invalidation);
 
     invalidate_root_for_style_sheet_change(document_or_shadow_root, invalidation_set_result, reason, requires_broad_invalidation);
 
@@ -838,7 +874,7 @@ void invalidate_style_for_style_sheet_owners(CSSStyleSheet const& style_sheet, D
     });
 }
 
-void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet const& sheet)
+void invalidate_root_for_keyframes_rule(DOM::Node& root, FlyString const& animation_name)
 {
     // Shadow-scoped keyframes can still affect elements outside the shadow subtree when an active rule in the same
     // scope sets `animation-name` via :host or ::slotted(...). Mirror the fan-out used by the per-rule helper so the
@@ -851,17 +887,22 @@ void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet
         include_light_dom_under_shadow_host = effects.may_match_light_dom_under_shadow_host;
     }
 
+    for_each_tree_affected_by_shadow_root_stylesheet_change(
+        root,
+        include_host,
+        include_light_dom_under_shadow_host,
+        [&](DOM::Node& affected_root) {
+            invalidate_elements_affected_by_inserted_keyframes_rule(affected_root, animation_name);
+        });
+}
+
+void invalidate_root_for_keyframes_rules_in_sheet(DOM::Node& root, CSSStyleSheet const& sheet)
+{
     sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
         auto const* keyframes_rule = as_if<CSSKeyframesRule>(rule);
         if (!keyframes_rule)
             return;
-        for_each_tree_affected_by_shadow_root_stylesheet_change(
-            root,
-            include_host,
-            include_light_dom_under_shadow_host,
-            [&](DOM::Node& affected_root) {
-                invalidate_elements_affected_by_inserted_keyframes_rule(affected_root, keyframes_rule->name());
-            });
+        invalidate_root_for_keyframes_rule(root, keyframes_rule->name());
     });
 }
 
@@ -876,21 +917,7 @@ void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sh
         if (!document_or_shadow_root->is_shadow_root() && document_or_shadow_root->entire_subtree_needs_style_update())
             continue;
 
-        bool include_host = false;
-        bool include_light_dom_under_shadow_host = false;
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(*document_or_shadow_root)) {
-            auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
-            include_host = effects.may_match_shadow_host;
-            include_light_dom_under_shadow_host = effects.may_match_light_dom_under_shadow_host;
-        }
-
-        for_each_tree_affected_by_shadow_root_stylesheet_change(
-            *document_or_shadow_root,
-            include_host,
-            include_light_dom_under_shadow_host,
-            [&](DOM::Node& affected_root) {
-                invalidate_elements_affected_by_inserted_keyframes_rule(affected_root, keyframes_rule.name());
-            });
+        invalidate_root_for_keyframes_rule(*document_or_shadow_root, keyframes_rule.name());
     }
 }
 
