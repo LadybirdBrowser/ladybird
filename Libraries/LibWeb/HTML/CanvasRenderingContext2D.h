@@ -38,8 +38,8 @@ class CanvasRenderingContext2D
     : public Bindings::PlatformObject
     , public CanvasPath
     , public CanvasState
-    , public CanvasTransform<CanvasRenderingContext2D>
-    , public CanvasFillStrokeStyles<CanvasRenderingContext2D>
+    , public CanvasTransform
+    , public CanvasFillStrokeStyles
     , public CanvasShadowStyles
     , public CanvasFilters
     , public CanvasRect
@@ -50,8 +50,8 @@ class CanvasRenderingContext2D
     , public CanvasImageSmoothing
     , public CanvasCompositing
     , public CanvasSettings
-    , public CanvasPathDrawingStyles<CanvasRenderingContext2D>
-    , public CanvasTextDrawingStyles<CanvasRenderingContext2D, HTMLCanvasElement> {
+    , public CanvasPathDrawingStyles
+    , public CanvasTextDrawingStyles<HTMLCanvasElement> {
 
     WEB_PLATFORM_OBJECT(CanvasRenderingContext2D, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
@@ -131,6 +131,14 @@ public:
     RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
     void allocate_painting_surface_if_needed();
 
+protected:
+    [[nodiscard]] Gfx::Painter* my_painter() override { return painter(); }
+    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> my_canvas_element() override { return GC::Ref { canvas_element() }; }
+    JS::Realm& my_realm() override { return realm(); }
+    Gfx::Path& mutable_path() override { return path(); }
+    DrawingState& my_drawing_state() override { return drawing_state(); }
+    DrawingState const& my_drawing_state() const override { return drawing_state(); }
+
 private:
     CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
 
@@ -139,9 +147,6 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
-
-    virtual Gfx::Painter* painter_for_canvas_state() override { return painter(); }
-    virtual Gfx::Path& path_for_canvas_state() override { return path(); }
 
     struct PreparedText {
         Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;

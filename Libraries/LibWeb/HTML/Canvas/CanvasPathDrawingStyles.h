@@ -6,13 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/HTML/Canvas/DrawingState.h>
+#include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvaspathdrawingstyles
-template<typename IncludingClass>
-class CanvasPathDrawingStyles {
+class CanvasPathDrawingStyles : protected virtual AbstractCanvasMixin {
 public:
     ~CanvasPathDrawingStyles() = default;
 
@@ -114,10 +113,6 @@ public:
 
 protected:
     CanvasPathDrawingStyles() = default;
-
-private:
-    DrawingState& my_drawing_state() { return static_cast<IncludingClass&>(*this).drawing_state(); }
-    DrawingState const& my_drawing_state() const { return static_cast<IncludingClass const&>(*this).drawing_state(); }
 };
 
 }

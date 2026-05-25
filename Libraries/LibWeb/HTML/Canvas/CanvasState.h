@@ -7,17 +7,14 @@
 
 #pragma once
 
-#include <LibWeb/HTML/Canvas/DrawingState.h>
+#include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasstate
-class CanvasState {
+class CanvasState : protected virtual AbstractCanvasMixin {
 public:
     virtual ~CanvasState() = default;
-
-    virtual Gfx::Painter* painter_for_canvas_state() = 0;
-    virtual Gfx::Path& path_for_canvas_state() = 0;
 
     void save();
     void restore();
