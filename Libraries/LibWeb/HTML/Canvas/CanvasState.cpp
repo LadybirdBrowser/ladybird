@@ -17,7 +17,7 @@ void CanvasState::save()
     // The save() method steps are to push a copy of the current drawing state onto the drawing state stack.
     m_drawing_state_stack.append(m_drawing_state);
 
-    if (auto* painter = my_painter())
+    if (auto* painter = this->painter())
         painter->save();
 }
 
@@ -29,7 +29,7 @@ void CanvasState::restore()
         return;
     m_drawing_state = m_drawing_state_stack.take_last();
 
-    if (auto* painter = my_painter())
+    if (auto* painter = this->painter())
         painter->restore();
 }
 

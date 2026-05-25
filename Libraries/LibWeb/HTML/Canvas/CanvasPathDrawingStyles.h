@@ -22,36 +22,36 @@ public:
         if (line_width <= 0 || !isfinite(line_width))
             return;
         // other values must change the current value to the new value.
-        my_drawing_state().line_width = line_width;
+        drawing_state().line_width = line_width;
     }
     float line_width() const
     {
         // On getting, it must return the current value.
-        return my_drawing_state().line_width;
+        return drawing_state().line_width;
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linecap
     void set_line_cap(Bindings::CanvasLineCap line_cap)
     {
         // On setting, the current value must be changed to the new value.
-        my_drawing_state().line_cap = line_cap;
+        drawing_state().line_cap = line_cap;
     }
     Bindings::CanvasLineCap line_cap() const
     {
         // On getting, it must return the current value.
-        return my_drawing_state().line_cap;
+        return drawing_state().line_cap;
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linejoin
     void set_line_join(Bindings::CanvasLineJoin line_join)
     {
         // On setting, the current value must be changed to the new value.
-        my_drawing_state().line_join = line_join;
+        drawing_state().line_join = line_join;
     }
     Bindings::CanvasLineJoin line_join() const
     {
         // On getting, it must return the current value.
-        return my_drawing_state().line_join;
+        return drawing_state().line_join;
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-miterlimit
@@ -61,12 +61,12 @@ public:
         if (miter_limit <= 0 || !isfinite(miter_limit))
             return;
         // other values must change the current value to the new value.
-        my_drawing_state().miter_limit = miter_limit;
+        drawing_state().miter_limit = miter_limit;
     }
     float miter_limit() const
     {
         // On getting, it must return the current value.
-        return my_drawing_state().miter_limit;
+        return drawing_state().miter_limit;
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-setlinedash
@@ -86,14 +86,14 @@ public:
             segments.extend(segments);
 
         // 3. Set the object's dash list to segments.
-        my_drawing_state().dash_list = move(segments);
+        drawing_state().dash_list = move(segments);
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getlinedash
     Vector<double> get_line_dash()
     {
         // When the getLineDash() method is invoked, it must return a sequence whose values are the values of the object's dash list, in the same order.
-        return my_drawing_state().dash_list;
+        return drawing_state().dash_list;
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linedashoffset
@@ -103,12 +103,12 @@ public:
         if (!isfinite(line_dash_offset))
             return;
         // other values must change the current value to the new value.
-        my_drawing_state().line_dash_offset = line_dash_offset;
+        drawing_state().line_dash_offset = line_dash_offset;
     }
     float line_dash_offset() const
     {
         // On getting, it must return the current value.
-        return my_drawing_state().line_dash_offset;
+        return drawing_state().line_dash_offset;
     }
 
 protected:

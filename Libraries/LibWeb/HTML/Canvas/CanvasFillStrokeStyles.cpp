@@ -28,7 +28,7 @@ void CanvasFillStrokeStyles::set_fill_style(FillOrStrokeStyleVariant style)
         // 1. If the given value is a string, then:
         [&](String const& string) {
             // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-            HTMLCanvasElement* context = my_canvas_element().visit(
+            HTMLCanvasElement* context = canvas_element().visit(
                 [&](HTMLCanvasElement* canvas_element) -> HTMLCanvasElement* {
                     return canvas_element;
                 },
@@ -53,7 +53,7 @@ void CanvasFillStrokeStyles::set_fill_style(FillOrStrokeStyleVariant style)
                 auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
 
                 // 4. Set this's fill style to parsedValue.
-                my_drawing_state().fill_style = parsedValue;
+                drawing_state().fill_style = parsedValue;
             } else {
                 // 3. If parsedValue is failure, then return.
                 return;
@@ -66,13 +66,13 @@ void CanvasFillStrokeStyles::set_fill_style(FillOrStrokeStyleVariant style)
             // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
 
             // 3. Set this's fill style to the given value.
-            my_drawing_state().fill_style = GC::Ref { *fill_or_stroke_style };
+            drawing_state().fill_style = GC::Ref { *fill_or_stroke_style };
         });
 }
 
 CanvasFillStrokeStyles::FillOrStrokeStyleVariant CanvasFillStrokeStyles::fill_style() const
 {
-    return my_drawing_state().fill_style.to_js_fill_or_stroke_style();
+    return drawing_state().fill_style.to_js_fill_or_stroke_style();
 }
 
 void CanvasFillStrokeStyles::set_stroke_style(FillOrStrokeStyleVariant style)
@@ -83,7 +83,7 @@ void CanvasFillStrokeStyles::set_stroke_style(FillOrStrokeStyleVariant style)
         // 1. If the given value is a string, then:
         [&](String const& string) {
             // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-            HTMLCanvasElement* context = my_canvas_element().visit(
+            HTMLCanvasElement* context = canvas_element().visit(
                 [&](HTMLCanvasElement* canvas_element) -> HTMLCanvasElement* {
                     return canvas_element;
                 },
@@ -108,7 +108,7 @@ void CanvasFillStrokeStyles::set_stroke_style(FillOrStrokeStyleVariant style)
                 auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
 
                 // 4. Set this's stroke style to parsedValue.
-                my_drawing_state().stroke_style = parsedValue;
+                drawing_state().stroke_style = parsedValue;
             } else {
                 // 3. If parsedValue is failure, then return.
                 return;
@@ -121,13 +121,13 @@ void CanvasFillStrokeStyles::set_stroke_style(FillOrStrokeStyleVariant style)
             // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
 
             // 3. Set this's stroke style to the given value.
-            my_drawing_state().stroke_style = GC::Ref { *fill_or_stroke_style };
+            drawing_state().stroke_style = GC::Ref { *fill_or_stroke_style };
         });
 }
 
 CanvasFillStrokeStyles::FillOrStrokeStyleVariant CanvasFillStrokeStyles::stroke_style() const
 {
-    return my_drawing_state().stroke_style.to_js_fill_or_stroke_style();
+    return drawing_state().stroke_style.to_js_fill_or_stroke_style();
 }
 
 WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
