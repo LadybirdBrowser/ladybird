@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-areas:
+            "top top top"
+            "rail notice notice"
+            "rail list page";
+        grid-template-columns: [start] 50px [rail-end] 100px [list-end] 150px [end];
+        grid-template-rows: [top] 20px [top-end] 0 [notice-end] 40px [end];
+    }
+
+    .top {
+        grid-area: top;
+    }
+
+    .content {
+        display: grid;
+        grid-column: start / end;
+        grid-row: top-end / end;
+        grid-template-columns: subgrid;
+        grid-template-rows: subgrid;
+    }
+
+    .sidebar {
+        display: grid;
+        grid-column: start / list-end;
+        grid-row: top-end / end;
+        grid-template-columns: subgrid;
+        grid-template-rows: subgrid;
+    }
+
+    .rail {
+        grid-area: rail;
+    }
+
+    .list {
+        grid-area: list;
+    }
+
+    .page {
+        grid-area: page;
+    }
+</style>
+<div class="parent"><div class="top"></div><div class="content"><div class="sidebar"><div class="rail"></div><div class="list"></div></div><div class="page"></div></div></div>
