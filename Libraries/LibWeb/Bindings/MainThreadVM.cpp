@@ -10,6 +10,7 @@
 
 #include <LibGC/DeferGC.h>
 #include <LibJS/Module.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
@@ -247,7 +248,15 @@ void initialize_main_thread_vm(AgentType type)
         // 2. Queue a global task on the JavaScript engine task source given global to perform the following steps:
         HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, GC::create_function(s_main_thread_vm->heap(), [&finalization_registry] {
             // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
-            auto& entry = HTML::principal_realm_settings_object(*finalization_registry.cleanup_callback().callback().realm());
+            // AD-HOC: The spec assumes [[Callback]] has a [[Realm]] internal slot, but Proxy and BoundFunction
+            //         exotic objects do not. Use GetFunctionRealm to unwrap these exotic objects, falling back to
+            //         the FinalizationRegistry's own realm on failure.
+            // Spec issue: https://github.com/whatwg/html/issues/12326
+            HTML::TemporaryExecutionContext context { finalization_registry.realm() };
+            auto& callback = finalization_registry.cleanup_callback().callback();
+            auto callback_realm = JS::get_function_realm(callback.vm(), callback);
+            auto& realm = callback_realm.is_throw_completion() ? finalization_registry.realm() : *callback_realm.value();
+            auto& entry = HTML::principal_realm_settings_object(realm);
 
             // 2. Prepare to run script with entry.
             HTML::prepare_to_run_script(entry);

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../../Text/input/include.js"></script>
+<script>
+const callback = new Proxy(function() {}, {});
+const registry = new FinalizationRegistry(callback);
+
+(function() {
+    registry.register({}, "held");
+})();
+
+internals.gc();
+</script>

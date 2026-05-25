@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../Text/input/include.js"></script>
+<script>
+const { proxy, revoke } = Proxy.revocable(function() {}, {});
+const registry = new FinalizationRegistry(proxy);
+revoke();
+
+(function() {
+    registry.register({}, "held");
+})();
+
+internals.gc();
+</script>
