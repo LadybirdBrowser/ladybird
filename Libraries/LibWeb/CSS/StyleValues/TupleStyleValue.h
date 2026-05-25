@@ -29,7 +29,7 @@ public:
 
     virtual bool is_computationally_independent() const override
     {
-        return all_of(m_tuple, [](auto& value) { return value->is_computationally_independent(); });
+        return all_of(m_tuple, [](auto& value) { return !value || value->is_computationally_independent(); });
     }
 
     struct Indices {
