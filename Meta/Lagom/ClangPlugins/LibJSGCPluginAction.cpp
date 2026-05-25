@@ -363,9 +363,6 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     auto record_is_cell = record_inherits_from_cell(*record);
 
     for (clang::FieldDecl const* field : record->fields()) {
-        if (decl_has_annotation(field, "serenity::ignore_gc"))
-            continue;
-
         // Skip anonymous structs/unions - their members are accessed indirectly
         // and may be handled specially (e.g., tagged unions with type checks)
         if (field->isAnonymousStructOrUnion())
