@@ -566,29 +566,31 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
     VERIFY(box.parent()->children_are_inline());
 
     CSSPixelPoint position;
-    if (auto const* sibling = box.previous_sibling()) {
-        // We're calculating the position for an absolutely positioned box with a previous sibling in an IFC.
-        // We need to position the box...
-        // ...below the last fragment of this sibling, if the display-outside value (before box type transformation) is block.
-        // ...at the top right corner of the last fragment of this sibling otherwise.
-        LineBoxFragment const* last_fragment = nullptr;
-        auto const& cb_state = m_state.get(*sibling->containing_block());
-        for (auto const& line_box : cb_state.line_boxes) {
+
+    // We're calculating the position for an absolutely positioned box in an IFC.
+    // Walk backwards through previous siblings to find the most recent one with a line box fragment.
+    LineBoxFragment const* last_fragment = nullptr;
+    for (auto const* sibling = box.previous_sibling(); sibling && !last_fragment; sibling = sibling->previous_sibling()) {
+        for (auto const& line_box : m_containing_block_used_values.line_boxes) {
             for (auto const& fragment : line_box.fragments()) {
                 if (&fragment.layout_node() == sibling)
                     last_fragment = &fragment;
             }
         }
-        if (last_fragment) {
-            if (box.display_before_box_type_transformation().is_block_outside()) {
-                // Display-outside value is block => position below
-                position.set_x(0);
-                position.set_y(last_fragment->offset().y() + last_fragment->height());
-            } else {
-                // Display-outside value is not block => position to the right
-                position.set_x(last_fragment->offset().x() + last_fragment->width());
-                position.set_y(last_fragment->offset().y());
-            }
+    }
+
+    // We need to position the box...
+    // ...below the last fragment, if the display-outside value (before box type transformation) is block.
+    // ...at the top right corner of the last fragment otherwise.
+    if (last_fragment) {
+        if (box.display_before_box_type_transformation().is_block_outside()) {
+            // Display-outside value is block => position below
+            position.set_x(0);
+            position.set_y(last_fragment->offset().y() + last_fragment->height());
+        } else {
+            // Display-outside value is not block => position to the right
+            position.set_x(last_fragment->offset().x() + last_fragment->width());
+            position.set_y(last_fragment->offset().y());
         }
     }
 
