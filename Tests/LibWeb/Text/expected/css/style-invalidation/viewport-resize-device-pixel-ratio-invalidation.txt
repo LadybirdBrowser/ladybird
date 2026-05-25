@@ -1,0 +1,7 @@
+initial device pixel ratio: 1
+initial border width: 1px
+initial outline width: 1px
+updated device pixel ratio: 2
+updated border width: 0.5px
+updated outline width: 0.5px
+full invalidation happened: true

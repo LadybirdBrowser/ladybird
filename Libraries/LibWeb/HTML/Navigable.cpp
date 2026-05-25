@@ -2938,7 +2938,10 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     }
 
     if (auto document = active_document()) {
-        document->invalidate_style_for_viewport_change();
+        if (invalidate_display_list == InvalidateDisplayList::Yes)
+            document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
+        else
+            document->invalidate_style_for_viewport_change();
         document->set_needs_media_query_evaluation();
         document->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
