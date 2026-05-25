@@ -2131,6 +2131,13 @@ HANDLE_INSTRUCTION(return_)
 {
     LOG_INSN;
     configuration.label_stack().shrink(configuration.frame().label_index() + 1, true);
+    // Clear intermediate working values from the value stack, keeping only the top .arity() (the return values) above
+    // the function-level label's recorded stack_height. Without this, residual values pushed before the return are
+    // leaked to the caller’s value stack — and accumulate across nested calls until heap-buffer-overflow.
+    auto const& label = configuration.label_stack().unsafe_last();
+    auto& vs = configuration.value_stack();
+    if (vs.size() > label.stack_height() + label.arity())
+        vs.remove(label.stack_height(), vs.size() - label.stack_height() - label.arity());
     return Outcome::Return;
 }
 
