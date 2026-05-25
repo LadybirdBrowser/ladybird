@@ -582,8 +582,9 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
     // We need to position the box...
     // ...below the last fragment, if the display-outside value (before box type transformation) is block.
     // ...at the top right corner of the last fragment otherwise.
+    auto is_block_outside = box.display_before_box_type_transformation().is_block_outside();
     if (last_fragment) {
-        if (box.display_before_box_type_transformation().is_block_outside()) {
+        if (is_block_outside) {
             // Display-outside value is block => position below
             position.set_x(0);
             position.set_y(last_fragment->offset().y() + last_fragment->height());
@@ -592,6 +593,10 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
             position.set_x(last_fragment->offset().x() + last_fragment->width());
             position.set_y(last_fragment->offset().y());
         }
+    } else if (!is_block_outside) {
+        // No preceding sibling has a line box fragment (e.g. only floats and collapsed whitespace precede this box).
+        // For inline-level elements, the static position must account for float intrusion into the line box.
+        position.set_x(leftmost_inline_offset_at(0));
     }
 
     return { .rect = { position, { 0, 0 } } };
