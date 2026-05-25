@@ -65,8 +65,59 @@ public:
         CSSPixelRect viewport_rect;
         FontMetrics font_metrics;
         FontMetrics root_font_metrics;
+        bool font_metrics_depend_on_viewport_metrics { false };
+        bool root_font_metrics_depend_on_viewport_metrics { false };
 
-        bool operator==(ResolutionContext const&) const = default;
+        void set_did_resolve_viewport_relative_length(bool& did_resolve_viewport_relative_length) const
+        {
+            m_did_resolve_viewport_relative_length = &did_resolve_viewport_relative_length;
+        }
+
+        void record_viewport_relative_length_resolution() const
+        {
+            if (m_did_resolve_viewport_relative_length)
+                *m_did_resolve_viewport_relative_length = true;
+        }
+
+        void record_font_relative_length_resolution(LengthUnit unit) const
+        {
+            if (!m_did_resolve_viewport_relative_length)
+                return;
+
+            switch (unit) {
+            case LengthUnit::Rem:
+            case LengthUnit::Rex:
+            case LengthUnit::Rcap:
+            case LengthUnit::Rch:
+            case LengthUnit::Ric:
+            case LengthUnit::Rlh:
+                if (root_font_metrics_depend_on_viewport_metrics)
+                    *m_did_resolve_viewport_relative_length = true;
+                return;
+            case LengthUnit::Em:
+            case LengthUnit::Ex:
+            case LengthUnit::Cap:
+            case LengthUnit::Ch:
+            case LengthUnit::Ic:
+            case LengthUnit::Lh:
+                if (font_metrics_depend_on_viewport_metrics)
+                    *m_did_resolve_viewport_relative_length = true;
+                return;
+            default:
+                return;
+            }
+        }
+
+        bool operator==(ResolutionContext const& other) const
+        {
+            return viewport_rect == other.viewport_rect
+                && font_metrics == other.font_metrics
+                && root_font_metrics == other.root_font_metrics
+                && font_metrics_depend_on_viewport_metrics == other.font_metrics_depend_on_viewport_metrics
+                && root_font_metrics_depend_on_viewport_metrics == other.root_font_metrics_depend_on_viewport_metrics;
+        }
+
+        mutable bool* m_did_resolve_viewport_relative_length { nullptr };
     };
 
     [[nodiscard]] CSSPixels to_px(ResolutionContext const&) const;
@@ -82,10 +133,14 @@ public:
     {
         if (is_absolute())
             return absolute_length_to_px_without_rounding();
-        if (is_font_relative())
+        if (is_font_relative()) {
+            context.record_font_relative_length_resolution(m_unit);
             return font_relative_length_to_px_without_rounding(context.font_metrics, context.root_font_metrics);
-        if (is_viewport_relative())
+        }
+        if (is_viewport_relative()) {
+            context.record_viewport_relative_length_resolution();
             return viewport_relative_length_to_px_without_rounding(context.viewport_rect);
+        }
 
         VERIFY_NOT_REACHED();
     }

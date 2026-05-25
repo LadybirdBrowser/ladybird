@@ -121,7 +121,7 @@ public:
     static CSSPixels default_user_font_size();
     static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
     static CSSPixels relative_size_mapping(RelativeSize, CSSPixels inherited_font_size);
-    [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&) const;
+    [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&, bool& depends_on_viewport_metrics) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
 
@@ -211,6 +211,7 @@ private:
 
     Length::FontMetrics m_default_font_metrics;
     mutable Length::FontMetrics m_root_element_font_metrics;
+    mutable bool m_root_element_font_metrics_depend_on_viewport_metrics { false };
 
     mutable Optional<ComputationContext> m_cached_font_computation_context;
     mutable Optional<ComputationContext> m_cached_line_height_computation_context;
