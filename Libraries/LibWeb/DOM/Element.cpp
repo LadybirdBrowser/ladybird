@@ -944,6 +944,67 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
     return invalidation;
 }
 
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker)
+{
+    CSS::RequiredInvalidationAfterStyleChange invalidation;
+
+    auto& style_computer = document().style_computer();
+
+    // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
+    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element) {
+        style_computer.push_ancestor(*this);
+
+        auto pseudo_element_style = computed_properties(pseudo_element);
+        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties);
+
+        // TODO: Can we be smarter about invalidation?
+        if (pseudo_element_style && new_pseudo_element_style) {
+            DOM::AbstractElement abstract_element { *this, pseudo_element };
+            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style, document().font_computer(), pseudo_element_unsafe_layout_node(pseudo_element), abstract_element);
+        } else if (pseudo_element_style || new_pseudo_element_style) {
+            invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+        }
+
+        set_computed_properties(pseudo_element, move(new_pseudo_element_style));
+        style_computer.pop_ancestor(*this);
+    };
+
+    recompute_pseudo_element_style(CSS::PseudoElement::Before);
+    recompute_pseudo_element_style(CSS::PseudoElement::After);
+    recompute_pseudo_element_style(CSS::PseudoElement::FirstLetter);
+    recompute_pseudo_element_style(CSS::PseudoElement::Selection);
+    if (m_rendered_in_top_layer)
+        recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
+    if (had_list_marker || m_computed_properties->display().is_list_item())
+        recompute_pseudo_element_style(CSS::PseudoElement::Marker);
+
+    return invalidation;
+}
+
+void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
+{
+    if (invalidation.rebuild_layout_tree || !unsafe_layout_node())
+        return;
+
+    // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
+    unsafe_layout_node()->apply_style(*m_computed_properties);
+    if (invalidation.repaint)
+        set_needs_repaint();
+
+    // Do the same for pseudo-elements.
+    for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement const& pseudo_element) {
+        auto pseudo_element_style = computed_properties(pseudo_element_type);
+        if (!pseudo_element_style)
+            return;
+
+        if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
+            node_with_style->apply_style(*pseudo_element_style);
+            if (invalidation.repaint && node_with_style->first_paintable())
+                node_with_style->first_paintable()->set_needs_repaint();
+        }
+    });
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_change_custom_properties)
 {
     VERIFY(parent());
@@ -1022,58 +1083,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         });
     }
 
-    // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
-    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element) {
-        style_computer.push_ancestor(*this);
-
-        auto pseudo_element_style = computed_properties(pseudo_element);
-        auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties);
-
-        // TODO: Can we be smarter about invalidation?
-        if (pseudo_element_style && new_pseudo_element_style) {
-            DOM::AbstractElement abstract_element { *this, pseudo_element };
-            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style, document().font_computer(), pseudo_element_unsafe_layout_node(pseudo_element), abstract_element);
-        } else if (pseudo_element_style || new_pseudo_element_style) {
-            invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
-        }
-
-        set_computed_properties(pseudo_element, move(new_pseudo_element_style));
-        style_computer.pop_ancestor(*this);
-    };
-
-    recompute_pseudo_element_style(CSS::PseudoElement::Before);
-    recompute_pseudo_element_style(CSS::PseudoElement::After);
-    recompute_pseudo_element_style(CSS::PseudoElement::FirstLetter);
-    recompute_pseudo_element_style(CSS::PseudoElement::Selection);
-    if (m_rendered_in_top_layer)
-        recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
-    if (had_list_marker || m_computed_properties->display().is_list_item())
-        recompute_pseudo_element_style(CSS::PseudoElement::Marker);
+    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker);
 
     if (invalidation.is_none()) {
         counters.element_style_noop_recomputations++;
         return invalidation;
     }
 
-    if (!invalidation.rebuild_layout_tree && unsafe_layout_node()) {
-        // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
-        unsafe_layout_node()->apply_style(*m_computed_properties);
-        if (invalidation.repaint)
-            set_needs_repaint();
-
-        // Do the same for pseudo-elements.
-        for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement const& pseudo_element) {
-            auto pseudo_element_style = computed_properties(pseudo_element_type);
-            if (!pseudo_element_style)
-                return;
-
-            if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
-                node_with_style->apply_style(*pseudo_element_style);
-                if (invalidation.repaint && node_with_style->first_paintable())
-                    node_with_style->first_paintable()->set_needs_repaint();
-            }
-        });
-    }
+    apply_computed_style_to_layout_node_if_needed(invalidation);
 
     return invalidation;
 }
@@ -1085,6 +1102,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
     auto computed_properties = this->computed_properties();
     VERIFY(computed_properties);
+    auto had_list_marker = computed_properties->display().is_list_item();
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1134,17 +1152,18 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), &new_value);
     }
 
+    if (!invalidation.is_none() && !computed_properties->animated_property_values().is_empty())
+        document().set_needs_animated_style_update();
+
+    bool did_change_custom_properties = false;
+    invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker);
+
     if (invalidation.is_none()) {
         counters.element_inherited_style_noop_recomputations++;
         return invalidation;
     }
 
-    // NB: unsafe_layout_node() because we're applying recomputed inherited styles during
-    //     style recalculation, before layout has been updated.
-    if (unsafe_layout_node())
-        unsafe_layout_node()->apply_style(*computed_properties);
-    if (invalidation.repaint)
-        set_needs_repaint();
+    apply_computed_style_to_layout_node_if_needed(invalidation);
     return invalidation;
 }
 

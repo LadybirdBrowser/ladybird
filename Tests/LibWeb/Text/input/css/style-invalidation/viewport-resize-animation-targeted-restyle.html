@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                html {
+                    font-size: 10vw;
+                }
+
+                #font-source {
+                    font-size: 10vw;
+                }
+
+                #animated-font-source {
+                    font-size: 16px;
+                }
+            </style>
+            <div id="viewport-target"></div>
+            <div id="font-source"><div id="inherited-font-target"></div></div>
+            <div id="root-font-target"></div>
+            <div id="animated-font-source"><div id="animated-inherited-font-target"></div></div>
+            <div id="pending-outline-animation-target"></div>
+            <script>
+                function pauseHalfway(animation) {
+                    animation.pause();
+                    animation.currentTime = 500;
+                }
+
+                pauseHalfway(document.getElementById("viewport-target").animate([{ width: "10vw" }, { width: "20vw" }], {
+                    duration: 1000,
+                    fill: "both",
+                }));
+                pauseHalfway(document.getElementById("inherited-font-target").animate([{ width: "1em" }, { width: "2em" }], {
+                    duration: 1000,
+                    fill: "both",
+                }));
+                pauseHalfway(document.getElementById("root-font-target").animate([{ width: "1rem" }, { width: "2rem" }], {
+                    duration: 1000,
+                    fill: "both",
+                }));
+                pauseHalfway(document.getElementById("animated-font-source").animate([{ fontSize: "10vw" }, { fontSize: "20vw" }], {
+                    duration: 1000,
+                    fill: "both",
+                }));
+                pauseHalfway(document.getElementById("animated-inherited-font-target").animate([{ width: "1em" }, { width: "2em" }], {
+                    duration: 1000,
+                    fill: "both",
+                }));
+            <\/script>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const viewportTarget = child.document.getElementById("viewport-target");
+        const inheritedFontTarget = child.document.getElementById("inherited-font-target");
+        const rootFontTarget = child.document.getElementById("root-font-target");
+        const animatedFontSource = child.document.getElementById("animated-font-source");
+        const animatedInheritedFontTarget = child.document.getElementById("animated-inherited-font-target");
+        const pendingOutlineAnimationTarget = child.document.getElementById("pending-outline-animation-target");
+
+        child.internals.updateStyle();
+        println(`initial viewport animated width: ${child.getComputedStyle(viewportTarget).width}`);
+        println(`initial inherited-font animated width: ${child.getComputedStyle(inheritedFontTarget).width}`);
+        println(`initial root-font animated width: ${child.getComputedStyle(rootFontTarget).width}`);
+        println(`initial animated font size: ${child.getComputedStyle(animatedFontSource).fontSize}`);
+        println(`initial animated inherited-font width: ${child.getComputedStyle(animatedInheritedFontTarget).width}`);
+
+        const pendingOutlineAnimation = pendingOutlineAnimationTarget.animate([{ outlineWidth: "10vw" }, { outlineWidth: "20vw" }], {
+            duration: 1000,
+            fill: "both",
+        });
+        pendingOutlineAnimation.pause();
+        pendingOutlineAnimation.currentTime = 500;
+
+        child.internals.resetStyleInvalidationCounters();
+        iframe.style.width = "500px";
+        document.body.offsetWidth;
+        child.internals.updateStyle();
+        println(`targeted pending animated outline width: ${child.getComputedStyle(pendingOutlineAnimationTarget).outlineWidth}`);
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+
+        const counters = child.internals.getStyleInvalidationCounters();
+        const elementCount = child.document.querySelectorAll("*").length;
+        println(`resized viewport animated width: ${child.getComputedStyle(viewportTarget).width}`);
+        println(`resized inherited-font animated width: ${child.getComputedStyle(inheritedFontTarget).width}`);
+        println(`resized root-font animated width: ${child.getComputedStyle(rootFontTarget).width}`);
+        println(`resized animated font size: ${child.getComputedStyle(animatedFontSource).fontSize}`);
+        println(`resized animated inherited-font width: ${child.getComputedStyle(animatedInheritedFontTarget).width}`);
+        println(`full invalidations: ${counters.fullStyleInvalidations}`);
+        println(`style recomputations bounded: ${counters.elementStyleRecomputations < elementCount}`);
+
+        done();
+    });
+</script>

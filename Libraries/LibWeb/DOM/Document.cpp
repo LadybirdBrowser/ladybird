@@ -2108,6 +2108,9 @@ void Document::update_style()
     if (!browsing_context())
         return;
 
+    // Fetch the viewport rect once, instead of repeatedly, during style computation.
+    style_computer().set_viewport_rect({}, viewport_rect());
+
     update_animated_style_if_needed();
 
     // Associated with each top-level browsing context is a current transition generation that is incremented on each
@@ -2119,20 +2122,20 @@ void Document::update_style()
         CSS::Invalidation::invalidate_style_for_pending_has_mutations(*this);
     }
 
-    if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
+    if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update() && !m_needs_media_query_evaluation)
         return;
-
-    m_style_invalidator->invalidate(*this);
 
     // NOTE: If this is a document hosting <template> contents, style update is unnecessary.
     if (m_created_for_appropriate_template_contents)
         return;
 
-    // Fetch the viewport rect once, instead of repeatedly, during style computation.
-    style_computer().set_viewport_rect({}, viewport_rect());
-
     if (m_needs_media_query_evaluation)
         evaluate_media_rules();
+
+    if (!m_style_invalidator->has_pending_invalidations() && !needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
+        return;
+
+    m_style_invalidator->invalidate(*this);
 
     build_registered_properties_cache();
 
@@ -2152,6 +2155,37 @@ void Document::update_style()
     }
 
     apply_document_style_invalidation_after_style_change(*this, invalidation);
+}
+
+static bool element_or_pseudo_depends_on_viewport_metrics(Element const& element)
+{
+    if (auto computed_properties = element.computed_properties(); computed_properties && computed_properties->depends_on_viewport_metrics())
+        return true;
+
+    bool depends_on_viewport_metrics = false;
+    element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
+        if (auto computed_properties = pseudo_element.computed_properties(); computed_properties && computed_properties->depends_on_viewport_metrics()) {
+            depends_on_viewport_metrics = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    return depends_on_viewport_metrics;
+}
+
+void Document::invalidate_style_for_viewport_change()
+{
+    for_each_shadow_including_inclusive_descendant([](Node& node) {
+        auto* element = as_if<Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+
+        // Descendants that inherit changed values are reached by the normal inherited-style invalidation path.
+        if (element_or_pseudo_depends_on_viewport_metrics(*element) || element->style_uses_if_css_function())
+            element->set_needs_style_update(true);
+
+        return TraversalDecision::Continue;
+    });
 }
 
 void Document::update_style_if_needed_for_element(AbstractElement const& abstract_element)
@@ -2207,9 +2241,9 @@ GC::Ptr<CSS::ComputedProperties const> Document::update_style_for_element(Abstra
         navigable->container()->document().update_layout(UpdateLayoutReason::ChildDocumentStyleUpdate);
 
     if (browsing_context()) {
-        update_animated_style_if_needed();
-
         style_computer().set_viewport_rect({}, viewport_rect());
+
+        update_animated_style_if_needed();
 
         // Media query evaluation can enqueue normal style invalidations, so do it before deciding whether the full
         // style traversal needs to run.
@@ -2336,6 +2370,8 @@ bool Document::element_needs_style_update(AbstractElement const& abstract_elemen
     if (m_needs_animated_style_update)
         return true;
     if (m_needs_invalidation_of_elements_affected_by_has)
+        return true;
+    if (m_needs_media_query_evaluation)
         return true;
     if (m_style_invalidator->has_pending_invalidations())
         return true;

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    function childDocumentSource() {
+        return `
+            <!DOCTYPE html>
+            <style>
+                #viewport {
+                    width: 10vw;
+                    height: 4px;
+                }
+
+                #font-source {
+                    font-size: 10vw;
+                }
+
+                #monospace-ancestor {
+                    font-size: 10vw;
+                }
+
+                #monospace-target {
+                    font-family: monospace;
+                }
+
+                html {
+                    font-size: 10vw;
+                }
+
+                #percentage-font-source {
+                    font-size: 150%;
+                }
+
+                #percentage-font-target {
+                    width: 1em;
+                    height: 1px;
+                }
+
+                #line-height-source {
+                    font-size: 10vw;
+                }
+
+                #line-height-percentage {
+                    line-height: 150%;
+                }
+
+                #line-height-calc {
+                    line-height: calc(125% + 5px);
+                }
+
+                #inherit-source {
+                    width: 10vw;
+                }
+
+                #inherit-child {
+                    width: inherit;
+                }
+
+                #pseudo::before {
+                    content: "";
+                    display: block;
+                    width: 10vw;
+                    height: 1px;
+                }
+
+                #pseudo-font-source {
+                    font-size: 10vw;
+                }
+
+                #pseudo-font-target::before {
+                    content: "pseudo";
+                }
+
+                .bystander {
+                    color: rgb(0, 0, 0);
+                }
+            </style>
+            <div id="viewport"></div>
+            <div id="font-source"><span id="font-child">font child</span></div>
+            <div id="monospace-ancestor"><span id="monospace-target">monospace target</span></div>
+            <div id="percentage-font-source"><div id="percentage-font-target"></div></div>
+            <div id="line-height-source">
+                <div id="line-height-percentage"></div>
+                <div id="line-height-calc"></div>
+            </div>
+            <div id="inherit-source"><div id="inherit-child"></div></div>
+            <div id="pseudo"></div>
+            <div id="pseudo-font-source"><span id="pseudo-font-target"></span></div>
+            <script>
+                for (let i = 0; i < 40; ++i) {
+                    const bystander = document.createElement("div");
+                    bystander.className = "bystander";
+                    bystander.textContent = "bystander " + i;
+                    document.body.appendChild(bystander);
+                }
+            <\/script>
+        `;
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = childDocumentSource();
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        child.internals.updateStyle();
+        child.document.body.offsetWidth;
+
+        child.internals.resetStyleInvalidationCounters();
+        iframe.style.width = "500px";
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+
+        const counters = child.internals.getStyleInvalidationCounters();
+        const elementCount = child.document.querySelectorAll("*").length;
+
+        println(`viewport width: ${child.getComputedStyle(child.document.getElementById("viewport")).width}`);
+        println(`inherited font size: ${child.getComputedStyle(child.document.getElementById("font-child")).fontSize}`);
+        println(`monospace recascaded font size: ${child.getComputedStyle(child.document.getElementById("monospace-target")).fontSize}`);
+        println(`percentage font size: ${child.getComputedStyle(child.document.getElementById("percentage-font-source")).fontSize}`);
+        println(`percentage em width: ${child.getComputedStyle(child.document.getElementById("percentage-font-target")).width}`);
+        println(`percentage line height: ${child.getComputedStyle(child.document.getElementById("line-height-percentage")).lineHeight}`);
+        println(`calc percentage line height: ${child.getComputedStyle(child.document.getElementById("line-height-calc")).lineHeight}`);
+        println(`explicit inherit width: ${child.getComputedStyle(child.document.getElementById("inherit-child")).width}`);
+        println(`pseudo width: ${child.getComputedStyle(child.document.getElementById("pseudo"), "::before").width}`);
+        println(`pseudo originating font size: ${child.getComputedStyle(child.document.getElementById("pseudo-font-target")).fontSize}`);
+        println(`pseudo inherited font size: ${child.getComputedStyle(child.document.getElementById("pseudo-font-target"), "::before").fontSize}`);
+        println(`full invalidations: ${counters.fullStyleInvalidations}`);
+        println(`style recomputations bounded: ${counters.elementStyleRecomputations < elementCount / 2}`);
+        println(`inherited recomputations present: ${counters.elementInheritedStyleRecomputations > 0}`);
+
+        done();
+    });
+</script>

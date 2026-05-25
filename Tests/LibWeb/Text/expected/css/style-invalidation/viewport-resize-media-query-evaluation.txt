@@ -1,0 +1,5 @@
+initial color: rgb(255, 0, 0)
+initial canvas fill style: #ff0000
+targeted canvas fill style: #008000
+resized color: rgb(0, 128, 0)
+media query full invalidations: 1
