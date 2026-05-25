@@ -101,8 +101,7 @@ void HTMLLabelElement::activation_behavior(DOM::Event const& event)
         control_element->dispatch_event(click_event);
     }
 
-    if (control_element->is_focusable())
-        HTML::run_focusing_steps(control_element);
+    HTML::run_focusing_steps(control_element);
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#labeled-control
