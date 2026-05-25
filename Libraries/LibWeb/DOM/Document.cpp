@@ -2005,7 +2005,7 @@ static void apply_document_style_invalidation_after_style_change(Document& docum
             node_invalidation = element.recompute_style(did_change_custom_properties);
         } else {
             if (needs_inherited_style_update)
-                node_invalidation = element.recompute_inherited_style();
+                node_invalidation = element.recompute_inherited_style(ScheduleAnimationUpdate::Yes);
             if (recompute_elements_depending_on_custom_properties && element.refresh_inherited_custom_property_data())
                 did_change_custom_properties = true;
         }
@@ -2155,6 +2155,7 @@ void Document::update_style()
     }
 
     apply_document_style_invalidation_after_style_change(*this, invalidation);
+    update_animated_style_if_needed();
 }
 
 static bool element_or_pseudo_depends_on_viewport_metrics(Element const& element)

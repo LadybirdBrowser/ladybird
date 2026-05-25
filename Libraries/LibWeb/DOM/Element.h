@@ -72,6 +72,11 @@ enum class ProximityToTheViewport : u8 {
     NotDetermined,
 };
 
+enum class ScheduleAnimationUpdate : u8 {
+    No,
+    Yes,
+};
+
 class WEB_API Element
     : public ParentNode
     , public ChildNode<Element>
@@ -191,7 +196,7 @@ public:
     void run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
     CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
-    CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style();
+    CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style(ScheduleAnimationUpdate = ScheduleAnimationUpdate::No);
 
     Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const { return m_associated_shadow_host_pseudo_element; }
     void set_associated_shadow_host_pseudo_element(CSS::PseudoElement pseudo_element);
