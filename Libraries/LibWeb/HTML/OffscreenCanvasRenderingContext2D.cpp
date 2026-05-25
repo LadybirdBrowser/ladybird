@@ -75,17 +75,6 @@ GC::Ref<OffscreenCanvas> OffscreenCanvasRenderingContext2D::canvas()
     return m_canvas;
 }
 
-OffscreenCanvas& OffscreenCanvasRenderingContext2D::canvas_element()
-{
-    return *m_canvas;
-}
-
-OffscreenCanvas const& OffscreenCanvasRenderingContext2D::canvas_element() const
-{
-
-    return *m_canvas;
-}
-
 void OffscreenCanvasRenderingContext2D::fill_rect(float, float, float, float)
 {
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill_rect()");

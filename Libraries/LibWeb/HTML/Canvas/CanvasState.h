@@ -21,8 +21,8 @@ public:
     void reset();
     bool is_context_lost();
 
-    DrawingState& drawing_state() { return m_drawing_state; }
-    DrawingState const& drawing_state() const { return m_drawing_state; }
+    DrawingState& drawing_state() override { return m_drawing_state; }
+    DrawingState const& drawing_state() const override { return m_drawing_state; }
 
     void clear_drawing_state_stack() { m_drawing_state_stack.clear(); }
     void reset_drawing_state() { m_drawing_state = {}; }

@@ -122,20 +122,13 @@ public:
     virtual String shadow_color() const override;
     virtual void set_shadow_color(String) override;
 
-    OffscreenCanvas& canvas_element();
-    OffscreenCanvas const& canvas_element() const;
-
-    [[nodiscard]] Gfx::Painter* painter();
-
     void set_size(Gfx::IntSize const&);
 
 protected:
-    [[nodiscard]] Gfx::Painter* my_painter() override { return painter(); }
-    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> my_canvas_element() override { return GC::Ref { canvas_element() }; }
+    [[nodiscard]] Gfx::Painter* painter() override;
+    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_canvas; }
     JS::Realm& my_realm() override { return realm(); }
     Gfx::Path& mutable_path() override { return path(); }
-    DrawingState& my_drawing_state() override { return drawing_state(); }
-    DrawingState const& my_drawing_state() const override { return drawing_state(); }
 
 private:
     explicit OffscreenCanvasRenderingContext2D(JS::Realm&, OffscreenCanvas&, Bindings::CanvasRenderingContext2DSettings);

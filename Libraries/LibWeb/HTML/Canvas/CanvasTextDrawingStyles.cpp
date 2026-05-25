@@ -28,12 +28,12 @@ template<typename CanvasType>
 ByteString CanvasTextDrawingStyles<CanvasType>::font() const
 {
     // When font style value is empty return default string
-    if (!my_drawing_state().font_style_value) {
+    if (!drawing_state().font_style_value) {
         return "10px sans-serif";
     }
 
     // On getting, the font attribute must return the serialized form of the current font of the context (with no 'line-height' component).
-    return my_drawing_state().font_style_value->to_string(CSS::SerializationMode::ResolvedValue).to_byte_string();
+    return drawing_state().font_style_value->to_string(CSS::SerializationMode::ResolvedValue).to_byte_string();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
@@ -87,7 +87,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(StringView font)
 
     // Load font with font style value properties
     auto const& font_style_value = font_style_value_result->as_shorthand();
-    auto& canvas_element = *my_canvas_element().template get<GC::Ref<CanvasType>>();
+    auto& canvas_element = *this->canvas_element().template get<GC::Ref<CanvasType>>();
 
     auto computed_math_depth = CSS::InitialValues::math_depth();
 
@@ -120,7 +120,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(StringView font)
     //     a keyword value
     auto const& computed_font_variant = font_style_value.longhand(CSS::PropertyID::FontVariant).release_nonnull();
 
-    my_drawing_state().font_style_value = CSS::ShorthandStyleValue::create(
+    drawing_state().font_style_value = CSS::ShorthandStyleValue::create(
         CSS::PropertyID::Font,
         {
             // Set explicitly https://drafts.csswg.org/css-fonts/#set-explicitly
@@ -187,7 +187,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(StringView font)
     if (!font_list)
         return;
 
-    my_drawing_state().current_font_cascade_list = font_list;
+    drawing_state().current_font_cascade_list = font_list;
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing
@@ -196,7 +196,7 @@ String CanvasTextDrawingStyles<CanvasType>::letter_spacing() const
 {
     // The letterSpacing getter steps are to return the serialized form of this's letter spacing.
     StringBuilder builder;
-    my_drawing_state().letter_spacing.serialize(builder);
+    drawing_state().letter_spacing.serialize(builder);
     return MUST(builder.to_string());
 }
 
@@ -212,7 +212,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_letter_spacing(StringView letter_s
         return;
 
     // 3. Set this's letter spacing to parsed.
-    my_drawing_state().letter_spacing = parsed->as_length().length();
+    drawing_state().letter_spacing = parsed->as_length().length();
 }
 
 template class CanvasTextDrawingStyles<HTMLCanvasElement>;

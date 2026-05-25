@@ -96,16 +96,6 @@ size_t CanvasRenderingContext2D::external_memory_size() const
     return JS::saturating_add_external_memory_size(size, pixel_size.value());
 }
 
-HTMLCanvasElement& CanvasRenderingContext2D::canvas_element()
-{
-    return *m_element;
-}
-
-HTMLCanvasElement const& CanvasRenderingContext2D::canvas_element() const
-{
-    return *m_element;
-}
-
 GC::Ref<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding() const
 {
     return *m_element;
@@ -234,17 +224,17 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
 void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
 {
     // FIXME: Make use of the rect to reduce the invalidated area when possible.
-    canvas_element().set_canvas_content_dirty();
-    canvas_element().set_needs_repaint(InvalidateDisplayList::No);
+    m_element->set_canvas_content_dirty();
+    m_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 
 Gfx::Painter* CanvasRenderingContext2D::painter()
 {
     allocate_painting_surface_if_needed();
-    auto surface = canvas_element().surface();
+    auto surface = m_element->surface();
     if (!m_painter && surface) {
-        canvas_element().set_needs_repaint();
-        m_painter = make<Gfx::PainterSkia>(*canvas_element().surface());
+        m_element->set_needs_repaint();
+        m_painter = make<Gfx::PainterSkia>(*m_element->surface());
     }
     return m_painter.ptr();
 }
@@ -276,7 +266,7 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 
     auto color_type = m_context_attributes.alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
 
-    m_surface = Gfx::PaintingSurface::create_with_size(canvas_element().bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
+    m_surface = Gfx::PaintingSurface::create_with_size(m_element->bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
     m_painter = nullptr;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
@@ -309,7 +299,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     auto const& font_cascade_list = this->font_cascade_list();
     auto const& font = font_cascade_list->first();
     auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list,
-        resolved_letter_spacing(drawing_state, canvas_element()));
+        resolved_letter_spacing(drawing_state, m_element));
     Gfx::Path path;
     float text_width = 0;
     for (auto const& glyph_run : glyph_runs) {
@@ -581,7 +571,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
-    auto surface = canvas_element().surface();
+    auto surface = m_element->surface();
     if (!surface)
         return image_data;
     auto const snapshot = Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
@@ -713,7 +703,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_dat
 // https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state
 void CanvasRenderingContext2D::reset_to_default_state()
 {
-    auto surface = canvas_element().surface();
+    auto surface = m_element->surface();
 
     // 1. Clear canvas's bitmap to transparent black.
     if (surface) {
@@ -828,7 +818,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Ut
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
     auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list(),
-        resolved_letter_spacing(drawing_state(), canvas_element()));
+        resolved_letter_spacing(drawing_state(), m_element));
 
     // FIXME: 4. Let language be the target's language.
     // FIXME: 5. If language is "inherit":
@@ -1161,7 +1151,7 @@ String CanvasRenderingContext2D::shadow_color() const
 void CanvasRenderingContext2D::set_shadow_color(String color)
 {
     // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-    auto& context = canvas_element();
+    auto& context = *m_element;
 
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
     auto style_value = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, color, CSS::PropertyID::Color);
@@ -1277,12 +1267,12 @@ void CanvasRenderingContext2D::set_filter(String filter)
     auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
 
     if (style_value && style_value->is_filter_value_list()) {
-        auto& document = canvas_element().document();
-        DOM::AbstractElement abstract_element { canvas_element() };
+        auto& document = m_element->document();
+        DOM::AbstractElement abstract_element { *m_element };
         document.update_style_if_needed_for_element(abstract_element);
 
         // FIXME: Font relative lengths should be resolved against the context's font, not the canvas element's
-        auto length_resolution_context = canvas_element().computed_properties()
+        auto length_resolution_context = m_element->computed_properties()
             ? CSS::Length::ResolutionContext::for_element(abstract_element)
             : CSS::Length::ResolutionContext::for_document(document);
 
@@ -1330,7 +1320,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
                     };
 
                     Gfx::Color color = Gfx::Color::Black;
-                    if (drop_shadow.color && canvas_element().computed_properties()) {
+                    if (drop_shadow.color && m_element->computed_properties()) {
                         auto color_context = CSS::ColorResolutionContext::for_element(abstract_element);
                         color = drop_shadow.color->to_color(color_context).value_or(Gfx::Color::Black);
                     }
