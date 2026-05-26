@@ -1391,8 +1391,15 @@ CSS::PreferredColorScheme Document::canvas_color_scheme() const
 {
     auto color_scheme = CSS::PreferredColorScheme::Light;
     if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
-        if (html_element->layout_node()->computed_values().color_scheme() == CSS::PreferredColorScheme::Dark)
+        auto const& computed_values = html_element->layout_node()->computed_values();
+        if (computed_values.color_scheme() == CSS::PreferredColorScheme::Dark) {
             color_scheme = CSS::PreferredColorScheme::Dark;
+        } else if (auto const& color_scheme_value = html_element->computed_properties()->property(CSS::PropertyID::ColorScheme).as_color_scheme();
+            color_scheme_value.schemes().is_empty() && m_supported_color_schemes.has_value()) {
+            auto preferred_color_scheme = page().preferred_color_scheme();
+            if (m_supported_color_schemes->contains_slow(CSS::preferred_color_scheme_to_string(preferred_color_scheme)))
+                color_scheme = preferred_color_scheme;
+        }
     }
 
     if (color_scheme == CSS::PreferredColorScheme::Light
