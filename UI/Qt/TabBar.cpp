@@ -452,8 +452,12 @@ void TabBar::start_tab_drag(int index)
             if (action == Qt::MoveAction && s_pending_tab_drop_target) {
                 if (auto* target_window = qobject_cast<BrowserWindow*>(s_pending_tab_drop_target->window()))
                     source_window->move_tab_to_window(current_index, *target_window, s_pending_tab_drop_index);
-            } else if (action == Qt::IgnoreAction && !source_window->geometry().contains(QCursor::pos())) {
-                source_window->detach_tab_to_new_window(current_index, QCursor::pos());
+            } else if (action == Qt::IgnoreAction) {
+                auto tab_bar_row_global = QRect(
+                    m_tab_widget->tab_bar_row()->mapToGlobal(QPoint(0, 0)),
+                    m_tab_widget->tab_bar_row()->size());
+                if (!tab_bar_row_global.contains(QCursor::pos()) && m_tab_widget->count() > 1)
+                    source_window->detach_tab_to_new_window(current_index, QCursor::pos());
             }
         }
     }
@@ -712,6 +716,12 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 void TabWidget::accept_tab_drag(QDragMoveEvent* event)
 {
     if (!s_active_tab_drag_source || !event->mimeData()->hasFormat(LADYBIRD_TAB_MIME_TYPE)) {
+        event->ignore();
+        return;
+    }
+
+    auto position_in_tab_bar_row = m_tab_bar_row->mapFrom(this, event->position().toPoint());
+    if (!m_tab_bar_row->rect().contains(position_in_tab_bar_row)) {
         event->ignore();
         return;
     }

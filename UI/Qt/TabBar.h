@@ -85,6 +85,7 @@ public:
     explicit TabWidget(QWidget* parent = nullptr);
 
     TabBar* tab_bar() const { return m_tab_bar; }
+    QWidget* tab_bar_row() const { return m_tab_bar_row; }
 
     void add_tab(Tab* widget, QString const& label);
     void insert_tab(int index, Tab* widget, QString const& label);
