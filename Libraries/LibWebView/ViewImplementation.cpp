@@ -727,7 +727,7 @@ void ViewImplementation::apply_zoom_for_current_host()
 void ViewImplementation::handle_resize()
 {
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
-    Application::the().update_compositor_viewport(client().compositor_context_id_for_page(page_id()), viewport_size().to_type<int>());
+    Application::the().update_compositor_viewport(client().compositor_context_id_for_page(page_id()), viewport_size().to_type<int>(), Web::Compositor::WindowResizingInProgress::Yes);
 }
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client)
