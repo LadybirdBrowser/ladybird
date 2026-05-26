@@ -622,6 +622,7 @@ void BrowserWindow::detach_tab_to_new_window(int index, QPoint global_position)
         .y = Web::DevicePixels { global_position.y() - 18 },
         .width = Web::DevicePixels { width() },
         .height = Web::DevicePixels { height() },
+        .maximized = isMaximized(),
     };
 
     auto& window = Application::the().new_window({}, configuration);
