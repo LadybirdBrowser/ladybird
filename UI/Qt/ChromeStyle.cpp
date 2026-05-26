@@ -454,6 +454,39 @@ QWidget#LadybirdFindInPageBar QLabel {
         .replace(QStringLiteral("CONTROL_BORDER"), control_border);
 }
 
+QString status_bar_style_sheet(QPalette const& palette)
+{
+    auto background = style_sheet_color(chrome_background(palette));
+    auto border = style_sheet_color(chrome_border(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
+    auto hover = style_sheet_color(chrome_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_surface_pressed(palette));
+    auto text = style_sheet_color(chrome_text(palette));
+
+    return QStringLiteral(R"(
+QWidget#LadybirdStatusBar {
+    background: %1;
+    border-top: 1px solid %2;
+}
+
+QWidget#LadybirdStatusBar QPushButton {
+    background: transparent;
+    color: %6;
+}
+
+QWidget#LadybirdStatusBar QPushButton:hover {
+    background: %4;
+    border-color: %3;
+}
+
+QWidget#LadybirdStatusBar QPushButton:pressed {
+    background: %5;
+    border-color: %3;
+}
+)")
+        .arg(background, border, control_border, hover, pressed, text);
+}
+
 QString tab_widget_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_tab_strip_background(palette));
