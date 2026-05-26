@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const keyBytes = new Uint8Array(16);
+        for (let i = 0; i < keyBytes.length; ++i)
+            keyBytes[i] = i;
+
+        const key = await crypto.subtle.importKey(
+            "raw", keyBytes, { name: "AES-CTR" }, true, ["encrypt", "decrypt"]
+        );
+
+        const counter = new Uint8Array(16);
+        const plaintext = new TextEncoder().encode("hello structured clone");
+        const ciphertext = await crypto.subtle.encrypt(
+            { name: "AES-CTR", counter, length: 64 }, key, plaintext
+        );
+
+        const clonedKey = structuredClone(key);
+        const decrypted = await crypto.subtle.decrypt(
+            { name: "AES-CTR", counter, length: 64 }, clonedKey, ciphertext
+        );
+
+        const roundTripped = new TextDecoder().decode(decrypted);
+        println(`clone.algorithm.name=${clonedKey.algorithm.name}`);
+        println(`clone.algorithm.length=${clonedKey.algorithm.length}`);
+        println(`roundtrip=${roundTripped}`);
+        println(`matches=${roundTripped === "hello structured clone"}`);
+
+        done();
+    });
+</script>

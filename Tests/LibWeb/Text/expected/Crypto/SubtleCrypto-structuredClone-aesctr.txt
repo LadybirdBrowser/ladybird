@@ -1,0 +1,4 @@
+clone.algorithm.name=AES-CTR
+clone.algorithm.length=128
+roundtrip=hello structured clone
+matches=true
