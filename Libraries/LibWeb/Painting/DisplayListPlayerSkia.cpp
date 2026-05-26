@@ -112,6 +112,16 @@ void DisplayListPlayerSkia::flush(Gfx::PaintingSurface& surface)
     m_image_cache.prune();
 }
 
+void DisplayListPlayerSkia::flush_async(Gfx::PaintingSurface& surface, Function<void()>&& callback)
+{
+    if (auto context = surface.skia_backend_context())
+        context->flush_and_submit_async(&surface.sk_surface(), move(callback));
+    else
+        callback();
+    surface.flush();
+    m_image_cache.prune();
+}
+
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
     auto const& font = resource_storage().font(command.font_id);

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/DoublyLinkedList.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -58,6 +59,7 @@ public:
 class CompositorState final : public RefCounted<CompositorState> {
 public:
     static NonnullRefPtr<CompositorState> create(RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
+    ~CompositorState();
 
     enum class ContextOwnerCheckResult {
         OwnedByClient,
@@ -147,11 +149,26 @@ private:
 
         Optional<Gfx::IntRect> pending_present_frame;
         Optional<Gfx::IntRect> presented_frame;
+        Optional<i32> gpu_present_bitmap_id_awaiting_completion;
         Optional<i32> presented_bitmap_id_awaiting_ack;
         bool has_deferred_async_scroll_present { false };
         Gfx::IntRect deferred_async_scroll_present_viewport_rect;
 
         void stop_backing_store_shrink_timer();
+    };
+
+    struct PendingAsyncPresent {
+        PendingAsyncPresent(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, i32 bitmap_id)
+            : context_id(context_id)
+            , viewport_rect(viewport_rect)
+            , bitmap_id(bitmap_id)
+        {
+        }
+
+        Web::Compositor::CompositorContextId context_id;
+        Gfx::IntRect viewport_rect;
+        i32 bitmap_id { 0 };
+        bool was_cancelled { false };
     };
 
     ContextState* context_if_present(Web::Compositor::CompositorContextId);
@@ -177,11 +194,17 @@ private:
     void publish_to_parent_surface(ContextState&, Web::Compositor::PublishToCompositorSurface const&);
     void present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
     void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
-    bool present_frame_to_client(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect const&, i32 bitmap_id);
+    void did_finish_async_present(PendingAsyncPresent&);
+    void drain_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId, ContextState&);
+    void cancel_pending_async_presents_for_context(Web::Compositor::CompositorContextId);
+    void schedule_gpu_completion_check();
+    void check_gpu_completions();
 
     HashMap<Web::Compositor::CompositorContextId, OwnPtr<ContextState>> m_contexts;
+    DoublyLinkedList<PendingAsyncPresent> m_pending_async_presents;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     OwnPtr<Web::Painting::DisplayListPlayerSkia> m_display_list_player;
+    RefPtr<Core::Timer> m_gpu_completion_timer;
     CompositorStateClient* m_client { nullptr };
     bool m_async_scrolling_enabled { true };
 };
