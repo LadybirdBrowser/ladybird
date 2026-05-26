@@ -1,0 +1,4 @@
+clone.type=secret extractable=false
+clone.algorithm.name=PBKDF2
+clone.usages=["deriveBits","deriveKey"]
+derived.algorithm.name=AES-CBC
