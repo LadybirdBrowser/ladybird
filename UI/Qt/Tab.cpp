@@ -116,7 +116,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     m_hover_label = new HyperlinkLabel(this);
     m_hover_label->hide();
-    m_hover_label->setFrameShape(QFrame::Shape::Box);
+    m_hover_label->setContentsMargins(4, 2, 4, 2);
     m_hover_label->setAutoFillBackground(true);
 
     QObject::connect(m_hover_label, &HyperlinkLabel::mouse_entered, [this] {
@@ -629,7 +629,7 @@ void Tab::resizeEvent(QResizeEvent* event)
 void Tab::update_hover_label()
 {
     m_hover_label->setText(QFontMetrics(m_hover_label->font()).elidedText(m_hover_label->text(), Qt::ElideRight, width() / 2 - 10));
-    m_hover_label->resize(QFontMetrics(m_hover_label->font()).boundingRect(m_hover_label->text()).adjusted(-4, -2, 4, 2).size());
+    m_hover_label->resize(m_hover_label->sizeHint());
 
     auto hover_label_height = height() - m_hover_label->height();
     if (m_find_in_page->isVisible())
@@ -666,7 +666,7 @@ void Tab::update_chrome_style()
     auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette()));
     auto hover_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette()));
     auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette()));
-    m_hover_label->setStyleSheet(QStringLiteral("background: %1; color: %2; border: 1px solid %3; padding: 2px 6px; border-radius: 6px;")
+    m_hover_label->setStyleSheet(QStringLiteral("background: %1; color: %2; border: 1px solid %3; border-radius: 6px;")
             .arg(hover_surface, hover_text, hover_border));
     m_is_updating_chrome_style = false;
 }
