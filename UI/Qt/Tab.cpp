@@ -206,7 +206,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_location_edit->set_favicon({});
         m_location_edit->set_loading(true);
         m_location_edit->set_url(url);
-        m_location_edit->setCursorPosition(0);
     };
 
     view().on_load_finish = [this](auto const&) {

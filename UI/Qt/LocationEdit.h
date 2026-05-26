@@ -45,7 +45,7 @@ public:
     void set_favicon(QIcon const&);
 
     bool url_is_hidden() const { return m_url_is_hidden; }
-    void set_url_is_hidden(bool url_is_hidden) { m_url_is_hidden = url_is_hidden; }
+    void set_url_is_hidden(bool);
 
 private:
     virtual void changeEvent(QEvent* event) override;
@@ -83,6 +83,7 @@ private:
     Optional<URL::URL> m_url;
     QIcon m_favicon;
     bool m_url_is_hidden { false };
+    bool m_has_user_edited_hidden_url { false };
     bool m_is_loading { false };
     bool m_is_updating_chrome_style { false };
     bool m_has_pending_chrome_style_update { false };
