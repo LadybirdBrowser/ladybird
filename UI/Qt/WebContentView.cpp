@@ -388,6 +388,34 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
     return Web::UIEvents::Key_Invalid;
 }
 
+static bool is_browser_reserved_shortcut(QKeyEvent const& event)
+{
+    // Browser chrome shortcuts that manage tabs or windows should not wait for
+    // WebContent to decide whether the page wants to suppress them.
+    if (event.matches(QKeySequence::StandardKey::AddTab)
+        || event.matches(QKeySequence::StandardKey::Close)
+        || event.matches(QKeySequence::StandardKey::New)
+        || event.matches(QKeySequence::StandardKey::Quit))
+        return true;
+
+    auto const modifiers = event.modifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier | Qt::MetaModifier);
+    auto const key = event.key();
+
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_T)
+        return true;
+
+    if (modifiers == Qt::ControlModifier && (key == Qt::Key_Tab || key == Qt::Key_PageDown))
+        return true;
+
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && (key == Qt::Key_Tab || key == Qt::Key_Backtab))
+        return true;
+
+    if (modifiers == Qt::ControlModifier && key == Qt::Key_PageUp)
+        return true;
+
+    return false;
+}
+
 void WebContentView::keyPressEvent(QKeyEvent* event)
 {
     enqueue_native_event(Web::KeyEvent::Type::KeyDown, *event);
@@ -809,7 +837,7 @@ bool WebContentView::event(QEvent* event)
 
     if (event->type() == QEvent::ShortcutOverride) {
         auto* key_event = static_cast<QKeyEvent*>(event);
-        if (key_event->matches(QKeySequence::StandardKey::Close)) {
+        if (is_browser_reserved_shortcut(*key_event)) {
             event->ignore();
             return false;
         }
