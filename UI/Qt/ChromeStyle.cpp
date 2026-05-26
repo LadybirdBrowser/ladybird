@@ -314,7 +314,7 @@ QLineEdit#LadybirdLocationEdit {
     background: %1;
     border: 1px solid %3;
     border-radius: 19px;
-    min-height: 38px;
+    min-height: 36px;
     padding: 0 16px;
     selection-background-color: %7;
     selection-color: %8;
@@ -483,8 +483,8 @@ QPushButton#LadybirdTabButton {
 }
 
 QToolButton#LadybirdNewTabButton {
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 30px;
+    min-height: 30px;
     border-radius: 16px;
 }
 

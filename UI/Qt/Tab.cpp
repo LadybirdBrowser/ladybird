@@ -102,12 +102,12 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_find_in_page->setVisible(false);
     m_toolbar = new QWidget(this);
     m_toolbar->setObjectName("LadybirdNavigationToolbar");
-    m_toolbar->setFixedHeight(54);
+    m_toolbar->setFixedHeight(47);
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
 
     auto* toolbar_layout = new QHBoxLayout(m_toolbar);
-    toolbar_layout->setSpacing(8);
-    toolbar_layout->setContentsMargins(18, 4, 18, 6);
+    toolbar_layout->setSpacing(6);
+    toolbar_layout->setContentsMargins(12, 3, 12, 3);
 
     m_location_edit = new LocationEdit(this);
     m_bookmarks_bar = new BookmarksBar(this);
