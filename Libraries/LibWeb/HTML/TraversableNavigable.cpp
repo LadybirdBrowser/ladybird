@@ -146,10 +146,8 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_fresh_top_level_tra
     auto traversable = create_a_new_top_level_traversable(page, nullptr, {});
     page->set_top_level_traversable(traversable);
 
-    // AD-HOC: Set the default top-level emulated position data for the traversable, which points to Market St. SF.
-    // FIXME: We should not emulate by default, but ask the user what to do. E.g. disable Geolocation, set an emulated
-    //        position, or allow Ladybird to engage with the system's geolocation services. This is completely separate
-    //        from the permission model for "powerful features" such as Geolocation.
+    // AD-HOC: Set default emulated position data for the traversable. The UI process will override this with the
+    //         user's geolocation settings via IPC, but this ensures a safe default if the IPC hasn't arrived yet.
     auto& realm = traversable->active_document()->realm();
     auto emulated_position_coordinates = realm.create<Geolocation::GeolocationCoordinates>(
         realm,
@@ -157,10 +155,6 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_fresh_top_level_tra
             .accuracy = 100.0,
             .latitude = 37.7647658,
             .longitude = -122.4345892,
-            .altitude = 60.0,
-            .altitude_accuracy = 10.0,
-            .heading = 0.0,
-            .speed = 0.0,
         });
     traversable->set_emulated_position_data(emulated_position_coordinates);
 

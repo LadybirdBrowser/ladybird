@@ -1648,6 +1648,49 @@ void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
     rebuild_bookmarks_menu();
 }
 
+ErrorOr<Core::GeolocationProvider*> Application::ensure_geolocation_provider()
+{
+    if (!m_geolocation_provider)
+        m_geolocation_provider = TRY(Core::GeolocationProvider::create());
+
+    return m_geolocation_provider.ptr();
+}
+
+static Core::GeolocationError geolocation_provider_unavailable_error(Error const& error)
+{
+    return {
+        .type = Core::GeolocationError::Type::PositionUnavailable,
+        .message = MUST(String::from_utf8(error.string_literal())),
+    };
+}
+
+void Application::request_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error)
+{
+    auto provider = ensure_geolocation_provider();
+    if (provider.is_error()) {
+        on_error(geolocation_provider_unavailable_error(provider.error()));
+        return;
+    }
+    provider.value()->request_current_position(move(on_success), move(on_error));
+}
+
+ErrorOr<Core::GeolocationProvider::WatchId, Core::GeolocationError> Application::start_watching_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error)
+{
+    auto provider = ensure_geolocation_provider();
+    if (provider.is_error())
+        return geolocation_provider_unavailable_error(provider.error());
+
+    return provider.value()->start_watching_position(move(on_success), move(on_error));
+}
+
+void Application::stop_watching_geolocation_position(Core::GeolocationProvider::WatchId watch_id)
+{
+    if (!m_geolocation_provider)
+        return;
+
+    m_geolocation_provider->stop_watching_position(watch_id);
+}
+
 void Application::create_bookmark_menu_items(Optional<MenuData> data)
 {
     auto const& [menu, items, target_folder_id] = data.ensure([&]() -> MenuData {

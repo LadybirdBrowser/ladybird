@@ -78,6 +78,10 @@ public:
     void toggle_media_loop_state();
     void toggle_media_controls_state();
 
+    void set_geolocation_emulated_position(Optional<double> latitude, Optional<double> longitude, Optional<double> accuracy, Optional<double> altitude, Optional<double> altitude_accuracy, Optional<double> heading, Optional<double> speed, Optional<u16> error_code);
+    void apply_pending_geolocation_emulated_position();
+    void geolocation_position_response(u64 request_id, Optional<double> latitude, Optional<double> longitude, Optional<double> accuracy, Optional<double> altitude, Optional<double> altitude_accuracy, Optional<double> heading, Optional<double> speed, Optional<u16> error_code);
+
     void alert_closed();
     void confirm_closed(bool accepted);
     void prompt_closed(Optional<String> response);
@@ -196,6 +200,9 @@ private:
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;
+    virtual void page_did_request_geolocation_position(u64 request_id) override;
+    virtual void page_did_start_geolocation_position_watch(u64 request_id) override;
+    virtual void page_did_stop_geolocation_position_watch(u64 request_id) override;
     virtual void page_did_finish_test(String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;
@@ -240,6 +247,18 @@ private:
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::NoPreference };
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::NoPreference };
+
+    struct PendingGeolocationEmulatedPosition {
+        Optional<double> latitude;
+        Optional<double> longitude;
+        Optional<double> accuracy;
+        Optional<double> altitude;
+        Optional<double> altitude_accuracy;
+        Optional<double> heading;
+        Optional<double> speed;
+        Optional<u16> error_code;
+    };
+    Optional<PendingGeolocationEmulatedPosition> m_pending_geolocation_emulated_position;
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
 

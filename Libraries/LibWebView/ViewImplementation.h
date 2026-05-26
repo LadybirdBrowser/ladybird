@@ -9,6 +9,7 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
@@ -17,8 +18,10 @@
 #include <AK/Queue.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
+#include <AK/Weakable.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Forward.h>
+#include <LibCore/GeolocationProvider.h>
 #include <LibCore/Promise.h>
 #include <LibCore/SharedVersion.h>
 #include <LibDevTools/DevToolsDelegate.h>
@@ -50,7 +53,8 @@ namespace WebView {
 
 class WEBVIEW_API ViewImplementation
     : public SettingsObserver
-    , public BookmarkStoreObserver {
+    , public BookmarkStoreObserver
+    , public Weakable<ViewImplementation> {
     friend class WebContentClient;
 
 public:
@@ -276,6 +280,9 @@ public:
     Function<void()> on_fullscreen_window;
     Function<void()> on_exit_fullscreen_window;
     Function<void(Color current_color)> on_request_color_picker;
+    Function<void(u64 request_id)> on_request_geolocation_position;
+    Function<void(u64 request_id)> on_start_geolocation_position_watch;
+    Function<void(u64 request_id)> on_stop_geolocation_position_watch;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
@@ -352,6 +359,7 @@ protected:
     virtual void browsing_behavior_changed() override;
     virtual void autoplay_settings_changed() override;
     virtual void global_privacy_control_changed() override;
+    virtual void geolocation_settings_changed() override;
 
     virtual void bookmarks_changed() override;
     void update_bookmark_action();
@@ -448,6 +456,8 @@ protected:
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     Web::ViewportIsFullscreen m_is_fullscreen { Web::ViewportIsFullscreen::No };
+
+    HashMap<u64, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
     HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;

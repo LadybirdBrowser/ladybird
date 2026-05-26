@@ -25,6 +25,8 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/Geolocation/GeolocationCoordinates.h>
+#include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
@@ -50,6 +52,22 @@ namespace WebContent {
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 static bool s_is_headless { false };
 static bool s_async_scrolling_enabled { false };
+
+static Web::Geolocation::GeolocationPositionError::ErrorCode geolocation_position_error_code_from_ipc(u16 error_code)
+{
+    using ErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+
+    switch (error_code) {
+    case to_underlying(ErrorCode::PermissionDenied):
+        return ErrorCode::PermissionDenied;
+    case to_underlying(ErrorCode::PositionUnavailable):
+        return ErrorCode::PositionUnavailable;
+    case to_underlying(ErrorCode::Timeout):
+        return ErrorCode::Timeout;
+    default:
+        return ErrorCode::PositionUnavailable;
+    }
+}
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
@@ -386,6 +404,7 @@ void PageClient::page_did_start_loading(URL::URL const& url, bool is_redirect)
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 {
     initialize_js_console(document);
+    apply_pending_geolocation_emulated_position();
 }
 
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
@@ -467,6 +486,83 @@ void PageClient::page_did_request_image_context_menu(Web::CSSPixelPoint content_
 void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu)
 {
     client().async_did_request_media_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu);
+}
+
+void PageClient::set_geolocation_emulated_position(Optional<double> latitude, Optional<double> longitude, Optional<double> accuracy, Optional<double> altitude, Optional<double> altitude_accuracy, Optional<double> heading, Optional<double> speed, Optional<u16> error_code)
+{
+    m_pending_geolocation_emulated_position = PendingGeolocationEmulatedPosition {
+        .latitude = latitude,
+        .longitude = longitude,
+        .accuracy = accuracy,
+        .altitude = altitude,
+        .altitude_accuracy = altitude_accuracy,
+        .heading = heading,
+        .speed = speed,
+        .error_code = error_code,
+    };
+    apply_pending_geolocation_emulated_position();
+}
+
+void PageClient::apply_pending_geolocation_emulated_position()
+{
+    if (!m_pending_geolocation_emulated_position.has_value())
+        return;
+    if (!page().top_level_traversable_is_initialized())
+        return;
+
+    auto const& pending = *m_pending_geolocation_emulated_position;
+    auto traversable = page().top_level_traversable();
+
+    if (pending.error_code.has_value()) {
+        traversable->set_emulated_position_data(geolocation_position_error_code_from_ipc(*pending.error_code));
+    } else if (pending.latitude.has_value() && pending.longitude.has_value() && pending.accuracy.has_value()) {
+        traversable->set_emulated_position_data({
+            .accuracy = *pending.accuracy,
+            .latitude = *pending.latitude,
+            .longitude = *pending.longitude,
+            .altitude = pending.altitude,
+            .altitude_accuracy = pending.altitude_accuracy,
+            .heading = pending.heading,
+            .speed = pending.speed,
+        });
+    } else {
+        traversable->set_emulated_position_data(Empty {});
+    }
+}
+
+void PageClient::geolocation_position_response(u64 request_id, Optional<double> latitude, Optional<double> longitude, Optional<double> accuracy, Optional<double> altitude, Optional<double> altitude_accuracy, Optional<double> heading, Optional<double> speed, Optional<u16> error_code)
+{
+    if (error_code.has_value()) {
+        page().receive_geolocation_position(request_id, {}, geolocation_position_error_code_from_ipc(*error_code));
+    } else if (latitude.has_value() && longitude.has_value() && accuracy.has_value()) {
+        Web::Geolocation::CoordinatesData coords {
+            .accuracy = *accuracy,
+            .latitude = *latitude,
+            .longitude = *longitude,
+            .altitude = altitude,
+            .altitude_accuracy = altitude_accuracy,
+            .heading = heading,
+            .speed = speed,
+        };
+        page().receive_geolocation_position(request_id, coords, {});
+    } else {
+        page().receive_geolocation_position(request_id, {}, Web::Geolocation::GeolocationPositionError::ErrorCode::PositionUnavailable);
+    }
+}
+
+void PageClient::page_did_request_geolocation_position(u64 request_id)
+{
+    client().async_did_request_geolocation_position(m_id, request_id);
+}
+
+void PageClient::page_did_start_geolocation_position_watch(u64 request_id)
+{
+    client().async_did_start_geolocation_position_watch(m_id, request_id);
+}
+
+void PageClient::page_did_stop_geolocation_position_watch(u64 request_id)
+{
+    client().async_did_stop_geolocation_position_watch(m_id, request_id);
 }
 
 void PageClient::page_did_request_alert(String const& message)

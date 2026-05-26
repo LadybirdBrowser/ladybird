@@ -16,6 +16,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
@@ -73,6 +74,10 @@ ViewImplementation::ViewImplementation()
 
 ViewImplementation::~ViewImplementation()
 {
+    for (auto const& watch : m_geolocation_watch_ids)
+        Application::the().stop_watching_geolocation_position(watch.value);
+    m_geolocation_watch_ids.clear();
+
     s_all_views.remove(m_view_id);
 
     if (m_client_state.client)
@@ -944,6 +949,88 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     browsing_behavior_changed();
     autoplay_settings_changed();
     global_privacy_control_changed();
+    geolocation_settings_changed();
+
+    auto make_geolocation_success_handler = [this](u64 request_id) {
+        auto weak_this = make_weak_ptr();
+        auto request_page_id = page_id();
+        auto request_client_handle = m_client_state.client_handle;
+
+        return [weak_this, request_page_id, request_client_handle, request_id](Core::GeolocationCoordinates coords) {
+            auto* view = weak_this.ptr();
+            if (!view || !view->m_client_state.client || view->m_client_state.page_index != request_page_id || view->m_client_state.client_handle != request_client_handle)
+                return;
+
+            view->client().async_geolocation_position_response(request_page_id, request_id,
+                coords.latitude, coords.longitude, coords.accuracy,
+                coords.altitude, coords.altitude_accuracy,
+                coords.heading, coords.speed, {});
+        };
+    };
+
+    auto make_geolocation_error_handler = [this](u64 request_id, bool is_watch) {
+        using ErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+
+        auto weak_this = make_weak_ptr();
+        auto request_page_id = page_id();
+        auto request_client_handle = m_client_state.client_handle;
+
+        return [weak_this, request_page_id, request_client_handle, request_id, is_watch](Core::GeolocationError error) {
+            auto* view = weak_this.ptr();
+            if (!view || !view->m_client_state.client || view->m_client_state.page_index != request_page_id || view->m_client_state.client_handle != request_client_handle)
+                return;
+
+            ErrorCode code;
+            switch (error.type) {
+            case Core::GeolocationError::Type::PermissionDenied:
+                code = ErrorCode::PermissionDenied;
+                break;
+            case Core::GeolocationError::Type::Timeout:
+                code = ErrorCode::Timeout;
+                break;
+            case Core::GeolocationError::Type::PositionUnavailable:
+                code = ErrorCode::PositionUnavailable;
+                break;
+            }
+
+            if (is_watch && code == ErrorCode::PermissionDenied) {
+                auto provider_watch_id = view->m_geolocation_watch_ids.take(request_id);
+                if (provider_watch_id.has_value())
+                    Application::the().stop_watching_geolocation_position(*provider_watch_id);
+            }
+
+            view->client().async_geolocation_position_response(request_page_id, request_id,
+                {}, {}, {}, {}, {}, {}, {},
+                to_underlying(code));
+        };
+    };
+
+    on_request_geolocation_position = [make_geolocation_success_handler, make_geolocation_error_handler](u64 request_id) {
+        Application::the().request_geolocation_position(
+            make_geolocation_success_handler(request_id),
+            make_geolocation_error_handler(request_id, false));
+    };
+
+    on_start_geolocation_position_watch = [this, make_geolocation_success_handler, make_geolocation_error_handler](u64 request_id) {
+        auto provider_watch_id = Application::the().start_watching_geolocation_position(
+            make_geolocation_success_handler(request_id),
+            make_geolocation_error_handler(request_id, true));
+
+        if (provider_watch_id.is_error()) {
+            make_geolocation_error_handler(request_id, true)(provider_watch_id.release_error());
+            return;
+        }
+
+        m_geolocation_watch_ids.set(request_id, provider_watch_id.release_value());
+    };
+
+    on_stop_geolocation_position_watch = [this](u64 request_id) {
+        auto provider_watch_id = m_geolocation_watch_ids.take(request_id);
+        if (!provider_watch_id.has_value())
+            return;
+
+        Application::the().stop_watching_geolocation_position(*provider_watch_id);
+    };
 
     // If DevTools is connected, notify the new WebContent process.
     if (m_devtools_connected)
