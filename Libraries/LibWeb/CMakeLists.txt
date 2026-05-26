@@ -1258,8 +1258,14 @@ get_target_property(_libweb_content_blocker_rust_lib libweb_content_blocker_rust
 set_property(SOURCE HTML/Parser/HTMLTokenizer.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 set_property(SOURCE HTML/Parser/HTMLParser.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
 set_property(SOURCE HTML/Parser/SpeculativeHTMLParser.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
-if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
-    target_link_options(LibWeb INTERFACE LINKER:--allow-multiple-definition)
+if (LINUX OR BSD)
+    if (BUILD_SHARED_LIBS)
+        # Shared build: the flag must apply when LibWeb itself is linked (PRIVATE) — not just when downstream consumers
+        # link against it.
+        target_link_options(LibWeb PRIVATE LINKER:--allow-multiple-definition)
+    else()
+        target_link_options(LibWeb INTERFACE LINKER:--allow-multiple-definition)
+    endif()
 endif()
 
 if(NOT BUILD_SHARED_LIBS)
