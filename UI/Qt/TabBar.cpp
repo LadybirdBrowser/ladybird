@@ -74,7 +74,7 @@ TabBar::TabBar(TabWidget* tab_widget)
     setAcceptDrops(true);
     setFocusPolicy(Qt::NoFocus);
     setIconSize({ 16, 16 });
-    setMinimumHeight(44);
+    setMinimumHeight(42);
 
     m_hover_animation = new QVariantAnimation(this);
     m_hover_animation->setDuration(120);
@@ -122,20 +122,8 @@ void TabBar::paintEvent(QPaintEvent* event)
 
     auto border = ChromeStyle::chrome_border(palette());
     auto dark = ChromeStyle::is_dark(palette());
-    auto background = ChromeStyle::chrome_background(palette());
-    auto background_gradient = QLinearGradient(rect().topLeft(), rect().bottomLeft());
-    if (dark) {
-        background_gradient.setColorAt(0.0, background.lighter(118));
-        background_gradient.setColorAt(1.0, background.darker(116));
-    } else {
-        auto tab_strip_background = ChromeStyle::mix(background, QColor(224, 229, 236), 0.18);
-        background_gradient.setColorAt(0.0, ChromeStyle::mix(tab_strip_background, QColor(255, 255, 255), 0.015));
-        background_gradient.setColorAt(1.0, ChromeStyle::mix(tab_strip_background, QColor(210, 216, 224), 0.025));
-    }
-    painter.fillRect(rect(), background_gradient);
 
     auto text_color = palette().color(QPalette::Text);
-    auto muted_text_color = ChromeStyle::chrome_muted_text(palette());
 
     for (int index = 0; index < count(); ++index) {
         auto tab_rect = tabRect(index);
@@ -146,40 +134,30 @@ void TabBar::paintEvent(QPaintEvent* event)
         auto hover_progress = index == m_hover_animation_tab_index ? m_hover_progress : (index == m_hovered_tab_index ? 1.0 : 0.0);
         bool is_hovered = hover_progress > 0.0;
 
-        auto shape_rect = QRectF(tab_rect).adjusted(4.0, 1.0, -4.0, is_selected ? 6.0 : -1.0);
-        auto tab_path = tab_shape_path(shape_rect, 10.0, is_selected ? 1.0 : 9.0);
+        auto shape_rect = QRectF(tab_rect).adjusted(3.0, 1.5, -3.0, 0.5);
+        auto tab_path = tab_shape_path(shape_rect, 10.0, 9.0);
         auto surface = ChromeStyle::chrome_surface(palette());
 
         if (is_selected) {
-            auto shadow_path = tab_shape_path(shape_rect.translated(0, 1), 11.0, 2.0);
-            painter.setBrush(QColor(0, 0, 0, 22));
-            painter.setPen(Qt::NoPen);
-            painter.drawPath(shadow_path);
-
             auto selected_gradient = QLinearGradient(shape_rect.topLeft(), shape_rect.bottomLeft());
-            selected_gradient.setColorAt(0.0, dark ? surface.lighter(108) : ChromeStyle::mix(surface, QColor(255, 255, 255), 0.18));
-            selected_gradient.setColorAt(1.0, surface);
+            selected_gradient.setColorAt(0.0, ChromeStyle::chrome_active_tab_surface_top(palette()));
+            selected_gradient.setColorAt(1.0, ChromeStyle::chrome_active_tab_surface_bottom(palette()));
             auto active_border = border;
-            active_border.setAlpha(62);
+            active_border.setAlpha(38);
             painter.setBrush(selected_gradient);
             painter.setPen(QPen(active_border, 1));
             painter.drawPath(tab_path);
-
-            auto highlight = QColor(255, 255, 255, 16);
-            painter.setPen(QPen(highlight, 1));
-            painter.drawLine(QPointF(shape_rect.left() + 14.0, shape_rect.top() + 1.0),
-                QPointF(shape_rect.right() - 14.0, shape_rect.top() + 1.0));
         } else if (is_hovered) {
-            auto hover = ChromeStyle::chrome_surface_hover(palette());
-            hover.setAlpha(static_cast<int>(120 * hover_progress));
+            auto hover = dark ? ChromeStyle::chrome_surface_hover(palette()) : ChromeStyle::mix(surface, ChromeStyle::chrome_surface_hover(palette()), 0.28);
+            hover.setAlpha(static_cast<int>((dark ? 120 : 136) * hover_progress));
             auto hover_border = border;
             hover_border.setAlpha(static_cast<int>(44 * hover_progress));
             painter.setBrush(hover);
             painter.setPen(QPen(hover_border, 1));
             painter.drawPath(tab_path);
         } else {
-            auto inactive = background.lighter(108);
-            inactive.setAlpha(48);
+            auto inactive = ChromeStyle::chrome_surface_recessed(palette());
+            inactive.setAlpha(dark ? 48 : 118);
             auto inactive_border = border;
             inactive_border.setAlpha(14);
             painter.setBrush(inactive);
@@ -220,12 +198,7 @@ void TabBar::paintEvent(QPaintEvent* event)
 
         QFontMetrics font_metrics(tab_font);
         auto title = font_metrics.elidedText(tabText(index), Qt::ElideRight, max(0, contents_rect.width()));
-        auto tab_text_color = is_selected ? text_color : muted_text_color;
-        if (is_hovered)
-            tab_text_color.setAlpha(static_cast<int>(160 + 54 * hover_progress));
-        else if (!is_selected)
-            tab_text_color.setAlpha(154);
-        painter.setPen(tab_text_color);
+        painter.setPen(text_color);
         painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter, title);
     }
 
@@ -545,9 +518,9 @@ TabWidget::TabWidget(QWidget* parent)
 
     auto* tab_bar_row_layout = new QHBoxLayout();
     tab_bar_row_layout->setSpacing(4);
-    tab_bar_row_layout->setContentsMargins(12, 4, 8, 0);
+    tab_bar_row_layout->setContentsMargins(12, 3, 8, 1);
     tab_bar_row_layout->addWidget(m_tab_bar);
-    tab_bar_row_layout->addWidget(m_new_tab_button);
+    tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignVCenter);
     tab_bar_row_layout->addStretch(1);
     tab_bar_row_layout->addWidget(m_minimize_window_button);
     tab_bar_row_layout->addWidget(m_maximize_window_button);
@@ -555,7 +528,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_tab_bar_row = new QWidget(this);
     m_tab_bar_row->setObjectName("LadybirdTabStrip");
-    m_tab_bar_row->setMinimumHeight(50);
+    m_tab_bar_row->setMinimumHeight(46);
     m_tab_bar_row->setLayout(tab_bar_row_layout);
     m_tab_bar_row->installEventFilter(this);
 
@@ -804,8 +777,8 @@ TabBarButton::TabBarButton(QIcon const& icon, QWidget* parent)
     : QPushButton(icon, {}, parent)
 {
     setObjectName("LadybirdTabButton");
-    setFixedSize({ 20, 20 });
-    setIconSize({ 12, 12 });
+    setFixedSize({ 22, 22 });
+    setIconSize({ 14, 14 });
     setFocusPolicy(Qt::NoFocus);
     setFlat(true);
 }

@@ -151,8 +151,8 @@ LocationEdit::LocationEdit(QWidget* parent)
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");
-    setMinimumHeight(41);
-    setTextMargins(40, 0, 40, 0);
+    setMinimumHeight(37);
+    setTextMargins(38, 0, 40, 0);
     update_chrome_style();
 
     m_focus_glow_effect = new QGraphicsDropShadowEffect(this);
@@ -392,11 +392,11 @@ void LocationEdit::resizeEvent(QResizeEvent* event)
     QLineEdit::resizeEvent(event);
 
     auto button_size = m_leading_icon_button->sizeHint();
-    auto y = (height() - button_size.height()) / 2 + 2;
+    auto y = (height() - button_size.height()) / 2 + 1;
     m_leading_icon_button->move(12, y);
 
     auto trailing_button_size = m_trailing_action_button->sizeHint();
-    auto trailing_y = (height() - trailing_button_size.height()) / 2 + 2;
+    auto trailing_y = (height() - trailing_button_size.height()) / 2 + 1;
     m_trailing_action_button->move(width() - trailing_button_size.width() - 12, trailing_y);
 }
 
