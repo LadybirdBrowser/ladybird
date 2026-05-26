@@ -368,15 +368,14 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
                             extensions.append(mime_type.globPatterns());
                     }
 
-                    accepted_file_filters.append(QString("%1 (%2)").arg(title, extensions.join(" ")));
+                    accepted_file_filters.append(qformatted("{} ({})", title, extensions.join(" ")));
                 },
                 [&](Web::HTML::FileFilter::MimeType const& filter) {
                     if (auto mime_type = mime_database.mimeTypeForName(qstring_from_ak_string(filter.value)); mime_type.isValid())
                         accepted_file_filters.append(mime_type.filterString());
                 },
                 [&](Web::HTML::FileFilter::Extension const& filter) {
-                    auto extension = MUST(String::formatted("*.{}", filter.value));
-                    accepted_file_filters.append(qstring_from_ak_string(extension));
+                    accepted_file_filters.append(qformatted("*.{}", filter.value));
                 });
         }
 

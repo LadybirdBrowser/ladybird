@@ -63,8 +63,7 @@ QPixmap TVGIconEngine::pixmap(QSize const& size, QIcon::Mode mode, QIcon::State 
 
 QString TVGIconEngine::pixmap_cache_key(QSize const& size, QIcon::Mode mode, QIcon::State state)
 {
-    return qstring_from_ak_string(
-        MUST(String::formatted("$sernity_tvgicon_{}_{}x{}_{}_{}", m_cache_id, size.width(), size.height(), to_underlying(mode), to_underlying(state))));
+    return qformatted("$sernity_tvgicon_{}_{}x{}_{}_{}", m_cache_id, size.width(), size.height(), to_underlying(mode), to_underlying(state));
 }
 
 void TVGIconEngine::add_filter(QIcon::Mode mode, Function<Color(Color)> filter)
