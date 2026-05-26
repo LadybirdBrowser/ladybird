@@ -99,6 +99,8 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
+    for (auto const& request : m_pending_geolocation_requests)
+        visitor.visit(request.value.callback);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
         operation.visit([&](PendingFullscreenEnter const& enter_operation) {
                 visitor.visit(enter_operation.element);
@@ -693,6 +695,86 @@ void Page::retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemC
 {
     if (auto request = m_pending_clipboard_requests.take(request_id); request.has_value())
         (*request)->function()(move(items));
+}
+
+u64 Page::request_geolocation_position(GeolocationPositionCallback callback, GeolocationRequestType type)
+{
+    // This is the browser-process bridge for the Geolocation spec's "try to acquire position data from the underlying system" step.
+    auto request_id = m_next_geolocation_request_id++;
+    m_pending_geolocation_requests.set(request_id, { callback, type });
+
+    if (type == GeolocationRequestType::Watch) {
+        client().page_did_start_geolocation_position_watch(request_id);
+        return request_id;
+    }
+
+    if (!m_active_geolocation_request_id.has_value()) {
+        m_active_geolocation_request_id = request_id;
+        client().page_did_request_geolocation_position(request_id);
+    }
+
+    return request_id;
+}
+
+void Page::cancel_geolocation_position_request(u64 request_id)
+{
+    auto request = m_pending_geolocation_requests.take(request_id);
+    if (!request.has_value())
+        return;
+
+    if (request->type == GeolocationRequestType::Watch) {
+        client().page_did_stop_geolocation_position_watch(request_id);
+        return;
+    }
+
+    if (m_active_geolocation_request_id != request_id)
+        return;
+
+    client().page_did_cancel_geolocation_position_request(request_id);
+    m_active_geolocation_request_id = {};
+    for (auto const& entry : m_pending_geolocation_requests) {
+        if (entry.value.type == GeolocationRequestType::OneShot) {
+            m_active_geolocation_request_id = entry.key;
+            client().page_did_request_geolocation_position(entry.key);
+            return;
+        }
+    }
+}
+
+void Page::receive_geolocation_position(u64 request_id, GeolocationPositionResult result)
+{
+    auto request = m_pending_geolocation_requests.get(request_id);
+    if (!request.has_value())
+        return;
+
+    if (request->type == GeolocationRequestType::Watch) {
+        auto callback = request->callback;
+        if (result.has<Geolocation::GeolocationPositionError::ErrorCode>()
+            && result.get<Geolocation::GeolocationPositionError::ErrorCode>() == Geolocation::GeolocationPositionError::ErrorCode::PermissionDenied)
+            m_pending_geolocation_requests.remove(request_id);
+        callback->function()(result);
+        return;
+    }
+
+    if (m_active_geolocation_request_id != request_id)
+        return;
+
+    m_active_geolocation_request_id = {};
+
+    Vector<GeolocationPositionCallback> callbacks;
+    Vector<u64> completed_request_ids;
+    for (auto const& entry : m_pending_geolocation_requests) {
+        if (entry.value.type != GeolocationRequestType::OneShot)
+            continue;
+        callbacks.append(entry.value.callback);
+        completed_request_ids.append(entry.key);
+    }
+
+    for (auto completed_request_id : completed_request_ids)
+        m_pending_geolocation_requests.remove(completed_request_id);
+
+    for (auto const& callback : callbacks)
+        callback->function()(result);
 }
 
 void Page::register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id)

@@ -1,0 +1,5 @@
+latitude: 37.7647658
+longitude: -122.4345892
+accuracy type: number
+timestamp type: number
+altitude: 0

@@ -913,6 +913,15 @@ WebIDL::ExceptionOr<void> Internals::set_environments_top_level_url(Utf16String 
     return {};
 }
 
+void Internals::set_geolocation_emulated_position(double latitude, double longitude, double accuracy)
+{
+    as<HTML::LocalTraversableNavigable>(*window().navigable()->top_level_traversable()).set_emulated_position_data(Geolocation::CoordinatesData {
+        .accuracy = accuracy,
+        .latitude = latitude,
+        .longitude = longitude,
+    });
+}
+
 JS::Object* Internals::get_style_invalidation_counters()
 {
     auto const& counters = window().associated_document().style_invalidation_counters();

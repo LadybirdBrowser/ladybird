@@ -127,6 +127,7 @@ interface Internals {
     undefined handleSDLInputEvents();
 
     undefined setEnvironmentsTopLevelURL(Utf16USVString url);
+    undefined setGeolocationEmulatedPosition(double latitude, double longitude, optional double accuracy = 100);
 
     InternalGamepad connectVirtualGamepad();
 

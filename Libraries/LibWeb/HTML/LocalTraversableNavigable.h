@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/NavigationType.h>
@@ -133,6 +134,9 @@ public:
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData const& emulated_position_data() const;
     void set_emulated_position_data(Geolocation::EmulatedPositionData data);
+    void set_emulated_position_data(Geolocation::CoordinatesData);
+    u64 register_emulated_position_data_observer(GC::Ref<GC::Function<void()>>);
+    void unregister_emulated_position_data_observer(u64 observer_id);
 
     void process_screenshot_requests();
     void queue_screenshot_task(Optional<UniqueNodeID> node_id)
@@ -248,6 +252,8 @@ private:
 
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData m_emulated_position_data;
+    HashMap<u64, GC::Ref<GC::Function<void()>>> m_emulated_position_data_observers;
+    u64 m_next_emulated_position_data_observer_id { 0 };
 
     struct ScreenshotTask {
         Optional<Web::UniqueNodeID> node_id;

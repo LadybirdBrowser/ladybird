@@ -42,7 +42,9 @@ Bindings::PermissionState request_permission(Bindings::PermissionDescriptor cons
 
     // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
     // The user's interaction may provide new information about the user's intent for the origin.
-    if (false) {
+    // AD-HOC: Until we have per-origin permission prompts, grant browser-level geolocation requests. The UI process
+    //         still enforces the browser-wide setting and native provider authorization.
+    if (descriptor.name == "geolocation"_utf16 || HTML::Window::in_test_mode()) {
         current_state = Bindings::PermissionState::Granted;
     } else {
         current_state = Bindings::PermissionState::Denied;
@@ -54,6 +56,10 @@ Bindings::PermissionState request_permission(Bindings::PermissionDescriptor cons
     // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
     VERIFY(settings.top_level_origin.has_value());
     auto key = permission_key_generation_algorithm(settings.top_level_origin.value(), settings.origin());
+
+    // AD-HOC: Our permission state is backed by PermissionStore, so update it before returning to make the new current
+    //         state observable to callers that continue synchronously.
+    PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
 
     // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
     HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(settings.realm().heap(), [descriptor, key, current_state] {
