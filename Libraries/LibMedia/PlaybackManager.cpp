@@ -163,6 +163,7 @@ PlaybackManager::PlaybackManager()
 
 PlaybackManager::~PlaybackManager()
 {
+    m_time_provider->pause();
     m_weak_link->revoke({});
 }
 
