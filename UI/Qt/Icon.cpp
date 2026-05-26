@@ -12,6 +12,7 @@
 
 #include <QPainter>
 #include <QPainterPath>
+#include <QPainterPathStroker>
 #include <QPalette>
 #include <QPen>
 #include <QPixmap>
@@ -59,6 +60,40 @@ static QPen chrome_icon_pen(QColor const& color, qreal width)
     return QPen(color, width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
 }
 
+static void draw_stroked_icon_path(QPainter& painter, QPainterPath const& path, QColor const& color, qreal width)
+{
+    QPainterPathStroker stroker;
+    stroker.setWidth(width);
+    stroker.setCapStyle(Qt::RoundCap);
+    stroker.setJoinStyle(Qt::RoundJoin);
+
+    auto stroke = stroker.createStroke(path);
+    stroke.setFillRule(Qt::WindingFill);
+    painter.fillPath(stroke, color);
+}
+
+static void draw_back_icon(QPainter& painter, QColor const& color)
+{
+    QPainterPath path;
+    path.moveTo(18.8, 10.8);
+    path.lineTo(4.7, 10.8);
+    path.moveTo(10.8, 5.4);
+    path.lineTo(4.7, 10.8);
+    path.lineTo(10.8, 16.2);
+    draw_stroked_icon_path(painter, path, color, 2.15);
+}
+
+static void draw_forward_icon(QPainter& painter, QColor const& color)
+{
+    QPainterPath path;
+    path.moveTo(1.2, 10.8);
+    path.lineTo(15.3, 10.8);
+    path.moveTo(9.2, 5.4);
+    path.lineTo(15.3, 10.8);
+    path.lineTo(9.2, 16.2);
+    draw_stroked_icon_path(painter, path, color, 2.15);
+}
+
 static void draw_star_icon(QPainter& painter, QColor const& color, bool filled)
 {
     QPainterPath path;
@@ -93,16 +128,10 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color)
 
     switch (icon) {
     case ChromeIcon::Back:
-        painter.setPen(chrome_icon_pen(color, 2.05));
-        painter.drawLine(QPointF(15.4, 10.0), QPointF(6.0, 10.0));
-        painter.drawLine(QPointF(10.8, 5.5), QPointF(5.3, 10.0));
-        painter.drawLine(QPointF(5.3, 10.0), QPointF(10.8, 14.5));
+        draw_back_icon(painter, color);
         break;
     case ChromeIcon::Forward:
-        painter.setPen(chrome_icon_pen(color, 2.05));
-        painter.drawLine(QPointF(4.6, 10.0), QPointF(14.0, 10.0));
-        painter.drawLine(QPointF(9.4, 5.6), QPointF(14.7, 10.0));
-        painter.drawLine(QPointF(14.7, 10.0), QPointF(9.4, 14.4));
+        draw_forward_icon(painter, color);
         break;
     case ChromeIcon::Reload: {
         painter.setPen(chrome_icon_pen(color, 1.9));
@@ -131,9 +160,9 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color)
         break;
     case ChromeIcon::Menu:
         painter.setPen(chrome_icon_pen(color, 1.8));
-        painter.drawLine(QPointF(3.8, 6.4), QPointF(16.2, 6.4));
-        painter.drawLine(QPointF(3.8, 10.0), QPointF(16.2, 10.0));
-        painter.drawLine(QPointF(3.8, 13.6), QPointF(16.2, 13.6));
+        painter.drawLine(QPointF(3.8, 7.4), QPointF(16.2, 7.4));
+        painter.drawLine(QPointF(3.8, 11.0), QPointF(16.2, 11.0));
+        painter.drawLine(QPointF(3.8, 14.6), QPointF(16.2, 14.6));
         break;
     case ChromeIcon::Star:
         draw_star_icon(painter, color, false);
@@ -228,6 +257,8 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
     qicon.addPixmap(create_chrome_icon_pixmap(icon, active), QIcon::Active);
     qicon.addPixmap(create_chrome_icon_pixmap(icon, disabled), QIcon::Disabled);
     qicon.addPixmap(create_chrome_icon_pixmap(icon, active), QIcon::Selected);
+    if (icon == ChromeIcon::NewTab)
+        return create_y_offset_icon(qicon, -1);
     return qicon;
 }
 
