@@ -9,23 +9,22 @@ function sendConfigVariableValue(variable, value) {
 }
 
 function createControl(variable) {
-    const control = document.createElement("div");
-    control.classList.add("config-control");
+    const type = variable.type === "array" && variable.elementType === "string" ? "textarea" : "input";
+    const input = document.createElement(type);
+    input.id = variable.name;
 
     if (variable.type === "boolean") {
-        const input = document.createElement("input");
         input.type = "checkbox";
-        input.toggleAttribute("switch", true);
+        input.switch = true;
         input.checked = !!variable.value;
         input.addEventListener("change", () => {
             sendConfigVariableValue(variable, input.checked);
         });
-        control.append(input);
-        return control;
+
+        return input;
     }
 
-    if (variable.type === "array" && variable.elementType === "string") {
-        const input = document.createElement("textarea");
+    if (type === "textarea") {
         input.rows = 3;
         input.value = Array.isArray(variable.value) ? variable.value.join("\n") : "";
         input.addEventListener("change", () => {
@@ -36,11 +35,10 @@ function createControl(variable) {
 
             sendConfigVariableValue(variable, value);
         });
-        control.append(input);
-        return control;
+
+        return input;
     }
 
-    const input = document.createElement("input");
     input.value = variable.value ?? "";
 
     if (variable.type === "number") {
@@ -59,31 +57,34 @@ function createControl(variable) {
         });
     }
 
-    control.append(input);
-    return control;
+    return input;
 }
 
 function createRow(variable) {
     const row = document.createElement("div");
+    row.classList.add("card-group");
+    row.classList.add("card-separator");
     row.classList.add("config-row");
+    row.classList.add("inline-container");
     row.dataset.filterText = `${variable.name} ${variable.title} ${variable.description}`.toLowerCase();
 
-    const details = document.createElement("div");
-
-    const name = document.createElement("div");
+    const name = document.createElement("p");
     name.classList.add("config-name");
     name.textContent = variable.name;
 
-    const title = document.createElement("div");
+    const title = document.createElement("p");
     title.classList.add("config-title");
     title.textContent = variable.title;
 
     const description = document.createElement("p");
-    description.classList.add("config-description", "description");
+    description.classList.add("description");
     description.textContent = variable.description;
 
-    details.append(name, title, description);
-    row.append(details, createControl(variable));
+    const label = document.createElement("label");
+    label.htmlFor = variable.name;
+    label.append(name, title, description);
+
+    row.append(label, createControl(variable));
     return row;
 }
 

@@ -59,7 +59,8 @@
             .inline-container input[type="number"],
             .inline-container input[type="text"],
             .inline-container input[type="url"],
-            .inline-container select {
+            .inline-container select,
+            .inline-container textarea {
                 width: 50%;
             }
 
@@ -115,6 +116,10 @@
 
                 width: 100%;
                 border: 1px solid var(--border-color);
+            }
+
+            textarea {
+                resize: vertical;
             }
 
             input[type="number"].success,
@@ -281,19 +286,6 @@
                 width: 100%;
             }
 
-            .config-row {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
-                gap: 20px;
-                align-items: center;
-            }
-
-            .config-row + .config-row {
-                border-top: 1px solid var(--border-color);
-                padding-top: 16px;
-                margin-top: 16px;
-            }
-
             .config-name {
                 font-family: monospace;
                 font-size: 13px;
@@ -305,32 +297,6 @@
                 margin-top: 6px;
 
                 font-size: 14px;
-            }
-
-            .config-control {
-                min-width: 180px;
-            }
-
-            .config-control input[type="text"],
-            .config-control input[type="number"],
-            .config-control textarea {
-                width: 100%;
-            }
-
-            .config-control textarea {
-                min-width: 280px;
-                resize: vertical;
-            }
-
-            @media (max-width: 600px) {
-                .config-row {
-                    grid-template-columns: minmax(0, 1fr);
-                    align-items: stretch;
-                }
-
-                .config-control {
-                    min-width: 0;
-                }
             }
 
             .tab-bar {
@@ -598,7 +564,7 @@
                     <div class="card-group">
                         <input id="config-filter" type="search" placeholder="Filter configuration keys" />
                     </div>
-                    <div id="config-list"></div>
+                    <div class="card-group" id="config-list"></div>
                 </div>
             </div>
         </div>
