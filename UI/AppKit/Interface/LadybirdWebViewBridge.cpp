@@ -30,6 +30,7 @@ WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, double d
 {
     m_device_pixel_ratio = device_pixel_ratio;
     m_maximum_frames_per_second = static_cast<double>(maximum_frames_per_second);
+    set_page_background_color_to_system_canvas(is_using_dark_system_theme());
 }
 
 WebViewBridge::~WebViewBridge() = default;
@@ -66,6 +67,7 @@ void WebViewBridge::exit_fullscreen()
 
 void WebViewBridge::update_palette()
 {
+    set_page_background_color_to_system_canvas(is_using_dark_system_theme());
     auto theme = create_system_palette();
     client().async_update_system_theme(m_client_state.page_index, move(theme));
 }

@@ -37,6 +37,7 @@ WebContentView::WebContentView(LadybirdWebView* widget, RefPtr<WebView::WebConte
     m_client_state.page_index = page_index;
 
     m_device_pixel_ratio = gtk_widget_get_scale_factor(GTK_WIDGET(widget));
+    set_page_background_color_to_system_canvas(adw_style_manager_get_dark(adw_style_manager_get_default()));
 
     // Store ourselves in the GObject widget
     ladybird_web_view_set_impl(widget, this);
@@ -284,6 +285,7 @@ void WebContentView::set_has_focus(bool has_focus)
 void WebContentView::update_palette()
 {
     auto is_dark = adw_style_manager_get_dark(adw_style_manager_get_default());
+    set_page_background_color_to_system_canvas(is_dark);
     auto theme_file = is_dark ? "Dark"sv : "Default"sv;
     auto theme_ini = MUST(Core::Resource::load_from_uri(MUST(String::formatted("resource://themes/{}.ini", theme_file))));
     auto theme_or_error = Gfx::load_system_theme(theme_ini->filesystem_path().to_byte_string());

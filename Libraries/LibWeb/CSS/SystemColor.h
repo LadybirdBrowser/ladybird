@@ -19,7 +19,7 @@ Color active_text(PreferredColorScheme);
 Color button_border(PreferredColorScheme);
 Color button_face(PreferredColorScheme);
 Color button_text(PreferredColorScheme);
-Color canvas(PreferredColorScheme);
+WEB_API Color canvas(PreferredColorScheme);
 Color canvas_text(PreferredColorScheme);
 Color field(PreferredColorScheme);
 Color field_text(PreferredColorScheme);
