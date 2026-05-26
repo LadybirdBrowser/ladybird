@@ -10,6 +10,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
 #include <LibWebView/ProcessManager.h>
+#include <signal.h>
 
 namespace WebView {
 
@@ -109,10 +110,46 @@ void ProcessManager::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 Optional<Process> ProcessManager::remove_process(pid_t pid)
 {
     verify_event_loop();
+    cancel_forced_exit(pid);
     m_statistics.processes.remove_first_matching([&](auto const& info) {
         return (info->pid == pid);
     });
     return m_processes.take(pid);
+}
+
+void ProcessManager::cancel_forced_exit(pid_t pid)
+{
+    verify_event_loop();
+    if (auto timer = m_forced_exit_timers.take(pid); timer.has_value())
+        (*timer)->stop();
+}
+
+void ProcessManager::force_exit_after_timeout(pid_t pid, int timeout_ms)
+{
+    verify_event_loop();
+    if (!m_processes.contains(pid))
+        return;
+    if (m_forced_exit_timers.contains(pid))
+        return;
+
+    auto timer = Core::Timer::create_single_shot(timeout_ms, [this, pid] {
+        m_forced_exit_timers.remove(pid);
+        auto process = m_processes.get(pid);
+        if (!process.has_value())
+            return;
+
+#if defined(AK_OS_WINDOWS)
+        constexpr auto signal = SIGTERM;
+#else
+        constexpr auto signal = SIGKILL;
+#endif
+        dbgln("Force-killing unresponsive {} process {}", process_name_from_type(process->type()), pid);
+        auto result = Core::System::kill(pid, signal);
+        if (result.is_error())
+            dbgln("Failed to force-kill process {}: {}", pid, result.error());
+    });
+    timer->start();
+    m_forced_exit_timers.set(pid, move(timer));
 }
 
 void ProcessManager::update_all_process_statistics()
