@@ -138,6 +138,7 @@ private:
 
     void update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget> chrome_widget);
     void record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers);
+    EventResult cancel_drag_and_drop_event(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
 
     void handle_gamepad_connected(SDL_JoystickID);
     void handle_gamepad_updated(SDL_JoystickID);

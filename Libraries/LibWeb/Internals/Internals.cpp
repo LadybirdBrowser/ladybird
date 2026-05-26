@@ -350,6 +350,11 @@ void Internals::mouse_move(double x, double y, WebIDL::UnsignedShort modifiers)
     page.handle_mousemove(position, position, 0, modifiers);
 }
 
+void Internals::mouse_leave()
+{
+    this->page().handle_mouseleave();
+}
+
 void Internals::click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
 {
     click_and_hold(x, y, click_count, button, modifiers);

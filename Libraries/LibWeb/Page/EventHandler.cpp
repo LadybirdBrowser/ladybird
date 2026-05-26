@@ -189,6 +189,9 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (!node)
         return EventResult::Dropped;
 
+    if (button == UIEvents::MouseButton::Primary)
+        clear_mousedown_tracking();
+
     m_mousedown_click_count = click_count;
 
     auto dispath_result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [=](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
@@ -389,6 +392,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     if (should_ignore_device_input_event()) {
         if (m_mousedown_target_is_drag_candidate) {
             auto result = handle_drag_and_drop_event(DragEvent::Type::Drop, visual_viewport_position, screen_position, button, buttons, modifiers, {});
+            if (result == EventResult::Dropped && should_ignore_device_input_event())
+                return cancel_drag_and_drop_event(visual_viewport_position, screen_position, button, buttons, modifiers);
             set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Arrow);
             return result;
         }
@@ -660,11 +665,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 EventResult EventHandler::handle_mouseleave()
 {
     if (should_ignore_device_input_event()) {
-        if (m_mousedown_target_is_drag_candidate) {
-            auto result = handle_drag_and_drop_event(DragEvent::Type::DragEnd, {}, {}, UIEvents::MouseButton::Primary, UIEvents::MouseButton::Primary, 0, {});
-            set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Arrow);
-            return result;
-        }
+        if (m_mousedown_target_is_drag_candidate)
+            return cancel_drag_and_drop_event(m_last_known_mouse_visual_viewport_position.value_or({}), m_last_known_mouse_screen_position, UIEvents::MouseButton::Primary, UIEvents::MouseButton::Primary, 0);
 
         return EventResult::Dropped;
     }
@@ -800,6 +802,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
+
+    if (should_ignore_device_input_event() && m_mousedown_target_is_drag_candidate && key == UIEvents::KeyCode::Key_Escape)
+        return cancel_drag_and_drop_event(m_last_known_mouse_visual_viewport_position.value_or({}), m_last_known_mouse_screen_position, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, modifiers);
 
     auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
     if (dispatch_result != EventResult::Accepted)
@@ -1091,6 +1096,23 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     }
 
     VERIFY_NOT_REACHED();
+}
+
+EventResult EventHandler::cancel_drag_and_drop_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+{
+    auto document = m_navigable->active_document();
+    if (!document)
+        return EventResult::Dropped;
+    if (!document->is_fully_active())
+        return EventResult::Dropped;
+
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+    auto page_offset = compute_mouse_event_page_offset(viewport_position);
+    auto result = m_drag_and_drop_event_handler->handle_drag_cancel(document->realm(), screen_position, page_offset, viewport_position, {}, button, buttons, modifiers);
+    set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Arrow);
+    clear_mousedown_tracking();
+    stop_updating_selection();
+    return result;
 }
 
 bool EventHandler::should_ignore_device_input_event() const
@@ -2018,8 +2040,13 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
     }
 }
 
+static void set_node_and_ancestors_being_activated(DOM::Node*, bool);
+
 void EventHandler::clear_mousedown_tracking()
 {
+    if (m_mousedown_target)
+        set_node_and_ancestors_being_activated(m_mousedown_target, false);
+
     m_mousedown_target = nullptr;
     m_mousedown_visual_viewport_position = {};
     m_mousedown_click_count = 0;
