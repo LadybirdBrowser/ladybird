@@ -47,6 +47,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     Array<int, 2> stderr_pipe {};
 
     Core::ProcessSpawnOptions spawn_options = options;
+    spawn_options.die_with_parent = true;
 
     if (capture_output) {
         stdout_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
