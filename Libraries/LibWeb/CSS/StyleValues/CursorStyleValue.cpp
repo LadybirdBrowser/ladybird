@@ -120,6 +120,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
             Painting::DisplayListPlayerSkia display_list_player;
             display_list_player.execute(*display_list, resource_storage, {}, painting_surface);
+            display_list_player.flush(*painting_surface);
             break;
         }
         }

@@ -117,8 +117,6 @@ void DisplayListPlayer::execute(
     m_active_display_list = &display_list;
     m_resource_storage = &resource_storage;
     execute_impl(display_list, scroll_state_snapshot);
-    if (surface)
-        flush();
     m_resource_storage = nullptr;
     m_active_display_list = nullptr;
     m_surface = nullptr;

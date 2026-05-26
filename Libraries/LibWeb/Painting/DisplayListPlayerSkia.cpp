@@ -104,11 +104,11 @@ static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
         matrix[3, 3]);
 }
 
-void DisplayListPlayerSkia::flush()
+void DisplayListPlayerSkia::flush(Gfx::PaintingSurface& surface)
 {
-    if (auto context = surface().skia_backend_context())
-        context->flush_and_submit(&surface().sk_surface());
-    surface().flush();
+    if (auto context = surface.skia_backend_context())
+        context->flush_and_submit(&surface.sk_surface());
+    surface.flush();
     m_image_cache.prune();
 }
 

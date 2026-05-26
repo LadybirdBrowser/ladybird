@@ -69,6 +69,7 @@ public:
     virtual ~DisplayListPlayer() = default;
 
     void execute(DisplayList const&, DisplayListResourceStorage const&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
+    virtual void flush(Gfx::PaintingSurface&) = 0;
 
 protected:
     Gfx::PaintingSurface& surface() const { return *m_surface; }
@@ -93,7 +94,6 @@ protected:
     void execute_nested_display_list(DisplayList const&, ScrollStateSnapshot const&, ReadonlyBytes command_bytes);
 
 private:
-    virtual void flush() = 0;
     virtual void draw_glyph_run(DrawGlyphRun const&) = 0;
     virtual void fill_rect(FillRect const&) = 0;
     virtual void draw_scaled_decoded_image_frame(DrawScaledDecodedImageFrame const&) = 0;

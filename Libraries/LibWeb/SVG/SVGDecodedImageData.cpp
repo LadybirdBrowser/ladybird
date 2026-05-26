@@ -184,6 +184,7 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia display_list_player;
         display_list_player.execute(*display_list, resource_storage, {}, surface);
+        display_list_player.flush(*surface);
         break;
     }
     default:
