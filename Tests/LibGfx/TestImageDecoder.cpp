@@ -516,6 +516,19 @@ TEST_CASE(test_png_malformed_frame)
     }
 }
 
+// Regression test: libpng longjmp() out of png_read_image() must not leak the in-flight row-pointers buffer or bitmap
+// from PNGLoadingContext::read_frames(). The fixture has a valid IHDR, but a corrupted IDAT body that decompresses past
+// its zlib end-of-block marker — forcing libpng to longjmp mid-decode.
+TEST_CASE(test_png_corrupt_idat_does_not_leak_on_libpng_longjmp)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/corrupt-idat.png"sv)));
+    auto plugin_or_error = Gfx::PNGImageDecoderPlugin::create(file->bytes());
+    // PNGImageDecoderPlugin::create() catches the libpng error and falls back to a single-frame placeholder — so we
+    // don't assert on the result here. The test passes if the run completes without LeakSanitizer reports.
+    if (!plugin_or_error.is_error())
+        (void)plugin_or_error.release_value()->frame(0);
+}
+
 TEST_CASE(test_png_large_dimensions)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/65535x1.png"sv)));
