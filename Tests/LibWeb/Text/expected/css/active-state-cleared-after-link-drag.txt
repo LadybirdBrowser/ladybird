@@ -1,0 +1,15 @@
+active after foo mousedown: html, body, foo
+active after releasing foo drag: (none)
+active after bar mousedown: html, body, bar
+active after bar mouseup: (none)
+active after foo drag leaves viewport: (none)
+bar clicks after viewport leave: 1
+active after untargetable viewport leave: (none)
+foo dragends after untargetable viewport leave: 1
+bar clicks after untargetable viewport leave: 1
+active after outside-viewport mouseup: (none)
+foo dragends after outside-viewport mouseup: 1
+bar clicks after outside-viewport mouseup: 1
+active after escape-canceled drag: (none)
+foo dragends after escape-canceled drag: 1
+bar clicks after escape-canceled drag: 1

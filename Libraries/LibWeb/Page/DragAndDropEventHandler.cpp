@@ -368,6 +368,19 @@ EventResult DragAndDropEventHandler::handle_drag_leave(
     return handle_drag_end(realm, Cancelled::Yes, screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
 }
 
+EventResult DragAndDropEventHandler::handle_drag_cancel(
+    JS::Realm& realm,
+    CSSPixelPoint screen_position,
+    CSSPixelPoint page_offset,
+    CSSPixelPoint client_offset,
+    CSSPixelPoint offset,
+    unsigned button,
+    unsigned buttons,
+    unsigned modifiers)
+{
+    return handle_drag_end(realm, Cancelled::Yes, screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
+}
+
 EventResult DragAndDropEventHandler::handle_drop(
     JS::Realm& realm,
     CSSPixelPoint screen_position,

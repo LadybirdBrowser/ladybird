@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+a {
+    display: inline-block;
+    padding: 10px;
+}
+</style>
+<a id="foo" href="#foo">foo</a>
+<a id="bar" href="#bar">bar</a>
+<script>
+function activeIds() {
+    const ids = Array.from(document.querySelectorAll(":active"), element => element.id || element.localName).join(", ");
+    return ids || "(none)";
+}
+
+test(() => {
+    let barClicks = 0;
+    bar.addEventListener("click", event => {
+        event.preventDefault();
+        ++barClicks;
+    });
+
+    let fooDragEnds = 0;
+    foo.addEventListener("dragend", () => {
+        ++fooDragEnds;
+    });
+
+    document.body.offsetWidth;
+
+    const fooRect = foo.getBoundingClientRect();
+    const barRect = bar.getBoundingClientRect();
+
+    internals.mouseDown(fooRect.x + fooRect.width / 2, fooRect.y + fooRect.height / 2);
+    println(`active after foo mousedown: ${activeIds()}`);
+
+    internals.mouseMove(fooRect.right + 20, fooRect.y + fooRect.height / 2);
+    internals.mouseUp(fooRect.right + 20, fooRect.y + fooRect.height / 2);
+    println(`active after releasing foo drag: ${activeIds()}`);
+
+    internals.mouseDown(barRect.x + barRect.width / 2, barRect.y + barRect.height / 2);
+    println(`active after bar mousedown: ${activeIds()}`);
+
+    internals.mouseUp(barRect.x + barRect.width / 2, barRect.y + barRect.height / 2);
+    println(`active after bar mouseup: ${activeIds()}`);
+
+    barClicks = 0;
+
+    internals.mouseDown(fooRect.x + fooRect.width / 2, fooRect.y + fooRect.height / 2);
+    internals.mouseMove(fooRect.right + 20, fooRect.y + fooRect.height / 2);
+    internals.mouseLeave();
+    println(`active after foo drag leaves viewport: ${activeIds()}`);
+
+    internals.click(barRect.x + barRect.width / 2, barRect.y + barRect.height / 2);
+    println(`bar clicks after viewport leave: ${barClicks}`);
+
+    barClicks = 0;
+
+    internals.mouseDown(fooRect.x + fooRect.width / 2, fooRect.y + fooRect.height / 2);
+    internals.mouseMove(fooRect.right + 20, fooRect.y + fooRect.height / 2);
+    fooDragEnds = 0;
+    document.documentElement.style.pointerEvents = "none";
+    internals.mouseLeave();
+    document.documentElement.style.pointerEvents = "";
+    println(`active after untargetable viewport leave: ${activeIds()}`);
+    println(`foo dragends after untargetable viewport leave: ${fooDragEnds}`);
+
+    internals.click(barRect.x + barRect.width / 2, barRect.y + barRect.height / 2);
+    println(`bar clicks after untargetable viewport leave: ${barClicks}`);
+
+    barClicks = 0;
+
+    internals.mouseDown(fooRect.x + fooRect.width / 2, fooRect.y + fooRect.height / 2);
+    internals.mouseMove(fooRect.right + 20, fooRect.y + fooRect.height / 2);
+    fooDragEnds = 0;
+    internals.mouseUp(-100, -100);
+    println(`active after outside-viewport mouseup: ${activeIds()}`);
+    println(`foo dragends after outside-viewport mouseup: ${fooDragEnds}`);
+
+    internals.click(barRect.x + barRect.width / 2, barRect.y + barRect.height / 2);
+    println(`bar clicks after outside-viewport mouseup: ${barClicks}`);
+
+    barClicks = 0;
+
+    internals.mouseDown(fooRect.x + fooRect.width / 2, fooRect.y + fooRect.height / 2);
+    internals.mouseMove(fooRect.right + 20, fooRect.y + fooRect.height / 2);
+    fooDragEnds = 0;
+    internals.sendKey(bar, "Escape");
+    println(`active after escape-canceled drag: ${activeIds()}`);
+    println(`foo dragends after escape-canceled drag: ${fooDragEnds}`);
+
+    internals.click(barRect.x + barRect.width / 2, barRect.y + barRect.height / 2);
+    println(`bar clicks after escape-canceled drag: ${barClicks}`);
+});
+</script>
