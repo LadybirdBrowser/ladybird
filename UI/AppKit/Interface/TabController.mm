@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/BookmarkStore.h>
@@ -294,6 +295,7 @@ static NSImage* location_field_globe_icon()
     bool m_fullscreen_requested_for_web_content;
     bool m_fullscreen_exit_was_ui_initiated;
     bool m_fullscreen_should_restore_tab_bar;
+    Function<void()> m_pending_immediate_close;
 }
 
 @property (nonatomic, assign) BOOL already_requested_close;
@@ -923,6 +925,11 @@ static NSImage* location_field_globe_icon()
 
 - (BOOL)windowShouldClose:(NSWindow*)sender
 {
+    if (![[[self tab] web_view] needsBeforeUnloadCheck]) {
+        m_pending_immediate_close = [[[self tab] web_view] prepareForImmediateClose];
+        return true;
+    }
+
     // Prevent closing on first request so WebContent can cleanly shutdown (e.g. asking if the user is sure they want
     // to leave, closing WebSocket connections, etc.)
     if (!self.already_requested_close) {
@@ -940,6 +947,10 @@ static NSImage* location_field_globe_icon()
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
     [delegate removeTab:self];
+
+    auto request_close = AK::move(m_pending_immediate_close);
+    if (request_close)
+        Core::deferred_invoke(AK::move(request_close));
 }
 
 - (void)windowDidMove:(NSNotification*)notification

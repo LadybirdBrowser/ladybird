@@ -150,6 +150,8 @@ public:
     void set_async_scrolling_enabled(bool b) { m_async_scrolling_enabled = b; }
     u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
     void invalidate_compositor_wheel_event_listener_state();
+    bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
+    void update_needs_beforeunload_check();
 
     bool is_webdriver_active() const { return m_is_webdriver_active; }
     void set_is_webdriver_active(bool b) { m_is_webdriver_active = b; }
@@ -320,6 +322,7 @@ private:
     bool m_enable_primary_paste { true };
     bool m_async_scrolling_enabled { false };
     u64 m_wheel_event_listener_state_generation { 0 };
+    bool m_needs_beforeunload_check { true };
 
     // https://w3c.github.io/webdriver/#dfn-webdriver-active-flag
     // The webdriver-active flag is set to true when the user agent is under remote control. It is initially false.
@@ -487,6 +490,7 @@ public:
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
     virtual void page_did_update_navigation_buttons_state([[maybe_unused]] bool back_enabled, [[maybe_unused]] bool forward_enabled) { }
+    virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 
     virtual void request_file(FileRequest) = 0;
 

@@ -20,6 +20,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -363,11 +364,41 @@ void Page::invalidate_compositor_wheel_event_listener_state()
     top_level_traversable()->compositor_context().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
 }
 
+void Page::update_needs_beforeunload_check()
+{
+    auto needs_beforeunload_check = [&] {
+        if (!top_level_traversable_is_initialized())
+            return true;
+
+        auto top_level_traversable = this->top_level_traversable();
+        auto active_document = top_level_traversable->active_document();
+        if (!active_document)
+            return true;
+        if (active_document->navigable() != top_level_traversable.ptr())
+            return true;
+
+        for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+            auto window = navigable->active_window();
+            if (window && window->has_event_listener(HTML::EventNames::beforeunload))
+                return true;
+        }
+
+        return false;
+    }();
+
+    if (m_needs_beforeunload_check == needs_beforeunload_check)
+        return;
+
+    m_needs_beforeunload_check = needs_beforeunload_check;
+    client().page_did_change_needs_beforeunload_check(m_needs_beforeunload_check);
+}
+
 void Page::set_top_level_traversable(GC::Ref<HTML::TraversableNavigable> navigable)
 {
     VERIFY(!m_top_level_traversable); // Replacement is not allowed!
     VERIFY(&navigable->page() == this);
     m_top_level_traversable = navigable;
+    update_needs_beforeunload_check();
 }
 
 bool Page::top_level_traversable_is_initialized() const

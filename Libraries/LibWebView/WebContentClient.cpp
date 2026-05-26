@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibCore/Timer.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
@@ -22,6 +23,10 @@
 namespace WebView {
 
 HashTable<WebContentClient*> WebContentClient::s_clients;
+
+static constexpr auto detached_page_close_timeout_ms = 1000;
+static constexpr auto close_server_exit_timeout_ms = 5000;
+static constexpr auto detached_page_forced_exit_timeout_ms = detached_page_close_timeout_ms + close_server_exit_timeout_ms;
 
 static Optional<String> history_title(Utf16String const& title, URL::URL const& url)
 {
@@ -142,6 +147,9 @@ void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 comp
 void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 {
     VERIFY(page_id > 0);
+    if (m_detached_page_close_timer)
+        m_detached_page_close_timer->stop();
+    Application::process_manager().cancel_forced_exit(pid());
     m_views.set(page_id, view);
     m_history_recorded_urls_for_current_load.remove(page_id);
 }
@@ -150,10 +158,57 @@ void WebContentClient::unregister_view(u64 page_id)
 {
     if (auto context_id = m_page_compositor_context_ids.get(page_id); context_id.has_value())
         forget_compositor_context(*context_id);
+
+    // A page that still needs a beforeunload check is not a detached
+    // background close. It is being closed without waiting for WebContent,
+    // e.g. because the user requested a forced close.
+    if (auto view = m_views.get(page_id); view.has_value() && (*view)->needs_beforeunload_check())
+        m_detached_pages_pending_close.remove(page_id);
+
     m_views.remove(page_id);
     m_history_recorded_urls_for_current_load.remove(page_id);
-    if (m_views.is_empty())
+    close_server_if_unused();
+}
+
+void WebContentClient::prepare_for_detached_close(u64 page_id)
+{
+    m_detached_pages_pending_close.set(page_id);
+}
+
+void WebContentClient::request_close(u64 page_id)
+{
+    // The frontend may destroy the view immediately after this for pages that
+    // cannot prompt during beforeunload. Keep owning the WebContent close until
+    // the page reports that its top-level traversable has been closed.
+    prepare_for_detached_close(page_id);
+    async_request_close(page_id);
+}
+
+void WebContentClient::close_server_if_unused()
+{
+    if (!m_views.is_empty())
+        return;
+
+    if (m_detached_pages_pending_close.is_empty()) {
+        if (m_detached_page_close_timer)
+            m_detached_page_close_timer->stop();
         async_close_server();
+        Application::process_manager().force_exit_after_timeout(pid(), close_server_exit_timeout_ms);
+        return;
+    }
+
+    Application::process_manager().force_exit_after_timeout(pid(), detached_page_forced_exit_timeout_ms);
+
+    if (!m_detached_page_close_timer) {
+        m_detached_page_close_timer = Core::Timer::create_single_shot(detached_page_close_timeout_ms, [this] {
+            dbgln("Timed out waiting for detached WebContent page close acknowledgement");
+            m_detached_pages_pending_close.clear();
+            close_server_if_unused();
+        });
+    }
+
+    if (!m_detached_page_close_timer->is_active())
+        m_detached_page_close_timer->start();
 }
 
 void WebContentClient::web_ui_disconnected(Badge<WebUI>)
@@ -897,10 +952,20 @@ void WebContentClient::did_request_activate_tab(u64 page_id)
 
 void WebContentClient::did_close_browsing_context(u64 page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_close)
-            view->on_close();
+    m_detached_pages_pending_close.remove(page_id);
+
+    if (auto view = m_views.get(page_id); view.has_value()) {
+        if ((*view)->on_close)
+            (*view)->on_close();
     }
+
+    close_server_if_unused();
+}
+
+void WebContentClient::did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_change_needs_beforeunload_check({}, needs_beforeunload_check);
 }
 
 void WebContentClient::did_update_resource_count(u64 page_id, i32 count_waiting)

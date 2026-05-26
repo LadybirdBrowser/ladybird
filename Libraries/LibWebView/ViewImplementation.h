@@ -171,6 +171,7 @@ public:
     Web::HTML::AudioPlayState audio_play_state() const { return m_audio_play_state; }
 
     void did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const;
+    void did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check);
     void did_change_background_color(Badge<WebContentClient>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }
 
@@ -195,6 +196,8 @@ public:
     void use_native_user_style_sheet();
 
     void request_close();
+    Function<void()> prepare_for_immediate_close();
+    bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
 
     Function<void()> on_ready_to_paint;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64>)> on_new_web_view;
@@ -429,6 +432,7 @@ protected:
     u64 m_next_navigation_listener_id { 1 };
 
     bool m_devtools_connected { false };
+    bool m_needs_beforeunload_check { true };
 };
 
 }
