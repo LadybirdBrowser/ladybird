@@ -672,6 +672,11 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
     m_navigate_forward_action->set_enabled(forward_enabled);
 }
 
+void ViewImplementation::did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check)
+{
+    m_needs_beforeunload_check = needs_beforeunload_check;
+}
+
 void ViewImplementation::did_change_background_color(Badge<WebContentClient>, Gfx::Color color)
 {
     m_page_background_color = color;
@@ -732,6 +737,8 @@ void ViewImplementation::handle_resize()
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 {
+    m_needs_beforeunload_check = true;
+
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
 
@@ -1293,7 +1300,24 @@ void ViewImplementation::remove_navigation_listener(u64 listener_id)
 
 void ViewImplementation::request_close()
 {
-    client().async_request_close(page_id());
+    if (needs_beforeunload_check()) {
+        client().async_request_close(page_id());
+        return;
+    }
+
+    client().request_close(page_id());
+}
+
+Function<void()> ViewImplementation::prepare_for_immediate_close()
+{
+    VERIFY(!needs_beforeunload_check());
+
+    auto client = m_client_state.client;
+    auto page_id = m_client_state.page_index;
+    client->prepare_for_detached_close(page_id);
+    return [client = move(client), page_id] {
+        client->async_request_close(page_id);
+    };
 }
 
 }

@@ -8190,8 +8190,18 @@ void Document::set_navigable(GC::Ptr<HTML::Navigable> navigable)
 {
     if (m_navigable == navigable)
         return;
+
+    auto previous_traversable = m_navigable ? m_navigable->traversable_navigable() : nullptr;
     m_navigable = navigable.ptr();
     HTML::main_thread_event_loop().document_navigable_did_change({});
+
+    if (previous_traversable)
+        previous_traversable->page().update_needs_beforeunload_check();
+    if (navigable) {
+        auto new_traversable = navigable->traversable_navigable();
+        if (new_traversable && new_traversable != previous_traversable)
+            new_traversable->page().update_needs_beforeunload_check();
+    }
 }
 
 void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)

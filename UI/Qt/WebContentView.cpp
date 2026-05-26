@@ -34,6 +34,7 @@
 #include <QCursor>
 #include <QGuiApplication>
 #include <QIcon>
+#include <QKeySequence>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -805,6 +806,12 @@ bool WebContentView::event(QEvent* event)
     }
 
     if (event->type() == QEvent::ShortcutOverride) {
+        auto* key_event = static_cast<QKeyEvent*>(event);
+        if (key_event->matches(QKeySequence::StandardKey::Close)) {
+            event->ignore();
+            return false;
+        }
+
         event->accept();
         return true;
     }

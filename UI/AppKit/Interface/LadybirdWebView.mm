@@ -249,6 +249,16 @@ struct HideCursor {
     m_web_view_bridge->request_close();
 }
 
+- (Function<void()>)prepareForImmediateClose
+{
+    return m_web_view_bridge->prepare_for_immediate_close();
+}
+
+- (BOOL)needsBeforeUnloadCheck
+{
+    return m_web_view_bridge->needs_beforeunload_check();
+}
+
 #pragma mark - Private methods
 
 - (void)updateViewportRect

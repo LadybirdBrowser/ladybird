@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
@@ -701,6 +702,13 @@ void Tab::find_next()
 
 void Tab::request_close()
 {
+    if (!view().needs_beforeunload_check()) {
+        auto request_close = view().prepare_for_immediate_close();
+        m_window->definitely_close_tab(tab_index());
+        Core::deferred_invoke(AK::move(request_close));
+        return;
+    }
+
     // Prevent closing on first request so WebContent can cleanly shutdown (e.g. asking if the user is sure they want
     // to leave, closing WebSocket connections, etc.)
     if (!m_already_requested_close) {

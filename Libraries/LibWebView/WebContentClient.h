@@ -9,9 +9,11 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/Optional.h>
+#include <AK/RefPtr.h>
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/SharedImage.h>
 #include <LibHTTP/Header.h>
@@ -60,6 +62,8 @@ public:
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
+    void prepare_for_detached_close(u64 page_id);
+    void request_close(u64 page_id);
 
     void web_ui_disconnected(Badge<WebUI>);
 
@@ -84,6 +88,7 @@ public:
 
 private:
     void maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const&, Optional<String> title, StringView reason);
+    void close_server_if_unused();
     bool forget_compositor_context(Web::Compositor::CompositorContextId);
     void destroy_all_compositor_contexts();
 
@@ -152,6 +157,7 @@ private:
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64> page_index) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;
+    virtual void did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
     virtual void did_request_restore_window(u64 page_id) override;
     virtual void did_request_reposition_window(u64 page_id, Gfx::IntPoint) override;
@@ -190,6 +196,7 @@ private:
     void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration);
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
+    HashTable<u64> m_detached_pages_pending_close;
     HashMap<Web::Compositor::CompositorContextId, CompositorContextRegistration> m_compositor_contexts;
     HashMap<u64, Web::Compositor::CompositorContextId> m_page_compositor_context_ids;
     HashMap<Web::Compositor::CompositorContextId, u64> m_page_ids_for_compositor_context_ids;
@@ -197,6 +204,7 @@ private:
     Optional<i32> m_compositor_connection_id;
 
     ProcessHandle m_process_handle;
+    RefPtr<Core::Timer> m_detached_page_close_timer;
 
     RefPtr<WebUI> m_web_ui;
 

@@ -710,6 +710,16 @@ void PageClient::page_did_close_top_level_traversable()
     m_owner.remove_page({}, m_id);
 }
 
+void PageClient::page_did_change_needs_beforeunload_check(bool needs_beforeunload_check)
+{
+    client().async_did_change_needs_beforeunload_check(m_id, needs_beforeunload_check);
+}
+
+void PageClient::send_current_needs_beforeunload_check()
+{
+    client().async_did_change_needs_beforeunload_check(m_id, page().needs_beforeunload_check());
+}
+
 void PageClient::page_did_update_navigation_buttons_state(bool back_enabled, bool forward_enabled)
 {
     client().async_did_update_navigation_buttons_state(m_id, back_enabled, forward_enabled);

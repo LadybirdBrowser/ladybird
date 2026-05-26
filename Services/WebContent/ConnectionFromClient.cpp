@@ -136,8 +136,10 @@ Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_wi
 
 void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
 {
-    if (auto page = this->page(page_id); page.has_value())
+    if (auto page = this->page(page_id); page.has_value()) {
         page->page().top_level_traversable()->set_window_handle(move(handle));
+        page->send_current_needs_beforeunload_check();
+    }
 }
 
 void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint)
