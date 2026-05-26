@@ -47,6 +47,7 @@ set(ABOUT_SETTINGS_RESOURCES
     browsing-behavior.js
     default-zoom-level.js
     dialog-deep-link.js
+    geolocation.js
     languages.js
     network.js
     new-tab-page.js
