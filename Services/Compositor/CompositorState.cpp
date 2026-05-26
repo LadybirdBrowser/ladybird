@@ -6,6 +6,7 @@
 
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
@@ -15,6 +16,8 @@
 #include <LibWeb/Page/InputEvent.h>
 
 namespace Compositor {
+
+static constexpr int gpu_completion_check_interval_ms = 1;
 
 static void set_or_append_pending_scroll_offset(Vector<Web::Compositor::AsyncScrollOffset>& pending_scroll_offsets, Web::Compositor::AsyncScrollOffset const& scroll_offset)
 {
@@ -151,6 +154,14 @@ CompositorState::CompositorState(RefPtr<Gfx::SkiaBackendContext> skia_backend_co
 {
 }
 
+CompositorState::~CompositorState()
+{
+    if (!m_gpu_completion_timer)
+        return;
+    m_gpu_completion_timer->on_timeout = {};
+    m_gpu_completion_timer->stop();
+}
+
 CompositorState::ContextState::~ContextState()
 {
     stop_backing_store_shrink_timer();
@@ -220,6 +231,7 @@ void CompositorState::destroy_context(Web::Compositor::CompositorContextId conte
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
+    cancel_pending_async_presents_for_context(context_id);
     detach_from_parent_surface(context_id, *context);
     for (auto& child_context_entry : context->child_contexts_by_surface_id) {
         auto* child_context = context_if_present(child_context_entry.value);
@@ -258,6 +270,9 @@ void CompositorState::stop_presenting_to_client(Web::Compositor::CompositorConte
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
+    if (context->gpu_present_bitmap_id_awaiting_completion.has_value()
+        && context->presented_bitmap_id_awaiting_ack == context->gpu_present_bitmap_id_awaiting_completion)
+        context->presented_bitmap_id_awaiting_ack.clear();
     context->presents_to_client = false;
 }
 
@@ -506,6 +521,7 @@ bool CompositorState::should_defer_main_thread_present_for_async_scroll(Web::Com
 
     return context->has_deferred_async_scroll_present
         || context->pending_present_frame.has_value()
+        || context->gpu_present_bitmap_id_awaiting_completion.has_value()
         || context->presented_bitmap_id_awaiting_ack.has_value();
 }
 
@@ -543,7 +559,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, Gfx::IntRect viewport_rect)
 {
-    if (context.presented_bitmap_id_awaiting_ack.has_value()) {
+    if (context.gpu_present_bitmap_id_awaiting_completion.has_value() || context.presented_bitmap_id_awaiting_ack.has_value()) {
         context.pending_present_frame = viewport_rect;
         return;
     }
@@ -562,20 +578,37 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
         });
     m_display_list_player->execute(*context.display_list, context.display_list_resource_storage, context.scroll_state_snapshot, back_store);
     paint_viewport_scrollbar_overlay(context, back_store);
-    m_display_list_player->flush(back_store);
     auto rendered_bitmap_id = context.backing_store_manager.back_bitmap_id();
-    context.backing_store_manager.swap();
+    context.gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
+    if (context.presents_to_client)
+        context.presented_bitmap_id_awaiting_ack = rendered_bitmap_id;
+    m_pending_async_presents.append(context_id, viewport_rect, rendered_bitmap_id);
+    auto* pending_present = &m_pending_async_presents.last();
 
-    context.presentation_mode.visit(
-        [&](Empty const&) {
-            if (present_frame_to_client(context_id, context, viewport_rect, rendered_bitmap_id))
-                context.presented_bitmap_id_awaiting_ack = rendered_bitmap_id;
-            context.presented_frame = viewport_rect;
-        },
-        [&](Web::Compositor::PublishToCompositorSurface const& mode) {
-            publish_to_parent_surface(context, mode);
-            context.presented_frame = viewport_rect;
+    auto event_loop_reference = Core::EventLoop::current_weak();
+    auto self = NonnullRefPtr { *this };
+    m_display_list_player->flush_async(back_store, [self = move(self), event_loop_reference = move(event_loop_reference), pending_present] {
+        auto event_loop = event_loop_reference->take();
+        if (!event_loop.is_alive())
+            return;
+        event_loop->deferred_invoke([self = move(self), pending_present] {
+            self->did_finish_async_present(*pending_present);
         });
+    });
+    context.backing_store_manager.swap();
+    context.presented_frame = viewport_rect;
+    schedule_gpu_completion_check();
+}
+
+void CompositorState::drain_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId context_id, ContextState& context)
+{
+    if (context.gpu_present_bitmap_id_awaiting_completion.has_value() || context.presented_bitmap_id_awaiting_ack.has_value())
+        return;
+    if (!context.pending_present_frame.has_value())
+        return;
+
+    auto pending_present_frame = context.pending_present_frame.release_value();
+    present_frame(context_id, context, pending_present_frame);
 }
 
 bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId context_id, Gfx::ShareableBitmap& target_bitmap)
@@ -603,10 +636,84 @@ void CompositorState::presented_bitmap_ready_to_paint(Web::Compositor::Composito
         return;
 
     context->presented_bitmap_id_awaiting_ack.clear();
-    if (context->pending_present_frame.has_value()) {
-        auto pending_present_frame = context->pending_present_frame.release_value();
-        present_frame(context_id, *context, pending_present_frame);
+    drain_pending_present_frame_if_unblocked(context_id, *context);
+}
+
+void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_present)
+{
+    auto pending_present_iterator = m_pending_async_presents.begin();
+    for (; pending_present_iterator != m_pending_async_presents.end(); ++pending_present_iterator) {
+        if (&*pending_present_iterator == &pending_present)
+            break;
     }
+    VERIFY(pending_present_iterator != m_pending_async_presents.end());
+
+    auto context_id = pending_present.context_id;
+    auto viewport_rect = pending_present.viewport_rect;
+    auto bitmap_id = pending_present.bitmap_id;
+    auto was_cancelled = pending_present.was_cancelled;
+    (void)m_pending_async_presents.remove(pending_present_iterator);
+    if (m_pending_async_presents.is_empty() && m_gpu_completion_timer)
+        m_gpu_completion_timer->stop();
+
+    if (was_cancelled)
+        return;
+
+    auto* context = context_if_present(context_id);
+    VERIFY(context);
+    VERIFY(context->gpu_present_bitmap_id_awaiting_completion == bitmap_id);
+
+    context->gpu_present_bitmap_id_awaiting_completion.clear();
+    if (context->presents_to_client) {
+        VERIFY(m_client);
+        VERIFY(context->presented_bitmap_id_awaiting_ack == bitmap_id);
+        m_client->did_present_frame(context_id, viewport_rect, bitmap_id);
+    } else {
+        context->presentation_mode.visit(
+            [](Empty const&) {},
+            [&](Web::Compositor::PublishToCompositorSurface const& mode) {
+                publish_to_parent_surface(*context, mode);
+            });
+    }
+
+    drain_pending_present_frame_if_unblocked(context_id, *context);
+}
+
+void CompositorState::cancel_pending_async_presents_for_context(Web::Compositor::CompositorContextId context_id)
+{
+    for (auto& pending_present : m_pending_async_presents) {
+        if (pending_present.context_id == context_id)
+            pending_present.was_cancelled = true;
+    }
+}
+
+void CompositorState::schedule_gpu_completion_check()
+{
+    if (!m_skia_backend_context || m_pending_async_presents.is_empty())
+        return;
+
+    if (!m_gpu_completion_timer) {
+        m_gpu_completion_timer = Core::Timer::create_repeating(gpu_completion_check_interval_ms, [this] {
+            check_gpu_completions();
+        });
+    }
+    if (!m_gpu_completion_timer->is_active())
+        m_gpu_completion_timer->start();
+}
+
+void CompositorState::check_gpu_completions()
+{
+    if (m_pending_async_presents.is_empty()) {
+        if (m_gpu_completion_timer)
+            m_gpu_completion_timer->stop();
+        return;
+    }
+
+    if (m_skia_backend_context)
+        m_skia_backend_context->check_async_work_completion();
+
+    if (m_pending_async_presents.is_empty() && m_gpu_completion_timer)
+        m_gpu_completion_timer->stop();
 }
 
 CompositorState::ContextState* CompositorState::context_if_present(Web::Compositor::CompositorContextId context_id)
@@ -953,16 +1060,6 @@ void CompositorState::publish_backing_stores(Web::Compositor::CompositorContextI
         return;
 
     m_client->did_allocate_backing_stores(context_id, publication.front_bitmap_id, move(publication.front_shared_image), publication.back_bitmap_id, move(publication.back_shared_image));
-}
-
-bool CompositorState::present_frame_to_client(Web::Compositor::CompositorContextId context_id, ContextState& context, Gfx::IntRect const& viewport_rect, i32 bitmap_id)
-{
-    VERIFY(m_client);
-    if (!context.presents_to_client)
-        return false;
-
-    m_client->did_present_frame(context_id, viewport_rect, bitmap_id);
-    return true;
 }
 
 }

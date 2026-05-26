@@ -39,10 +39,47 @@ static constexpr auto skia_resource_cache_critical_watermark = 512 * MiB;
 
 static RefPtr<SkiaBackendContext> s_main_thread_context;
 
+#if defined(AK_OS_MACOS) || USE_VULKAN
+static void invoke_async_flush_callback(void* context)
+{
+    auto* callback = static_cast<Function<void()>*>(context);
+    auto callback_to_invoke = move(*callback);
+    delete callback;
+    callback_to_invoke();
+}
+
+static void flush_and_submit_async_to_context(GrDirectContext& context, SkSurface* surface, Function<void()>&& callback)
+{
+    GrFlushInfo flush_info {};
+    flush_info.fFinishedProc = invoke_async_flush_callback;
+    flush_info.fFinishedContext = new Function<void()>(move(callback));
+    context.flush(surface, SkSurfaces::BackendSurfaceAccess::kPresent, flush_info);
+    VERIFY(context.submit(GrSyncCpu::kNo));
+}
+#endif
+
+void SkiaBackendContext::check_async_work_completion()
+{
+    if (auto* context = sk_context())
+        context->checkAsyncWorkCompletion();
+}
+
 void SkiaBackendContext::flush_and_submit(SkSurface* surface)
 {
     flush_and_submit_impl(surface);
 
+    perform_post_flush_cleanup();
+}
+
+void SkiaBackendContext::flush_and_submit_async(SkSurface* surface, Function<void()>&& callback)
+{
+    flush_and_submit_async_impl(surface, move(callback));
+
+    perform_post_flush_cleanup();
+}
+
+void SkiaBackendContext::perform_post_flush_cleanup()
+{
     auto* context = sk_context();
     if (!context)
         return;
@@ -136,6 +173,11 @@ public:
         m_context->submit(GrSyncCpu::kYes);
     }
 
+    void flush_and_submit_async_impl(SkSurface* surface, Function<void()>&& callback) override
+    {
+        flush_and_submit_async_to_context(*m_context, surface, move(callback));
+    }
+
     skgpu::VulkanExtensions const* extensions() const { return m_extensions.ptr(); }
 
     GrDirectContext* sk_context() const override { return m_context.get(); }
@@ -199,6 +241,11 @@ public:
         GrFlushInfo const flush_info {};
         m_context->flush(surface, SkSurfaces::BackendSurfaceAccess::kPresent, flush_info);
         m_context->submit(GrSyncCpu::kYes);
+    }
+
+    void flush_and_submit_async_impl(SkSurface* surface, Function<void()>&& callback) override
+    {
+        flush_and_submit_async_to_context(*m_context, surface, move(callback));
     }
 
     GrDirectContext* sk_context() const override { return m_context.get(); }

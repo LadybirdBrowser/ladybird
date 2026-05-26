@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibGfx/DecodedImageFrameSkiaImageCache.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
@@ -23,6 +24,7 @@ public:
     ~DisplayListPlayerSkia();
 
     void flush(Gfx::PaintingSurface&) override;
+    void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
 
 private:
     void draw_glyph_run(DrawGlyphRun const&) override;
