@@ -315,6 +315,8 @@ protected:
     void apply_zoom_for_current_host();
 
     void handle_resize();
+    void set_page_background_color_to_system_canvas(bool dark);
+    void set_page_background_color(Gfx::Color);
     void load_crash_page_html(StringView, URL::URL const& crashed_url);
 
     enum class CreateNewClient {
@@ -411,6 +413,7 @@ protected:
     OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
     Web::DevicePixelSize m_backup_bitmap_size;
     Gfx::Color m_page_background_color { 255, 255, 255 };
+    Gfx::Color m_system_canvas_background_color { 255, 255, 255 };
 
     bool m_should_suppress_history_for_current_load { false };
     bool m_should_suppress_history_for_next_load { false };
