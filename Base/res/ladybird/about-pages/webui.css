@@ -1,5 +1,6 @@
 @media (prefers-color-scheme: light) {
     :root {
+        --border-color: #dcdde1;
         --card-background-color: #f5f5f5;
         --card-header-background-color: #f0f2f5;
     }
@@ -7,6 +8,7 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
+        --border-color: #3d3d3d;
         --card-background-color: #242424;
         --card-header-background-color: #252525;
     }
@@ -65,10 +67,11 @@ header img {
     margin: 0 8px 16px 8px;
 }
 
-.card-group {
-    margin-bottom: 20px;
+.card-group + .card-group {
+    margin-top: 16px;
 }
 
-.card-group:last-child {
-    margin-bottom: 0;
+.card-separator + .card-separator {
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
 }
