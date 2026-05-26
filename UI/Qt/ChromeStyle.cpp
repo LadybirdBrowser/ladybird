@@ -74,6 +74,38 @@ static QColor chrome_base(QPalette const& palette)
     return is_dark(palette) ? QColor(24, 29, 38) : QColor(255, 255, 255);
 }
 
+struct MaterialColorAnchors {
+    QColor background;
+    QColor surface;
+    QColor recessed;
+    QColor hover;
+    QColor pressed;
+    QColor border;
+};
+
+static MaterialColorAnchors material_color_anchors(bool dark)
+{
+    if (dark) {
+        return {
+            .background = QColor(10, 16, 24),
+            .surface = QColor(31, 39, 52),
+            .recessed = QColor(61, 77, 100),
+            .hover = QColor(61, 77, 100),
+            .pressed = QColor(78, 95, 120),
+            .border = QColor(151, 169, 190),
+        };
+    }
+
+    return {
+        .background = QColor(235, 236, 237),
+        .surface = QColor(255, 255, 255),
+        .recessed = QColor(154, 158, 164),
+        .hover = QColor(228, 229, 231),
+        .pressed = QColor(218, 220, 223),
+        .border = QColor(94, 98, 103),
+    };
+}
+
 QColor mix(QColor const& from, QColor const& to, double amount)
 {
     auto channel = [&](int from_channel, int to_channel) {
@@ -90,40 +122,86 @@ QColor mix(QColor const& from, QColor const& to, double amount)
 QColor chrome_background(QPalette const& palette)
 {
     auto window = chrome_window(palette);
-    return is_dark(palette)
-        ? mix(window, QColor(10, 16, 24), 0.72)
-        : mix(window, QColor(241, 245, 249), 0.62);
+    auto dark = is_dark(palette);
+    return mix(window, material_color_anchors(dark).background, dark ? 0.72 : 0.68);
+}
+
+static QColor chrome_tab_strip_background(QPalette const& palette)
+{
+    auto background = chrome_background(palette);
+    auto dark = is_dark(palette);
+    return mix(background, dark ? material_color_anchors(dark).background : material_color_anchors(dark).recessed, dark ? 0.075 : 0.30);
 }
 
 QColor chrome_surface(QPalette const& palette)
 {
     auto base = chrome_base(palette);
-    return is_dark(palette)
-        ? mix(base, QColor(31, 39, 52), 0.64)
-        : mix(base, QColor(255, 255, 255), 0.72);
+    auto dark = is_dark(palette);
+    return mix(base, material_color_anchors(dark).surface, dark ? 0.64 : 0.72);
+}
+
+QColor chrome_surface_recessed(QPalette const& palette)
+{
+    auto dark = is_dark(palette);
+    if (dark)
+        return chrome_background(palette).lighter(108);
+
+    return mix(chrome_background(palette), material_color_anchors(dark).recessed, 0.42);
 }
 
 QColor chrome_surface_hover(QPalette const& palette)
 {
-    auto accent = palette.color(QPalette::Highlight);
-    return is_dark(palette)
-        ? mix(chrome_surface(palette), QColor(61, 77, 100), 0.34)
-        : mix(chrome_surface(palette), accent.lighter(165), 0.22);
+    auto dark = is_dark(palette);
+    return mix(chrome_surface(palette), material_color_anchors(dark).hover, dark ? 0.34 : 0.52);
 }
 
 QColor chrome_surface_pressed(QPalette const& palette)
 {
-    auto accent = palette.color(QPalette::Highlight);
-    return is_dark(palette)
-        ? mix(chrome_surface(palette), accent.lighter(120), 0.32)
-        : mix(chrome_surface(palette), accent.lighter(145), 0.32);
+    auto dark = is_dark(palette);
+    return mix(chrome_surface(palette), material_color_anchors(dark).pressed, dark ? 0.48 : 0.56);
+}
+
+static QColor chrome_control_surface_hover(QPalette const& palette)
+{
+    auto dark = is_dark(palette);
+    return mix(chrome_surface(palette), material_color_anchors(dark).hover, dark ? 0.82 : 0.62);
+}
+
+static QColor chrome_control_surface_pressed(QPalette const& palette)
+{
+    auto dark = is_dark(palette);
+    return mix(chrome_surface(palette), material_color_anchors(dark).pressed, dark ? 0.86 : 0.66);
+}
+
+static QColor chrome_control_border(QPalette const& palette)
+{
+    auto dark = is_dark(palette);
+    if (dark)
+        return mix(chrome_control_surface_hover(palette), material_color_anchors(dark).border, 0.42);
+
+    return mix(chrome_border(palette), material_color_anchors(dark).border, 0.18);
+}
+
+QColor chrome_active_tab_surface_top(QPalette const& palette)
+{
+    auto dark = is_dark(palette);
+    auto surface = chrome_surface(palette);
+    auto active_surface = chrome_surface_hover(palette);
+    return dark ? active_surface.lighter(112) : mix(surface, active_surface, 0.22);
+}
+
+QColor chrome_active_tab_surface_bottom(QPalette const& palette)
+{
+    auto dark = is_dark(palette);
+    auto surface = chrome_surface(palette);
+    auto active_surface = chrome_surface_hover(palette);
+    return dark ? mix(surface, active_surface, 0.72) : mix(chrome_background(palette), active_surface, 0.70);
 }
 
 QColor chrome_border(QPalette const& palette)
 {
-    return is_dark(palette)
-        ? mix(chrome_surface(palette), QColor(151, 169, 190), 0.22)
-        : mix(chrome_background(palette), QColor(92, 105, 120), 0.22);
+    auto dark = is_dark(palette);
+    return mix(dark ? chrome_surface(palette) : chrome_background(palette), material_color_anchors(dark).border, 0.22);
 }
 
 QColor chrome_accent(QPalette const& palette)
@@ -162,11 +240,11 @@ QString style_sheet_color(QColor const& color)
 
 QString navigation_toolbar_style_sheet(QPalette const& palette)
 {
-    auto background = style_sheet_color(chrome_background(palette));
-    auto background_bottom = style_sheet_color(mix(chrome_background(palette), QColor(3, 8, 14), is_dark(palette) ? 0.34 : 0.0));
-    auto surface_hover = style_sheet_color(chrome_surface_hover(palette));
-    auto surface_pressed = style_sheet_color(chrome_surface_pressed(palette));
-    auto border = style_sheet_color(chrome_border(palette));
+    auto background = style_sheet_color(chrome_active_tab_surface_top(palette));
+    auto background_bottom = style_sheet_color(chrome_active_tab_surface_bottom(palette));
+    auto surface_hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto surface_pressed = style_sheet_color(chrome_control_surface_pressed(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
     auto separator = style_sheet_color(mix(chrome_background(palette), chrome_border(palette), is_dark(palette) ? 0.28 : 0.56));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
@@ -175,11 +253,11 @@ QString navigation_toolbar_style_sheet(QPalette const& palette)
 QWidget#LadybirdNavigationToolbar {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %1, stop:1 %2);
     border: 0;
-    border-bottom: 1px solid %8;
+    border-bottom: 1px solid %7;
 }
 
 QWidget#LadybirdNavigationToolbar QToolButton {
-    color: %6;
+    color: %5;
     background: transparent;
     border: 1px solid transparent;
     border-radius: 18px;
@@ -190,37 +268,39 @@ QWidget#LadybirdNavigationToolbar QToolButton {
 
 QWidget#LadybirdNavigationToolbar QToolButton:hover {
     background: %3;
-    border-color: %5;
+    border-color: CONTROL_BORDER;
 }
 
 QWidget#LadybirdNavigationToolbar QToolButton:pressed,
 QWidget#LadybirdNavigationToolbar QToolButton:checked {
     background: %4;
-    border-color: %5;
+    border-color: CONTROL_BORDER;
 }
 
 QWidget#LadybirdNavigationToolbar QToolButton:disabled {
-    color: %7;
+    color: %6;
 }
 
 QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {
     image: none;
 }
 )")
-        .arg(background, background_bottom, surface_hover, surface_pressed, border, text, disabled_text, separator);
+        .arg(background, background_bottom, surface_hover, surface_pressed, text, disabled_text, separator)
+        .replace(QStringLiteral("CONTROL_BORDER"), control_border);
 }
 
 QString location_edit_style_sheet(QPalette const& palette)
 {
     auto surface_color = chrome_surface(palette);
     if (is_dark(palette))
-        surface_color = mix(surface_color, QColor(44, 54, 70), 0.10);
+        surface_color = mix(surface_color, material_color_anchors(true).background, 0.42);
     auto hover_color = chrome_surface_hover(palette);
     if (is_dark(palette))
-        hover_color = mix(hover_color, QColor(72, 88, 112), 0.08);
+        hover_color = mix(hover_color, material_color_anchors(true).background, 0.24);
 
     auto surface = style_sheet_color(surface_color);
     auto hover = style_sheet_color(hover_color);
+    auto control_hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto border = style_sheet_color(chrome_border(palette));
     auto focus_border = style_sheet_color(mix(chrome_border(palette), chrome_accent(palette), is_dark(palette) ? 0.46 : 0.58));
     auto text = style_sheet_color(chrome_text(palette));
@@ -233,8 +313,8 @@ QLineEdit#LadybirdLocationEdit {
     color: %5;
     background: %1;
     border: 1px solid %3;
-    border-radius: 20px;
-    min-height: 40px;
+    border-radius: 19px;
+    min-height: 38px;
     padding: 0 16px;
     selection-background-color: %7;
     selection-color: %8;
@@ -267,18 +347,20 @@ QToolButton#LadybirdLocationAction {
 }
 
 QToolButton#LadybirdLocationAction:hover {
-    background: %2;
+    background: CONTROL_HOVER;
 }
 )")
-        .arg(surface, hover, border, focus_border, text, placeholder, selection, selection_text);
+        .arg(surface, hover, border, focus_border, text, placeholder, selection, selection_text)
+        .replace(QStringLiteral("CONTROL_HOVER"), control_hover);
 }
 
 QString bookmarks_bar_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_background(palette));
-    auto hover = style_sheet_color(chrome_surface_hover(palette));
-    auto pressed = style_sheet_color(chrome_surface_pressed(palette));
+    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
     auto text = style_sheet_color(chrome_button_text(palette));
 
     return QStringLiteral(R"(
@@ -301,25 +383,26 @@ QToolBar#LadybirdBookmarksBar QToolButton {
 
 QToolBar#LadybirdBookmarksBar QToolButton:hover {
     background: %2;
-    border-color: %4;
+    border-color: %6;
 }
 
 QToolBar#LadybirdBookmarksBar QToolButton:pressed,
 QToolBar#LadybirdBookmarksBar QToolButton:checked {
     background: %3;
-    border-color: %4;
+    border-color: %6;
 }
 )")
-        .arg(background, hover, pressed, border, text);
+        .arg(background, hover, pressed, border, text, control_border);
 }
 
 QString find_in_page_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_background(palette));
     auto surface = style_sheet_color(chrome_surface(palette));
-    auto hover = style_sheet_color(chrome_surface_hover(palette));
-    auto pressed = style_sheet_color(chrome_surface_pressed(palette));
+    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
     auto accent = style_sheet_color(chrome_accent(palette));
     auto text = style_sheet_color(chrome_text(palette));
     auto muted = style_sheet_color(chrome_muted_text(palette));
@@ -354,12 +437,12 @@ QWidget#LadybirdFindInPageBar QPushButton {
 
 QWidget#LadybirdFindInPageBar QPushButton:hover {
     background: %3;
-    border-color: %5;
+    border-color: CONTROL_BORDER;
 }
 
 QWidget#LadybirdFindInPageBar QPushButton:pressed {
     background: %4;
-    border-color: %5;
+    border-color: CONTROL_BORDER;
 }
 
 QWidget#LadybirdFindInPageBar QCheckBox,
@@ -367,16 +450,18 @@ QWidget#LadybirdFindInPageBar QLabel {
     color: %8;
 }
 )")
-        .arg(background, surface, hover, pressed, border, accent, text, muted);
+        .arg(background, surface, hover, pressed, border, accent, text, muted)
+        .replace(QStringLiteral("CONTROL_BORDER"), control_border);
 }
 
 QString tab_widget_style_sheet(QPalette const& palette)
 {
-    auto background = style_sheet_color(chrome_background(palette));
-    auto background_bottom = style_sheet_color(mix(chrome_background(palette), QColor(3, 8, 14), is_dark(palette) ? 0.26 : 0.0));
-    auto hover = style_sheet_color(chrome_surface_hover(palette));
-    auto pressed = style_sheet_color(chrome_surface_pressed(palette));
+    auto background = style_sheet_color(chrome_tab_strip_background(palette));
+    auto background_bottom = style_sheet_color(mix(chrome_tab_strip_background(palette), QColor(3, 8, 14), is_dark(palette) ? 0.26 : 0.026));
+    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto border = style_sheet_color(chrome_border(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto close_hover = style_sheet_color(QColor(196, 43, 28));
     auto close_text = style_sheet_color(QColor(255, 255, 255));
@@ -390,7 +475,7 @@ QWidget#LadybirdTabStrip {
 
 QToolButton#LadybirdNewTabButton,
 QPushButton#LadybirdTabButton {
-    color: %7;
+    color: %5;
     background: transparent;
     border: 1px solid transparent;
     border-radius: 11px;
@@ -404,28 +489,28 @@ QToolButton#LadybirdNewTabButton {
 }
 
 QPushButton#LadybirdTabButton {
-    min-width: 20px;
-    min-height: 20px;
-    max-width: 20px;
-    max-height: 20px;
+    min-width: 22px;
+    min-height: 22px;
+    max-width: 22px;
+    max-height: 22px;
 }
 
 QToolButton#LadybirdNewTabButton:hover,
 QPushButton#LadybirdTabButton:hover {
     background: %3;
-    border-color: %6;
+    border-color: CONTROL_BORDER;
 }
 
 QToolButton#LadybirdNewTabButton:pressed,
 QPushButton#LadybirdTabButton:pressed,
 QPushButton#LadybirdTabButton:checked {
     background: %4;
-    border-color: %6;
+    border-color: CONTROL_BORDER;
 }
 
 QToolButton#LadybirdWindowButton,
 QToolButton#LadybirdCloseWindowButton {
-    color: %7;
+    color: %5;
     background: transparent;
     border: 0;
     border-radius: 0;
@@ -443,16 +528,19 @@ QToolButton#LadybirdWindowButton:pressed {
 }
 
 QToolButton#LadybirdCloseWindowButton:hover {
-    color: %9;
-    background: %8;
+    color: CLOSE_TEXT;
+    background: CLOSE_HOVER;
 }
 
 QToolButton#LadybirdCloseWindowButton:pressed {
-    color: %9;
-    background: %8;
+    color: CLOSE_TEXT;
+    background: CLOSE_HOVER;
 }
 )")
-        .arg(background, background_bottom, hover, pressed, text, border, text, close_hover, close_text);
+        .arg(background, background_bottom, hover, pressed, text)
+        .replace(QStringLiteral("CLOSE_HOVER"), close_hover)
+        .replace(QStringLiteral("CLOSE_TEXT"), close_text)
+        .replace(QStringLiteral("CONTROL_BORDER"), control_border);
 }
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)
