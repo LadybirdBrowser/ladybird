@@ -8,13 +8,6 @@
             @media (prefers-color-scheme: light) {
                 :root {
                     --input-background-color: white;
-                    --border-color: #dcdde1;
-                }
-            }
-
-            @media (prefers-color-scheme: dark) {
-                :root {
-                    --border-color: #3d3d3d;
                 }
             }
 
@@ -100,8 +93,7 @@
             }
 
             .description {
-                margin-bottom: 10px;
-
+                margin-top: 8px;
                 font-size: 14px;
                 opacity: 0.7;
             }
@@ -428,24 +420,27 @@
             <h3 class="card-title">Browsing Behavior</h3>
             <div class="card">
                 <div class="card-body">
-                    <div class="card-group">
+                    <div class="card-group card-separator">
                         <div class="inline-container">
-                            <label for="enable-autoscroll">Enable autoscrolling</label>
+                            <label for="enable-autoscroll">
+                                Enable autoscrolling
+                                <p class="description">
+                                    Scroll pages by pressing the middle mouse button and moving the mouse.
+                                </p>
+                            </label>
                             <input id="enable-autoscroll" type="checkbox" switch />
                         </div>
-                        <p class="description">
-                            Scroll pages by pressing the middle mouse button and moving the mouse.
-                        </p>
                     </div>
-                    <hr />
-                    <div class="card-group">
+                    <div class="card-group card-separator">
                         <div class="inline-container">
-                            <label for="enable-primary-paste">Enable primary pasting</label>
+                            <label for="enable-primary-paste">
+                                Enable primary pasting
+                                <p class="description">
+                                    Paste text from the clipboard when the middle mouse button is clicked.
+                                </p>
+                            </label>
                             <input id="enable-primary-paste" type="checkbox" switch />
                         </div>
-                        <p class="description">
-                            Paste text from the clipboard when the middle mouse button is clicked.
-                        </p>
                     </div>
                 </div>
             </div>
@@ -454,10 +449,11 @@
         <div class="tab-panel" id="tab-search">
             <div class="card">
                 <div class="card-body">
-                    <p class="card-group">Default Search Engine</p>
                     <div class="card-group">
-                        <p class="description">Select the search engine to use in the address bar.</p>
-
+                        <label>
+                            Default Search Engine
+                            <p class="description">Select the search engine to use in the address bar.</p>
+                        </label>
                         <div class="inline-container">
                             <select id="search-engine" style="width: 100%">
                                 <option value="">Disable search</option>
@@ -471,9 +467,11 @@
 
             <div class="card">
                 <div class="card-body">
-                    <p class="card-group">Search Suggestions</p>
                     <div class="card-group">
-                        <p class="description">Select the engine that will provide search suggestions.</p>
+                        <label>
+                            Search Suggestions
+                            <p class="description">Select the engine that will provide search suggestions.</p>
+                        </label>
                         <select id="autocomplete-engine">
                             <option value="">Disable search suggestions</option>
                             <hr />
@@ -508,8 +506,8 @@
                             <div>
                                 <label for="browsing-data-settings-max-disk-cache-size">
                                     Maximum disk cache size
+                                    <p class="description">Limit the space used for the HTTP disk cache.</p>
                                 </label>
-                                <p class="description">Limit the space used for the HTTP disk cache.</p>
                             </div>
                             <div class="input-field-container">
                                 <input
@@ -542,10 +540,12 @@
                 <div class="card-body">
                     <div class="card-group">
                         <div class="inline-container">
-                            <label for="global-privacy-control-toggle">Global Privacy Control</label>
+                            <label for="global-privacy-control-toggle">
+                                Global Privacy Control
+                                <p class="description">Tell websites not to sell or share your data.</p>
+                            </label>
                             <input id="global-privacy-control-toggle" type="checkbox" switch />
                         </div>
-                        <p class="description">Tell websites not to sell or share your data.</p>
                     </div>
                 </div>
             </div>
@@ -635,8 +635,10 @@
                     <input id="search-custom-name" type="text" placeholder="Example" />
                 </div>
                 <div class="form-group">
-                    <label for="search-custom-url">Search URL</label>
-                    <p class="description">Use %s as a placeholder for the search query</p>
+                    <label for="search-custom-url">
+                        Search URL
+                        <p class="description">Use %s as a placeholder for the search query</p>
+                    </label>
                     <input id="search-custom-url" type="url" placeholder="https://example.com/search?q=%s" />
                 </div>
                 <div class="dialog-controls">
