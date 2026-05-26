@@ -356,10 +356,10 @@ private:
     Optional<String> m_user_style_sheet_source;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-supported
-    // Each user agent has a PDF viewer supported boolean, whose value is implementation-defined (and might vary according to user preferences).
-    // Spec Note: This value also impacts the navigation processing model.
-    // FIXME: Actually support pdf viewing
-    bool m_pdf_viewer_supported { false };
+    // Each user agent has a PDF viewer supported boolean, whose value is implementation-defined (and might vary
+    // according to user preferences).
+    // NOTE: This value also impacts the navigation processing model.
+    bool m_pdf_viewer_supported { true };
 
     size_t m_find_in_page_match_index { 0 };
     Optional<FindInPageQuery> m_last_find_in_page_query;
