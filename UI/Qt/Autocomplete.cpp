@@ -90,17 +90,12 @@ static QFont autocomplete_section_header_font()
 
 static QColor autocomplete_selection_fill(QPalette const& palette)
 {
-    auto surface = ChromeStyle::chrome_surface(palette);
-    return ChromeStyle::is_dark(palette)
-        ? ChromeStyle::mix(surface, QColor(92, 112, 140), 0.54)
-        : ChromeStyle::mix(surface, palette.color(QPalette::Highlight), 0.10);
+    return ChromeStyle::chrome_surface_pressed(palette);
 }
 
 static QColor autocomplete_selection_border(QPalette const& palette)
 {
-    return ChromeStyle::is_dark(palette)
-        ? ChromeStyle::mix(autocomplete_selection_fill(palette), QColor(160, 176, 198), 0.32)
-        : ChromeStyle::mix(ChromeStyle::chrome_border(palette), palette.color(QPalette::Highlight), 0.12);
+    return ChromeStyle::mix(ChromeStyle::chrome_border(palette), autocomplete_selection_fill(palette), ChromeStyle::is_dark(palette) ? 0.32 : 0.24);
 }
 
 class AutocompleteModel final : public QAbstractListModel {
