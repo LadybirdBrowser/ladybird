@@ -11,6 +11,7 @@
 #include <AK/Assertions.h>
 #include <AK/MemoryStream.h>
 #include <AK/Vector.h>
+#include <LibCrypto/Forward.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
@@ -33,6 +34,8 @@ public:
         VERIFY(!m_buffer_has_been_taken);
         MUST(m_encoder.encode(value));
     }
+
+    void encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const&);
 
     void append(SerializationRecord&&);
     void extend(Vector<TransferDataEncoder>);
@@ -59,6 +62,7 @@ public:
     }
 
     WebIDL::ExceptionOr<ByteBuffer> decode_buffer(JS::Realm&);
+    WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> decode_unsigned_big_integer(JS::Realm&);
 
 private:
     IPC::MessageBuffer m_buffer;
