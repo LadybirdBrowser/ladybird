@@ -663,7 +663,11 @@ void Tab::update_chrome_style()
 
     m_is_updating_chrome_style = true;
     m_toolbar->setStyleSheet(ChromeStyle::navigation_toolbar_style_sheet(palette()));
-    m_hover_label->setStyleSheet(QStringLiteral("padding: 2px 6px; border-radius: 6px;"));
+    auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette()));
+    auto hover_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette()));
+    auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette()));
+    m_hover_label->setStyleSheet(QStringLiteral("background: %1; color: %2; border: 1px solid %3; padding: 2px 6px; border-radius: 6px;")
+            .arg(hover_surface, hover_text, hover_border));
     m_is_updating_chrome_style = false;
 }
 
