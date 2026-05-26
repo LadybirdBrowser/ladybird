@@ -561,6 +561,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
             painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
         });
     m_display_list_player->execute(*context.display_list, context.display_list_resource_storage, context.scroll_state_snapshot, back_store);
+    m_display_list_player->flush(back_store);
     auto painted_viewport_scrollbar_overlay = paint_viewport_scrollbar_overlay(context, back_store);
     if (painted_viewport_scrollbar_overlay) {
         if (auto skia_backend_context = back_store.skia_backend_context())
@@ -592,6 +593,7 @@ bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId co
 
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
     m_display_list_player->execute(*context->display_list, context->display_list_resource_storage, context->scroll_state_snapshot, *target_surface);
+    m_display_list_player->flush(*target_surface);
     paint_viewport_scrollbar_overlay(*context, *target_surface);
     target_surface->flush();
     return true;
