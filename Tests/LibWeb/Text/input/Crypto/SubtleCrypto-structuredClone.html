@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode("password"),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits", "deriveKey"]
+        );
+
+        const cloned = structuredClone(keyMaterial);
+
+        println(`clone.type=${cloned.type} extractable=${cloned.extractable}`);
+        println(`clone.algorithm.name=${cloned.algorithm.name}`);
+        println(`clone.usages=${JSON.stringify([...cloned.usages].sort())}`);
+
+        try {
+            const derived = await crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: new TextEncoder().encode("salt"),
+                    iterations: 1,
+                    hash: "SHA-256",
+                },
+                cloned,
+                { name: "AES-CBC", length: 256 },
+                false,
+                ["encrypt"]
+            );
+            println(`derived.algorithm.name=${derived.algorithm.name}`);
+        } catch (e) {
+            println(`deriveKey threw: ${e.name}: ${e.message}`);
+        }
+
+        done();
+    });
+</script>

@@ -30,16 +30,16 @@ GC::Ref<CryptoKey> CryptoKey::create(JS::Realm& realm)
 
 CryptoKey::CryptoKey(JS::Realm& realm, InternalKeyData key_data)
     : PlatformObject(realm)
-    , m_algorithm(Object::create(realm, nullptr))
-    , m_usages(Object::create(realm, nullptr))
+    , m_algorithm_cached(Object::create(realm, nullptr))
+    , m_usages_cached(Object::create(realm, nullptr))
     , m_key_data(move(key_data))
 {
 }
 
 CryptoKey::CryptoKey(JS::Realm& realm)
     : PlatformObject(realm)
-    , m_algorithm(Object::create(realm, nullptr))
-    , m_usages(Object::create(realm, nullptr))
+    , m_algorithm_cached(Object::create(realm, nullptr))
+    , m_usages_cached(Object::create(realm, nullptr))
     , m_key_data(MUST(ByteBuffer::create_uninitialized(0)))
 {
 }
@@ -61,15 +61,15 @@ void CryptoKey::initialize(JS::Realm& realm)
 void CryptoKey::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_algorithm);
-    visitor.visit(m_usages);
+    visitor.visit(m_algorithm_cached);
+    visitor.visit(m_usages_cached);
 }
 
 void CryptoKey::set_usages(Vector<Bindings::KeyUsage> usages)
 {
-    m_key_usages = move(usages);
+    m_usages = move(usages);
     auto& realm = this->realm();
-    m_usages = JS::Array::create_from<Bindings::KeyUsage>(realm, m_key_usages.span(), [&](auto& key_usage) -> JS::Value {
+    m_usages_cached = JS::Array::create_from<Bindings::KeyUsage>(realm, m_usages.span(), [&](auto& key_usage) -> JS::Value {
         return JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(key_usage));
     });
 }
@@ -77,7 +77,7 @@ void CryptoKey::set_usages(Vector<Bindings::KeyUsage> usages)
 String CryptoKey::algorithm_name() const
 {
     if (m_algorithm_name.is_empty()) {
-        auto name = MUST(m_algorithm->get("name"_utf16_fly_string));
+        auto name = MUST(m_algorithm_cached->get("name"_utf16_fly_string));
         m_algorithm_name = MUST(name.to_string(vm()));
     }
     return m_algorithm_name;
@@ -148,12 +148,11 @@ WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(HTML::TransferDataEncod
     serialized.encode(m_extractable);
 
     // 3. Set serialized.[[Algorithm]] to the sub-serialization of the [[algorithm]] internal slot of value.
-    auto serialized_algorithm = TRY(HTML::structured_serialize_internal(vm, m_algorithm, for_storage, memory));
+    auto serialized_algorithm = TRY(HTML::structured_serialize_internal(vm, m_algorithm_cached, for_storage, memory));
     serialized.append(move(serialized_algorithm));
 
     // 4. Set serialized.[[Usages]] to the sub-serialization of the [[usages]] internal slot of value.
-    auto serialized_usages = TRY(HTML::structured_serialize_internal(vm, m_usages, for_storage, memory));
-    serialized.append(move(serialized_usages));
+    serialized.encode(m_usages);
 
     // FIXME: 5. Set serialized.[[Handle]] to the [[handle]] internal slot of value.
 
@@ -173,11 +172,11 @@ WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(HTML::TransferDataDec
 
     // 3. Initialize the [[algorithm]] internal slot of value to the sub-deserialization of serialized.[[Algorithm]].
     auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-    m_algorithm = deserialized.as_object();
+    m_algorithm_cached = deserialized.as_object();
 
     // 4. Initialize the [[usages]] internal slot of value to the sub-deserialization of serialized.[[Usages]].
-    deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-    m_usages = deserialized.as_object();
+    auto usages = serialized.decode<Vector<Bindings::KeyUsage>>();
+    set_usages(move(usages));
 
     // FIXME: 5. Initialize the [[handle]] internal slot of value to serialized.[[Handle]].
 

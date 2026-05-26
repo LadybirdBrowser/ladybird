@@ -36,14 +36,14 @@ public:
 
     bool extractable() const { return m_extractable; }
     Bindings::KeyType type() const { return m_type; }
-    JS::Object const* algorithm() const { return m_algorithm; }
-    JS::Object const* usages() const { return m_usages; }
+    JS::Object const* algorithm() const { return m_algorithm_cached; }
+    JS::Object const* usages() const { return m_usages_cached; }
 
-    Vector<Bindings::KeyUsage> internal_usages() const { return m_key_usages; }
+    Vector<Bindings::KeyUsage> internal_usages() const { return m_usages; }
 
     void set_extractable(bool extractable) { m_extractable = extractable; }
     void set_type(Bindings::KeyType type) { m_type = type; }
-    void set_algorithm(GC::Ref<Object> algorithm) { m_algorithm = algorithm; }
+    void set_algorithm(GC::Ref<Object> algorithm) { m_algorithm_cached = algorithm; }
     void set_usages(Vector<Bindings::KeyUsage>);
 
     InternalKeyData const& handle() const { return m_key_data; }
@@ -62,10 +62,10 @@ private:
 
     Bindings::KeyType m_type;
     bool m_extractable { false };
-    GC::Ref<Object> m_algorithm;
-    GC::Ref<Object> m_usages;
+    GC::Ref<Object> m_algorithm_cached;
+    GC::Ref<Object> m_usages_cached;
 
-    Vector<Bindings::KeyUsage> m_key_usages;
+    Vector<Bindings::KeyUsage> m_usages;
     InternalKeyData m_key_data; // [[handle]]
     mutable String m_algorithm_name;
 };
