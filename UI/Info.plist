@@ -20,6 +20,10 @@
         <string>NSApplication</string>
         <key>NSHighResolutionCapable</key>
         <string>True</string>
+        <key>NSLocationUsageDescription</key>
+        <string>Ladybird needs your location to provide it to websites that request geolocation access.</string>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>Ladybird needs your location to provide it to websites that request geolocation access.</string>
         <key>CFBundleDocumentTypes</key>
         <array>
             <dict>
