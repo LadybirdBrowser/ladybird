@@ -472,8 +472,7 @@ void BrowserWindow::on_devtools_enabled()
 
     statusBar()->addPermanentWidget(disable_button);
 
-    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
-    statusBar()->showMessage(qstring_from_ak_string(message));
+    statusBar()->showMessage(qformatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
 }
 
 void BrowserWindow::on_devtools_disabled()
