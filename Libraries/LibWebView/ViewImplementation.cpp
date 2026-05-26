@@ -1037,6 +1037,32 @@ void ViewImplementation::global_privacy_control_changed()
     client().async_set_enable_global_privacy_control(page_id(), global_privacy_control == GlobalPrivacyControl::Yes);
 }
 
+void ViewImplementation::geolocation_settings_changed()
+{
+    using ErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+
+    if (Application::web_content_options().is_test_mode == IsTestMode::Yes) {
+        client().async_set_geolocation_emulated_position(page_id(), 37.7647658, -122.4345892, 100.0, 0.0, 0.0, 0.0, 0.0, {});
+        return;
+    }
+
+    auto const& settings = Application::settings();
+
+    switch (settings.geolocation_mode()) {
+    case GeolocationMode::Disabled:
+        client().async_set_geolocation_emulated_position(page_id(), {}, {}, {}, {}, {}, {}, {}, to_underlying(ErrorCode::PermissionDenied));
+        break;
+    case GeolocationMode::Emulated: {
+        auto const& coords = settings.emulated_geolocation_coordinates();
+        client().async_set_geolocation_emulated_position(page_id(), coords.latitude, coords.longitude, coords.accuracy, coords.altitude, coords.altitude_accuracy, coords.heading, coords.speed, {});
+        break;
+    }
+    case GeolocationMode::Actual:
+        client().async_set_geolocation_emulated_position(page_id(), {}, {}, {}, {}, {}, {}, {}, {});
+        break;
+    }
+}
+
 void ViewImplementation::bookmarks_changed()
 {
     update_bookmark_action();

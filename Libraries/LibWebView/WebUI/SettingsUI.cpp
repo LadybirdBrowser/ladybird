@@ -6,6 +6,7 @@
 
 #include <AK/JsonArray.h>
 #include <AK/Platform.h>
+#include <LibCore/GeolocationProvider.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/SearchEngine.h>
@@ -121,6 +122,13 @@ void SettingsUI::register_interfaces()
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
     });
+
+    register_interface("setGeolocationMode"sv, [this](auto const& data) {
+        set_geolocation_mode(data);
+    });
+    register_interface("setGeolocationCoordinates"sv, [this](auto const& data) {
+        set_geolocation_coordinates(data);
+    });
 }
 
 void SettingsUI::load_features()
@@ -130,6 +138,7 @@ void SettingsUI::load_features()
     JsonObject features;
     features.set("primaryPaste"_string, application.supports_clipboard_type(Application::ClipboardType::Selection));
     features.set("verticalTabs"_string, application.supports_vertical_tabs());
+    features.set("actualGeolocation"_string, Core::GeolocationProvider::is_available());
 
     async_send_message("loadFeatures"sv, move(features));
 }
@@ -461,6 +470,43 @@ void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
 {
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
     load_current_settings();
+}
+
+void SettingsUI::set_geolocation_mode(JsonValue const& mode)
+{
+    if (!mode.is_string())
+        return;
+
+    auto mode_string = mode.as_string();
+    auto geolocation_mode = [&] {
+        if (mode_string == "actual"sv && Core::GeolocationProvider::is_available())
+            return GeolocationMode::Actual;
+        if (mode_string == "emulated"sv)
+            return GeolocationMode::Emulated;
+        return GeolocationMode::Disabled;
+    }();
+    Application::settings().set_geolocation_mode(geolocation_mode);
+}
+
+void SettingsUI::set_geolocation_coordinates(JsonValue const& coordinates)
+{
+    if (!coordinates.is_object())
+        return;
+
+    auto const& object = coordinates.as_object();
+    auto latitude = object.get_double_with_precision_loss("latitude"sv);
+    auto longitude = object.get_double_with_precision_loss("longitude"sv);
+    if (!latitude.has_value() || !longitude.has_value())
+        return;
+
+    Application::settings().set_emulated_geolocation_coordinates({
+        .latitude = *latitude,
+        .longitude = *longitude,
+        .altitude = object.get_double_with_precision_loss("altitude"sv),
+        .altitude_accuracy = object.get_double_with_precision_loss("altitudeAccuracy"sv),
+        .speed = object.get_double_with_precision_loss("speed"sv),
+        .heading = object.get_double_with_precision_loss("heading"sv),
+    });
 }
 
 }
