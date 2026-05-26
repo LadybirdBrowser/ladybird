@@ -16,6 +16,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
@@ -460,6 +461,9 @@ void BrowserWindow::update_bookmarks_bar_display(bool show_bookmarks_bar)
 
 void BrowserWindow::on_devtools_enabled()
 {
+    statusBar()->setObjectName("LadybirdStatusBar");
+    statusBar()->setStyleSheet(ChromeStyle::status_bar_style_sheet(current_tab()->palette()));
+
     auto* disable_button = new QPushButton("Disable", this);
 
     connect(disable_button, &QPushButton::clicked, this, []() {
