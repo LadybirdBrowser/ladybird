@@ -34,6 +34,22 @@ struct PNGLoadingContext {
     Optional<ByteBuffer> icc_profile;
     OwnPtr<ExifMetadata> exif_metadata;
 
+    // Working state for read_frames(). These live as members (rather than as stack-locals inside read_frames()) — so
+    // that a libpng longjmp out of the setjmp scope below doesn't bypass C++ destructors, and leak the heap storage
+    // they own. The setjmp handler clears them, so the memory gets released promptly on the error path.
+    Vector<u8*> row_pointers;
+    RefPtr<Bitmap> in_flight_bitmap;
+    RefPtr<Bitmap> output_buffer;
+    OwnPtr<Painter> painter;
+
+    void clear_read_frames_working_state()
+    {
+        row_pointers.clear();
+        in_flight_bitmap = nullptr;
+        output_buffer = nullptr;
+        painter = nullptr;
+    }
+
     ErrorOr<size_t> read_frames(png_structp, png_infop);
     ErrorOr<void> apply_exif_orientation();
 
@@ -41,6 +57,9 @@ struct PNGLoadingContext {
     {
         // NOTE: We need to setjmp() here because libpng uses longjmp() for error handling.
         if (auto error_value = setjmp(png_jmpbuf(png_ptr)); error_value) {
+            // longjmp() bypassed the C++ destructors for any stack-locals in read_frames(); release the working-state
+            // members explicitly here — so their heap storage doesn't sit around until ~PNGLoadingContext().
+            clear_read_frames_working_state();
             return Error::from_errno(error_value);
         }
 
@@ -255,16 +274,18 @@ ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
 
 ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
 {
-    Vector<u8*> row_pointers;
     auto decode_frame = [&](IntSize frame_size) -> ErrorOr<NonnullRefPtr<Bitmap>> {
-        auto frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
+        // Allocate into the in_flight_bitmap member — so the bitmap survives a potential libpng longjmp out of
+        // png_read_image() below.
+        in_flight_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
 
         row_pointers.resize_and_keep_capacity(frame_size.height());
         for (auto i = 0; i < frame_size.height(); ++i)
-            row_pointers[i] = frame_bitmap->scanline_u8(i);
+            row_pointers[i] = in_flight_bitmap->scanline_u8(i);
 
         png_read_image(png_ptr, row_pointers.data());
-        return frame_bitmap;
+        // Past the longjmp window; hand the bitmap to the caller, and clear the member.
+        return in_flight_bitmap.release_nonnull();
     };
 
     if (png_get_acTL(png_ptr, info_ptr, &frame_count, &loop_count)) {
@@ -272,8 +293,8 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         png_set_acTL(png_ptr, info_ptr, frame_count, loop_count);
 
         // Conceptually, at the beginning of each play the output buffer must be completely initialized to a fully transparent black rectangle, with width and height dimensions from the `IHDR` chunk.
-        auto output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
-        auto painter = Painter::create(output_buffer);
+        output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
+        painter = Painter::create(*output_buffer);
         size_t animation_frame_count = 0;
 
         for (size_t frame_index = 0; frame_index < frame_count; ++frame_index) {
@@ -364,6 +385,9 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         auto decoded_frame_bitmap = TRY(decode_frame(size));
         frame_descriptors.append({ move(decoded_frame_bitmap), 0 });
     }
+
+    // Clear the working state — so it doesn't outlive read_frames() on the success path.
+    clear_read_frames_working_state();
     return frame_count;
 }
 
