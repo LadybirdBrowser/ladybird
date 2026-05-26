@@ -168,6 +168,10 @@ endpoint WebContentClient
     did_request_exit_fullscreen(u64 page_id) =|
     did_request_file(u64 page_id, ByteString path, i32 request_id) =|
     did_request_color_picker(u64 page_id, Color current_color) =|
+    did_request_geolocation_position(u64 page_id, u64 request_id) =|
+    did_cancel_geolocation_position_request(u64 page_id, u64 request_id) =|
+    did_start_geolocation_position_watch(u64 page_id, u64 request_id) =|
+    did_stop_geolocation_position_watch(u64 page_id, u64 request_id) =|
     did_request_file_picker(u64 page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
     did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
     did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) =|

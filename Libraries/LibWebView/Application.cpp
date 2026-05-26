@@ -2080,6 +2080,53 @@ void Application::toggle_bookmark_for_view(ViewImplementation& view)
         });
 }
 
+ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> Application::ensure_geolocation_provider()
+{
+    if (!m_geolocation_provider)
+        m_geolocation_provider = TRY(Core::GeolocationProvider::create());
+
+    return NonnullRawPtr { *m_geolocation_provider };
+}
+
+static Core::GeolocationError geolocation_provider_unavailable_error(Error const& error)
+{
+    return { Core::GeolocationError::Type::PositionUnavailable, MUST(String::from_utf8(error.string_literal())) };
+}
+
+ErrorOr<Core::GeolocationProvider::RequestId, Core::GeolocationError> Application::request_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error)
+{
+    auto provider = ensure_geolocation_provider();
+    if (provider.is_error())
+        return geolocation_provider_unavailable_error(provider.error());
+
+    return provider.value()->request_current_position(move(on_success), move(on_error));
+}
+
+void Application::cancel_geolocation_position_request(Core::GeolocationProvider::RequestId request_id)
+{
+    if (!m_geolocation_provider)
+        return;
+
+    m_geolocation_provider->cancel_current_position_request(request_id);
+}
+
+ErrorOr<Core::GeolocationProvider::WatchId, Core::GeolocationError> Application::start_watching_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error)
+{
+    auto provider = ensure_geolocation_provider();
+    if (provider.is_error())
+        return geolocation_provider_unavailable_error(provider.error());
+
+    return provider.value()->start_watching_position(move(on_success), move(on_error));
+}
+
+void Application::stop_watching_geolocation_position(Core::GeolocationProvider::WatchId watch_id)
+{
+    if (!m_geolocation_provider)
+        return;
+
+    m_geolocation_provider->stop_watching_position(watch_id);
+}
+
 void Application::create_bookmark_menu_items(Optional<MenuData> data)
 {
     auto const& [menu, items, target_folder_id] = data.ensure([&]() -> MenuData {

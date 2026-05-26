@@ -36,6 +36,8 @@
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Geolocation/GeolocationCoordinates.h>
+#include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -67,6 +69,38 @@ static bool s_async_scrolling_enabled { false };
 static constexpr size_t s_max_download_data_ipc_chunk_size = 16 * MiB;
 
 GC_DEFINE_ALLOCATOR(PageClient);
+
+static Web::Geolocation::GeolocationPositionError::ErrorCode geolocation_position_error_code_from_ipc(u16 error_code)
+{
+    using ErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+
+    switch (error_code) {
+    case to_underlying(ErrorCode::PermissionDenied):
+        return ErrorCode::PermissionDenied;
+    case to_underlying(ErrorCode::PositionUnavailable):
+        return ErrorCode::PositionUnavailable;
+    case to_underlying(ErrorCode::Timeout):
+        return ErrorCode::Timeout;
+    default:
+        return ErrorCode::PositionUnavailable;
+    }
+}
+
+static Optional<Web::Geolocation::CoordinatesData> geolocation_coordinates_from_ipc(WebView::GeolocationPositionData const& position)
+{
+    if (!position.latitude.has_value() || !position.longitude.has_value() || !position.accuracy.has_value())
+        return {};
+
+    return Web::Geolocation::CoordinatesData {
+        .accuracy = *position.accuracy,
+        .latitude = *position.latitude,
+        .longitude = *position.longitude,
+        .altitude = position.altitude,
+        .altitude_accuracy = position.altitude_accuracy,
+        .heading = position.heading,
+        .speed = position.speed,
+    };
+}
 
 static String serialize_dom_mutation_target(Web::DOM::Node const& target)
 {
@@ -574,6 +608,7 @@ void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 {
     initialize_js_console(document);
+    apply_pending_geolocation_emulated_position();
 }
 
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
@@ -745,6 +780,62 @@ void PageClient::page_did_request_image_context_menu(Web::CSSPixelPoint content_
 void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu)
 {
     client().async_did_request_media_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu);
+}
+
+void PageClient::set_geolocation_emulated_position(WebView::GeolocationPositionData const& position, Optional<u16> error_code)
+{
+    m_pending_geolocation_emulated_position = PendingGeolocationEmulatedPosition {
+        .position = position,
+        .error_code = error_code,
+    };
+    apply_pending_geolocation_emulated_position();
+}
+
+void PageClient::apply_pending_geolocation_emulated_position()
+{
+    if (!m_pending_geolocation_emulated_position.has_value() || !page().top_level_traversable_is_initialized())
+        return;
+
+    auto const& pending = *m_pending_geolocation_emulated_position;
+    auto const& position = pending.position;
+    auto traversable = page().top_level_traversable();
+
+    if (pending.error_code.has_value())
+        traversable->set_emulated_position_data(geolocation_position_error_code_from_ipc(*pending.error_code));
+    else if (auto coordinates = geolocation_coordinates_from_ipc(position); coordinates.has_value())
+        traversable->set_emulated_position_data(*coordinates);
+    else
+        traversable->set_emulated_position_data(Empty {});
+}
+
+void PageClient::geolocation_position_response(u64 request_id, WebView::GeolocationPositionData const& position, Optional<u16> error_code)
+{
+    if (error_code.has_value())
+        page().receive_geolocation_position(request_id, geolocation_position_error_code_from_ipc(*error_code));
+    else if (auto coordinates = geolocation_coordinates_from_ipc(position); coordinates.has_value())
+        page().receive_geolocation_position(request_id, *coordinates);
+    else
+        page().receive_geolocation_position(request_id, Web::Geolocation::GeolocationPositionError::ErrorCode::PositionUnavailable);
+}
+
+void PageClient::page_did_request_geolocation_position(u64 request_id)
+{
+    client().async_did_request_geolocation_position(m_id, request_id);
+}
+
+void PageClient::page_did_cancel_geolocation_position_request(u64 request_id)
+{
+    client().async_did_cancel_geolocation_position_request(m_id, request_id);
+}
+
+void PageClient::page_did_start_geolocation_position_watch(u64 request_id)
+{
+    client().async_did_start_geolocation_position_watch(m_id, request_id);
+}
+
+void PageClient::page_did_stop_geolocation_position_watch(u64 request_id)
+{
+    client().async_did_stop_geolocation_position_watch(m_id, request_id);
 }
 
 void PageClient::page_did_request_alert(Utf16String const& message)

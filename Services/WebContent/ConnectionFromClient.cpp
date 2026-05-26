@@ -2368,6 +2368,18 @@ void ConnectionFromClient::set_enable_global_privacy_control(u64, bool enable)
     Web::ResourceLoader::the().set_enable_global_privacy_control(enable);
 }
 
+void ConnectionFromClient::set_geolocation_emulated_position(u64 page_id, WebView::GeolocationPositionData position, Optional<u16> error_code)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_geolocation_emulated_position(position, error_code);
+}
+
+void ConnectionFromClient::geolocation_position_response(u64 page_id, u64 request_id, WebView::GeolocationPositionData position, Optional<u16> error_code)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->geolocation_position_response(request_id, position, error_code);
+}
+
 void ConnectionFromClient::set_has_focus(u64 page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())

@@ -151,23 +151,9 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
     auto traversable = create_a_new_top_level_traversable(page, nullptr, {});
     page->set_top_level_traversable(traversable);
 
-    // AD-HOC: Set the default top-level emulated position data for the traversable, which points to Market St. SF.
-    // FIXME: We should not emulate by default, but ask the user what to do. E.g. disable Geolocation, set an emulated
-    //        position, or allow Ladybird to engage with the system's geolocation services. This is completely separate
-    //        from the permission model for "powerful features" such as Geolocation.
-    auto& realm = traversable->active_document()->realm();
-    auto emulated_position_coordinates = realm.create<Geolocation::GeolocationCoordinates>(
-        realm,
-        Geolocation::CoordinatesData {
-            .accuracy = 100.0,
-            .latitude = 37.7647658,
-            .longitude = -122.4345892,
-            .altitude = 60.0,
-            .altitude_accuracy = 10.0,
-            .heading = 0.0,
-            .speed = 0.0,
-        });
-    traversable->set_emulated_position_data(emulated_position_coordinates);
+    // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request
+    //         from observing the test position during the short window before the initial settings IPC arrives.
+    traversable->set_emulated_position_data(Geolocation::GeolocationPositionError::ErrorCode::PermissionDenied);
 
     // AD-HOC: Mark the about:blank document as finished parsing if we're only going to about:blank
     //         Skip the initial navigation as well. This matches the behavior of the window open steps.

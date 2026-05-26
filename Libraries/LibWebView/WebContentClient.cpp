@@ -1772,6 +1772,38 @@ void WebContentClient::did_request_color_picker(u64 page_id, Color current_color
     }
 }
 
+void WebContentClient::did_request_geolocation_position(u64 page_id, u64 request_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_geolocation_position)
+            view->on_request_geolocation_position(request_id);
+    }
+}
+
+void WebContentClient::did_cancel_geolocation_position_request(u64 page_id, u64 request_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_cancel_geolocation_position_request)
+            view->on_cancel_geolocation_position_request(request_id);
+    }
+}
+
+void WebContentClient::did_start_geolocation_position_watch(u64 page_id, u64 request_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_start_geolocation_position_watch)
+            view->on_start_geolocation_position_watch(request_id);
+    }
+}
+
+void WebContentClient::did_stop_geolocation_position_watch(u64 page_id, u64 request_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_stop_geolocation_position_watch)
+            view->on_stop_geolocation_position_watch(request_id);
+    }
+}
+
 void WebContentClient::did_request_file_picker(u64 page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
