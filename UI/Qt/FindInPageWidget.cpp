@@ -21,6 +21,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     , m_content_view(content_view)
 {
     setObjectName("LadybirdFindInPageBar");
+    setAttribute(Qt::WA_StyledBackground);
     setFocusPolicy(Qt::FocusPolicy::StrongFocus);
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     update_chrome_style();
