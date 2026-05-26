@@ -125,6 +125,7 @@ public:
 
     void clear_element(HTML::HTMLElement&);
     void set_environments_top_level_url(StringView url);
+    void set_geolocation_emulated_position(double latitude, double longitude, double accuracy);
 
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();

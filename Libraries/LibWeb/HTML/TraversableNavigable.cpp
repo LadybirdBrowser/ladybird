@@ -49,8 +49,8 @@ TraversableNavigable::~TraversableNavigable() = default;
 void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    if (m_emulated_position_data.has<GC::Ref<Geolocation::GeolocationCoordinates>>())
-        visitor.visit(m_emulated_position_data.get<GC::Ref<Geolocation::GeolocationCoordinates>>());
+    visitor.visit(m_emulated_position_data);
+    visitor.visit(m_emulated_position_data_observers);
     visitor.visit(m_session_history_traversal_queue);
     visitor.visit(m_storage_shed);
     visitor.visit(m_apply_history_step_state);
@@ -1824,6 +1824,34 @@ void TraversableNavigable::set_emulated_position_data(Geolocation::EmulatedPosit
 {
     VERIFY(is_top_level_traversable());
     m_emulated_position_data = data;
+
+    Vector<GC::Root<GC::Function<void()>>> observers;
+    for (auto& observer : m_emulated_position_data_observers)
+        observers.append(observer.value);
+    for (auto& observer : observers)
+        observer->function()();
+}
+
+void TraversableNavigable::set_emulated_position_data(Geolocation::CoordinatesData coordinates_data)
+{
+    VERIFY(is_top_level_traversable());
+    auto& realm = active_document()->realm();
+    auto coords = realm.create<Geolocation::GeolocationCoordinates>(realm, move(coordinates_data));
+    set_emulated_position_data(coords);
+}
+
+u64 TraversableNavigable::register_emulated_position_data_observer(GC::Ref<GC::Function<void()>> observer)
+{
+    VERIFY(is_top_level_traversable());
+    auto observer_id = m_next_emulated_position_data_observer_id++;
+    m_emulated_position_data_observers.set(observer_id, observer);
+    return observer_id;
+}
+
+void TraversableNavigable::unregister_emulated_position_data_observer(u64 observer_id)
+{
+    VERIFY(is_top_level_traversable());
+    m_emulated_position_data_observers.remove(observer_id);
 }
 
 void TraversableNavigable::process_screenshot_requests()

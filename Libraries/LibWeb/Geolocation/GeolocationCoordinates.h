@@ -14,10 +14,10 @@ struct CoordinatesData {
     double accuracy { 0.0 };
     double latitude { 0.0 };
     double longitude { 0.0 };
-    Optional<double> altitude;
-    Optional<double> altitude_accuracy;
-    Optional<double> heading;
-    Optional<double> speed;
+    Optional<double> altitude {};
+    Optional<double> altitude_accuracy {};
+    Optional<double> heading {};
+    Optional<double> speed {};
 };
 
 // https://w3c.github.io/geolocation/#coordinates_interface

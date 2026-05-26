@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        let updates = 0;
+        try {
+            let watchId = navigator.geolocation.watchPosition(
+                position => {
+                    ++updates;
+                    println(`update ${updates}: ${position.coords.latitude}, ${position.coords.longitude}`);
+
+                    if (updates === 1) {
+                        internals.setGeolocationEmulatedPosition(1.25, 2.5, 100);
+                        return;
+                    }
+
+                    navigator.geolocation.clearWatch(watchId);
+                    done();
+                },
+                error => {
+                    println(`error: ${error.code} ${error.message}`);
+                    done();
+                }
+            );
+        } catch (e) {
+            println(`exception: ${e.name}: ${e.message}`);
+            done();
+        }
+    });
+</script>
