@@ -450,8 +450,8 @@ void Autocomplete::schedule_chrome_style_update()
 
     m_has_pending_chrome_style_update = true;
     QTimer::singleShot(0, this, [this] {
-        m_has_pending_chrome_style_update = false;
         update_chrome_style();
+        m_has_pending_chrome_style_update = false;
     });
 }
 
