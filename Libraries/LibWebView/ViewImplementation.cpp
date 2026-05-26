@@ -131,6 +131,12 @@ void ViewImplementation::set_favicon(Badge<WebContentClient>, Gfx::Bitmap const&
 
 void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url)
 {
+    if (m_client_state.has_usable_bitmap) {
+        // Keep showing the old page until the new WebContent process paints its first frame.
+        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
+        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
+    }
+
     if (m_client_state.client) {
         m_client_state.client->unregister_view(m_client_state.page_index);
     }
@@ -141,8 +147,6 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     if (on_web_content_process_change_for_cross_site_navigation)
         on_web_content_process_change_for_cross_site_navigation();
 
-    // Don't keep a stale backup bitmap around.
-    m_backup_shared_image_buffer = nullptr;
     handle_resize();
 
     load(url);
