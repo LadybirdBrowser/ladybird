@@ -16,8 +16,10 @@
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #if defined(AK_OS_SERENITY)
@@ -30,6 +32,9 @@
 extern "C" {
 #    include <hurd.h>
 }
+#endif
+#if defined(AK_OS_LINUX)
+#    include <sys/prctl.h>
 #endif
 #if defined(AK_OS_FREEBSD)
 #    include <sys/user.h>
@@ -82,8 +87,109 @@ Process Process::current()
     return p;
 }
 
+#if defined(AK_OS_LINUX)
+static Optional<int> run_file_actions_in_child(Vector<ProcessSpawnOptions::FileActionType> const& file_actions)
+{
+    for (auto const& file_action : file_actions) {
+        auto error = file_action.visit(
+            [&](FileAction::OpenFile const& action) {
+                auto fd = open(
+                    action.path.characters(),
+                    File::open_mode_to_options(action.mode | Core::File::OpenMode::KeepOnExec),
+                    action.permissions);
+                if (fd < 0)
+                    return Optional<int> { errno };
+
+                if (fd != action.fd) {
+                    if (dup2(fd, action.fd) < 0) {
+                        auto saved_errno = errno;
+                        close(fd);
+                        return Optional<int> { saved_errno };
+                    }
+                    close(fd);
+                }
+                return Optional<int> {};
+            },
+            [&](FileAction::CloseFile const& action) {
+                close(action.fd);
+                return Optional<int> {};
+            },
+            [&](FileAction::DupFd const& action) {
+                if (dup2(action.write_fd, action.fd) < 0)
+                    return Optional<int> { errno };
+                return Optional<int> {};
+            });
+        if (error.has_value())
+            return error;
+    }
+    return {};
+}
+
+static ErrorOr<pid_t> fork_and_exec_with_parent_death_signal(ProcessSpawnOptions const& options, Span<char const*> arguments)
+{
+    auto error_pipe = TRY(System::pipe2(O_CLOEXEC));
+
+    auto parent_pid = getpid();
+    auto pid = fork();
+    if (pid < 0) {
+        auto saved_errno = errno;
+        MUST(System::close(error_pipe[0]));
+        MUST(System::close(error_pipe[1]));
+        return Error::from_syscall("fork"sv, saved_errno);
+    }
+
+    if (pid == 0) {
+        close(error_pipe[0]);
+
+        auto report_errno_and_exit = [&](int error) {
+            auto bytes_written = write(error_pipe[1], &error, sizeof(error));
+            (void)bytes_written;
+            _exit(127);
+        };
+
+        if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
+            report_errno_and_exit(errno);
+        if (getppid() != parent_pid)
+            _exit(127);
+
+        if (auto error = run_file_actions_in_child(options.file_actions); error.has_value())
+            report_errno_and_exit(error.value());
+
+        if (options.search_for_executable_in_path)
+            execvp(options.executable.characters(), const_cast<char* const*>(arguments.data()));
+        else
+            execve(options.executable.characters(), const_cast<char* const*>(arguments.data()), Environment::raw_environ());
+
+        report_errno_and_exit(errno);
+    }
+
+    MUST(System::close(error_pipe[1]));
+
+    int child_errno = 0;
+    auto bytes_read = TRY(System::read(error_pipe[0], { &child_errno, sizeof(child_errno) }));
+    MUST(System::close(error_pipe[0]));
+
+    if (bytes_read > 0) {
+        int status = 0;
+        (void)waitpid(pid, &status, 0);
+        return Error::from_errno(child_errno);
+    }
+
+    return pid;
+}
+#endif
+
 ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
 {
+    ArgvList argv_list(options.executable, options.arguments.size());
+    for (auto const& argument : options.arguments)
+        argv_list.append(argument.characters());
+
+#if defined(AK_OS_LINUX)
+    if (options.die_with_parent)
+        return Process { TRY(fork_and_exec_with_parent_death_signal(options, argv_list.get())) };
+#endif
+
 #define CHECK(invocation)                  \
     if (int returned_errno = (invocation)) \
         return Error::from_errno(returned_errno);
@@ -116,10 +222,6 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     }
 
 #undef CHECK
-
-    ArgvList argv_list(options.executable, options.arguments.size());
-    for (auto const& argument : options.arguments)
-        argv_list.append(argument.characters());
 
     pid_t pid;
     if (options.search_for_executable_in_path) {

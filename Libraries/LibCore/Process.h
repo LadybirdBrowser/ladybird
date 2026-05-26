@@ -41,6 +41,8 @@ struct ProcessSpawnOptions {
     StringView name {};
     ByteString executable {};
     bool search_for_executable_in_path { false };
+    // On supported platforms, ask the kernel to terminate this process when its parent dies.
+    bool die_with_parent { false };
     Vector<ByteString> const& arguments {};
 
     using FileActionType = Variant<FileAction::OpenFile, FileAction::CloseFile, FileAction::DupFd>;
