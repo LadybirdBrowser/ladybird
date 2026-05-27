@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-textPath-text-anchor-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+</style>
+<svg width="320" height="120" viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <path id="middle-line" d="M 100 40 h 200"/>
+        <path id="end-line" d="M 100 90 h 200"/>
+    </defs>
+    <text font-family="Ahem" font-size="20" text-anchor="middle">
+        <textPath href="#middle-line" startOffset="50%">XXXX</textPath>
+    </text>
+    <text font-family="Ahem" font-size="20">
+        <textPath href="#end-line" startOffset="100%" text-anchor="end">XXXX</textPath>
+    </text>
+</svg>
