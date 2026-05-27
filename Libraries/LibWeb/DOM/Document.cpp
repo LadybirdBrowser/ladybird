@@ -674,6 +674,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_hovered_node);
     visitor.visit(m_inspected_node);
     visitor.visit(m_highlighted_node);
+    for (auto const& flexbox_highlight : m_flexbox_highlights)
+        visitor.visit(flexbox_highlight.node);
     for (auto const& grid_highlight : m_grid_highlights)
         visitor.visit(grid_highlight.node);
     visitor.visit(m_active_favicon);
@@ -2669,6 +2671,44 @@ void Document::set_grid_highlighted_node(GC::Ptr<Node> node, Painting::GridInspe
 
     m_grid_highlights.append({ node, options });
     node->set_needs_repaint();
+}
+
+void Document::set_flexbox_highlighted_node(GC::Ptr<Node> node, Painting::FlexboxInspectorOverlayOptions options)
+{
+    if (!node)
+        return;
+
+    for (auto& flexbox_highlight : m_flexbox_highlights) {
+        if (flexbox_highlight.node != node)
+            continue;
+
+        flexbox_highlight.options = options;
+        node->set_needs_repaint();
+        return;
+    }
+
+    m_flexbox_highlights.append({ node, options });
+    node->set_needs_repaint();
+}
+
+void Document::clear_flexbox_highlighted_node(GC::Ptr<Node> node)
+{
+    if (!node) {
+        for (auto const& flexbox_highlight : m_flexbox_highlights) {
+            if (flexbox_highlight.node)
+                flexbox_highlight.node->set_needs_repaint();
+        }
+        m_flexbox_highlights.clear();
+        return;
+    }
+
+    auto old_size = m_flexbox_highlights.size();
+    m_flexbox_highlights.remove_all_matching([&](auto const& flexbox_highlight) {
+        return flexbox_highlight.node == node;
+    });
+
+    if (m_flexbox_highlights.size() != old_size)
+        node->set_needs_repaint();
 }
 
 void Document::clear_grid_highlighted_node(GC::Ptr<Node> node)
@@ -8373,6 +8413,16 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 
     if (highlighted_node() && highlighted_node()->paintable()) {
         highlighted_node()->paintable()->paint_inspector_overlay(context);
+    }
+
+    for (auto const& flexbox_highlight : m_flexbox_highlights) {
+        if (!flexbox_highlight.node)
+            continue;
+        auto paintable = flexbox_highlight.node->paintable();
+        auto const* paintable_box = as_if<Painting::PaintableBox>(paintable.ptr());
+        if (!paintable_box)
+            continue;
+        paintable_box->paint_flexbox_inspector_overlay(context, flexbox_highlight.options);
     }
 
     for (auto const& grid_highlight : m_grid_highlights) {
