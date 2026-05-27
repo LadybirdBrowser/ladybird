@@ -1834,6 +1834,18 @@ void Application::clear_highlighted_dom_node(DevTools::TabDescription const& des
         view->clear_highlighted_dom_node();
 }
 
+void Application::highlight_flexbox(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, JsonValue options) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->highlight_flexbox(node_id, move(options));
+}
+
+void Application::clear_flexbox_highlight(DevTools::TabDescription const& description, Web::UniqueNodeID node_id) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->clear_flexbox_highlight(node_id);
+}
+
 void Application::highlight_grid(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, JsonValue options) const
 {
     if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())

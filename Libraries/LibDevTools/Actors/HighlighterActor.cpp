@@ -31,7 +31,10 @@ HighlighterActor::~HighlighterActor() = default;
 void HighlighterActor::clear_current_highlight()
 {
     if (auto tab = InspectorActor::tab_for(m_inspector)) {
-        if (m_type_name == "CssGridHighlighter"sv) {
+        if (m_type_name == "FlexboxHighlighter"sv) {
+            if (m_highlighted_flexbox_node_id.has_value())
+                devtools().delegate().clear_flexbox_highlight(tab->description(), *m_highlighted_flexbox_node_id);
+        } else if (m_type_name == "CssGridHighlighter"sv) {
             if (m_highlighted_grid_node_id.has_value())
                 devtools().delegate().clear_grid_highlight(tab->description(), *m_highlighted_grid_node_id);
         } else if (m_is_highlighting_dom_node) {
@@ -39,6 +42,7 @@ void HighlighterActor::clear_current_highlight()
         }
     }
 
+    m_highlighted_flexbox_node_id = {};
     m_highlighted_grid_node_id = {};
     m_is_highlighting_dom_node = false;
 }
@@ -55,7 +59,14 @@ void HighlighterActor::handle_message(Message const& message)
         response.set("value"sv, false);
 
         if (auto dom_node = WalkerActor::dom_node_for(InspectorActor::walker_for(m_inspector), *node); dom_node.has_value()) {
-            if (m_type_name == "CssGridHighlighter"sv) {
+            if (m_type_name == "FlexboxHighlighter"sv) {
+                if (m_highlighted_flexbox_node_id.has_value() && *m_highlighted_flexbox_node_id != dom_node->identifier.id)
+                    devtools().delegate().clear_flexbox_highlight(dom_node->tab->description(), *m_highlighted_flexbox_node_id);
+
+                auto options = message.data.get("options"sv).value_or(JsonObject {});
+                devtools().delegate().highlight_flexbox(dom_node->tab->description(), dom_node->identifier.id, move(options));
+                m_highlighted_flexbox_node_id = dom_node->identifier.id;
+            } else if (m_type_name == "CssGridHighlighter"sv) {
                 if (m_highlighted_grid_node_id.has_value() && *m_highlighted_grid_node_id != dom_node->identifier.id)
                     devtools().delegate().clear_grid_highlight(dom_node->tab->description(), *m_highlighted_grid_node_id);
 

@@ -56,6 +56,8 @@ public:
 
     virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const { }
     virtual void clear_highlighted_dom_node(TabDescription const&) const { }
+    virtual void highlight_flexbox(TabDescription const&, Web::UniqueNodeID, JsonValue) const { }
+    virtual void clear_flexbox_highlight(TabDescription const&, Web::UniqueNodeID) const { }
     virtual void highlight_grid(TabDescription const&, Web::UniqueNodeID, JsonValue) const { }
     virtual void clear_grid_highlight(TabDescription const&, Web::UniqueNodeID) const { }
 

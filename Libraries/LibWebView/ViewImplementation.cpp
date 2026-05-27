@@ -500,6 +500,16 @@ void ViewImplementation::clear_highlighted_dom_node()
     highlight_dom_node(0, {});
 }
 
+void ViewImplementation::highlight_flexbox(Web::UniqueNodeID node_id, JsonValue options)
+{
+    client().async_highlight_flexbox(page_id(), node_id, move(options));
+}
+
+void ViewImplementation::clear_flexbox_highlight(Web::UniqueNodeID node_id)
+{
+    client().async_clear_flexbox_highlight(page_id(), node_id);
+}
+
 void ViewImplementation::highlight_grid(Web::UniqueNodeID node_id, JsonValue options)
 {
     client().async_highlight_grid(page_id(), node_id, move(options));

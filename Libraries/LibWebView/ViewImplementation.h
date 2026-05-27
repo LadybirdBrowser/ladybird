@@ -129,6 +129,8 @@ public:
 
     void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element);
     void clear_highlighted_dom_node();
+    void highlight_flexbox(Web::UniqueNodeID node_id, JsonValue options);
+    void clear_flexbox_highlight(Web::UniqueNodeID node_id);
     void highlight_grid(Web::UniqueNodeID node_id, JsonValue options);
     void clear_grid_highlight(Web::UniqueNodeID node_id);
 
