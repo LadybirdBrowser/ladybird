@@ -177,6 +177,17 @@ void HTMLImageElement::initialize(JS::Realm& realm)
     m_document_observer->set_document_became_inactive([this]() {
         m_load_event_delayer.clear();
         m_animation_timer->stop();
+        m_animation_paused_by_visibility = false;
+    });
+    m_document_observer->set_document_visibility_state_observer([this](HTML::VisibilityState visibility_state) {
+        if (visibility_state == HTML::VisibilityState::Hidden) {
+            m_animation_paused_by_visibility = m_animation_timer->is_active();
+            m_animation_timer->stop();
+            return;
+        }
+
+        if (m_animation_paused_by_visibility)
+            start_animation_timer_if_visible();
     });
 }
 
@@ -1003,7 +1014,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 m_animation_timer->stop();
                 if (image_data->is_animated() && image_data->frame_count() > 1) {
                     m_animation_timer->set_interval(image_data->frame_duration(0));
-                    m_animation_timer->start();
+                    start_animation_timer_if_visible();
                 }
 
                 m_load_event_delayer.clear();
@@ -1242,12 +1253,36 @@ void HTMLImageElement::restart_the_animation()
 {
     m_current_frame_index = 0;
 
-    auto image_data = m_current_request->image_data();
-    if (image_data && image_data->frame_count() > 1) {
-        m_animation_timer->start();
+    if (current_request_has_running_animation()) {
+        start_animation_timer_if_visible();
     } else {
         m_animation_timer->stop();
+        m_animation_paused_by_visibility = false;
     }
+}
+
+bool HTMLImageElement::current_request_has_running_animation() const
+{
+    auto image_data = m_current_request->image_data();
+    return image_data && image_data->is_animated() && image_data->frame_count() > 1;
+}
+
+void HTMLImageElement::start_animation_timer_if_visible()
+{
+    if (!current_request_has_running_animation()) {
+        m_animation_timer->stop();
+        m_animation_paused_by_visibility = false;
+        return;
+    }
+
+    if (document().visibility_state_value() == VisibilityState::Hidden) {
+        m_animation_timer->stop();
+        m_animation_paused_by_visibility = true;
+        return;
+    }
+
+    m_animation_paused_by_visibility = false;
+    m_animation_timer->start();
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#update-the-source-set
@@ -1412,6 +1447,12 @@ void HTMLImageElement::set_source_set(SourceSet source_set)
 
 void HTMLImageElement::animate()
 {
+    if (document().visibility_state_value() == VisibilityState::Hidden) {
+        m_animation_timer->stop();
+        m_animation_paused_by_visibility = true;
+        return;
+    }
+
     auto image_data = m_current_request->image_data();
     if (!image_data) {
         return;
@@ -1429,6 +1470,7 @@ void HTMLImageElement::animate()
         ++m_loops_completed;
         if (m_loops_completed > 0 && m_loops_completed == image_data->loop_count()) {
             m_animation_timer->stop();
+            m_animation_paused_by_visibility = false;
         }
     }
 
