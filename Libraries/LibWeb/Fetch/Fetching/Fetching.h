@@ -9,11 +9,14 @@
 
 #include <AK/Forward.h>
 #include <AK/RefPtr.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGC/Ptr.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibURL/Forward.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Fetching {
@@ -60,5 +63,6 @@ void append_fetch_metadata_headers_for_request(Infrastructure::Request&);
 WEB_API void set_http_memory_cache_enabled(bool enabled);
 WEB_API bool http_memory_cache_enabled();
 WEB_API void clear_http_memory_cache();
+void update_javascript_bytecode_cache_in_http_memory_cache(Infrastructure::NetworkPartitionKey const&, URL::URL const&, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes);
 
 }

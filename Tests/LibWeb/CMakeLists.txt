@@ -8,6 +8,7 @@ set(TEST_SOURCES
     TestCSSSyntaxParser.cpp
     TestCSSTokenizer.cpp
     TestCSSTokenStream.cpp
+    TestFetchResponse.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp
     TestMicrosyntax.cpp
@@ -27,6 +28,7 @@ ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibM
 
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
+target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)

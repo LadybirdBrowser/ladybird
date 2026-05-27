@@ -93,6 +93,14 @@ public:
         });
     }
 
+    HTTP::MemoryCache* get_if_exists(Infrastructure::NetworkPartitionKey const& key)
+    {
+        auto it = m_cache.find(key);
+        if (it == m_cache.end())
+            return nullptr;
+        return it->value.ptr();
+    }
+
     static HTTPCache& the()
     {
         static HTTPCache& cache = *new HTTPCache;
@@ -138,6 +146,9 @@ static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& r
     response->set_status(cache_entry->status_code);
     response->set_status_message(cache_entry->reason_phrase);
     response->set_header_list(cache_entry->response_headers);
+    response->set_javascript_bytecode_cache(cache_entry->javascript_bytecode_cache);
+    response->set_javascript_bytecode_cache_vary_key(cache_entry->javascript_bytecode_cache_vary_key);
+    response->set_javascript_bytecode_cache_memory_cache_request_headers(HTTP::HeaderList::create(cache_entry->request_headers->headers()));
 
     auto [response_body, _] = safely_extract_body(realm, cache_entry->response_body.bytes());
     response->set_body(response_body);
@@ -145,14 +156,15 @@ static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& r
     return response;
 }
 
-static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request, Infrastructure::Response const& response)
+static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request, Infrastructure::Response& response)
 {
     if (!g_http_memory_cache_enabled)
         return;
     if (request.cache_mode() == HTTP::CacheMode::NoStore)
         return;
 
-    http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list());
+    response.set_javascript_bytecode_cache_memory_cache_request_headers(HTTP::HeaderList::create(request.header_list()->headers()));
+    http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list(), response.javascript_bytecode_cache(), response.javascript_bytecode_cache_vary_key());
 }
 
 // https://fetch.spec.whatwg.org/#concept-fetch
@@ -2608,6 +2620,16 @@ bool http_memory_cache_enabled()
 void clear_http_memory_cache()
 {
     HTTPCache::the().clear_cache();
+}
+
+void update_javascript_bytecode_cache_in_http_memory_cache(Infrastructure::NetworkPartitionKey const& partition_key, URL::URL const& url, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes javascript_bytecode_cache)
+{
+    if (!g_http_memory_cache_enabled)
+        return;
+
+    // Only back-fill into a partition that already has a cache; do not create an empty one just to drop bytecode into.
+    if (auto* http_cache = HTTPCache::the().get_if_exists(partition_key))
+        http_cache->update_javascript_bytecode_cache(url, method, request_headers, vary_key, move(javascript_bytecode_cache));
 }
 
 }

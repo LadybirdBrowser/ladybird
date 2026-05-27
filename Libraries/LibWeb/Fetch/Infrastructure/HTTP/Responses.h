@@ -110,6 +110,8 @@ public:
     void set_javascript_bytecode_cache(Optional<Core::ImmutableBytes> javascript_bytecode_cache) { m_javascript_bytecode_cache = move(javascript_bytecode_cache); }
     [[nodiscard]] Optional<u64> javascript_bytecode_cache_vary_key() const { return m_javascript_bytecode_cache_vary_key; }
     void set_javascript_bytecode_cache_vary_key(Optional<u64> javascript_bytecode_cache_vary_key) { m_javascript_bytecode_cache_vary_key = javascript_bytecode_cache_vary_key; }
+    [[nodiscard]] Optional<NonnullRefPtr<HTTP::HeaderList>> const& javascript_bytecode_cache_memory_cache_request_headers() const { return m_javascript_bytecode_cache_memory_cache_request_headers; }
+    void set_javascript_bytecode_cache_memory_cache_request_headers(Optional<NonnullRefPtr<HTTP::HeaderList>> request_headers) { m_javascript_bytecode_cache_memory_cache_request_headers = move(request_headers); }
 
     [[nodiscard]] RedirectTaint redirect_taint() const { return m_redirect_taint; }
     void set_redirect_taint(RedirectTaint redirect_taint) { m_redirect_taint = redirect_taint; }
@@ -203,6 +205,7 @@ private:
     Optional<String> m_network_error_message;
     Optional<Core::ImmutableBytes> m_javascript_bytecode_cache;
     Optional<u64> m_javascript_bytecode_cache_vary_key;
+    Optional<NonnullRefPtr<HTTP::HeaderList>> m_javascript_bytecode_cache_memory_cache_request_headers;
 
 public:
     [[nodiscard]] ByteString const& method() const { return m_method; }
