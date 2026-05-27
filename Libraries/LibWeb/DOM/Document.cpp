@@ -1724,8 +1724,11 @@ void Document::update_layout(UpdateLayoutReason reason)
         return;
 
     VERIFY(!m_is_running_update_layout);
-    ScopeGuard guard = [&] { m_is_running_update_layout = false; };
     m_is_running_update_layout = true;
+    ScopeGuard guard = [&] {
+        m_is_running_update_layout = false;
+        page().client().flush_pending_dom_mutations();
+    };
 
     auto needs_style_update_after_layout = [&] {
         return !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()

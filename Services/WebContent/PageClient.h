@@ -16,6 +16,7 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/Mutation.h>
 #include <LibWebView/StorageSetResult.h>
 #include <WebContent/Forward.h>
 
@@ -108,8 +109,14 @@ public:
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
+    void clear_pending_dom_mutations();
 
 private:
+    struct PendingDOMMutation {
+        GC::Ref<Web::DOM::Node> target;
+        WebView::Mutation mutation;
+    };
+
     PageClient(PageHost&, u64 id);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -200,6 +207,7 @@ private:
     virtual Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
     virtual void page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<String> const& attribute_name) override;
+    virtual void flush_pending_dom_mutations() override;
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
     virtual void page_did_start_network_request(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ReadonlyBytes, Optional<String>) override;
@@ -210,6 +218,7 @@ private:
 
     void setup_palette();
     ConnectionFromClient& client() const;
+    void send_dom_mutation(Web::DOM::Node const& target, WebView::Mutation mutation);
 
     PageHost& m_owner;
     GC::Ref<Web::Page> m_page;
@@ -236,6 +245,7 @@ private:
 
     RefPtr<Core::Timer> m_frame_timer;
     Optional<double> m_last_frame_dispatch_time;
+    Queue<PendingDOMMutation> m_pending_dom_mutations;
 
     u64 m_devtools_client_count { 0 };
 };

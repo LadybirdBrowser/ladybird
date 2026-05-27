@@ -52,6 +52,15 @@ static bool s_async_scrolling_enabled { false };
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
+static String serialize_dom_mutation_target(Web::DOM::Node const& target)
+{
+    StringBuilder builder;
+    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
+    target.serialize_tree_as_json(serializer);
+    MUST(serializer.finish());
+    return MUST(builder.to_string());
+}
+
 void PageClient::set_use_skia_painter(UseSkiaPainter use_skia_painter)
 {
     s_use_skia_painter = use_skia_painter;
@@ -98,6 +107,9 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_page);
     visitor.visit(m_top_level_document_console_client);
+    m_pending_dom_mutations.for_each([&](auto& pending_mutation) {
+        visitor.visit(pending_mutation.target);
+    });
 
     if (m_webdriver)
         m_webdriver->visit_edges(visitor);
@@ -370,6 +382,7 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 {
     auto& realm = document.realm();
 
+    clear_pending_dom_mutations();
     m_web_ui.clear();
 
     if (auto console_client = document.console_client()) {
@@ -820,13 +833,40 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
         VERIFY_NOT_REACHED();
     }
 
-    StringBuilder builder;
-    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-    target.serialize_tree_as_json(serializer);
-    MUST(serializer.finish());
-    auto serialized_target = MUST(builder.to_string());
+    auto mutation_message = WebView::Mutation { type.to_string(), target.unique_id(), {}, mutation.release_value() };
+    if (m_pending_dom_mutations.is_empty() && target.document().layout_is_up_to_date()) {
+        send_dom_mutation(target, move(mutation_message));
+        return;
+    }
 
-    client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
+    m_pending_dom_mutations.enqueue({ const_cast<Web::DOM::Node&>(target), move(mutation_message) });
+}
+
+void PageClient::flush_pending_dom_mutations()
+{
+    if (!page().listen_for_dom_mutations()) {
+        clear_pending_dom_mutations();
+        return;
+    }
+
+    while (!m_pending_dom_mutations.is_empty()) {
+        if (!m_pending_dom_mutations.head().target->document().layout_is_up_to_date())
+            break;
+
+        auto pending_mutation = m_pending_dom_mutations.dequeue();
+        send_dom_mutation(*pending_mutation.target, move(pending_mutation.mutation));
+    }
+}
+
+void PageClient::clear_pending_dom_mutations()
+{
+    m_pending_dom_mutations.clear();
+}
+
+void PageClient::send_dom_mutation(Web::DOM::Node const& target, WebView::Mutation mutation)
+{
+    mutation.serialized_target = serialize_dom_mutation_target(target);
+    client().async_did_mutate_dom(m_id, move(mutation));
 }
 
 void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot)
