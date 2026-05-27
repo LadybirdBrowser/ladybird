@@ -9,6 +9,7 @@
 
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
+#include <AK/FFIHelpers.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1732,27 +1733,10 @@ void HTMLParser::abort()
     m_aborted = true;
 }
 
-static StringView html_parser_ffi_string_view(u8 const* ptr, size_t len)
-{
-    if (ptr == nullptr || len == 0)
-        return {};
-    return { ptr, len };
-}
-
-static FlyString fly_string_from_html_parser_ffi(u8 const* ptr, size_t len)
-{
-    return MUST(FlyString::from_utf8(html_parser_ffi_string_view(ptr, len)));
-}
-
-static String string_from_html_parser_ffi(u8 const* ptr, size_t len)
-{
-    return MUST(String::from_utf8(html_parser_ffi_string_view(ptr, len)));
-}
-
 extern "C" void ladybird_html_parser_log_parse_error(void* parser, u8 const* message_ptr, size_t message_len)
 {
     (void)parser_from_html_parser_ffi(parser);
-    dbgln_if(HTML_PARSER_DEBUG, "Rust parser parse error: {}", html_parser_ffi_string_view(message_ptr, message_len));
+    dbgln_if(HTML_PARSER_DEBUG, "Rust parser parse error: {}", ffi_string_view(message_ptr, message_len));
 }
 
 extern "C" void ladybird_html_parser_stop_parsing(void* parser)
@@ -1784,7 +1768,7 @@ static Optional<FlyString> namespace_from_html_parser_ffi(RustFfiHtmlNamespace n
     case RustFfiHtmlNamespace::Other:
         if (namespace_uri_len == 0)
             return {};
-        return fly_string_from_html_parser_ffi(namespace_uri_ptr, namespace_uri_len);
+        return ffi_fly_string(namespace_uri_ptr, namespace_uri_len);
     }
     VERIFY_NOT_REACHED();
 }
@@ -1896,16 +1880,16 @@ extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u8 con
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
     auto document_type = html_parser.document().realm().create<DOM::DocumentType>(html_parser.document());
-    document_type->set_name(string_from_html_parser_ffi(name_ptr, name_len));
-    document_type->set_public_id(string_from_html_parser_ffi(public_id_ptr, public_id_len));
-    document_type->set_system_id(string_from_html_parser_ffi(system_id_ptr, system_id_len));
+    document_type->set_name(ffi_string(name_ptr, name_len));
+    document_type->set_public_id(ffi_string(public_id_ptr, public_id_len));
+    document_type->set_system_id(ffi_string(system_id_ptr, system_id_len));
     return reinterpret_cast<size_t>(document_type.ptr());
 }
 
 extern "C" size_t ladybird_html_parser_create_comment(void* parser, u8 const* data_ptr, size_t data_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
-    auto comment = html_parser.document().realm().create<DOM::Comment>(html_parser.document(), Utf16String::from_utf8(string_from_html_parser_ffi(data_ptr, data_len)));
+    auto comment = html_parser.document().realm().create<DOM::Comment>(html_parser.document(), Utf16String::from_utf8(ffi_string(data_ptr, data_len)));
     return reinterpret_cast<size_t>(comment.ptr());
 }
 
@@ -1915,7 +1899,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t before, u
     if (parent_node.is_document())
         return;
 
-    auto data = Utf16String::from_utf8(string_from_html_parser_ffi(data_ptr, data_len));
+    auto data = Utf16String::from_utf8(ffi_string(data_ptr, data_len));
     if (before) {
         auto& before_node = node_from_html_parser_ffi(before);
         if (auto* previous_text = as_if<DOM::Text>(before_node.previous_sibling())) {
@@ -1939,10 +1923,10 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t before, u
 extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, u8 const* local_name_ptr, size_t local_name_len, u8 const* value_ptr, size_t value_len)
 {
     auto& dom_element = as<DOM::Element>(node_from_html_parser_ffi(element));
-    auto local_name = fly_string_from_html_parser_ffi(local_name_ptr, local_name_len);
+    auto local_name = ffi_fly_string(local_name_ptr, local_name_len);
     if (dom_element.has_attribute(local_name))
         return;
-    dom_element.append_attribute(local_name, string_from_html_parser_ffi(value_ptr, value_len));
+    dom_element.append_attribute(local_name, ffi_string(value_ptr, value_len));
 }
 
 extern "C" void ladybird_html_parser_remove_node(size_t node)
@@ -1986,19 +1970,19 @@ extern "C" size_t ladybird_html_parser_parent_node(size_t node)
 extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t intended_parent, RustFfiHtmlNamespace namespace_, u8 const* namespace_uri_ptr, size_t namespace_uri_len, u8 const* local_name_ptr, size_t local_name_len, RustFfiHtmlParserAttribute const* attributes, size_t attribute_count, bool had_duplicate_attribute, size_t form_element, bool has_template_element_on_stack)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
-    auto local_name = fly_string_from_html_parser_ffi(local_name_ptr, local_name_len);
+    auto local_name = ffi_fly_string(local_name_ptr, local_name_len);
     auto token = HTMLToken::make_start_tag(local_name);
 
     for (size_t i = 0; i < attribute_count; ++i) {
         auto const& attribute = attributes[i];
         Optional<FlyString> prefix;
         if (attribute.prefix_len != 0)
-            prefix = fly_string_from_html_parser_ffi(attribute.prefix_ptr, attribute.prefix_len);
+            prefix = ffi_fly_string(attribute.prefix_ptr, attribute.prefix_len);
         HTMLToken::Attribute token_attribute;
         token_attribute.prefix = move(prefix);
-        token_attribute.local_name = fly_string_from_html_parser_ffi(attribute.local_name_ptr, attribute.local_name_len);
+        token_attribute.local_name = ffi_fly_string(attribute.local_name_ptr, attribute.local_name_len);
         token_attribute.namespace_ = attribute_namespace_from_html_parser_ffi(attribute.namespace_);
-        token_attribute.value = string_from_html_parser_ffi(attribute.value_ptr, attribute.value_len);
+        token_attribute.value = ffi_string(attribute.value_ptr, attribute.value_len);
         token.add_attribute(move(token_attribute));
     }
 

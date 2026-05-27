@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/FFIHelpers.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibTextCodec/Decoder.h>
@@ -88,20 +89,6 @@ static String decode_and_filter_code_points(StringView input, StringView encodin
     return builder.to_string_without_validation();
 }
 
-static String string_from_ffi_bytes(u8 const* bytes, size_t length)
-{
-    if (length == 0)
-        return {};
-    return String::from_utf8_without_validation({ bytes, length });
-}
-
-static FlyString fly_string_from_ffi_bytes(u8 const* bytes, size_t length)
-{
-    if (length == 0)
-        return {};
-    return FlyString::from_utf8_without_validation({ bytes, length });
-}
-
 static Number::Type css_number_type_from_ffi(FFI::CssNumberType number_type)
 {
     switch (number_type) {
@@ -122,8 +109,8 @@ static Token::Position position_from_ffi(size_t line, size_t column)
 
 Token RustTokenizer::token_from_ffi(FFI::CssToken const& ffi_token)
 {
-    auto original_source_text = string_from_ffi_bytes(ffi_token.original_source_ptr, ffi_token.original_source_len);
-    auto payload = fly_string_from_ffi_bytes(ffi_token.value_ptr, ffi_token.value_len);
+    auto original_source_text = ffi_string(ffi_token.original_source_ptr, ffi_token.original_source_len);
+    auto payload = ffi_fly_string(ffi_token.value_ptr, ffi_token.value_len);
 
     Token token;
     switch (ffi_token.token_type) {
