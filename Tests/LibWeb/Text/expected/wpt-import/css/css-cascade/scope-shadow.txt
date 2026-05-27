@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 9 tests
 
-2 Pass
-7 Fail
+4 Pass
+5 Fail
 Fail	@scope can match :host
 Fail	@scope can match :host(...)
 Pass	:scope matches host via the scoping root
 Fail	:scope within :is() matches host via the scoping root
-Fail	Implicit @scope as direct child of shadow root
-Fail	Implicit @scope in construted stylesheet
+Pass	Implicit @scope as direct child of shadow root
+Pass	Implicit @scope in construted stylesheet
 Pass	Matching :host via &, :scope (subject)
 Fail	Matching :host via &, :scope (non-subject)
 Fail	Matching :host via &, :scope (non-subject, >)
