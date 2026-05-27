@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Forward.h>
@@ -33,7 +32,6 @@ private:
     WeakPtr<TabActor> m_tab;
     WeakPtr<WalkerActor> m_walker;
     WeakPtr<PageStyleActor> m_page_style;
-    HashMap<String, WeakPtr<HighlighterActor>> m_highlighters;
 };
 
 }

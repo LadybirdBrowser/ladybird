@@ -62,6 +62,13 @@ void DevToolsServer::refresh_tab_list()
     m_root_actor->send_tab_list_changed_message();
 }
 
+void DevToolsServer::unregister_actor(String const& name)
+{
+    Core::deferred_invoke([this, name] {
+        m_actor_registry.remove(name);
+    });
+}
+
 ErrorOr<void> DevToolsServer::on_new_client()
 {
     if (m_connection)

@@ -1025,7 +1025,9 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     second_highlighter_request.set("typeName"sv, "BoxModelHighlighter"sv);
     auto second_highlighter_response = client.request(move(second_highlighter_request));
     VERIFY(second_highlighter_response.has_object("highlighter"sv));
-    EXPECT_EQ(second_highlighter_response.get_object("highlighter"sv)->get_string("actor"sv).value(), highlighter_actor);
+    EXPECT_NE(
+        second_highlighter_response.get_object("highlighter"sv)->get_string("actor"sv).value(),
+        highlighter_actor);
 
     JsonObject show_highlighter;
     show_highlighter.set("to"sv, highlighter_actor);
@@ -1052,7 +1054,11 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     second_grid_highlighter_request.set("to"sv, inspector_actor);
     second_grid_highlighter_request.set("type"sv, "getHighlighterByType"sv);
     second_grid_highlighter_request.set("typeName"sv, "CssGridHighlighter"sv);
-    EXPECT_EQ(client.request(move(second_grid_highlighter_request)).get_object("highlighter"sv)->get_string("actor"sv).value(), grid_highlighter_actor);
+    auto second_grid_highlighter_actor = client.request(move(second_grid_highlighter_request))
+                                             .get_object("highlighter"sv)
+                                             ->get_string("actor"sv)
+                                             .release_value();
+    EXPECT_NE(second_grid_highlighter_actor, grid_highlighter_actor);
 
     JsonObject grid_options;
     grid_options.set("showGridArea"sv, true);
@@ -1066,20 +1072,34 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     EXPECT_EQ(session->delegate.highlight_grid_call_count, 1u);
     EXPECT_EQ(session->delegate.last_highlighted_grid_node.value(), 4u);
     EXPECT(session->delegate.last_grid_highlight_options.as_object().get_bool("showGridArea"sv).value());
+    EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 0u);
 
     JsonObject show_second_grid_highlighter;
-    show_second_grid_highlighter.set("to"sv, grid_highlighter_actor);
+    show_second_grid_highlighter.set("to"sv, second_grid_highlighter_actor);
     show_second_grid_highlighter.set("type"sv, "show"sv);
     show_second_grid_highlighter.set("node"sv, span_actor);
     EXPECT(client.request(move(show_second_grid_highlighter)).get_bool("value"sv).value());
-    EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 1u);
-    EXPECT_EQ(session->delegate.last_cleared_grid_node.value(), 4u);
+    EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 0u);
     EXPECT_EQ(session->delegate.highlight_grid_call_count, 2u);
     EXPECT_EQ(session->delegate.last_highlighted_grid_node.value(), 8u);
 
     EXPECT_EQ(client.request(grid_highlighter_actor, "hide"sv).get_string("from"sv).value(), grid_highlighter_actor);
+    EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_cleared_grid_node.value(), 4u);
+
+    JsonObject retarget_second_grid_highlighter;
+    retarget_second_grid_highlighter.set("to"sv, second_grid_highlighter_actor);
+    retarget_second_grid_highlighter.set("type"sv, "show"sv);
+    retarget_second_grid_highlighter.set("node"sv, div_actor);
+    EXPECT(client.request(move(retarget_second_grid_highlighter)).get_bool("value"sv).value());
     EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 2u);
     EXPECT_EQ(session->delegate.last_cleared_grid_node.value(), 8u);
+    EXPECT_EQ(session->delegate.highlight_grid_call_count, 3u);
+    EXPECT_EQ(session->delegate.last_highlighted_grid_node.value(), 4u);
+
+    EXPECT_EQ(client.request(second_grid_highlighter_actor, "release"sv).get_string("from"sv).value(), second_grid_highlighter_actor);
+    EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 3u);
+    EXPECT_EQ(session->delegate.last_cleared_grid_node.value(), 4u);
 
     auto layout_actor = client.request(walker_actor, "getLayoutInspector"sv).get_object("actor"sv)->get_string("actor"sv).release_value();
 
