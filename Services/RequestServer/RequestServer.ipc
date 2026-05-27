@@ -5,6 +5,7 @@
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/Header.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibProxy/Proxy.h>
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/RequestType.h>
@@ -20,6 +21,7 @@ endpoint RequestServer
     // use_tls: enable DNS over TLS
     set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) =|
     set_use_system_dns() =|
+    set_proxy_mode(u8 proxy_mode) =|
 
     // Test if a specific protocol is supported, e.g "http"
     is_supported_protocol(ByteString protocol) => (bool supported)

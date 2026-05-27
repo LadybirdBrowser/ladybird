@@ -258,6 +258,11 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
+void ConnectionFromClient::set_proxy_mode(u8 proxy_mode)
+{
+    Proxy::set_proxy_mode(static_cast<Proxy::ProxyMode>(proxy_mode));
+}
+
 void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials)
 {
     note_event_tick("ipc-start-request"sv);

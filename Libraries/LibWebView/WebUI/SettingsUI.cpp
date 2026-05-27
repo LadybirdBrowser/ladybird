@@ -121,6 +121,9 @@ void SettingsUI::register_interfaces()
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
     });
+    register_interface("setProxyMode"sv, [this](auto const& data) {
+        set_proxy_mode(data);
+    });
 }
 
 void SettingsUI::load_features()
@@ -460,6 +463,12 @@ void SettingsUI::set_global_privacy_control(JsonValue const& global_privacy_cont
 void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
 {
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
+    load_current_settings();
+}
+
+void SettingsUI::set_proxy_mode(JsonValue const& proxy_mode)
+{
+    Application::settings().set_proxy_mode(Settings::parse_proxy_mode(proxy_mode));
     load_current_settings();
 }
 

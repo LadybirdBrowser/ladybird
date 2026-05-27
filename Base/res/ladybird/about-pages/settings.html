@@ -530,6 +530,22 @@
         </div>
 
         <div class="tab-panel" id="tab-network">
+            <h3 class="card-title">Proxy Settings</h3>
+            <div class="card">
+                <div class="card-body">
+                    <div class="card-group inline-container">
+                        <label for="proxy-upstream">System Proxy</label>
+                        <select id="proxy-upstream">
+                            <option value="system">Use system proxy settings</option>
+                            <option value="direct">No proxy (Direct)</option>
+                        </select>
+                    </div>
+                    <p class="description">
+                        When enabled, Ladybird will use the proxy discovery mechanism provided by your operating system.
+                    </p>
+                </div>
+            </div>
+
             <h3 class="card-title">DNS Settings</h3>
             <div class="card">
                 <div class="card-body">

@@ -8,11 +8,25 @@ const dnsPort = document.querySelector("#dns-port");
 const dnssecToggle = document.querySelector("#dnssec-toggle");
 
 let DNS_SETTINGS = {};
+let PROXY_MODE = {};
 
 function loadSettings(settings) {
     DNS_SETTINGS = settings.dnsSettings || {};
     loadDnsSettings();
+
+    PROXY_MODE = settings.proxyMode || "system";
+    loadProxyMode();
 }
+
+const proxyUpstream = document.querySelector("#proxy-upstream");
+
+function loadProxyMode() {
+    proxyUpstream.value = PROXY_MODE || "system";
+}
+
+proxyUpstream.addEventListener("change", () => {
+    ladybird.sendMessage("setProxyMode", proxyUpstream.value);
+});
 
 function loadDnsSettings() {
     dnsUpstream.value = DNS_SETTINGS.mode || "system";

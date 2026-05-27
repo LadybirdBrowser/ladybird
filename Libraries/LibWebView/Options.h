@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibProxy/Proxy.h>
 #include <LibURL/URL.h>
 #include <LibWebView/ProcessType.h>
 
@@ -90,6 +91,7 @@ struct BrowserOptions {
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_endpoint {};
     Optional<DNSSettings> dns_settings {};
+    Optional<Proxy::ProxyMode> proxy_mode {};
     Optional<u16> devtools_port;
     EnableContentBlocker enable_content_blocker { EnableContentBlocker::Yes };
     Vector<ByteString> content_blocker_list_paths {};

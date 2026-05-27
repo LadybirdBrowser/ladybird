@@ -20,7 +20,6 @@
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
-#include <LibProxy/Proxy.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 
@@ -194,15 +193,6 @@ ErrorOr<void> encode(Encoder& encoder, Core::AnonymousBuffer const& buffer)
         TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
     }
 
-    return {};
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Proxy::ProxyData const& proxy)
-{
-    TRY(encoder.encode(proxy.type));
-    TRY(encoder.encode(proxy.host));
-    TRY(encoder.encode(proxy.port));
     return {};
 }
 

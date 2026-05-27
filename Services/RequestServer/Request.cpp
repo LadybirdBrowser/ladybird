@@ -651,13 +651,15 @@ void Request::handle_initial_state()
             return;
     }
 
-    auto system_proxies = Proxy::get_proxies_for_url(m_url);
-    if (!system_proxies.is_empty()) {
-        m_proxy_data = system_proxies.first(); // FIXME: Support multiple proxies (e.g. fallback proxies).
-        if (!m_proxy_data.is_direct()) {
-            dbgln("Using system proxy {}:{} for {}", m_proxy_data.host, m_proxy_data.port, m_url.serialize());
-            transition_to_state(State::RetrieveCookie);
-            return;
+    if (Proxy::use_system_proxy()) {
+        auto proxies = Proxy::get_proxies_for_url(m_url);
+        if (!proxies.is_empty()) {
+            m_proxy_data = proxies.first(); // FIXME: Support multiple proxies (e.g. fallback proxies).
+            if (!m_proxy_data.is_direct()) {
+                dbgln("Using system proxy {}:{} for {}", m_proxy_data.host, m_proxy_data.port, m_url.serialize());
+                transition_to_state(State::RetrieveCookie);
+                return;
+            }
         }
     }
 

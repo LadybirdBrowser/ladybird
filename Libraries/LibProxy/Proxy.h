@@ -14,15 +14,33 @@
 
 namespace Proxy {
 
+enum class ProxyMode : u8 {
+    System,
+    Direct,
+};
+
+ALWAYS_INLINE String print_proxy_mode(ProxyMode mode)
+{
+    switch (mode) {
+    case ProxyMode::System:
+        return "system"_string;
+    case ProxyMode::Direct:
+        return "direct"_string;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void set_proxy_mode(ProxyMode const&);
+ProxyMode proxy_mode();
+bool use_system_proxy();
+
 struct ProxyData {
-    enum class Type {
+    enum class Type : u8 {
         Direct,
         SOCKS5,
         HTTP,
         HTTPS
-    };
-
-    Type type { Type::Direct };
+    } type { Type::Direct };
     String host;
     u16 port { 0 };
 
@@ -30,7 +48,7 @@ struct ProxyData {
 
     bool operator==(ProxyData const&) const = default;
 
-    static ErrorOr<ProxyData> parse_url(URL::URL const&);
+    static ErrorOr<ProxyData> from_url(URL::URL const&);
 };
 
 Vector<ProxyData> get_proxies_for_url(URL::URL const&);

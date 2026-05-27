@@ -12,7 +12,26 @@
 
 namespace Proxy {
 
-ErrorOr<ProxyData> ProxyData::parse_url(URL::URL const& proxy_url)
+static Atomic<ProxyMode> g_proxy_mode { ProxyMode::System };
+
+void set_proxy_mode(ProxyMode const& new_mode)
+{
+    dbgln("Setting proxy mode to {}", print_proxy_mode(new_mode));
+    g_proxy_mode.store(new_mode);
+}
+
+ProxyMode proxy_mode()
+{
+    dbgln("Getting proxy mode: {}", print_proxy_mode(g_proxy_mode.load()));
+    return g_proxy_mode.load();
+}
+
+bool use_system_proxy()
+{
+    return proxy_mode() == ProxyMode::System;
+}
+
+ErrorOr<ProxyData> ProxyData::from_url(URL::URL const& proxy_url)
 {
     ProxyData proxy_data;
     if (proxy_url.scheme() == "direct") {
@@ -47,11 +66,11 @@ static Vector<ProxyData> get_proxies_from_environment(URL::URL const& url)
         // copy to avoid thread safety issues
         return String::from_utf8(value.value()).release_value_but_fixme_should_propagate_errors();
     };
-    auto parse_url_sv = [](StringView url_sv) -> Optional<ProxyData> {
+    auto from_url_sv = [](StringView url_sv) -> Optional<ProxyData> {
         auto url = URL::Parser::basic_parse(url_sv);
         if (!url.has_value())
             return {};
-        auto proxy_data_or_error = ProxyData::parse_url(url.value());
+        auto proxy_data_or_error = ProxyData::from_url(url.value());
         if (proxy_data_or_error.is_error())
             return {};
         return proxy_data_or_error.release_value();
@@ -69,7 +88,7 @@ static Vector<ProxyData> get_proxies_from_environment(URL::URL const& url)
             proxy_env = get_env_var("HTTPS_PROXY"sv);
     }
     if (proxy_env.has_value()) {
-        auto parsed_proxy = parse_url_sv(proxy_env.value());
+        auto parsed_proxy = from_url_sv(proxy_env.value());
         if (parsed_proxy.has_value())
             results.append(parsed_proxy.value());
     }
@@ -77,7 +96,7 @@ static Vector<ProxyData> get_proxies_from_environment(URL::URL const& url)
     if (!proxy_env.has_value())
         proxy_env = get_env_var("ALL_PROXY"sv);
     if (proxy_env.has_value()) {
-        auto parsed_proxy = parse_url_sv(proxy_env.value());
+        auto parsed_proxy = from_url_sv(proxy_env.value());
         if (parsed_proxy.has_value())
             results.append(parsed_proxy.value());
     }
@@ -98,7 +117,7 @@ Vector<ProxyData> get_proxies_for_url(URL::URL const& url)
         return results;
 #endif
 
-    results.append({ .type = ProxyData::Type::Direct, .host = {}, .port = 0 });
+    results.append({});
     return results;
 }
 

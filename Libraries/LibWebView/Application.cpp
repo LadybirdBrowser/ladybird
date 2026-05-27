@@ -97,6 +97,10 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
             Application::the().debug_menu().set_visible(enabled);
         }
     }
+    virtual void proxy_mode_changed() override
+    {
+        Application::request_server_client().async_set_proxy_mode(to_underlying(Application::settings().proxy_mode()));
+    }
 };
 
 struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
@@ -146,8 +150,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         set_process_mach_port(request.pid, move(request.task_port));
         auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
         result.visit(
-            [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
-            },
+            [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {},
             [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
                 if (!m_on_browser_process_transport)
                     return;
@@ -903,6 +906,11 @@ ErrorOr<void> Application::launch_request_server()
 
     if (m_browser_options.dns_settings.has_value())
         m_settings.set_dns_settings(m_browser_options.dns_settings.value(), true);
+
+    if (m_browser_options.proxy_mode.has_value())
+        m_settings.set_proxy_mode(m_browser_options.proxy_mode.value());
+    else
+        Application::request_server_client().async_set_proxy_mode(to_underlying(m_settings.proxy_mode()));
 
     return {};
 }

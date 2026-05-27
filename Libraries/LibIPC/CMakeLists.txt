@@ -25,4 +25,4 @@ else()
 endif()
 
 ladybird_lib(LibIPC ipc)
-target_link_libraries(LibIPC PRIVATE LibCore LibProxy LibSync LibThreading LibURL)
+target_link_libraries(LibIPC PRIVATE LibCore LibSync LibThreading LibURL)

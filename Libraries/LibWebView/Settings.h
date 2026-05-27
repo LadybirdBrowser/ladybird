@@ -91,6 +91,7 @@ public:
     virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
     virtual void dns_settings_changed() { }
+    virtual void proxy_mode_changed() { }
     virtual void config_variable_changed(ConfigVariableID) { }
 };
 
@@ -154,6 +155,10 @@ public:
     DNSSettings const& dns_settings() const { return m_dns_settings; }
     void set_dns_settings(DNSSettings const&, bool override_by_command_line = false);
 
+    static Proxy::ProxyMode parse_proxy_mode(JsonValue const&);
+    Proxy::ProxyMode proxy_mode() const { return m_proxy_mode; }
+    void set_proxy_mode(Proxy::ProxyMode const&);
+
     JsonValue const& config_variable(ConfigVariableID) const;
     bool config_variable_as_bool(ConfigVariableID) const;
     Vector<String> config_variable_as_string_array(ConfigVariableID) const;
@@ -188,6 +193,7 @@ private:
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };
+    Proxy::ProxyMode m_proxy_mode { Proxy::ProxyMode::Direct };
     Array<JsonValue, static_cast<size_t>(ConfigVariableID::Count)> m_config_variables {};
 
     Vector<SettingsObserver&> m_observers;

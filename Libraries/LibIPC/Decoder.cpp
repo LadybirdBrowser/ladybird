@@ -13,7 +13,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/File.h>
-#include <LibProxy/Proxy.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 
@@ -173,16 +172,6 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     auto anon_file = TRY(decoder.decode<IPC::File>());
 
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
-}
-
-template<>
-ErrorOr<Proxy::ProxyData> decode(Decoder& decoder)
-{
-    auto type = TRY(decoder.decode<Proxy::ProxyData::Type>());
-    auto host = TRY(decoder.decode<String>());
-    auto port = TRY(decoder.decode<u16>());
-
-    return Proxy::ProxyData { type, host, port };
 }
 
 template<>

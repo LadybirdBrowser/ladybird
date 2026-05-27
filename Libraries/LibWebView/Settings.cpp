@@ -66,6 +66,7 @@ static constexpr auto DISK_CACHE_MAXIMUM_SIZE_KEY = "maxSize"sv;
 static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
 
 static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
+static constexpr auto PROXY_MODE_KEY = "proxyMode"sv;
 
 static constexpr auto CONFIG_VARIABLES_KEY = "configVariables"sv;
 
@@ -270,6 +271,9 @@ Settings Settings::create(Badge<Application>)
     if (auto dns_settings = settings_json.value().get(DNS_SETTINGS_KEY); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
 
+    if (auto proxy_mode = settings_json.value().get(PROXY_MODE_KEY); proxy_mode.has_value())
+        settings.m_proxy_mode = parse_proxy_mode(*proxy_mode);
+
     if (auto config_variables = settings_json.value().get_object(CONFIG_VARIABLES_KEY); config_variables.has_value()) {
         for (auto const& variable : config_variable_definitions()) {
             if (auto value = config_variables->get(variable.name); value.has_value()) {
@@ -407,6 +411,9 @@ JsonValue Settings::serialize_json() const
             dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
         });
     settings.set(DNS_SETTINGS_KEY, move(dns_settings));
+
+    // proxyMode :: "system" | "direct"
+    settings.set(PROXY_MODE_KEY, m_proxy_mode == Proxy::ProxyMode::System ? "system"sv : "direct"sv);
 
     JsonObject config_variables;
     for (auto const& variable : config_variable_definitions())
@@ -766,6 +773,39 @@ void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_b
 
     for (auto& observer : m_observers)
         observer.dns_settings_changed();
+}
+
+Proxy::ProxyMode Settings::parse_proxy_mode(JsonValue const& proxy_mode_value)
+{
+    Proxy::ProxyMode mode = Proxy::ProxyMode::Direct;
+
+    if (!proxy_mode_value.is_string()) {
+        return mode;
+        warnln("Invalid proxy mode in parse_proxy_mode: expected a string, falling back to direct");
+    }
+
+    auto const& mode_string = proxy_mode_value.as_string();
+    if (mode_string == "system")
+        mode = Proxy::ProxyMode::System;
+    else if (mode_string == "direct")
+        mode = Proxy::ProxyMode::Direct;
+    else
+        warnln("Invalid proxy mode in parse_proxy_mode: {}, falling back to direct", mode_string);
+
+    return mode;
+}
+
+void Settings::set_proxy_mode(Proxy::ProxyMode const& proxy_mode)
+{
+    if (m_proxy_mode == proxy_mode)
+        return;
+
+    m_proxy_mode = proxy_mode;
+
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.proxy_mode_changed();
 }
 
 JsonValue const& Settings::config_variable(ConfigVariableID id) const
