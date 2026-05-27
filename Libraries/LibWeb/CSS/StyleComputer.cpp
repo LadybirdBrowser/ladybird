@@ -285,16 +285,29 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
                 break;
         }
     } else {
-        // If no <scope-start> is specified, the scoping root is the parent element of the owner node of the
-        // stylesheet where the @scope rule is defined.
-        // FIXME: This means the scoping root is the `<style>` element's parent element. Implement this!
+        root = [&] -> GC::Ptr<DOM::Element const> {
+            // If no <scope-start> is specified, the scoping root is the parent element of the owner node of the
+            // stylesheet where the @scope rule is defined.
+            if (auto* owner_node = const_cast<CSSStyleSheet&>(*rule.sheet).owner_node()) {
+                if (auto parent = owner_node->parent_element())
+                    return parent;
+            }
 
-        // (If no such element exists and the containing node tree is a shadow tree, then the scoping root is
-        // the shadow host. Otherwise, the scoping root is the root of the containing node tree.)
-        root = abstract_element.element().document().document_element();
-        if (!root || !root->is_inclusive_ancestor_of(abstract_element.element()))
+            // If no such element exists and the containing node tree is a shadow tree, then the scoping root is the
+            // shadow host.
+            if (rule_root)
+                return rule_root->host();
+
+            // Otherwise, the scoping root is the root of the containing node tree.
+            if (auto document = rule.sheet->owning_document())
+                return document->document_element();
+            return nullptr;
+        }();
+        if (!root || !root->is_shadow_including_inclusive_ancestor_of(abstract_element.element()))
             return {};
-        for (auto const* candidate = &abstract_element.element(); candidate && candidate != root; candidate = candidate->parent_element().ptr())
+        if (outer_root && !outer_root->is_shadow_including_inclusive_ancestor_of(*root))
+            return {};
+        for (auto const* candidate = &abstract_element.element(); candidate && candidate != root; candidate = candidate->parent_or_shadow_host_element())
             ++proximity;
     }
 

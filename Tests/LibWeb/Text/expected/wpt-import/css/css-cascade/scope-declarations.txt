@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Pass	Scoped declarations apply to the scoping root
-Fail	Scoped declarations apply to implicit scoping root
+Pass	Scoped declarations apply to implicit scoping root
 Pass	Scoped declarations apply with zero specificity
 Pass	Declarations are parsed into CSSNestedDeclarations, prelude=(.a)
 Pass	Declarations are parsed into CSSNestedDeclarations, prelude=
