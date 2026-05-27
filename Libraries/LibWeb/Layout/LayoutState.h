@@ -276,6 +276,18 @@ struct LayoutState {
             return move(m_rare->grid_layout_data);
         }
 
+        void set_flex_layout_data(OwnPtr<FlexLayoutData> flex_layout_data) { ensure_rare_data().flex_layout_data = move(flex_layout_data); }
+        FlexLayoutData const* flex_layout_data() const
+        {
+            return m_rare ? m_rare->flex_layout_data.ptr() : nullptr;
+        }
+        OwnPtr<FlexLayoutData> take_flex_layout_data()
+        {
+            if (!m_rare)
+                return {};
+            return move(m_rare->flex_layout_data);
+        }
+
         void set_grid_area_size(CSSPixelSize grid_area_size) { ensure_rare_data().grid_area_size = grid_area_size; }
         Optional<CSSPixelSize> const& grid_area_size() const
         {
@@ -317,12 +329,15 @@ struct LayoutState {
             {
                 if (other.grid_layout_data)
                     grid_layout_data = make<GridLayoutData>(*other.grid_layout_data);
+                if (other.flex_layout_data)
+                    flex_layout_data = make<FlexLayoutData>(*other.flex_layout_data);
             }
 
             HashTable<GC::Ptr<Box const>> floating_descendants;
             Optional<Painting::PaintableBox::TableCellCoordinates> table_cell_coordinates;
             Optional<Gfx::Path> computed_svg_path;
             OwnPtr<GridLayoutData> grid_layout_data;
+            OwnPtr<FlexLayoutData> flex_layout_data;
             Optional<CSSPixelSize> grid_area_size;
             Optional<Painting::PaintableBox::BordersDataWithElementKind> override_borders_data;
             Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> computed_svg_transforms;

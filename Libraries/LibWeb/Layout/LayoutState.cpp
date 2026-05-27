@@ -567,6 +567,10 @@ void LayoutState::commit(Box& root)
             if (node.display().is_grid_inside()) {
                 paintable_box->set_grid_layout_data(used_values.take_grid_layout_data());
             }
+
+            if (node.display().is_flex_inside()) {
+                paintable_box->set_flex_layout_data(used_values.take_flex_layout_data());
+            }
         }
     });
 

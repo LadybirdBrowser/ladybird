@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/FlexLayoutData.h>
 #include <LibWeb/Layout/FormattingContext.h>
 
 namespace Web::Layout {
@@ -115,6 +116,7 @@ private:
         bool has_baseline_aligned_items { false };
         Optional<CSSPixels> remaining_free_space;
         double chosen_flex_fraction { 0 };
+        FlexLayoutGrowthState growth_state { FlexLayoutGrowthState::Shrinking };
 
         double sum_of_flex_factor_of_unfrozen_items() const;
         double sum_of_scaled_flex_shrink_factor_of_unfrozen_items() const;
@@ -183,6 +185,7 @@ private:
 
     void resolve_flexible_lengths();
     void resolve_flexible_lengths_for_line(FlexLine&);
+    void save_flex_layout_data() const;
 
     void resolve_cross_axis_auto_margins();
 
