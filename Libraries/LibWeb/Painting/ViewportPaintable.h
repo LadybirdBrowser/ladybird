@@ -71,7 +71,6 @@ private:
     Vector<WeakPtr<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
 
     Optional<AccumulatedVisualContextTree> m_visual_context_tree;
-    VisualContextIndex m_visual_viewport_context_index {};
 };
 
 template<>

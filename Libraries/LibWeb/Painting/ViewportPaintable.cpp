@@ -5,13 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -19,17 +16,16 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/Blending.h>
-#include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
-#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Painting {
+
+AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
 
 NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
 {
@@ -98,7 +94,6 @@ void ViewportPaintable::reset_for_relayout()
     m_needs_to_refresh_scroll_state = true;
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree.clear();
-    m_visual_viewport_context_index = {};
 }
 
 void ViewportPaintable::build_stacking_context_tree_if_needed()
@@ -216,343 +211,9 @@ void ViewportPaintable::assign_scroll_frames()
     });
 }
 
-static CSSPixelRect effective_css_clip_rect(CSSPixelRect const& css_clip)
-{
-    if (css_clip.width() < 0 || css_clip.height() < 0)
-        return CSSPixelRect { 0, 0, 0, 0 };
-    return css_clip;
-}
-
-// Converts a CSS-pixel-space 4x4 matrix to device-pixel-space.
-// - Translation column (column 3, rows 0-2) is scaled up by DPR
-// - Perspective row (row 3, columns 0-2) is scaled down by DPR
-// - All other elements are unaffected (the scale factors cancel out)
-static FloatMatrix4x4 scale_matrix_for_device_pixels(FloatMatrix4x4 matrix, float scale)
-{
-    matrix[0, 3] *= scale;
-    matrix[1, 3] *= scale;
-    matrix[2, 3] *= scale;
-    matrix[3, 0] /= scale;
-    matrix[3, 1] /= scale;
-    matrix[3, 2] /= scale;
-    return matrix;
-}
-
-static Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
-{
-    if (!paintable_box.has_css_transform())
-        return {};
-
-    auto matrix = Gfx::FloatMatrix4x4::identity();
-    if (auto const& translate = computed_values.translate())
-        matrix = matrix * translate->to_matrix(paintable_box);
-    if (auto const& rotate = computed_values.rotate())
-        matrix = matrix * rotate->to_matrix(paintable_box);
-    if (auto const& scale = computed_values.scale())
-        matrix = matrix * scale->to_matrix(paintable_box);
-    for (auto const& transform : computed_values.transformations())
-        matrix = matrix * transform->to_matrix(paintable_box);
-    auto const& css_transform_origin = computed_values.transform_origin();
-    auto reference_box = paintable_box.transform_reference_box();
-    CSSPixelPoint origin {
-        reference_box.left() + css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width()),
-        reference_box.top() + css_transform_origin.y.to_px(paintable_box.layout_node(), reference_box.height()),
-    };
-    auto scale = static_cast<float>(pixel_ratio);
-    auto device_origin = origin.to_type<float>() * scale;
-    return TransformData { scale_matrix_for_device_pixels(matrix, scale), device_origin };
-}
-
-// https://drafts.csswg.org/css-transforms-2/#perspective-matrix
-static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
-{
-    auto perspective = computed_values.perspective();
-    if (!perspective.has_value())
-        return {};
-
-    // The perspective matrix is computed as follows:
-
-    // 1. Start with the identity matrix.
-    // 2. Translate by the computed X and Y values of 'perspective-origin'
-    // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
-    // Percentages: refer to the size of the reference box
-    auto reference_box = paintable_box.transform_reference_box();
-    auto perspective_origin = computed_values.perspective_origin().resolved(paintable_box.layout_node(), reference_box);
-    auto computed_x = perspective_origin.x().to_float();
-    auto computed_y = perspective_origin.y().to_float();
-    auto perspective_matrix = Gfx::translation_matrix(Vector3<float>(computed_x, computed_y, 0));
-
-    // 3. Multiply by the matrix that would be obtained from the 'perspective()' transform function, where the
-    //    length is provided by the value of the perspective property
-    // NB: Length values less than 1px being clamped to 1px is handled by the perspective() function already.
-    // FIXME: Create the matrix directly.
-    perspective_matrix = perspective_matrix * CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Perspective, CSS::StyleValueVector { CSS::LengthStyleValue::create(CSS::Length::make_px(perspective.value())) })->to_matrix({});
-
-    // 4. Translate by the negated computed X and Y values of 'perspective-origin'
-    perspective_matrix = perspective_matrix * Gfx::translation_matrix(Vector3<float>(-computed_x, -computed_y, 0));
-    return perspective_matrix;
-}
-
-static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter)
-{
-    auto overflow_x = computed_values.overflow_x();
-    auto overflow_y = computed_values.overflow_y();
-
-    // https://drafts.csswg.org/css-contain-2/#paint-containment
-    // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
-    //    edge of the paint containment box, taking corner clipping into account. This does not include the creation of
-    //    any mechanism to access or indicate the presence of the clipped content; nor does it inhibit the creation of
-    //    any such mechanism through other properties, such as overflow, resize, or text-overflow.
-    //    NOTE: This clipping shape respects overflow-clip-margin, allowing an element with paint containment
-    //          to still slightly overflow its normal bounds.
-    if (paintable_box.layout_node().has_paint_containment()) {
-        // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
-        //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
-        //       values of 'overflow-x' and 'overflow-y' unchanged.
-        overflow_x = CSS::Overflow::Clip;
-        overflow_y = CSS::Overflow::Clip;
-    }
-
-    auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
-
-    if (has_hidden_overflow && paintable_box.overflow_property_applies()) {
-        auto clip_rect = paintable_box.absolute_padding_box_rect();
-
-        // https://drafts.csswg.org/css-overflow-3/#propdef-overflow
-        // 'clip'
-        //    This value indicates that the box’s content is clipped to its overflow clip edge
-        auto overflow_clip_edge = paintable_box.overflow_clip_edge_rect();
-        if (overflow_x == CSS::Overflow::Visible) {
-            clip_rect.set_left(0);
-            clip_rect.set_right(CSSPixels::max_integer_value);
-        } else if (overflow_x == CSS::Overflow::Clip) {
-            clip_rect.set_left(overflow_clip_edge.left());
-            clip_rect.set_right(overflow_clip_edge.right());
-        }
-        if (overflow_y == CSS::Overflow::Visible) {
-            clip_rect.set_top(0);
-            clip_rect.set_bottom(CSSPixels::max_integer_value);
-        } else if (overflow_y == CSS::Overflow::Clip) {
-            clip_rect.set_top(overflow_clip_edge.top());
-            clip_rect.set_bottom(overflow_clip_edge.bottom());
-        }
-
-        // https://drafts.csswg.org/css-overflow-3/#corner-clipping
-        // As mentioned in CSS Backgrounds 3 § 4.3 Corner Clipping, the clipping region established by 'overflow' can be
-        // rounded:
-        // - When 'overflow-x' and 'overflow-y' compute to 'hidden', 'scroll', or 'auto', the clipping region is rounded
-        //   based on the border radius, adjusted to the padding edge, as described in CSS Backgrounds 3 § 4.2 Corner
-        //   Shaping.
-        // - When both 'overflow-x' and 'overflow-y' compute to 'clip', the clipping region is rounded as described in § 3.2
-        //   Expanding Clipping Bounds: the 'overflow-clip-margin' property.
-        // - However, when one of 'overflow-x' or 'overflow-y' computes to 'clip' and the other computes to 'visible', the
-        //   clipping region is not rounded.
-        // FIXME: Adjust the border radii for the overflow-clip-margin case. (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
-        auto radii = (overflow_x != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Visible) ? paintable_box.normalized_border_radii_data(PaintableBox::ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
-        return ClipData { converter.rounded_device_rect(clip_rect), radii.as_corners(converter) };
-    }
-
-    return {};
-}
-
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
-    m_visual_context_tree = AccumulatedVisualContextTree::create();
-
-    auto pixel_ratio = document().page().client().device_pixels_per_css_pixel();
-    DevicePixelConverter converter { pixel_ratio };
-    auto scale = static_cast<float>(pixel_ratio);
-
-    auto append_node = [&](VisualContextIndex parent_index, VisualContextData data) -> VisualContextIndex {
-        return m_visual_context_tree->append(move(data), parent_index);
-    };
-
-    auto make_effects_data = [&](PaintableBox const& box) -> Optional<EffectsData> {
-        auto const& computed_values = box.computed_values();
-        auto gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
-        EffectsData effects {
-            computed_values.opacity(),
-            mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
-            move(gfx_filter)
-        };
-        if (!effects.needs_layer())
-            return {};
-        return effects;
-    };
-
-    // Create visual viewport transform as root (if not identity)
-    m_visual_viewport_context_index = {};
-    auto transform = document().visual_viewport()->transform();
-    if (!transform.is_identity()) {
-        auto matrix = scale_matrix_for_device_pixels(transform.to_matrix(), scale);
-        m_visual_viewport_context_index = append_node({}, TransformData { matrix, { 0.f, 0.f } });
-    }
-
-    VisualContextIndex viewport_state_for_descendants = m_visual_viewport_context_index;
-    if (own_scroll_frame_index().value())
-        viewport_state_for_descendants = append_node(m_visual_viewport_context_index, ScrollData { own_scroll_frame_index(), false });
-    set_accumulated_visual_context({});
-    set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
-
-    for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
-        auto visual_parent_paintable = paintable_box.parent();
-        auto* visual_parent = as_if<PaintableBox>(visual_parent_paintable.ptr());
-        if (!visual_parent)
-            return TraversalDecision::Continue;
-
-        // Resolve filters before make_effects_data reads them.
-        auto const& paintable_box_computed_values = paintable_box.computed_values();
-        if (paintable_box_computed_values.filter().has_filters())
-            paintable_box.set_filter(resolve_css_filter(paintable_box_computed_values.filter(), paintable_box));
-        else
-            paintable_box.set_filter({});
-
-        VisualContextIndex inherited_state;
-
-        if (paintable_box.is_fixed_position()) {
-            inherited_state = m_visual_viewport_context_index;
-        } else if (paintable_box.is_absolutely_positioned()) {
-            // For position: absolute, use containing block's state to correctly escape scroll containers.
-            auto containing = paintable_box.containing_block();
-            inherited_state = containing->accumulated_visual_context_for_descendants_index();
-
-            // Abspos elements escape scroll containers and overflow clips of non-positioned
-            // ancestors, but cannot escape stacking contexts created by intermediate effects
-            // (opacity, mix-blend-mode, isolation). Walk from visual parent to containing
-            // block and collect these intermediate effects.
-            // NOTE: transforms/perspectives/filters establish containing blocks for abspos,
-            //       so they cannot appear as intermediates.
-            Vector<VisualContextData, 4> intermediate_effects;
-            RefPtr<Paintable> containing_paintable = containing;
-            for (RefPtr<Paintable> paintable = visual_parent; paintable && paintable != containing_paintable; paintable = paintable->parent()) {
-                auto* ancestor_box = as_if<PaintableBox>(paintable.ptr());
-                if (!ancestor_box)
-                    continue;
-                if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
-                    intermediate_effects.append(effects.release_value());
-            }
-            for (auto& effects : intermediate_effects.in_reverse())
-                inherited_state = append_node(inherited_state, move(effects));
-        } else {
-            // For position: relative/static, use visual parent's state directly.
-            // This avoids duplicate transform/perspective allocations that would occur with
-            // the containing block + intermediate walk approach.
-            inherited_state = visual_parent->accumulated_visual_context_for_descendants_index();
-        }
-
-        // Build this element's own state from inherited state.
-        VisualContextIndex own_state = inherited_state;
-
-        if (paintable_box.is_sticky_position()) {
-            // For sticky elements, use enclosing_scroll_frame which holds the sticky frame.
-            // own_scroll_frame may be a different scroll frame if the sticky element also has scrollable overflow.
-            if (auto sticky_idx = paintable_box.enclosing_scroll_frame_index(); sticky_idx.value() && m_scroll_state.frame_at(sticky_idx).is_sticky())
-                own_state = append_node(own_state, ScrollData { sticky_idx, true });
-        }
-
-        auto const& computed_values = paintable_box.computed_values();
-
-        if (auto effects = make_effects_data(paintable_box); effects.has_value())
-            own_state = append_node(own_state, effects.release_value());
-
-        if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
-            paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
-            own_state = append_node(own_state, *transform_data);
-        } else {
-            paintable_box.set_has_non_invertible_css_transform(false);
-        }
-
-        if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
-            auto effective_rect = effective_css_clip_rect(*css_clip);
-            own_state = append_node(own_state, ClipData { converter.rounded_device_rect(effective_rect), {} });
-        }
-
-        // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-        if (auto const& clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
-            auto masking_area = paintable_box.absolute_border_box_rect();
-            auto reference_box = CSSPixelRect { {}, masking_area.size() };
-            auto const& basic_shape = clip_path->basic_shape();
-            auto path = basic_shape.to_path(reference_box, paintable_box.layout_node());
-            path.offset(masking_area.top_left().template to_type<float>());
-            auto fill_rule = basic_shape.basic_shape().visit(
-                [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
-                [](CSS::Path const& path) { return path.fill_rule; },
-                [](auto const&) { return Gfx::WindingRule::Nonzero; });
-            auto device_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(scale, scale));
-            auto device_bounding_rect = converter.rounded_device_rect(masking_area);
-            own_state = append_node(own_state, ClipPathData { move(device_path), device_bounding_rect, fill_rule });
-        }
-
-        paintable_box.set_accumulated_visual_context(own_state);
-
-        Vector<CSS::BackgroundLayerData> const* background_layers = &computed_values.background_layers();
-        if (paintable_box.layout_node_with_style_and_box_metrics().is_root_element()) {
-            if (auto* html_element = as_if<HTML::HTMLHtmlElement>(paintable_box.dom_node().ptr())) {
-                if (html_element->should_use_body_background_properties())
-                    background_layers = paintable_box.document().background_layers();
-            }
-        }
-
-        if (background_layers) {
-            bool has_fixed_background = false;
-            for (auto const& layer : *background_layers) {
-                if (layer.attachment == CSS::BackgroundAttachment::Fixed) {
-                    has_fixed_background = true;
-                    break;
-                }
-            }
-
-            if (has_fixed_background) {
-                // https://drafts.csswg.org/css-transforms-1/#transform-rendering
-                // For elements that are effected by a transform (i.e. have a transform applied to them, or to any of
-                // their ancestor elements) and do not have their background propagated to the canvas, a value of fixed
-                // for the background-attachment property is treated as if it had a value of scroll.
-                auto has_transform_ancestor = false;
-                if (!paintable_box.layout_node_with_style_and_box_metrics().is_root_element()) {
-                    for (auto const* node = &paintable_box.layout_node(); node && !node->is_viewport(); node = node->parent()) {
-                        if (node->has_css_transform()) {
-                            has_transform_ancestor = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!has_transform_ancestor) {
-                    // Build a context that negates all scroll frames in the ancestor chain. This keeps the background
-                    // fixed relative to the viewport.
-                    auto fixed_background_context = own_state;
-                    for (auto index = own_state; index.value(); index = m_visual_context_tree->node_at(index).parent_index) {
-                        auto const& node = m_visual_context_tree->node_at(index);
-                        if (auto const* scroll = node.data.get_pointer<ScrollData>()) {
-                            fixed_background_context = append_node(fixed_background_context, ScrollCompensation { scroll->scroll_frame_index });
-                        }
-                    }
-                    paintable_box.set_fixed_background_visual_context(fixed_background_context);
-                }
-            }
-        }
-
-        // Build state for descendants: own state + perspective + clip + scroll.
-        VisualContextIndex state_for_descendants = own_state;
-
-        if (auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values); perspective_matrix.has_value()) {
-            auto scaled_matrix = scale_matrix_for_device_pixels(*perspective_matrix, scale);
-            state_for_descendants = append_node(state_for_descendants, PerspectiveData { scaled_matrix });
-        }
-
-        if (auto clip_data = compute_clip_data(paintable_box, computed_values, converter); clip_data.has_value())
-            state_for_descendants = append_node(state_for_descendants, clip_data.value());
-
-        if (paintable_box.own_scroll_frame_index().value()) {
-            auto is_sticky_without_scrollable_overflow = paintable_box.is_sticky_position() && paintable_box.enclosing_scroll_frame_index() == paintable_box.own_scroll_frame_index();
-            if (!is_sticky_without_scrollable_overflow)
-                state_for_descendants = append_node(state_for_descendants, ScrollData { paintable_box.own_scroll_frame_index(), false });
-        }
-
-        paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
-
-        return TraversalDecision::Continue;
-    });
+    m_visual_context_tree = build_accumulated_visual_context_tree(*this);
 }
 
 void ViewportPaintable::refresh_scroll_state()
