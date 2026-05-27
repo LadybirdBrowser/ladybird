@@ -1,0 +1,42 @@
+<!doctype html>
+<body>
+    <pre id="out"></pre>
+    <script>
+        function println(line) {
+            out.appendChild(document.createTextNode(`${line}\n`));
+        }
+
+        function finish() {
+            const output = out.innerText;
+            internals.setPreferredColorScheme("auto");
+            internals.signalTestIsDone(output);
+        }
+
+        function iframeCanvasColorScheme(iframe) {
+            return iframe.contentWindow.internals.canvasColorScheme();
+        }
+
+        internals.setPreferredColorScheme("dark");
+        internals.updateStyle();
+
+        const initialIframe = document.createElement("iframe");
+        document.body.append(initialIframe);
+
+        println(`Parent root color-scheme: ${getComputedStyle(document.documentElement).colorScheme}`);
+        println(`Initial iframe canvas color-scheme: ${iframeCanvasColorScheme(initialIframe)}`);
+
+        const navigatedIframe = document.createElement("iframe");
+        let sawInitialLoad = false;
+        navigatedIframe.addEventListener("load", () => {
+            if (!sawInitialLoad) {
+                sawInitialLoad = true;
+                navigatedIframe.src = "about:blank";
+                return;
+            }
+
+            println(`Navigated iframe canvas color-scheme: ${iframeCanvasColorScheme(navigatedIframe)}`);
+            finish();
+        });
+        document.body.append(navigatedIframe);
+    </script>
+</body>
