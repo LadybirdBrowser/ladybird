@@ -75,3 +75,42 @@ header img {
     border-top: 1px solid var(--border-color);
     padding-top: 16px;
 }
+
+.search-container {
+    background-color: var(--card-background-color);
+
+    display: flex;
+    align-items: center;
+
+    max-width: 65%;
+    margin: 0 auto 24px auto;
+    padding: 0 12px;
+
+    border: none;
+    border-radius: 8px;
+}
+
+.search-container .search-icon {
+    color: var(--placeholder-color);
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.search-container .search-input {
+    background: none;
+    color: inherit;
+
+    flex-grow: 1;
+
+    border: none;
+    outline: none;
+
+    font-size: 14px;
+    line-height: 1.2;
+
+    width: auto;
+    min-width: 0;
+
+    padding: 10px 12px;
+}

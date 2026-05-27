@@ -282,10 +282,6 @@
                 flex-grow: 1;
             }
 
-            #config-filter {
-                width: 100%;
-            }
-
             .config-name {
                 font-family: monospace;
                 font-size: 13px;
@@ -558,12 +554,22 @@
         </div>
 
         <div class="tab-panel" id="tab-advanced">
-            <h3 class="card-title">Configuration Variables</h3>
+            <div class="search-container">
+                <svg
+                    class="search-icon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                >
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="16" y1="16" x2="22" y2="22" />
+                </svg>
+                <input id="config-filter" type="search" class="search-input" placeholder="Filter configuration keys" />
+            </div>
             <div class="card">
                 <div class="card-body">
-                    <div class="card-group">
-                        <input id="config-filter" type="search" placeholder="Filter configuration keys" />
-                    </div>
                     <div class="card-group" id="config-list"></div>
                 </div>
             </div>
