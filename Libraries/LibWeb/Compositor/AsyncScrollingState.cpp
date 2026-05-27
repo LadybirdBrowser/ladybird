@@ -185,7 +185,7 @@ StringView wheel_routing_admission_to_string(WheelRoutingAdmission admission)
     VERIFY_NOT_REACHED();
 }
 
-bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
+bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList const> const& display_list, Painting::AccumulatedVisualContextTree const* visual_context_tree, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
 {
     if (async_scrolling_state.has_blocking_wheel_event_region_covering_viewport)
         return true;
@@ -193,33 +193,33 @@ bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_s
     // If a caller knows blocking wheel listeners exist but cannot provide a display list for visual-context hit
     // testing, async scrolling must fail closed. Sending the input to the main thread is slower, but it preserves
     // cancelability.
-    if (!display_list)
+    if (!display_list || !visual_context_tree)
         return async_scrolling_state.has_blocking_wheel_event_listeners;
 
-    auto const& visual_context_tree = display_list->visual_context_tree();
+    VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree->version());
     for (auto const& region : async_scrolling_state.blocking_wheel_event_regions) {
-        auto position_in_context = visual_context_tree.transform_point_for_hit_test(region.visual_context_index, position, scroll_state_snapshot);
+        auto position_in_context = visual_context_tree->transform_point_for_hit_test(region.visual_context_index, position, scroll_state_snapshot);
         if (position_in_context.has_value() && region.rect.contains(*position_in_context))
             return true;
     }
     return false;
 }
 
-static WheelHitTestResult hit_test_scroll_node_at_position(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Gfx::FloatPoint delta)
+static WheelHitTestResult hit_test_scroll_node_at_position(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList const> const& display_list, Painting::AccumulatedVisualContextTree const* visual_context_tree, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Gfx::FloatPoint delta)
 {
-    if (!display_list)
+    if (!display_list || !visual_context_tree)
         return {};
 
     AsyncScrollTree scroll_tree;
     auto async_scrolling_state_copy = async_scrolling_state;
     scroll_tree.set_state(move(async_scrolling_state_copy));
-    scroll_tree.rebuild_wheel_hit_test_targets(display_list, scroll_state_snapshot);
+    scroll_tree.rebuild_wheel_hit_test_targets(display_list, visual_context_tree, scroll_state_snapshot);
     return scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
 }
 
-WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current)
+WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolling_state, RefPtr<Painting::DisplayList const> const& display_list, Painting::AccumulatedVisualContextTree const* visual_context_tree, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current)
 {
-    auto hit_test_result = hit_test_scroll_node_at_position(async_scrolling_state, display_list, scroll_state_snapshot, position, delta);
+    auto hit_test_result = hit_test_scroll_node_at_position(async_scrolling_state, display_list, visual_context_tree, scroll_state_snapshot, position, delta);
     if (hit_test_result.blocked_by_main_thread_region)
         return WheelScrollAdmission::BlockedByMainThreadRegion;
 
@@ -228,7 +228,7 @@ WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const& async_scrolli
     if (async_scrolling_state.has_blocking_wheel_event_listeners) {
         if (!blocking_wheel_event_regions_are_current)
             return WheelScrollAdmission::StaleBlockingWheelEventRegions;
-        if (blocks_wheel_event_at_position(async_scrolling_state, display_list, scroll_state_snapshot, position))
+        if (blocks_wheel_event_at_position(async_scrolling_state, display_list, visual_context_tree, scroll_state_snapshot, position))
             return WheelScrollAdmission::BlockedByWheelEventRegion;
     }
 

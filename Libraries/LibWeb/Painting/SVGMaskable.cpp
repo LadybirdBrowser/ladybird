@@ -76,7 +76,7 @@ Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
     return {};
 }
 
-static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
+static Optional<DisplayListResource> paint_mask_or_clip_to_display_list(
     DisplayListRecordingContext& context,
     Gfx::AffineTransform const& target_svg_transform,
     PaintableBox const& paintable,
@@ -84,8 +84,9 @@ static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
     bool is_clip_path)
 {
     auto mask_rect = context.enclosing_device_rect(area);
-    auto display_list = DisplayList::create(AccumulatedVisualContextTree::create());
-    DisplayListRecorder display_list_recorder(*display_list, context.display_list_recorder().resource_storage());
+    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto display_list = DisplayList::create(visual_context_tree);
+    DisplayListRecorder display_list_recorder(*display_list, visual_context_tree, context.display_list_recorder().resource_storage());
     display_list_recorder.translate(-mask_rect.location().to_type<int>());
     auto paint_context = context.clone(display_list_recorder);
     auto const& mask_element = as<SVG::SVGGraphicsElement const>(*paintable.dom_node());
@@ -94,7 +95,7 @@ static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
     paint_context.set_svg_transform(svg_transform);
     paint_context.set_draw_svg_geometry_for_clip_path(is_clip_path);
     StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
-    return display_list;
+    return DisplayListResource { *display_list, move(visual_context_tree) };
 }
 
 Gfx::AffineTransform SVGMaskable::target_svg_transform() const
@@ -105,22 +106,22 @@ Gfx::AffineTransform SVGMaskable::target_svg_transform() const
     return {};
 }
 
-RefPtr<DisplayList> SVGMaskable::calculate_svg_mask_display_list(DisplayListRecordingContext& context, CSSPixelRect const& mask_area) const
+Optional<DisplayListResource> SVGMaskable::calculate_svg_mask_display_list(DisplayListRecordingContext& context, CSSPixelRect const& mask_area) const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     auto* mask_box = get_mask_box(graphics_element);
     if (!mask_box)
-        return nullptr;
+        return {};
     auto& mask_paintable = static_cast<PaintableBox const&>(*mask_box->first_paintable());
     return paint_mask_or_clip_to_display_list(context, target_svg_transform(), mask_paintable, mask_area, false);
 }
 
-RefPtr<DisplayList> SVGMaskable::calculate_svg_clip_display_list(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const
+Optional<DisplayListResource> SVGMaskable::calculate_svg_clip_display_list(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     auto* clip_box = get_clip_box(graphics_element);
     if (!clip_box)
-        return nullptr;
+        return {};
     auto& clip_paintable = static_cast<PaintableBox const&>(*clip_box->first_paintable());
     return paint_mask_or_clip_to_display_list(context, target_svg_transform(), clip_paintable, clip_area, true);
 }

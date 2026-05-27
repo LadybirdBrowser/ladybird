@@ -31,14 +31,14 @@ static void set_command_sequence_visual_context(Bytes command_bytes, VisualConte
 
 DisplayListCommandSequence::DisplayListCommandSequence() = default;
 
-DisplayList::DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
-    : m_visual_context_tree(move(visual_context_tree))
+DisplayList::DisplayList(u64 compatible_visual_context_tree_version)
+    : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
     , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
 {
 }
 
-DisplayList::DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata> async_scrolling_metadata)
-    : m_visual_context_tree(move(visual_context_tree))
+DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata> async_scrolling_metadata)
+    : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
     , m_id(id)
     , m_command_bytes(move(command_bytes))
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
@@ -49,11 +49,13 @@ bool DisplayList::append_bytes(
     DisplayListCommandType type,
     ReadonlyBytes payload,
     ReadonlyBytes inline_data,
+    AccumulatedVisualContextTree const& visual_context_tree,
     VisualContextIndex context_index,
     Optional<Gfx::IntRect> bounding_rect,
     bool is_clip)
 {
-    if (context_index.value() && m_visual_context_tree->has_empty_effective_clip(context_index))
+    VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
+    if (context_index.value() && visual_context_tree.has_empty_effective_clip(context_index))
         return false;
     VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
     VERIFY(payload.size() <= NumericLimits<u32>::max());
@@ -82,9 +84,12 @@ bool DisplayList::append_bytes(
 
 void DisplayList::append_command_sequence(
     DisplayListCommandSequence const& sequence,
+    AccumulatedVisualContextTree const& visual_context_tree,
     VisualContextIndex context_index,
     DisplayListResourceStorage& resource_storage)
 {
+    VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
+
     auto command_bytes = MUST(ByteBuffer::copy(sequence.m_command_bytes.span()));
 
     set_command_sequence_visual_context(command_bytes.span(), context_index);
@@ -109,23 +114,29 @@ DisplayListCommandSequence DisplayList::copy_command_sequence_from(
 
 void DisplayListPlayer::execute(
     DisplayList const& display_list,
+    AccumulatedVisualContextTree const& visual_context_tree,
     DisplayListResourceStorage const& resource_storage,
     ScrollStateSnapshot const& scroll_state_snapshot,
     RefPtr<Gfx::PaintingSurface> surface)
 {
+    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
     m_surface = surface;
     m_active_display_list = &display_list;
+    m_active_visual_context_tree = &visual_context_tree;
     m_resource_storage = &resource_storage;
     execute_impl(display_list, scroll_state_snapshot);
     m_resource_storage = nullptr;
+    m_active_visual_context_tree = nullptr;
     m_active_display_list = nullptr;
     m_surface = nullptr;
 }
 
-void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& display_list, Gfx::PaintingSurface& target_surface)
+void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree, Gfx::PaintingSurface& target_surface)
 {
+    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
     TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
     TemporaryChange display_list_change { m_active_display_list, &display_list };
+    TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
     VERIFY(m_resource_storage);
     ScrollStateSnapshot scroll_state_snapshot;
     execute_impl(display_list, scroll_state_snapshot);
@@ -133,10 +144,13 @@ void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& dis
 
 void DisplayListPlayer::execute_nested_display_list(
     DisplayList const& display_list,
+    AccumulatedVisualContextTree const& visual_context_tree,
     ScrollStateSnapshot const& scroll_state_snapshot,
     ReadonlyBytes command_bytes)
 {
+    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
     TemporaryChange display_list_change { m_active_display_list, &display_list };
+    TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
     VERIFY(m_resource_storage);
     execute_impl(display_list, scroll_state_snapshot, command_bytes);
 }
@@ -151,7 +165,8 @@ void DisplayListPlayer::execute_impl(
     ScrollStateSnapshot const& scroll_state,
     ReadonlyBytes commands)
 {
-    auto const& visual_context_tree = display_list.visual_context_tree();
+    auto const& visual_context_tree = active_visual_context_tree();
+    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
 
     VERIFY(m_surface);
 
@@ -356,7 +371,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display
 {
     TRY(encoder.encode(display_list.m_id));
     TRY(encoder.encode(display_list.m_command_bytes));
-    TRY(encoder.encode(*display_list.m_visual_context_tree));
+    TRY(encoder.encode(display_list.m_compatible_visual_context_tree_version));
     TRY(encoder.encode(display_list.m_async_scrolling_metadata));
     return {};
 }
@@ -372,9 +387,9 @@ ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
 {
     auto id = TRY(decoder.decode<u64>());
     auto command_bytes = TRY(decoder.decode<ByteBuffer>());
-    auto visual_context_tree = TRY(decoder.decode<NonnullRefPtr<Web::Painting::AccumulatedVisualContextTree>>());
+    auto compatible_visual_context_tree_version = TRY(decoder.decode<u64>());
     auto async_scrolling_metadata = TRY(decoder.decode<Optional<Web::Painting::DisplayList::AsyncScrollingMetadata>>());
-    return adopt_ref(*new Web::Painting::DisplayList(move(visual_context_tree), id, move(command_bytes), move(async_scrolling_metadata)));
+    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), move(async_scrolling_metadata)));
 }
 
 }

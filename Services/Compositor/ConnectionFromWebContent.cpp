@@ -65,10 +65,10 @@ void ConnectionFromWebContent::destroy_context(Web::Compositor::CompositorContex
     m_compositor_state->destroy_context(context_id);
 }
 
-void ConnectionFromWebContent::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)
+void ConnectionFromWebContent::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)
 {
     verify_context_is_owned_by_this_connection(context_id);
-    m_compositor_state->update_display_list(context_id, move(display_list), move(resource_transaction), move(scroll_state_snapshot));
+    m_compositor_state->update_display_list(context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
 void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/StringBuilder.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibIPC/Decoder.h>
@@ -19,12 +20,17 @@ bool ClipData::contains(DevicePixelPoint point) const
     return corner_radii.contains(point.to_type<int>(), rect.to_type<int>());
 }
 
-NonnullRefPtr<AccumulatedVisualContextTree> AccumulatedVisualContextTree::create()
+static Atomic<u64> s_next_accumulated_visual_context_tree_version { 1 };
+
+AccumulatedVisualContextTree AccumulatedVisualContextTree::create()
 {
-    auto visual_context_tree = adopt_ref(*new AccumulatedVisualContextTree());
+    Vector<AccumulatedVisualContextNode> nodes;
     // Sentinel at index 0 (null context). Data type doesn't matter; it's never accessed.
-    visual_context_tree->m_nodes.append({ ScrollData { {}, false }, {}, 0, false });
-    return visual_context_tree;
+    nodes.append({ ScrollData { {}, false }, {}, 0, false });
+    return AccumulatedVisualContextTree {
+        s_next_accumulated_visual_context_tree_version.fetch_add(1, AK::MemoryOrder::memory_order_relaxed),
+        move(nodes)
+    };
 }
 
 VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, VisualContextIndex parent_index)
@@ -412,19 +418,19 @@ ErrorOr<Web::Painting::AccumulatedVisualContextNode> decode(Decoder& decoder)
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTree const& tree)
 {
+    TRY(encoder.encode(tree.m_version));
     TRY(encoder.encode(tree.m_nodes));
     return {};
 }
 
 template<>
-ErrorOr<NonnullRefPtr<Web::Painting::AccumulatedVisualContextTree>> decode(Decoder& decoder)
+ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
 {
+    auto version = TRY(decoder.decode<u64>());
     auto nodes = TRY(decoder.decode<Vector<Web::Painting::AccumulatedVisualContextNode>>());
     if (nodes.is_empty())
         return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing sentinel node");
-    auto visual_context_tree = adopt_ref(*new Web::Painting::AccumulatedVisualContextTree());
-    visual_context_tree->m_nodes = move(nodes);
-    return visual_context_tree;
+    return Web::Painting::AccumulatedVisualContextTree { version, move(nodes) };
 }
 
 }

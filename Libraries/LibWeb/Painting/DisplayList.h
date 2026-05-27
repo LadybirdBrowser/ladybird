@@ -68,12 +68,13 @@ class WEB_API DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
-    void execute(DisplayList const&, DisplayListResourceStorage const&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
+    void execute(DisplayList const&, AccumulatedVisualContextTree const&, DisplayListResourceStorage const&, ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>);
     virtual void flush(Gfx::PaintingSurface&) = 0;
 
 protected:
     Gfx::PaintingSurface& surface() const { return *m_surface; }
     DisplayList const& active_display_list() const { return *m_active_display_list; }
+    AccumulatedVisualContextTree const& active_visual_context_tree() const { return *m_active_visual_context_tree; }
     DisplayListResourceStorage const& resource_storage() const { return *m_resource_storage; }
     ReadonlyBytes inline_data(DisplayListDataSpan span) const
     {
@@ -90,8 +91,8 @@ protected:
     }
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state, ReadonlyBytes command_bytes);
-    void execute_display_list_into_surface(DisplayList const&, Gfx::PaintingSurface&);
-    void execute_nested_display_list(DisplayList const&, ScrollStateSnapshot const&, ReadonlyBytes command_bytes);
+    void execute_display_list_into_surface(DisplayList const&, AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
+    void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&, ReadonlyBytes command_bytes);
 
 private:
     virtual void draw_glyph_run(DrawGlyphRun const&) = 0;
@@ -135,6 +136,7 @@ private:
     virtual void add_clip_path(Gfx::Path const&) = 0;
 
     DisplayList const* m_active_display_list { nullptr };
+    AccumulatedVisualContextTree const* m_active_visual_context_tree { nullptr };
     DisplayListResourceStorage const* m_resource_storage { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
@@ -149,24 +151,25 @@ public:
         bool has_blocking_wheel_event_region_covering_viewport { false };
     };
 
-    static NonnullRefPtr<DisplayList> create(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
+    static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const& visual_context_tree)
     {
-        return adopt_ref(*new DisplayList(move(visual_context_tree)));
+        return adopt_ref(*new DisplayList(visual_context_tree.version()));
     }
 
     template<DisplayListCommand Command>
-    bool append(Command const& command, VisualContextIndex context_index, ReadonlyBytes inline_data = {})
+    bool append(Command const& command, AccumulatedVisualContextTree const& visual_context_tree, VisualContextIndex context_index, ReadonlyBytes inline_data = {})
     {
         return append_bytes(
             Command::command_type,
             display_list_object_bytes(command),
             inline_data,
+            visual_context_tree,
             context_index,
             command_bounding_rectangle(command),
             command_is_clip(command));
     }
 
-    AccumulatedVisualContextTree const& visual_context_tree() const { return *m_visual_context_tree; }
+    u64 compatible_visual_context_tree_version() const { return m_compatible_visual_context_tree_version; }
     u64 id() const { return m_id; }
 
     ReadonlyBytes command_bytes() const { return m_command_bytes.span(); }
@@ -185,13 +188,13 @@ public:
         DisplayListCommandSequence::for_each_command_header(command_bytes(), move(callback));
     }
 
-    void append_command_sequence(DisplayListCommandSequence const&, VisualContextIndex, DisplayListResourceStorage&);
+    void append_command_sequence(DisplayListCommandSequence const&, AccumulatedVisualContextTree const&, VisualContextIndex, DisplayListResourceStorage&);
     DisplayListCommandSequence copy_command_sequence_from(size_t command_start_offset, DisplayListResourceStorage const&) const;
     size_t command_byte_size() const { return m_command_bytes.size(); }
 
 private:
-    explicit DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree);
-    DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const>, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata>);
+    explicit DisplayList(u64 compatible_visual_context_tree_version);
+    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<AsyncScrollingMetadata>);
 
     static Optional<Gfx::IntRect> command_bounding_rectangle(auto const& command)
     {
@@ -213,11 +216,12 @@ private:
         DisplayListCommandType,
         ReadonlyBytes payload,
         ReadonlyBytes inline_data,
+        AccumulatedVisualContextTree const&,
         VisualContextIndex context_index,
         Optional<Gfx::IntRect> bounding_rect,
         bool is_clip);
 
-    NonnullRefPtr<AccumulatedVisualContextTree const> const m_visual_context_tree;
+    u64 m_compatible_visual_context_tree_version { 0 };
     u64 m_id { 0 };
     ByteBuffer m_command_bytes;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;

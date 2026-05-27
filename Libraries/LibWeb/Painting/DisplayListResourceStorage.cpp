@@ -13,6 +13,24 @@
 
 namespace Web::Painting {
 
+DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList> display_list, AccumulatedVisualContextTree visual_context_tree)
+    : display_list(move(display_list))
+    , visual_context_tree(move(visual_context_tree))
+{
+}
+
+DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList const> display_list, AccumulatedVisualContextTree visual_context_tree)
+    : display_list(move(display_list))
+    , visual_context_tree(move(visual_context_tree))
+{
+}
+
+DisplayListResource::DisplayListResource(DisplayList const& display_list, AccumulatedVisualContextTree visual_context_tree)
+    : display_list(display_list)
+    , visual_context_tree(move(visual_context_tree))
+{
+}
+
 DisplayListResourceStorage::~DisplayListResourceStorage() = default;
 
 FontResourceId DisplayListResourceStorage::add_font(Gfx::Font const& font)
@@ -35,10 +53,19 @@ VideoFrameResourceId DisplayListResourceStorage::add_video_frame(VideoFrameResou
     return id;
 }
 
-DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr<DisplayList const> display_list)
+DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr<DisplayList const> display_list, AccumulatedVisualContextTree const& visual_context_tree)
 {
     auto id = display_list->id();
-    m_display_lists.ensure(id, [&] { return move(display_list); });
+    m_display_lists.ensure(id, [&] {
+        return DisplayListResource { move(display_list), visual_context_tree };
+    });
+    return { id };
+}
+
+DisplayListResourceId DisplayListResourceStorage::add_display_list(DisplayListResource&& resource)
+{
+    auto id = resource.display_list->id();
+    m_display_lists.set(id, move(resource), AK::HashSetExistingEntryBehavior::Keep);
     return { id };
 }
 
@@ -69,8 +96,10 @@ void DisplayListResourceStorage::append_referenced_resources_from(
         add_image_frame(source.image_frame(id));
     for (auto id : referenced_resources.video_frames)
         add_video_frame(id, source.video_frame(id));
-    for (auto id : referenced_resources.display_lists)
-        add_display_list(source.display_list(id));
+    for (auto id : referenced_resources.display_lists) {
+        auto const& display_list_resource = source.display_list_resource(id);
+        add_display_list(display_list_resource.display_list, display_list_resource.visual_context_tree);
+    }
 }
 
 void DisplayListResourceStorage::collect_referenced_resources(
@@ -155,7 +184,7 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
     }
     for (auto id : current.display_lists) {
         if (!previous.display_lists.contains(id))
-            transaction.display_lists.append(display_list(id));
+            transaction.display_lists.append({ display_list_resource(id).display_list, display_list_visual_context_tree(id) });
     }
 
     for (auto id : previous.fonts) {

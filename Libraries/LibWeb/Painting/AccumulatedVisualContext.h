@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/AtomicRefCounted.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
@@ -90,9 +89,17 @@ struct AccumulatedVisualContextNode {
     bool has_empty_effective_clip { false };
 };
 
-class AccumulatedVisualContextTree : public AtomicRefCounted<AccumulatedVisualContextTree> {
+class AccumulatedVisualContextTree {
 public:
-    static NonnullRefPtr<AccumulatedVisualContextTree> create();
+    static AccumulatedVisualContextTree create();
+
+    AccumulatedVisualContextTree(AccumulatedVisualContextTree const&) = default;
+    AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&) = default;
+    AccumulatedVisualContextTree(AccumulatedVisualContextTree&&) = default;
+    AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree&&) = default;
+    ~AccumulatedVisualContextTree() = default;
+
+    u64 version() const { return m_version; }
 
     VisualContextIndex append(VisualContextData data, VisualContextIndex parent_index);
 
@@ -108,10 +115,15 @@ public:
     bool has_empty_effective_clip(VisualContextIndex i) const { return m_nodes[i.value()].has_empty_effective_clip; }
 
 private:
-    AccumulatedVisualContextTree() = default;
+    AccumulatedVisualContextTree(u64 version, Vector<AccumulatedVisualContextNode>&& nodes)
+        : m_version(version)
+        , m_nodes(move(nodes))
+    {
+    }
 
     Vector<size_t, 8> build_ancestor_chain(VisualContextIndex index) const;
 
+    u64 m_version { 0 };
     Vector<AccumulatedVisualContextNode> m_nodes;
 
     template<typename T>
@@ -167,6 +179,6 @@ WEB_API ErrorOr<Web::Painting::AccumulatedVisualContextNode> decode(Decoder&);
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AccumulatedVisualContextTree const&);
 template<>
-WEB_API ErrorOr<NonnullRefPtr<Web::Painting::AccumulatedVisualContextTree>> decode(Decoder&);
+WEB_API ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder&);
 
 }

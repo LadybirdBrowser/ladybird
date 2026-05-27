@@ -97,7 +97,7 @@ void ViewportPaintable::reset_for_relayout()
     m_scroll_state_snapshot = {};
     m_needs_to_refresh_scroll_state = true;
     m_paintable_boxes_with_auto_content_visibility.clear();
-    m_visual_context_tree = nullptr;
+    m_visual_context_tree.clear();
     m_visual_viewport_context_index = {};
 }
 

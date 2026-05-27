@@ -25,6 +25,7 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
@@ -135,11 +136,11 @@ size_t SVGDecodedImageData::external_memory_size() const
     return size;
 }
 
-RefPtr<Painting::DisplayList> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& resource_storage) const
+Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& resource_storage) const
 {
     if (auto it = m_cached_display_lists.find(size); it != m_cached_display_lists.end()) {
         resource_storage.append_referenced_resources_from(it->value.resource_storage, it->value.display_list->command_bytes());
-        return it->value.display_list;
+        return Painting::DisplayListResource { *it->value.display_list, it->value.visual_context_tree };
     }
 
     // FIXME: Evict least used entries.
@@ -151,11 +152,15 @@ RefPtr<Painting::DisplayList> SVGDecodedImageData::record_display_list(Gfx::IntS
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
     auto display_list = m_document->record_display_list({}, local_storage);
     if (!display_list)
-        return nullptr;
+        return {};
 
     resource_storage.append_referenced_resources_from(local_storage, display_list->command_bytes());
-    m_cached_display_lists.set(size, CachedDisplayList { display_list, move(local_storage) });
-    return display_list;
+    auto document_paintable = m_document->paintable();
+    VERIFY(document_paintable);
+    auto visual_context_tree = document_paintable->visual_context_tree();
+    auto display_list_resource = Painting::DisplayListResource { *display_list, visual_context_tree };
+    m_cached_display_lists.set(size, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(local_storage) });
+    return display_list_resource;
 }
 
 RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize size) const
@@ -176,14 +181,14 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     Painting::DisplayListResourceStorage resource_storage;
     auto display_list = record_display_list(size, resource_storage);
-    if (!display_list)
+    if (!display_list.has_value())
         return nullptr;
 
     switch (m_page_client->display_list_player_type()) {
     case DisplayListPlayerType::SkiaGPUIfAvailable:
     case DisplayListPlayerType::SkiaCPU: {
         Painting::DisplayListPlayerSkia display_list_player;
-        display_list_player.execute(*display_list, resource_storage, {}, surface);
+        display_list_player.execute(*display_list->display_list, display_list->visual_context_tree, resource_storage, {}, surface);
         display_list_player.flush(*surface);
         break;
     }
@@ -280,12 +285,12 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::surface(size_t, Gfx::IntSize s
 void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode) const
 {
     auto display_list = record_display_list(dst_rect.size(), context.display_list_recorder().resource_storage());
-    if (!display_list)
+    if (!display_list.has_value())
         return;
 
     context.display_list_recorder().save();
     context.display_list_recorder().add_clip_rect(clip_rect);
-    context.display_list_recorder().paint_nested_display_list(display_list, dst_rect);
+    context.display_list_recorder().paint_nested_display_list(*display_list, dst_rect);
     context.display_list_recorder().restore();
 }
 

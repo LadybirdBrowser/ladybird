@@ -106,9 +106,10 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         painter->clear_rect(bitmap.rect().to_type<float>(), Color::Transparent);
 
         // Paint the cursor into a bitmap.
-        auto display_list = Painting::DisplayList::create(Painting::AccumulatedVisualContextTree::create());
+        auto visual_context_tree = Painting::AccumulatedVisualContextTree::create();
+        auto display_list = Painting::DisplayList::create(visual_context_tree);
         Painting::DisplayListResourceStorage resource_storage;
-        Painting::DisplayListRecorder display_list_recorder(display_list, resource_storage);
+        Painting::DisplayListRecorder display_list_recorder(display_list, visual_context_tree, resource_storage);
         DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
 
         image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
@@ -119,7 +120,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         case DisplayListPlayerType::SkiaCPU: {
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
             Painting::DisplayListPlayerSkia display_list_player;
-            display_list_player.execute(*display_list, resource_storage, {}, painting_surface);
+            display_list_player.execute(*display_list, visual_context_tree, resource_storage, {}, painting_surface);
             display_list_player.flush(*painting_surface);
             break;
         }

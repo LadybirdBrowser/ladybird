@@ -118,8 +118,10 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayListResourceTransac
     TRY(encoder.encode(transaction.image_frames));
     TRY(encoder.encode(transaction.video_frames));
     TRY(encoder.encode_size(transaction.display_lists.size()));
-    for (auto const& display_list : transaction.display_lists)
-        TRY(encoder.encode(*display_list));
+    for (auto const& display_list : transaction.display_lists) {
+        TRY(encoder.encode(*display_list.display_list));
+        TRY(encoder.encode(display_list.visual_context_tree));
+    }
     TRY(encoder.encode(transaction.font_ids_to_remove));
     TRY(encoder.encode(transaction.image_frame_ids_to_remove));
     TRY(encoder.encode(transaction.video_frame_ids_to_remove));
@@ -135,10 +137,13 @@ ErrorOr<Web::Painting::DisplayListResourceTransaction> decode(Decoder& decoder)
     auto video_frames = TRY(decoder.decode<Vector<Web::Painting::DisplayListVideoFrameResource>>());
 
     auto display_list_count = TRY(decoder.decode_size());
-    Vector<NonnullRefPtr<Web::Painting::DisplayList const>> display_lists;
+    Vector<Web::Painting::DisplayListResource> display_lists;
     TRY(display_lists.try_ensure_capacity(display_list_count));
-    for (size_t i = 0; i < display_list_count; ++i)
-        display_lists.unchecked_append(TRY(decoder.decode<NonnullRefPtr<Web::Painting::DisplayList>>()));
+    for (size_t i = 0; i < display_list_count; ++i) {
+        auto display_list = TRY(decoder.decode<NonnullRefPtr<Web::Painting::DisplayList>>());
+        auto visual_context_tree = TRY(decoder.decode<Web::Painting::AccumulatedVisualContextTree>());
+        display_lists.unchecked_append({ move(display_list), move(visual_context_tree) });
+    }
 
     return Web::Painting::DisplayListResourceTransaction {
         .fonts = move(fonts),

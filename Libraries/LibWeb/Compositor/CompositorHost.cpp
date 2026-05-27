@@ -26,9 +26,9 @@ void CompositorContextHandle::set_presentation_mode(PresentationMode mode)
     m_host.set_presentation_mode(m_context_id, move(mode));
 }
 
-void CompositorContextHandle::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::DisplayListResourceTransaction&& resource_transaction, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorContextHandle::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::AccumulatedVisualContextTree visual_context_tree, Painting::DisplayListResourceTransaction&& resource_transaction, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    m_host.update_display_list(m_context_id, move(display_list), move(resource_transaction), move(scroll_state_snapshot));
+    m_host.update_display_list(m_context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
 void CompositorContextHandle::update_video_frame(Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)

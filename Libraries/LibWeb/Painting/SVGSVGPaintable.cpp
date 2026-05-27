@@ -40,10 +40,10 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
     if (mask_area.has_value()) {
         if (mask_area->is_empty()) {
             skip_painting = true;
-        } else if (auto mask_display_list = svg_box.calculate_mask(context, *mask_area)) {
+        } else if (auto mask_display_list = svg_box.calculate_mask(context, *mask_area); mask_display_list.has_value()) {
             auto rect = context.enclosing_device_rect(*mask_area).to_type<int>();
             auto kind = svg_box.get_mask_type().value_or(Gfx::MaskKind::Alpha);
-            masks.append({ mask_display_list, rect, kind });
+            masks.append({ mask_display_list.release_value(), rect, kind });
         }
     }
 
@@ -51,9 +51,9 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
     if (clip_area.has_value()) {
         if (clip_area->is_empty()) {
             skip_painting = true;
-        } else if (auto clip_display_list = svg_box.calculate_clip(context, *clip_area)) {
+        } else if (auto clip_display_list = svg_box.calculate_clip(context, *clip_area); clip_display_list.has_value()) {
             auto rect = context.enclosing_device_rect(*clip_area).to_type<int>();
-            masks.append({ clip_display_list, rect, Gfx::MaskKind::Alpha });
+            masks.append({ clip_display_list.release_value(), rect, Gfx::MaskKind::Alpha });
         }
     }
 

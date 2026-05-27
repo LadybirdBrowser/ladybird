@@ -54,10 +54,10 @@ public:
 
     virtual Optional<CSSPixelRect> get_mask_area() const { return {}; }
     virtual Optional<Gfx::MaskKind> get_mask_type() const { return {}; }
-    virtual RefPtr<DisplayList> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
+    virtual Optional<DisplayListResource> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
 
     virtual Optional<CSSPixelRect> get_clip_area() const { return {}; }
-    virtual RefPtr<DisplayList> calculate_clip(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
+    virtual Optional<DisplayListResource> calculate_clip(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
 
     Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return as<Layout::NodeWithStyleAndBoxModelMetrics const>(layout_node()); }
 

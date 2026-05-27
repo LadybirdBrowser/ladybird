@@ -158,7 +158,7 @@ enum class WheelScrollAdmission {
 WEB_API AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayList const&);
 WEB_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
 WEB_API StringView wheel_routing_admission_to_string(WheelRoutingAdmission);
-WEB_API bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
-WEB_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
+WEB_API bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
+WEB_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
 
 }
