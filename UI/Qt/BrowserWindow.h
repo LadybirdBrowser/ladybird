@@ -19,6 +19,8 @@
 #include <QTabBar>
 
 class QPropertyAnimation;
+class QToolButton;
+class QWidget;
 
 namespace Ladybird {
 
@@ -163,8 +165,11 @@ private:
     }
 
     void create_close_button_for_tab(Tab*);
+    void create_menu_bar_window_controls();
     void update_tab_close_button_icons();
     void update_menu_bar_style();
+    void update_menu_bar_visibility(bool);
+    void update_menu_bar_window_control_icons();
     void toggle_window_maximized();
     bool start_window_move();
 
@@ -181,6 +186,10 @@ private:
 
     QMenu* m_hamburger_menu { nullptr };
     QMenu* m_bookmarks_menu { nullptr };
+    QWidget* m_menu_bar_window_controls { nullptr };
+    QToolButton* m_menu_bar_minimize_window_button { nullptr };
+    QToolButton* m_menu_bar_maximize_window_button { nullptr };
+    QToolButton* m_menu_bar_close_window_button { nullptr };
 
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };

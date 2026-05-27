@@ -610,6 +610,14 @@ void TabWidget::set_new_tab_action(QAction* action)
     connect(m_new_tab_button, &QToolButton::clicked, action, &QAction::trigger);
 }
 
+void TabWidget::set_window_controls_visible(bool visible)
+{
+    m_minimize_window_button->setVisible(visible);
+    m_maximize_window_button->setVisible(visible);
+    m_close_window_button->setVisible(visible);
+    update_tab_layout();
+}
+
 bool TabWidget::event(QEvent* event)
 {
     if (auto type = event->type(); type == QEvent::MouseButtonRelease) {
@@ -709,7 +717,14 @@ void TabWidget::resizeEvent(QResizeEvent* event)
 
 void TabWidget::update_tab_layout()
 {
-    auto controls_width = m_new_tab_button->width() + m_minimize_window_button->width() + m_maximize_window_button->width() + m_close_window_button->width();
+    auto controls_width = m_new_tab_button->width();
+    if (m_minimize_window_button->isVisible())
+        controls_width += m_minimize_window_button->width();
+    if (m_maximize_window_button->isVisible())
+        controls_width += m_maximize_window_button->width();
+    if (m_close_window_button->isVisible())
+        controls_width += m_close_window_button->width();
+
     auto available_for_tabs = width() - controls_width - 36;
 
     m_tab_bar->set_available_width(available_for_tabs);

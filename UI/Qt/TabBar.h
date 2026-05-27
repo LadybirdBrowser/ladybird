@@ -108,6 +108,7 @@ public:
 
     void set_tab_bar_visible(bool visible) { m_tab_bar_row->setVisible(visible); }
     void set_new_tab_action(QAction* action);
+    void set_window_controls_visible(bool);
 
 signals:
     void current_tab_changed(int index);
