@@ -76,7 +76,7 @@ Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlySt
     return {};
 }
 
-bool contains_guaranteed_invalid_value(Vector<ComponentValue> const& values)
+bool contains_guaranteed_invalid_value(ReadonlySpan<ComponentValue> values)
 {
     for (auto const& value : values) {
         if (value.contains_guaranteed_invalid_value())
@@ -85,7 +85,7 @@ bool contains_guaranteed_invalid_value(Vector<ComponentValue> const& values)
     return false;
 }
 
-static bool contains_attr_tainted_value(Vector<ComponentValue> const& values)
+static bool contains_attr_tainted_value(ReadonlySpan<ComponentValue> values)
 {
     for (auto const& value : values) {
         if (value.contains_attr_tainted_value())
@@ -107,7 +107,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     // 1. Let el be the element that the style containing the attr() function is being applied to.
     //    Let first arg be the first <declaration-value> in arguments.
     //    Let second arg be the <declaration-value>? passed after the comma, or null if there was no comma.
-    auto declaration_value_list = arguments.get<DeclarationValueList>();
+    auto const& declaration_value_list = arguments.get<DeclarationValueList>();
 
     auto const& first_argument = declaration_value_list.first();
     auto const second_argument = declaration_value_list.get(1);
@@ -269,7 +269,7 @@ static Vector<ComponentValue> replace_an_env_function(DOM::AbstractElement& elem
 {
     // AD-HOC: env() is not defined as an ASF (and was defined before the ASF concept was), but behaves a lot like one.
     // So, this is a combination of the spec's "substitute an env()" algorithm linked above, and the "replace a FOO function()" algorithms.
-    auto declaration_value_list = arguments.get<DeclarationValueList>();
+    auto const& declaration_value_list = arguments.get<DeclarationValueList>();
 
     auto const& first_argument = declaration_value_list.first();
     auto const second_argument = declaration_value_list.get(1);
@@ -370,7 +370,7 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
 static Vector<ComponentValue> replace_an_inherit_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
     // To replace an inherit() function, given a list of arguments:
-    auto declaration_value_list = arguments.get<DeclarationValueList>();
+    auto const& declaration_value_list = arguments.get<DeclarationValueList>();
     auto const& first_argument = declaration_value_list.first();
     auto const second_argument = declaration_value_list.get(1);
 
@@ -410,7 +410,7 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
     // 1. Let el be the element that the style containing the var() function is being applied to.
     //    Let first arg be the first <declaration-value> in arguments.
     //    Let second arg be the <declaration-value>? passed after the comma, or null if there was no comma.
-    auto declaration_value_list = arguments.get<DeclarationValueList>();
+    auto const& declaration_value_list = arguments.get<DeclarationValueList>();
 
     auto const& first_argument = declaration_value_list.first();
     auto const second_argument = declaration_value_list.get(1);
@@ -524,7 +524,7 @@ static ErrorOr<void> substitute_arbitrary_substitution_functions_step_2(DOM::Abs
 }
 
 // https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
-Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, Vector<ComponentValue> const& values, Optional<SubstitutionContext> context)
+Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ReadonlySpan<ComponentValue> values, Optional<SubstitutionContext> context)
 {
     // To substitute arbitrary substitution functions in a sequence of component values values, given an optional
     // substitution context context:
@@ -558,11 +558,11 @@ Vector<ComponentValue> substitute_arbitrary_substitution_functions(DOM::Abstract
     return new_values;
 }
 
-Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, Vector<ComponentValue> const& values)
+Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, ReadonlySpan<ComponentValue> values)
 {
     // Equivalent to `<declaration-value> , <declaration-value>?`, used by multiple argument grammars.
     auto parse_declaration_value_then_optional_declaration_value = [](TokenStream<ComponentValue>& tokens, Token::Type separator) -> Optional<DeclarationValueList> {
-        auto first_argument = Parser::parse_declaration_value(tokens, separator);
+        auto first_argument = Parser::parse_declaration_value_as_span(tokens, separator);
         if (!first_argument.has_value())
             return OptionalNone {};
 
@@ -574,7 +574,7 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
 
         tokens.discard_a_token(); // separator
 
-        auto second_argument = Parser::parse_declaration_value(tokens);
+        auto second_argument = Parser::parse_declaration_value_as_span(tokens);
 
         return DeclarationValueList { first_argument.release_value(), second_argument.value_or({}) };
     };
@@ -610,7 +610,10 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
             if (!if_args_branch.has_value())
                 break;
 
-            args.append({ if_args_branch->first(), if_args_branch->get(1).map([](auto const& value) { return value; }) });
+            Optional<ReadonlySpan<ComponentValue>> value;
+            if (auto second_argument = if_args_branch->get(1); second_argument.has_value())
+                value = second_argument.value();
+            args.append({ if_args_branch->first(), value });
 
             if (!tokens.next_token().is(Token::Type::Semicolon))
                 break;
