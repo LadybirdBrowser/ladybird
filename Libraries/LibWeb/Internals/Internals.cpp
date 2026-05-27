@@ -20,6 +20,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
@@ -712,6 +713,27 @@ void Internals::reset_style_invalidation_counters()
 void Internals::update_style()
 {
     window().associated_document().update_style();
+}
+
+void Internals::set_preferred_color_scheme(StringView color_scheme)
+{
+    auto preferred_color_scheme = CSS::preferred_color_scheme_from_string(color_scheme);
+
+    Optional<CSS::PreferredColorScheme> preferred_color_scheme_override;
+    if (preferred_color_scheme != CSS::PreferredColorScheme::Auto)
+        preferred_color_scheme_override = preferred_color_scheme;
+    page().set_preferred_color_scheme_override_for_testing(preferred_color_scheme_override);
+
+    auto& document = window().associated_document();
+    document.invalidate_style(DOM::StyleInvalidationReason::SettingsChange);
+    document.set_needs_media_query_evaluation();
+}
+
+String Internals::canvas_color_scheme()
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::Debugging);
+    return MUST(String::from_utf8(CSS::preferred_color_scheme_to_string(document.canvas_color_scheme())));
 }
 
 bool Internals::style_sheet_may_have_has_selectors(CSS::CSSStyleSheet& style_sheet)

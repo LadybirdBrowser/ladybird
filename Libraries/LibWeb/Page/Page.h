@@ -132,6 +132,7 @@ public:
     CSSPixelRect web_exposed_screen_area() const;
     CSSPixelRect web_exposed_available_screen_area() const;
     CSS::PreferredColorScheme preferred_color_scheme() const;
+    void set_preferred_color_scheme_override_for_testing(Optional<CSS::PreferredColorScheme> color_scheme) { m_preferred_color_scheme_override_for_testing = color_scheme; }
     CSS::PreferredContrast preferred_contrast() const;
     CSS::PreferredMotion preferred_motion() const;
 
@@ -370,6 +371,7 @@ private:
     URL::URL m_last_find_in_page_url;
 
     bool m_listen_for_dom_mutations { false };
+    Optional<CSS::PreferredColorScheme> m_preferred_color_scheme_override_for_testing;
 
     struct PendingFullscreenEnter {
         GC::Ref<DOM::Element> element;

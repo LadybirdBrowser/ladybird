@@ -122,6 +122,8 @@ public:
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
     void update_style();
+    void set_preferred_color_scheme(StringView color_scheme);
+    String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
     WebIDL::UnsignedLongLong active_image_style_value_animation_count();
     JS::Object* async_scrolling_state();

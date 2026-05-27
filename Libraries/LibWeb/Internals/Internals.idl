@@ -97,6 +97,8 @@ interface Internals {
     undefined resetStyleInvalidationCounters();
     // Flushes pending style work without forcing layout.
     undefined updateStyle();
+    undefined setPreferredColorScheme(DOMString colorScheme);
+    DOMString canvasColorScheme();
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
     unsigned long long activeImageStyleValueAnimationCount();
