@@ -90,9 +90,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     : QWidget(window)
     , m_window(window)
 {
-    m_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom, this);
-    m_layout->setSpacing(0);
-    m_layout->setContentsMargins(0, 0, 0, 0);
+    auto* tab_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom, this);
+    tab_layout->setSpacing(0);
+    tab_layout->setContentsMargins(0, 0, 0, 0);
 
     auto view_initial_state = WebContentViewInitialState {
         .maximum_frames_per_second = window->refresh_rate(),
@@ -132,10 +132,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     focus_location_editor_action->setShortcuts({ QKeySequence("Ctrl+L"), QKeySequence("Alt+D") });
     addAction(focus_location_editor_action);
 
-    m_layout->addWidget(m_toolbar);
-    m_layout->addWidget(m_bookmarks_bar);
-    m_layout->addWidget(m_view);
-    m_layout->addWidget(m_find_in_page);
+    tab_layout->addWidget(m_toolbar);
+    tab_layout->addWidget(m_bookmarks_bar);
+    tab_layout->addWidget(m_view);
+    tab_layout->addWidget(m_find_in_page);
 
     m_hamburger_button = new HamburgerButton(m_toolbar);
     m_hamburger_button->setText("Show &Menu");

@@ -107,7 +107,6 @@ private:
     void update_tab_icon();
     int tab_index();
 
-    QBoxLayout* m_layout { nullptr };
     QWidget* m_toolbar { nullptr };
     BookmarksBar* m_bookmarks_bar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
