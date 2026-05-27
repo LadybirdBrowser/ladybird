@@ -780,6 +780,22 @@ void BrowserWindow::update_menu_bar_style()
     menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(palette()));
 }
 
+void BrowserWindow::toggle_window_maximized()
+{
+    if (isMaximized())
+        showNormal();
+    else
+        showMaximized();
+}
+
+bool BrowserWindow::start_window_move()
+{
+    auto* handle = windowHandle();
+    if (!handle)
+        return false;
+    return handle->startSystemMove();
+}
+
 void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState play_state)
 {
     auto* tab = m_tabs_container->tab(index);
@@ -951,14 +967,11 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
             update_resize_cursor(position);
         else
             clear_resize_cursor();
-    } else if (event->type() != QEvent::MouseButtonPress) {
+    } else if (event->type() != QEvent::MouseButtonPress && event->type() != QEvent::MouseButtonDblClick) {
         return QMainWindow::eventFilter(object, event);
     }
 
-    if (event->type() != QEvent::MouseButtonPress)
-        return QMainWindow::eventFilter(object, event);
-
-    if (isMaximized() || isFullScreen())
+    if (event->type() != QEvent::MouseButtonPress && event->type() != QEvent::MouseButtonDblClick)
         return QMainWindow::eventFilter(object, event);
 
     if (is_button)
@@ -968,15 +981,26 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
     if (mouse_event->button() != Qt::LeftButton)
         return QMainWindow::eventFilter(object, event);
 
-    auto edges = resize_edges_for_position(widget->mapTo(this, mouse_event->position().toPoint()));
-    if (edges == Qt::Edges {})
+    auto position = widget->mapTo(this, mouse_event->position().toPoint());
+    if (event->type() == QEvent::MouseButtonPress && !isMaximized() && !isFullScreen()) {
+        auto edges = resize_edges_for_position(position);
+        auto* handle = windowHandle();
+        if (edges != Qt::Edges {} && handle && handle->startSystemResize(edges))
+            return true;
+    }
+
+    if (isFullScreen() || widget != menuBar() || menuBar()->actionAt(mouse_event->position().toPoint()) != nullptr)
         return QMainWindow::eventFilter(object, event);
 
-    auto* handle = windowHandle();
-    if (!handle || !handle->startSystemResize(edges))
-        return QMainWindow::eventFilter(object, event);
+    if (event->type() == QEvent::MouseButtonDblClick) {
+        toggle_window_maximized();
+        return true;
+    }
 
-    return true;
+    if (start_window_move())
+        return true;
+
+    return QMainWindow::eventFilter(object, event);
 }
 
 Qt::Edges BrowserWindow::resize_edges_for_position(QPoint const& position) const
