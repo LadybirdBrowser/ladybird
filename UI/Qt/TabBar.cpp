@@ -13,6 +13,7 @@
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
+#include <UI/Qt/WindowControlButton.h>
 
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -494,25 +495,9 @@ TabWidget::TabWidget(QWidget* parent)
     m_new_tab_button->setFocusPolicy(Qt::NoFocus);
     m_new_tab_button->setToolTip("New Tab");
 
-    m_minimize_window_button = new QToolButton(this);
-    m_minimize_window_button->setObjectName("LadybirdWindowButton");
-    m_minimize_window_button->setToolTip("Minimize");
-    m_minimize_window_button->setIconSize(QSize(18, 18));
-    m_minimize_window_button->setFixedSize(40, 40);
-    m_minimize_window_button->setFocusPolicy(Qt::NoFocus);
-
-    m_maximize_window_button = new QToolButton(this);
-    m_maximize_window_button->setObjectName("LadybirdWindowButton");
-    m_maximize_window_button->setIconSize(QSize(18, 18));
-    m_maximize_window_button->setFixedSize(40, 40);
-    m_maximize_window_button->setFocusPolicy(Qt::NoFocus);
-
-    m_close_window_button = new QToolButton(this);
-    m_close_window_button->setObjectName("LadybirdCloseWindowButton");
-    m_close_window_button->setToolTip("Close");
-    m_close_window_button->setIconSize(QSize(18, 18));
-    m_close_window_button->setFixedSize(40, 40);
-    m_close_window_button->setFocusPolicy(Qt::NoFocus);
+    m_minimize_window_button = new WindowControlButton("LadybirdWindowButton", "Minimize", { 18, 18 }, { 40, 40 }, this);
+    m_maximize_window_button = new WindowControlButton("LadybirdWindowButton", "Maximize", { 18, 18 }, { 40, 40 }, this);
+    m_close_window_button = new WindowControlButton("LadybirdCloseWindowButton", "Close", { 18, 18 }, { 40, 40 }, this);
 
     recreate_icons();
 
