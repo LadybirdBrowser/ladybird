@@ -165,6 +165,8 @@ private:
     void create_close_button_for_tab(Tab*);
     void update_tab_close_button_icons();
     void update_menu_bar_style();
+    void toggle_window_maximized();
+    bool start_window_move();
 
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
