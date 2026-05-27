@@ -12,7 +12,7 @@ enum EndOfStreamError {
 };
 
 // https://w3c.github.io/media-source/#dom-mediasource
-[Exposed=(Window,DedicatedWorker), Experimental]
+[Exposed=(Window,DedicatedWorker)]
 interface MediaSource : EventTarget {
     constructor();
 
