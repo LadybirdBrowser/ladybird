@@ -37,4 +37,16 @@
 
     ctx.fillStyle = gradient;
     ctx.fillRect(220, 20, 200, 100);
+
+    // Create a conic gradient
+    gradient = ctx.createConicGradient(0, 100, 300);
+
+    gradient.addColorStop(0, "red");
+    gradient.addColorStop(0.25, "orange");
+    gradient.addColorStop(0.5, "yellow");
+    gradient.addColorStop(0.75, "green");
+    gradient.addColorStop(1, "blue");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(20, 220, 160, 160);
 </script>
