@@ -495,7 +495,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     m_context_menu = new QMenu("Context menu", this);
-    m_context_menu->addAction(create_application_action(*this, WebView::Application::the().reload_action()));
+    m_context_menu->addAction(create_application_action(*this, WebView::Application::the().reload_action(), IncludeActionIcon::No));
     m_context_menu->addAction(duplicate_tab_action);
     m_context_menu->addSeparator();
     auto* move_tab_menu = m_context_menu->addMenu("Mo&ve Tab");
@@ -684,7 +684,6 @@ void Tab::recreate_toolbar_icons()
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
-    m_window->new_tab_action().setIcon(create_chrome_icon(ChromeIcon::NewTab, palette()));
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
     if (auto* action = m_location_edit->trailing_action()) {
         auto icon = view().toggle_bookmark_action().engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star;

@@ -265,7 +265,7 @@ QMenu::item {{
     background: transparent;
     border-radius: 5px;
     min-height: 20px;
-    padding: 5px 28px;
+    padding: 5px 14px;
 }}
 
 QMenu::item:selected {{
