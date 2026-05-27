@@ -416,6 +416,9 @@ void PulseAudioStream::on_write_requested(size_t bytes_to_write)
     VERIFY(m_write_callback);
     if (m_suspended)
         return;
+    auto callback_state = m_callback_state.load();
+    if (callback_state == CallbackState::Parked)
+        return;
     while (bytes_to_write > 0) {
         auto buffer = begin_write(bytes_to_write).release_value_but_fixme_should_propagate_errors();
         auto frame_size = this->frame_size();
@@ -425,7 +428,6 @@ void PulseAudioStream::on_write_requested(size_t bytes_to_write)
             cancel_write().release_value_but_fixme_should_propagate_errors();
 
             while (true) {
-                auto callback_state = CallbackState::Active;
                 if (m_callback_state.compare_exchange_strong(callback_state, CallbackState::Parked))
                     break;
                 VERIFY(callback_state != CallbackState::Parked);
