@@ -490,7 +490,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_new_tab_button = new QToolButton(this);
     m_new_tab_button->setObjectName("LadybirdNewTabButton");
-    m_new_tab_button->setIconSize(QSize(18, 18));
+    m_new_tab_button->setIconSize(QSize(20, 20));
     m_new_tab_button->setFixedSize(32, 32);
     m_new_tab_button->setFocusPolicy(Qt::NoFocus);
     m_new_tab_button->setToolTip("New Tab");
@@ -778,7 +778,7 @@ TabBarButton::TabBarButton(QIcon const& icon, QWidget* parent)
 {
     setObjectName("LadybirdTabButton");
     setFixedSize({ 22, 22 });
-    setIconSize({ 14, 14 });
+    setIconSize({ 16, 16 });
     setFocusPolicy(Qt::NoFocus);
     setFlat(true);
 }
