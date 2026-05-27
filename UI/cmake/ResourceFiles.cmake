@@ -5,43 +5,9 @@ set(FONTS
 list(TRANSFORM FONTS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/fonts/")
 
 set(16x16_ICONS
-    app-system-monitor.png
-    box.png
-    audio-volume-high.png
-    audio-volume-muted.png
-    close-tab.png
-    download.png
-    edit-copy.png
-    edit-cut.png
-    error.png
-    filetype-css.png
-    filetype-folder-open.png
-    filetype-html.png
-    filetype-image.png
-    filetype-sound.png
-    filetype-video.png
-    find.png
-    fullscreen.png
-    go-forward.png
-    history.png
-    layers.png
-    layout.png
-    network.png
-    new-tab.png
     open-parent-directory.png
-    paste.png
-    pause.png
-    play.png
-    select-all.png
-    settings.png
-    spoof.png
-    trash-can.png
-    zoom-in.png
-    zoom-out.png
-    zoom-reset.png
 )
 set(32x32_ICONS
-    app-system-monitor.png
     filetype-folder.png
     filetype-unknown.png
 )
@@ -52,16 +18,10 @@ set(128x128_ICONS
     app-browser.png
     app-browser-dark.png
 )
-set(BROWSER_ICONS
-    cookie.png
-    dom-tree.png
-    local-storage.png
-)
 list(TRANSFORM 16x16_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/16x16/")
 list(TRANSFORM 32x32_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/32x32/")
 list(TRANSFORM 48x48_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/48x48/")
 list(TRANSFORM 128x128_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/128x128/")
-list(TRANSFORM BROWSER_ICONS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/icons/browser/")
 
 set(INTERNAL_RESOURCES
     ladybird.css
@@ -191,10 +151,6 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
-    copy_resource_set(icons/browser RESOURCES ${BROWSER_ICONS}
-        DESTINATION ${base_directory} TARGET ${bundle_target}
-    )
-
     copy_resource_set(themes RESOURCES ${THEMES}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
@@ -246,7 +202,6 @@ function(install_ladybird_resources destination component)
     install(FILES ${32x32_ICONS} DESTINATION "${destination}/icons/32x32" COMPONENT ${component})
     install(FILES ${48x48_ICONS} DESTINATION "${destination}/icons/48x48" COMPONENT ${component})
     install(FILES ${128x128_ICONS} DESTINATION "${destination}/icons/128x128" COMPONENT ${component})
-    install(FILES ${BROWSER_ICONS} DESTINATION "${destination}/icons/browser" COMPONENT ${component})
     install(FILES ${THEMES} DESTINATION "${destination}/themes" COMPONENT ${component})
     install(FILES ${INTERNAL_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
