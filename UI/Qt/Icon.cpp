@@ -117,10 +117,17 @@ static void draw_star_icon(QPainter& painter, QColor const& color, bool filled)
     painter.drawPath(path);
 }
 
-static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color)
+static QPixmap create_transparent_icon_pixmap(QSize logical_size, qreal device_pixel_ratio)
 {
-    QPixmap pixmap(20, 20);
+    QPixmap pixmap(physical_size_for_device_pixel_ratio(logical_size, device_pixel_ratio));
+    pixmap.setDevicePixelRatio(device_pixel_ratio);
     pixmap.fill(Qt::transparent);
+    return pixmap;
+}
+
+static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal device_pixel_ratio)
+{
+    auto pixmap = create_transparent_icon_pixmap({ 20, 20 }, device_pixel_ratio);
 
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing, true);
@@ -209,20 +216,23 @@ static QIcon create_y_offset_icon(QIcon const& source, int y_offset)
 {
     constexpr int icon_size = 20;
 
-    auto create_pixmap = [&](QIcon::Mode mode) {
-        QPixmap pixmap(icon_size, icon_size);
-        pixmap.fill(Qt::transparent);
+    auto create_pixmap = [&](QIcon::Mode mode, int device_pixel_ratio) {
+        auto pixmap = create_transparent_icon_pixmap({ icon_size, icon_size }, device_pixel_ratio);
 
         QPainter painter(&pixmap);
-        source.paint(&painter, QRect(0, y_offset, icon_size, icon_size), Qt::AlignCenter, mode);
+        painter.drawPixmap(
+            QRect(0, y_offset, icon_size, icon_size),
+            source.pixmap({ icon_size, icon_size }, static_cast<qreal>(device_pixel_ratio), mode));
         return pixmap;
     };
 
     QIcon icon;
-    icon.addPixmap(create_pixmap(QIcon::Normal), QIcon::Normal);
-    icon.addPixmap(create_pixmap(QIcon::Active), QIcon::Active);
-    icon.addPixmap(create_pixmap(QIcon::Disabled), QIcon::Disabled);
-    icon.addPixmap(create_pixmap(QIcon::Selected), QIcon::Selected);
+    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS) {
+        icon.addPixmap(create_pixmap(QIcon::Normal, device_pixel_ratio), QIcon::Normal);
+        icon.addPixmap(create_pixmap(QIcon::Active, device_pixel_ratio), QIcon::Active);
+        icon.addPixmap(create_pixmap(QIcon::Disabled, device_pixel_ratio), QIcon::Disabled);
+        icon.addPixmap(create_pixmap(QIcon::Selected, device_pixel_ratio), QIcon::Selected);
+    }
     return icon;
 }
 
@@ -253,22 +263,25 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
     disabled.setAlpha(icon == ChromeIcon::Close ? 78 : 96);
 
     QIcon qicon;
-    qicon.addPixmap(create_chrome_icon_pixmap(icon, normal), QIcon::Normal);
-    qicon.addPixmap(create_chrome_icon_pixmap(icon, active), QIcon::Active);
-    qicon.addPixmap(create_chrome_icon_pixmap(icon, disabled), QIcon::Disabled);
-    qicon.addPixmap(create_chrome_icon_pixmap(icon, active), QIcon::Selected);
+
+    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS) {
+        qicon.addPixmap(create_chrome_icon_pixmap(icon, normal, device_pixel_ratio), QIcon::Normal);
+        qicon.addPixmap(create_chrome_icon_pixmap(icon, active, device_pixel_ratio), QIcon::Active);
+        qicon.addPixmap(create_chrome_icon_pixmap(icon, disabled, device_pixel_ratio), QIcon::Disabled);
+        qicon.addPixmap(create_chrome_icon_pixmap(icon, active, device_pixel_ratio), QIcon::Selected);
+    }
+
     if (icon == ChromeIcon::NewTab)
         return create_y_offset_icon(qicon, -1);
     return qicon;
 }
 
-QIcon loading_spinner_icon(QPalette const& palette, int frame)
+static QPixmap create_loading_spinner_icon_pixmap(QPalette const& palette, int frame, int device_pixel_ratio)
 {
     static constexpr int icon_size = 16;
     static constexpr int segment_count = 12;
 
-    QPixmap pixmap(icon_size, icon_size);
-    pixmap.fill(Qt::transparent);
+    auto pixmap = create_transparent_icon_pixmap({ icon_size, icon_size }, device_pixel_ratio);
 
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
@@ -286,7 +299,23 @@ QIcon loading_spinner_icon(QPalette const& palette, int frame)
         painter.restore();
     }
 
-    return QIcon(pixmap);
+    return pixmap;
+}
+
+QIcon loading_spinner_icon(QPalette const& palette, int frame)
+{
+    QIcon icon;
+    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS)
+        icon.addPixmap(create_loading_spinner_icon_pixmap(palette, frame, device_pixel_ratio));
+    return icon;
+}
+
+QSize physical_size_for_device_pixel_ratio(QSize size, qreal device_pixel_ratio)
+{
+    return {
+        static_cast<int>(ceil(size.width() * device_pixel_ratio)),
+        static_cast<int>(ceil(size.height() * device_pixel_ratio)),
+    };
 }
 
 }
