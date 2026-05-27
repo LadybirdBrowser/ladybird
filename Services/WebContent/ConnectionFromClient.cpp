@@ -719,6 +719,8 @@ void ConnectionFromClient::set_listen_for_dom_mutations(u64 page_id, bool listen
         return;
 
     page->page().set_listen_for_dom_mutations(listen_for_dom_mutations);
+    if (!listen_for_dom_mutations)
+        page->clear_pending_dom_mutations();
 }
 
 void ConnectionFromClient::did_connect_devtools_client(u64 page_id)
