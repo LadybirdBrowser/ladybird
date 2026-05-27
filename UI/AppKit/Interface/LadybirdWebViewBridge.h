@@ -48,8 +48,6 @@ public:
 
     Function<void()> on_zoom_level_changed;
 
-    auto& pinch_state() { return m_pinch_state; }
-
 private:
     WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second);
 
@@ -60,11 +58,6 @@ private:
 
     Vector<Web::DevicePixelRect> m_screen_rects;
     Gfx::IntSize m_viewport_size;
-
-    struct PinchState {
-        double previous_scale { 1.0 };
-    };
-    Optional<PinchState> m_pinch_state;
 };
 
 }

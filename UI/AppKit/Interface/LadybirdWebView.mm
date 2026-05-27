@@ -1376,23 +1376,22 @@ struct HideCursor {
 
 - (void)onPinch:(NSMagnificationGestureRecognizer*)recognizer
 {
-    double scale_delta = 0;
     switch (recognizer.state) {
     case NSGestureRecognizerStateBegan:
-        m_web_view_bridge->pinch_state() = { .previous_scale = recognizer.magnification };
-        break;
+        recognizer.magnification = 0;
+        return;
     case NSGestureRecognizerStateChanged:
-        scale_delta = recognizer.magnification - m_web_view_bridge->pinch_state()->previous_scale;
-        m_web_view_bridge->pinch_state()->previous_scale = recognizer.magnification;
         break;
     case NSGestureRecognizerStateEnded:
     case NSGestureRecognizerStateCancelled:
-        scale_delta = recognizer.magnification - m_web_view_bridge->pinch_state()->previous_scale;
-        m_web_view_bridge->pinch_state() = {};
-        break;
+        recognizer.magnification = 0;
+        return;
     default:
         return;
     }
+
+    auto scale_delta = recognizer.magnification;
+    recognizer.magnification = 0;
 
     NSPoint point = [recognizer locationInView:self];
     Web::PinchEvent pinch_event;
