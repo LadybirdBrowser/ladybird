@@ -25,6 +25,7 @@ public:
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
+    void paint_scrollbar(Gfx::PaintingSurface&, PaintScrollBar const&);
 
 private:
     void draw_glyph_run(DrawGlyphRun const&) override;

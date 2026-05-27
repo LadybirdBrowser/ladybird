@@ -12,7 +12,6 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibGfx/Path.h>
 #include <LibWeb/Page/InputEvent.h>
 
 namespace Compositor {
@@ -107,44 +106,6 @@ static Gfx::IntRect scrollbar_hit_rect(Web::Compositor::ViewportScrollbar const&
         rect.unite(expanded_gutter_rect);
     rect.inflate(scrollbar_hit_slop, scrollbar_hit_slop);
     return rect;
-}
-
-static Gfx::Path rounded_rect_path(Gfx::FloatRect rect, float radius)
-{
-    Gfx::Path path;
-    if (rect.is_empty())
-        return path;
-
-    radius = min(min(radius, rect.width() / 2), rect.height() / 2);
-
-    path.move_to({ rect.left() + radius, rect.top() });
-    if (radius > 0) {
-        path.line_to({ rect.right() - radius, rect.top() });
-        path.arc_to({ rect.right(), rect.top() + radius }, radius, false, true);
-        path.line_to({ rect.right(), rect.bottom() - radius });
-        path.arc_to({ rect.right() - radius, rect.bottom() }, radius, false, true);
-        path.line_to({ rect.left() + radius, rect.bottom() });
-        path.arc_to({ rect.left(), rect.bottom() - radius }, radius, false, true);
-        path.line_to({ rect.left(), rect.top() + radius });
-        path.arc_to({ rect.left() + radius, rect.top() }, radius, false, true);
-    } else {
-        path.line_to({ rect.right(), rect.top() });
-        path.line_to({ rect.right(), rect.bottom() });
-        path.line_to({ rect.left(), rect.bottom() });
-        path.line_to({ rect.left(), rect.top() });
-    }
-    path.close();
-    return path;
-}
-
-static void paint_viewport_scrollbar(Gfx::Painter& painter, Web::Compositor::ViewportScrollbar const& scrollbar, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
-{
-    painter.fill_rect(scrollbar_gutter_rect(scrollbar, expanded).to_type<float>(), scrollbar.track_color);
-
-    auto thumb_rect = translated_thumb_rect(scrollbar, scroll_state_snapshot, expanded);
-    auto thumb_path = rounded_rect_path(thumb_rect.to_type<float>(), static_cast<float>(thumb_rect.width()) / 2);
-    painter.fill_path(thumb_path, scrollbar.thumb_color, Gfx::WindingRule::Nonzero);
-    painter.stroke_path(thumb_path, scrollbar.thumb_color.lightened(), 1);
 }
 
 NonnullRefPtr<CompositorState> CompositorState::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, bool async_scrolling_enabled)
@@ -994,12 +955,20 @@ bool CompositorState::paint_viewport_scrollbar_overlay(ContextState& context, Gf
     if (context.viewport_scrollbars.is_empty())
         return false;
 
-    Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { surface } };
     for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
-        paint_viewport_scrollbar(painter, context.viewport_scrollbars[i], context.scroll_state_snapshot,
-            context.hovered_viewport_scrollbar_index == i || context.captured_viewport_scrollbar_index == i);
+        auto const& scrollbar = context.viewport_scrollbars[i];
+        auto expanded = context.hovered_viewport_scrollbar_index == i || context.captured_viewport_scrollbar_index == i;
+        Web::Painting::PaintScrollBar paint_scrollbar {
+            .scroll_frame_index = scrollbar.scroll_frame_index,
+            .gutter_rect = scrollbar_gutter_rect(scrollbar, expanded),
+            .thumb_rect = translated_thumb_rect(scrollbar, context.scroll_state_snapshot, expanded),
+            .scroll_size = scrollbar_scroll_size(scrollbar, expanded),
+            .thumb_color = scrollbar.thumb_color,
+            .track_color = scrollbar.track_color,
+            .vertical = scrollbar.vertical,
+        };
+        m_display_list_player->paint_scrollbar(surface, paint_scrollbar);
     }
-    painter.reset();
     return true;
 }
 
