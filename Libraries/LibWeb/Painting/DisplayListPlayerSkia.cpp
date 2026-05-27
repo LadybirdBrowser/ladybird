@@ -106,20 +106,20 @@ static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
 
 void DisplayListPlayerSkia::flush(Gfx::PaintingSurface& surface)
 {
+    m_image_cache.prune();
     if (auto context = surface.skia_backend_context())
         context->flush_and_submit(&surface.sk_surface());
     surface.flush();
-    m_image_cache.prune();
 }
 
 void DisplayListPlayerSkia::flush_async(Gfx::PaintingSurface& surface, Function<void()>&& callback)
 {
+    m_image_cache.prune();
     if (auto context = surface.skia_backend_context())
         context->flush_and_submit_async(&surface.sk_surface(), move(callback));
     else
         callback();
     surface.flush();
-    m_image_cache.prune();
 }
 
 static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScrollBar const& command)
