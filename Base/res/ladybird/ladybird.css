@@ -72,8 +72,8 @@ body {
 }
 
 .hidden {
-    display: none;
-    opacity: 0;
+    display: none !important;
+    opacity: 0 !important;
 }
 
 /**
