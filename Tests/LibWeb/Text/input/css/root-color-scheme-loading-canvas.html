@@ -18,6 +18,14 @@
         println(`Computed root color-scheme: ${getComputedStyle(document.documentElement).colorScheme}`);
         println(`Canvas color-scheme: ${internals.canvasColorScheme()}`);
 
-        internals.signalTestIsDone(out.innerText);
+        document.querySelector("style").remove();
+        internals.updateStyle();
+
+        println(`Computed root color-scheme without opt-in: ${getComputedStyle(document.documentElement).colorScheme}`);
+        println(`Canvas color-scheme without opt-in: ${internals.canvasColorScheme()}`);
+
+        const output = out.innerText;
+        internals.setPreferredColorScheme("auto");
+        internals.signalTestIsDone(output);
     </script>
 </body>
