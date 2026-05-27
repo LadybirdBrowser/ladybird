@@ -1,0 +1,7 @@
+wheel routing admission: accepted
+wheel scroll admission over map: blocked-by-wheel-event-region
+window scrollY before wheel: 900
+wheel event count: 1
+wheel event cancelable: true
+wheel event defaultPrevented: true
+window scrollY: 900

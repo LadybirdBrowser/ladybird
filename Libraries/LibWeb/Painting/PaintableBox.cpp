@@ -274,10 +274,24 @@ static void record_viewport_scrollbar_state(PaintableBox const& paintable_box, D
     }
 }
 
-static bool is_root_wheel_event_target(DOM::Node const& node)
+static void record_blocking_wheel_event_region(PaintableBox const& paintable_box, DisplayListRecordingContext& context)
 {
-    auto& document = node.document();
-    return &node == document.document_element() || &node == document.body();
+    if (context.has_blocking_wheel_event_region_covering_viewport())
+        return;
+    if (!paintable_box.is_visible() || !paintable_box.visible_for_hit_testing())
+        return;
+    auto node = paintable_box.dom_node();
+    if (!node || !node->inside_blocking_wheel_event_handler())
+        return;
+
+    auto rect = css_rect_to_device_rect(paintable_box.absolute_united_border_box_rect(), context.device_pixels_per_css_pixel());
+    if (rect.is_empty())
+        return;
+
+    context.set_has_blocking_wheel_event_listeners(true);
+    context.display_list_recorder().compositor_blocking_wheel_event_region({
+        .rect = rect,
+    });
 }
 
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box)
@@ -945,14 +959,7 @@ void PaintableBox::record_async_scrolling_metadata(DisplayListRecordingContext& 
 
     record_wheel_hit_test_target(*this, context);
 
-    if (!context.has_blocking_wheel_event_region_covering_viewport()) {
-        if (auto node = dom_node(); node && !is_root_wheel_event_target(*node) && node->has_blocking_wheel_event_listener()) {
-            context.set_has_blocking_wheel_event_listeners(true);
-            recorder.compositor_blocking_wheel_event_region({
-                .rect = css_rect_to_device_rect(absolute_united_border_box_rect(), device_pixels_per_css_pixel),
-            });
-        }
-    }
+    record_blocking_wheel_event_region(*this, context);
 
     if (is_nested_navigable_container(*this)) {
         record_main_thread_wheel_event_region(*this, context);
@@ -989,9 +996,6 @@ void PaintableBox::record_async_scrolling_metadata(DisplayListRecordingContext& 
 
 void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
-    if (phase == PaintPhase::Background)
-        record_async_scrolling_metadata(context);
-
     if (!is_visible())
         return;
 

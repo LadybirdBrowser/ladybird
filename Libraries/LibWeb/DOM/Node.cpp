@@ -1800,6 +1800,7 @@ void Node::inserted()
         m_is_connected = parent()->is_connected();
 
     recompute_editable_subtree_flag();
+    update_inside_blocking_wheel_event_handler_state();
     set_needs_style_update(true);
 }
 
@@ -1807,6 +1808,7 @@ void Node::removed_from(IsSubtreeRoot, Node*, Node&)
 {
     m_is_connected = false;
     m_in_editable_subtree = false;
+    m_inside_blocking_wheel_event_handler = false;
     m_layout_node = nullptr;
     m_paintable = nullptr;
 }
@@ -1815,6 +1817,36 @@ void Node::removed_from(IsSubtreeRoot, Node*, Node&)
 void Node::moved_from(IsSubtreeRoot, GC::Ptr<Node>)
 {
     recompute_editable_subtree_flag();
+    update_inside_blocking_wheel_event_handler_state();
+}
+
+static bool is_root_wheel_event_target(Node const& node)
+{
+    auto& document = node.document();
+    return &node == &document || &node == document.document_element() || &node == document.body();
+}
+
+void Node::update_inside_blocking_wheel_event_handler_state()
+{
+    m_inside_blocking_wheel_event_handler = false;
+    if (auto* parent = parent_or_shadow_host_node())
+        m_inside_blocking_wheel_event_handler = parent->inside_blocking_wheel_event_handler();
+
+    if (!m_inside_blocking_wheel_event_handler && !is_root_wheel_event_target(*this) && has_blocking_wheel_event_listener())
+        m_inside_blocking_wheel_event_handler = true;
+}
+
+void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
+{
+    if (is_root_wheel_event_target(*this)) {
+        update_inside_blocking_wheel_event_handler_state();
+        return;
+    }
+
+    for_each_shadow_including_inclusive_descendant([](Node& node) {
+        node.update_inside_blocking_wheel_event_handler_state();
+        return TraversalDecision::Continue;
+    });
 }
 
 ParentNode* Node::parent_or_shadow_host()
