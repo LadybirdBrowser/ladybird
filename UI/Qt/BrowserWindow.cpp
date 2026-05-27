@@ -23,6 +23,7 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WebContentView.h>
+#include <UI/Qt/WindowControlButton.h>
 
 #include <QAbstractButton>
 #include <QAction>
@@ -30,6 +31,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
+#include <QHBoxLayout>
 #include <QInputDialog>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -226,13 +228,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     m_hamburger_menu = new QMenu(this);
 
     menuBar()->setObjectName("LadybirdMenuBar");
+    create_menu_bar_window_controls();
     update_menu_bar_style();
-
-    if (!Settings::the()->show_menubar())
-        menuBar()->hide();
+    update_menu_bar_visibility(Settings::the()->show_menubar());
 
     QObject::connect(Settings::the(), &Settings::show_menubar_changed, this, [this](bool show_menubar) {
-        menuBar()->setVisible(show_menubar);
+        update_menu_bar_visibility(show_menubar);
     });
 
     auto* file_menu = menuBar()->addMenu("&File");
@@ -775,9 +776,61 @@ void BrowserWindow::update_tab_close_button_icons()
     }
 }
 
+void BrowserWindow::create_menu_bar_window_controls()
+{
+    m_menu_bar_window_controls = new QWidget(menuBar());
+    m_menu_bar_window_controls->setObjectName("LadybirdMenuBarWindowControls");
+
+    auto* layout = new QHBoxLayout(m_menu_bar_window_controls);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    m_menu_bar_minimize_window_button = new WindowControlButton("LadybirdWindowButton", "Minimize", { 16, 16 }, { 40, 30 }, m_menu_bar_window_controls);
+    m_menu_bar_maximize_window_button = new WindowControlButton("LadybirdWindowButton", "Maximize", { 16, 16 }, { 40, 30 }, m_menu_bar_window_controls);
+    m_menu_bar_close_window_button = new WindowControlButton("LadybirdCloseWindowButton", "Close", { 16, 16 }, { 40, 30 }, m_menu_bar_window_controls);
+
+    layout->addWidget(m_menu_bar_minimize_window_button);
+    layout->addWidget(m_menu_bar_maximize_window_button);
+    layout->addWidget(m_menu_bar_close_window_button);
+
+    menuBar()->setCornerWidget(m_menu_bar_window_controls, Qt::TopRightCorner);
+
+    connect(m_menu_bar_minimize_window_button, &QToolButton::clicked, this, [this] {
+        showMinimized();
+    });
+    connect(m_menu_bar_maximize_window_button, &QToolButton::clicked, this, [this] {
+        toggle_window_maximized();
+    });
+    connect(m_menu_bar_close_window_button, &QToolButton::clicked, this, [this] {
+        close();
+    });
+
+    update_menu_bar_window_control_icons();
+}
+
 void BrowserWindow::update_menu_bar_style()
 {
     menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(palette()));
+}
+
+void BrowserWindow::update_menu_bar_visibility(bool show_menubar)
+{
+    menuBar()->setVisible(show_menubar);
+    if (m_menu_bar_window_controls)
+        m_menu_bar_window_controls->setVisible(show_menubar);
+    m_tabs_container->set_window_controls_visible(!show_menubar);
+}
+
+void BrowserWindow::update_menu_bar_window_control_icons()
+{
+    if (!m_menu_bar_minimize_window_button || !m_menu_bar_maximize_window_button || !m_menu_bar_close_window_button)
+        return;
+
+    auto is_maximized = this->isMaximized();
+    m_menu_bar_minimize_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowMinimize, palette()));
+    m_menu_bar_maximize_window_button->setIcon(create_chrome_icon(is_maximized ? ChromeIcon::WindowRestore : ChromeIcon::WindowMaximize, palette()));
+    m_menu_bar_maximize_window_button->setToolTip(is_maximized ? "Restore" : "Maximize");
+    m_menu_bar_close_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowClose, palette()));
 }
 
 void BrowserWindow::toggle_window_maximized()
@@ -786,6 +839,7 @@ void BrowserWindow::toggle_window_maximized()
         showNormal();
     else
         showMaximized();
+    update_menu_bar_window_control_icons();
 }
 
 bool BrowserWindow::start_window_move()
@@ -1080,8 +1134,11 @@ void BrowserWindow::changeEvent(QEvent* event)
 {
     if (event->type() == QEvent::PaletteChange) {
         update_menu_bar_style();
+        update_menu_bar_window_control_icons();
         update_tab_close_button_icons();
     } else if (event->type() == QEvent::WindowStateChange) {
+        update_menu_bar_window_control_icons();
+
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
         bool was_fullscreen = stateChangeEvent->oldState() & Qt::WindowFullScreen;
         bool is_fullscreen = windowState() & Qt::WindowFullScreen;

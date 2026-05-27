@@ -345,23 +345,23 @@ QString menu_bar_style_sheet(QPalette const& palette)
     auto background_bottom = style_sheet_color(mix(chrome_tab_strip_background(palette), QColor(3, 8, 14), is_dark(palette) ? 0.26 : 0.026));
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
-    auto border = style_sheet_color(chrome_border(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
+    auto close_hover = style_sheet_color(QColor(196, 43, 28));
+    auto close_text = style_sheet_color(QColor(255, 255, 255));
 
     return qformatted(R"(
 QMenuBar#LadybirdMenuBar {{
-    color: {6};
+    color: {5};
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {0}, stop:1 {1});
     border: 0;
-    border-bottom: 1px solid {4};
-    padding: 3px 8px;
+    padding: 0 4px 0 8px;
     spacing: 2px;
 }}
 
 QMenuBar#LadybirdMenuBar::item {{
-    color: {6};
+    color: {5};
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
@@ -370,19 +370,59 @@ QMenuBar#LadybirdMenuBar::item {{
 
 QMenuBar#LadybirdMenuBar::item:selected {{
     background: {2};
-    border-color: {5};
+    border-color: {4};
 }}
 
 QMenuBar#LadybirdMenuBar::item:pressed {{
     background: {3};
-    border-color: {5};
+    border-color: {4};
 }}
 
 QMenuBar#LadybirdMenuBar::item:disabled {{
-    color: {7};
+    color: {6};
+}}
+
+QMenuBar#LadybirdMenuBar QWidget#LadybirdMenuBarWindowControls {{
+    background: transparent;
+}}
+
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdWindowButton,
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdCloseWindowButton {{
+    color: {5};
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    min-width: 40px;
+    min-height: 30px;
+    max-height: 30px;
+    padding: 0;
+}}
+
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdWindowButton:hover {{
+    background: {2};
+}}
+
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdWindowButton:pressed {{
+    background: {3};
+}}
+
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdCloseWindowButton:hover {{
+    color: {8};
+    background: {7};
+}}
+
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdCloseWindowButton:pressed {{
+    color: {8};
+    background: {7};
+}}
+
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdWindowButton[pressedOutside="true"],
+QMenuBar#LadybirdMenuBar QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
+    color: {5};
+    background: transparent;
 }}
 )",
-        background, background_bottom, hover, pressed, border, control_border, text, disabled_text);
+        background, background_bottom, hover, pressed, control_border, text, disabled_text, close_hover, close_text);
 }
 
 QString location_edit_style_sheet(QPalette const& palette)
