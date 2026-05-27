@@ -168,7 +168,7 @@ void WalkerActor::handle_message(Message const& message)
             }
         }
 
-        // Firefox asks for ["containerEl"] on a GridActor when the grid form did not include a containerNodeActorID.
+        // Firefox asks for ["containerEl"] on layout actors when the form did not include a containerNodeActorID.
         if (path->size() == 1 && path->at(0).is_string() && path->at(0).as_string() == "containerEl"sv) {
             auto maybe_actor = devtools().actor_registry().find(actor_id.value());
             if (maybe_actor == devtools().actor_registry().end()) {
@@ -176,8 +176,41 @@ void WalkerActor::handle_message(Message const& message)
                 return;
             }
 
-            if (auto* grid_actor = as_if<GridActor>(maybe_actor->value.ptr())) {
-                if (auto node_actor_name = m_dom_node_id_to_actor_map.get(grid_actor->container_node_id()); node_actor_name.has_value()) {
+            Optional<Web::UniqueNodeID> container_node_id;
+            if (auto* grid_actor = as_if<GridActor>(maybe_actor->value.ptr()))
+                container_node_id = grid_actor->container_node_id();
+            else if (auto* flexbox_actor = as_if<FlexboxActor>(maybe_actor->value.ptr()))
+                container_node_id = flexbox_actor->container_node_id();
+
+            if (container_node_id.has_value()) {
+                if (auto node_actor_name = m_dom_node_id_to_actor_map.get(*container_node_id); node_actor_name.has_value()) {
+                    auto dom_node = dom_node_for(this, node_actor_name.value());
+                    if (!dom_node.has_value()) {
+                        send_unknown_actor_error(message, node_actor_name.value());
+                        return;
+                    }
+
+                    JsonObject node;
+                    node.set("node"sv, serialize_node(dom_node->node));
+                    node.set("newParents"sv, JsonArray {});
+
+                    response.set("node"sv, move(node));
+                    send_response(message, move(response));
+                    return;
+                }
+            }
+        }
+
+        // Firefox asks for ["element"] on a FlexItemActor when the form did not include a nodeActorID.
+        if (path->size() == 1 && path->at(0).is_string() && path->at(0).as_string() == "element"sv) {
+            auto maybe_actor = devtools().actor_registry().find(actor_id.value());
+            if (maybe_actor == devtools().actor_registry().end()) {
+                send_unknown_actor_error(message, actor_id.value());
+                return;
+            }
+
+            if (auto* flex_item_actor = as_if<FlexItemActor>(maybe_actor->value.ptr())) {
+                if (auto node_actor_name = m_dom_node_id_to_actor_map.get(flex_item_actor->node_id()); node_actor_name.has_value()) {
                     auto dom_node = dom_node_for(this, node_actor_name.value());
                     if (!dom_node.has_value()) {
                         send_unknown_actor_error(message, node_actor_name.value());
