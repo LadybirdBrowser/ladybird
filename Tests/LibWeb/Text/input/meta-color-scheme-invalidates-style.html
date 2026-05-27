@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<body style="color: CanvasText"></body>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        println(`Before: ${getComputedStyle(document.body).color}`);
+
+        const meta = document.createElement("meta");
+        meta.name = "color-scheme";
+        meta.content = "dark";
+        document.head.append(meta);
+
+        println(`After: ${getComputedStyle(document.body).color}`);
+    });
+</script>

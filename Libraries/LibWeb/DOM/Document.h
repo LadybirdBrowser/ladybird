@@ -30,6 +30,7 @@
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/HoverEventData.h>
@@ -359,6 +360,7 @@ public:
 
     Color background_color() const;
     Color canvas_background_color() const;
+    CSS::PreferredColorScheme canvas_color_scheme() const;
     Vector<CSS::BackgroundLayerData> const* background_layers() const;
     CSS::ImageRendering background_image_rendering() const;
 
@@ -373,6 +375,7 @@ public:
 
     Optional<Vector<String> const&> supported_color_schemes() const;
     void set_supported_color_schemes(Vector<String>);
+    void set_supported_color_schemes(Optional<Vector<String>>);
     void obtain_supported_color_schemes();
 
     void obtain_theme_color();
