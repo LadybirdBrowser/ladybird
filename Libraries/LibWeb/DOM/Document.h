@@ -47,6 +47,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
@@ -308,6 +309,8 @@ public:
     GC::Ptr<Node const> highlighted_node() const { return m_highlighted_node; }
     GC::Ptr<Layout::Node> highlighted_layout_node();
     GC::Ptr<Layout::Node const> highlighted_layout_node() const { return const_cast<Document*>(this)->highlighted_layout_node(); }
+    void set_flexbox_highlighted_node(GC::Ptr<Node>, Painting::FlexboxInspectorOverlayOptions);
+    void clear_flexbox_highlighted_node(GC::Ptr<Node>);
     void set_grid_highlighted_node(GC::Ptr<Node>, Painting::GridInspectorOverlayOptions);
     void clear_grid_highlighted_node(GC::Ptr<Node>);
 
@@ -1214,6 +1217,13 @@ private:
         GC::Ptr<Node> node;
         Painting::GridInspectorOverlayOptions options;
     };
+
+    struct FlexboxHighlight {
+        GC::Ptr<Node> node;
+        Painting::FlexboxInspectorOverlayOptions options;
+    };
+
+    Vector<FlexboxHighlight> m_flexbox_highlights;
     Vector<GridHighlight> m_grid_highlights;
 
     Optional<Color> m_normal_link_color;

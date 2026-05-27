@@ -31,6 +31,7 @@
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
+#include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResizeHandle.h>
@@ -1315,6 +1316,75 @@ void PaintableBox::paint_grid_inspector_overlay(DisplayListRecordingContext& con
                     if (!visible_area_rect.is_empty())
                         paint_centered_label(visible_area_rect, Utf16String::from_utf8(area.name));
                 }
+            }
+        }
+    });
+}
+
+void PaintableBox::paint_flexbox_inspector_overlay(DisplayListRecordingContext& context, FlexboxInspectorOverlayOptions const& options) const
+{
+    if (!m_flex_layout_data)
+        return;
+
+    paint_with_inspector_overlay_context(context, [&] {
+        auto content_rect = absolute_united_content_rect();
+        auto const origin = content_rect.location();
+        auto const viewport_rect = document().viewport_rect();
+        auto const& color = options.color;
+        auto line_color = color.with_alpha(220);
+        auto container_fill_color = color.with_alpha(28);
+        auto line_fill_color = color.with_alpha(18);
+        auto item_fill_color = color.with_alpha(32);
+        auto line_thickness = CSSPixels(1);
+        auto main_axis_is_horizontal = m_flex_layout_data->flex_direction == CSS::FlexDirection::Row
+            || m_flex_layout_data->flex_direction == CSS::FlexDirection::RowReverse;
+
+        auto paint_rect = [&](CSSPixelRect const& rect, Gfx::Color rect_color) {
+            auto visible_rect = rect.intersected(viewport_rect);
+            if (visible_rect.is_empty())
+                return;
+            context.display_list_recorder().fill_rect(context.enclosing_device_rect(visible_rect).to_type<int>(), rect_color);
+        };
+
+        auto paint_outline = [&](CSSPixelRect const& rect, Gfx::Color rect_color) {
+            auto visible_rect = rect.intersected(viewport_rect);
+            if (visible_rect.is_empty())
+                return;
+            context.display_list_recorder().draw_rect(context.enclosing_device_rect(visible_rect).to_type<int>(), rect_color);
+        };
+
+        paint_rect(content_rect, container_fill_color);
+        paint_outline(content_rect, line_color);
+
+        for (auto const& line : m_flex_layout_data->lines) {
+            auto line_rect = main_axis_is_horizontal
+                ? CSSPixelRect { content_rect.x(), origin.y() + line.cross_start, content_rect.width(), line.cross_size }
+                : CSSPixelRect { origin.x() + line.cross_start, content_rect.y(), line.cross_size, content_rect.height() };
+
+            paint_rect(line_rect, line_fill_color);
+            paint_outline(line_rect, line_color);
+
+            for (auto const& item : line.items) {
+                auto item_rect = item.rect.translated(origin);
+                paint_rect(item_rect, item_fill_color);
+                paint_outline(item_rect, line_color);
+            }
+        }
+
+        // Repaint the container border last so adjacent flex lines and items do not obscure it.
+        paint_outline(content_rect, line_color);
+
+        if (main_axis_is_horizontal) {
+            for (auto const& line : m_flex_layout_data->lines) {
+                auto y = origin.y() + line.cross_start;
+                paint_rect({ content_rect.x(), y, content_rect.width(), line_thickness }, line_color);
+                paint_rect({ content_rect.x(), y + line.cross_size, content_rect.width(), line_thickness }, line_color);
+            }
+        } else {
+            for (auto const& line : m_flex_layout_data->lines) {
+                auto x = origin.x() + line.cross_start;
+                paint_rect({ x, content_rect.y(), line_thickness, content_rect.height() }, line_color);
+                paint_rect({ x + line.cross_size, content_rect.y(), line_thickness, content_rect.height() }, line_color);
             }
         }
     });
