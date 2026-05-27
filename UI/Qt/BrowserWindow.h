@@ -164,7 +164,7 @@ private:
             callback(*m_tabs_container->tab(i));
     }
 
-    void create_close_button_for_tab(Tab*);
+    void initialize_tab_buttons(Tab*);
     void create_menu_bar_window_controls();
     void update_tab_close_button_icons();
     void update_menu_bar_style();
@@ -175,7 +175,6 @@ private:
 
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
-    QTabBar::ButtonPosition audio_button_position_for_tab(int tab_index) const;
 
     QScreen* m_current_screen { nullptr };
     double m_device_pixel_ratio { 0 };
