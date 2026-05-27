@@ -99,10 +99,10 @@ private:
         return {};
     }
 
-    virtual void viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress) override
+    virtual void viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress) override
     {
         if (auto* connection = compositor_connection())
-            connection->viewport_size_updated(context_id, viewport_size, is_top_level_traversable, window_resize_in_progress);
+            connection->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
     }
 
     virtual void present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect) override

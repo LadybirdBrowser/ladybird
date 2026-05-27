@@ -132,11 +132,11 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_as
     return response->take_updates();
 }
 
-void CompositorConnection::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+void CompositorConnection::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_viewport_size_updated(context_id, viewport_size, is_top_level_traversable, window_resize_in_progress);
+    async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
 void CompositorConnection::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)

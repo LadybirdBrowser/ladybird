@@ -91,7 +91,7 @@ public:
     void present_deferred_async_scroll_frame(Web::Compositor::CompositorContextId);
     bool should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId) const;
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
-    void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress);
+    void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect);
     bool request_screenshot(Web::Compositor::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
@@ -113,7 +113,6 @@ private:
             Web::Painting::CompositorSurfaceId surface_id;
         };
 
-        bool is_registered { false };
         CompositorStateWebContentClient* web_content_client { nullptr };
         Optional<u64> page_id;
         Web::Compositor::PagePresentationRegistration page_presentation_registration { Web::Compositor::PagePresentationRegistration::No };
@@ -144,7 +143,6 @@ private:
         Web::Compositor::WheelRoutingAdmission wheel_routing_admission { Web::Compositor::WheelRoutingAdmission::NoAsyncScrollingState };
 
         Gfx::IntSize viewport_size;
-        bool is_top_level_traversable { false };
         Web::Compositor::WindowResizingInProgress window_resize_in_progress { Web::Compositor::WindowResizingInProgress::No };
         RefPtr<Core::Timer> backing_store_shrink_timer;
 

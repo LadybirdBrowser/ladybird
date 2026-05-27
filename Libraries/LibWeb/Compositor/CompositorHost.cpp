@@ -77,9 +77,9 @@ PendingAsyncScrollUpdates CompositorContextHandle::take_pending_async_scroll_upd
     return m_host.take_pending_async_scroll_updates(m_context_id);
 }
 
-void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, bool is_top_level_traversable, WindowResizingInProgress window_resize_in_progress)
+void CompositorContextHandle::viewport_size_updated(Gfx::IntSize viewport_size, WindowResizingInProgress window_resize_in_progress)
 {
-    m_host.viewport_size_updated(m_context_id, viewport_size, is_top_level_traversable, window_resize_in_progress);
+    m_host.viewport_size_updated(m_context_id, viewport_size, window_resize_in_progress);
 }
 
 void CompositorContextHandle::present_frame(Gfx::IntRect viewport_rect)

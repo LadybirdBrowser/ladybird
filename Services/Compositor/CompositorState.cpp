@@ -184,7 +184,6 @@ void CompositorState::create_context(Web::Compositor::CompositorContextId contex
     auto& context = *m_contexts.ensure(context_id, [] {
         return make<ContextState>();
     });
-    context.is_registered = true;
     context.web_content_client = &web_content_client;
     context.page_id = page_id;
     context.page_presentation_registration = page_presentation_registration;
@@ -503,17 +502,19 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorState::take_pending_async_s
     return updates;
 }
 
-void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     auto* context = context_if_present(context_id);
     if (!context)
         return;
 
     context->viewport_size = viewport_size;
-    context->is_top_level_traversable = is_top_level_traversable;
-    context->window_resize_in_progress = window_resize_in_progress;
+    auto is_page_presentation_context = context->page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes;
+    context->window_resize_in_progress = is_page_presentation_context
+        ? window_resize_in_progress
+        : Web::Compositor::WindowResizingInProgress::No;
     resize_backing_stores_if_needed(context_id, *context);
-    if (window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes)
+    if (context->window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes)
         schedule_backing_store_shrink(context_id, *context);
 }
 
@@ -976,10 +977,7 @@ bool CompositorState::paint_viewport_scrollbar_overlay(ContextState& context, Gf
 
 void CompositorState::resize_backing_stores_if_needed(Web::Compositor::CompositorContextId context_id, ContextState& context)
 {
-    if (!context.is_registered)
-        return;
-
-    auto allocation = context.backing_store_manager.resize_backing_stores_if_needed(context.viewport_size, context.is_top_level_traversable, context.window_resize_in_progress);
+    auto allocation = context.backing_store_manager.resize_backing_stores_if_needed(context.viewport_size, context.window_resize_in_progress);
     if (!allocation.has_value())
         return;
     if (auto publication = context.backing_store_manager.allocate_backing_stores(

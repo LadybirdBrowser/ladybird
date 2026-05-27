@@ -13,7 +13,7 @@ endpoint CompositorControlServer
 
     create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration, i32 web_content_connection_id) => ()
 
-    viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|
+    viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|
 
     handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool handled)
     dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool dispatched)
