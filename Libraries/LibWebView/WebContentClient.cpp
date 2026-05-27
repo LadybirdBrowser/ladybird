@@ -1111,6 +1111,12 @@ void WebContentClient::did_request_primary_paste(u64 page_id)
     }
 }
 
+void WebContentClient::did_update_primary_selection(u64 page_id, String text)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        Application::the().set_clipboard_text(move(text), Application::ClipboardType::Selection);
+}
+
 void WebContentClient::did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

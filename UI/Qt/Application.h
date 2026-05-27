@@ -54,6 +54,7 @@ private:
 
     virtual bool supports_clipboard_type(ClipboardType) const override;
     virtual Utf16String clipboard_text(ClipboardType) const override;
+    virtual void set_clipboard_text(String, ClipboardType = ClipboardType::Text) override;
 
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) override;

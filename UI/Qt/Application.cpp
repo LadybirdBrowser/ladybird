@@ -235,6 +235,19 @@ Utf16String Application::clipboard_text(ClipboardType type) const
     return utf16_string_from_qstring(clipboard->text(mode));
 }
 
+void Application::set_clipboard_text(String text, ClipboardType type)
+{
+    if (browser_options().headless_mode.has_value()) {
+        WebView::Application::set_clipboard_text(text, type);
+        return;
+    }
+
+    auto* clipboard = QGuiApplication::clipboard();
+    auto mode = clipboard_mode(*clipboard, type);
+
+    clipboard->setText(qstring_from_ak_string(text), mode);
+}
+
 Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
 {
     if (browser_options().headless_mode.has_value())
