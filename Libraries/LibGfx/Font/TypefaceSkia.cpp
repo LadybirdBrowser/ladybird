@@ -12,6 +12,7 @@
 #include <LibIPC/Encoder.h>
 
 #include <core/SkData.h>
+#include <core/SkFontArguments.h>
 #include <core/SkFontMgr.h>
 #include <core/SkStream.h>
 #include <core/SkString.h>
@@ -27,6 +28,7 @@
 
 #ifdef AK_OS_MACOS
 #    include <CoreText/CoreText.h>
+#    include <harfbuzz/hb-coretext.h>
 #    include <ports/SkFontMgr_mac_ct.h>
 #    include <ports/SkTypeface_mac.h>
 #endif
@@ -36,16 +38,38 @@ namespace Gfx {
 static sk_sp<SkFontMgr> s_font_manager;
 
 struct TypefaceSkia::Impl {
-    Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {}, Optional<SystemUIFontKind> system_ui_font_kind = {})
+    Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {}, Optional<SystemUIFontKind> system_ui_font_kind = {}
+#ifdef AK_OS_MACOS
+        ,
+        CGFontRef cg_font = nullptr
+#endif
+        )
         : skia_typeface(move(skia_typeface))
         , stream(move(stream))
         , system_ui_font_kind(move(system_ui_font_kind))
     {
+#ifdef AK_OS_MACOS
+        if (cg_font) {
+            this->cg_font = cg_font;
+            CFRetain(this->cg_font);
+        }
+#endif
+    }
+
+    ~Impl()
+    {
+#ifdef AK_OS_MACOS
+        if (cg_font)
+            CFRelease(cg_font);
+#endif
     }
 
     sk_sp<SkTypeface> skia_typeface;
     std::unique_ptr<SkStreamAsset> stream;
     Optional<SystemUIFontKind> system_ui_font_kind;
+#ifdef AK_OS_MACOS
+    CGFontRef cg_font { nullptr };
+#endif
 };
 
 static SkFontMgr& font_manager()
@@ -96,6 +120,23 @@ static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
 
 #ifdef AK_OS_MACOS
 static CTFontRef create_system_ui_font(SystemUIFontKind, float point_size, u8 slope);
+
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_core_text_typeface(sk_sp<SkTypeface> skia_typeface, CTFontRef ct_font, SystemUIFontKind system_ui_font_kind)
+{
+    if (!skia_typeface)
+        return RefPtr<TypefaceSkia> {};
+
+    auto cg_font = CTFontCopyGraphicsFont(ct_font, nullptr);
+    if (!cg_font)
+        return Error::from_string_literal("Failed to get graphics font from CoreText font");
+
+    auto typeface = adopt_ref(*new TypefaceSkia {
+        make<TypefaceSkia::Impl>(move(skia_typeface), std::unique_ptr<SkStreamAsset> {}, system_ui_font_kind, cg_font),
+        {},
+        0 });
+    CFRelease(cg_font);
+    return typeface;
+}
 #endif
 
 ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<SkTypeface> skia_typeface, Optional<SystemUIFontKind> system_ui_font_kind)
@@ -239,7 +280,7 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::match_system_ui(SystemUIFontKind kin
         return RefPtr<TypefaceSkia> {};
 
     auto skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
-    auto typeface = typeface_from_skia_typeface(move(skia_typeface), kind);
+    auto typeface = typeface_from_core_text_typeface(move(skia_typeface), ct_font, kind);
     CFRelease(ct_font);
     return typeface;
 #else
@@ -307,10 +348,7 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
 
     font_args.setCollectionIndex(static_cast<int>(m_ttc_index));
 
-    auto data = SkData::MakeWithoutCopy(m_buffer.data(), m_buffer.size());
-    auto stream = std::make_unique<SkMemoryStream>(data);
-    auto skia_typeface = font_manager().makeFromStream(move(stream), font_args);
-
+    auto skia_typeface = impl().skia_typeface->makeClone(font_args);
     if (!skia_typeface)
         return {};
 
@@ -323,6 +361,15 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
         return typeface;
     }
 
+#ifdef AK_OS_MACOS
+    if (impl().cg_font) {
+        return adopt_ref(*new TypefaceSkia {
+            make<TypefaceSkia::Impl>(move(skia_typeface), std::unique_ptr<SkStreamAsset> {}, impl().system_ui_font_kind, impl().cg_font),
+            {},
+            m_ttc_index });
+    }
+#endif
+
     auto typeface_or_error = typeface_from_skia_typeface(move(skia_typeface), impl().system_ui_font_kind);
     if (typeface_or_error.is_error())
         return {};
@@ -332,6 +379,15 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
 SkTypeface const* TypefaceSkia::sk_typeface() const
 {
     return impl().skia_typeface.get();
+}
+
+hb_face_t* TypefaceSkia::create_harfbuzz_face() const
+{
+#ifdef AK_OS_MACOS
+    if (impl().cg_font)
+        return hb_coretext_face_create(impl().cg_font);
+#endif
+    return Typeface::create_harfbuzz_face();
 }
 
 TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, u32 ttc_index)
