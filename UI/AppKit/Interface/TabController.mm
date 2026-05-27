@@ -918,6 +918,11 @@ static NSImage* location_field_globe_icon()
     [delegate setActiveTab:[self tab]];
 }
 
+- (void)windowDidChangeOcclusionState:(NSNotification*)notification
+{
+    [[[self tab] web_view] handleVisibility:([self.window occlusionState] & NSWindowOcclusionStateVisible) != 0];
+}
+
 - (void)windowDidResignKey:(NSNotification*)notification
 {
     [self.autocomplete close];

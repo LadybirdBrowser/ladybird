@@ -184,6 +184,9 @@ void ViewImplementation::did_update_window_rect()
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
+    if (m_system_visibility_state == visibility_state)
+        return;
+
     m_system_visibility_state = visibility_state;
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
 }
