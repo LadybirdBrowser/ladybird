@@ -461,6 +461,23 @@ Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const&
 
     auto shape_path = const_cast<SVG::SVGGeometryElement&>(*path_or_shape).get_path(m_viewport_size);
     auto start_offset = text_path_element.start_offset_for_path_length(shape_path.length());
+
+    // https://svgwg.org/svg2-draft/text.html#TextAnchoringProperties
+    // FIXME: Take writing mode and text direction into account.
+    auto total_advance = font.width(text_contents);
+    switch (text_path_element.text_anchor().value_or(SVG::TextAnchor::Start)) {
+    case SVG::TextAnchor::Start:
+        break;
+    case SVG::TextAnchor::Middle:
+        start_offset -= total_advance / 2;
+        break;
+    case SVG::TextAnchor::End:
+        start_offset -= total_advance;
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
     return shape_path.place_text_along(text_contents, font, start_offset);
 }
 
