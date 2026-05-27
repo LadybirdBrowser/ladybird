@@ -349,12 +349,8 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>
 
 void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
 {
-    if (color_scheme == Web::CSS::PreferredColorScheme::Dark)
-        set_page_background_color(Web::CSS::SystemColor::canvas(Web::CSS::PreferredColorScheme::Dark));
-    else if (color_scheme == Web::CSS::PreferredColorScheme::Light)
-        set_page_background_color(Web::CSS::SystemColor::canvas(Web::CSS::PreferredColorScheme::Light));
-    else
-        set_page_background_color(m_system_canvas_background_color);
+    m_preferred_color_scheme = color_scheme;
+    set_page_background_color(preferred_canvas_background_color());
 
     client().async_set_preferred_color_scheme(page_id(), color_scheme);
 }
@@ -717,7 +713,7 @@ void ViewImplementation::set_page_background_color_to_system_canvas(bool dark)
 {
     auto color_scheme = dark ? Web::CSS::PreferredColorScheme::Dark : Web::CSS::PreferredColorScheme::Light;
     m_system_canvas_background_color = Web::CSS::SystemColor::canvas(color_scheme);
-    set_page_background_color(m_system_canvas_background_color);
+    set_page_background_color(preferred_canvas_background_color());
 }
 
 void ViewImplementation::set_page_background_color(Gfx::Color color)
@@ -725,6 +721,15 @@ void ViewImplementation::set_page_background_color(Gfx::Color color)
     m_page_background_color = color;
     if (on_page_background_color_change)
         on_page_background_color_change(m_page_background_color);
+}
+
+Gfx::Color ViewImplementation::preferred_canvas_background_color() const
+{
+    if (m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Dark)
+        return Web::CSS::SystemColor::canvas(Web::CSS::PreferredColorScheme::Dark);
+    if (m_preferred_color_scheme == Web::CSS::PreferredColorScheme::Light)
+        return Web::CSS::SystemColor::canvas(Web::CSS::PreferredColorScheme::Light);
+    return m_system_canvas_background_color;
 }
 
 void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
