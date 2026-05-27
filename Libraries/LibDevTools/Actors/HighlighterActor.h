@@ -32,6 +32,7 @@ private:
 
     WeakPtr<InspectorActor> m_inspector;
     String m_type_name;
+    Optional<Web::UniqueNodeID> m_highlighted_flexbox_node_id;
     Optional<Web::UniqueNodeID> m_highlighted_grid_node_id;
     bool m_is_highlighting_dom_node { false };
 };

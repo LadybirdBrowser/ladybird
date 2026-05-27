@@ -428,6 +428,19 @@ public:
         last_highlighted_pseudo_element = pseudo_element;
     }
 
+    virtual void highlight_flexbox(DevTools::TabDescription const&, Web::UniqueNodeID node_id, JsonValue options) const override
+    {
+        ++highlight_flexbox_call_count;
+        last_highlighted_flexbox_node = node_id;
+        last_flexbox_highlight_options = move(options);
+    }
+
+    virtual void clear_flexbox_highlight(DevTools::TabDescription const&, Web::UniqueNodeID node_id) const override
+    {
+        ++clear_flexbox_highlight_call_count;
+        last_cleared_flexbox_node = node_id;
+    }
+
     virtual void highlight_grid(DevTools::TabDescription const&, Web::UniqueNodeID node_id, JsonValue options) const override
     {
         ++highlight_grid_call_count;
@@ -690,6 +703,8 @@ public:
     mutable size_t inspect_current_flexbox_call_count { 0 };
     mutable size_t highlight_dom_node_call_count { 0 };
     mutable size_t clear_highlighted_dom_node_call_count { 0 };
+    mutable size_t highlight_flexbox_call_count { 0 };
+    mutable size_t clear_flexbox_highlight_call_count { 0 };
     mutable size_t highlight_grid_call_count { 0 };
     mutable size_t clear_grid_highlight_call_count { 0 };
     mutable size_t listen_for_dom_mutations_call_count { 0 };
@@ -726,6 +741,9 @@ public:
     mutable Optional<Web::UniqueNodeID> last_current_grid_node;
     mutable Optional<Web::UniqueNodeID> last_current_flexbox_node;
     mutable bool last_current_flexbox_only_look_at_parents { false };
+    mutable Optional<Web::UniqueNodeID> last_highlighted_flexbox_node;
+    mutable Optional<Web::UniqueNodeID> last_cleared_flexbox_node;
+    mutable JsonValue last_flexbox_highlight_options;
     mutable Optional<Web::UniqueNodeID> last_highlighted_grid_node;
     mutable Optional<Web::UniqueNodeID> last_cleared_grid_node;
     mutable JsonValue last_grid_highlight_options;
@@ -1191,6 +1209,63 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     EXPECT_EQ(client.request(second_grid_highlighter_actor, "release"sv).get_string("from"sv).value(), second_grid_highlighter_actor);
     EXPECT_EQ(session->delegate.clear_grid_highlight_call_count, 3u);
     EXPECT_EQ(session->delegate.last_cleared_grid_node.value(), 4u);
+
+    JsonObject flexbox_highlighter_request;
+    flexbox_highlighter_request.set("to"sv, inspector_actor);
+    flexbox_highlighter_request.set("type"sv, "getHighlighterByType"sv);
+    flexbox_highlighter_request.set("typeName"sv, "FlexboxHighlighter"sv);
+    auto flexbox_highlighter_actor = client.request(move(flexbox_highlighter_request)).get_object("highlighter"sv)->get_string("actor"sv).release_value();
+
+    JsonObject second_flexbox_highlighter_request;
+    second_flexbox_highlighter_request.set("to"sv, inspector_actor);
+    second_flexbox_highlighter_request.set("type"sv, "getHighlighterByType"sv);
+    second_flexbox_highlighter_request.set("typeName"sv, "FlexboxHighlighter"sv);
+    auto second_flexbox_highlighter_actor = client.request(move(second_flexbox_highlighter_request))
+                                                .get_object("highlighter"sv)
+                                                ->get_string("actor"sv)
+                                                .release_value();
+    EXPECT_NE(second_flexbox_highlighter_actor, flexbox_highlighter_actor);
+
+    JsonObject flexbox_options;
+    flexbox_options.set("color"sv, "#9400ff"sv);
+
+    JsonObject show_flexbox_highlighter;
+    show_flexbox_highlighter.set("to"sv, flexbox_highlighter_actor);
+    show_flexbox_highlighter.set("type"sv, "show"sv);
+    show_flexbox_highlighter.set("node"sv, flex_actor);
+    show_flexbox_highlighter.set("options"sv, move(flexbox_options));
+    EXPECT(client.request(move(show_flexbox_highlighter)).get_bool("value"sv).value());
+    EXPECT_EQ(session->delegate.highlight_flexbox_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_highlighted_flexbox_node.value(), 10u);
+    EXPECT_EQ(session->delegate.last_flexbox_highlight_options.as_object().get_string("color"sv).value(), "#9400ff"sv);
+    EXPECT_EQ(session->delegate.clear_flexbox_highlight_call_count, 0u);
+
+    JsonObject show_second_flexbox_highlighter;
+    show_second_flexbox_highlighter.set("to"sv, second_flexbox_highlighter_actor);
+    show_second_flexbox_highlighter.set("type"sv, "show"sv);
+    show_second_flexbox_highlighter.set("node"sv, first_flex_item_actor);
+    EXPECT(client.request(move(show_second_flexbox_highlighter)).get_bool("value"sv).value());
+    EXPECT_EQ(session->delegate.clear_flexbox_highlight_call_count, 0u);
+    EXPECT_EQ(session->delegate.highlight_flexbox_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_highlighted_flexbox_node.value(), 11u);
+
+    EXPECT_EQ(client.request(flexbox_highlighter_actor, "hide"sv).get_string("from"sv).value(), flexbox_highlighter_actor);
+    EXPECT_EQ(session->delegate.clear_flexbox_highlight_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_cleared_flexbox_node.value(), 10u);
+
+    JsonObject retarget_second_flexbox_highlighter;
+    retarget_second_flexbox_highlighter.set("to"sv, second_flexbox_highlighter_actor);
+    retarget_second_flexbox_highlighter.set("type"sv, "show"sv);
+    retarget_second_flexbox_highlighter.set("node"sv, flex_actor);
+    EXPECT(client.request(move(retarget_second_flexbox_highlighter)).get_bool("value"sv).value());
+    EXPECT_EQ(session->delegate.clear_flexbox_highlight_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_cleared_flexbox_node.value(), 11u);
+    EXPECT_EQ(session->delegate.highlight_flexbox_call_count, 3u);
+    EXPECT_EQ(session->delegate.last_highlighted_flexbox_node.value(), 10u);
+
+    EXPECT_EQ(client.request(second_flexbox_highlighter_actor, "release"sv).get_string("from"sv).value(), second_flexbox_highlighter_actor);
+    EXPECT_EQ(session->delegate.clear_flexbox_highlight_call_count, 3u);
+    EXPECT_EQ(session->delegate.last_cleared_flexbox_node.value(), 10u);
 
     auto layout_actor = client.request(walker_actor, "getLayoutInspector"sv).get_object("actor"sv)->get_string("actor"sv).release_value();
 

@@ -263,6 +263,8 @@ private:
     virtual void inspect_current_flexbox(DevTools::TabDescription const&, Web::UniqueNodeID, bool, OnCurrentFlexboxReceived) const override;
     virtual void highlight_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const override;
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override;
+    virtual void highlight_flexbox(DevTools::TabDescription const&, Web::UniqueNodeID, JsonValue) const override;
+    virtual void clear_flexbox_highlight(DevTools::TabDescription const&, Web::UniqueNodeID) const override;
     virtual void highlight_grid(DevTools::TabDescription const&, Web::UniqueNodeID, JsonValue) const override;
     virtual void clear_grid_highlight(DevTools::TabDescription const&, Web::UniqueNodeID) const override;
     virtual void listen_for_dom_mutations(DevTools::TabDescription const&, OnDOMMutationReceived) const override;

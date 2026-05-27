@@ -62,6 +62,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
@@ -988,6 +989,21 @@ void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID nod
     node->document().set_highlighted_node(node, pseudo_element);
 }
 
+static Web::Painting::FlexboxInspectorOverlayOptions flexbox_inspector_overlay_options_from_json(JsonValue const& options)
+{
+    Web::Painting::FlexboxInspectorOverlayOptions result;
+
+    if (options.is_object()) {
+        auto const& object = options.as_object();
+        if (auto color = object.get_string("color"sv); color.has_value()) {
+            if (auto parsed_color = Gfx::Color::from_string(*color); parsed_color.has_value())
+                result.color = *parsed_color;
+        }
+    }
+
+    return result;
+}
+
 static Web::Painting::GridInspectorOverlayOptions grid_inspector_overlay_options_from_json(JsonValue const& options)
 {
     Web::Painting::GridInspectorOverlayOptions result;
@@ -1009,6 +1025,38 @@ static Web::Painting::GridInspectorOverlayOptions grid_inspector_overlay_options
     }
 
     return result;
+}
+
+void ConnectionFromClient::highlight_flexbox(u64 page_id, Web::UniqueNodeID node_id, JsonValue options)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* node = Web::DOM::Node::from_unique_id(node_id);
+    if (!node || !node->layout_node())
+        return;
+
+    node->document().set_flexbox_highlighted_node(node, flexbox_inspector_overlay_options_from_json(options));
+}
+
+void ConnectionFromClient::clear_flexbox_highlight(u64 page_id, Web::UniqueNodeID node_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (node_id != 0) {
+        auto* node = Web::DOM::Node::from_unique_id(node_id);
+        if (node)
+            node->document().clear_flexbox_highlighted_node(node);
+        return;
+    }
+
+    for (auto& navigable : Web::HTML::all_navigables()) {
+        if (navigable->active_document())
+            navigable->active_document()->clear_flexbox_highlighted_node(nullptr);
+    }
 }
 
 void ConnectionFromClient::highlight_grid(u64 page_id, Web::UniqueNodeID node_id, JsonValue options)
