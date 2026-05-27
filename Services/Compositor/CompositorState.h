@@ -27,6 +27,7 @@
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
@@ -75,7 +76,8 @@ public:
     void destroy_context(Web::Compositor::CompositorContextId);
 
     void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode);
-    void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::DisplayListResourceTransaction&&, Web::Painting::ScrollStateSnapshot&&);
+    void stop_presenting_to_client(Web::Compositor::CompositorContextId);
+    void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::AccumulatedVisualContextTree, Web::Painting::DisplayListResourceTransaction&&, Web::Painting::ScrollStateSnapshot&&);
     void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot&&);
     void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId);
@@ -120,7 +122,8 @@ private:
         Optional<PublishedSurface> published_surface;
         HashMap<Web::Painting::CompositorSurfaceId, Web::Compositor::CompositorContextId> child_contexts_by_surface_id;
 
-        RefPtr<Web::Painting::DisplayList> display_list;
+        RefPtr<Web::Painting::DisplayList const> display_list;
+        Optional<Web::Painting::AccumulatedVisualContextTree> visual_context_tree;
         Web::Painting::DisplayListResourceStorage display_list_resource_storage;
         Web::Painting::ScrollStateSnapshot scroll_state_snapshot;
         BackingStoreManager backing_store_manager;
@@ -173,7 +176,7 @@ private:
     ContextState const* context_if_present(Web::Compositor::CompositorContextId) const;
     void detach_from_parent_surface(Web::Compositor::CompositorContextId, ContextState&);
     void remove_child_surface(ContextState&, Web::Compositor::CompositorContextId parent_context_id, Web::Painting::CompositorSurfaceId);
-    void install_display_list_update(ContextState&, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::ScrollStateSnapshot&&);
+    void install_display_list_update(ContextState&, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::AccumulatedVisualContextTree, Web::Painting::ScrollStateSnapshot&&);
     Optional<Gfx::FloatPoint> viewport_scroll_offset_from(ContextState&, Vector<Web::Compositor::AsyncScrollOffset> const&) const;
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(ContextState&, Vector<Web::Compositor::AsyncScrollOffset> const&);
     void store_pending_async_scroll_offsets(ContextState&, Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});

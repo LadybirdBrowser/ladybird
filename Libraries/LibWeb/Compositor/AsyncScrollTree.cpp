@@ -278,18 +278,18 @@ Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID 
     return scroll_offsets;
 }
 
-void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayList> const& display_list, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayList const> const& display_list, Painting::AccumulatedVisualContextTree const* visual_context_tree, Painting::ScrollStateSnapshot const& scroll_state_snapshot)
 {
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
     m_cached_blocking_wheel_event_targets.clear();
     m_visual_context_tree = nullptr;
     m_scroll_state_snapshot = scroll_state_snapshot;
-    if (!display_list)
+    if (!display_list || !visual_context_tree)
         return;
 
-    auto const& visual_context_tree = display_list->visual_context_tree();
-    m_visual_context_tree = &visual_context_tree;
+    VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree->version());
+    m_visual_context_tree = visual_context_tree;
 
     m_cached_wheel_hit_test_targets.ensure_capacity(m_wheel_hit_test_regions.size());
     for (auto const& target : m_wheel_hit_test_regions) {
@@ -298,7 +298,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
             .visual_context_index = target.visual_context_index,
             .rect = target.rect,
             .corner_radii = target.corner_radii,
-            .viewport_rect = visual_context_tree.transform_rect_to_viewport(target.visual_context_index, target.rect, scroll_state_snapshot),
+            .viewport_rect = visual_context_tree->transform_rect_to_viewport(target.visual_context_index, target.rect, scroll_state_snapshot),
         });
     }
 
@@ -307,7 +307,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
         m_cached_main_thread_wheel_event_targets.append({
             .visual_context_index = region.visual_context_index,
             .rect = region.rect,
-            .viewport_rect = visual_context_tree.transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
+            .viewport_rect = visual_context_tree->transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
         });
     }
 
@@ -315,7 +315,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
         m_cached_blocking_wheel_event_targets.append({
             .visual_context_index = region.visual_context_index,
             .rect = region.rect,
-            .viewport_rect = visual_context_tree.transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
+            .viewport_rect = visual_context_tree->transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
         });
     }
 }

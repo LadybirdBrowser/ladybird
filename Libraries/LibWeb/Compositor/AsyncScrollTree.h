@@ -15,6 +15,7 @@
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Compositor {
@@ -52,7 +53,7 @@ class WEB_API AsyncScrollTree {
 public:
     void set_state(AsyncScrollingState&&);
 
-    void rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayList> const&, Painting::ScrollStateSnapshot const&);
+    void rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&);
     void clear_wheel_hit_test_targets();
 
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
@@ -87,7 +88,7 @@ private:
     Vector<BlockingWheelEventRegion> m_blocking_wheel_event_regions;
     Vector<CachedMainThreadWheelEventTarget> m_cached_main_thread_wheel_event_targets;
     Vector<CachedBlockingWheelEventTarget> m_cached_blocking_wheel_event_targets;
-    RefPtr<Painting::AccumulatedVisualContextTree const> m_visual_context_tree;
+    Painting::AccumulatedVisualContextTree const* m_visual_context_tree { nullptr };
     Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_has_blocking_wheel_event_region_covering_viewport { false };
 };

@@ -8282,7 +8282,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     VERIFY(paintable());
 
     auto display_list = Painting::DisplayList::create(paintable()->visual_context_tree());
-    Painting::DisplayListRecorder display_list_recorder(display_list, resource_storage);
+    Painting::DisplayListRecorder display_list_recorder(display_list, paintable()->visual_context_tree(), resource_storage);
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
@@ -8701,7 +8701,7 @@ String Document::dump_display_list()
     StringBuilder builder;
     builder.append("AccumulatedVisualContext Tree:\n"sv);
 
-    auto const& visual_context_tree = display_list->visual_context_tree();
+    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
     HashTable<size_t> visited;
     HashMap<size_t, Vector<size_t>> children;
     Vector<size_t> root_contexts;

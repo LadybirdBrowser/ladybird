@@ -9,7 +9,7 @@
 
 namespace Web::Painting {
 
-PatternPaintStyle::PatternPaintStyle(NonnullRefPtr<DisplayList> tile_display_list, Gfx::FloatRect tile_rect, Optional<Gfx::AffineTransform> pattern_transform)
+PatternPaintStyle::PatternPaintStyle(DisplayListResource tile_display_list, Gfx::FloatRect tile_rect, Optional<Gfx::AffineTransform> pattern_transform)
     : m_tile_display_list(move(tile_display_list))
     , m_tile_rect(tile_rect)
     , m_pattern_transform(move(pattern_transform))

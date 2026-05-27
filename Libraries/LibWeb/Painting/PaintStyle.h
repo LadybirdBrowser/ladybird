@@ -97,15 +97,15 @@ private:
 };
 
 struct PatternPaintStyle final {
-    PatternPaintStyle(NonnullRefPtr<DisplayList> tile_display_list, Gfx::FloatRect tile_rect, Optional<Gfx::AffineTransform> pattern_transform);
+    PatternPaintStyle(DisplayListResource tile_display_list, Gfx::FloatRect tile_rect, Optional<Gfx::AffineTransform> pattern_transform);
     ~PatternPaintStyle();
 
-    NonnullRefPtr<DisplayList> const& tile_display_list() const { return m_tile_display_list; }
+    DisplayListResource const& tile_display_list() const { return m_tile_display_list; }
     Gfx::FloatRect const& tile_rect() const { return m_tile_rect; }
     Optional<Gfx::AffineTransform> const& pattern_transform() const { return m_pattern_transform; }
 
 private:
-    NonnullRefPtr<DisplayList> m_tile_display_list;
+    DisplayListResource m_tile_display_list;
     Gfx::FloatRect m_tile_rect;
     Optional<Gfx::AffineTransform> m_pattern_transform;
 };

@@ -289,8 +289,9 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     auto svg_offset = recording_context.rounded_device_point(svg_element_rect.location()).to_type<int>().to_type<float>();
     tile_rect.translate_by(svg_offset);
 
-    auto display_list = Painting::DisplayList::create(Painting::AccumulatedVisualContextTree::create());
-    Painting::DisplayListRecorder display_list_recorder(*display_list, recording_context.display_list_recorder().resource_storage());
+    auto visual_context_tree = Painting::AccumulatedVisualContextTree::create();
+    auto display_list = Painting::DisplayList::create(visual_context_tree);
+    Painting::DisplayListRecorder display_list_recorder(*display_list, visual_context_tree, recording_context.display_list_recorder().resource_storage());
     auto content_origin = paint_context.paint_transform.map(Gfx::FloatPoint { 0, 0 }) + svg_offset;
     display_list_recorder.translate(-Gfx::IntPoint(content_origin.to_type<int>()));
     auto paint_context_copy = recording_context.clone(display_list_recorder);
@@ -327,7 +328,7 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
         }
     }
 
-    return Painting::PaintStyle { Painting::PatternPaintStyle { display_list, tile_rect, device_pattern_transform } };
+    return Painting::PaintStyle { Painting::PatternPaintStyle { { *display_list, move(visual_context_tree) }, tile_rect, device_pattern_transform } };
 }
 
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementXAttribute

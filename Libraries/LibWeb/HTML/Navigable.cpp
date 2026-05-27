@@ -3458,10 +3458,14 @@ bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     RefPtr<Painting::DisplayList> display_list;
     Painting::DisplayListResourceSet display_list_resources;
     Painting::DisplayListResourceTransaction resource_transaction;
+    Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
     if (should_record_display_list) {
         display_list = document->record_display_list(paint_config, m_display_list_resource_storage);
         if (!display_list)
             return false;
+        auto recorded_document_paintable = document->paintable();
+        VERIFY(recorded_document_paintable);
+        visual_context_tree = recorded_document_paintable->visual_context_tree();
         display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
         resource_transaction = m_display_list_resource_storage.create_transaction(
             m_compositor_display_list_resources,
@@ -3474,7 +3478,7 @@ bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paintable->scroll_state_snapshot() };
     if (should_record_display_list) {
-        compositor_context().update_display_list(*display_list, move(resource_transaction), move(scroll_state_snapshot));
+        compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
         m_display_list_resource_storage.retain_only(display_list_resources);
         m_compositor_display_list_resources = move(display_list_resources);
         m_needs_to_record_display_list = false;

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
@@ -48,7 +49,7 @@ private:
 
     RefPtr<Gfx::PaintingSurface> surface(size_t frame_index, Gfx::IntSize) const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
-    RefPtr<Painting::DisplayList> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
+    Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
 
     // FIXME: Remove this once everything is using surfaces instead.
     mutable HashMap<Gfx::IntSize, Gfx::DecodedImageFrame> m_cached_rendered_frames;
@@ -56,7 +57,8 @@ private:
     mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::PaintingSurface>> m_cached_rendered_surfaces;
 
     struct CachedDisplayList {
-        RefPtr<Painting::DisplayList> display_list;
+        NonnullRefPtr<Painting::DisplayList> display_list;
+        Painting::AccumulatedVisualContextTree visual_context_tree;
         Painting::DisplayListResourceStorage resource_storage;
     };
     mutable HashMap<Gfx::IntSize, CachedDisplayList> m_cached_display_lists;

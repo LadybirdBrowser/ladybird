@@ -12,8 +12,9 @@
 
 namespace Web::Painting {
 
-DisplayListRecorder::DisplayListRecorder(DisplayList& command_list, DisplayListResourceStorage& resource_storage)
+DisplayListRecorder::DisplayListRecorder(DisplayList& command_list, AccumulatedVisualContextTree const& visual_context_tree, DisplayListResourceStorage& resource_storage)
     : m_display_list(command_list)
+    , m_visual_context_tree(visual_context_tree)
     , m_resource_storage(resource_storage)
 {
 }
@@ -248,7 +249,8 @@ static DisplayListPaintStyle to_display_list_paint_style(
         },
         [&](PatternPaintStyle const& pattern) {
             display_list_paint_style.type = DisplayListPaintStyleType::Pattern;
-            display_list_paint_style.pattern_tile_display_list_id = resource_storage.add_display_list(pattern.tile_display_list());
+            auto const& tile_display_list = pattern.tile_display_list();
+            display_list_paint_style.pattern_tile_display_list_id = resource_storage.add_display_list(tile_display_list.display_list, tile_display_list.visual_context_tree);
             display_list_paint_style.pattern_tile_rect = pattern.tile_rect();
             display_list_paint_style.pattern_transform = pattern.pattern_transform();
         });
@@ -279,16 +281,14 @@ void DisplayListRecorder::replay_cached_commands(DisplayListCommandSequence cons
     commands.for_each_command_header([&](DisplayListCommandHeader const& header, ReadonlyBytes) {
         m_save_nesting_level += display_list_command_nesting_level_change(header.type);
     });
-    m_display_list.append_command_sequence(commands, m_accumulated_visual_context_index, m_resource_storage);
+    m_display_list.append_command_sequence(commands, m_visual_context_tree, m_accumulated_visual_context_index, m_resource_storage);
 }
 
-void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
+void DisplayListRecorder::paint_nested_display_list(DisplayListResource const& display_list, Gfx::IntRect rect)
 {
-    if (!display_list)
-        return;
-    auto display_list_id = resource_storage().add_display_list(*display_list);
+    auto display_list_id = resource_storage().add_display_list(display_list.display_list, display_list.visual_context_tree);
     CommandPayloadBuilder<PaintNestedDisplayList> payload_builder(m_display_list);
-    auto command_bytes = payload_builder.append_data(display_list->command_bytes(), alignof(DisplayListCommandHeader));
+    auto command_bytes = payload_builder.append_data(display_list.display_list->command_bytes(), alignof(DisplayListCommandHeader));
     append_command(
         PaintNestedDisplayList {
             display_list_id,

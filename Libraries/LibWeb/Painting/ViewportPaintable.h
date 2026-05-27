@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ScrollState.h>
@@ -47,12 +48,12 @@ public:
 
     AccumulatedVisualContextTree const& visual_context_tree() const
     {
-        VERIFY(m_visual_context_tree);
+        VERIFY(m_visual_context_tree.has_value());
         return *m_visual_context_tree;
     }
     AccumulatedVisualContextTree& visual_context_tree()
     {
-        VERIFY(m_visual_context_tree);
+        VERIFY(m_visual_context_tree.has_value());
         return *m_visual_context_tree;
     }
 
@@ -69,7 +70,7 @@ private:
 
     Vector<WeakPtr<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
 
-    RefPtr<AccumulatedVisualContextTree> m_visual_context_tree;
+    Optional<AccumulatedVisualContextTree> m_visual_context_tree;
     VisualContextIndex m_visual_viewport_context_index {};
 };
 

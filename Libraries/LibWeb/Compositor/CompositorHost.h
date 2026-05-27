@@ -35,7 +35,7 @@ public:
     CompositorContextId id() const { return m_context_id; }
     void set_presentation_mode(PresentationMode);
 
-    void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
+    void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
     void update_video_frame(Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(Painting::VideoFrameResourceId);
     void update_compositor_surface(Painting::CompositorSurfaceId, Gfx::SharedImage&&);
@@ -71,7 +71,7 @@ public:
     virtual void destroy_context(CompositorContextId) = 0;
     virtual void set_presentation_mode(CompositorContextId, PresentationMode) = 0;
 
-    virtual void update_display_list(CompositorContextId, NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&) = 0;
+    virtual void update_display_list(CompositorContextId, NonnullRefPtr<Painting::DisplayList>, Painting::AccumulatedVisualContextTree, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&) = 0;
     virtual void update_video_frame(CompositorContextId, Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>) = 0;
     virtual void clear_video_frame(CompositorContextId, Painting::VideoFrameResourceId) = 0;
     virtual void update_compositor_surface(CompositorContextId, Painting::CompositorSurfaceId, Gfx::SharedImage&&) = 0;

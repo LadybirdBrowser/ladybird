@@ -726,7 +726,8 @@ WebIDL::UnsignedLongLong Internals::active_image_style_value_animation_count()
 
 struct AsyncScrollingStateSnapshot {
     Compositor::AsyncScrollingState state;
-    RefPtr<Painting::DisplayList> display_list;
+    RefPtr<Painting::DisplayList const> display_list;
+    Painting::AccumulatedVisualContextTree visual_context_tree;
     RefPtr<Painting::ViewportPaintable> document_paintable;
 };
 
@@ -744,6 +745,7 @@ static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::
     return AsyncScrollingStateSnapshot {
         .state = Compositor::async_scrolling_state_from_display_list(*display_list),
         .display_list = display_list,
+        .visual_context_tree = document_paintable->visual_context_tree(),
         .document_paintable = document_paintable,
     };
 }
@@ -800,7 +802,7 @@ bool Internals::async_scrolling_state_blocks_wheel_event_at(double x, double y)
     auto snapshot = capture_async_scrolling_state(window().associated_document());
     if (!snapshot.has_value())
         return false;
-    return Compositor::blocks_wheel_event_at_position(snapshot->state, snapshot->display_list, snapshot->document_paintable->scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
+    return Compositor::blocks_wheel_event_at_position(snapshot->state, snapshot->display_list, &snapshot->visual_context_tree, snapshot->document_paintable->scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
 }
 
 bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
@@ -840,6 +842,7 @@ String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, doub
     auto admission = Compositor::admit_wheel_scroll(
         snapshot->state,
         snapshot->display_list,
+        &snapshot->visual_context_tree,
         snapshot->document_paintable->scroll_state_snapshot(),
         { static_cast<float>(x), static_cast<float>(y) },
         { static_cast<float>(delta_x), static_cast<float>(delta_y) },
@@ -855,7 +858,7 @@ String Internals::async_scrolling_state_wheel_target_at(double x, double y, doub
 
     Compositor::AsyncScrollTree scroll_tree;
     scroll_tree.set_state(move(snapshot->state));
-    scroll_tree.rebuild_wheel_hit_test_targets(snapshot->display_list, snapshot->document_paintable->scroll_state_snapshot());
+    scroll_tree.rebuild_wheel_hit_test_targets(snapshot->display_list, &snapshot->visual_context_tree, snapshot->document_paintable->scroll_state_snapshot());
 
     auto target = scroll_tree.hit_test_scroll_node_for_wheel(
         { static_cast<float>(x), static_cast<float>(y) },

@@ -21,6 +21,7 @@
 #include <LibIPC/Forward.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 
 namespace Web::Painting {
@@ -47,11 +48,20 @@ struct DisplayListVideoFrameResource {
     RefPtr<Media::VideoFrame const> frame;
 };
 
+struct DisplayListResource {
+    DisplayListResource(NonnullRefPtr<DisplayList>, AccumulatedVisualContextTree);
+    DisplayListResource(NonnullRefPtr<DisplayList const>, AccumulatedVisualContextTree);
+    DisplayListResource(DisplayList const&, AccumulatedVisualContextTree);
+
+    NonnullRefPtr<DisplayList const> display_list;
+    AccumulatedVisualContextTree visual_context_tree;
+};
+
 struct DisplayListResourceTransaction {
     Vector<DisplayListFontResource> fonts;
     Vector<DisplayListImageFrameResource> image_frames;
     Vector<DisplayListVideoFrameResource> video_frames;
-    Vector<NonnullRefPtr<DisplayList const>> display_lists;
+    Vector<DisplayListResource> display_lists;
 
     Vector<FontResourceId> font_ids_to_remove;
     Vector<ImageFrameResourceId> image_frame_ids_to_remove;
@@ -70,7 +80,8 @@ public:
     FontResourceId add_font(Gfx::Font const&);
     ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const&);
     VideoFrameResourceId add_video_frame(VideoFrameResourceId, RefPtr<Media::VideoFrame const> = nullptr);
-    DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>);
+    DisplayListResourceId add_display_list(NonnullRefPtr<DisplayList const>, AccumulatedVisualContextTree const&);
+    DisplayListResourceId add_display_list(DisplayListResource&&);
     void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
     void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
     void append_referenced_resources_from(DisplayListResourceStorage const& source, ReadonlyBytes command_bytes);
@@ -87,7 +98,9 @@ public:
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId id) const { return m_image_frames.get(id.value()).value(); }
     RefPtr<Media::VideoFrame const> video_frame(VideoFrameResourceId id) const { return m_video_frames.get(id.value()).value(); }
-    DisplayList const& display_list(DisplayListResourceId id) const { return *m_display_lists.get(id.value()).value(); }
+    DisplayListResource const& display_list_resource(DisplayListResourceId id) const { return m_display_lists.get(id.value()).value(); }
+    DisplayList const& display_list(DisplayListResourceId id) const { return *display_list_resource(id).display_list; }
+    AccumulatedVisualContextTree const& display_list_visual_context_tree(DisplayListResourceId id) const { return display_list_resource(id).visual_context_tree; }
     Optional<Gfx::DecodedImageFrame const&> compositor_surface(CompositorSurfaceId id) const { return m_compositor_surfaces.get(id.value()); }
 
 private:
@@ -96,7 +109,7 @@ private:
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, Gfx::DecodedImageFrame> m_image_frames;
     HashMap<u64, RefPtr<Media::VideoFrame const>> m_video_frames;
-    HashMap<u64, NonnullRefPtr<DisplayList const>> m_display_lists;
+    HashMap<u64, DisplayListResource> m_display_lists;
     HashMap<u64, Gfx::DecodedImageFrame> m_compositor_surfaces;
 };
 

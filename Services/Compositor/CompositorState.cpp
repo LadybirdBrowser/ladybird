@@ -243,13 +243,13 @@ void CompositorState::set_presentation_mode(Web::Compositor::CompositorContextId
         context_state.presented_bitmap_id_awaiting_ack.clear();
 }
 
-void CompositorState::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::DisplayListResourceTransaction&& resource_transaction, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorState::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
     context->display_list_resource_storage.apply_transaction(move(resource_transaction));
-    install_display_list_update(*context, move(display_list), move(scroll_state_snapshot));
+    install_display_list_update(*context, move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
 }
 
 void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
@@ -262,7 +262,7 @@ void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId c
         return;
 
     auto reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(*context, context->pending_async_scroll_offsets);
-    context->async_scroll_tree.rebuild_wheel_hit_test_targets(context->display_list, context->scroll_state_snapshot);
+    context->async_scroll_tree.rebuild_wheel_hit_test_targets(context->display_list, context->visual_context_tree.has_value() ? &context->visual_context_tree.value() : nullptr, context->scroll_state_snapshot);
     if (reconciled_viewport_scroll_offset.has_value()) {
         auto reconciled_viewport_rect = context->async_scrolling_viewport_rect;
         reconciled_viewport_rect.set_location(reconciled_viewport_scroll_offset->to_type<int>());
@@ -422,7 +422,7 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::
         return { true, operation_id };
     }
 
-    context_state.async_scroll_tree.rebuild_wheel_hit_test_targets(context_state.display_list, context_state.scroll_state_snapshot);
+    context_state.async_scroll_tree.rebuild_wheel_hit_test_targets(context_state.display_list, context_state.visual_context_tree.has_value() ? &context_state.visual_context_tree.value() : nullptr, context_state.scroll_state_snapshot);
     if (auto viewport_scroll_offset = viewport_scroll_offset_from(context_state, scroll_offsets); viewport_scroll_offset.has_value())
         async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     store_pending_async_scroll_offsets(context_state, scroll_offsets, operation_id);
@@ -456,7 +456,7 @@ bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId conte
     if (scroll_offsets.is_empty())
         return true;
 
-    context_state.async_scroll_tree.rebuild_wheel_hit_test_targets(context_state.display_list, context_state.scroll_state_snapshot);
+    context_state.async_scroll_tree.rebuild_wheel_hit_test_targets(context_state.display_list, context_state.visual_context_tree.has_value() ? &context_state.visual_context_tree.value() : nullptr, context_state.scroll_state_snapshot);
     if (auto viewport_scroll_offset = viewport_scroll_offset_from(context_state, scroll_offsets); viewport_scroll_offset.has_value())
         async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     store_pending_async_scroll_offsets(context_state, scroll_offsets);
@@ -531,7 +531,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
         return;
     }
 
-    if (!context.display_list || !context.backing_store_manager.is_valid()) {
+    if (!context.display_list || !context.visual_context_tree.has_value() || !context.backing_store_manager.is_valid()) {
         context.presented_frame = viewport_rect;
         return;
     }
@@ -544,7 +544,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
             Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { back_store } };
             painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
         });
-    m_display_list_player->execute(*context.display_list, context.display_list_resource_storage, context.scroll_state_snapshot, back_store);
+    m_display_list_player->execute(*context.display_list, context.visual_context_tree.value(), context.display_list_resource_storage, context.scroll_state_snapshot, back_store);
     paint_viewport_scrollbar_overlay(context, back_store);
     auto rendered_bitmap_id = context.backing_store_manager.back_bitmap_id();
     context.gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
@@ -584,11 +584,11 @@ bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId co
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    if (!context->display_list || !target_bitmap.is_valid() || !target_bitmap.bitmap())
+    if (!context->display_list || !context->visual_context_tree.has_value() || !target_bitmap.is_valid() || !target_bitmap.bitmap())
         return false;
 
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
-    m_display_list_player->execute(*context->display_list, context->display_list_resource_storage, context->scroll_state_snapshot, *target_surface);
+    m_display_list_player->execute(*context->display_list, context->visual_context_tree.value(), context->display_list_resource_storage, context->scroll_state_snapshot, *target_surface);
     paint_viewport_scrollbar_overlay(*context, *target_surface);
     m_display_list_player->flush(*target_surface);
     return true;
@@ -730,9 +730,11 @@ void CompositorState::remove_child_surface(ContextState& context, Web::Composito
     child_context->presentation_mode = Empty {};
 }
 
-void CompositorState::install_display_list_update(ContextState& context, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorState::install_display_list_update(ContextState& context, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
+    VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree.version());
     context.display_list = move(display_list);
+    context.visual_context_tree = move(visual_context_tree);
     context.scroll_state_snapshot = move(scroll_state_snapshot);
 
     if (!m_async_scrolling_enabled) {
@@ -771,7 +773,7 @@ void CompositorState::install_display_list_update(ContextState& context, Nonnull
         if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(context, context.pending_async_scroll_offsets); viewport_scroll_offset.has_value())
             async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     }
-    context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.display_list, context.scroll_state_snapshot);
+    context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.display_list, context.visual_context_tree.has_value() ? &context.visual_context_tree.value() : nullptr, context.scroll_state_snapshot);
     context.async_scrolling_viewport_rect = async_scrolling_viewport_rect;
     context.has_async_scrolling_state = true;
 }
@@ -927,7 +929,7 @@ bool CompositorState::apply_viewport_scrollbar_drag(Web::Compositor::CompositorC
     auto scroll_offsets = context.async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, context.scroll_state_snapshot);
     if (scroll_offsets.is_empty())
         return false;
-    context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.display_list, context.scroll_state_snapshot);
+    context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.display_list, context.visual_context_tree.has_value() ? &context.visual_context_tree.value() : nullptr, context.scroll_state_snapshot);
 
     auto viewport_scroll_offset = viewport_scroll_offset_from(context, scroll_offsets);
     if (!viewport_scroll_offset.has_value())

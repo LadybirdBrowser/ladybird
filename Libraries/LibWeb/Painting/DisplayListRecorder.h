@@ -117,12 +117,12 @@ public:
     void save_layer();
     void restore();
 
-    void paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
+    void paint_nested_display_list(DisplayListResource const&, Gfx::IntRect rect);
 
     void add_rounded_rect_clip(Gfx::CornerRadii corner_radii, Gfx::IntRect border_rect, Gfx::CornerClip corner_clip);
 
     struct MaskInfo {
-        RefPtr<DisplayList> display_list;
+        DisplayListResource display_list;
         Gfx::IntRect rect;
         Gfx::MaskKind kind;
     };
@@ -151,7 +151,7 @@ public:
 
     void apply_effects(float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Gfx::Filter> filter = {}, Optional<Gfx::MaskKind> mask_kind = {});
 
-    DisplayListRecorder(DisplayList&, DisplayListResourceStorage&);
+    DisplayListRecorder(DisplayList&, AccumulatedVisualContextTree const&, DisplayListResourceStorage&);
     ~DisplayListRecorder();
 
     DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
@@ -165,11 +165,12 @@ private:
     void append_command(Command const& command, ReadonlyBytes inline_data = {})
     {
         m_save_nesting_level += display_list_command_nesting_level_change<Command>();
-        m_display_list.append(command, m_accumulated_visual_context_index, inline_data);
+        m_display_list.append(command, m_visual_context_tree, m_accumulated_visual_context_index, inline_data);
     }
 
     VisualContextIndex m_accumulated_visual_context_index {};
     DisplayList& m_display_list;
+    AccumulatedVisualContextTree const& m_visual_context_tree;
     DisplayListResourceStorage& m_resource_storage;
     bool m_is_capturing { false };
     size_t m_capture_start_command_offset { 0 };
