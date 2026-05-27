@@ -239,6 +239,56 @@ QString style_sheet_color(QColor const& color)
     return qformatted("rgb({}, {}, {})", color.red(), color.green(), color.blue());
 }
 
+QString application_style_sheet(QPalette const& palette)
+{
+    auto surface_color = chrome_surface(palette);
+    auto text_color = chrome_text(palette);
+    auto surface = style_sheet_color(surface_color);
+    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
+    auto border = style_sheet_color(chrome_border(palette));
+    auto separator = style_sheet_color(mix(chrome_surface(palette), chrome_border(palette), is_dark(palette) ? 0.42 : 0.54));
+    auto text = style_sheet_color(text_color);
+    auto disabled_text = style_sheet_color(mix(text_color, surface_color, is_dark(palette) ? 0.58 : 0.48));
+
+    return qformatted(R"(
+QMenu {{
+    color: {5};
+    background: {0};
+    border: 1px solid {3};
+    border-radius: 7px;
+    padding: 5px;
+}}
+
+QMenu::item {{
+    color: {5};
+    background: transparent;
+    border-radius: 5px;
+    min-height: 20px;
+    padding: 5px 28px;
+}}
+
+QMenu::item:selected {{
+    background: {1};
+}}
+
+QMenu::item:pressed {{
+    background: {2};
+}}
+
+QMenu::item:disabled {{
+    color: {6};
+}}
+
+QMenu::separator {{
+    background: {4};
+    height: 1px;
+    margin: 5px 8px;
+}}
+)",
+        surface, hover, pressed, border, separator, text, disabled_text);
+}
+
 QString toolbar_container_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_active_tab_surface_top(palette));

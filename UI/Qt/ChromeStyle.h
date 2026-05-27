@@ -28,6 +28,7 @@ QColor chrome_accent(QPalette const&);
 QColor chrome_muted_text(QPalette const&);
 
 QString style_sheet_color(QColor const&);
+QString application_style_sheet(QPalette const&);
 QString toolbar_container_style_sheet(QPalette const&);
 QString menu_bar_style_sheet(QPalette const&);
 QString location_edit_style_sheet(QPalette const&);
