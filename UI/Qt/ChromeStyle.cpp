@@ -658,6 +658,12 @@ QToolButton#LadybirdCloseWindowButton:pressed {{
     color: {7};
     background: {6};
 }}
+
+QToolButton#LadybirdWindowButton[pressedOutside="true"],
+QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
+    color: {5};
+    background: transparent;
+}}
 )",
         background, background_bottom, hover, pressed, control_border, text, close_hover, close_text);
 }
