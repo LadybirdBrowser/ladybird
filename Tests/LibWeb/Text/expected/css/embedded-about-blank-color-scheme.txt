@@ -1,0 +1,3 @@
+Parent root color-scheme: normal
+Initial iframe canvas color-scheme: light
+Navigated iframe canvas color-scheme: light
