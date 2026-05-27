@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(done => {
+    asyncTest(async done => {
         const workerScript = `
             let connections = 0;
             onconnect = event => {
@@ -17,30 +17,35 @@
         `;
 
         const workerURL = URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" }));
-        const worker1 = new SharedWorker(workerURL, "shared-worker-reuse");
-        const worker2 = new SharedWorker(workerURL, "shared-worker-reuse");
 
-        let messages = 0;
-        function maybeDone() {
-            if (++messages === 4)
-                done();
+        // Print the next message from 'worker', and resolve. Uses addEventListener to make messages arriving before the
+        // next call get queued (rather than lost); important when worker2 connects before we get around to awaiting it.
+        function nextMessage(worker, label) {
+            return new Promise(resolve => {
+                worker.port.addEventListener("message", function handler(event) {
+                    worker.port.removeEventListener("message", handler);
+                    println(`${label}: ${event.data}`);
+                    resolve(event.data);
+                });
+            });
         }
 
-        worker1.port.onmessage = event => {
-            println("worker1: " + event.data);
-            if (event.data === "connect 1")
-                worker1.port.postMessage("one");
-            maybeDone();
-        };
-
-        worker2.port.onmessage = event => {
-            println("worker2: " + event.data);
-            if (event.data === "connect 2")
-                worker2.port.postMessage("two");
-            maybeDone();
-        };
-
+        const worker1 = new SharedWorker(workerURL, "shared-worker-reuse");
+        const worker2 = new SharedWorker(workerURL, "shared-worker-reuse");
         worker1.port.start();
         worker2.port.start();
+
+        // Sequence each message explicitly — so the printed order is deterministic, even though the underlying messages
+        // race against each other.
+        await nextMessage(worker1, "worker1"); // "connect 1"
+        await nextMessage(worker2, "worker2"); // "connect 2"
+
+        worker1.port.postMessage("one");
+        await nextMessage(worker1, "worker1"); // "echo 1: one"
+
+        worker2.port.postMessage("two");
+        await nextMessage(worker2, "worker2"); // "echo 2: two"
+
+        done();
     });
 </script>
