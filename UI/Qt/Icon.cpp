@@ -156,20 +156,20 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         painter.drawLine(QPointF(14.0, 6.0), QPointF(6.0, 14.0));
         break;
     case ChromeIcon::NewTab:
-        painter.setPen(chrome_icon_pen(color, 1.75));
-        painter.drawLine(QPointF(10.0, 5.0), QPointF(10.0, 15.0));
-        painter.drawLine(QPointF(5.0, 10.0), QPointF(15.0, 10.0));
+        painter.setPen(chrome_icon_pen(color, 1.9));
+        painter.drawLine(QPointF(10.0, 4.3), QPointF(10.0, 15.7));
+        painter.drawLine(QPointF(4.3, 10.0), QPointF(15.7, 10.0));
         break;
     case ChromeIcon::Close:
-        painter.setPen(chrome_icon_pen(color, 1.75));
-        painter.drawLine(QPointF(6.0, 6.4), QPointF(14.0, 14.4));
-        painter.drawLine(QPointF(14.0, 6.4), QPointF(6.0, 14.4));
+        painter.setPen(chrome_icon_pen(color, 1.9));
+        painter.drawLine(QPointF(5.5, 5.9), QPointF(14.5, 14.9));
+        painter.drawLine(QPointF(14.5, 5.9), QPointF(5.5, 14.9));
         break;
     case ChromeIcon::Menu:
-        painter.setPen(chrome_icon_pen(color, 1.8));
-        painter.drawLine(QPointF(3.8, 7.4), QPointF(16.2, 7.4));
-        painter.drawLine(QPointF(3.8, 11.0), QPointF(16.2, 11.0));
-        painter.drawLine(QPointF(3.8, 14.6), QPointF(16.2, 14.6));
+        painter.setPen(chrome_icon_pen(color, 2.0));
+        painter.drawLine(QPointF(3.0, 5.9), QPointF(17.0, 5.9));
+        painter.drawLine(QPointF(3.0, 10.9), QPointF(17.0, 10.9));
+        painter.drawLine(QPointF(3.0, 15.9), QPointF(17.0, 15.9));
         break;
     case ChromeIcon::Star:
         draw_star_icon(painter, color, false);
