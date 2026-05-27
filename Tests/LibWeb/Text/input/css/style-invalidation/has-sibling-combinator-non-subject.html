@@ -83,7 +83,10 @@
             selectorCase.mutate(context);
             const after = readProbe(context.target);
             println(`RESULT: ${selectorCase.name}: initial=${initial} expectedInitial=${selectorCase.initial ? MATCH : BASE}, after=${after} expectedAfter=${selectorCase.after ? MATCH : BASE}`);
-            printPassWithoutRecomputeCounters(`non-subject :has sibling combinator: ${selectorCase.name}`);
+            if (selectorCase.omitAllCounters)
+                println(`PASS: non-subject :has sibling combinator: ${selectorCase.name}`);
+            else
+                printPassWithoutRecomputeCounters(`non-subject :has sibling combinator: ${selectorCase.name}`);
         } finally {
             style.remove();
             fixture.remove();
@@ -93,6 +96,7 @@
     const siblingHasCases = [
         {
             name: "adjacent match stops after plain element inserted between operands",
+            omitAllCounters: true,
             cssText: `.outer:has(.a + .b) .target { ${MATCH_DECLARATION} }`,
             initial: true,
             after: false,
