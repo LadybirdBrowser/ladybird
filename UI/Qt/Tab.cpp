@@ -101,10 +101,19 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_view = new WebContentView(this, parent_client, page_index, AK::move(view_initial_state));
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
+
+    m_toolbar_container = new QWidget(this);
+    m_toolbar_container->setObjectName("LadybirdToolbarContainer");
+    m_toolbar_container->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
+
     m_toolbar = new QWidget(this);
     m_toolbar->setObjectName("LadybirdNavigationToolbar");
     m_toolbar->setFixedHeight(47);
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
+
+    auto* toolbar_container_layout = new QVBoxLayout(m_toolbar_container);
+    toolbar_container_layout->setSpacing(0);
+    toolbar_container_layout->setContentsMargins(0, 0, 0, 0);
 
     auto* toolbar_layout = new QHBoxLayout(m_toolbar);
     toolbar_layout->setSpacing(6);
@@ -132,8 +141,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     focus_location_editor_action->setShortcuts({ QKeySequence("Ctrl+L"), QKeySequence("Alt+D") });
     addAction(focus_location_editor_action);
 
-    tab_layout->addWidget(m_toolbar);
-    tab_layout->addWidget(m_bookmarks_bar);
+    toolbar_container_layout->addWidget(m_toolbar);
+    toolbar_container_layout->addWidget(m_bookmarks_bar);
+    tab_layout->addWidget(m_toolbar_container);
     tab_layout->addWidget(m_view);
     tab_layout->addWidget(m_find_in_page);
 
@@ -427,13 +437,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_fullscreen_window = [this]() {
-        m_toolbar->hide();
+        m_toolbar_container->hide();
         m_window->fullscreen_mode().enter(this);
     };
 
     view().on_exit_fullscreen_window = [this]() {
         m_window->fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::WebContent);
-        m_toolbar->show();
+        m_toolbar_container->show();
     };
 
     view().on_audio_play_state_changed = [this](auto play_state) {
@@ -659,9 +669,8 @@ void Tab::update_chrome_style()
 {
     if (m_is_updating_chrome_style)
         return;
-
     m_is_updating_chrome_style = true;
-    m_toolbar->setStyleSheet(ChromeStyle::navigation_toolbar_style_sheet(palette()));
+    m_toolbar_container->setStyleSheet(ChromeStyle::toolbar_container_style_sheet(palette()));
     auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(palette()));
     auto hover_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(palette()));
     auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(palette()));
