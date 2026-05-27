@@ -7,6 +7,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
@@ -62,11 +63,13 @@ public:
     explicit LadybirdQApplication(Main::Arguments& arguments)
         : QApplication(arguments.argc, arguments.argv)
     {
+        update_chrome_style();
     }
 
     virtual bool event(QEvent* event) override
     {
         auto& application = static_cast<Application&>(WebView::Application::the());
+        auto const event_type = event->type();
 
 #if defined(AK_OS_WINDOWS)
         static Optional<NativeWindowsTimeChangeEventFilter> time_change_event_filter {};
@@ -76,7 +79,7 @@ public:
         }
 #endif
 
-        switch (event->type()) {
+        switch (event_type) {
         case QEvent::FileOpen: {
             if (!application.on_open_file)
                 break;
@@ -93,7 +96,17 @@ public:
             break;
         }
 
-        return QApplication::event(event);
+        auto handled = QApplication::event(event);
+        if (event_type == QEvent::ApplicationPaletteChange || event_type == QEvent::ThemeChange)
+            update_chrome_style();
+
+        return handled;
+    }
+
+private:
+    void update_chrome_style()
+    {
+        setStyleSheet(ChromeStyle::application_style_sheet(palette()));
     }
 };
 
