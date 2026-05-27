@@ -40,6 +40,9 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
             context.display_list_recorder().set_accumulated_visual_context(paintable_box->accumulated_visual_context_index());
     }
 
+    if (paintable_box && phase == PaintPhase::Background)
+        paintable_box->record_async_scrolling_metadata(context);
+
     bool const skip_cache = !paintable_box || context.should_show_line_box_borders() || paintable_box->fixed_background_visual_context().has_value();
     if (!skip_cache && paintable_box->has_cached_commands(phase)) {
         context.display_list_recorder().replay_cached_commands(paintable_box->cached_commands(phase));

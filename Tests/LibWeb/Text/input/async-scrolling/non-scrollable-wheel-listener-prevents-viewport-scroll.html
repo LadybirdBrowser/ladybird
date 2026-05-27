@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #before {
+        height: 1000px;
+    }
+
+    #map {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        overflow: hidden;
+        background: tan;
+    }
+
+    #canvas-container {
+        position: relative;
+    }
+
+    #canvas {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 400px;
+        height: 400px;
+        background: darkseagreen;
+    }
+
+    #page-spacer {
+        height: 2000px;
+    }
+</style>
+<div id="before"></div>
+<div id="map">
+    <div id="canvas-container">
+        <div id="canvas"></div>
+    </div>
+</div>
+<div id="page-spacer"></div>
+<script>
+    promiseTest(async () => {
+        let wheelEventCount = 0;
+        let wheelEventWasCancelable = false;
+        let wheelEventWasDefaultPrevented = false;
+
+        document.getElementById("canvas-container").addEventListener("wheel", event => {
+            wheelEventCount++;
+            wheelEventWasCancelable = event.cancelable;
+            event.preventDefault();
+            wheelEventWasDefaultPrevented = event.defaultPrevented;
+        }, { passive: false });
+
+        window.scrollTo(0, 900);
+        await animationFrame();
+        await animationFrame();
+
+        println(`wheel routing admission: ${internals.asyncScrollingStateWheelRoutingAdmission()}`);
+        println(`wheel scroll admission over map: ${internals.asyncScrollingStateWheelScrollAdmissionAt(200, 200, 0, 100)}`);
+        println(`window scrollY before wheel: ${window.scrollY}`);
+
+        await internals.wheel(200, 200, 0, 100);
+
+        println(`wheel event count: ${wheelEventCount}`);
+        println(`wheel event cancelable: ${wheelEventWasCancelable}`);
+        println(`wheel event defaultPrevented: ${wheelEventWasDefaultPrevented}`);
+        println(`window scrollY: ${window.scrollY}`);
+    });
+</script>

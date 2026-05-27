@@ -28,6 +28,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/HTML/BeforeUnloadEvent.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/ErrorEvent.h>
@@ -207,6 +208,7 @@ static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_
     }
 
     if (auto* node = as_if<Node>(event_target)) {
+        node->update_inside_blocking_wheel_event_handler_state_for_subtree();
         node->set_needs_repaint();
         node->document().page().invalidate_compositor_wheel_event_listener_state();
     }
