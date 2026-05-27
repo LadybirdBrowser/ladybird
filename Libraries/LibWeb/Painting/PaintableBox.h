@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/FlexLayoutData.h>
 #include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
@@ -280,6 +281,8 @@ public:
 
     void set_grid_layout_data(OwnPtr<Layout::GridLayoutData> grid_layout_data) { m_grid_layout_data = move(grid_layout_data); }
     Layout::GridLayoutData const* grid_layout_data() const { return m_grid_layout_data.ptr(); }
+    void set_flex_layout_data(OwnPtr<Layout::FlexLayoutData> flex_layout_data) { m_flex_layout_data = move(flex_layout_data); }
+    Layout::FlexLayoutData const* flex_layout_data() const { return m_flex_layout_data.ptr(); }
     void paint_grid_inspector_overlay(DisplayListRecordingContext&, GridInspectorOverlayOptions const&) const;
 
     void set_enclosing_scroll_frame_index(ScrollFrameIndex index) { m_enclosing_scroll_frame_index = index; }
@@ -376,6 +379,7 @@ private:
     OwnPtr<StickyInsets> m_sticky_insets;
 
     OwnPtr<Layout::GridLayoutData> m_grid_layout_data;
+    OwnPtr<Layout::FlexLayoutData> m_flex_layout_data;
 
     BoxModelMetrics m_box_model;
 

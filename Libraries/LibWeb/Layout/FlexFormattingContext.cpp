@@ -16,6 +16,13 @@
 
 namespace Web::Layout {
 
+static String serialize_flex_basis(CSS::FlexBasis const& flex_basis)
+{
+    if (flex_basis.has<CSS::FlexBasisContent>())
+        return "content"_string;
+    return MUST(String::formatted("{}", flex_basis.get<CSS::Size>()));
+}
+
 CSSPixels FlexFormattingContext::get_pixel_width(FlexItem const& item, CSS::Size const& size) const
 {
     return calculate_inner_width(item.box, m_available_space->width, size);
@@ -239,6 +246,8 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 
         resolve_baseline_aligned_items();
     }
+
+    save_flex_layout_data();
 }
 
 void FlexFormattingContext::parent_context_did_dimension_child_root_box()
@@ -982,6 +991,7 @@ void FlexFormattingContext::resolve_flexible_lengths_for_line(FlexLine& line)
             return FlexFactor::FlexGrowFactor;
         return FlexFactor::FlexShrinkFactor;
     }();
+    line.growth_state = used_flex_factor == FlexGrowFactor ? FlexLayoutGrowthState::Growing : FlexLayoutGrowthState::Shrinking;
 
     // 2. Each item in the flex line has a target main size, initially set to its flex base size.
     //    Each item is initially unfrozen and may become frozen.
@@ -1189,6 +1199,74 @@ void FlexFormattingContext::resolve_flexible_lengths()
     for (auto& line : m_flex_lines) {
         resolve_flexible_lengths_for_line(line);
     }
+}
+
+void FlexFormattingContext::save_flex_layout_data() const
+{
+    auto data = make<FlexLayoutData>();
+    auto const& computed_values = flex_container().computed_values();
+    data->align_content = computed_values.align_content();
+    data->align_items = computed_values.align_items();
+    data->flex_direction = computed_values.flex_direction();
+    data->flex_wrap = computed_values.flex_wrap();
+    data->justify_content = computed_values.justify_content();
+
+    auto axis_direction = [](bool is_horizontal, bool is_reverse) {
+        if (is_horizontal)
+            return is_reverse ? "horizontal-rl"_string : "horizontal-lr"_string;
+        return is_reverse ? "vertical-bt"_string : "vertical-tb"_string;
+    };
+
+    auto main_axis_direction = axis_direction(main_axis_is_horizontal(), is_direction_reverse());
+    auto cross_axis_direction = axis_direction(cross_axis_is_horizontal(), cross_axis_is_reverse());
+
+    for (auto const& line : m_flex_lines) {
+        FlexLayoutLine layout_line;
+        layout_line.growth_state = line.growth_state;
+        layout_line.cross_size = line.cross_size;
+
+        Optional<CSSPixels> cross_start;
+
+        for (auto const& item : line.items) {
+            auto item_main_size = item.main_size.value_or(item.target_main_size);
+            auto item_cross_size = item.cross_size.value_or(item.hypothetical_cross_size);
+            auto item_rect = main_axis_is_horizontal()
+                ? CSSPixelRect { item.main_offset, item.cross_offset, item_main_size, item_cross_size }
+                : CSSPixelRect { item.cross_offset, item.main_offset, item_cross_size, item_main_size };
+
+            auto item_cross_start = main_axis_is_horizontal() ? item_rect.y() : item_rect.x();
+            cross_start = cross_start.has_value() ? min(cross_start.value(), item_cross_start) : item_cross_start;
+
+            FlexLayoutItem layout_item;
+            if (auto* dom_node = item.box->dom_node())
+                layout_item.node_id = dom_node->unique_id();
+            layout_item.main_axis_direction = main_axis_direction;
+            layout_item.cross_axis_direction = cross_axis_direction;
+            layout_item.rect = item_rect;
+            layout_item.main_base_size = item.flex_base_size;
+            layout_item.main_delta_size = item.target_main_size - item.flex_base_size;
+            layout_item.main_min_size = has_main_min_size(item.box) ? specified_main_min_size(item) : automatic_minimum_size(item);
+            layout_item.main_max_size = has_main_max_size(item.box) ? specified_main_max_size(item) : item.target_main_size;
+            layout_item.cross_min_size = has_cross_min_size(item.box) ? specified_cross_min_size(item) : 0;
+            layout_item.cross_max_size = has_cross_max_size(item.box) ? specified_cross_max_size(item) : item.cross_size.value_or(item.hypothetical_cross_size);
+            layout_item.clamp_state = item.is_min_violation
+                ? FlexLayoutClampState::ClampedToMin
+                : item.is_max_violation ? FlexLayoutClampState::ClampedToMax
+                                        : FlexLayoutClampState::Unclamped;
+            layout_item.flex_basis = serialize_flex_basis(item.box->computed_values().flex_basis());
+            layout_item.main_size_property = MUST(String::formatted("{}", computed_main_size(item.box)));
+            layout_item.main_min_size_property = MUST(String::formatted("{}", computed_main_min_size(item.box)));
+            layout_item.main_max_size_property = MUST(String::formatted("{}", computed_main_max_size(item.box)));
+            layout_item.flex_grow = item.box->computed_values().flex_grow();
+            layout_item.flex_shrink = item.box->computed_values().flex_shrink();
+            layout_line.items.append(move(layout_item));
+        }
+
+        layout_line.cross_start = cross_start.value_or(0);
+        data->lines.append(move(layout_line));
+    }
+
+    m_flex_container_state.set_flex_layout_data(move(data));
 }
 
 // https://drafts.csswg.org/css-flexbox/#hypothetical-cross-size

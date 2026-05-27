@@ -415,6 +415,7 @@ void PaintableBox::reset_for_relayout()
     m_fixed_background_visual_context = {};
 
     m_grid_layout_data = nullptr;
+    m_flex_layout_data = nullptr;
 
     m_cached_phase_commands = {};
 
