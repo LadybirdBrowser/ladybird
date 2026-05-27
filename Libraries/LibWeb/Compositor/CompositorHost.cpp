@@ -21,11 +21,6 @@ CompositorContextHandle::~CompositorContextHandle()
     m_host.destroy_context(m_context_id);
 }
 
-void CompositorContextHandle::stop_presenting_to_client()
-{
-    m_host.stop_presenting_to_client(m_context_id);
-}
-
 void CompositorContextHandle::set_presentation_mode(PresentationMode mode)
 {
     m_host.set_presentation_mode(m_context_id, move(mode));

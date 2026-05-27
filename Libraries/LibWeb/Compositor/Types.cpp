@@ -99,4 +99,16 @@ ErrorOr<Web::Compositor::PublishToCompositorSurface> decode(Decoder& decoder)
     };
 }
 
+template<>
+ErrorOr<void> encode(Encoder&, Web::Compositor::PresentToClient const&)
+{
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::PresentToClient> decode(Decoder&)
+{
+    return Web::Compositor::PresentToClient {};
+}
+
 }

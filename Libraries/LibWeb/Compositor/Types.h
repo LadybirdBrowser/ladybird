@@ -78,7 +78,10 @@ struct PublishToCompositorSurface {
     Painting::CompositorSurfaceId surface_id;
 };
 
-using PresentationMode = Variant<Empty, PublishToCompositorSurface>;
+struct PresentToClient {
+};
+
+using PresentationMode = Variant<Empty, PresentToClient, PublishToCompositorSurface>;
 
 }
 
@@ -108,5 +111,10 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::PublishToCompositorSurface const&);
 template<>
 WEB_API ErrorOr<Web::Compositor::PublishToCompositorSurface> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::PresentToClient const&);
+template<>
+WEB_API ErrorOr<Web::Compositor::PresentToClient> decode(Decoder&);
 
 }

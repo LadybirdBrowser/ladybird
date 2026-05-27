@@ -31,13 +31,6 @@ void CompositorConnection::set_presentation_mode(Web::Compositor::CompositorCont
     async_set_presentation_mode(context_id, presentation_mode);
 }
 
-void CompositorConnection::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
-{
-    if (!can_send_message_to_compositor())
-        return;
-    async_stop_presenting_to_client(context_id);
-}
-
 void CompositorConnection::destroy_context(Web::Compositor::CompositorContextId context_id)
 {
     if (!can_send_message_to_compositor())

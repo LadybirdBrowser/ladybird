@@ -19,6 +19,11 @@ namespace Compositor {
 
 static constexpr int gpu_completion_check_interval_ms = 1;
 
+static bool presentation_mode_presents_to_client(Web::Compositor::PresentationMode const& presentation_mode)
+{
+    return presentation_mode.has<Web::Compositor::PresentToClient>();
+}
+
 static void set_or_append_pending_scroll_offset(Vector<Web::Compositor::AsyncScrollOffset>& pending_scroll_offsets, Web::Compositor::AsyncScrollOffset const& scroll_offset)
 {
     for (auto& existing : pending_scroll_offsets) {
@@ -222,7 +227,8 @@ void CompositorState::create_context(Web::Compositor::CompositorContextId contex
     context.web_content_client = &web_content_client;
     context.page_id = page_id;
     context.page_presentation_registration = page_presentation_registration;
-    context.presents_to_client = page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes;
+    if (page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes)
+        context.presentation_mode = Web::Compositor::PresentToClient {};
     resize_backing_stores_if_needed(context_id, context);
 }
 
@@ -250,10 +256,15 @@ void CompositorState::set_presentation_mode(Web::Compositor::CompositorContextId
     VERIFY(context);
 
     auto& context_state = *context;
+    auto was_presenting_to_client = presentation_mode_presents_to_client(context_state.presentation_mode);
+    auto will_present_to_client = presentation_mode_presents_to_client(presentation_mode);
     detach_from_parent_surface(context_id, context_state);
 
     presentation_mode.visit(
         [](Empty const&) {},
+        [&](Web::Compositor::PresentToClient const&) {
+            VERIFY(context_state.page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes);
+        },
         [&](Web::Compositor::PublishToCompositorSurface const& mode) {
             auto* parent_context = context_if_present(mode.target_context_id);
             VERIFY(parent_context);
@@ -264,16 +275,11 @@ void CompositorState::set_presentation_mode(Web::Compositor::CompositorContextId
             };
         });
     context_state.presentation_mode = move(presentation_mode);
-}
 
-void CompositorState::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
-{
-    auto* context = context_if_present(context_id);
-    VERIFY(context);
-    if (context->gpu_present_bitmap_id_awaiting_completion.has_value()
-        && context->presented_bitmap_id_awaiting_ack == context->gpu_present_bitmap_id_awaiting_completion)
-        context->presented_bitmap_id_awaiting_ack.clear();
-    context->presents_to_client = false;
+    if (was_presenting_to_client && !will_present_to_client
+        && context_state.gpu_present_bitmap_id_awaiting_completion.has_value()
+        && context_state.presented_bitmap_id_awaiting_ack == context_state.gpu_present_bitmap_id_awaiting_completion)
+        context_state.presented_bitmap_id_awaiting_ack.clear();
 }
 
 void CompositorState::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::DisplayListResourceTransaction&& resource_transaction, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
@@ -352,7 +358,7 @@ bool CompositorState::handle_mouse_event(Web::Compositor::CompositorContextId co
         return false;
 
     auto& context_state = *context;
-    if (!context_state.presents_to_client)
+    if (!presentation_mode_presents_to_client(context_state.presentation_mode))
         return false;
 
     auto position = Gfx::FloatPoint {
@@ -474,7 +480,7 @@ bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId conte
         return false;
 
     auto& context_state = *context;
-    if (!context_state.presents_to_client)
+    if (!presentation_mode_presents_to_client(context_state.presentation_mode))
         return false;
     VERIFY(context_state.web_content_client);
     if (!context_state.can_accept_async_wheel_events)
@@ -572,6 +578,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
     auto& back_store = context.backing_store_manager.back_store();
     context.presentation_mode.visit(
         [](Empty const&) {},
+        [](Web::Compositor::PresentToClient const&) {},
         [&](Web::Compositor::PublishToCompositorSurface const&) {
             Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { back_store } };
             painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
@@ -580,7 +587,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
     paint_viewport_scrollbar_overlay(context, back_store);
     auto rendered_bitmap_id = context.backing_store_manager.back_bitmap_id();
     context.gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
-    if (context.presents_to_client)
+    if (presentation_mode_presents_to_client(context.presentation_mode))
         context.presented_bitmap_id_awaiting_ack = rendered_bitmap_id;
     m_pending_async_presents.append(context_id, viewport_rect, rendered_bitmap_id);
     auto* pending_present = &m_pending_async_presents.last();
@@ -664,17 +671,16 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
     VERIFY(context->gpu_present_bitmap_id_awaiting_completion == bitmap_id);
 
     context->gpu_present_bitmap_id_awaiting_completion.clear();
-    if (context->presents_to_client) {
-        VERIFY(m_client);
-        VERIFY(context->presented_bitmap_id_awaiting_ack == bitmap_id);
-        m_client->did_present_frame(context_id, viewport_rect, bitmap_id);
-    } else {
-        context->presentation_mode.visit(
-            [](Empty const&) {},
-            [&](Web::Compositor::PublishToCompositorSurface const& mode) {
-                publish_to_parent_surface(*context, mode);
-            });
-    }
+    context->presentation_mode.visit(
+        [](Empty const&) {},
+        [&](Web::Compositor::PresentToClient const&) {
+            VERIFY(m_client);
+            VERIFY(context->presented_bitmap_id_awaiting_ack == bitmap_id);
+            m_client->did_present_frame(context_id, viewport_rect, bitmap_id);
+        },
+        [&](Web::Compositor::PublishToCompositorSurface const& mode) {
+            publish_to_parent_surface(*context, mode);
+        });
 
     drain_pending_present_frame_if_unblocked(context_id, *context);
 }
@@ -1005,7 +1011,9 @@ void CompositorState::resize_backing_stores_if_needed(Web::Compositor::Composito
     auto allocation = context.backing_store_manager.resize_backing_stores_if_needed(context.viewport_size, context.is_top_level_traversable, context.window_resize_in_progress);
     if (!allocation.has_value())
         return;
-    if (auto publication = context.backing_store_manager.allocate_backing_stores(*allocation, m_skia_backend_context, context.presents_to_client); publication.has_value()) {
+    if (auto publication = context.backing_store_manager.allocate_backing_stores(
+            *allocation, m_skia_backend_context, presentation_mode_presents_to_client(context.presentation_mode));
+        publication.has_value()) {
         publish_backing_stores(context_id, context, publication.release_value());
         present_current_frame(context_id, context);
     }
@@ -1056,7 +1064,7 @@ void CompositorState::publish_to_parent_surface(ContextState& context, Web::Comp
 void CompositorState::publish_backing_stores(Web::Compositor::CompositorContextId context_id, ContextState& context, BackingStoreManager::Publication&& publication)
 {
     VERIFY(m_client);
-    if (!context.presents_to_client)
+    if (!presentation_mode_presents_to_client(context.presentation_mode))
         return;
 
     m_client->did_allocate_backing_stores(context_id, publication.front_bitmap_id, move(publication.front_shared_image), publication.back_bitmap_id, move(publication.back_shared_image));

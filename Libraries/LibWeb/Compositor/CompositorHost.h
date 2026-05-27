@@ -33,7 +33,6 @@ public:
     ~CompositorContextHandle();
 
     CompositorContextId id() const { return m_context_id; }
-    void stop_presenting_to_client();
     void set_presentation_mode(PresentationMode);
 
     void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&);
@@ -70,7 +69,6 @@ public:
     OwnPtr<CompositorContextHandle> create_context(CompositorContextId);
 
     virtual void destroy_context(CompositorContextId) = 0;
-    virtual void stop_presenting_to_client(CompositorContextId) = 0;
     virtual void set_presentation_mode(CompositorContextId, PresentationMode) = 0;
 
     virtual void update_display_list(CompositorContextId, NonnullRefPtr<Painting::DisplayList>, Painting::DisplayListResourceTransaction&&, Painting::ScrollStateSnapshot&&) = 0;

@@ -59,12 +59,6 @@ void ConnectionFromWebContent::set_presentation_mode(Web::Compositor::Compositor
     m_compositor_state->set_presentation_mode(context_id, move(presentation_mode));
 }
 
-void ConnectionFromWebContent::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
-{
-    verify_context_is_owned_by_this_connection(context_id);
-    m_compositor_state->stop_presenting_to_client(context_id);
-}
-
 void ConnectionFromWebContent::destroy_context(Web::Compositor::CompositorContextId context_id)
 {
     verify_context_is_owned_by_this_connection(context_id);

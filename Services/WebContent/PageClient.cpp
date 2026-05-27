@@ -700,7 +700,7 @@ void PageClient::page_did_request_activate_tab()
 
 void PageClient::page_did_close_top_level_traversable()
 {
-    page().top_level_traversable()->compositor_context().stop_presenting_to_client();
+    page().top_level_traversable()->compositor_context().set_presentation_mode(Empty {});
 
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);

@@ -29,12 +29,6 @@ private:
         m_client.did_destroy_compositor_context(context_id);
     }
 
-    virtual void stop_presenting_to_client(Web::Compositor::CompositorContextId context_id) override
-    {
-        if (auto* connection = compositor_connection())
-            connection->stop_presenting_to_client(context_id);
-    }
-
     virtual void set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode mode) override
     {
         if (auto* connection = compositor_connection())
