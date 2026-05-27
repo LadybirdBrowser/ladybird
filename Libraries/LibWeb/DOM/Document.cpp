@@ -1390,12 +1390,14 @@ Color Document::canvas_background_color() const
 CSS::PreferredColorScheme Document::canvas_color_scheme() const
 {
     auto color_scheme = CSS::PreferredColorScheme::Light;
+    auto root_color_scheme_is_normal = true;
     if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
         auto const& computed_values = html_element->layout_node()->computed_values();
+        auto const& color_scheme_value = html_element->computed_properties()->property(CSS::PropertyID::ColorScheme).as_color_scheme();
+        root_color_scheme_is_normal = color_scheme_value.schemes().is_empty();
         if (computed_values.color_scheme() == CSS::PreferredColorScheme::Dark) {
             color_scheme = CSS::PreferredColorScheme::Dark;
-        } else if (auto const& color_scheme_value = html_element->computed_properties()->property(CSS::PropertyID::ColorScheme).as_color_scheme();
-            color_scheme_value.schemes().is_empty() && m_supported_color_schemes.has_value()) {
+        } else if (root_color_scheme_is_normal && m_supported_color_schemes.has_value()) {
             auto preferred_color_scheme = page().preferred_color_scheme();
             if (m_supported_color_schemes->contains_slow(CSS::preferred_color_scheme_to_string(preferred_color_scheme)))
                 color_scheme = preferred_color_scheme;
@@ -1403,6 +1405,7 @@ CSS::PreferredColorScheme Document::canvas_color_scheme() const
     }
 
     if (color_scheme == CSS::PreferredColorScheme::Light
+        && root_color_scheme_is_normal
         && !m_supported_color_schemes.has_value()
         && readiness() == HTML::DocumentReadyState::Loading) {
         if (auto navigable = this->navigable(); navigable && navigable->is_top_level_traversable())

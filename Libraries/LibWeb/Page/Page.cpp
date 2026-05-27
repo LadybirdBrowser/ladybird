@@ -216,6 +216,9 @@ CSSPixelRect Page::web_exposed_available_screen_area() const
 
 CSS::PreferredColorScheme Page::preferred_color_scheme() const
 {
+    if (m_preferred_color_scheme_override_for_testing.has_value())
+        return *m_preferred_color_scheme_override_for_testing;
+
     auto preferred_color_scheme = m_client->preferred_color_scheme();
 
     if (preferred_color_scheme == CSS::PreferredColorScheme::Auto)

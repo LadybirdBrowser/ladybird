@@ -1,0 +1,3 @@
+Ready state: loading
+Computed root color-scheme: light
+Canvas color-scheme: light

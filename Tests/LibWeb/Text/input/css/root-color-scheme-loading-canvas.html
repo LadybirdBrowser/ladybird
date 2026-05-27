@@ -1,0 +1,23 @@
+<!doctype html>
+<style>
+    html {
+        color-scheme: light;
+    }
+</style>
+<body>
+    <pre id="out"></pre>
+    <script>
+        function println(line) {
+            out.appendChild(document.createTextNode(`${line}\n`));
+        }
+
+        internals.setPreferredColorScheme("dark");
+        internals.updateStyle();
+
+        println(`Ready state: ${document.readyState}`);
+        println(`Computed root color-scheme: ${getComputedStyle(document.documentElement).colorScheme}`);
+        println(`Canvas color-scheme: ${internals.canvasColorScheme()}`);
+
+        internals.signalTestIsDone(out.innerText);
+    </script>
+</body>
