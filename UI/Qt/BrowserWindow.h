@@ -99,7 +99,6 @@ public:
 
     QMenu& hamburger_menu() const { return *m_hamburger_menu; }
 
-    QAction& new_tab_action() const { return *m_new_tab_action; }
     QAction& new_window_action() const { return *m_new_window_action; }
     QAction& find_action() const { return *m_find_in_page_action; }
 
