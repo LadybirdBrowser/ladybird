@@ -11,9 +11,9 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCore/Proxy.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/File.h>
+#include <LibProxy/Proxy.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 
@@ -176,13 +176,13 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
 }
 
 template<>
-ErrorOr<Core::ProxyData> decode(Decoder& decoder)
+ErrorOr<Proxy::ProxyData> decode(Decoder& decoder)
 {
-    auto type = TRY(decoder.decode<Core::ProxyData::Type>());
+    auto type = TRY(decoder.decode<Proxy::ProxyData::Type>());
     auto host = TRY(decoder.decode<String>());
     auto port = TRY(decoder.decode<u16>());
 
-    return Core::ProxyData { type, host, port };
+    return Proxy::ProxyData { type, host, port };
 }
 
 template<>

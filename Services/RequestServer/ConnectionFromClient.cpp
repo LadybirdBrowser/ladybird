@@ -8,12 +8,12 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibProxy/Proxy.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>

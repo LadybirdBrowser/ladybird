@@ -651,15 +651,13 @@ void Request::handle_initial_state()
             return;
     }
 
-    if (Core::ProxyData::use_system_proxy()) {
-        auto system_proxies = Core::ProxyData::get_proxies_for_url(m_url);
-        if (!system_proxies.is_empty()) {
-            m_proxy_data = system_proxies.first(); // FIXME: Support multiple proxies (e.g. fallback proxies).
-            if (!m_proxy_data.is_direct()) {
-                dbgln("Using system proxy {}:{} for {}", m_proxy_data.host, m_proxy_data.port, m_url.serialize());
-                transition_to_state(State::RetrieveCookie);
-                return;
-            }
+    auto system_proxies = Proxy::get_proxies_for_url(m_url);
+    if (!system_proxies.is_empty()) {
+        m_proxy_data = system_proxies.first(); // FIXME: Support multiple proxies (e.g. fallback proxies).
+        if (!m_proxy_data.is_direct()) {
+            dbgln("Using system proxy {}:{} for {}", m_proxy_data.host, m_proxy_data.port, m_url.serialize());
+            transition_to_state(State::RetrieveCookie);
+            return;
         }
     }
 
@@ -979,21 +977,21 @@ void Request::handle_fetch_state()
     }
 
     switch (m_proxy_data.type) {
-    case Core::ProxyData::Type::Direct:
+    case Proxy::ProxyData::Type::Direct:
         set_option(CURLOPT_PROXY, "");
         break;
-    case Core::ProxyData::Type::HTTP:
+    case Proxy::ProxyData::Type::HTTP:
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
         break;
-    case Core::ProxyData::Type::HTTPS:
+    case Proxy::ProxyData::Type::HTTPS:
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
         break;
-    case Core::ProxyData::Type::SOCKS5:
-        set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
+    case Proxy::ProxyData::Type::SOCKS5:
+        set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
         break;

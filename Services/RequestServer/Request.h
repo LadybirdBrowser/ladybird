@@ -11,12 +11,12 @@
 #include <AK/MemoryStream.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
-#include <LibCore/Proxy.h>
 #include <LibDNS/Resolver.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibProxy/Proxy.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -199,7 +199,7 @@ private:
 
     ByteString m_alt_svc_cache_path;
     // This is not provided by the client, but resolved by the class Request itself.
-    Core::ProxyData m_proxy_data;
+    Proxy::ProxyData m_proxy_data;
 
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;

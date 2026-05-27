@@ -15,7 +15,6 @@ set(SOURCES
     MappedFile.cpp
     MimeData.cpp
     Notifier.cpp
-    Proxy.cpp
     ReportTime.cpp
     Resource.cpp
     ResourceImplementation.cpp
@@ -95,9 +94,6 @@ endif()
 
 ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibCore PRIVATE LibSync Threads::Threads LibUnicode LibURL LibTextCodec)
-if (HAS_LIBPROXY)
-    target_link_libraries(LibCore PRIVATE PkgConfig::LIBPROXY)
-endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
