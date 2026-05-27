@@ -69,6 +69,7 @@ endpoint WebContentClient
     did_inspect_dom_node(u64 page_id, WebView::DOMNodeProperties properties) =|
     did_inspect_grid_layouts(u64 page_id, String grid_layouts) =|
     did_inspect_current_grid(u64 page_id, String grid_layout) =|
+    did_inspect_current_flexbox(u64 page_id, String flexbox_layout) =|
     did_inspect_accessibility_tree(u64 page_id, String accessibility_tree) =|
     did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) =|
     did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) =|

@@ -124,6 +124,7 @@ public:
     void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element);
     void inspect_grid_layouts(Web::UniqueNodeID root_node_id);
     void inspect_current_grid(Web::UniqueNodeID node_id);
+    void inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents);
     void clear_inspected_dom_node();
 
     void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element);
@@ -240,6 +241,7 @@ public:
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
     Function<void(JsonArray)> on_received_grid_layouts;
     Function<void(Optional<JsonObject>)> on_received_current_grid;
+    Function<void(Optional<JsonObject>)> on_received_current_flexbox;
     Function<void(JsonObject)> on_received_accessibility_tree;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;

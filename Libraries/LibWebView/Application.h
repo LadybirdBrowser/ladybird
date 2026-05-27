@@ -260,6 +260,7 @@ private:
     virtual void clear_inspected_dom_node(DevTools::TabDescription const&) const override;
     virtual void inspect_grid_layouts(DevTools::TabDescription const&, Web::UniqueNodeID, OnGridLayoutsReceived) const override;
     virtual void inspect_current_grid(DevTools::TabDescription const&, Web::UniqueNodeID, OnCurrentGridReceived) const override;
+    virtual void inspect_current_flexbox(DevTools::TabDescription const&, Web::UniqueNodeID, bool, OnCurrentFlexboxReceived) const override;
     virtual void highlight_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const override;
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override;
     virtual void highlight_grid(DevTools::TabDescription const&, Web::UniqueNodeID, JsonValue) const override;

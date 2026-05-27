@@ -49,8 +49,10 @@ public:
 
     using OnGridLayoutsReceived = Function<void(JsonArray)>;
     using OnCurrentGridReceived = Function<void(Optional<JsonObject>)>;
+    using OnCurrentFlexboxReceived = Function<void(Optional<JsonObject>)>;
     virtual void inspect_grid_layouts(TabDescription const&, Web::UniqueNodeID, OnGridLayoutsReceived) const { }
     virtual void inspect_current_grid(TabDescription const&, Web::UniqueNodeID, OnCurrentGridReceived) const { }
+    virtual void inspect_current_flexbox(TabDescription const&, Web::UniqueNodeID, bool, OnCurrentFlexboxReceived) const { }
 
     virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const { }
     virtual void clear_highlighted_dom_node(TabDescription const&) const { }
