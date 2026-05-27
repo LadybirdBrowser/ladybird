@@ -699,10 +699,12 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
                 on_test_complete();
         };
 
-        view.on_load_finish = [&view, &context, test_index, on_test_complete, url](auto const& loaded_url) {
-            // We don't want subframe loads to trigger the test finish.
-            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
-                return;
+        view.on_load_finish = [&view, &context, test_index, on_test_complete](auto const& loaded_url) {
+            // page_did_finish_loading is already top-level-only (Document.cpp gates it on navigable->is_traversable()).
+            // We accept *any* top-level URL here — not just the test's original URL; otherwise a test that navigates
+            // away will hang forever — because the original page's load IPC may arrive after the navigation target's
+            // signal, and the URL filter will then mask the load event for the new page, too.
+            (void)loaded_url;
 
             auto& test = context.tests[test_index];
             test.did_finish_loading = true;
