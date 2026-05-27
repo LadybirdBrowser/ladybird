@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/FFIHelpers.h>
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
@@ -24,13 +25,6 @@ static Vector<u32> code_points_from_string(String const& string)
     for (auto code_point : string.code_points())
         code_points.append(code_point);
     return code_points;
-}
-
-static StringView ffi_string_view(u8 const* ptr, size_t len)
-{
-    if (ptr == nullptr || len == 0)
-        return {};
-    return { ptr, len };
 }
 
 static RustFfiTokenizerHandle* create_tokenizer_from_utf8(StringView utf8_bytes)

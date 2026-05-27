@@ -5,6 +5,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/FFIHelpers.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -70,13 +71,6 @@ void SpeculativeHTMLParser::run()
 }
 
 namespace {
-
-StringView ffi_string_view(u8 const* ptr, size_t len)
-{
-    if (ptr == nullptr || len == 0)
-        return {};
-    return { ptr, len };
-}
 
 Optional<Fetch::Infrastructure::Request::Destination> destination_from_preload_scanner(RustFfiPreloadScannerDestination destination)
 {
