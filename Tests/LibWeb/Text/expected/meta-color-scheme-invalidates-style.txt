@@ -1,0 +1,2 @@
+Before: rgb(0, 0, 0)
+After: rgb(235, 235, 235)

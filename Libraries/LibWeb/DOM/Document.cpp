@@ -1384,13 +1384,25 @@ Color Document::background_color() const
 
 Color Document::canvas_background_color() const
 {
+    return CSS::SystemColor::canvas(canvas_color_scheme()).blend(background_color());
+}
+
+CSS::PreferredColorScheme Document::canvas_color_scheme() const
+{
     auto color_scheme = CSS::PreferredColorScheme::Light;
     if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
         if (html_element->layout_node()->computed_values().color_scheme() == CSS::PreferredColorScheme::Dark)
             color_scheme = CSS::PreferredColorScheme::Dark;
     }
 
-    return CSS::SystemColor::canvas(color_scheme).blend(background_color());
+    if (color_scheme == CSS::PreferredColorScheme::Light
+        && !m_supported_color_schemes.has_value()
+        && readiness() == HTML::DocumentReadyState::Loading) {
+        if (auto navigable = this->navigable(); navigable && navigable->is_top_level_traversable())
+            color_scheme = page().preferred_color_scheme();
+    }
+
+    return color_scheme;
 }
 
 Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
@@ -2494,13 +2506,23 @@ Optional<Vector<String> const&> Document::supported_color_schemes() const
 
 void Document::set_supported_color_schemes(Vector<String> supported_color_schemes)
 {
+    set_supported_color_schemes(Optional<Vector<String>> { move(supported_color_schemes) });
+}
+
+void Document::set_supported_color_schemes(Optional<Vector<String>> supported_color_schemes)
+{
+    if (m_supported_color_schemes == supported_color_schemes)
+        return;
+
     m_supported_color_schemes = move(supported_color_schemes);
+    invalidate_style(StyleInvalidationReason::SettingsChange);
+    set_needs_media_query_evaluation();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#meta-color-scheme
 void Document::obtain_supported_color_schemes()
 {
-    m_supported_color_schemes = {};
+    Optional<Vector<String>> supported_color_schemes;
 
     // 1. Let candidate elements be the list of all meta elements that meet the following criteria, in tree order:
     for_each_in_subtree_of_type<HTML::HTMLMetaElement>([&](HTML::HTMLMetaElement& element) {
@@ -2517,7 +2539,7 @@ void Document::obtain_supported_color_schemes()
 
             // 2. If parsed is a valid CSS 'color-scheme' property value, then return parsed.
             if (!parsed.is_null() && parsed->is_color_scheme()) {
-                m_supported_color_schemes = parsed->as_color_scheme().schemes();
+                supported_color_schemes = parsed->as_color_scheme().schemes();
                 return TraversalDecision::Break;
             }
         }
@@ -2526,6 +2548,7 @@ void Document::obtain_supported_color_schemes()
     });
 
     // 3. Return null.
+    set_supported_color_schemes(move(supported_color_schemes));
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color
@@ -8291,11 +8314,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
-    auto color_scheme = CSS::PreferredColorScheme::Light;
-    if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
-        if (html_element->layout_node()->computed_values().color_scheme() == CSS::PreferredColorScheme::Dark)
-            color_scheme = CSS::PreferredColorScheme::Dark;
-    }
+    auto color_scheme = canvas_color_scheme();
 
     // .. in the case of embedded documents typically rendered over a transparent canvas
     // (such as provided via an HTML iframe element), if the used color scheme of the element
