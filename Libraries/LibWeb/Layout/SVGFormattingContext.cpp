@@ -14,6 +14,7 @@
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/DominantBaseline.h>
 #include <LibWeb/Layout/SVGClipBox.h>
@@ -434,6 +435,19 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
     return path;
 }
 
+static Utf16String rendered_text_contents(SVG::SVGTextContentElement const& element)
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16);
+    element.for_each_in_subtree_of_type<DOM::Text>([&](auto const& text_node) {
+        if (text_node.parent() && text_node.parent()->unsafe_layout_node()) {
+            if (auto content = text_node.text_content(); content.has_value())
+                builder.append(*content);
+        }
+        return TraversalDecision::Continue;
+    });
+    return builder.to_utf16_string().trim_ascii_whitespace();
+}
+
 Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const& text_path_box) const
 {
     auto& text_path_element = static_cast<SVG::SVGTextPathElement const&>(text_path_box.dom_node());
@@ -443,7 +457,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const&
 
     // FIXME: Use per-code-point fonts.
     auto& font = text_path_box.first_available_font();
-    auto text_contents = text_path_element.text_contents();
+    auto text_contents = rendered_text_contents(text_path_element);
 
     auto shape_path = const_cast<SVG::SVGGeometryElement&>(*path_or_shape).get_path(m_viewport_size);
     return shape_path.place_text_along(text_contents, font);
