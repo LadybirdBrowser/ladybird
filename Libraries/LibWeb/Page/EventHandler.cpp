@@ -8,6 +8,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Math.h>
 #include <LibGfx/Bitmap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
@@ -523,7 +524,6 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         return EventResult::Dropped;
 
     auto visual_viewport = document->visual_viewport();
-    auto viewport_position = visual_viewport->map_to_layout_viewport(visual_viewport_position);
 
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
 
@@ -627,34 +627,85 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                     return result.value();
             }
 
-            // NB: Search for the first parent of the hit target that's an element.
-            GC::Ptr<Layout::Node> layout_node;
-            if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
-                return EventResult::Dropped;
-
-            auto page_offset = compute_mouse_event_page_offset(viewport_position);
-            RefPtr<Painting::Paintable> offset_paintable = layout_node->first_paintable();
-            if (!offset_paintable)
-                offset_paintable = paintable;
-            auto scroll_offset = document->navigable()->viewport_scroll_offset();
-            auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
             auto is_cancelable = async_scroll_performed_default_action ? UIEvents::WheelEventIsCancelable::No : UIEvents::WheelEventIsCancelable::Yes;
-            if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers, is_cancelable).release_value_but_fixme_should_propagate_errors())) {
+            auto dispatch_result = dispatch_wheel_event(*paintable, visual_viewport_position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, is_cancelable == UIEvents::WheelEventIsCancelable::Yes);
+            if (dispatch_result == EventResult::Accepted) {
                 if (async_scroll_performed_default_action)
                     handled_event = EventResult::Handled;
                 else
                     handled_event = perform_wheel_default_action(resolve_wheel_default_action_target());
-            } else if (async_scroll_performed_default_action) {
+            } else if (dispatch_result == EventResult::Cancelled && async_scroll_performed_default_action) {
                 handled_event = EventResult::Handled;
-            } else {
+            } else if (dispatch_result == EventResult::Cancelled) {
                 handled_event = EventResult::Cancelled;
-            }
+            } else
+                handled_event = dispatch_result;
         } else if (!async_scroll_performed_default_action) {
             handled_event = perform_wheel_default_action(paintable);
         }
     }
 
     return handled_event;
+}
+
+EventResult EventHandler::dispatch_wheel_event(Painting::Paintable& paintable, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool is_cancelable)
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    auto node = dom_node_for_event_dispatch(paintable);
+    if (!node)
+        return EventResult::Dropped;
+
+    // NB: Search for the first parent of the hit target that's an element.
+    GC::Ptr<Layout::Node> layout_node;
+    if (!parent_element_for_event_dispatch(paintable, node, layout_node))
+        return EventResult::Dropped;
+
+    auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+    auto page_offset = compute_mouse_event_page_offset(viewport_position);
+    RefPtr<Painting::Paintable> offset_paintable = layout_node->first_paintable();
+    if (!offset_paintable)
+        offset_paintable = &paintable;
+    auto scroll_offset = document->navigable()->viewport_scroll_offset();
+    auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
+    auto cancelability = is_cancelable ? UIEvents::WheelEventIsCancelable::Yes : UIEvents::WheelEventIsCancelable::No;
+    auto event = UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers, cancelability).release_value_but_fixme_should_propagate_errors();
+    return node->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
+}
+
+EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 modifiers, double wheel_delta_y)
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
+
+    if (!paint_root())
+        return EventResult::Dropped;
+
+    RefPtr<Painting::Paintable> paintable;
+    if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
+        paintable = result->paintable;
+
+    if (!paintable)
+        return EventResult::Dropped;
+
+    if (!dom_node_for_event_dispatch(*paintable))
+        return EventResult::Dropped;
+
+    if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, modifiers, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y);
+        });
+        result.has_value()) {
+        if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
+            return result.value();
+    }
+
+    modifiers |= UIEvents::KeyModifier::Mod_Ctrl;
+    return dispatch_wheel_event(*paintable, visual_viewport_position, screen_position, UIEvents::MouseButton::None, UIEvents::MouseButton::None, modifiers, 0, wheel_delta_y, true);
 }
 
 EventResult EventHandler::handle_mouseleave()
@@ -1100,7 +1151,7 @@ bool EventHandler::should_ignore_device_input_event() const
     return m_drag_and_drop_event_handler->has_ongoing_drag_and_drop_operation();
 }
 
-EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, double scale_delta)
+EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, u32 modifiers, double scale_delta)
 {
     auto document = m_navigable->active_document();
     if (!document)
@@ -1108,8 +1159,19 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, double scale_d
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    auto visual_viewport = document->visual_viewport();
-    visual_viewport->zoom(point, scale_delta);
+    auto scale = 1.0 + scale_delta;
+    if (scale == 1.0)
+        return EventResult::Handled;
+
+    auto wheel_delta_y = -100.0 * AK::log(scale);
+    if (dispatch_synthetic_pinch_wheel_event(point, point, modifiers, wheel_delta_y) == EventResult::Cancelled)
+        return EventResult::Cancelled;
+
+    document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    document->visual_viewport()->zoom(point, scale_delta);
     return EventResult::Handled;
 }
 

@@ -383,11 +383,11 @@ GC::Ref<WebIDL::Promise> Internals::wheel(double x, double y, double delta_x, do
     return promise;
 }
 
-void Internals::pinch(double x, double y, double scale_delta)
+void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers)
 {
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
-    page.handle_pinch_event(position, scale_delta);
+    page.handle_pinch_event(position, modifiers, scale_delta);
 }
 
 String Internals::current_cursor()

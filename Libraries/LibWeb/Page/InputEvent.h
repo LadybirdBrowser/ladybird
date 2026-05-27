@@ -88,6 +88,7 @@ struct WEB_API DragEvent {
 
 struct WEB_API PinchEvent {
     Web::DevicePixelPoint position;
+    UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     double scale_delta;
 };
 

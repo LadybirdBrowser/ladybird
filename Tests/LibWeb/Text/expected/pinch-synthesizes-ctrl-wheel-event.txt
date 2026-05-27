@@ -1,0 +1,15 @@
+initial scale: 1.00
+events after prevented pinch: 1
+ctrlKey: true
+shiftKey: true
+cancelable: true
+defaultPrevented: true
+deltaX: 0
+deltaY: -4.8790
+deltaMode: 0
+scale after prevented pinch: 1.00
+events after unprevented pinch: 2
+scale after unprevented pinch: 1.05
+scrollY after unprevented pinch: 0
+events after zero-delta pinch: 2
+scale after zero-delta pinch: 1.05

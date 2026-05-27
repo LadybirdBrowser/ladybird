@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        min-height: 2000px;
+    }
+
+    #target {
+        width: 200px;
+        height: 200px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const visualViewport = window.visualViewport;
+        const events = [];
+        let shouldPreventDefault = true;
+
+        window.addEventListener("wheel", event => {
+            if (event.ctrlKey && shouldPreventDefault)
+                event.preventDefault();
+
+            events.push({
+                ctrlKey: event.ctrlKey,
+                shiftKey: event.shiftKey,
+                cancelable: event.cancelable,
+                defaultPrevented: event.defaultPrevented,
+                deltaX: event.deltaX,
+                deltaY: event.deltaY,
+                deltaMode: event.deltaMode,
+            });
+        }, { passive: false });
+
+        println(`initial scale: ${visualViewport.scale.toFixed(2)}`);
+
+        internals.pinch(100, 100, 0.05, internals.MOD_SHIFT);
+        println(`events after prevented pinch: ${events.length}`);
+        println(`ctrlKey: ${events[0].ctrlKey}`);
+        println(`shiftKey: ${events[0].shiftKey}`);
+        println(`cancelable: ${events[0].cancelable}`);
+        println(`defaultPrevented: ${events[0].defaultPrevented}`);
+        println(`deltaX: ${events[0].deltaX}`);
+        println(`deltaY: ${events[0].deltaY.toFixed(4)}`);
+        println(`deltaMode: ${events[0].deltaMode}`);
+        println(`scale after prevented pinch: ${visualViewport.scale.toFixed(2)}`);
+
+        shouldPreventDefault = false;
+        internals.pinch(100, 100, 0.05);
+        println(`events after unprevented pinch: ${events.length}`);
+        println(`scale after unprevented pinch: ${visualViewport.scale.toFixed(2)}`);
+        println(`scrollY after unprevented pinch: ${window.scrollY}`);
+
+        internals.pinch(100, 100, 0);
+        println(`events after zero-delta pinch: ${events.length}`);
+        println(`scale after zero-delta pinch: ${visualViewport.scale.toFixed(2)}`);
+    });
+</script>
