@@ -92,9 +92,25 @@ static JsonObject make_dom_tree()
     JsonObject sibling = make_node(8, "element"sv, "SPAN"sv);
     sibling.set("visible"sv, true);
 
+    JsonObject first_flex_item = make_node(11, "element"sv, "P"sv);
+    first_flex_item.set("visible"sv, true);
+
+    JsonObject second_flex_item = make_node(12, "element"sv, "NAV"sv);
+    second_flex_item.set("visible"sv, true);
+
+    JsonArray flex_children;
+    flex_children.must_append(move(first_flex_item));
+    flex_children.must_append(move(second_flex_item));
+
+    JsonObject flex = make_node(10, "element"sv, "ASIDE"sv);
+    flex.set("visible"sv, true);
+    flex.set("display"sv, "flex"sv);
+    flex.set("children"sv, move(flex_children));
+
     JsonArray body_children;
     body_children.must_append(move(sibling));
     body_children.must_append(move(target));
+    body_children.must_append(move(flex));
 
     JsonObject body = make_node(3, "element"sv, "BODY"sv);
     body.set("visible"sv, true);
@@ -257,6 +273,60 @@ static JsonArray make_grid_layouts()
     return grids;
 }
 
+static JsonObject make_flex_item(Web::UniqueNodeID node_id, double main_base_size, double main_delta_size, StringView line_growth_state, StringView clamp_state)
+{
+    JsonObject sizing;
+    sizing.set("clampState"sv, clamp_state);
+    sizing.set("crossAxisDirection"sv, "vertical-tb"sv);
+    sizing.set("crossMaxSize"sv, 20);
+    sizing.set("crossMinSize"sv, 0);
+    sizing.set("lineGrowthState"sv, line_growth_state);
+    sizing.set("mainAxisDirection"sv, "horizontal-lr"sv);
+    sizing.set("mainBaseSize"sv, main_base_size);
+    sizing.set("mainDeltaSize"sv, main_delta_size);
+    sizing.set("mainMaxSize"sv, 100);
+    sizing.set("mainMinSize"sv, 10);
+
+    JsonObject properties;
+    properties.set("flex-basis"sv, "auto"sv);
+    properties.set("flex-grow"sv, 1);
+    properties.set("flex-shrink"sv, 1);
+    properties.set("width"sv, "auto"sv);
+    properties.set("min-width"sv, "auto"sv);
+    properties.set("max-width"sv, "none"sv);
+
+    JsonObject computed_style;
+    computed_style.set("flexGrow"sv, 1);
+    computed_style.set("flexShrink"sv, 1);
+
+    JsonObject item;
+    item.set("nodeId"sv, node_id.value());
+    item.set("flexItemSizing"sv, move(sizing));
+    item.set("properties"sv, move(properties));
+    item.set("computedStyle"sv, move(computed_style));
+    return item;
+}
+
+static JsonObject make_flexbox_layout()
+{
+    JsonArray items;
+    items.must_append(make_flex_item(Web::UniqueNodeID { 11 }, 40, 20, "growing"sv, "unclamped"sv));
+    items.must_append(make_flex_item(Web::UniqueNodeID { 12 }, 80, -10, "shrinking"sv, "clamped_to_min"sv));
+
+    JsonObject properties;
+    properties.set("align-content"sv, "normal"sv);
+    properties.set("align-items"sv, "stretch"sv);
+    properties.set("flex-direction"sv, "row"sv);
+    properties.set("flex-wrap"sv, "nowrap"sv);
+    properties.set("justify-content"sv, "flex-start"sv);
+
+    JsonObject layout;
+    layout.set("containerNodeId"sv, Web::UniqueNodeID { 10 }.value());
+    layout.set("properties"sv, move(properties));
+    layout.set("items"sv, move(items));
+    return layout;
+}
+
 class TestDevToolsDelegate final : public DevTools::DevToolsDelegate {
 public:
     virtual Vector<DevTools::TabDescription> tab_list() const override
@@ -329,6 +399,22 @@ public:
 
         if (node_id == Web::UniqueNodeID { 4 }) {
             callback(make_grid_layout(node_id, "content"sv));
+            return;
+        }
+
+        callback({});
+    }
+
+    virtual void inspect_current_flexbox(DevTools::TabDescription const&, Web::UniqueNodeID node_id, bool only_look_at_parents, OnCurrentFlexboxReceived callback) const override
+    {
+        ++inspect_current_flexbox_call_count;
+        last_current_flexbox_node = node_id;
+        last_current_flexbox_only_look_at_parents = only_look_at_parents;
+
+        if ((node_id == Web::UniqueNodeID { 10 } && !only_look_at_parents)
+            || node_id == Web::UniqueNodeID { 11 }
+            || node_id == Web::UniqueNodeID { 12 }) {
+            callback(make_flexbox_layout());
             return;
         }
 
@@ -601,6 +687,7 @@ public:
     mutable size_t clear_inspected_dom_node_call_count { 0 };
     mutable size_t inspect_grid_layouts_call_count { 0 };
     mutable size_t inspect_current_grid_call_count { 0 };
+    mutable size_t inspect_current_flexbox_call_count { 0 };
     mutable size_t highlight_dom_node_call_count { 0 };
     mutable size_t clear_highlighted_dom_node_call_count { 0 };
     mutable size_t highlight_grid_call_count { 0 };
@@ -637,6 +724,8 @@ public:
     mutable Optional<Web::CSS::PseudoElement> last_inspected_pseudo_element;
     mutable Optional<Web::UniqueNodeID> last_grid_root_node;
     mutable Optional<Web::UniqueNodeID> last_current_grid_node;
+    mutable Optional<Web::UniqueNodeID> last_current_flexbox_node;
+    mutable bool last_current_flexbox_only_look_at_parents { false };
     mutable Optional<Web::UniqueNodeID> last_highlighted_grid_node;
     mutable Optional<Web::UniqueNodeID> last_cleared_grid_node;
     mutable JsonValue last_grid_highlight_options;
@@ -988,6 +1077,8 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     auto div_actor = query_selector(client, walker_actor, root_node_actor, "div"sv);
     auto section_actor = query_selector(client, walker_actor, root_node_actor, "section"sv);
     auto span_actor = query_selector(client, walker_actor, root_node_actor, "span"sv);
+    auto flex_actor = query_selector(client, walker_actor, root_node_actor, "aside"sv);
+    auto first_flex_item_actor = query_selector(client, walker_actor, root_node_actor, "p"sv);
     JsonObject previous_sibling;
     previous_sibling.set("to"sv, walker_actor);
     previous_sibling.set("type"sv, "previousSibling"sv);
@@ -1154,7 +1245,82 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     EXPECT_EQ(current_grid.get_string("actor"sv).value(), content_grid.get_string("actor"sv).value());
     EXPECT_EQ(current_grid.get_string("containerNodeActorID"sv).value(), div_actor);
 
-    EXPECT(client.request(layout_actor, "getCurrentFlexbox"sv).get("flexbox"sv).value().is_null());
+    JsonObject get_missing_flexbox;
+    get_missing_flexbox.set("to"sv, layout_actor);
+    get_missing_flexbox.set("type"sv, "getCurrentFlexbox"sv);
+    get_missing_flexbox.set("node"sv, root_node_actor);
+    EXPECT(client.request(move(get_missing_flexbox)).get("flexbox"sv).value().is_null());
+    EXPECT_EQ(session->delegate.inspect_current_flexbox_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_current_flexbox_node.value(), 1u);
+    EXPECT(!session->delegate.last_current_flexbox_only_look_at_parents);
+
+    JsonObject get_current_flexbox;
+    get_current_flexbox.set("to"sv, layout_actor);
+    get_current_flexbox.set("type"sv, "getCurrentFlexbox"sv);
+    get_current_flexbox.set("node"sv, flex_actor);
+    auto current_flexbox = client.request(move(get_current_flexbox)).get_object("flexbox"sv).release_value();
+    EXPECT_EQ(session->delegate.inspect_current_flexbox_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_current_flexbox_node.value(), 10u);
+    EXPECT_EQ(current_flexbox.get_string("containerNodeActorID"sv).value(), flex_actor);
+    EXPECT(!current_flexbox.has("containerNodeId"sv));
+    EXPECT(!current_flexbox.has("items"sv));
+    EXPECT_EQ(current_flexbox.get_object("properties"sv)->get_string("flex-direction"sv).value(), "row"sv);
+    auto flexbox_actor = current_flexbox.get_string("actor"sv).release_value();
+
+    JsonObject get_parent_flexbox;
+    get_parent_flexbox.set("to"sv, layout_actor);
+    get_parent_flexbox.set("type"sv, "getCurrentFlexbox"sv);
+    get_parent_flexbox.set("node"sv, flex_actor);
+    get_parent_flexbox.set("onlyLookAtParents"sv, true);
+    EXPECT(client.request(move(get_parent_flexbox)).get("flexbox"sv).value().is_null());
+    EXPECT_EQ(session->delegate.inspect_current_flexbox_call_count, 3u);
+    EXPECT(session->delegate.last_current_flexbox_only_look_at_parents);
+
+    JsonObject get_flex_item_parent_flexbox;
+    get_flex_item_parent_flexbox.set("to"sv, layout_actor);
+    get_flex_item_parent_flexbox.set("type"sv, "getCurrentFlexbox"sv);
+    get_flex_item_parent_flexbox.set("node"sv, first_flex_item_actor);
+    get_flex_item_parent_flexbox.set("onlyLookAtParents"sv, true);
+    auto parent_flexbox = client.request(move(get_flex_item_parent_flexbox)).get_object("flexbox"sv).release_value();
+    EXPECT_EQ(session->delegate.inspect_current_flexbox_call_count, 4u);
+    EXPECT_EQ(session->delegate.last_current_flexbox_node.value(), 11u);
+    EXPECT_EQ(parent_flexbox.get_string("actor"sv).value(), flexbox_actor);
+
+    JsonObject get_flex_items;
+    get_flex_items.set("to"sv, flexbox_actor);
+    get_flex_items.set("type"sv, "getFlexItems"sv);
+    auto flex_items = client.request(move(get_flex_items)).get_array("flexitems"sv).release_value();
+    EXPECT_EQ(flex_items.size(), 2u);
+    auto const& first_flex_item = flex_items.at(0).as_object();
+    EXPECT(first_flex_item.has_string("actor"sv));
+    EXPECT(!first_flex_item.has("nodeId"sv));
+    EXPECT_EQ(first_flex_item.get_string("nodeActorID"sv).value(), first_flex_item_actor);
+    EXPECT_EQ(first_flex_item.get_object("flexItemSizing"sv)->get_string("lineGrowthState"sv).value(), "growing"sv);
+    EXPECT_EQ(first_flex_item.get_object("flexItemSizing"sv)->get_string("clampState"sv).value(), "unclamped"sv);
+    EXPECT_EQ(first_flex_item.get_object("properties"sv)->get_string("flex-basis"sv).value(), "auto"sv);
+    EXPECT_EQ(first_flex_item.get_object("computedStyle"sv)->get_integer<int>("flexGrow"sv).value(), 1);
+
+    auto const& second_flex_item = flex_items.at(1).as_object();
+    EXPECT_EQ(second_flex_item.get_object("flexItemSizing"sv)->get_string("lineGrowthState"sv).value(), "shrinking"sv);
+    EXPECT_EQ(second_flex_item.get_object("flexItemSizing"sv)->get_string("clampState"sv).value(), "clamped_to_min"sv);
+
+    JsonObject node_from_flexbox;
+    node_from_flexbox.set("to"sv, walker_actor);
+    node_from_flexbox.set("type"sv, "getNodeFromActor"sv);
+    node_from_flexbox.set("actorID"sv, flexbox_actor);
+    JsonArray flexbox_path;
+    flexbox_path.must_append("containerEl"sv);
+    node_from_flexbox.set("path"sv, move(flexbox_path));
+    EXPECT_EQ(client.request(move(node_from_flexbox)).get_object("node"sv)->get_object("node"sv)->get_string("actor"sv).value(), flex_actor);
+
+    JsonObject node_from_flex_item;
+    node_from_flex_item.set("to"sv, walker_actor);
+    node_from_flex_item.set("type"sv, "getNodeFromActor"sv);
+    node_from_flex_item.set("actorID"sv, first_flex_item.get_string("actor"sv).value());
+    JsonArray flex_item_path;
+    flex_item_path.must_append("element"sv);
+    node_from_flex_item.set("path"sv, move(flex_item_path));
+    EXPECT_EQ(client.request(move(node_from_flex_item)).get_object("node"sv)->get_object("node"sv)->get_string("actor"sv).value(), first_flex_item_actor);
 
     JsonObject set_outer_html;
     set_outer_html.set("to"sv, walker_actor);
