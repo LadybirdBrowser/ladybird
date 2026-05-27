@@ -67,11 +67,11 @@ header img {
     margin: 0 8px 16px 8px;
 }
 
-.card-group + .card-group {
+.card-group:not(.hidden) ~ .card-group:not(.hidden) {
     margin-top: 16px;
 }
 
-.card-separator + .card-separator {
+.card-separator:not(.hidden) ~ .card-separator:not(.hidden) {
     border-top: 1px solid var(--border-color);
     padding-top: 16px;
 }
