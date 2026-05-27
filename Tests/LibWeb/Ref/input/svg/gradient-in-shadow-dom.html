@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/gradient-in-shadow-dom-ref.html" />
+<div id="host"></div>
+<script>
+const host = document.getElementById('host');
+const shadow = host.attachShadow({ mode: 'open' });
+shadow.innerHTML = `
+  <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="green"/>
+        <stop offset="1" stop-color="green"/>
+      </linearGradient>
+      <linearGradient id="ref" href="#base"/>
+    </defs>
+    <rect width="100" height="100" fill="url(#ref)"/>
+  </svg>`;
+</script>
