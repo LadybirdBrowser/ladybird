@@ -28,7 +28,7 @@ QColor chrome_accent(QPalette const&);
 QColor chrome_muted_text(QPalette const&);
 
 QString style_sheet_color(QColor const&);
-QString navigation_toolbar_style_sheet(QPalette const&);
+QString toolbar_container_style_sheet(QPalette const&);
 QString location_edit_style_sheet(QPalette const&);
 QString bookmarks_bar_style_sheet(QPalette const&);
 QString find_in_page_style_sheet(QPalette const&);

@@ -239,7 +239,7 @@ QString style_sheet_color(QColor const& color)
     return qformatted("rgb({}, {}, {})", color.red(), color.green(), color.blue());
 }
 
-QString navigation_toolbar_style_sheet(QPalette const& palette)
+QString toolbar_container_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_active_tab_surface_top(palette));
     auto background_bottom = style_sheet_color(chrome_active_tab_surface_bottom(palette));
@@ -251,7 +251,7 @@ QString navigation_toolbar_style_sheet(QPalette const& palette)
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
 
     return qformatted(R"(
-QWidget#LadybirdNavigationToolbar {{
+QWidget#LadybirdToolbarContainer {{
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {0}, stop:1 {1});
     border: 0;
     border-bottom: 1px solid {5};
@@ -355,25 +355,21 @@ QToolButton#LadybirdLocationAction:hover {{
 
 QString bookmarks_bar_style_sheet(QPalette const& palette)
 {
-    auto background = style_sheet_color(chrome_background(palette));
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
-    auto border = style_sheet_color(chrome_border(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
     auto text = style_sheet_color(chrome_button_text(palette));
 
     return qformatted(R"(
 QToolBar#LadybirdBookmarksBar {{
-    color: {4};
-    background: {0};
+    color: {2};
     border: 0;
-    border-bottom: 1px solid {3};
     padding: 4px 8px;
     spacing: 3px;
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton {{
-    color: {4};
+    color: {2};
     background: transparent;
     border: 1px solid transparent;
     border-radius: 7px;
@@ -381,17 +377,17 @@ QToolBar#LadybirdBookmarksBar QToolButton {{
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton:hover {{
-    background: {1};
-    border-color: {5};
+    background: {0};
+    border-color: {3};
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton:pressed,
 QToolBar#LadybirdBookmarksBar QToolButton:checked {{
-    background: {2};
-    border-color: {5};
+    background: {1};
+    border-color: {3};
 }}
 )",
-        background, hover, pressed, border, text, control_border);
+        hover, pressed, text, control_border);
 }
 
 QString find_in_page_style_sheet(QPalette const& palette)
