@@ -130,6 +130,7 @@ public:
     };
     virtual bool supports_clipboard_type(ClipboardType) const;
     virtual Utf16String clipboard_text(ClipboardType = ClipboardType::Text) const;
+    virtual void set_clipboard_text(String, ClipboardType = ClipboardType::Text);
 
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);

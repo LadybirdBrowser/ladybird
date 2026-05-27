@@ -1103,6 +1103,14 @@ Utf16String Application::clipboard_text(ClipboardType) const
     return Utf16String::from_utf8(m_clipboard->data);
 }
 
+void Application::set_clipboard_text(String text, ClipboardType)
+{
+    m_clipboard = Web::Clipboard::SystemClipboardRepresentation {
+        .data = text.to_byte_string(),
+        .mime_type = "text/plain"_string,
+    };
+}
+
 Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_entries() const
 {
     if (!m_clipboard.has_value())
