@@ -225,6 +225,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_hamburger_menu = new QMenu(this);
 
+    menuBar()->setObjectName("LadybirdMenuBar");
+    update_menu_bar_style();
+
     if (!Settings::the()->show_menubar())
         menuBar()->hide();
 
@@ -775,6 +778,11 @@ void BrowserWindow::update_tab_close_button_icons()
     }
 }
 
+void BrowserWindow::update_menu_bar_style()
+{
+    menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(palette()));
+}
+
 void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState play_state)
 {
     auto* tab = m_tabs_container->tab(index);
@@ -1050,6 +1058,7 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
 void BrowserWindow::changeEvent(QEvent* event)
 {
     if (event->type() == QEvent::PaletteChange) {
+        update_menu_bar_style();
         update_tab_close_button_icons();
     } else if (event->type() == QEvent::WindowStateChange) {
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);

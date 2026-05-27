@@ -289,6 +289,52 @@ QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
         background, background_bottom, surface_hover, surface_pressed, control_border, separator, text, disabled_text);
 }
 
+QString menu_bar_style_sheet(QPalette const& palette)
+{
+    auto background = style_sheet_color(chrome_tab_strip_background(palette));
+    auto background_bottom = style_sheet_color(mix(chrome_tab_strip_background(palette), QColor(3, 8, 14), is_dark(palette) ? 0.26 : 0.026));
+    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
+    auto border = style_sheet_color(chrome_border(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
+    auto text = style_sheet_color(chrome_button_text(palette));
+    auto disabled_text = style_sheet_color(chrome_muted_text(palette));
+
+    return qformatted(R"(
+QMenuBar#LadybirdMenuBar {{
+    color: {6};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {0}, stop:1 {1});
+    border: 0;
+    border-bottom: 1px solid {4};
+    padding: 3px 8px;
+    spacing: 2px;
+}}
+
+QMenuBar#LadybirdMenuBar::item {{
+    color: {6};
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 9px;
+}}
+
+QMenuBar#LadybirdMenuBar::item:selected {{
+    background: {2};
+    border-color: {5};
+}}
+
+QMenuBar#LadybirdMenuBar::item:pressed {{
+    background: {3};
+    border-color: {5};
+}}
+
+QMenuBar#LadybirdMenuBar::item:disabled {{
+    color: {7};
+}}
+)",
+        background, background_bottom, hover, pressed, border, control_border, text, disabled_text);
+}
+
 QString location_edit_style_sheet(QPalette const& palette)
 {
     auto surface_color = chrome_surface(palette);
