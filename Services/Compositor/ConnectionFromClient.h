@@ -38,7 +38,7 @@ private:
     virtual Messages::CompositorControlServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::CompositorControlServer::ConnectWebContentResponse connect_web_content() override;
     virtual void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration, i32 web_content_connection_id) override;
-    virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress) override;
+    virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress) override;
     virtual Messages::CompositorControlServer::HandleMouseEventResponse handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent) override;
     virtual Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent) override;
     virtual Messages::CompositorControlServer::AsyncScrollByResponse async_scroll_by(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels) override;

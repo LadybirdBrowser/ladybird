@@ -2932,7 +2932,6 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
     if (has_compositor_context()) {
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
-            is_top_level_traversable(),
             Compositor::WindowResizingInProgress::Yes);
         m_pending_set_browser_zoom_request = false;
     }
@@ -3417,7 +3416,6 @@ void Navigable::repaint_after_compositor_process_reconnect()
         }
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
-            is_top_level_traversable(),
             Compositor::WindowResizingInProgress::No);
 
         m_needs_repaint = true;

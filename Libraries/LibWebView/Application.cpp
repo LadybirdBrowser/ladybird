@@ -567,7 +567,7 @@ void Application::update_compositor_viewport(Web::Compositor::CompositorContextI
         return;
     VERIFY(m_compositor_client);
 
-    m_compositor_client->async_viewport_size_updated(context_id, viewport_size, true, window_resize_in_progress);
+    m_compositor_client->async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
 bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)

@@ -46,7 +46,7 @@ public:
         Gfx::IntRect viewport_rect, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
     bool should_defer_main_thread_present_for_async_scroll() const;
     PendingAsyncScrollUpdates take_pending_async_scroll_updates();
-    void viewport_size_updated(Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress);
+    void viewport_size_updated(Gfx::IntSize, WindowResizingInProgress);
     void present_frame(Gfx::IntRect);
     void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
@@ -83,7 +83,7 @@ public:
         = 0;
     virtual bool should_defer_main_thread_present_for_async_scroll(CompositorContextId) const = 0;
     virtual PendingAsyncScrollUpdates take_pending_async_scroll_updates(CompositorContextId) = 0;
-    virtual void viewport_size_updated(CompositorContextId, Gfx::IntSize, bool is_top_level_traversable, WindowResizingInProgress) = 0;
+    virtual void viewport_size_updated(CompositorContextId, Gfx::IntSize, WindowResizingInProgress) = 0;
     virtual void present_frame(CompositorContextId, Gfx::IntRect) = 0;
     virtual void request_screenshot(CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) = 0;
 

@@ -128,10 +128,10 @@ Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse Conn
     return m_compositor_state->take_pending_async_scroll_updates(context_id);
 }
 
-void ConnectionFromWebContent::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+void ConnectionFromWebContent::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     verify_context_is_owned_by_this_connection(context_id);
-    m_compositor_state->viewport_size_updated(context_id, viewport_size, is_top_level_traversable, window_resize_in_progress);
+    m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
 void ConnectionFromWebContent::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)

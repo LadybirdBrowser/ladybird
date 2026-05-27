@@ -37,7 +37,7 @@ public:
     BackingStoreManager() = default;
 
     Optional<Allocation> resize_backing_stores_if_needed(
-        Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress);
+        Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress);
     Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish);
 
     bool is_valid() const;

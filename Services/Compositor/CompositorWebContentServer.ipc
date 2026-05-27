@@ -30,7 +30,7 @@ endpoint CompositorWebContentServer
     should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id) => (bool should_defer)
     take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id) => (Web::Compositor::PendingAsyncScrollUpdates updates)
 
-    viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, bool is_top_level_traversable, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|
+    viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|
     present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect) =|
     request_screenshot(Web::Compositor::CompositorContextId context_id, Web::Compositor::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) =|
 }
