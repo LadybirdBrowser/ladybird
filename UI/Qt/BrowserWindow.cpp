@@ -637,7 +637,14 @@ void BrowserWindow::set_current_tab(Tab* tab)
     if (tab == m_current_tab)
         return;
 
+    if (m_current_tab)
+        m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+
     m_current_tab = tab;
+
+    if (m_current_tab)
+        m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+
     WebView::Application::the().update_bookmark_action_for_current_web_view();
 }
 
