@@ -4803,7 +4803,9 @@ Optional<FlyString> Element::document_scoped_view_transition_name()
     // To get the document-scoped view transition name for an Element element:
 
     // 1. Let scopedViewTransitionName be the computed value of view-transition-name for element.
-    auto scoped_view_transition_name = computed_properties()->view_transition_name();
+    auto computed_properties = this->computed_properties();
+    VERIFY(computed_properties);
+    auto scoped_view_transition_name = computed_properties->view_transition_name();
 
     // 2. If scopedViewTransitionName is associated with element’s node document, then return
     //    scopedViewTransitionName.

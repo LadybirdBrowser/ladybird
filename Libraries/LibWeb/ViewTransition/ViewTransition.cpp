@@ -251,11 +251,16 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         // 2. If element has more than one box fragment, then continue.
         // FIXME: Implement this once we have fragments.
 
+        // OPTIMIZATION: Continue early if the element is not rendered, so we don't have to ensure the computed
+        //               properties are up to date.
+        if (element.not_rendered())
+            return TraversalDecision::Continue;
+
         // 3. Let transitionName be the element’s document-scoped view transition name.
         auto transition_name = element.document_scoped_view_transition_name();
 
         // 4. If transitionName is none, or element is not rendered, then continue.
-        if (!transition_name.has_value() || element.not_rendered())
+        if (!transition_name.has_value())
             return TraversalDecision::Continue;
 
         // 5. If usedTransitionNames contains transitionName, then:
@@ -370,11 +375,16 @@ ErrorOr<void> ViewTransition::capture_the_new_state()
     auto result = document.document_element()->for_each_in_inclusive_subtree_of_type<DOM::Element>([&](auto& element) {
         // NOTE: Step 1 is handled at the end of this function.
 
+        // OPTIMIZATION: Continue early if the element is not rendered, so we don't have to ensure the computed
+        //               properties are up to date.
+        if (element.not_rendered())
+            return TraversalDecision::Continue;
+
         // 2. Let transitionName be the element’s document-scoped view transition name.
         auto transition_name = element.document_scoped_view_transition_name();
 
         // 3. If transitionName is none, or element is not rendered, then continue.
-        if (!transition_name.has_value() || element.not_rendered())
+        if (!transition_name.has_value())
             return TraversalDecision::Continue;
 
         // 4. If element has more than one box fragment, then continue.
