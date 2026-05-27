@@ -503,7 +503,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     auto* tab_bar_row_layout = new QHBoxLayout();
     tab_bar_row_layout->setSpacing(4);
-    tab_bar_row_layout->setContentsMargins(12, 3, 8, 1);
+    tab_bar_row_layout->setContentsMargins(12, 3, 4, 1);
     tab_bar_row_layout->addWidget(m_tab_bar);
     tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignVCenter);
     tab_bar_row_layout->addStretch(1);
