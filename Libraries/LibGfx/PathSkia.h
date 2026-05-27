@@ -40,13 +40,14 @@ public:
     [[nodiscard]] virtual bool is_empty() const override;
     virtual Gfx::FloatPoint last_point() const override;
     virtual Gfx::FloatRect bounding_box() const override;
+    virtual float length() const override;
     virtual bool contains(FloatPoint point, Gfx::WindingRule) const override;
     virtual void set_fill_type(Gfx::WindingRule winding_rule) override;
 
     virtual NonnullOwnPtr<PathImpl> clone() const override;
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const override;
-    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&) const override;
-    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&) const override;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&, float offset = 0) const override;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&, float offset = 0) const override;
 
     virtual String to_svg_string() const override;
 
