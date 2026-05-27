@@ -79,11 +79,16 @@ NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const
 
 hb_face_t* Typeface::harfbuzz_typeface() const
 {
+    if (!m_harfbuzz_face)
+        m_harfbuzz_face = create_harfbuzz_face();
+    return m_harfbuzz_face;
+}
+
+hb_face_t* Typeface::create_harfbuzz_face() const
+{
     if (!m_harfbuzz_blob)
         m_harfbuzz_blob = hb_blob_create(reinterpret_cast<char const*>(buffer().data()), buffer().size(), HB_MEMORY_MODE_READONLY, nullptr, [](void*) { });
-    if (!m_harfbuzz_face)
-        m_harfbuzz_face = hb_face_create(m_harfbuzz_blob, ttc_index());
-    return m_harfbuzz_face;
+    return hb_face_create(m_harfbuzz_blob, ttc_index());
 }
 
 void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const

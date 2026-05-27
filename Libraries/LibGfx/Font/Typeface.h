@@ -88,6 +88,7 @@ protected:
     virtual ReadonlyBytes buffer() const = 0;
     virtual u32 ttc_index() const = 0;
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const;
+    virtual hb_face_t* create_harfbuzz_face() const;
 
     void set_anonymous_font_data(Core::AnonymousBuffer);
     void set_resource_font_data(Core::Resource const&);

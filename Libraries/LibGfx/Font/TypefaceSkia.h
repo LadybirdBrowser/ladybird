@@ -8,6 +8,10 @@
 
 #include <LibGfx/Font/Typeface.h>
 
+#ifdef AK_OS_MACOS
+#    include <CoreText/CoreText.h>
+#endif
+
 template<typename T>
 class sk_sp;
 
@@ -47,6 +51,7 @@ public:
 
 protected:
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const override;
+    virtual hb_face_t* create_harfbuzz_face() const override;
 
 private:
     struct Impl;
@@ -54,6 +59,9 @@ private:
     NonnullOwnPtr<Impl> m_impl;
 
     static ErrorOr<RefPtr<TypefaceSkia>> typeface_from_skia_typeface(sk_sp<SkTypeface>, Optional<SystemUIFontKind> = {});
+#ifdef AK_OS_MACOS
+    static ErrorOr<RefPtr<TypefaceSkia>> typeface_from_core_text_typeface(sk_sp<SkTypeface>, CTFontRef, SystemUIFontKind);
+#endif
 
     TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, u32 ttc_index = 0);
 
