@@ -49,6 +49,7 @@ void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& i
 String serialize_a_css_declaration(StringView property, StringView value, Important = Important::No);
 
 String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue>);
+String serialize_a_series_of_component_values_preserving_original_source_text(ReadonlySpan<Parser::ComponentValue>);
 String serialize_a_positional_value_list(StyleValueVector const& values, SerializationMode mode);
 
 }

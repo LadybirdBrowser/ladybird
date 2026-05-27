@@ -1,0 +1,10 @@
+<!doctype html>
+<div id="target" data-url="https://does-not-exist.test/404.png"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        target.style.setProperty("--x", "attr(data-url)");
+        target.style.backgroundImage = "image-set(var(--x))";
+        println(getComputedStyle(target).backgroundImage);
+    });
+</script>

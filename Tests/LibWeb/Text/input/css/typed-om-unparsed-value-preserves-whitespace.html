@@ -1,0 +1,9 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        target.attributeStyleMap.set("--x", new CSSUnparsedValue([" 1 "]));
+        println(target.attributeStyleMap.get("--x").toString());
+    });
+</script>
