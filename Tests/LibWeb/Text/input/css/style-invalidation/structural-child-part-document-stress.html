@@ -3,6 +3,11 @@
 <script src="../../include.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
+    // Large amount of time spent in flushPendingStyleWork() pushes this high-volume stress test past the harness's
+    // default 120s per-test ceiling on Sanitizer builds. Give it more room.
+    internals.setTestTimeout(300000);
+</script>
+<script>
     test(() => {
         const stressScopes = [
             "part-document",
