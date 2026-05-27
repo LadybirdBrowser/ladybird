@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1101 Pass
-679 Fail
+1103 Pass
+677 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1236,7 +1236,7 @@ Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_AUTO on interfa
 Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_AUTO on interface prototype object
 Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_EXACT on interface object
 Pass	SVGTextPathElement interface: constant TEXTPATH_SPACINGTYPE_EXACT on interface prototype object
-Fail	SVGTextPathElement interface: attribute startOffset
+Pass	SVGTextPathElement interface: attribute startOffset
 Fail	SVGTextPathElement interface: attribute method
 Fail	SVGTextPathElement interface: attribute spacing
 Pass	SVGTextPathElement interface: attribute href
@@ -1248,7 +1248,7 @@ Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTP
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_UNKNOWN" with the proper type
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_AUTO" with the proper type
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "TEXTPATH_SPACINGTYPE_EXACT" with the proper type
-Fail	SVGTextPathElement interface: objects.textPath must inherit property "startOffset" with the proper type
+Pass	SVGTextPathElement interface: objects.textPath must inherit property "startOffset" with the proper type
 Fail	SVGTextPathElement interface: objects.textPath must inherit property "method" with the proper type
 Fail	SVGTextPathElement interface: objects.textPath must inherit property "spacing" with the proper type
 Pass	SVGTextPathElement interface: objects.textPath must inherit property "href" with the proper type

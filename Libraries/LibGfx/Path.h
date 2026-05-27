@@ -47,13 +47,14 @@ public:
     [[nodiscard]] virtual bool is_empty() const = 0;
     virtual Gfx::FloatPoint last_point() const = 0;
     virtual Gfx::FloatRect bounding_box() const = 0;
+    virtual float length() const = 0;
     virtual void set_fill_type(Gfx::WindingRule winding_rule) = 0;
     virtual bool contains(FloatPoint point, Gfx::WindingRule) const = 0;
 
     virtual NonnullOwnPtr<PathImpl> clone() const = 0;
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const = 0;
-    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&) const = 0;
-    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&) const = 0;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&, float offset = 0) const = 0;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&, float offset = 0) const = 0;
 
     virtual String to_svg_string() const = 0;
 };
@@ -116,13 +117,14 @@ public:
     [[nodiscard]] bool is_empty() const { return impl().is_empty(); }
     Gfx::FloatPoint last_point() const { return impl().last_point(); }
     Gfx::FloatRect bounding_box() const { return impl().bounding_box(); }
+    float length() const { return impl().length(); }
     bool contains(FloatPoint point, Gfx::WindingRule winding_rule) const { return impl().contains(point, winding_rule); }
     void set_fill_type(Gfx::WindingRule winding_rule) { impl().set_fill_type(winding_rule); }
 
     Gfx::Path clone() const { return Gfx::Path { impl().clone() }; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }
-    Gfx::Path place_text_along(Utf8View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
-    Gfx::Path place_text_along(Utf16View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
+    Gfx::Path place_text_along(Utf8View const& text, Font const& font, float offset = 0) const { return Gfx::Path { impl().place_text_along(text, font, offset) }; }
+    Gfx::Path place_text_along(Utf16View const& text, Font const& font, float offset = 0) const { return Gfx::Path { impl().place_text_along(text, font, offset) }; }
 
     String to_svg_string() const { return impl().to_svg_string(); }
 

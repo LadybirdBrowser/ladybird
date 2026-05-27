@@ -440,7 +440,8 @@ Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const&
     auto text_contents = rendered_text_contents(text_path_element);
 
     auto shape_path = const_cast<SVG::SVGGeometryElement&>(*path_or_shape).get_path(m_viewport_size);
-    return shape_path.place_text_along(text_contents, font);
+    auto start_offset = text_path_element.start_offset_for_path_length(shape_path.length());
+    return shape_path.place_text_along(text_contents, font, start_offset);
 }
 
 void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphics_box)
