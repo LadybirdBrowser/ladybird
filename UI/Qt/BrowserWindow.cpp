@@ -50,6 +50,9 @@
 
 namespace Ladybird {
 
+static constexpr auto AUDIO_STATE_BUTTON_POSITION = QTabBar::LeftSide;
+static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
+
 static QString reopen_recently_closed_action_text(Optional<WebView::RecentlyClosedEntry const&> entry)
 {
     if (entry.has_value() && entry->was_window)
@@ -564,8 +567,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
         return new_tab.view().handle();
     };
 
-    m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->tab_icon());
-    create_close_button_for_tab(tab);
+    initialize_tab_buttons(tab);
 }
 
 void BrowserWindow::uninitialize_tab(Tab* tab)
@@ -741,38 +743,32 @@ void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)
     m_tabs_container->set_tab_icon(index, icon);
 }
 
-void BrowserWindow::create_close_button_for_tab(Tab* tab)
+void BrowserWindow::initialize_tab_buttons(Tab* tab)
 {
     auto index = m_tabs_container->index_of(tab);
     m_tabs_container->set_tab_icon(index, tab->tab_icon());
 
-    auto* button = new TabBarButton(create_chrome_icon(ChromeIcon::Close, palette()));
-    button->setToolTip("Close Tab");
+    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::Close, palette()));
+    close_button->setToolTip("Close Tab");
 
-    auto position = audio_button_position_for_tab(index) == QTabBar::LeftSide ? QTabBar::RightSide : QTabBar::LeftSide;
-
-    connect(button, &QPushButton::clicked, this, [this, tab]() {
+    connect(close_button, &QPushButton::clicked, this, [this, tab]() {
         auto index = m_tabs_container->index_of(tab);
         request_to_close_tab(index);
     });
 
-    m_tabs_container->tab_bar()->setTabButton(index, position, button);
+    m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
+    m_tabs_container->tab_bar()->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, close_button);
 }
 
 void BrowserWindow::update_tab_close_button_icons()
 {
-    auto update_button = [this](int index, QTabBar::ButtonPosition position) {
-        auto* button = m_tabs_container->tab_bar()->tabButton(index, position);
+    for (int index = 0; index < m_tabs_container->count(); ++index) {
+        auto* button = m_tabs_container->tab_bar()->tabButton(index, TAB_CLOSE_BUTTON_POSITION);
         if (!button || button->objectName() != "LadybirdTabButton")
             return;
 
         if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
             tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::Close, palette()));
-    };
-
-    for (int index = 0; index < m_tabs_container->count(); ++index) {
-        update_button(index, QTabBar::LeftSide);
-        update_button(index, QTabBar::RightSide);
     }
 }
 
@@ -853,12 +849,11 @@ bool BrowserWindow::start_window_move()
 void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState play_state)
 {
     auto* tab = m_tabs_container->tab(index);
-    auto position = audio_button_position_for_tab(index);
 
     switch (play_state) {
     case Web::HTML::AudioPlayState::Paused:
         if (tab->view().page_mute_state() == Web::HTML::MuteState::Unmuted)
-            m_tabs_container->tab_bar()->setTabButton(index, position, nullptr);
+            m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
         break;
 
     case Web::HTML::AudioPlayState::Playing:
@@ -866,23 +861,23 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
         button->setToolTip(tool_tip_for_page_mute_state(*tab));
         button->setObjectName("LadybirdAudioState");
 
-        connect(button, &QPushButton::clicked, this, [this, tab, position]() {
+        connect(button, &QPushButton::clicked, this, [this, tab]() {
             tab->view().toggle_page_mute_state();
             auto index = tab_index(tab);
 
             switch (tab->view().audio_play_state()) {
             case Web::HTML::AudioPlayState::Paused:
-                m_tabs_container->tab_bar()->setTabButton(index, position, nullptr);
+                m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
                 break;
             case Web::HTML::AudioPlayState::Playing:
-                auto* button = m_tabs_container->tab_bar()->tabButton(index, position);
+                auto* button = m_tabs_container->tab_bar()->tabButton(index, AUDIO_STATE_BUTTON_POSITION);
                 as<TabBarButton>(button)->setIcon(icon_for_page_mute_state(*tab));
                 button->setToolTip(tool_tip_for_page_mute_state(*tab));
                 break;
             }
         });
 
-        m_tabs_container->tab_bar()->setTabButton(index, position, button);
+        m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, button);
         break;
     }
 }
@@ -909,16 +904,6 @@ QString BrowserWindow::tool_tip_for_page_mute_state(Tab& tab) const
     }
 
     VERIFY_NOT_REACHED();
-}
-
-QTabBar::ButtonPosition BrowserWindow::audio_button_position_for_tab(int tab_index) const
-{
-    if (auto* button = m_tabs_container->tab_bar()->tabButton(tab_index, QTabBar::LeftSide)) {
-        if (button->objectName() != "LadybirdAudioState")
-            return QTabBar::RightSide;
-    }
-
-    return QTabBar::LeftSide;
 }
 
 void BrowserWindow::open_next_tab()
