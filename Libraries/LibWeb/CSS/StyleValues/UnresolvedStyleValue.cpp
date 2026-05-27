@@ -106,7 +106,7 @@ bool UnresolvedStyleValue::equals(StyleValue const& other) const
     return comparison_text() == other_unresolved.comparison_text();
 }
 
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm&, Vector<Parser::ComponentValue>);
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm&, ReadonlySpan<Parser::ComponentValue>);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-var
 static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm, Parser::Function function)
@@ -147,7 +147,7 @@ static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm
 
 class Reifier {
 public:
-    static Vector<CSSUnparsedSegment> reify(JS::Realm& realm, Vector<Parser::ComponentValue> const& source_values)
+    static Vector<CSSUnparsedSegment> reify(JS::Realm& realm, ReadonlySpan<Parser::ComponentValue> source_values)
     {
         Reifier reifier;
         reifier.process_values(realm, source_values);
@@ -157,7 +157,7 @@ public:
     }
 
 private:
-    void process_values(JS::Realm& realm, Vector<Parser::ComponentValue> const& source_values)
+    void process_values(JS::Realm& realm, ReadonlySpan<Parser::ComponentValue> source_values)
     {
         // NB: var() could be arbitrarily nested within other functions and blocks, so we have to walk the tree.
         //     Also, a var() might not be representable, if it has an ASF in place of its name, so those will be part
@@ -204,7 +204,7 @@ private:
     Vector<Parser::ComponentValue> m_unserialized_values {};
 };
 
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& realm, Vector<Parser::ComponentValue> component_values)
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& realm, ReadonlySpan<Parser::ComponentValue> component_values)
 {
     // To reify a list of component values from a list:
     // 1. Replace all var() references in list with CSSVariableReferenceValue objects, as described in §5.4 var() References.
@@ -218,7 +218,8 @@ static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& rea
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-list-of-component-values
 GC::Ref<CSSStyleValue> UnresolvedStyleValue::reify(JS::Realm& realm, FlyString const&) const
 {
-    return reify_a_list_of_component_values(realm, values());
+    auto component_values = values();
+    return reify_a_list_of_component_values(realm, component_values);
 }
 
 }
