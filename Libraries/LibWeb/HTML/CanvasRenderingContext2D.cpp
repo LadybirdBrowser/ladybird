@@ -311,11 +311,11 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list,
         resolved_letter_spacing(drawing_state, canvas_element()));
     Gfx::Path path;
+    float text_width = 0;
     for (auto const& glyph_run : glyph_runs) {
         path.glyph_run(glyph_run);
+        text_width += glyph_run->width();
     }
-
-    auto text_width = path.bounding_box().width();
     Gfx::AffineTransform transform = {};
 
     // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm:
