@@ -116,7 +116,14 @@ static QIcon icon_from_base64_png(StringView favicon_base64_png)
     if (!pixmap.loadFromData(decoded.value().data(), static_cast<uint>(decoded.value().size()), "PNG"))
         return {};
 
-    return pixmap.scaled(MENU_ICON_SIZE, MENU_ICON_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QIcon icon;
+    for (auto device_pixel_ratio : ICON_DEVICE_PIXEL_RATIOS) {
+        auto size = MENU_ICON_SIZE * device_pixel_ratio;
+        auto scaled_pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        scaled_pixmap.setDevicePixelRatio(device_pixel_ratio);
+        icon.addPixmap(scaled_pixmap);
+    }
+    return icon;
 }
 
 static void initialize_native_control(WebView::Action& action, QAction& qaction, QPalette const& palette, IncludeActionIcon include_action_icon)

@@ -27,6 +27,7 @@ public:
     void paint(QPainter* painter, QRect const& rect, QIcon::Mode mode, QIcon::State state) override;
     QIconEngine* clone() const override;
     QPixmap pixmap(QSize const& size, QIcon::Mode mode, QIcon::State state) override;
+    QPixmap scaledPixmap(QSize const& size, QIcon::Mode mode, QIcon::State state, qreal scale) override;
 
     void add_filter(QIcon::Mode mode, Function<Color(Color)> filter);
 
@@ -57,7 +58,8 @@ private:
         Function<Color(Color)> m_function;
     };
 
-    QString pixmap_cache_key(QSize const& size, QIcon::Mode mode, QIcon::State state);
+    QPixmap render_pixmap(QSize physical_size, qreal device_pixel_ratio, QIcon::Mode mode, QIcon::State state);
+    QString pixmap_cache_key(QSize physical_size, qreal device_pixel_ratio, QIcon::Mode mode, QIcon::State state);
 
     Vector<NonnullRefPtr<Filter>> m_filters;
     NonnullRefPtr<Gfx::TinyVGDecodedImageData const> m_image_data;
