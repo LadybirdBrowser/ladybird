@@ -106,14 +106,18 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timestamp, AK::Duration duration, ReadonlyBytes coded_data)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timestamp, AK::Duration decode_timestamp, AK::Duration duration, ReadonlyBytes coded_data)
 {
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
-    m_packet->data = const_cast<u8*>(coded_data.data());
-    m_packet->size = static_cast<int>(coded_data.size());
+    av_packet_unref(m_packet);
+    if (av_new_packet(m_packet, static_cast<int>(coded_data.size())) < 0)
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate padded FFmpeg packet"sv);
+
+    if (!coded_data.is_empty())
+        memcpy(m_packet->data, coded_data.data(), coded_data.size());
     m_packet->pts = timestamp.to_microseconds();
-    m_packet->dts = m_packet->pts;
+    m_packet->dts = decode_timestamp.to_microseconds();
     m_packet->duration = duration.to_microseconds();
 
     auto result = avcodec_send_packet(m_codec_context, m_packet);
@@ -129,7 +133,11 @@ DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timesta
     case AVERROR(ENOMEM):
         return DecoderError::with_description(DecoderErrorCategory::Memory, "FFmpeg codec ran out of internal memory"sv);
     default:
-        return DecoderError::with_description(DecoderErrorCategory::Corrupted, "FFmpeg codec reports that the data is corrupted"sv);
+        // For corrupted/invalid data, the decoder rejects the packet but its internal state remains
+        // valid. This is common for H.264 MSE streams during startup or stream switching. Log the
+        // error and continue rather than halting the entire video pipeline.
+        dbgln("FFmpegVideoDecoder: skipping corrupted packet at pts={}ms dts={}ms (error code {})", timestamp.to_milliseconds(), decode_timestamp.to_milliseconds(), result);
+        return {};
     }
 }
 

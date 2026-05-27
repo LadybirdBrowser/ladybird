@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaSource.h>
@@ -20,6 +21,57 @@ namespace Web::MediaSourceExtensions {
 using Bindings::ReadyState;
 
 GC_DEFINE_ALLOCATOR(MediaSource);
+
+enum class WebMCodecType {
+    Audio,
+    Video,
+};
+
+static Optional<WebMCodecType> supported_webm_codec_type(StringView codec)
+{
+    codec = codec.trim_whitespace();
+
+    if (codec.starts_with("vp8"sv, CaseSensitivity::CaseInsensitive)
+        || codec.starts_with("vp9"sv, CaseSensitivity::CaseInsensitive)
+        || codec.starts_with("vp09"sv, CaseSensitivity::CaseInsensitive)
+        || codec.starts_with("av01"sv, CaseSensitivity::CaseInsensitive)) {
+        return WebMCodecType::Video;
+    }
+
+    if (codec.starts_with("opus"sv, CaseSensitivity::CaseInsensitive)
+        || codec.starts_with("vorbis"sv, CaseSensitivity::CaseInsensitive)) {
+        return WebMCodecType::Audio;
+    }
+
+    return {};
+}
+
+enum class ISOBMFFCodecType {
+    Audio,
+    Video,
+};
+
+static Optional<ISOBMFFCodecType> supported_isobmff_codec_type(StringView codec)
+{
+    codec = codec.trim_whitespace();
+
+    if (codec.starts_with("avc1"sv, CaseSensitivity::CaseInsensitive)
+        || codec.starts_with("avc3"sv, CaseSensitivity::CaseInsensitive))
+        return ISOBMFFCodecType::Video;
+
+    if (codec.starts_with("mp4a.40."sv, CaseSensitivity::CaseInsensitive)) {
+        auto object_type_indication = codec.substring_view("mp4a.40."sv.length());
+        if (object_type_indication.is_empty())
+            return {};
+        for (auto ch : object_type_indication) {
+            if (!is_ascii_digit(ch))
+                return {};
+        }
+        return ISOBMFFCodecType::Audio;
+    }
+
+    return {};
+}
 
 WebIDL::ExceptionOr<GC::Ref<MediaSource>> MediaSource::construct_impl(JS::Realm& realm)
 {
@@ -100,6 +152,30 @@ void MediaSource::set_assigned_to_media_element(Badge<HTML::HTMLMediaElement>, H
 void MediaSource::unassign_from_media_element(Badge<HTML::HTMLMediaElement>)
 {
     m_media_element_assigned_to = nullptr;
+}
+
+void MediaSource::detach_from_media_element(Badge<HTML::HTMLMediaElement>)
+{
+    if (m_ready_state == ReadyState::Closed) {
+        m_media_element_assigned_to = nullptr;
+        return;
+    }
+
+    while (m_source_buffers->length() > 0) {
+        auto source_buffer = m_source_buffers->item(m_source_buffers->length() - 1);
+        source_buffer->removed_from_media_source({});
+        m_active_source_buffers->remove(*source_buffer);
+        m_source_buffers->remove(*source_buffer);
+    }
+
+    m_live_seekable_range.clear();
+    m_duration = NAN;
+    m_ready_state = ReadyState::Closed;
+    m_media_element_assigned_to = nullptr;
+
+    queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::sourceclose));
+    }));
 }
 
 GC::Ref<SourceBufferList> MediaSource::source_buffers()
@@ -195,6 +271,36 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
 
     // 10. Return buffer.
     return buffer;
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-removesourcebuffer
+WebIDL::ExceptionOr<void> MediaSource::remove_source_buffer(GC::Ref<SourceBuffer> source_buffer)
+{
+    // 1. If sourceBuffer specifies an object that is not in sourceBuffers then throw a NotFoundError exception and
+    //    abort these steps.
+    if (!m_source_buffers->contains(*source_buffer))
+        return WebIDL::NotFoundError::create(realm(), "SourceBuffer is not attached to this MediaSource"_utf16);
+
+    // 2. If sourceBuffer.updating equals true, then run the following steps:
+    //    Abort the buffer append and stream append loop algorithms if they are running, set updating to false, and
+    //    queue abort/updateend events. This is handled by SourceBuffer.
+    source_buffer->removed_from_media_source({});
+
+    // 3. Let SourceBuffer audioTracks list equal sourceBuffer.audioTracks.
+    // 4. If the SourceBuffer audioTracks list is not empty, then run the remove audio track steps for each AudioTrack
+    //    object in the SourceBuffer audioTracks list.
+    // 5-8. Same for videoTracks/textTracks.
+    // AD-HOC: The SourceBuffer track lists are cleared by SourceBuffer::removed_from_media_source(). Removing the
+    //         mirrored tracks from the media element is left for the full track-removal algorithms.
+
+    // 9. If sourceBuffer is in activeSourceBuffers, then remove sourceBuffer from activeSourceBuffers and queue a
+    //    removesourcebuffer event at activeSourceBuffers.
+    m_active_source_buffers->remove(*source_buffer);
+
+    // 10. Remove sourceBuffer from sourceBuffers and queue a removesourcebuffer event at sourceBuffers.
+    m_source_buffers->remove(*source_buffer);
+
+    return {};
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-endofstream
@@ -331,7 +437,41 @@ void MediaSource::run_duration_change_algorithm(double new_duration)
     //        Update the media element's duration to new duration.
     //        Run the HTMLMediaElement duration change algorithm.
     media_element_assigned_to()->set_duration({}, new_duration);
-    media_element_assigned_to()->playback_manager().set_duration(AK::Duration::from_seconds_f64(new_duration));
+    auto playback_duration = isinf(new_duration) ? AK::Duration::max() : AK::Duration::from_seconds_f64(new_duration);
+    media_element_assigned_to()->playback_manager().set_duration(playback_duration);
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-setliveseekablerange
+WebIDL::ExceptionOr<void> MediaSource::set_live_seekable_range(double start, double end)
+{
+    // 1. If the readyState attribute is not "open" then throw an InvalidStateError exception and abort these steps.
+    if (ready_state() != ReadyState::Open)
+        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+
+    // 2. If start is negative or greater than end, then throw a TypeError exception and abort these steps.
+    if (start < 0 || start > end || isnan(start) || isnan(end)) {
+        return WebIDL::SimpleException {
+            WebIDL::SimpleExceptionType::TypeError,
+            "Live seekable range start must be non-negative and not greater than end"sv
+        };
+    }
+
+    // 3. Set live seekable range to be a normalized TimeRanges object containing a single range whose start position
+    //    is start and end position is end.
+    m_live_seekable_range = LiveSeekableRange { start, end };
+    return {};
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-clearliveseekablerange
+WebIDL::ExceptionOr<void> MediaSource::clear_live_seekable_range()
+{
+    // 1. If the readyState attribute is not "open" then throw an InvalidStateError exception and abort these steps.
+    if (ready_state() != ReadyState::Open)
+        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+
+    // 2. If live seekable range contains a range, then set live seekable range to be an empty TimeRanges object.
+    m_live_seekable_range.clear();
+    return {};
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported
@@ -355,6 +495,10 @@ bool MediaSource::is_type_supported(String const& type)
             return true;
         if (mime_type->type() == "audio" && mime_type->subtype() == "webm")
             return true;
+        if (mime_type->type() == "video" && mime_type->subtype() == "mp4")
+            return true;
+        if (mime_type->type() == "audio" && mime_type->subtype() == "mp4")
+            return true;
         return false;
     }();
     if (!type_and_subtype_are_supported)
@@ -367,15 +511,50 @@ bool MediaSource::is_type_supported(String const& type)
     if (codecs_iter == mime_type->parameters().end())
         return false;
     auto codecs = codecs_iter->value.bytes_as_string_view();
+    auto video_codec_count = 0u;
+    auto audio_codec_count = 0u;
     auto had_unsupported_codec = false;
-    codecs.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& codec) {
-        if (!codec.starts_with("vp9"sv) && !codec.starts_with("vp09"sv) && !codec.starts_with("opus"sv)) {
+    codecs.for_each_split_view(',', SplitBehavior::KeepEmpty, [&](auto const& raw_codec) {
+        auto codec = raw_codec.trim_whitespace();
+        Optional<WebMCodecType> webm_codec_type;
+        Optional<ISOBMFFCodecType> isobmff_codec_type;
+        if (mime_type->subtype() == "webm"sv)
+            webm_codec_type = supported_webm_codec_type(codec);
+        else if (mime_type->subtype() == "mp4"sv)
+            isobmff_codec_type = supported_isobmff_codec_type(codec);
+
+        Optional<bool> is_video_codec;
+        if (webm_codec_type.has_value())
+            is_video_codec = *webm_codec_type == WebMCodecType::Video;
+        if (isobmff_codec_type.has_value())
+            is_video_codec = *isobmff_codec_type == ISOBMFFCodecType::Video;
+
+        auto codec_type = is_video_codec;
+        if (!codec_type.has_value()) {
             had_unsupported_codec = true;
             return IterationDecision::Break;
         }
+
+        if (*codec_type) {
+            ++video_codec_count;
+            if (mime_type->type() == "audio"sv) {
+                had_unsupported_codec = true;
+                return IterationDecision::Break;
+            }
+        } else {
+            ++audio_codec_count;
+        }
+
+        if (video_codec_count > 1 || audio_codec_count > 1) {
+            had_unsupported_codec = true;
+            return IterationDecision::Break;
+        }
+
         return IterationDecision::Continue;
     });
     if (had_unsupported_codec)
+        return false;
+    if (video_codec_count == 0 && audio_codec_count == 0)
         return false;
 
     // 6. Return true.

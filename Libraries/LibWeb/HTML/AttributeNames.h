@@ -35,6 +35,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(background, "background")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(behavior, "behavior")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(bgcolor, "bgcolor")                                                 \
+    __ENUMERATE_HTML_ATTRIBUTE(blocking, "blocking")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(border, "border")                                                   \
     __ENUMERATE_HTML_ATTRIBUTE(bordercolor, "bordercolor")                                         \
     __ENUMERATE_HTML_ATTRIBUTE(bottommargin, "bottommargin")                                       \

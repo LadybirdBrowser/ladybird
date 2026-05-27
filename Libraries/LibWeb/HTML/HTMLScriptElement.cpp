@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
@@ -54,6 +55,7 @@ void HTMLScriptElement::visit_edges(Cell::Visitor& visitor)
         [&]<typename T>(GC::Ref<T> result) { visitor.visit(result); });
     visitor.visit(m_parser_document);
     visitor.visit(m_preparation_time_document);
+    visitor.visit(m_blocking);
 }
 
 void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
@@ -115,6 +117,14 @@ void HTMLScriptElement::begin_delaying_document_load_event(DOM::Document& docume
     // https://html.spec.whatwg.org/multipage/scripting.html#concept-script-script
     // The user agent must delay the load event of the element's node document until the script is ready.
     m_document_load_event_delayer.emplace(document);
+}
+
+// https://html.spec.whatwg.org/multipage/scripting.html#dom-script-blocking
+GC::Ref<DOM::DOMTokenList> HTMLScriptElement::blocking()
+{
+    if (!m_blocking)
+        m_blocking = DOM::DOMTokenList::create(*this, HTML::AttributeNames::blocking);
+    return *m_blocking;
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#execute-the-script-block

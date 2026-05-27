@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", () => {
+            try {
+                println(`setLiveSeekableRange is ${typeof mediaSource.setLiveSeekableRange}`);
+                println(`clearLiveSeekableRange is ${typeof mediaSource.clearLiveSeekableRange}`);
+
+                mediaSource.duration = Infinity;
+                mediaSource.setLiveSeekableRange(12.5, 45.25);
+                println(`seekable length after set: ${video.seekable.length}`);
+                println(`seekable start after set: ${video.seekable.start(0)}`);
+                println(`seekable end after set: ${video.seekable.end(0)}`);
+
+                mediaSource.clearLiveSeekableRange();
+                println(`seekable length after clear: ${video.seekable.length}`);
+
+                try {
+                    mediaSource.setLiveSeekableRange(10, 1);
+                    println("FAIL: invalid live seekable range accepted");
+                } catch (error) {
+                    println(`invalid range throws: ${error.name}`);
+                }
+            } catch (error) {
+                println(`FAIL: ${error}`);
+            }
+            done();
+        });
+    });
+</script>

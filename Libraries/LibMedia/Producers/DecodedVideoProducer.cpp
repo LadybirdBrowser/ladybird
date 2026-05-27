@@ -133,6 +133,7 @@ void DecodedVideoProducer::ThreadData::enter_halting_state(PipelineStatus status
     m_current_halting_status = status;
     dispatch_wake_if_needed_while_locked();
     if (error.has_value()) {
+        dbgln("Decoded Video Producer: halting with error category={} description={}", error->category(), error->description());
         invoke_on_main_thread_while_locked([error = error.release_value()](auto const& self) mutable {
             self->dispatch_error(move(error));
         });
@@ -182,6 +183,7 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder()
     auto codec_id = TRY(m_demuxer->get_codec_id_for_track(m_track));
     auto codec_initialization_data = TRY(m_demuxer->get_codec_initialization_data_for_track(m_track));
     m_decoder = TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
+    m_track_description_generation = m_demuxer->track_description_generation(m_track);
     return {};
 }
 
@@ -404,6 +406,12 @@ void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_posi
 bool DecodedVideoProducer::ThreadData::handle_seek()
 {
     VERIFY(m_decoder);
+    if (auto result = ensure_decoder_matches_track_description(); result.is_error()) {
+        auto locker = take_lock();
+        m_queue.clear();
+        enter_halting_state(PipelineStatus::Error, result.release_error());
+        return true;
+    }
 
     auto seek_id = m_seek_id.load();
     if (m_last_processed_seek_id == seek_id)
@@ -460,7 +468,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                 auto coded_frame = coded_frame_result.release_value();
                 dispatch_frame_end_time(coded_frame);
 
-                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
+                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.decode_timestamp(), coded_frame.duration(), coded_frame.data());
                 if (decode_result.is_error()) {
                     handle_error(decode_result.release_error());
                     return true;
@@ -505,9 +513,35 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
     }
 }
 
+DecoderErrorOr<void> DecodedVideoProducer::ThreadData::ensure_decoder_matches_track_description()
+{
+    auto generation = m_demuxer->track_description_generation(m_track);
+    if (generation == m_track_description_generation)
+        return {};
+
+    dbgln("Decoded Video Producer: recreating decoder for track description generation {} -> {}", m_track_description_generation, generation);
+    m_decoder.clear();
+    TRY(create_decoder());
+
+    {
+        auto locker = take_lock();
+        m_queue.clear();
+        m_current_halting_status = PipelineStatus::Pending;
+        m_moved_position_pending = true;
+    }
+
+    m_decoder_needs_keyframe_next_seek = true;
+    return {};
+}
+
 void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
 {
     VERIFY(m_decoder);
+    if (auto result = ensure_decoder_matches_track_description(); result.is_error()) {
+        auto locker = take_lock();
+        enter_halting_state(PipelineStatus::Error, result.release_error());
+        return;
+    }
 
     // FIXME: Check if the PlaybackManager's current time is ahead of the next keyframe, and seek to it if so.
     //        Demuxers currently can't report the next keyframe in a convenient way, so that will need implementing
@@ -549,7 +583,7 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         auto coded_frame = sample_result.release_value();
         dispatch_frame_end_time(coded_frame);
 
-        auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
+        auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.decode_timestamp(), coded_frame.duration(), coded_frame.data());
         if (decode_result.is_error()) {
             set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
             return;

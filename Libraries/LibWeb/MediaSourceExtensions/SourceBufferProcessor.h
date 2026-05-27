@@ -65,11 +65,17 @@ public:
     bool is_parsing_media_segment() const;
     bool generate_timestamps_flag() const;
     AK::Duration group_end_timestamp() const;
+    AK::Duration timestamp_offset() const { return m_timestamp_offset; }
+    AK::Duration append_window_start() const { return m_append_window_start; }
+    AK::Duration append_window_end() const { return m_append_window_end; }
     bool is_buffer_full() const;
 
     void set_mode(AppendMode);
     void set_generate_timestamps_flag(bool);
     void set_group_start_timestamp(Optional<AK::Duration>);
+    void set_timestamp_offset(AK::Duration value) { m_timestamp_offset = value; }
+    void set_append_window_start(AK::Duration value) { m_append_window_start = value; }
+    void set_append_window_end(AK::Duration value) { m_append_window_end = value; }
     bool first_initialization_segment_received_flag() const;
     void set_first_initialization_segment_received_flag(bool);
     void set_pending_initialization_segment_for_change_type_flag(bool);
@@ -91,6 +97,7 @@ public:
     void run_segment_parser_loop();
     void reset_parser_state();
     void run_coded_frame_eviction();
+    void remove_coded_frames(AK::Duration start, AK::Duration end);
 
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
@@ -127,6 +134,12 @@ private:
     Optional<AK::Duration> m_group_start_timestamp;
     // https://w3c.github.io/media-source/#dfn-group-end-timestamp
     AK::Duration m_group_end_timestamp;
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+    AK::Duration m_timestamp_offset;
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowstart
+    AK::Duration m_append_window_start;
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowend
+    AK::Duration m_append_window_end { AK::Duration::max() };
     // https://w3c.github.io/media-source/#dfn-generate-timestamps-flag
     bool m_generate_timestamps_flag { false };
     // https://w3c.github.io/media-source/#dfn-first-initialization-segment-received-flag

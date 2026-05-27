@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
+#include <LibWeb/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
@@ -196,6 +197,8 @@ void SourceBuffer::set_content_type(String const& type)
     NonnullOwnPtr<ByteStreamParser> parser = [&]() -> NonnullOwnPtr<ByteStreamParser> {
         if (mime_type->subtype() == "webm")
             return make<WebMByteStreamParser>();
+        if (mime_type->subtype() == "mp4")
+            return make<ISOBMFFByteStreamParser>();
         VERIFY_NOT_REACHED();
     }();
 
@@ -229,6 +232,64 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
         time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
 
     return time_ranges;
+}
+
+double SourceBuffer::timestamp_offset() const
+{
+    return m_processor->timestamp_offset().to_seconds_f64();
+}
+
+WebIDL::ExceptionOr<void> SourceBuffer::set_timestamp_offset(double new_timestamp_offset)
+{
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer has been removed"_utf16);
+    if (updating())
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer is updating"_utf16);
+    if (m_media_source->ready_state() == Bindings::ReadyState::Ended)
+        m_media_source->set_ready_state_to_open_and_fire_sourceopen_event();
+
+    m_processor->set_timestamp_offset(AK::Duration::from_seconds_f64(new_timestamp_offset));
+    return {};
+}
+
+double SourceBuffer::append_window_start() const
+{
+    return m_processor->append_window_start().to_seconds_f64();
+}
+
+WebIDL::ExceptionOr<void> SourceBuffer::set_append_window_start(double new_append_window_start)
+{
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer has been removed"_utf16);
+    if (updating())
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer is updating"_utf16);
+    if (new_append_window_start < 0 || new_append_window_start >= append_window_end())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid appendWindowStart"sv };
+
+    m_processor->set_append_window_start(AK::Duration::from_seconds_f64(new_append_window_start));
+    return {};
+}
+
+double SourceBuffer::append_window_end() const
+{
+    auto append_window_end = m_processor->append_window_end();
+    if (append_window_end == AK::Duration::max())
+        return AK::Infinity<double>;
+    return append_window_end.to_seconds_f64();
+}
+
+WebIDL::ExceptionOr<void> SourceBuffer::set_append_window_end(double new_append_window_end)
+{
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer has been removed"_utf16);
+    if (updating())
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer is updating"_utf16);
+    if (isnan(new_append_window_end) || new_append_window_end <= append_window_start())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid appendWindowEnd"sv };
+
+    auto append_window_end = isinf(new_append_window_end) ? AK::Duration::max() : AK::Duration::from_seconds_f64(new_append_window_end);
+    m_processor->set_append_window_end(append_window_end);
+    return {};
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
@@ -389,8 +450,11 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort()
     // 5. Run the reset parser state algorithm.
     m_processor->reset_parser_state();
 
-    // FIXME: 6. Set appendWindowStart to the presentation start time.
-    //        7. Set appendWindowEnd to positive Infinity.
+    // 6. Set appendWindowStart to the presentation start time.
+    m_processor->set_append_window_start(AK::Duration::zero());
+
+    // 7. Set appendWindowEnd to positive Infinity.
+    m_processor->set_append_window_end(AK::Duration::max());
 
     return {};
 }
@@ -451,6 +515,50 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(String const& type)
     return {};
 }
 
+// https://w3c.github.io/media-source/#dom-sourcebuffer-remove
+WebIDL::ExceptionOr<void> SourceBuffer::remove(double start, double end)
+{
+    // 1. If this object has been removed from the sourceBuffers attribute of the parent media source then throw an
+    //    InvalidStateError exception and abort these steps.
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer has been removed"_utf16);
+
+    // 2. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
+    if (updating())
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer is updating"_utf16);
+
+    // 3. If duration equals NaN, then throw a TypeError exception and abort these steps.
+    // 4. If start is negative or greater than duration, then throw a TypeError exception and abort these steps.
+    auto duration = m_media_source->duration();
+    if (isnan(duration) || start < 0 || start > duration)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid removal start time"sv };
+
+    // 5. If end is less than or equal to start, then return.
+    if (isnan(end) || end <= start)
+        return {};
+
+    // 6. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
+    if (m_media_source->ready_state() == Bindings::ReadyState::Ended)
+        m_media_source->set_ready_state_to_open_and_fire_sourceopen_event();
+
+    // 7. Run the range removal algorithm with start and end as the start and end of the removal range.
+    m_processor->set_updating(true);
+
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::updatestart));
+    }));
+
+    auto start_timestamp = AK::Duration::from_seconds_f64(start);
+    auto end_timestamp = isinf(end) ? AK::Duration::max() : AK::Duration::from_seconds_f64(end);
+
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this, start_timestamp, end_timestamp] {
+        m_processor->remove_coded_frames(start_timestamp, end_timestamp);
+        finish_range_removal();
+    }));
+
+    return {};
+}
+
 void SourceBuffer::set_reached_end_of_stream(Badge<MediaSource>)
 {
     m_processor->set_reached_end_of_stream();
@@ -461,9 +569,31 @@ void SourceBuffer::clear_reached_end_of_stream(Badge<MediaSource>)
     m_processor->clear_reached_end_of_stream();
 }
 
+void SourceBuffer::removed_from_media_source(Badge<MediaSource>)
+{
+    if (updating()) {
+        m_processor->set_updating(false);
+
+        m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+            dispatch_event(DOM::Event::create(realm(), EventNames::abort));
+        }));
+
+        m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+            dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+        }));
+    }
+
+    m_processor->reset_parser_state();
+    m_audio_tracks->remove_all_tracks();
+    m_video_tracks->remove_all_tracks();
+}
+
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
 void SourceBuffer::run_buffer_append_algorithm()
 {
+    if (!m_media_source->source_buffers()->contains(*this))
+        return;
+
     // 1. Run the segment parser loop algorithm.
     // NB: SourceBufferProcessor's append done callback invokes finish_buffer_append for the rest of this algorithm.
     m_processor->run_segment_parser_loop();
@@ -734,6 +864,9 @@ void SourceBuffer::on_first_initialization_segment_processed(InitializationSegme
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
 void SourceBuffer::finish_buffer_append()
 {
+    if (!m_media_source->source_buffers()->contains(*this))
+        return;
+
     // 3. Set the updating attribute to false.
     m_processor->set_updating(false);
 
@@ -748,11 +881,35 @@ void SourceBuffer::finish_buffer_append()
     }));
 }
 
+// https://w3c.github.io/media-source/#sourcebuffer-range-removal
+void SourceBuffer::finish_range_removal()
+{
+    if (!m_media_source->source_buffers()->contains(*this))
+        return;
+
+    // 6. Set the updating attribute to false.
+    m_processor->set_updating(false);
+
+    // 7. Queue a task to fire an event named update at this SourceBuffer object.
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::update));
+    }));
+
+    // 8. Queue a task to fire an event named updateend at this SourceBuffer object.
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+    }));
+}
+
 // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing
 void SourceBuffer::update_ready_state_and_duration_after_coded_frame_processing()
 {
+    if (!m_media_source->source_buffers()->contains(*this))
+        return;
+
     auto media_element = m_media_source->media_element_assigned_to();
-    VERIFY(media_element);
+    if (!media_element)
+        return;
 
     // AD-HOC: Steps 2-4 (readyState transitions based on new coded frames) are covered by the unified
     //         readyState update method on HTMLMediaElement.

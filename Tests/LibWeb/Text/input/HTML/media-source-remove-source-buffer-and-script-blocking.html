@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const script = document.createElement("script");
+        println(`script.blocking instanceof DOMTokenList: ${script.blocking instanceof DOMTokenList}`);
+        script.blocking.add("render");
+        println(`script blocking attribute: ${script.getAttribute("blocking")}`);
+
+        const video = document.createElement("video");
+        const mediaSource = new MediaSource();
+        mediaSource.addEventListener("sourceopen", () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
+            println(`sourceBuffers before remove: ${mediaSource.sourceBuffers.length}`);
+            mediaSource.removeSourceBuffer(sourceBuffer);
+            println(`sourceBuffers after remove: ${mediaSource.sourceBuffers.length}`);
+            try {
+                mediaSource.removeSourceBuffer(sourceBuffer);
+            } catch (error) {
+                println(`second remove threw: ${error.name}`);
+            }
+            done();
+        });
+        video.src = URL.createObjectURL(mediaSource);
+    });
+</script>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", () => {
+            try {
+                mediaSource.addSourceBuffer('video/webm; codecs="vp9, opus"');
+                println(`readyState after open: ${mediaSource.readyState}`);
+                println(`sourceBuffers after open: ${mediaSource.sourceBuffers.length}`);
+
+                mediaSource.addEventListener("sourceclose", () => {
+                    println(`readyState after close: ${mediaSource.readyState}`);
+                    println(`sourceBuffers after close: ${mediaSource.sourceBuffers.length}`);
+                    done();
+                }, { once: true });
+
+                video.removeAttribute("src");
+                video.load();
+            } catch (error) {
+                println(`FAIL: ${error}`);
+                done();
+            }
+        }, { once: true });
+    });
+</script>

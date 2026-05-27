@@ -38,6 +38,23 @@ void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)
     m_last_frame_duration = frame.duration();
     m_track_buffer_ranges.add_range(start, end);
 
+    if (m_codec_id == Media::CodecID::H264) {
+        // H.264 with B-frames must be delivered to the decoder in decode timestamp order.
+        // MSE append order is not a reliable decode order signal for YouTube SABR streams.
+        auto decode_timestamp = frame.decode_timestamp();
+        size_t insert_index = m_coded_frames.size();
+        while (insert_index > 0 && m_coded_frames[insert_index - 1].decode_timestamp() > decode_timestamp)
+            --insert_index;
+
+        m_coded_frames.insert(insert_index, move(frame));
+
+        if (insert_index <= m_read_position)
+            m_read_position++;
+
+        m_data_changed.broadcast();
+        return;
+    }
+
     // Insert in sorted order by presentation timestamp using binary search.
     // Overlapping frames should have been removed by remove_coded_frames_and_dependants_in_range()
     // before this call.
@@ -69,17 +86,44 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
     //       by removing all coded frames from track buffer between those frames removed in the previous
     //       step and the next random access point after those removed frames.
 
-    // Find the first frame at or after the start of the range.
     size_t remove_start = 0;
-    while (remove_start < m_coded_frames.size() && m_coded_frames[remove_start].timestamp() < start)
-        remove_start++;
+    size_t remove_end = 0;
 
-    // Find all overlapping frames plus subsequent frames up to the next keyframe.
-    size_t remove_end = remove_start;
-    while (remove_end < m_coded_frames.size() && m_coded_frames[remove_end].timestamp() < end)
-        remove_end++;
-    if (remove_end <= remove_start)
-        return;
+    if (m_codec_id == Media::CodecID::H264) {
+        Optional<size_t> first_overlapping_frame;
+        Optional<size_t> last_overlapping_frame;
+
+        // H.264 frames are stored in decode order. Presentation timestamps can move backwards when
+        // B-frames are present, so locate overlapping frames by scanning the full buffer instead of
+        // relying on timestamp order. Once an overlap is found, remove the continuous decode-order
+        // span through the next random access point to avoid leaving broken references behind.
+        for (size_t i = 0; i < m_coded_frames.size(); ++i) {
+            auto const& frame = m_coded_frames[i];
+            if (frame.timestamp() < start || frame.timestamp() >= end)
+                continue;
+            if (!first_overlapping_frame.has_value())
+                first_overlapping_frame = i;
+            last_overlapping_frame = i;
+        }
+
+        if (!first_overlapping_frame.has_value())
+            return;
+
+        remove_start = *first_overlapping_frame;
+        remove_end = *last_overlapping_frame + 1;
+    } else {
+        // Find the first frame at or after the start of the range.
+        while (remove_start < m_coded_frames.size() && m_coded_frames[remove_start].timestamp() < start)
+            remove_start++;
+
+        // Find all overlapping frames.
+        remove_end = remove_start;
+        while (remove_end < m_coded_frames.size() && m_coded_frames[remove_end].timestamp() < end)
+            remove_end++;
+        if (remove_end <= remove_start)
+            return;
+    }
+
     while (remove_end < m_coded_frames.size() && !m_coded_frames[remove_end].is_keyframe())
         remove_end++;
 
@@ -103,6 +147,25 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
 
         m_last_returned_timestamp.clear();
     }
+}
+
+void TrackBufferDemuxer::reset_track_description(Media::Track const& track, Media::CodecID codec_id, ByteBuffer codec_initialization_data)
+{
+    Sync::MutexLocker locker { m_mutex };
+
+    m_track = track;
+    m_codec_id = codec_id;
+    m_codec_initialization_data = move(codec_initialization_data);
+
+    m_coded_frames.clear();
+    m_read_position = 0;
+    m_reached_end_of_stream = false;
+    m_last_returned_timestamp.clear();
+    m_track_buffer_ranges = {};
+    m_last_frame_duration = {};
+    ++m_track_description_generation;
+
+    m_data_changed.broadcast();
 }
 
 void TrackBufferDemuxer::set_reached_end_of_stream()
@@ -144,6 +207,12 @@ AK::Duration TrackBufferDemuxer::maximum_time_range_gap() const
 
 bool TrackBufferDemuxer::next_frame_is_in_gap_while_locked() const
 {
+    // H.264 frames are stored in decode order (DTS), not presentation order (PTS).
+    // B-frames cause PTS to jump around non-monotonically, so PTS-based gap detection
+    // produces false positives that would cause get_next_sample_for_track() to deadlock.
+    if (m_codec_id == Media::CodecID::H264)
+        return false;
+
     auto max_gap = maximum_time_range_gap();
     if (!m_last_returned_timestamp.has_value() || max_gap.is_zero())
         return false;
@@ -179,11 +248,37 @@ Media::DecoderErrorOr<ReadonlyBytes> TrackBufferDemuxer::get_codec_initializatio
     return m_codec_initialization_data.bytes();
 }
 
+size_t TrackBufferDemuxer::track_description_generation(Media::Track const&) const
+{
+    Sync::MutexLocker locker { m_mutex };
+    return m_track_description_generation;
+}
+
 AK::Duration TrackBufferDemuxer::select_fast_seek_target_for_track(Media::Track const&, AK::Duration target, Media::SeekMode mode)
 {
     Sync::MutexLocker locker { m_mutex };
     if (m_coded_frames.is_empty())
         return target;
+
+    if (m_codec_id == Media::CodecID::H264) {
+        Optional<AK::Duration> candidate;
+
+        if (mode == Media::SeekMode::FastBefore) {
+            for (auto const& frame : m_coded_frames) {
+                if (!frame.is_keyframe() || frame.timestamp() > target)
+                    continue;
+                candidate = frame.timestamp();
+            }
+            return candidate.value_or(target);
+        }
+
+        VERIFY(mode == Media::SeekMode::FastAfter);
+        for (auto const& frame : m_coded_frames) {
+            if (frame.is_keyframe() && frame.timestamp() >= target)
+                return frame.timestamp();
+        }
+        return target;
+    }
 
     size_t nearby_index = 0;
     binary_search(m_coded_frames, target, &nearby_index, [](AK::Duration needle, Media::CodedFrame const& frame) {
@@ -224,38 +319,69 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most
 
         best_timestamp = AK::Duration::max();
 
+        // For H.264, frames are stored in decode order (DTS), not presentation order (PTS).
+        // We cannot break early on timestamp comparison since PTS is non-monotonic due to B-frames.
+        // Instead, scan all frames to find the best keyframe at or before the target timestamp.
+        bool is_h264 = m_codec_id == Media::CodecID::H264;
+
         for (size_t i = 0; i < m_coded_frames.size(); i++) {
             auto const& frame = m_coded_frames[i];
-            if (frame.timestamp() >= timestamp)
+            if (!is_h264 && frame.timestamp() >= timestamp)
                 break;
-            if (frame.is_keyframe()) {
+            if (frame.is_keyframe() && frame.timestamp() <= timestamp) {
                 best_position = i;
                 best_timestamp = frame.timestamp();
             }
         }
 
-        auto max_gap = maximum_time_range_gap();
-        if (timestamp >= best_timestamp) {
-            auto has_gap = [&] {
-                auto prior_timestamp = m_coded_frames[best_position].timestamp();
-                for (size_t i = best_position + 1; i < m_coded_frames.size(); i++) {
-                    auto const& frame = m_coded_frames[i];
-                    auto delta = frame.timestamp() - prior_timestamp;
-                    if (delta > max_gap)
-                        return true;
-                    if (frame.timestamp() >= timestamp)
-                        break;
-                    prior_timestamp = frame.timestamp();
+        // For H.264 in DTS order, skip the PTS-based gap check since it's not meaningful.
+        if (is_h264) {
+            if (best_timestamp != AK::Duration::max()) {
+                dbgln("MSE/H264: seek target={}ms selected_keyframe_position={} pts={}ms dts={}ms",
+                    timestamp.to_milliseconds(),
+                    best_position,
+                    m_coded_frames[best_position].timestamp().to_milliseconds(),
+                    m_coded_frames[best_position].decode_timestamp().to_milliseconds());
+                break;
+            }
+            for (size_t i = 0; i < m_coded_frames.size(); ++i) {
+                if (!m_coded_frames[i].is_keyframe())
+                    continue;
+                best_position = i;
+                best_timestamp = m_coded_frames[i].timestamp();
+                dbgln("MSE/H264: seek target={}ms selected_first_keyframe_position={} pts={}ms dts={}ms",
+                    timestamp.to_milliseconds(),
+                    best_position,
+                    m_coded_frames[best_position].timestamp().to_milliseconds(),
+                    m_coded_frames[best_position].decode_timestamp().to_milliseconds());
+                break;
+            }
+            if (best_timestamp != AK::Duration::max())
+                break;
+        } else {
+            auto max_gap = maximum_time_range_gap();
+            if (timestamp >= best_timestamp) {
+                auto has_gap = [&] {
+                    auto prior_timestamp = m_coded_frames[best_position].timestamp();
+                    for (size_t i = best_position + 1; i < m_coded_frames.size(); i++) {
+                        auto const& frame = m_coded_frames[i];
+                        auto delta = frame.timestamp() - prior_timestamp;
+                        if (delta > max_gap)
+                            return true;
+                        if (frame.timestamp() >= timestamp)
+                            break;
+                        prior_timestamp = frame.timestamp();
+                    }
+                    return timestamp - prior_timestamp > max_gap;
+                }();
+                if (!has_gap)
+                    break;
+            } else if (best_position < m_coded_frames.size()) {
+                auto& future_frame = m_coded_frames[best_position];
+                if (future_frame.is_keyframe() && future_frame.timestamp() - timestamp <= max_gap) {
+                    best_timestamp = timestamp;
+                    break;
                 }
-                return timestamp - prior_timestamp > max_gap;
-            }();
-            if (!has_gap)
-                break;
-        } else if (best_position < m_coded_frames.size()) {
-            auto& future_frame = m_coded_frames[best_position];
-            if (future_frame.is_keyframe() && future_frame.timestamp() - timestamp <= max_gap) {
-                best_timestamp = timestamp;
-                break;
             }
         }
 

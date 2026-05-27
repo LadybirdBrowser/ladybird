@@ -36,6 +36,7 @@ public:
 
     void set_assigned_to_media_element(Badge<HTML::HTMLMediaElement>, HTML::HTMLMediaElement&);
     void unassign_from_media_element(Badge<HTML::HTMLMediaElement>);
+    void detach_from_media_element(Badge<HTML::HTMLMediaElement>);
     GC::Ptr<HTML::HTMLMediaElement> media_element_assigned_to() { return m_media_element_assigned_to; }
 
     void set_onsourceopen(GC::Ptr<WebIDL::CallbackType>);
@@ -48,6 +49,7 @@ public:
     GC::Ptr<WebIDL::CallbackType> onsourceclose();
 
     WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(String const& type);
+    WebIDL::ExceptionOr<void> remove_source_buffer(GC::Ref<SourceBuffer>);
 
     WebIDL::ExceptionOr<void> end_of_stream(Optional<Bindings::EndOfStreamError> const& error = {});
     void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<Bindings::EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
@@ -58,6 +60,14 @@ public:
 
     // https://w3c.github.io/media-source/#duration-change-algorithm
     void run_duration_change_algorithm(double new_duration);
+
+    struct LiveSeekableRange {
+        double start;
+        double end;
+    };
+    Optional<LiveSeekableRange> live_seekable_range() const { return m_live_seekable_range; }
+    WebIDL::ExceptionOr<void> set_live_seekable_range(double start, double end);
+    WebIDL::ExceptionOr<void> clear_live_seekable_range();
 
     static bool is_type_supported(String const&);
     static bool is_type_supported(JS::VM&, String const& type) { return is_type_supported(type); }
@@ -82,6 +92,7 @@ private:
     GC::Ref<SourceBufferList> m_active_source_buffers;
 
     double m_duration { NAN };
+    Optional<LiveSeekableRange> m_live_seekable_range;
 
     u64 m_next_track_id = 1;
 };

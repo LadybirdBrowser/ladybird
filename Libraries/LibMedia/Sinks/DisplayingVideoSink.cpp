@@ -76,6 +76,8 @@ static AK::Duration conservative_frame_end(VideoFrame& frame)
     return frame.timestamp() + frame.duration().scaled_by(3, 2);
 }
 
+static constexpr auto max_video_frame_lag_before_resync = AK::Duration::from_seconds(1);
+
 void DisplayingVideoSink::seek(AK::Duration timestamp)
 {
     m_seek_id++;
@@ -149,6 +151,10 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
             break;
         if (m_next_frame->timestamp() > current_time)
             break;
+        if (conservative_frame_end(*m_next_frame) + max_video_frame_lag_before_resync < current_time) {
+            seek(current_time);
+            break;
+        }
         m_current_frame = m_next_frame.release_nonnull();
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }

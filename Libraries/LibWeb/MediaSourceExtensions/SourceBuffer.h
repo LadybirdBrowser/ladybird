@@ -47,6 +47,19 @@ public:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
     GC::Ref<HTML::TimeRanges> buffered();
 
+    double timestamp_offset() const;
+    WebIDL::ExceptionOr<void> set_timestamp_offset(double);
+
+    GC::Ref<HTML::AudioTrackList> audio_tracks() { return m_audio_tracks; }
+    GC::Ref<HTML::VideoTrackList> video_tracks() { return m_video_tracks; }
+    GC::Ref<HTML::TextTrackList> text_tracks() { return m_text_tracks; }
+
+    double append_window_start() const;
+    WebIDL::ExceptionOr<void> set_append_window_start(double);
+
+    double append_window_end() const;
+    WebIDL::ExceptionOr<void> set_append_window_end(double);
+
     void set_content_type(String const& type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
@@ -58,8 +71,12 @@ public:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
     WebIDL::ExceptionOr<void> change_type(String const& type);
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-remove
+    WebIDL::ExceptionOr<void> remove(double start, double end);
+
     void set_reached_end_of_stream(Badge<MediaSource>);
     void clear_reached_end_of_stream(Badge<MediaSource>);
+    void removed_from_media_source(Badge<MediaSource>);
 
 protected:
     SourceBuffer(JS::Realm&, MediaSource&);
@@ -76,6 +93,7 @@ private:
     void on_first_initialization_segment_processed(InitializationSegmentData const&);
     void update_ready_state_and_duration_after_coded_frame_processing();
     void finish_buffer_append();
+    void finish_range_removal();
 
     GC::Ref<MediaSource> m_media_source;
     NonnullRefPtr<SourceBufferProcessor> m_processor;

@@ -50,6 +50,7 @@ public:
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) = 0;
 
     virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) = 0;
+    virtual size_t track_description_generation(Track const&) const { return 0; }
 
     virtual AK::Duration select_fast_seek_target_for_track(Track const&, AK::Duration target, SeekMode) = 0;
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;

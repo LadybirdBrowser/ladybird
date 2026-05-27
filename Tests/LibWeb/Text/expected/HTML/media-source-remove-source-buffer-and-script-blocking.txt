@@ -1,0 +1,5 @@
+script.blocking instanceof DOMTokenList: true
+script blocking attribute: render
+sourceBuffers before remove: 1
+sourceBuffers after remove: 0
+second remove threw: NotFoundError

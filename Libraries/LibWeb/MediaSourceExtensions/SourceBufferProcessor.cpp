@@ -314,10 +314,32 @@ void SourceBufferProcessor::initialization_segment_received()
         //                 match the ones in the first initialization segment.
         //               - The codecs for each track are supported by the user agent.
 
-        // FIXME: 2. Add the appropriate track descriptions from this initialization segment to each of the track buffers.
+        auto update_track_buffers = [&](Vector<Media::Track> const& tracks) {
+            for (auto const& track : tracks) {
+                auto maybe_track_buffer = m_track_buffers.get(track.identifier());
+                if (!maybe_track_buffer.has_value()) {
+                    m_append_error_callback();
+                    return false;
+                }
+
+                auto codec_id = m_parser->codec_id_for_track(track.identifier());
+                auto codec_init_data = MUST(ByteBuffer::copy(m_parser->codec_initialization_data_for_track(track.identifier())));
+                maybe_track_buffer.value()->demuxer().reset_track_description(track, codec_id, move(codec_init_data));
+            }
+            return true;
+        };
+
+        // 2. Add the appropriate track descriptions from this initialization segment to each of the track buffers.
+        if (!update_track_buffers(m_parser->audio_tracks()))
+            return;
+        if (!update_track_buffers(m_parser->video_tracks()))
+            return;
+        if (!update_track_buffers(m_parser->text_tracks()))
+            return;
 
         // 3. Set the need random access point flag on all track buffers to true.
         set_need_random_access_point_flag_on_all_track_buffers(true);
+        unset_all_track_buffer_timestamps();
     }
 
     // 4. Let active track flag equal false.
@@ -389,9 +411,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //            2. Let decode timestamp be a double precision floating point representation
         //               of the coded frame's decode timestamp in seconds.
         auto presentation_timestamp = frame.timestamp();
-        // FIXME: For VP9, decode timestamp equals presentation timestamp. This will need to differ when H.264 is
-        //        supported by MSE.
-        auto decode_timestamp = frame.timestamp();
+        auto decode_timestamp = frame.decode_timestamp();
 
         // 2. Let frame duration be a double precision floating point representation of the coded
         //    frame's duration in seconds.
@@ -399,7 +419,11 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
 
         // FIXME: 3. If mode equals "sequence" and group start timestamp is set, then run the following steps:
 
-        // FIXME: 4. If timestampOffset is not 0, then run the following steps:
+        // 4. If timestampOffset is not 0, then run the following steps:
+        if (!m_timestamp_offset.is_zero()) {
+            presentation_timestamp += m_timestamp_offset;
+            decode_timestamp += m_timestamp_offset;
+        }
 
         // 5. Let track buffer equal the track buffer that the coded frame will be added to.
         auto maybe_track_buffer = m_track_buffers.get(demuxed_frame.track_number);
@@ -410,22 +434,24 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
             continue;
         auto& track_buffer = *maybe_track_buffer.release_value();
         auto& demuxer = track_buffer.demuxer();
+        auto timestamps_may_be_reordered = demuxer.codec_id() == Media::CodecID::H264;
 
         auto last_decode_timestamp = track_buffer.last_decode_timestamp();
         auto last_frame_duration = track_buffer.last_frame_duration();
 
         // 6.
-        if (
-            // -> If last decode timestamp for track buffer is set
-            (last_decode_timestamp.has_value()
-                //  and decode timestamp is less than last decode timestamp:
-                && decode_timestamp < last_decode_timestamp.value())
-            // OR
-            ||
-            // -> If last decode timestamp for track buffer is set
-            (last_decode_timestamp.has_value()
-                // and the difference between decode timestamp and last decode timestamp is greater than 2 times last frame duration:
-                && decode_timestamp - last_decode_timestamp.value() > (last_frame_duration.value() + last_frame_duration.value()))) {
+        if (!timestamps_may_be_reordered
+            && (
+                // -> If last decode timestamp for track buffer is set
+                (last_decode_timestamp.has_value()
+                    //  and decode timestamp is less than last decode timestamp:
+                    && decode_timestamp < last_decode_timestamp.value())
+                // OR
+                ||
+                // -> If last decode timestamp for track buffer is set
+                (last_decode_timestamp.has_value()
+                    // and the difference between decode timestamp and last decode timestamp is greater than 2 times last frame duration:
+                    && decode_timestamp - last_decode_timestamp.value() > (last_frame_duration.value() + last_frame_duration.value())))) {
             // 1. -> If mode equals "segments":
             if (m_mode == AppendMode::Segments) {
                 // Set [[group end timestamp]] to presentation timestamp.
@@ -457,18 +483,27 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         // 7. Let frame end timestamp equal the sum of presentation timestamp and frame duration.
         auto frame_end_timestamp = presentation_timestamp + frame_duration;
 
-        // FIXME: 8. If presentation timestamp is less than appendWindowStart, then set the need random access
-        //           point flag to true, drop the coded frame, and jump to the top of the loop.
+        // 8. If presentation timestamp is less than appendWindowStart, then set the need random access point flag to
+        //    true, drop the coded frame, and jump to the top of the loop.
+        if (presentation_timestamp < m_append_window_start) {
+            track_buffer.set_need_random_access_point_flag(true);
+            continue;
+        }
 
-        // FIXME: 9. If frame end timestamp is greater than appendWindowEnd, then set the need random access
-        //           point flag to true, drop the coded frame, and jump to the top of the loop.
+        // 9. If frame end timestamp is greater than appendWindowEnd, then set the need random access point flag to
+        //    true, drop the coded frame, and jump to the top of the loop.
+        if (frame_end_timestamp > m_append_window_end) {
+            track_buffer.set_need_random_access_point_flag(true);
+            continue;
+        }
 
         // 10. If the need random access point flag on track buffer equals true, then run the following steps:
         if (track_buffer.need_random_access_point_flag()) {
             // 1. If the coded frame is not a random access point, then drop the coded frame and jump to
             //    the top of the loop.
-            if (!frame.is_keyframe())
+            if (!frame.is_keyframe()) {
                 continue;
+            }
             // 2. Set the need random access point flag on track buffer to false.
             track_buffer.set_need_random_access_point_flag(false);
         }
@@ -494,10 +529,16 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //     Otherwise:
         //         Add the coded frame with the presentation timestamp, decode timestamp, and frame
         //         duration to the track buffer.
-        demuxer.add_coded_frame(move(frame));
+        auto frame_data = MUST(ByteBuffer::copy(frame.data().bytes()));
+        auto frame_flags = frame.flags();
+        auto auxiliary_data = frame.auxiliary_data();
+        demuxer.add_coded_frame(Media::CodedFrame(presentation_timestamp, decode_timestamp, frame_duration, frame_flags, move(frame_data), auxiliary_data));
 
         // 17. Set last decode timestamp for track buffer to decode timestamp.
-        track_buffer.set_last_decode_timestamp(decode_timestamp);
+        if (timestamps_may_be_reordered && last_decode_timestamp.has_value() && decode_timestamp < last_decode_timestamp.value())
+            track_buffer.set_last_decode_timestamp(last_decode_timestamp.value());
+        else
+            track_buffer.set_last_decode_timestamp(decode_timestamp);
 
         // 18. Set last frame duration for track buffer to frame duration.
         track_buffer.set_last_frame_duration(frame_duration);
@@ -515,8 +556,9 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         if (frame_end_timestamp > m_group_end_timestamp)
             m_group_end_timestamp = frame_end_timestamp;
 
-        // FIXME: 21. If generate timestamps flag equals true, then set timestampOffset equal to
-        //            frame end timestamp.
+        // 21. If generate timestamps flag equals true, then set timestampOffset equal to frame end timestamp.
+        if (m_generate_timestamps_flag)
+            m_timestamp_offset = frame_end_timestamp;
     }
 
     // AD-HOC: Steps 2-5 are handled by the callback, as they mutate the DOM.
@@ -532,6 +574,13 @@ void SourceBufferProcessor::run_coded_frame_eviction()
     //           to make room for the new data.
     //        4. For each range in removal ranges, run the coded frame removal algorithm with start and end equal to
     //           the removal range start and end timestamp respectively.
+}
+
+// https://w3c.github.io/media-source/#sourcebuffer-coded-frame-removal
+void SourceBufferProcessor::remove_coded_frames(AK::Duration start, AK::Duration end)
+{
+    for (auto& [track_id, track_buffer] : m_track_buffers)
+        track_buffer->demuxer().remove_coded_frames_and_dependants_in_range(start, end);
 }
 
 void SourceBufferProcessor::drop_consumed_bytes_from_input_buffer()

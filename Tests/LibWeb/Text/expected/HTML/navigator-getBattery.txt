@@ -1,0 +1,6 @@
+same promise: true
+constructor: BatteryManager
+charging: true
+chargingTime: 0
+dischargingTime: Infinity
+level: 1

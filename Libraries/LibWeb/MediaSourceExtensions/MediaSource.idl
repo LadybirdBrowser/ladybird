@@ -12,7 +12,7 @@ enum EndOfStreamError {
 };
 
 // https://w3c.github.io/media-source/#dom-mediasource
-[Exposed=(Window,DedicatedWorker), Experimental]
+[Exposed=(Window,DedicatedWorker)]
 interface MediaSource : EventTarget {
     constructor();
 
@@ -30,9 +30,9 @@ interface MediaSource : EventTarget {
     static readonly attribute boolean canConstructInDedicatedWorker;
 
     SourceBuffer addSourceBuffer(DOMString type);
-    [FIXME] undefined removeSourceBuffer(SourceBuffer sourceBuffer);
+    undefined removeSourceBuffer(SourceBuffer sourceBuffer);
     undefined endOfStream(optional EndOfStreamError error);
-    [FIXME] undefined setLiveSeekableRange(double start, double end);
-    [FIXME] undefined clearLiveSeekableRange();
+    undefined setLiveSeekableRange(double start, double end);
+    undefined clearLiveSeekableRange();
     static boolean isTypeSupported(DOMString type);
 };

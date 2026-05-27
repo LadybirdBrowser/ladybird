@@ -1,0 +1,4 @@
+readyState after open: open
+sourceBuffers after open: 1
+readyState after close: closed
+sourceBuffers after close: 0

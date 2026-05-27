@@ -49,6 +49,29 @@ void SourceBufferList::append(GC::Ref<SourceBuffer> buffer)
     }));
 }
 
+bool SourceBufferList::remove(SourceBuffer const& buffer)
+{
+    Optional<size_t> index;
+    for (size_t i = 0; i < m_buffers.size(); ++i) {
+        if (m_buffers[i].ptr() == &buffer) {
+            index = i;
+            break;
+        }
+    }
+    if (!index.has_value())
+        return false;
+
+    m_buffers.remove(index.value());
+
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [weak_self = GC::Weak(*this)] {
+        if (!weak_self)
+            return;
+        weak_self->dispatch_event(DOM::Event::create(weak_self->realm(), EventNames::removesourcebuffer));
+    }));
+
+    return true;
+}
+
 size_t SourceBufferList::length() const
 {
     return m_buffers.size();

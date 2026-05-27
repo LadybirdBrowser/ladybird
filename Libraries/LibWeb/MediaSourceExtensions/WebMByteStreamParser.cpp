@@ -17,6 +17,82 @@ using namespace Media::Matroska;
 WebMByteStreamParser::WebMByteStreamParser() = default;
 WebMByteStreamParser::~WebMByteStreamParser() = default;
 
+static Media::DecoderErrorOr<Vector<ByteBuffer>> read_block_frames(Streamer& streamer, Block const& block)
+{
+    TRY(streamer.seek_to_position(block.data_position()));
+
+    Vector<ByteBuffer> frames;
+    if (block.lacing() == Block::Lacing::EBML) {
+        auto frames_start_position = streamer.position();
+        auto frame_count = TRY(streamer.read_octet()) + 1;
+        Vector<u64> frame_sizes;
+        frame_sizes.ensure_capacity(frame_count);
+
+        u64 frame_size_sum = 0;
+        auto previous_frame_size = TRY(streamer.read_variable_size_integer());
+        frame_sizes.append(previous_frame_size);
+        frame_size_sum += previous_frame_size;
+
+        for (int i = 0; i < frame_count - 2; i++) {
+            auto frame_size_difference = TRY(streamer.read_variable_size_signed_integer());
+            u64 frame_size;
+            if (frame_size_difference < 0)
+                frame_size = previous_frame_size - (-frame_size_difference);
+            else
+                frame_size = previous_frame_size + frame_size_difference;
+            frame_sizes.append(frame_size);
+            frame_size_sum += frame_size;
+            previous_frame_size = frame_size;
+        }
+
+        auto lace_header_size = streamer.position() - frames_start_position;
+        if (frame_size_sum + lace_header_size > block.data_size())
+            return Media::DecoderError::corrupted("EBML-laced block has invalid frame sizes"sv);
+        frame_sizes.append(block.data_size() - frame_size_sum - lace_header_size);
+
+        for (auto frame_size : frame_sizes)
+            frames.append(TRY(streamer.read_raw_octets(frame_size)));
+    } else if (block.lacing() == Block::Lacing::FixedSize) {
+        auto frame_count = TRY(streamer.read_octet()) + 1;
+        auto frames_data_size = block.data_size() - 1;
+        if (frames_data_size % frame_count != 0)
+            return Media::DecoderError::corrupted("Fixed-size-laced block has non-divisible size"sv);
+
+        auto frame_size = frames_data_size / frame_count;
+        for (int i = 0; i < frame_count; i++)
+            frames.append(TRY(streamer.read_raw_octets(frame_size)));
+    } else if (block.lacing() == Block::Lacing::XIPH) {
+        auto frames_start_position = streamer.position();
+        auto frame_count_minus_one = TRY(streamer.read_octet());
+
+        Vector<size_t> frame_sizes;
+        frame_sizes.ensure_capacity(frame_count_minus_one);
+        for (auto i = 0; i < frame_count_minus_one; i++) {
+            size_t frame_size = 0;
+            while (true) {
+                auto octet = TRY(streamer.read_octet());
+                frame_size += octet;
+                if (octet < 255)
+                    break;
+            }
+            frame_sizes.append(frame_size);
+        }
+
+        for (auto frame_size : frame_sizes)
+            frames.append(TRY(streamer.read_raw_octets(frame_size)));
+
+        auto consumed_laced_data_size = streamer.position() - frames_start_position;
+        if (consumed_laced_data_size > block.data_size())
+            return Media::DecoderError::corrupted("Xiph-laced block has invalid frame sizes"sv);
+        frames.append(TRY(streamer.read_raw_octets(block.data_size() - consumed_laced_data_size)));
+    } else {
+        VERIFY(block.lacing() == Block::Lacing::None);
+        frames.append(TRY(streamer.read_raw_octets(block.data_size())));
+    }
+
+    return frames;
+}
+
 Media::DecoderErrorOr<void> WebMByteStreamParser::skip_ignored_bytes(Media::MediaStreamCursor& cursor)
 {
     Streamer streamer { cursor };
@@ -257,33 +333,32 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                 //   tracks MUST be present.
                 seen_track_numbers.set(block.track_number());
 
-                auto data_position = block.data_position();
-                auto data_size = block.data_size();
                 auto current_position = streamer.position();
-                TRY(cursor.seek(data_position, SeekMode::SetPosition));
-
-                // FIXME: Support lacing.
-                if (block.lacing() != Block::Lacing::None)
-                    return Media::DecoderError::with_description(Media::DecoderErrorCategory::NotImplemented, "Block lacing is not supported"sv);
-                auto frame_data = TRY(streamer.read_raw_octets(data_size));
+                auto frames = TRY(read_block_frames(streamer, block));
                 TRY(cursor.seek(current_position, SeekMode::SetPosition));
 
                 auto track_entry = m_track_entries.get(block.track_number());
                 auto is_video = track_entry.has_value() && (*track_entry)->track_type() == Media::Matroska::TrackEntry::TrackType::Video;
 
-                Media::CodedFrame::AuxiliaryData aux_data = is_video
-                    ? Media::CodedFrame::AuxiliaryData { Media::CodedVideoFrameData {} }
-                    : Media::CodedFrame::AuxiliaryData { Media::CodedAudioFrameData {} };
+                auto frame_duration = block.duration().value_or(AK::Duration::zero());
+                if (frame_duration.is_zero() && frames.size() > 1)
+                    frame_duration = AK::Duration::from_nanoseconds(1);
 
-                result.coded_frames.append({
-                    .track_number = block.track_number(),
-                    .coded_frame = Media::CodedFrame(
-                        block.timestamp().value(),
-                        block.duration().value_or(AK::Duration::zero()),
-                        block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
-                        move(frame_data),
-                        aux_data),
-                });
+                for (auto i = 0uz; i < frames.size(); ++i) {
+                    Media::CodedFrame::AuxiliaryData aux_data = is_video
+                        ? Media::CodedFrame::AuxiliaryData { Media::CodedVideoFrameData {} }
+                        : Media::CodedFrame::AuxiliaryData { Media::CodedAudioFrameData {} };
+
+                    result.coded_frames.append({
+                        .track_number = block.track_number(),
+                        .coded_frame = Media::CodedFrame(
+                            block.timestamp().value() + AK::Duration::from_nanoseconds(frame_duration.to_nanoseconds() * static_cast<i64>(i)),
+                            frame_duration,
+                            block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
+                            move(frames[i]),
+                            aux_data),
+                    });
+                }
                 return IterationDecision::Continue;
             }
 

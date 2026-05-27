@@ -402,12 +402,12 @@ Optional<ConsentConfiguration> get_supported_configuration(KeySystem const& impl
 // https://w3c.github.io/encrypted-media/#dfn-common-key-systems
 bool is_supported_key_system(Utf16String const& key_system)
 {
-    constexpr Array<Utf16View, 1> supported_key_systems = {
-        // https://w3c.github.io/encrypted-media/#clear-key
-        "org.w3.clearkey"sv,
-    };
+    (void)key_system;
 
-    return supported_key_systems.contains_slow(key_system);
+    // We currently do not implement MediaKeys, MediaKeySession, license exchange, or encrypted-sample
+    // decryption. Do not advertise even Clear Key until the rest of the EME stack exists; otherwise
+    // sites can enter a half-supported DRM path and fail much later.
+    return false;
 }
 
 NonnullOwnPtr<KeySystem> key_system_from_string(Utf16String const& key_system)

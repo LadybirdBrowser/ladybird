@@ -8,9 +8,11 @@
 #include <LibJS/Runtime/BooleanObject.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaCapabilities.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
@@ -189,8 +191,11 @@ Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_inf
     info.configuration.emplace(move(info_configuration));
 
     // 3. If configuration.keySystemConfiguration exists:
-    if (false) {
-        // FIXME: Implement this.
+    if (configuration.key_system_configuration.has_value()) {
+        // FIXME: Implement EME/CDM-backed MediaKeySystemAccess and populate keySystemAccess.
+        // Until then, encrypted media configurations are not supported. Reporting support here
+        // causes DRM sites to proceed into the incomplete EME path.
+        info.supported = false;
     }
     // 4. Otherwise, run the following steps:
     else {
@@ -204,8 +209,8 @@ Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_inf
 
     // 5. If the user agent is able to decode the media represented by configuration at the indicated framerate without
     //    dropping frames, set smooth to true. Otherwise set it to false.
-    // FIXME: Actually check this.
-    info.smooth = false;
+    // FIXME: Actually check the requested resolution, bitrate, and framerate.
+    info.smooth = info.supported;
 
     // 6. If the user agent is able to decode the media represented by configuration in a power efficient manner, set
     //    powerEfficient to true. Otherwise set it to false.
@@ -218,22 +223,35 @@ Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_inf
 
 bool is_able_to_decode_media(Bindings::MediaDecodingConfiguration configuration)
 {
-    if (configuration.type != Bindings::MediaDecodingType::MediaSource)
-        return false;
-
-    if (configuration.video.has_value()) {
-        auto video_mime_type = MimeSniff::MimeType::parse(configuration.video.value().content_type);
-        if (!video_mime_type.has_value() || !Web::HTML::HTMLMediaElement::supported_video_subtypes.contains_slow(video_mime_type->subtype()))
+    auto is_supported_media_file_type = [](String const& content_type, StringView expected_type) {
+        auto mime_type = MimeSniff::MimeType::parse(content_type);
+        if (!mime_type.has_value() || mime_type->type() != expected_type)
             return false;
+
+        if (expected_type == "video"sv)
+            return HTML::HTMLMediaElement::supported_video_subtypes.contains_slow(mime_type->subtype());
+        if (expected_type == "audio"sv)
+            return HTML::HTMLMediaElement::supported_audio_subtypes.contains_slow(mime_type->subtype());
+        VERIFY_NOT_REACHED();
+    };
+
+    if (configuration.type == Bindings::MediaDecodingType::File) {
+        if (configuration.video.has_value() && !is_supported_media_file_type(configuration.video.value().content_type, "video"sv))
+            return false;
+        if (configuration.audio.has_value() && !is_supported_media_file_type(configuration.audio.value().content_type, "audio"sv))
+            return false;
+        return true;
     }
 
-    if (configuration.audio.has_value()) {
-        auto audio_mime_type = MimeSniff::MimeType::parse(configuration.audio.value().content_type);
-        if (!audio_mime_type.has_value() || !Web::HTML::HTMLMediaElement::supported_audio_subtypes.contains_slow(audio_mime_type->subtype()))
+    if (configuration.type == Bindings::MediaDecodingType::MediaSource) {
+        if (configuration.video.has_value() && !MediaSourceExtensions::MediaSource::is_type_supported(configuration.video.value().content_type))
             return false;
+        if (configuration.audio.has_value() && !MediaSourceExtensions::MediaSource::is_type_supported(configuration.audio.value().content_type))
+            return false;
+        return true;
     }
 
-    return true;
+    return false;
 }
 
 GC::Ref<JS::Object> to_object(JS::Realm& realm, Bindings::MediaCapabilitiesDecodingInfo const& info)
@@ -242,9 +260,9 @@ GC::Ref<JS::Object> to_object(JS::Realm& realm, Bindings::MediaCapabilitiesDecod
 
     // FIXME: Also include configuration in this object.
 
-    MUST(object->create_data_property("supported"_utf16_fly_string, JS::BooleanObject::create(realm, info.supported)));
-    MUST(object->create_data_property("smooth"_utf16_fly_string, JS::BooleanObject::create(realm, info.smooth)));
-    MUST(object->create_data_property("powerEfficient"_utf16_fly_string, JS::BooleanObject::create(realm, info.power_efficient)));
+    MUST(object->create_data_property("supported"_utf16_fly_string, JS::Value(info.supported)));
+    MUST(object->create_data_property("smooth"_utf16_fly_string, JS::Value(info.smooth)));
+    MUST(object->create_data_property("powerEfficient"_utf16_fly_string, JS::Value(info.power_efficient)));
 
     return object;
 }

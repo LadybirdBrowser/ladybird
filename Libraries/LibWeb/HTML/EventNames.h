@@ -35,6 +35,8 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(canplay)                  \
     __ENUMERATE_HTML_EVENT(canplaythrough)           \
     __ENUMERATE_HTML_EVENT(change)                   \
+    __ENUMERATE_HTML_EVENT(chargingchange)           \
+    __ENUMERATE_HTML_EVENT(chargingtimechange)       \
     __ENUMERATE_HTML_EVENT(click)                    \
     __ENUMERATE_HTML_EVENT(close)                    \
     __ENUMERATE_HTML_EVENT(command)                  \
@@ -50,6 +52,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(cut)                      \
     __ENUMERATE_HTML_EVENT(devicechange)             \
     __ENUMERATE_HTML_EVENT(disconnect)               \
+    __ENUMERATE_HTML_EVENT(dischargingtimechange)    \
     __ENUMERATE_HTML_EVENT(dispose)                  \
     __ENUMERATE_HTML_EVENT(DOMContentLoaded)         \
     __ENUMERATE_HTML_EVENT(drag)                     \
@@ -77,6 +80,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(input)                    \
     __ENUMERATE_HTML_EVENT(invalid)                  \
     __ENUMERATE_HTML_EVENT(languagechange)           \
+    __ENUMERATE_HTML_EVENT(levelchange)              \
     __ENUMERATE_HTML_EVENT(load)                     \
     __ENUMERATE_HTML_EVENT(loaded)                   \
     __ENUMERATE_HTML_EVENT(loadeddata)               \

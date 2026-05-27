@@ -1,0 +1,20 @@
+video/webm; codecs="vp09.00.51.08, opus": true
+video/webm; codecs="vp9, opus": true
+audio/webm; codecs="Opus": true
+video/mp4; codecs="avc1.640028, mp4a.40.2": true
+video/webm; codecs="": false
+video/webm; codecs=",": false
+audio/webm; codecs="vp09.00.51.08": false
+video/webm; codecs="vp09.00.51.08, av01.0.08M.08": false
+mediaCapabilities WebM MSE supported: true
+mediaCapabilities WebM MSE supported type: boolean
+mediaCapabilities WebM MSE smooth type: boolean
+mediaCapabilities WebM MSE powerEfficient type: boolean
+mediaCapabilities MP4 MSE supported: true
+mediaCapabilities MP4 MSE supported type: boolean
+timestampOffset in SourceBuffer.prototype: true
+audioTracks in SourceBuffer.prototype: true
+videoTracks in SourceBuffer.prototype: true
+textTracks in SourceBuffer.prototype: true
+appendWindowStart in SourceBuffer.prototype: true
+appendWindowEnd in SourceBuffer.prototype: true

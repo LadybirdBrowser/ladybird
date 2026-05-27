@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let video = document.createElement("video");
+        document.body.appendChild(video);
+        video.src = "../../../Assets/test-webm.webm";
+
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        video.currentTime = video.duration;
+        video.remove();
+        video = null;
+
+        internals.gc();
+        await timeout(200);
+        internals.gc();
+
+        println("PASS: did not crash");
+        done();
+    });
+</script>

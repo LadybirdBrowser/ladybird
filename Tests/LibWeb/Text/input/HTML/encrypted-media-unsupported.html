@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        println(`requestMediaKeySystemAccess is ${typeof navigator.requestMediaKeySystemAccess}`);
+
+        try {
+            await navigator.requestMediaKeySystemAccess("com.widevine.alpha", [{
+                initDataTypes: ["cenc"],
+                videoCapabilities: [{
+                    contentType: 'video/mp4; codecs="avc1.640028"',
+                    encryptionScheme: "cenc",
+                    robustness: "SW_SECURE_DECODE",
+                }],
+            }]);
+            println("FAIL: Widevine was accepted");
+        } catch (error) {
+            println(`Widevine rejects: ${error.name}`);
+        }
+
+        try {
+            await navigator.requestMediaKeySystemAccess("org.w3.clearkey", [{
+                initDataTypes: ["keyids"],
+                videoCapabilities: [{
+                    contentType: 'video/mp4; codecs="avc1.640028"',
+                    encryptionScheme: "cenc",
+                }],
+            }]);
+            println("FAIL: Clear Key was accepted without MediaKeys implementation");
+        } catch (error) {
+            println(`Clear Key rejects: ${error.name}`);
+        }
+
+        const drmInfo = await navigator.mediaCapabilities.decodingInfo({
+            type: "media-source",
+            video: {
+                contentType: 'video/mp4; codecs="avc1.640028"',
+                width: 1920,
+                height: 1080,
+                bitrate: 5000000,
+                framerate: 30,
+            },
+            keySystemConfiguration: {
+                keySystem: "com.widevine.alpha",
+                initDataType: "cenc",
+                video: {
+                    robustness: "SW_SECURE_DECODE",
+                    encryptionScheme: "cenc",
+                },
+            },
+        });
+
+        println(`mediaCapabilities DRM supported: ${drmInfo.supported}`);
+        println(`mediaCapabilities DRM smooth: ${drmInfo.smooth}`);
+        println(`mediaCapabilities DRM powerEfficient: ${drmInfo.powerEfficient}`);
+        println(`mediaCapabilities DRM supported type: ${typeof drmInfo.supported}`);
+        done();
+    });
+</script>

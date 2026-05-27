@@ -472,6 +472,7 @@ set(SOURCES
     HTML/AudioTrackList.cpp
     HTML/AutocompleteElement.cpp
     HTML/BarProp.cpp
+    HTML/BatteryManager.cpp
     HTML/BeforeUnloadEvent.cpp
     HTML/BroadcastChannel.cpp
     HTML/BroadcastChannelMessage.cpp
@@ -824,6 +825,7 @@ set(SOURCES
     MediaCapture/MediaStreamTrackEvent.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
     MediaSourceExtensions/EventNames.cpp
+    MediaSourceExtensions/ISOBMFFByteStreamParser.cpp
     MediaSourceExtensions/ManagedMediaSource.cpp
     MediaSourceExtensions/ManagedSourceBuffer.cpp
     MediaSourceExtensions/MediaSource.cpp

@@ -20,6 +20,17 @@ public:
 
     CodedFrame(AK::Duration timestamp, AK::Duration duration, FrameFlags flags, ByteBuffer&& data, AuxiliaryData auxiliary_data)
         : m_timestamp(timestamp)
+        , m_decode_timestamp(timestamp)
+        , m_duration(duration)
+        , m_flags(flags)
+        , m_data(move(data))
+        , m_auxiliary_data(auxiliary_data)
+    {
+    }
+
+    CodedFrame(AK::Duration timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, ByteBuffer&& data, AuxiliaryData auxiliary_data)
+        : m_timestamp(timestamp)
+        , m_decode_timestamp(decode_timestamp)
         , m_duration(duration)
         , m_flags(flags)
         , m_data(move(data))
@@ -28,6 +39,7 @@ public:
     }
 
     AK::Duration timestamp() const { return m_timestamp; }
+    AK::Duration decode_timestamp() const { return m_decode_timestamp; }
     AK::Duration duration() const { return m_duration; }
     FrameFlags flags() const { return m_flags; }
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }
@@ -36,6 +48,7 @@ public:
 
 private:
     AK::Duration m_timestamp;
+    AK::Duration m_decode_timestamp;
     AK::Duration m_duration;
     FrameFlags m_flags;
     ByteBuffer m_data;

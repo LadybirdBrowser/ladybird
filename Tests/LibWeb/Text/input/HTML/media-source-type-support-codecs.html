@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const supportedTypes = [
+            'video/webm; codecs="vp09.00.51.08, opus"',
+            'video/webm; codecs="vp9, opus"',
+            'audio/webm; codecs="Opus"',
+            'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+        ];
+        for (const type of supportedTypes)
+            println(`${type}: ${MediaSource.isTypeSupported(type)}`);
+
+        const unsupportedTypes = [
+            'video/webm; codecs=""',
+            'video/webm; codecs=","',
+            'audio/webm; codecs="vp09.00.51.08"',
+            'video/webm; codecs="vp09.00.51.08, av01.0.08M.08"',
+        ];
+        for (const type of unsupportedTypes)
+            println(`${type}: ${MediaSource.isTypeSupported(type)}`);
+
+        const webmInfo = await navigator.mediaCapabilities.decodingInfo({
+            type: "media-source",
+            video: {
+                contentType: 'video/webm; codecs="vp09.00.51.08"',
+                width: 1920,
+                height: 1080,
+                bitrate: 5000000,
+                framerate: 30,
+            },
+            audio: { contentType: 'audio/webm; codecs="opus"' },
+        });
+        println(`mediaCapabilities WebM MSE supported: ${webmInfo.supported}`);
+        println(`mediaCapabilities WebM MSE supported type: ${typeof webmInfo.supported}`);
+        println(`mediaCapabilities WebM MSE smooth type: ${typeof webmInfo.smooth}`);
+        println(`mediaCapabilities WebM MSE powerEfficient type: ${typeof webmInfo.powerEfficient}`);
+
+        const mp4Info = await navigator.mediaCapabilities.decodingInfo({
+            type: "media-source",
+            video: {
+                contentType: 'video/mp4; codecs="avc1.640028"',
+                width: 1920,
+                height: 1080,
+                bitrate: 5000000,
+                framerate: 30,
+            },
+            audio: { contentType: 'audio/mp4; codecs="mp4a.40.2"' },
+        });
+        println(`mediaCapabilities MP4 MSE supported: ${mp4Info.supported}`);
+        println(`mediaCapabilities MP4 MSE supported type: ${typeof mp4Info.supported}`);
+
+        const sourceBufferProperties = [
+            "timestampOffset",
+            "audioTracks",
+            "videoTracks",
+            "textTracks",
+            "appendWindowStart",
+            "appendWindowEnd",
+        ];
+        for (const property of sourceBufferProperties)
+            println(`${property} in SourceBuffer.prototype: ${property in SourceBuffer.prototype}`);
+
+        done();
+    });
+</script>

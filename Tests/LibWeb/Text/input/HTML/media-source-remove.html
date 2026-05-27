@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9, opus"');
+                println(`remove is ${typeof sourceBuffer.remove}`);
+
+                const response = await fetch("../../../Assets/test-webm.webm");
+                const data = await response.arrayBuffer();
+
+                await new Promise((resolve, reject) => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.addEventListener("error", () => reject(new Error("append failed")), { once: true });
+                    sourceBuffer.appendBuffer(data);
+                });
+                println(`buffered before remove: ${sourceBuffer.buffered.length}`);
+
+                const events = [];
+                for (const eventName of ["updatestart", "update", "updateend"])
+                    sourceBuffer.addEventListener(eventName, () => events.push(eventName));
+
+                await new Promise(resolve => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.remove(0, Infinity);
+                });
+
+                println(`remove events: ${events.join(",")}`);
+                println(`updating after remove: ${sourceBuffer.updating}`);
+                println(`buffered after remove: ${sourceBuffer.buffered.length}`);
+                done();
+            } catch (error) {
+                println(`FAIL: ${error}`);
+                done();
+            }
+        });
+    });
+</script>

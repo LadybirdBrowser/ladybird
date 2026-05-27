@@ -300,6 +300,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#assigned-media-provider-object
     MediaProviderObject m_assigned_media_provider_object;
 
+    GC::Ptr<MediaSourceExtensions::MediaSource> m_attached_media_source;
+
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-currentsrc
     String m_current_src;
 

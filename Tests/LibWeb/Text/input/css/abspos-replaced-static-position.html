@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    * { margin: 0; padding: 0; }
+    .container {
+        position: relative;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        width: 200px;
+        height: 100px;
+    }
+
+    img {
+        position: absolute;
+        width: 20px;
+        height: 10px;
+    }
+</style>
+<div class="container">
+    <img id="target" alt src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=" />
+</div>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    const pass = target.offsetLeft === 180 && target.offsetTop === 45;
+    println(pass ? "PASS" : "FAIL");
+    if (!pass) {
+        println(`left=${target.offsetLeft}`);
+        println(`top=${target.offsetTop}`);
+    }
+});
+</script>

@@ -1,0 +1,5 @@
+remove is function
+buffered before remove: 1
+remove events: updatestart,update,updateend
+updating after remove: false
+buffered after remove: 0

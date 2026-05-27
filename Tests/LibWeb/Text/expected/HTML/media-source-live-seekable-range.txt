@@ -1,0 +1,7 @@
+setLiveSeekableRange is function
+clearLiveSeekableRange is function
+seekable length after set: 1
+seekable start after set: 12.5
+seekable end after set: 45.25
+seekable length after clear: 0
+invalid range throws: TypeError

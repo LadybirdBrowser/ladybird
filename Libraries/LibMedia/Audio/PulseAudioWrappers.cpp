@@ -428,7 +428,8 @@ void PulseAudioStream::on_write_requested(size_t bytes_to_write)
                 auto callback_state = CallbackState::Active;
                 if (m_callback_state.compare_exchange_strong(callback_state, CallbackState::Parked))
                     break;
-                VERIFY(callback_state != CallbackState::Parked);
+                if (callback_state == CallbackState::Parked)
+                    break;
                 if (callback_state == CallbackState::ActiveWithFutureData) {
                     if (!m_callback_state.compare_exchange_strong(callback_state, CallbackState::Active))
                         continue;

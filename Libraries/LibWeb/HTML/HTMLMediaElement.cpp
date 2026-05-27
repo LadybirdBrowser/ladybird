@@ -165,6 +165,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_text_tracks);
     visitor.visit(m_document_observer);
     visitor.visit(m_source_element_selector);
+    visitor.visit(m_attached_media_source);
     visitor.visit(m_pending_play_promises);
     visitor.visit(m_selected_video_track);
     m_assigned_media_provider_object.visit(
@@ -334,7 +335,16 @@ GC::Ref<TimeRanges> HTMLMediaElement::seekable() const
     // The seekable attribute must return a new static normalized TimeRanges object that represents the ranges of the media resource, if any, that the
     // user agent is able to seek to, at the time the attribute is evaluated.
     auto time_ranges = realm.create<TimeRanges>(realm);
-    time_ranges->add_range(0, m_duration);
+    if (m_attached_media_source) {
+        auto& media_source = *m_attached_media_source;
+        if (isinf(media_source.duration())) {
+            if (auto live_seekable_range = media_source.live_seekable_range(); live_seekable_range.has_value())
+                time_ranges->add_range(live_seekable_range->start, live_seekable_range->end);
+            return time_ranges;
+        }
+    }
+    if (!isnan(m_duration))
+        time_ranges->add_range(0, m_duration);
     return time_ranges;
 }
 
@@ -719,7 +729,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         // 2. If a fetching process is in progress for the media element, the user agent should stop it.
         cancel_the_fetching_process();
 
-        // FIXME: 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        // 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        if (m_attached_media_source) {
+            m_attached_media_source->detach_from_media_element({});
+            m_attached_media_source = nullptr;
+        }
 
         // 4. Forget the media element's media-resource-specific tracks.
         forget_media_resource_specific_tracks();
@@ -1431,6 +1445,7 @@ void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_prov
             //        3. Set [[port to main]] null.
 
             media_source->set_assigned_to_media_element({}, *this);
+            m_attached_media_source = media_source;
             set_up_playback_manager_for_local();
 
             // 4. Set the readyState attribute to "open".
@@ -2696,10 +2711,12 @@ bool HTMLMediaElement::has_ended_playback() const
 
 void HTMLMediaElement::upon_has_ended_playback_possibly_changed()
 {
-    run_when_event_loop_reaches_step_1(GC::Function<void()>::create(heap(), [&] {
+    run_when_event_loop_reaches_step_1(GC::Function<void()>::create(heap(), [self = GC::Weak(*this)] {
+        if (!self)
+            return;
         // The ended attribute must return true if, the last time the event loop reached step 1, the media element had ended
         // playback and the direction of playback was forwards, and false otherwise.
-        set_ended(has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards);
+        self->set_ended(self->has_ended_playback() && self->direction_of_playback() == PlaybackDirection::Forwards);
     }));
 }
 
@@ -2722,26 +2739,26 @@ void HTMLMediaElement::reached_end_of_media_playback()
     // 2. As defined above, the ended IDL attribute starts returning true once the event loop returns to step 1.
 
     // 3. Queue a media element task given the media element and the following steps:
-    queue_a_media_element_task([this]() mutable {
+    queue_a_media_element_task(GC::weak_callback(*this, [](auto& self) mutable {
         // 1. Fire an event named timeupdate at the media element.
-        dispatch_time_update_event();
+        self.dispatch_time_update_event();
 
         // 2. If the media element has ended playback, the direction of playback is forwards, and paused is false, then:
-        if (has_ended_playback() && direction_of_playback() == PlaybackDirection::Forwards && !paused()) {
+        if (self.has_ended_playback() && self.direction_of_playback() == PlaybackDirection::Forwards && !self.paused()) {
             // 1. Set the paused attribute to true.
-            set_paused(true);
+            self.set_paused(true);
 
             // 2. Fire an event named pause at the media element.
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::pause));
+            self.dispatch_event(DOM::Event::create(self.realm(), HTML::EventNames::pause));
 
             // 3. Take pending play promises and reject pending play promises with the result and an "AbortError" DOMException.
-            auto promises = take_pending_play_promises();
-            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_utf16);
+            auto promises = self.take_pending_play_promises();
+            self.template reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_utf16);
         }
 
         // 3. Fire an event named ended at the media element.
-        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::ended));
-    });
+        self.dispatch_event(DOM::Event::create(self.realm(), HTML::EventNames::ended));
+    }));
 }
 
 void HTMLMediaElement::dispatch_time_update_event()

@@ -210,6 +210,13 @@ static inline AK::Duration time_units_to_duration(i64 time_units, AVRational con
     return AK::Duration::from_time_units(time_units, time_base.num, time_base.den);
 }
 
+static inline AK::Duration packet_timestamp_to_duration(i64 timestamp, AVRational const& time_base, Optional<AK::Duration> fallback = {})
+{
+    if (timestamp != AV_NOPTS_VALUE)
+        return time_units_to_duration(timestamp, time_base);
+    return fallback.value_or(AK::Duration::zero());
+}
+
 static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
 {
     VERIFY(time_base.num > 0);
@@ -354,8 +361,14 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         auto packet_data = DECODER_TRY_ALLOC(ByteBuffer::copy(packet.data, packet.size));
 
         auto flags = (packet.flags & AV_PKT_FLAG_KEY) != 0 ? FrameFlags::Keyframe : FrameFlags::None;
+        auto presentation_timestamp = packet_timestamp_to_duration(packet.pts, stream.time_base);
+        auto decode_timestamp = packet_timestamp_to_duration(packet.dts, stream.time_base, presentation_timestamp);
+        if (packet.pts == AV_NOPTS_VALUE)
+            presentation_timestamp = decode_timestamp;
+
         auto sample = CodedFrame(
-            time_units_to_duration(packet.pts, stream.time_base),
+            presentation_timestamp,
+            decode_timestamp,
             time_units_to_duration(packet.duration, stream.time_base),
             flags,
             move(packet_data),

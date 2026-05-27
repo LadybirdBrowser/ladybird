@@ -26,6 +26,8 @@
 
 namespace Web::HTML {
 
+class BatteryManager;
+
 class Navigator
     : public Bindings::PlatformObject
     , public NavigatorBeaconPartial
@@ -119,6 +121,7 @@ private:
 
     // https://w3c.github.io/battery/
     GC::Ptr<WebIDL::Promise> m_battery_promise;
+    GC::Ptr<BatteryManager> m_battery_manager;
 
     // https://immersive-web.github.io/webxr/#dom-navigator-xr
     GC::Ptr<WebXR::XRSystem> m_xr;

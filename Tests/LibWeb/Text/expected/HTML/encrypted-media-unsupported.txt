@@ -1,0 +1,7 @@
+requestMediaKeySystemAccess is function
+Widevine rejects: NotSupportedError
+Clear Key rejects: NotSupportedError
+mediaCapabilities DRM supported: false
+mediaCapabilities DRM smooth: false
+mediaCapabilities DRM powerEfficient: false
+mediaCapabilities DRM supported type: boolean

@@ -93,8 +93,12 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(AK::Duration timesta
 {
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
-    m_packet->data = const_cast<u8*>(coded_data.data());
-    m_packet->size = static_cast<int>(coded_data.size());
+    av_packet_unref(m_packet);
+    if (av_new_packet(m_packet, static_cast<int>(coded_data.size())) < 0)
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate padded FFmpeg packet"sv);
+
+    if (!coded_data.is_empty())
+        memcpy(m_packet->data, coded_data.data(), coded_data.size());
     m_packet->pts = timestamp.to_microseconds();
     m_packet->dts = m_packet->pts;
 

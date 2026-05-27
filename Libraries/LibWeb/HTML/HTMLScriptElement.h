@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
@@ -73,6 +74,8 @@ public:
 
     [[nodiscard]] bool async() const;
     void set_async(bool);
+
+    GC::Ref<DOM::DOMTokenList> blocking();
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
@@ -161,6 +164,8 @@ private:
 
     // https://www.w3.org/TR/trusted-types/#htmlscriptelement-script-text
     Utf16String m_script_text;
+
+    GC::Ptr<DOM::DOMTokenList> m_blocking;
 };
 
 }

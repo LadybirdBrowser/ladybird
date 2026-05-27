@@ -93,6 +93,7 @@ private:
         void dispatch_error(DecoderError&&);
         bool handle_seek();
         void resolve_seek(u32 seek_id, bool moved_position);
+        DecoderErrorOr<void> ensure_decoder_matches_track_description();
         void push_data_and_decode_some_frames();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
@@ -124,6 +125,7 @@ private:
         Track m_track;
         AK::Duration m_duration;
         OwnPtr<VideoDecoder> m_decoder;
+        size_t m_track_description_generation { 0 };
         bool m_decoder_needs_keyframe_next_seek { false };
 
         size_t m_queue_max_size { 4 };

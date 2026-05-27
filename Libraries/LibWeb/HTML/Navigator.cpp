@@ -14,6 +14,7 @@
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/CredentialManagement/CredentialsContainer.h>
 #include <LibWeb/Geolocation/Geolocation.h>
+#include <LibWeb/HTML/BatteryManager.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
@@ -82,6 +83,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_media_devices);
     visitor.visit(m_credentials);
     visitor.visit(m_battery_promise);
+    visitor.visit(m_battery_manager);
     visitor.visit(m_xr);
     visitor.visit(m_permissions);
 }
@@ -185,15 +187,16 @@ GC::Ref<WebIDL::Promise> Navigator::get_battery()
 
     // 2. If this's relevant global object's associated Document is not allowed to use the "battery" policy-controlled
     //    feature, then reject this.[[BatteryPromise]] with a "NotAllowedError" DOMException.
-    if (true) {
-        WebIDL::reject_promise(realm, *m_battery_promise, WebIDL::NotAllowedError::create(realm, "Battery Status API is not yet implemented"_utf16));
-    }
+    // FIXME: Hook this up to Permissions Policy once the "battery" policy-controlled feature is supported.
+
     // 3. Otherwise:
-    else {
-        // FIXME: 1. If this.[[BatteryManager]] is null, then set it to the result of creating a new BatteryManager in this's
-        //           relevant realm.
-        // FIXME: 2. Resolve this.[[BatteryPromise]] with this.[[BatteryManager]].
-    }
+    // 1. If this.[[BatteryManager]] is null, then set it to the result of creating a new BatteryManager in this's relevant
+    //    realm.
+    if (!m_battery_manager)
+        m_battery_manager = BatteryManager::create(realm);
+
+    // 2. Resolve this.[[BatteryPromise]] with this.[[BatteryManager]].
+    WebIDL::resolve_promise(realm, *m_battery_promise, m_battery_manager);
 
     // 4. Return this.[[BatteryPromise]].
     return *m_battery_promise;

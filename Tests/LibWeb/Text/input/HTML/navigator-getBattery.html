@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        println(`same promise: ${navigator.getBattery() === navigator.getBattery()}`);
+
+        const battery = await navigator.getBattery();
+        println(`constructor: ${battery.constructor.name}`);
+        println(`charging: ${battery.charging}`);
+        println(`chargingTime: ${battery.chargingTime}`);
+        println(`dischargingTime: ${battery.dischargingTime}`);
+        println(`level: ${battery.level}`);
+
+        done();
+    });
+</script>
