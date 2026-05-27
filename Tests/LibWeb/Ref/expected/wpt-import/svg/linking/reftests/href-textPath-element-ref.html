@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>href - textPath element reference</title>
+<body>
+  <svg width="100%" height="100%" viewBox="0 0 1000 300"
+       xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+      <path id="MyPath"
+            d="M 100 200
+               C 200 100 300   0 400 100
+               C 500 200 600 300 700 200
+               C 800 100 900 100 900 100" />
+    </defs>
+    <text font-family="Verdana" font-size="40">
+      <textPath xlink:href="#MyPath">
+        We go up, then we go down, then up again
+      </textPath>
+    </text>
+  </svg>
+</body>

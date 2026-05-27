@@ -21,7 +21,7 @@ SVGTextPathElement::SVGTextPathElement(DOM::Document& document, DOM::QualifiedNa
 
 GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const
 {
-    auto href = get_attribute(AttributeNames::href);
+    auto href = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute(AttributeNames::xlink_href);
     if (!href.has_value())
         return {};
     return try_resolve_url_to<SVGGeometryElement const>(*href);
