@@ -1391,7 +1391,9 @@ CSS::PreferredColorScheme Document::canvas_color_scheme() const
 {
     auto color_scheme = CSS::PreferredColorScheme::Light;
     auto root_color_scheme_is_normal = true;
+    auto root_color_scheme_was_computed = false;
     if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
+        root_color_scheme_was_computed = true;
         auto const& computed_values = html_element->layout_node()->computed_values();
         auto const& color_scheme_value = html_element->computed_properties()->property(CSS::PropertyID::ColorScheme).as_color_scheme();
         root_color_scheme_is_normal = color_scheme_value.schemes().is_empty();
@@ -1405,6 +1407,7 @@ CSS::PreferredColorScheme Document::canvas_color_scheme() const
     }
 
     if (color_scheme == CSS::PreferredColorScheme::Light
+        && !root_color_scheme_was_computed
         && root_color_scheme_is_normal
         && !m_supported_color_schemes.has_value()
         && readiness() == HTML::DocumentReadyState::Loading) {

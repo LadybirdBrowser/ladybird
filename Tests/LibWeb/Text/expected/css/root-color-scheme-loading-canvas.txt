@@ -1,3 +1,5 @@
 Ready state: loading
 Computed root color-scheme: light
 Canvas color-scheme: light
+Computed root color-scheme without opt-in: normal
+Canvas color-scheme without opt-in: light
