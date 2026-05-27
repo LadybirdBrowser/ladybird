@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/URL.h>
+#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -66,6 +67,7 @@ private:
     RefPtr<Supports> m_supports;
     GC::Ref<MediaList> m_media;
     GC::Ptr<CSSStyleSheet> m_style_sheet;
+    Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 
 template<>
