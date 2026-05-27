@@ -132,7 +132,6 @@ void SVGGradientElement::add_color_stops(Painting::GradientPaintStyle& paint_sty
 GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
 {
     // FIXME: This entire function is an ad-hoc hack!
-    // It can only resolve #<ids> in the same document.
 
     auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute("xlink:href"_fly_string);
     if (auto href = link; href.has_value() && !link->is_empty()) {
@@ -142,7 +141,11 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHa
         auto id = url->fragment();
         if (!id.has_value() || id->is_empty())
             return {};
-        auto element = document().get_element_by_id(id.value());
+        GC::Ptr<DOM::Element> element;
+        if (auto containing_shadow = containing_shadow_root())
+            element = containing_shadow->get_element_by_id(id.value());
+        if (!element)
+            element = document().get_element_by_id(id.value());
         if (!element)
             return {};
         if (element == this)
