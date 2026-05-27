@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/FlexLayoutData.h>
 #include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -743,6 +744,103 @@ static JsonArray serialize_grid_fragments(Vector<Web::Layout::GridLayoutFragment
     return serialized_fragments;
 }
 
+static StringView flex_layout_growth_state_to_string(Web::Layout::FlexLayoutGrowthState state)
+{
+    switch (state) {
+    case Web::Layout::FlexLayoutGrowthState::Growing:
+        return "growing"sv;
+    case Web::Layout::FlexLayoutGrowthState::Shrinking:
+        return "shrinking"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static StringView flex_layout_clamp_state_to_string(Web::Layout::FlexLayoutClampState state)
+{
+    switch (state) {
+    case Web::Layout::FlexLayoutClampState::Unclamped:
+        return "unclamped"sv;
+    case Web::Layout::FlexLayoutClampState::ClampedToMin:
+        return "clamped_to_min"sv;
+    case Web::Layout::FlexLayoutClampState::ClampedToMax:
+        return "clamped_to_max"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static JsonObject serialize_flex_layout_item(Web::Layout::FlexLayoutItem const& item, Web::Layout::FlexLayoutGrowthState line_growth_state)
+{
+    JsonObject sizing;
+    sizing.set("clampState"sv, flex_layout_clamp_state_to_string(item.clamp_state));
+    sizing.set("crossAxisDirection"sv, item.cross_axis_direction);
+    sizing.set("crossMaxSize"sv, item.cross_max_size.to_double());
+    sizing.set("crossMinSize"sv, item.cross_min_size.to_double());
+    sizing.set("lineGrowthState"sv, flex_layout_growth_state_to_string(line_growth_state));
+    sizing.set("mainAxisDirection"sv, item.main_axis_direction);
+    sizing.set("mainBaseSize"sv, item.main_base_size.to_double());
+    sizing.set("mainDeltaSize"sv, item.main_delta_size.to_double());
+    sizing.set("mainMaxSize"sv, item.main_max_size.to_double());
+    sizing.set("mainMinSize"sv, item.main_min_size.to_double());
+
+    auto main_size_property_name = item.main_axis_direction.starts_with_bytes("horizontal"sv) ? "width"sv : "height"sv;
+
+    JsonObject properties;
+    properties.set("flex-basis"sv, item.flex_basis);
+    properties.set("flex-grow"sv, item.flex_grow);
+    properties.set("flex-shrink"sv, item.flex_shrink);
+    properties.set(main_size_property_name, item.main_size_property);
+    properties.set(MUST(String::formatted("min-{}", main_size_property_name)), item.main_min_size_property);
+    properties.set(MUST(String::formatted("max-{}", main_size_property_name)), item.main_max_size_property);
+
+    JsonObject computed_style;
+    computed_style.set("flexGrow"sv, item.flex_grow);
+    computed_style.set("flexShrink"sv, item.flex_shrink);
+
+    JsonObject serialized_item;
+    serialized_item.set("nodeId"sv, item.node_id->value());
+    serialized_item.set("flexItemSizing"sv, move(sizing));
+    serialized_item.set("properties"sv, move(properties));
+    serialized_item.set("computedStyle"sv, move(computed_style));
+    return serialized_item;
+}
+
+static JsonArray serialize_flex_layout_items(Vector<Web::Layout::FlexLayoutLine> const& lines)
+{
+    JsonArray serialized_items;
+    for (auto const& line : lines) {
+        for (auto const& item : line.items) {
+            if (!item.node_id.has_value())
+                continue;
+            serialized_items.must_append(serialize_flex_layout_item(item, line.growth_state));
+        }
+    }
+    return serialized_items;
+}
+
+static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
+{
+    auto paintable_box = node.paintable_box();
+    if (!paintable_box)
+        return {};
+
+    auto const* flex_layout_data = paintable_box->flex_layout_data();
+    if (!flex_layout_data)
+        return {};
+
+    JsonObject properties;
+    properties.set("align-content"sv, Web::CSS::to_string(flex_layout_data->align_content));
+    properties.set("align-items"sv, Web::CSS::to_string(flex_layout_data->align_items));
+    properties.set("flex-direction"sv, Web::CSS::to_string(flex_layout_data->flex_direction));
+    properties.set("flex-wrap"sv, Web::CSS::to_string(flex_layout_data->flex_wrap));
+    properties.set("justify-content"sv, Web::CSS::to_string(flex_layout_data->justify_content));
+
+    JsonObject layout;
+    layout.set("containerNodeId"sv, node.unique_id().value());
+    layout.set("properties"sv, move(properties));
+    layout.set("items"sv, serialize_flex_layout_items(flex_layout_data->lines));
+    return layout;
+}
+
 static Optional<JsonObject> grid_layout_for_node(Web::DOM::Node const& node)
 {
     auto paintable_box = node.paintable_box();
@@ -832,6 +930,30 @@ void ConnectionFromClient::inspect_current_grid(u64 page_id, Web::UniqueNodeID n
     }
 
     async_did_inspect_current_grid(page_id, "null"_string);
+}
+
+void ConnectionFromClient::inspect_current_flexbox(u64 page_id, Web::UniqueNodeID node_id, bool only_look_at_parents)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto* node = Web::DOM::Node::from_unique_id(node_id);
+    if (!node) {
+        async_did_inspect_current_flexbox(page_id, "null"_string);
+        return;
+    }
+
+    node->document().update_layout(Web::DOM::UpdateLayoutReason::InspectFlexboxLayout);
+
+    for (auto const* current = only_look_at_parents ? node->parent_or_shadow_host_node() : node; current; current = current->parent_or_shadow_host_node()) {
+        if (auto flex_layout = flex_layout_for_node(*current); flex_layout.has_value()) {
+            async_did_inspect_current_flexbox(page_id, flex_layout->serialized());
+            return;
+        }
+    }
+
+    async_did_inspect_current_flexbox(page_id, "null"_string);
 }
 
 void ConnectionFromClient::clear_inspected_dom_node(u64 page_id)

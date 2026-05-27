@@ -725,6 +725,14 @@ void WebContentClient::did_inspect_current_grid(u64 page_id, String grid_layout)
     }
 }
 
+void WebContentClient::did_inspect_current_flexbox(u64 page_id, String flexbox_layout)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_received_current_flexbox)
+            view->on_received_current_flexbox(parse_optional_json_object(flexbox_layout, "current flexbox"sv));
+    }
+}
+
 void WebContentClient::did_inspect_accessibility_tree(u64 page_id, String accessibility_tree)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

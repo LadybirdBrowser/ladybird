@@ -121,6 +121,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLLabelElementActivationBehavior)    \
     X(HostedDocumentBeforePaint)             \
     X(InspectDOMTree)                        \
+    X(InspectFlexboxLayout)                  \
     X(InspectGridLayout)                     \
     X(InternalsHitTest)                      \
     X(MediaQueryListMatches)                 \
