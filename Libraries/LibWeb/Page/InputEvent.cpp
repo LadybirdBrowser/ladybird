@@ -115,6 +115,7 @@ template<>
 WEB_API ErrorOr<void> IPC::encode(Encoder& encoder, Web::PinchEvent const& event)
 {
     TRY(encoder.encode(event.position));
+    TRY(encoder.encode(event.modifiers));
     TRY(encoder.encode(event.scale_delta));
     return {};
 }
@@ -123,10 +124,11 @@ template<>
 WEB_API ErrorOr<Web::PinchEvent> IPC::decode(Decoder& decoder)
 {
     auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
+    auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
     auto scale_delta = TRY(decoder.decode<double>());
 
     if (isnan(scale_delta) || isinf(scale_delta))
         return Error::from_string_literal("IPC: Invalid scale_delta value");
 
-    return Web::PinchEvent { position, scale_delta };
+    return Web::PinchEvent { position, modifiers, scale_delta };
 }

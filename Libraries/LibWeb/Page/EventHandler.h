@@ -54,7 +54,7 @@ public:
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
-    EventResult handle_pinch_event(CSSPixelPoint, double scale_delta);
+    EventResult handle_pinch_event(CSSPixelPoint, unsigned modifiers, double scale_delta);
     EventResult handle_paste(Utf16String const& text);
     void handle_sdl_input_events();
 
@@ -123,6 +123,8 @@ private:
     void stop_updating_selection();
 
     void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
+    EventResult dispatch_wheel_event(Painting::Paintable&, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool is_cancelable);
+    EventResult dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned modifiers, double wheel_delta_y);
 
     enum class PointerEventType : u8 {
         PointerDown,
