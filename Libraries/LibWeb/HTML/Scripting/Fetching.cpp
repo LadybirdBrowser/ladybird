@@ -33,6 +33,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
@@ -59,7 +60,9 @@ struct BytecodeCacheContext {
     URL::URL url;
     ByteString method;
     NonnullRefPtr<HTTP::HeaderList> request_headers;
+    RefPtr<HTTP::HeaderList> memory_cache_request_headers;
     u64 vary_key { 0 };
+    Optional<Fetch::Infrastructure::NetworkPartitionKey> memory_cache_partition_key;
 };
 
 using BytecodeCacheSourceHash = ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8>;
@@ -156,11 +159,17 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
     if (!vary_key.has_value())
         return {};
 
+    RefPtr<HTTP::HeaderList> memory_cache_request_headers;
+    if (auto const& response_request_headers = response.javascript_bytecode_cache_memory_cache_request_headers(); response_request_headers.has_value())
+        memory_cache_request_headers = HTTP::HeaderList::create((*response_request_headers)->headers());
+
     return BytecodeCacheContext {
         .url = response_url,
         .method = request.method(),
         .request_headers = HTTP::HeaderList::create(request.header_list()->headers()),
+        .memory_cache_request_headers = move(memory_cache_request_headers),
         .vary_key = *vary_key,
+        .memory_cache_partition_key = Fetch::Infrastructure::determine_the_network_partition_key(request),
     };
 }
 
@@ -188,6 +197,8 @@ static void schedule_bytecode_cache_generation(NonnullRefPtr<JS::SourceCode cons
             if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
                 return;
             (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, immutable_blob.bytes());
+            if (cache_context.memory_cache_partition_key.has_value() && cache_context.memory_cache_request_headers)
+                Fetch::Fetching::update_javascript_bytecode_cache_in_http_memory_cache(*cache_context.memory_cache_partition_key, cache_context.url, cache_context.method, *cache_context.memory_cache_request_headers, cache_context.vary_key, immutable_blob);
         });
 
     Threading::ThreadPool::the().submit([filename = move(filename), source_code = move(source_code), type, line_number_offset, callback, &main_thread_event_loop, source_hash]() mutable {
