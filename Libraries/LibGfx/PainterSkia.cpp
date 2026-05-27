@@ -53,8 +53,8 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style, DecodedIm
         Vector<SkScalar> positions;
         positions.ensure_capacity(color_stops.size());
         for (auto const& color_stop : color_stops) {
-            colors.append(to_skia_color(color_stop.color));
-            positions.append(color_stop.position);
+            colors.unchecked_append(to_skia_color(color_stop.color));
+            positions.unchecked_append(color_stop.position);
         }
 
         Array points { to_skia_point(linear_gradient->start_point()), to_skia_point(linear_gradient->end_point()) };
@@ -70,8 +70,8 @@ static void apply_paint_style(SkPaint& paint, PaintStyle const& style, DecodedIm
         Vector<SkScalar> positions;
         positions.ensure_capacity(color_stops.size());
         for (auto const& color_stop : color_stops) {
-            colors.append(to_skia_color(color_stop.color));
-            positions.append(color_stop.position);
+            colors.unchecked_append(to_skia_color(color_stop.color));
+            positions.unchecked_append(color_stop.position);
         }
 
         auto start_center = radial_gradient->start_center();
