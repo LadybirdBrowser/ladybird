@@ -37,7 +37,6 @@ public:
     explicit CompositorConnection(NonnullOwnPtr<IPC::Transport>);
 
     void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode const&);
-    void stop_presenting_to_client(Web::Compositor::CompositorContextId);
     void destroy_context(Web::Compositor::CompositorContextId);
     void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList> const&, Web::Painting::DisplayListResourceTransaction const&, Web::Painting::ScrollStateSnapshot const&);
     void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot const&);

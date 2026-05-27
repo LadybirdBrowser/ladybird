@@ -13,7 +13,6 @@
 endpoint CompositorWebContentServer
 {
     set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode presentation_mode) =|
-    stop_presenting_to_client(Web::Compositor::CompositorContextId context_id) =|
     destroy_context(Web::Compositor::CompositorContextId context_id) =|
 
     update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot scroll_state_snapshot) =|

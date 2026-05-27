@@ -32,7 +32,6 @@ private:
     virtual void die() override;
 
     virtual void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode) override;
-    virtual void stop_presenting_to_client(Web::Compositor::CompositorContextId) override;
     virtual void destroy_context(Web::Compositor::CompositorContextId) override;
     virtual void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::DisplayListResourceTransaction, Web::Painting::ScrollStateSnapshot) override;
     virtual void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot) override;

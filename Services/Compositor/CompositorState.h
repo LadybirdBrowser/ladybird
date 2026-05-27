@@ -75,7 +75,6 @@ public:
     void destroy_context(Web::Compositor::CompositorContextId);
 
     void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode);
-    void stop_presenting_to_client(Web::Compositor::CompositorContextId);
     void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::DisplayListResourceTransaction&&, Web::Painting::ScrollStateSnapshot&&);
     void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot&&);
     void update_video_frame(Web::Compositor::CompositorContextId, Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
@@ -117,7 +116,6 @@ private:
         Optional<u64> page_id;
         Web::Compositor::PagePresentationRegistration page_presentation_registration { Web::Compositor::PagePresentationRegistration::No };
 
-        bool presents_to_client { false };
         Web::Compositor::PresentationMode presentation_mode { Empty {} };
         Optional<PublishedSurface> published_surface;
         HashMap<Web::Painting::CompositorSurfaceId, Web::Compositor::CompositorContextId> child_contexts_by_surface_id;
