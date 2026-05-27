@@ -47,11 +47,9 @@ void InspectorActor::handle_message(Message const& message)
         if (!type_name.has_value())
             return;
 
-        auto highlighter = m_highlighters.ensure(*type_name, [&]() -> NonnullRefPtr<HighlighterActor> {
-            return devtools().register_actor<HighlighterActor>(*this, *type_name);
-        });
+        auto& highlighter = devtools().register_actor<HighlighterActor>(*this, *type_name);
 
-        response.set("highlighter"sv, highlighter->serialize_highlighter());
+        response.set("highlighter"sv, highlighter.serialize_highlighter());
         send_response(message, move(response));
         return;
     }

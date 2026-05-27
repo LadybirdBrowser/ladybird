@@ -28,6 +28,21 @@ HighlighterActor::HighlighterActor(DevToolsServer& devtools, String name, WeakPt
 
 HighlighterActor::~HighlighterActor() = default;
 
+void HighlighterActor::clear_current_highlight()
+{
+    if (auto tab = InspectorActor::tab_for(m_inspector)) {
+        if (m_type_name == "CssGridHighlighter"sv) {
+            if (m_highlighted_grid_node_id.has_value())
+                devtools().delegate().clear_grid_highlight(tab->description(), *m_highlighted_grid_node_id);
+        } else if (m_is_highlighting_dom_node) {
+            devtools().delegate().clear_highlighted_dom_node(tab->description());
+        }
+    }
+
+    m_highlighted_grid_node_id = {};
+    m_is_highlighting_dom_node = false;
+}
+
 void HighlighterActor::handle_message(Message const& message)
 {
     JsonObject response;
@@ -49,6 +64,7 @@ void HighlighterActor::handle_message(Message const& message)
                 m_highlighted_grid_node_id = dom_node->identifier.id;
             } else {
                 devtools().delegate().highlight_dom_node(dom_node->tab->description(), dom_node->identifier.id, dom_node->identifier.pseudo_element);
+                m_is_highlighting_dom_node = true;
             }
             response.set("value"sv, true);
         }
@@ -58,28 +74,23 @@ void HighlighterActor::handle_message(Message const& message)
     }
 
     if (message.type == "hide"sv) {
-        if (auto tab = InspectorActor::tab_for(m_inspector)) {
-            if (m_type_name == "CssGridHighlighter"sv) {
-                devtools().delegate().clear_grid_highlight(tab->description(), m_highlighted_grid_node_id.value_or(0));
-                m_highlighted_grid_node_id = {};
-            } else {
-                devtools().delegate().clear_highlighted_dom_node(tab->description());
-            }
-        }
+        clear_current_highlight();
 
         send_response(message, move(response));
         return;
     }
 
-    if (message.type == "release"sv || message.type == "finalize"sv) {
-        if (auto tab = InspectorActor::tab_for(m_inspector)) {
-            if (m_type_name == "CssGridHighlighter"sv)
-                devtools().delegate().clear_grid_highlight(tab->description(), m_highlighted_grid_node_id.value_or(0));
-            else
-                devtools().delegate().clear_highlighted_dom_node(tab->description());
-        }
+    if (message.type == "release"sv) {
+        clear_current_highlight();
 
         send_response(message, move(response));
+        devtools().unregister_actor(name());
+        return;
+    }
+
+    if (message.type == "finalize"sv) {
+        clear_current_highlight();
+        devtools().unregister_actor(name());
         return;
     }
 
