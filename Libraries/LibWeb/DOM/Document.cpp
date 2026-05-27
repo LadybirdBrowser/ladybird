@@ -2492,6 +2492,11 @@ Optional<Vector<String> const&> Document::supported_color_schemes() const
     return m_supported_color_schemes;
 }
 
+void Document::set_supported_color_schemes(Vector<String> supported_color_schemes)
+{
+    m_supported_color_schemes = move(supported_color_schemes);
+}
+
 // https://html.spec.whatwg.org/multipage/semantics.html#meta-color-scheme
 void Document::obtain_supported_color_schemes()
 {

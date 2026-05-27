@@ -372,6 +372,7 @@ public:
     void set_visited_link_color(Color);
 
     Optional<Vector<String> const&> supported_color_schemes() const;
+    void set_supported_color_schemes(Vector<String>);
     void obtain_supported_color_schemes();
 
     void obtain_theme_color();

@@ -97,6 +97,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     if (document->url_string() == "about:blank"_string
         && navigation_params.response->body()->length().value_or(0) == 0) {
         TRY(document->populate_with_html_head_and_body());
+        document->set_supported_color_schemes({ "light"_string, "dark"_string });
         HTML::HTMLParser::the_end(document);
     }
 
