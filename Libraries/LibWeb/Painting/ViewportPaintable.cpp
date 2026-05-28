@@ -312,6 +312,17 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
         }
     };
 
+    // https://drafts.csswg.org/css-ui/#valdef-user-select-none
+    // "The content of the element must be excluded from selection by [...] the selection methods of the Selection API
+    // and the like." We honor this by leaving such nodes at SelectionState::None — even when they fall inside the
+    // range. So, the selection highlight skips them.
+    auto is_excluded_from_selection = [](DOM::Node const& node) {
+        if (node.is_inert())
+            return true;
+        auto const* layout = node.unsafe_layout_node();
+        return layout && layout->user_select_used_value() == CSS::UserSelect::None;
+    };
+
     auto start_container = range.start_container();
     auto end_container = range.end_container();
 
@@ -324,14 +335,14 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
         }
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
-        if (is<DOM::Text>(*start_container) && !range.start().node->is_inert()) {
+        if (is<DOM::Text>(*start_container) && !is_excluded_from_selection(*start_container)) {
             set_selection_state_on_all_slices(*start_container, SelectionState::StartAndEnd);
             return;
         }
     }
 
     // 3. Mark the selection start node as Start (if text) or Full (if anything else).
-    if (!range.start().node->is_inert() && start_container->unsafe_layout_node()) {
+    if (!is_excluded_from_selection(*start_container) && start_container->unsafe_layout_node()) {
         if (is<DOM::Text>(*start_container))
             set_selection_state_on_all_slices(*start_container, SelectionState::Start);
         else
@@ -352,13 +363,13 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     DOM::Node* stop_at = end_container->child_at_index(range.end_offset());
     // Only stop at the end container if it has no children that may need to be included.
     for (auto* node = start_at; node && (node != stop_at && !(node == end_container && !end_container->has_children())); node = node->next_in_pre_order(end_container)) {
-        if (node->is_inert())
+        if (is_excluded_from_selection(*node))
             continue;
         set_selection_state_on_all_slices(*node, SelectionState::Full);
     }
 
     // 5. Mark the selection end node as End if it is a text node.
-    if (!range.end().node->is_inert() && is<DOM::Text>(*end_container) && end_container->unsafe_layout_node()) {
+    if (!is_excluded_from_selection(*end_container) && is<DOM::Text>(*end_container) && end_container->unsafe_layout_node()) {
         set_selection_state_on_all_slices(*end_container, SelectionState::End);
     }
 }
