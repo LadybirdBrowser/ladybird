@@ -138,7 +138,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
     return script;
 }
 
-GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::DecodedBytecodeCacheBlob* bytecode_cache, MutedErrors muted_errors)
+GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache> bytecode_cache, MutedErrors muted_errors)
 {
     auto& realm = settings.realm();
     auto& vm = realm.vm();

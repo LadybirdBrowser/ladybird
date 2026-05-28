@@ -441,22 +441,22 @@ static void free_bytecode_cache_blob_owner(void* owner)
     }
 }
 
-static void* clone_bytecode_cache_blob_owner(void const* owner)
+static void* clone_bytecode_cache_bytecode_owner(void const* owner)
 {
     auto const& existing_owner = *static_cast<BytecodeCacheBlobOwner const*>(owner);
-    return new Core::ImmutableBytes(existing_owner.bytes);
+    return new Core::ImmutableBytes { existing_owner.bytes };
 }
 
-DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
+static DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
 {
     auto* owner = new BytecodeCacheBlobOwner { move(bytes) };
-    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes.bytes().data(), owner->bytes.bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
+    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes.bytes().data(), owner->bytes.bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_bytecode_owner, free_bytecode_cache_blob_owner);
 }
 
 DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash, Core::EventLoop& event_loop)
 {
     auto* owner = new BytecodeCacheBlobOwner { move(bytes), &event_loop };
-    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes.bytes().data(), owner->bytes.bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
+    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes.bytes().data(), owner->bytes.bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_bytecode_owner, free_bytecode_cache_blob_owner);
 }
 
 bool validate_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob, size_t source_length)
@@ -467,6 +467,35 @@ bool validate_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob, size_t
 void free_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob)
 {
     rust_free_decoded_bytecode_cache_blob(blob);
+}
+
+DecodedBytecodeCache::DecodedBytecodeCache(DecodedBytecodeCacheBlob* blob)
+    : m_blob(blob)
+{
+    VERIFY(m_blob);
+}
+
+DecodedBytecodeCache::~DecodedBytecodeCache()
+{
+    rust_free_decoded_bytecode_cache_blob(m_blob);
+}
+
+RefPtr<DecodedBytecodeCache> DecodedBytecodeCache::create(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
+{
+    auto* blob = decode_bytecode_cache_blob(move(bytes), expected_type, source_hash);
+    if (!blob)
+        return {};
+    return create(blob);
+}
+
+NonnullRefPtr<DecodedBytecodeCache> DecodedBytecodeCache::create(DecodedBytecodeCacheBlob* blob)
+{
+    return adopt_ref(*new DecodedBytecodeCache(blob));
+}
+
+DecodedBytecodeCacheBlob* DecodedBytecodeCache::create_materialization_handle() const
+{
+    return rust_ref_decoded_bytecode_cache_blob(m_blob);
 }
 
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
@@ -514,10 +543,10 @@ Optional<Result<ScriptResult, Vector<ParserError>>> materialize_compiled_script(
     return builder.result;
 }
 
-Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_script(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_script(DecodedBytecodeCache& bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
-    if (!blob)
-        return {};
+    auto* blob = bytecode_cache.create_materialization_handle();
+    VERIFY(blob);
 
     GC::DeferGC defer_gc(realm.vm().heap());
     TemporaryChange skip_cache_executable_validation { s_skip_bytecode_validation_for_prevalidated_cache, true };
@@ -691,10 +720,10 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_compiled_module(
     return builder.result;
 }
 
-Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_module(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_module(DecodedBytecodeCache& bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
-    if (!blob)
-        return {};
+    auto* blob = bytecode_cache.create_materialization_handle();
+    VERIFY(blob);
 
     GC::DeferGC defer_gc(realm.vm().heap());
     TemporaryChange skip_cache_executable_validation { s_skip_bytecode_validation_for_prevalidated_cache, true };
@@ -742,10 +771,10 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_m
     return builder.result;
 }
 
-GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data)
+GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(DecodedBytecodeCache& bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data)
 {
-    if (!blob)
-        return {};
+    auto* blob = bytecode_cache.create_materialization_handle();
+    VERIFY(blob);
 
     Vector<void*> existing_shared_function_data_ptrs;
     existing_shared_function_data_ptrs.ensure_capacity(existing_shared_function_data.size());
@@ -767,17 +796,17 @@ GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(DecodedBytecodeC
     return executable.ptr();
 }
 
-GC::Ref<Bytecode::Executable> install_generated_bytecode_cache_script(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data)
+GC::Ref<Bytecode::Executable> install_generated_bytecode_cache_script(DecodedBytecodeCache& bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data)
 {
-    auto executable = try_install_bytecode_cache_script(blob, move(source_code), realm, existing_executable, existing_shared_function_data);
+    auto executable = try_install_bytecode_cache_script(bytecode_cache, move(source_code), realm, existing_executable, existing_shared_function_data);
     VERIFY(executable);
     return *executable;
 }
 
-Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data)
+Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(DecodedBytecodeCache& bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data)
 {
-    if (!blob)
-        return {};
+    auto* blob = bytecode_cache.create_materialization_handle();
+    VERIFY(blob);
 
     Vector<void*> existing_shared_function_data_ptrs;
     existing_shared_function_data_ptrs.ensure_capacity(existing_shared_function_data.size());
@@ -811,9 +840,9 @@ Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(Dec
     return result;
 }
 
-ModuleBytecodeCacheInstallResult install_generated_bytecode_cache_module(DecodedBytecodeCacheBlob* blob, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data)
+ModuleBytecodeCacheInstallResult install_generated_bytecode_cache_module(DecodedBytecodeCache& bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data)
 {
-    auto result = try_install_bytecode_cache_module(blob, move(source_code), realm, existing_executable, existing_shared_function_data, existing_top_level_await_shared_data);
+    auto result = try_install_bytecode_cache_module(bytecode_cache, move(source_code), realm, existing_executable, existing_shared_function_data, existing_top_level_await_shared_data);
     VERIFY(result.has_value());
     return result.release_value();
 }

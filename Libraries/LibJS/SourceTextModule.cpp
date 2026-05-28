@@ -164,7 +164,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::heap_bytecode());
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
 {
     auto filename = source_code->filename();
     auto rust_result = RustIntegration::materialize_bytecode_cache_module(bytecode_cache, move(source_code), realm);
@@ -185,32 +185,30 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         move(module_result.var_declared_names), move(module_result.lexical_bindings),
         move(functions_to_initialize),
         move(module_result.shared_function_data),
-        module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::mapped_bytecode_cache());
+        module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::mapped_bytecode_cache(move(bytecode_cache)));
 }
 
-bool SourceTextModule::try_install_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
+bool SourceTextModule::try_install_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
 {
-    if (m_executable_backing.is_mapped_bytecode_cache()) {
-        RustIntegration::free_decoded_bytecode_cache_blob(bytecode_cache);
+    if (m_executable_backing.is_mapped_bytecode_cache())
         return false;
-    }
 
     auto shared_function_data = collect_shared_function_data();
     auto result = RustIntegration::try_install_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable, shared_function_data, m_tla_shared_data);
     if (!result.has_value())
         return false;
 
-    complete_bytecode_cache_install(result->executable.ptr(), result->top_level_await_executable.ptr());
+    complete_bytecode_cache_install(result->executable.ptr(), result->top_level_await_executable.ptr(), move(bytecode_cache));
     return true;
 }
 
-void SourceTextModule::install_generated_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
+void SourceTextModule::install_generated_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
 {
     VERIFY(can_install_generated_bytecode_cache());
 
     auto shared_function_data = collect_shared_function_data();
     auto result = RustIntegration::install_generated_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable, shared_function_data, m_tla_shared_data);
-    complete_bytecode_cache_install(result.executable.ptr(), result.top_level_await_executable.ptr());
+    complete_bytecode_cache_install(result.executable.ptr(), result.top_level_await_executable.ptr(), move(bytecode_cache));
 }
 
 bool SourceTextModule::can_generate_bytecode_cache() const
@@ -248,7 +246,7 @@ Vector<SharedFunctionInstanceData*> SourceTextModule::collect_shared_function_da
     return shared_function_data;
 }
 
-void SourceTextModule::complete_bytecode_cache_install(GC::Ptr<Bytecode::Executable> executable, GC::Ptr<Bytecode::Executable> top_level_await_executable)
+void SourceTextModule::complete_bytecode_cache_install(GC::Ptr<Bytecode::Executable> executable, GC::Ptr<Bytecode::Executable> top_level_await_executable, NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache)
 {
     VERIFY(executable || top_level_await_executable);
     if (executable) {
@@ -261,7 +259,7 @@ void SourceTextModule::complete_bytecode_cache_install(GC::Ptr<Bytecode::Executa
         m_tla_shared_data->clear_non_bytecode_cache_compile_inputs();
     }
     m_shared_function_data.clear_non_bytecode_cache_compile_inputs();
-    m_executable_backing.finish_bytecode_cache_install();
+    m_executable_backing.finish_bytecode_cache_install(move(bytecode_cache));
     verify_executable_backing_invariants();
 }
 

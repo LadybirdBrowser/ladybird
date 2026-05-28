@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/NonnullRefPtr.h>
+#include <LibJS/DecodedBytecodeCache.h>
 
 namespace JS {
 
@@ -41,9 +43,11 @@ private:
         return ExecutableBacking(State::HeapBytecode);
     }
 
-    static ExecutableBacking mapped_bytecode_cache()
+    static ExecutableBacking mapped_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache)
     {
-        return ExecutableBacking(State::MappedBytecodeCache);
+        auto backing = ExecutableBacking(State::MappedBytecodeCache);
+        backing.m_bytecode_cache = move(bytecode_cache);
+        return backing;
     }
 
 public:
@@ -118,13 +122,15 @@ private:
         VERIFY_NOT_REACHED();
     }
 
-    void finish_bytecode_cache_install()
+    void finish_bytecode_cache_install(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache)
     {
         VERIFY(!is_mapped_bytecode_cache());
         m_state = State::MappedBytecodeCache;
+        m_bytecode_cache = move(bytecode_cache);
     }
 
     State m_state { State::Source };
+    RefPtr<RustIntegration::DecodedBytecodeCache> m_bytecode_cache;
 };
 
 }

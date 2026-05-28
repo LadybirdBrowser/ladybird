@@ -101,10 +101,12 @@ use bytecode::generator::PendingSharedFunctionData;
 use parser::ParseError;
 use parser::Parser;
 use parser::ProgramType;
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::panic::AssertUnwindSafe;
 use std::panic::catch_unwind;
+use std::rc::Rc;
 
 // Compile-time assertion: `ParsedProgram` travels between the parse worker
 // thread and the main thread, so it must be `Send`. After the StringId and
@@ -151,7 +153,12 @@ pub struct BytecodeCacheBlob {
 }
 
 pub struct DecodedBytecodeCacheBlob {
-    _blob: bytecode_cache::DecodedCacheBlob,
+    _blob: Rc<RefCell<bytecode_cache::DecodedCacheBlob>>,
+}
+
+fn validate_decoded_blob(blob: &DecodedBytecodeCacheBlob, source_len: usize) -> bool {
+    let mut decoded_blob = blob._blob.borrow_mut();
+    decoded_blob.validate_for_materialization(source_len).is_ok()
 }
 
 enum CompiledProgramBytecode {
@@ -860,7 +867,7 @@ pub unsafe extern "C" fn rust_free_bytecode_cache_blob(data: *mut u8, length: us
 /// # Safety
 /// - `data` must point to `length` readable bytes.
 /// - `owner` must keep `data` alive until `free_owner` is called.
-/// - `clone_owner` must return a new owner that keeps the same bytes alive.
+/// - `clone_owner` must return a new `bytecode_owner` for `rust_create_executable()`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
     data: *const u8,
@@ -904,7 +911,9 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
             ) else {
                 return std::ptr::null_mut();
             };
-            Box::into_raw(Box::new(DecodedBytecodeCacheBlob { _blob: blob }))
+            Box::into_raw(Box::new(DecodedBytecodeCacheBlob {
+                _blob: Rc::new(RefCell::new(blob)),
+            }))
         })
     }
 }
@@ -934,7 +943,32 @@ pub unsafe extern "C" fn rust_validate_decoded_bytecode_cache_blob(
             if blob.is_null() {
                 return false;
             }
-            (*blob)._blob.validate_for_materialization(source_len).is_ok()
+            (*blob)
+                ._blob
+                .borrow_mut()
+                .validate_for_materialization(source_len)
+                .is_ok()
+        })
+    }
+}
+
+/// Add a reference to a decoded bytecode cache blob.
+///
+/// # Safety
+/// `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_ref_decoded_bytecode_cache_blob(
+    blob: *const DecodedBytecodeCacheBlob,
+) -> *mut DecodedBytecodeCacheBlob {
+    unsafe {
+        abort_on_panic(|| {
+            if blob.is_null() {
+                return std::ptr::null_mut();
+            }
+
+            Box::into_raw(Box::new(DecodedBytecodeCacheBlob {
+                _blob: Rc::clone(&(*blob)._blob),
+            }))
         })
     }
 }
@@ -960,11 +994,12 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_script(
             if blob.is_null() {
                 return std::ptr::null_mut();
             }
-            let mut blob = Box::from_raw(blob);
-            if blob._blob.validate_for_materialization(source_len).is_err() {
+            let blob = Box::from_raw(blob);
+            if !validate_decoded_blob(&blob, source_len) {
                 return std::ptr::null_mut();
             }
             blob._blob
+                .borrow()
                 .materialize_script(vm_ptr, source_code_ptr, shared_function_data_list_ptr, gdi_context)
         })
     }
@@ -994,11 +1029,11 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_module(
             if blob.is_null() {
                 return std::ptr::null_mut();
             }
-            let mut blob = Box::from_raw(blob);
-            if blob._blob.validate_for_materialization(source_len).is_err() {
+            let blob = Box::from_raw(blob);
+            if !validate_decoded_blob(&blob, source_len) {
                 return std::ptr::null_mut();
             }
-            blob._blob.materialize_module(
+            blob._blob.borrow().materialize_module(
                 vm_ptr,
                 source_code_ptr,
                 shared_function_data_list_ptr,
@@ -1036,7 +1071,7 @@ pub unsafe extern "C" fn rust_install_bytecode_cache_script(
             if blob.is_null() {
                 return std::ptr::null_mut();
             }
-            let mut blob = Box::from_raw(blob);
+            let blob = Box::from_raw(blob);
             let existing_declaration_functions = if existing_declaration_function_count == 0 {
                 &[]
             } else {
@@ -1045,10 +1080,10 @@ pub unsafe extern "C" fn rust_install_bytecode_cache_script(
                 }
                 std::slice::from_raw_parts(existing_declaration_function_ptrs, existing_declaration_function_count)
             };
-            if blob._blob.validate_for_materialization(source_len).is_err() {
+            if !validate_decoded_blob(&blob, source_len) {
                 return std::ptr::null_mut();
             }
-            blob._blob.install_script(
+            blob._blob.borrow().install_script(
                 vm_ptr,
                 source_code_ptr,
                 existing_executable_ptr,
@@ -1087,7 +1122,7 @@ pub unsafe extern "C" fn rust_install_bytecode_cache_module(
             if blob.is_null() {
                 return std::ptr::null_mut();
             }
-            let mut blob = Box::from_raw(blob);
+            let blob = Box::from_raw(blob);
             let existing_declaration_functions = if existing_declaration_function_count == 0 {
                 &[]
             } else {
@@ -1096,10 +1131,10 @@ pub unsafe extern "C" fn rust_install_bytecode_cache_module(
                 }
                 std::slice::from_raw_parts(existing_declaration_function_ptrs, existing_declaration_function_count)
             };
-            if blob._blob.validate_for_materialization(source_len).is_err() {
+            if !validate_decoded_blob(&blob, source_len) {
                 return std::ptr::null_mut();
             }
-            blob._blob.install_module(
+            blob._blob.borrow().install_module(
                 vm_ptr,
                 source_code_ptr,
                 existing_executable_ptr,

@@ -17,6 +17,7 @@
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
+#include <LibJS/DecodedBytecodeCache.h>
 #include <LibJS/ModuleEntry.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -36,11 +37,6 @@ struct DecodedBytecodeCacheBlob;
 }
 
 namespace JS::RustIntegration {
-
-enum class ProgramType : u8 {
-    Script = 0,
-    Module = 1,
-};
 
 // Result type for compile_script().
 // NB: Uses GC::Root to prevent collection while the result is in transit
@@ -114,7 +110,7 @@ JS_API void free_compiled_program(FFI::CompiledProgram*);
 JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&, ProgramType, ReadonlyBytes source_hash);
 
 // Decode an ImmutableBytes-backed bytecode cache blob into a parser-free cache handle.
-JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes, ProgramType, ReadonlyBytes source_hash);
+// The returned blob can be validated off-thread before main-thread materialization.
 JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes, ProgramType, ReadonlyBytes source_hash, Core::EventLoop&);
 
 // Validate a decoded bytecode cache blob before materialization. Thread-safe.
@@ -123,34 +119,32 @@ JS_API bool validate_decoded_bytecode_cache_blob(FFI::DecodedBytecodeCacheBlob*,
 // Free a decoded bytecode cache blob.
 JS_API void free_decoded_bytecode_cache_blob(FFI::DecodedBytecodeCacheBlob*);
 
-// Materialize a decoded script bytecode cache blob. Must be called on the main thread.
-// Consumes and frees the decoded blob.
-JS_API Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_script(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&);
+// Materialize a decoded script bytecode cache. Must be called on the main thread.
+JS_API Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_script(DecodedBytecodeCache&, NonnullRefPtr<SourceCode const> source_code, Realm&);
 
-// Materialize a decoded module bytecode cache blob. Must be called on the main thread.
-// Consumes and frees the decoded blob.
-JS_API Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_module(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&);
+// Materialize a decoded module bytecode cache. Must be called on the main thread.
+JS_API Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_module(DecodedBytecodeCache&, NonnullRefPtr<SourceCode const> source_code, Realm&);
 
 struct ModuleBytecodeCacheInstallResult {
     GC::Root<Bytecode::Executable> executable;
     GC::Root<Bytecode::Executable> top_level_await_executable;
 };
 
-// Try to install a decoded script bytecode cache blob into an existing script executable tree.
-// Must be called on the main thread. Consumes and frees the decoded blob.
-JS_API GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data);
+// Try to install a decoded script bytecode cache into an existing script executable tree.
+// Must be called on the main thread.
+JS_API GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(DecodedBytecodeCache&, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data);
 
-// Install a decoded script bytecode cache blob produced by the current process.
-// Must be called on the main thread. Consumes and frees the decoded blob.
-JS_API GC::Ref<Bytecode::Executable> install_generated_bytecode_cache_script(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data);
+// Install a decoded script bytecode cache produced by the current process.
+// Must be called on the main thread.
+JS_API GC::Ref<Bytecode::Executable> install_generated_bytecode_cache_script(DecodedBytecodeCache&, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable& existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data);
 
-// Try to install a decoded module bytecode cache blob into an existing module executable tree.
-// Must be called on the main thread. Consumes and frees the decoded blob.
-JS_API Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data);
+// Try to install a decoded module bytecode cache into an existing module executable tree.
+// Must be called on the main thread.
+JS_API Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(DecodedBytecodeCache&, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data);
 
-// Install a decoded module bytecode cache blob produced by the current process.
-// Must be called on the main thread. Consumes and frees the decoded blob.
-JS_API ModuleBytecodeCacheInstallResult install_generated_bytecode_cache_module(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data);
+// Install a decoded module bytecode cache produced by the current process.
+// Must be called on the main thread.
+JS_API ModuleBytecodeCacheInstallResult install_generated_bytecode_cache_module(DecodedBytecodeCache&, NonnullRefPtr<SourceCode const> source_code, Realm&, Bytecode::Executable* existing_executable, ReadonlySpan<SharedFunctionInstanceData*> existing_shared_function_data, SharedFunctionInstanceData* existing_top_level_await_shared_data);
 
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.
