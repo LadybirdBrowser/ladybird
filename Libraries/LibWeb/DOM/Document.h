@@ -467,15 +467,10 @@ public:
     }
 
     void add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement&);
-    Vector<GC::Root<HTML::HTMLScriptElement>> take_scripts_to_execute_when_parsing_has_finished(Badge<HTML::HTMLParser>);
     Vector<GC::Ref<HTML::HTMLScriptElement>>& scripts_to_execute_when_parsing_has_finished() { return m_scripts_to_execute_when_parsing_has_finished; }
 
-    void add_script_to_execute_as_soon_as_possible(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement&);
-    Vector<GC::Root<HTML::HTMLScriptElement>> take_scripts_to_execute_as_soon_as_possible(Badge<HTML::HTMLParser>);
     Vector<GC::Ref<HTML::HTMLScriptElement>>& scripts_to_execute_as_soon_as_possible() { return m_scripts_to_execute_as_soon_as_possible; }
 
-    void add_script_to_execute_in_order_as_soon_as_possible(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement&);
-    Vector<GC::Root<HTML::HTMLScriptElement>> take_scripts_to_execute_in_order_as_soon_as_possible(Badge<HTML::HTMLParser>);
     Vector<GC::Ref<HTML::HTMLScriptElement>>& scripts_to_execute_in_order_as_soon_as_possible() { return m_scripts_to_execute_in_order_as_soon_as_possible; }
 
     QuirksMode mode() const { return m_quirks_mode; }
@@ -502,8 +497,6 @@ public:
     DocumentType const* doctype() const;
     String const& compat_mode() const;
 
-    void set_editable(bool editable) { m_editable = editable; }
-
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> focused_area() { return m_focused_area; }
     GC::Ptr<Node const> focused_area() const { return m_focused_area; }
@@ -520,7 +513,6 @@ public:
 
     Vector<GC::Ref<Element>>& autofocus_candidates() { return m_autofocus_candidates; }
     bool autofocus_processed_flag() const { return m_autofocus_processed_flag; }
-    void set_autofocus_processed_flag(bool value) { m_autofocus_processed_flag = value; }
     void flush_autofocus_candidates();
 
     void try_to_scroll_to_the_fragment();
@@ -588,7 +580,6 @@ public:
     String dump_dom_tree_as_json() const;
 
     [[nodiscard]] bool has_a_style_sheet_that_is_blocking_scripts() const;
-    [[nodiscard]] bool has_no_style_sheet_that_is_blocking_scripts() const;
 
     bool is_fully_active() const;
     bool is_active() const;
@@ -701,10 +692,6 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded
     bool is_completely_loaded() const;
-
-    // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id
-    Optional<String> navigation_id() const;
-    void set_navigation_id(Optional<String>);
 
     // https://html.spec.whatwg.org/multipage/origin.html#active-sandboxing-flag-set
     HTML::SandboxingFlagSet active_sandboxing_flag_set() const;
@@ -1258,8 +1245,6 @@ private:
     // https://dom.spec.whatwg.org/#concept-document-type
     Type m_type { Type::XML };
 
-    bool m_editable { false };
-
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> m_focused_area;
 
@@ -1294,8 +1279,6 @@ private:
 
     GC::Ptr<DOMImplementation> m_implementation;
     GC::Ptr<HTML::HTMLScriptElement> m_current_script;
-
-    bool m_should_invalidate_styles_on_attribute_changes { true };
 
     u32 m_ignore_destructive_writes_counter { 0 };
 
