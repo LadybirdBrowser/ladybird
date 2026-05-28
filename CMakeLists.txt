@@ -54,6 +54,7 @@ list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
 include(compile_options)
 include(check_for_dependencies)
 include(cmake_options)
+include(ladybird_helper_processes)
 
 if(ENABLE_ALL_THE_DEBUG_MACROS)
     include(all_the_debug_macros)
