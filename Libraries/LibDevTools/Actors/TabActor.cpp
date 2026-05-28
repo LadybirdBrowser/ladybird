@@ -57,6 +57,18 @@ void TabActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "goBack"sv) {
+        devtools().delegate().traverse_the_history_by_delta(m_description, -1);
+        send_response(message, move(response));
+        return;
+    }
+
+    if (message.type == "goForward"sv) {
+        devtools().delegate().traverse_the_history_by_delta(m_description, 1);
+        send_response(message, move(response));
+        return;
+    }
+
     send_unrecognized_packet_type_error(message);
 }
 
@@ -65,6 +77,7 @@ JsonObject TabActor::serialize_description() const
     JsonObject traits;
     traits.set("watcher"sv, true);
     traits.set("supportsReloadDescriptor"sv, true);
+    traits.set("supportsNavigation"sv, true);
 
     // FIXME: We are using the tab's ID multiple times here. This is likely not correct, as both Firefox and Servo
     //        provide different IDs for browserId, browsingContextID, and outerWindowID.

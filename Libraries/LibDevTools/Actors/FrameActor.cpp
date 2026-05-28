@@ -133,6 +133,22 @@ void FrameActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "goBack"sv) {
+        if (auto tab = m_tab.strong_ref())
+            devtools().delegate().traverse_the_history_by_delta(tab->description(), -1);
+
+        send_response(message, move(response));
+        return;
+    }
+
+    if (message.type == "goForward"sv) {
+        if (auto tab = m_tab.strong_ref())
+            devtools().delegate().traverse_the_history_by_delta(tab->description(), 1);
+
+        send_response(message, move(response));
+        return;
+    }
+
     if (message.type == "listFrames"sv) {
         send_response(message, move(response));
         send_pending_navigation_document_events_after_target_switch();

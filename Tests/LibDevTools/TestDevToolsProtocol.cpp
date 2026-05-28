@@ -382,6 +382,12 @@ public:
         last_reload_bypass_cache = bypass_cache;
     }
 
+    virtual void traverse_the_history_by_delta(DevTools::TabDescription const&, int delta) const override
+    {
+        ++traverse_the_history_by_delta_call_count;
+        last_history_delta = delta;
+    }
+
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
     {
         ++inspect_tab_call_count;
@@ -833,6 +839,7 @@ public:
     mutable size_t did_connect_devtools_client_call_count { 0 };
     mutable size_t did_disconnect_devtools_client_call_count { 0 };
     mutable size_t reload_tab_call_count { 0 };
+    mutable size_t traverse_the_history_by_delta_call_count { 0 };
 
     mutable Optional<Web::UniqueNodeID> last_highlighted_dom_node;
     mutable Optional<Web::CSS::PseudoElement> last_highlighted_pseudo_element;
@@ -857,6 +864,7 @@ public:
     mutable Optional<String> last_attribute;
     mutable size_t last_attribute_count { 0 };
     mutable Optional<bool> last_reload_bypass_cache;
+    mutable Optional<int> last_history_delta;
 };
 
 class ProtocolClient {
@@ -1105,6 +1113,9 @@ TEST_CASE(root_actor_and_connection_errors)
     auto tab_actor = actor_from(tab, "actor"sv);
     EXPECT_EQ(tab.get_string("title"sv).value(), "Fixture page"sv);
     EXPECT_EQ(tab.get_integer<u64>("browserId"sv).value(), 1u);
+    auto tab_traits = tab.get_object("traits"sv).release_value();
+    EXPECT(tab_traits.get_bool("supportsReloadDescriptor"sv).value());
+    EXPECT(tab_traits.get_bool("supportsNavigation"sv).value());
 
     JsonObject get_tab_request;
     get_tab_request.set("to"sv, "root"sv);
@@ -1144,6 +1155,34 @@ TEST_CASE(root_actor_and_connection_errors)
     client.send(move(second));
     EXPECT(client.read_message().has_array("workers"sv));
     EXPECT(client.read_message().has_array("addons"sv));
+}
+
+TEST_CASE(history_navigation_requests)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+
+    EXPECT_EQ(client.request(tab_actor, "goBack"sv).get_string("from"sv).value(), tab_actor);
+    EXPECT_EQ(session->delegate.traverse_the_history_by_delta_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_history_delta.value(), -1);
+
+    EXPECT_EQ(client.request(tab_actor, "goForward"sv).get_string("from"sv).value(), tab_actor);
+    EXPECT_EQ(session->delegate.traverse_the_history_by_delta_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_history_delta.value(), 1);
+
+    auto target = get_frame_target(client, tab_actor);
+    auto target_actor = actor_from(target, "actor"sv);
+
+    EXPECT_EQ(client.request(target_actor, "goBack"sv).get_string("from"sv).value(), target_actor);
+    EXPECT_EQ(session->delegate.traverse_the_history_by_delta_call_count, 3u);
+    EXPECT_EQ(session->delegate.last_history_delta.value(), -1);
+
+    EXPECT_EQ(client.request(target_actor, "goForward"sv).get_string("from"sv).value(), target_actor);
+    EXPECT_EQ(session->delegate.traverse_the_history_by_delta_call_count, 4u);
+    EXPECT_EQ(session->delegate.last_history_delta.value(), 1);
 }
 
 TEST_CASE(target_bootstrap_and_lifetime)
