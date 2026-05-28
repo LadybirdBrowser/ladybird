@@ -101,6 +101,7 @@ enum class ActionID {
     DumpWasmStats,
     ShowLineBoxBorders,
     CollectGarbage,
+    CrashCurrentPage,
     SpoofUserAgent,
     NavigatorCompatibilityMode,
     EnableScripting,

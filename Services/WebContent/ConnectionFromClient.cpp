@@ -449,6 +449,13 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
+    if (request == "crash-current-page") {
+        Core::deferred_invoke([] {
+            VERIFY_NOT_REACHED();
+        });
+        return;
+    }
+
     if (request == "set-line-box-borders") {
         bool state = argument == "on";
         auto traversable = page->page().top_level_traversable();
