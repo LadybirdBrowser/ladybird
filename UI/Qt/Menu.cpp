@@ -97,6 +97,28 @@ private:
     IncludeActionIcon m_include_action_icon { IncludeActionIcon::Yes };
 };
 
+class MenuObserver final : public WebView::Menu::Observer {
+public:
+    static NonnullOwnPtr<MenuObserver> create(QMenu& qmenu)
+    {
+        return adopt_own(*new MenuObserver(qmenu));
+    }
+
+    virtual void on_visible_state_changed(WebView::Menu& menu) override
+    {
+        if (m_menu && m_menu->menuAction())
+            m_menu->menuAction()->setVisible(menu.visible());
+    }
+
+private:
+    explicit MenuObserver(QMenu& qmenu)
+        : m_menu(&qmenu)
+    {
+    }
+
+    QPointer<QMenu> m_menu;
+};
+
 template<typename T>
 static void add_properties(QObject& object, T& menu_or_action)
 {
@@ -224,6 +246,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
 
 static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu)
 {
+    menu.add_observer(MenuObserver::create(qmenu));
     add_properties(qmenu, menu);
 
     for (auto& menu_item : menu.items()) {

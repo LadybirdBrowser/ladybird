@@ -134,4 +134,28 @@ void Menu::add_action(NonnullRefPtr<Action> action)
     m_items.append(move(action));
 }
 
+void Menu::set_visible(bool visible)
+{
+    if (m_visible == visible)
+        return;
+    m_visible = visible;
+
+    for (auto& observer : m_observers)
+        observer->on_visible_state_changed(*this);
+}
+
+void Menu::add_observer(NonnullOwnPtr<Observer> observer)
+{
+    observer->on_visible_state_changed(*this);
+
+    m_observers.append(move(observer));
+}
+
+void Menu::remove_observer(Observer const& observer)
+{
+    m_observers.remove_first_matching([&](auto const& candidate) {
+        return candidate.ptr() == &observer;
+    });
+}
+
 }
