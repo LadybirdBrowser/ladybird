@@ -3370,43 +3370,6 @@ void Document::add_script_to_execute_when_parsing_has_finished(Badge<HTML::HTMLS
     m_scripts_to_execute_when_parsing_has_finished.append(script);
 }
 
-Vector<GC::Root<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_when_parsing_has_finished(Badge<HTML::HTMLParser>)
-{
-    Vector<GC::Root<HTML::HTMLScriptElement>> handles;
-    for (auto script : m_scripts_to_execute_when_parsing_has_finished)
-        handles.append(GC::make_root(script));
-    m_scripts_to_execute_when_parsing_has_finished.clear();
-    return handles;
-}
-
-void Document::add_script_to_execute_as_soon_as_possible(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement& script)
-{
-    m_scripts_to_execute_as_soon_as_possible.append(script);
-}
-
-Vector<GC::Root<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_as_soon_as_possible(Badge<HTML::HTMLParser>)
-{
-    Vector<GC::Root<HTML::HTMLScriptElement>> handles;
-    for (auto script : m_scripts_to_execute_as_soon_as_possible)
-        handles.append(GC::make_root(script));
-    m_scripts_to_execute_as_soon_as_possible.clear();
-    return handles;
-}
-
-void Document::add_script_to_execute_in_order_as_soon_as_possible(Badge<HTML::HTMLScriptElement>, HTML::HTMLScriptElement& script)
-{
-    m_scripts_to_execute_in_order_as_soon_as_possible.append(script);
-}
-
-Vector<GC::Root<HTML::HTMLScriptElement>> Document::take_scripts_to_execute_in_order_as_soon_as_possible(Badge<HTML::HTMLParser>)
-{
-    Vector<GC::Root<HTML::HTMLScriptElement>> handles;
-    for (auto script : m_scripts_to_execute_in_order_as_soon_as_possible)
-        handles.append(GC::make_root(script));
-    m_scripts_to_execute_in_order_as_soon_as_possible.clear();
-    return handles;
-}
-
 // https://dom.spec.whatwg.org/#dom-document-importnode
 WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Variant<bool, Bindings::ImportNodeOptions> options)
 {
@@ -4466,13 +4429,6 @@ String Document::dump_dom_tree_as_json() const
     return MUST(builder.to_string());
 }
 
-// https://html.spec.whatwg.org/multipage/semantics.html#has-no-style-sheet-that-is-blocking-scripts
-bool Document::has_no_style_sheet_that_is_blocking_scripts() const
-{
-    // A Document has no style sheet that is blocking scripts if it does not have a style sheet that is blocking scripts.
-    return !has_a_style_sheet_that_is_blocking_scripts();
-}
-
 // https://html.spec.whatwg.org/multipage/semantics.html#has-a-style-sheet-that-is-blocking-scripts
 bool Document::has_a_style_sheet_that_is_blocking_scripts() const
 {
@@ -5144,16 +5100,6 @@ WebIDL::ExceptionOr<void> Document::set_domain(String const& domain)
 
     dbgln("(STUBBED) Document::set_domain(domain='{}')", domain);
     return {};
-}
-
-void Document::set_navigation_id(Optional<String> navigation_id)
-{
-    m_navigation_id = move(navigation_id);
-}
-
-Optional<String> Document::navigation_id() const
-{
-    return m_navigation_id;
 }
 
 HTML::SandboxingFlagSet Document::active_sandboxing_flag_set() const
@@ -7130,7 +7076,6 @@ void Document::remove_form_associated_element_with_form_attribute(HTML::FormAsso
 void Document::set_design_mode_enabled_state(bool design_mode_enabled)
 {
     m_design_mode_enabled = design_mode_enabled;
-    set_editable(design_mode_enabled);
     for_each_in_inclusive_subtree([](Node& node) {
         node.recompute_editable_subtree_flag();
         return TraversalDecision::Continue;
