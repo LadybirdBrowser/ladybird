@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Enumerate.h>
 #include <AK/MemoryStream.h>
 #include <AK/Types.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
@@ -120,19 +121,19 @@ static ErrorOr<ICOImageDescriptor> decode_ico_direntry(Stream& stream, IconType 
 static size_t find_largest_image(ICOLoadingContext const& context)
 {
     size_t max_area = 0;
-    size_t index = 0;
     size_t largest_index = 0;
     u16 max_bits_per_pixel = 0;
-    for (auto const& desc : context.images) {
-        if (static_cast<size_t>(desc.width) * static_cast<size_t>(desc.height) >= max_area) {
-            if (desc.bits_per_pixel > max_bits_per_pixel) {
-                max_area = desc.width * desc.height;
-                largest_index = index;
-                max_bits_per_pixel = desc.bits_per_pixel;
-            }
+
+    for (auto const& [index, desc] : enumerate(context.images)) {
+        auto area = static_cast<size_t>(desc.width) * static_cast<size_t>(desc.height);
+
+        if (area > max_area || (area == max_area && desc.bits_per_pixel > max_bits_per_pixel)) {
+            max_area = area;
+            largest_index = index;
+            max_bits_per_pixel = desc.bits_per_pixel;
         }
-        ++index;
     }
+
     return largest_index;
 }
 

@@ -121,6 +121,15 @@ TEST_CASE(test_ico_malformed_frame)
     }
 }
 
+TEST_CASE(test_ico_selects_largest_image_with_same_bpp)
+{
+    auto input = TEST_INPUT("ico/multiple-sizes-with-same-bpp.ico"sv);
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(input));
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+    EXPECT_EQ(plugin_decoder->size(), Gfx::IntSize(256, 256));
+}
+
 TEST_CASE(test_cur)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("cur/cursor.cur"sv)));
