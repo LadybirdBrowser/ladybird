@@ -504,7 +504,7 @@ QString bookmarks_bar_style_sheet(QPalette const& palette)
 QToolBar#LadybirdBookmarksBar {{
     color: {2};
     border: 0;
-    padding: 2px 4px;
+    padding: 1px 4px;
     spacing: 3px;
 }}
 
@@ -513,7 +513,6 @@ QToolBar#LadybirdBookmarksBar QToolButton {{
     background: transparent;
     border: 1px solid transparent;
     border-radius: 7px;
-    padding: 4px 7px;
 }}
 
 QToolBar#LadybirdBookmarksBar QToolButton:hover {{
