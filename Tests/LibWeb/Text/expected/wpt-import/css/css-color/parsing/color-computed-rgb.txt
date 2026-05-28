@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 99 tests
 
-98 Pass
-1 Fail
+99 Pass
 Pass	Property color value 'rgb(none none none)'
 Pass	Property color value 'rgb(none none none / none)'
 Pass	Property color value 'rgb(128 none none)'
@@ -102,4 +101,4 @@ Pass	Property color value 'rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
 Pass	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)'
 Pass	Property color value 'rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))'
 Pass	Property color value 'rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 51%)'
-Fail	Property color value 'rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 52%)'
+Pass	Property color value 'rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 52%)'

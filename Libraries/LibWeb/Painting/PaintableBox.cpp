@@ -141,9 +141,7 @@ static void invalidate_descendant_styles_for_container_query_size_change(Paintab
     if (!content_size_change_affects_container_queries(paintable_box, old_size, new_size))
         return;
 
-    if (auto* element = as_if<DOM::Element>(paintable_box.dom_node().ptr());
-        element && element->style_scope().have_size_container_queries()) {
-
+    if (auto* element = as_if<DOM::Element>(paintable_box.dom_node().ptr())) {
         element->for_each_shadow_including_descendant([](DOM::Node& node) {
             if (auto* descendant_element = as_if<DOM::Element>(node); descendant_element && descendant_element->style_depends_on_size_container_query())
                 descendant_element->set_needs_style_update(true);

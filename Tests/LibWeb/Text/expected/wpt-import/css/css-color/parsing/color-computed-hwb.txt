@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 56 tests
 
-55 Pass
-1 Fail
+56 Pass
 Pass	Property color value 'hwb(120 30% 50%)'
 Pass	Property color value 'hwb(120 30% 50% / 0.5)'
 Pass	Property color value 'hwb(120 30% 50% / 50%)'
@@ -59,4 +58,4 @@ Pass	Property color value 'hwb(calc(110 + (sign(1em - 10px) * 10)) 30 50 / 0.5)'
 Pass	Property color value 'hwb(120deg 30% 50% / calc(50% + (sign(1em - 10px) * 10%)))'
 Pass	Property color value 'hwb(120 30 50 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
 Pass	Property color value 'hwb(calc(110deg + (sign(2cqw - 10px) * 10deg)) 30 50 / 51%)'
-Fail	Property color value 'hwb(calc(110deg + (sign(2cqw - 10px) * 10deg)) 30 50 / 52%)'
+Pass	Property color value 'hwb(calc(110deg + (sign(2cqw - 10px) * 10deg)) 30 50 / 52%)'
