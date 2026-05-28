@@ -410,6 +410,11 @@ String Internals::current_cursor()
         });
 }
 
+String Internals::selected_text_for_clipboard()
+{
+    return page().focused_navigable().selected_text();
+}
+
 WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTarget& target, DOM::Event& event)
 {
     event.set_is_trusted(true);

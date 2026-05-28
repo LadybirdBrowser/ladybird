@@ -70,6 +70,8 @@ public:
 
     String current_cursor();
 
+    String selected_text_for_clipboard();
+
     WebIDL::ExceptionOr<bool> dispatch_user_activated_event(DOM::EventTarget&, DOM::Event& event);
 
     void spoof_current_url(String const& url);

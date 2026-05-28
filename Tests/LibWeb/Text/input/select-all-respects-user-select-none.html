@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="container"><p style="user-select: none;">hidden</p><p>visible</p><p style="user-select: none;">also hidden</p><p>also visible</p></div>
+<script>
+    test(() => {
+        getSelection().selectAllChildren(document.getElementById("container"));
+
+        // Per the Selection API spec, the Range itself still spans the whole container, including user-select:none
+        // subtrees — so Selection.toString() returns everything.
+        println(`selection.toString(): "${getSelection().toString().replace(/\n/g, "\\n")}"`);
+
+        // But the clipboard/visible-selection path must exclude user-select: none content, per
+        // https://drafts.csswg.org/css-ui/#valdef-user-select-none.
+        println(`clipboard text: "${internals.selectedTextForClipboard().replace(/\n/g, "\\n")}"`);
+    });
+</script>
