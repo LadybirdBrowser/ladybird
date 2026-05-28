@@ -374,6 +374,23 @@ TEST_CASE(unicode)
     EXPECT(!url->fragment().has_value());
 }
 
+TEST_CASE(wtf8_surrogates_are_replaced_before_url_parsing)
+{
+    {
+        auto url = URL::Parser::basic_parse("http://example.com/\xED\xA0\x80-\xED\xB0\x80?\xED\xBF\xBF"sv);
+        EXPECT(url.has_value());
+        EXPECT_EQ(url->serialize_path(), "/%EF%BF%BD-%EF%BF%BD");
+        EXPECT_EQ(url->query(), "%EF%BF%BD");
+        EXPECT_EQ(url->serialize(), "http://example.com/%EF%BF%BD-%EF%BF%BD?%EF%BF%BD");
+    }
+
+    {
+        auto host = URL::Parser::parse_host("\xED\xA0\x80host\xED\xBF\xBF"sv, true);
+        EXPECT(host.has_value());
+        EXPECT_EQ(host->serialize(), "%EF%BF%BDhost%EF%BF%BD");
+    }
+}
+
 TEST_CASE(query_with_non_ascii)
 {
     {
