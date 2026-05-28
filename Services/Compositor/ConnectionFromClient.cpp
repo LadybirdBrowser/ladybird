@@ -74,6 +74,11 @@ void ConnectionFromClient::viewport_size_updated(Web::Compositor::CompositorCont
     m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
+void ConnectionFromClient::set_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
+{
+    m_compositor_state->set_display_metadata(context_id, display_id, refresh_rate);
+}
+
 Messages::CompositorControlServer::HandleMouseEventResponse ConnectionFromClient::handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event)
 {
     return m_compositor_state->handle_mouse_event(context_id, event);

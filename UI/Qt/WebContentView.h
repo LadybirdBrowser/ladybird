@@ -9,6 +9,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
@@ -29,6 +30,7 @@ namespace Ladybird {
 
 struct WebContentViewInitialState {
     double maximum_frames_per_second { 60.0 };
+    Optional<u64> display_id;
 };
 
 class WebContentView final
@@ -65,6 +67,7 @@ public:
     void set_device_pixel_ratio(double);
     void set_zoom_level(double);
     void set_maximum_frames_per_second(double);
+    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
 
     enum class PaletteMode {
         Default,
@@ -92,6 +95,7 @@ private:
 
     void update_viewport_size();
     void update_cursor(Gfx::Cursor cursor);
+    void update_compositor_display_metadata();
 
     void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
 
@@ -114,6 +118,7 @@ private:
     int m_click_count { 0 };
 
     QMenu* m_select_dropdown { nullptr };
+    Optional<u64> m_display_id;
 };
 
 }

@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/RefPtr.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
@@ -61,6 +62,20 @@ static bool should_use_screen_signal_for_dpi_changes()
 #else
     return true;
 #endif
+}
+
+static Optional<u64> display_id_for_screen(QScreen* screen)
+{
+    if (!screen)
+        return {};
+
+    // Qt does not expose a portable physical display identifier. The compositor only
+    // needs a stable per-process grouping key for Qt-backed windows.
+    static u64 next_display_id = 1;
+    static HashMap<QScreen*, u64> display_ids;
+    return display_ids.ensure(screen, [] {
+        return next_display_id++;
+    });
 }
 
 static QString reopen_recently_closed_action_text(Optional<WebView::RecentlyClosedEntry const&> entry)
@@ -215,6 +230,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     // Listen for DPI changes
     m_device_pixel_ratio = devicePixelRatio();
     m_current_screen = screen();
+    m_display_id = display_id_for_screen(m_current_screen);
     if (m_current_screen)
         m_refresh_rate = m_current_screen->refreshRate();
 
@@ -583,7 +599,7 @@ void BrowserWindow::adopt_tab(Tab& tab, int index)
     tab_title_changed(index, tab.title());
 
     tab.view().set_device_pixel_ratio(m_device_pixel_ratio);
-    tab.view().set_maximum_frames_per_second(m_refresh_rate);
+    tab.view().set_display_metadata(m_display_id, m_refresh_rate);
 
     m_tabs_container->set_current_tab(&tab);
 }
@@ -769,16 +785,23 @@ void BrowserWindow::screen_changed(QScreen* screen)
     if (m_device_pixel_ratio != devicePixelRatio())
         device_pixel_ratio_changed(devicePixelRatio());
 
+    auto display_id = display_id_for_screen(m_current_screen);
     auto refresh_rate = m_current_screen ? m_current_screen->refreshRate() : m_refresh_rate;
-    if (m_refresh_rate != refresh_rate)
-        refresh_rate_changed(refresh_rate);
+    if (m_display_id != display_id || m_refresh_rate != refresh_rate)
+        display_metadata_changed(display_id, refresh_rate);
 }
 
 void BrowserWindow::refresh_rate_changed(qreal refresh_rate)
 {
+    display_metadata_changed(m_display_id, refresh_rate);
+}
+
+void BrowserWindow::display_metadata_changed(Optional<u64> display_id, qreal refresh_rate)
+{
+    m_display_id = display_id;
     m_refresh_rate = refresh_rate;
     for_each_tab([this](auto& tab) {
-        tab.view().set_maximum_frames_per_second(m_refresh_rate);
+        tab.view().set_display_metadata(m_display_id, m_refresh_rate);
     });
 }
 

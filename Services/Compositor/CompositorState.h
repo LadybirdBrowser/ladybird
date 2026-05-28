@@ -92,6 +92,7 @@ public:
     bool should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId) const;
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
+    void set_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect);
     bool request_screenshot(Web::Compositor::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
@@ -145,6 +146,8 @@ private:
         Gfx::IntSize viewport_size;
         Web::Compositor::WindowResizingInProgress window_resize_in_progress { Web::Compositor::WindowResizingInProgress::No };
         RefPtr<Core::Timer> backing_store_shrink_timer;
+        Optional<u64> display_id;
+        double display_refresh_rate { 60.0 };
 
         Optional<Gfx::IntRect> pending_present_frame;
         Optional<Gfx::IntRect> presented_frame;

@@ -96,6 +96,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     auto view_initial_state = WebContentViewInitialState {
         .maximum_frames_per_second = window->refresh_rate(),
+        .display_id = window->display_id(),
     };
 
     m_view = new WebContentView(this, parent_client, page_index, AK::move(view_initial_state));
