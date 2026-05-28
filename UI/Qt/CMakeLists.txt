@@ -4,6 +4,10 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 6.9 REQUIRED COMPONENTS Core Widgets)
 
+if (NOT APPLE)
+    find_package(Qt6 6.9 OPTIONAL_COMPONENTS Positioning)
+endif()
+
 if (APPLE)
     # The native presentation paths use platform GPU buffer handles directly instead of copying frames through CPU memory.
     set(QT_NO_PRIVATE_MODULE_WARNING ON)
@@ -34,6 +38,12 @@ target_sources(ladybird PRIVATE
     ladybird.qrc
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
+
+if (TARGET Qt6::Positioning)
+    target_sources(ladybird PRIVATE GeolocationProviderQt.cpp GeolocationProviderQt.h)
+    target_link_libraries(ladybird PRIVATE Qt::Positioning)
+    target_compile_definitions(ladybird PRIVATE LADYBIRD_QT_HAVE_POSITIONING=1)
+endif()
 
 if (APPLE)
     target_sources(ladybird PRIVATE

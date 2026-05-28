@@ -382,6 +382,9 @@ Core::EventLoop& Application::create_platform_event_loop()
     if (!browser_options().headless_mode.has_value()) {
         Core::EventLoopManager::install(*new EventLoopManagerQt);
         m_application = make<LadybirdQApplication>(arguments());
+#if defined(AK_OS_LINUX)
+        QGuiApplication::setDesktopFileName(QStringLiteral("org.ladybird.Ladybird"));
+#endif
     }
 
     auto& event_loop = WebView::Application::create_platform_event_loop();

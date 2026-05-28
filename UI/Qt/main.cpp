@@ -11,6 +11,9 @@
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
+#if defined(LADYBIRD_QT_HAVE_POSITIONING)
+#    include <UI/Qt/GeolocationProviderQt.h>
+#endif
 #include <UI/Qt/Settings.h>
 
 #include <QCoreApplication>
@@ -56,6 +59,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto surface_format = QSurfaceFormat::defaultFormat();
     surface_format.setColorSpace(QColorSpace::SRgb);
     QSurfaceFormat::setDefaultFormat(surface_format);
+#endif
+
+#if defined(LADYBIRD_QT_HAVE_POSITIONING)
+    Ladybird::install_qt_geolocation_provider();
 #endif
 
     auto app = TRY(Ladybird::Application::create(arguments));
