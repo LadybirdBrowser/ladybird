@@ -420,16 +420,33 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
 
 void WebContentView::keyPressEvent(QKeyEvent* event)
 {
+    if (is_node_picker_active()) {
+        if (event->key() == Qt::Key_Escape)
+            node_picker_cancel();
+        event->accept();
+        return;
+    }
+
     enqueue_native_event(Web::KeyEvent::Type::KeyDown, *event);
 }
 
 void WebContentView::keyReleaseEvent(QKeyEvent* event)
 {
+    if (is_node_picker_active()) {
+        event->accept();
+        return;
+    }
+
     enqueue_native_event(Web::KeyEvent::Type::KeyUp, *event);
 }
 
 void WebContentView::inputMethodEvent(QInputMethodEvent* event)
 {
+    if (is_node_picker_active()) {
+        event->accept();
+        return;
+    }
+
     if (!event->commitString().isEmpty()) {
         QKeyEvent keyEvent(QEvent::KeyPress, 0, Qt::NoModifier, event->commitString());
         keyPressEvent(&keyEvent);
@@ -444,6 +461,12 @@ QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery) const
 
 void WebContentView::leaveEvent(QEvent* event)
 {
+    if (is_node_picker_active()) {
+        clear_node_picker();
+        QWidget::leaveEvent(event);
+        return;
+    }
+
     static QMouseEvent mouse_event { QEvent::Type::Leave, {}, {}, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
     enqueue_native_event(Web::MouseEvent::Type::MouseLeave, mouse_event);
 
@@ -452,6 +475,12 @@ void WebContentView::leaveEvent(QEvent* event)
 
 void WebContentView::mouseMoveEvent(QMouseEvent* event)
 {
+    if (is_node_picker_active()) {
+        node_picker_hover(node_picker_position_for(*event));
+        event->accept();
+        return;
+    }
+
     if (!m_tooltip_override) {
         if (QToolTip::isVisible())
             QToolTip::hideText();
@@ -464,6 +493,18 @@ void WebContentView::mouseMoveEvent(QMouseEvent* event)
 
 void WebContentView::mousePressEvent(QMouseEvent* event)
 {
+    if (is_node_picker_active()) {
+        if (event->button() == Qt::MouseButton::LeftButton) {
+            auto position = node_picker_position_for(*event);
+            if (event->modifiers().testFlag(Qt::ControlModifier))
+                node_picker_preview(position);
+            else
+                node_picker_pick(position);
+        }
+        event->accept();
+        return;
+    }
+
     auto elapsed = event->timestamp() - m_last_click_timestamp;
     auto distance = (event->position() - m_last_click_position).manhattanLength();
 
@@ -482,6 +523,11 @@ void WebContentView::mousePressEvent(QMouseEvent* event)
 
 void WebContentView::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (is_node_picker_active()) {
+        event->accept();
+        return;
+    }
+
     enqueue_native_event(Web::MouseEvent::Type::MouseUp, *event);
 
     if (event->button() == Qt::MouseButton::BackButton)
@@ -492,6 +538,11 @@ void WebContentView::mouseReleaseEvent(QMouseEvent* event)
 
 void WebContentView::wheelEvent(QWheelEvent* event)
 {
+    if (is_node_picker_active()) {
+        event->accept();
+        return;
+    }
+
     if (event->modifiers().testFlag(Qt::ControlModifier)) {
         event->ignore();
         return;
@@ -509,6 +560,11 @@ void WebContentView::mouseDoubleClickEvent(QMouseEvent* event)
 
 void WebContentView::dragEnterEvent(QDragEnterEvent* event)
 {
+    if (is_node_picker_active()) {
+        event->ignore();
+        return;
+    }
+
     if (!event->mimeData()->hasUrls())
         return;
 
@@ -518,12 +574,20 @@ void WebContentView::dragEnterEvent(QDragEnterEvent* event)
 
 void WebContentView::dragMoveEvent(QDragMoveEvent* event)
 {
+    if (is_node_picker_active()) {
+        event->ignore();
+        return;
+    }
+
     enqueue_native_event(Web::DragEvent::Type::DragMove, *event);
     event->acceptProposedAction();
 }
 
 void WebContentView::dragLeaveEvent(QDragLeaveEvent*)
 {
+    if (is_node_picker_active())
+        return;
+
     // QDragLeaveEvent does not contain any mouse position or button information.
     Web::DragEvent event {};
     event.type = Web::DragEvent::Type::DragEnd;
@@ -533,6 +597,11 @@ void WebContentView::dragLeaveEvent(QDragLeaveEvent*)
 
 void WebContentView::dropEvent(QDropEvent* event)
 {
+    if (is_node_picker_active()) {
+        event->ignore();
+        return;
+    }
+
     enqueue_native_event(Web::DragEvent::Type::Drop, *event);
     event->acceptProposedAction();
 }
@@ -811,6 +880,11 @@ void WebContentView::update_cursor(Gfx::Cursor cursor)
             }
             setCursor(QCursor { qpixmap, image_cursor.hotspot.x(), image_cursor.hotspot.y() });
         });
+}
+
+Web::DevicePixelPoint WebContentView::node_picker_position_for(QSinglePointEvent const& event) const
+{
+    return { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
 }
 
 Web::DevicePixelSize WebContentView::viewport_size() const
