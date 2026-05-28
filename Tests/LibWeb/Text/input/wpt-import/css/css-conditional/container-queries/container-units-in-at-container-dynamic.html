@@ -1,0 +1,37 @@
+<!doctype html>
+<title>Container Relative Units: in @container prelude (dynamic)</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #outer {
+     container-type: size;
+     width: 40px;
+     height: 40px;
+   }
+  #container {
+    container-type: size;
+    width: 16px;
+    height: 16px;
+  }
+
+  @container ((width = 16px) and (width = 50cqw)) { #child { --cqw:true;  } }
+
+</style>
+
+<div id=outer>
+  <div id=container>
+    <div id=child>Test</div>
+  </div>
+</div>
+
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(() => {
+    assert_equals(getComputedStyle(child).getPropertyValue('--cqw'), '');
+    outer.style.width = '32px';
+    assert_equals(getComputedStyle(child).getPropertyValue('--cqw'), 'true');
+  }, 'Query with container-relative units are responsive to changes');
+</script>

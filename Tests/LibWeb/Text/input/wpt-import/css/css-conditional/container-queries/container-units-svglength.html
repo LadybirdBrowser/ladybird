@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<title>CSS Container Queries Test: container-relative units in SVGLength</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGLength">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<script src="../../../resources/SVGAnimationTestCase-testharness.js"></script>
+<style>
+  #container {
+    container-type: size;
+    width: 200px;
+    height: 150px;
+  }
+</style>
+<div id=container>
+  <svg id=rootSVGElement>
+    <rect id="rect1" width="10cqw" height="10cqh"/>
+    <rect id="rect2" width="10cqi" height="10cqb"/>
+    <rect id="rect3" width="10cqmin" height="10cqmax"/>
+    <rect id="rect4" width="calc(10cqmin + 10cqmax)" height="calc(10cqw + 3px)"/>
+    <rect id="rect_dynamic"/>
+    <rect id="rect_animated" width="42px" height="42px" fill="green">
+      <animate id=animation attributeName=width from="5cqw" to="10cqw" begin="0s" dur="4s"/>
+    </rect>
+  </svg>
+</div>
+<script>
+  setup(() => {
+    assert_implements_size_container_queries();
+    container.offsetTop;
+  });
+
+  function cleanup() {
+    rect_dynamic.removeAttribute('width');
+    rect_dynamic.removeAttribute('height');
+  }
+
+  test(() => {
+    assert_equals(rect1.width.baseVal.unitType, SVGLength.SVG_LENGTHTYPE_UNKNOWN);
+  }, 'unitType with container-relative units');
+
+  test(() => {
+    assert_equals(rect1.width.baseVal.value, 20);
+    assert_equals(rect1.height.baseVal.value, 15);
+  }, 'cqw,cqh can be resolved');
+
+  test(() => {
+    assert_equals(rect2.width.baseVal.value, 20);
+    assert_equals(rect2.height.baseVal.value, 15);
+  }, 'cqi,cqb can be resolved');
+
+  test(() => {
+    assert_equals(rect3.width.baseVal.value, 15);
+    assert_equals(rect3.height.baseVal.value, 20);
+  }, 'cqmin,cqmax can be resolved');
+
+  test(() => {
+    assert_equals(rect4.width.baseVal.value, 35);
+    assert_equals(rect4.height.baseVal.value, 23);
+  }, 'calc() with container-relative units can be resolved');
+
+  test((t) => {
+    t.add_cleanup(cleanup);
+    rect_dynamic.setAttribute('width', '20cqw');
+    rect_dynamic.setAttribute('height', '20cqh');
+    assert_equals(rect_dynamic.width.baseVal.value, 40);
+    assert_equals(rect_dynamic.height.baseVal.value, 30);
+
+    rect_dynamic.width.baseVal.value = 80;
+    rect_dynamic.height.baseVal.value = 45;
+    assert_equals(rect_dynamic.getAttribute('width'), '80');
+    assert_equals(rect_dynamic.getAttribute('height'), '45');
+  }, 'Can modify value with container-relative units');
+
+  smil_async_test((t) => {
+    t.add_cleanup(cleanup);
+    let assert_width = (expected) => {
+      let epsilon = 1.0;
+      return () => {
+        assert_approx_equals(rect_animated.width.animVal.value, expected, epsilon);
+      };
+    };
+    const expectedValues = [
+        // [animationId, time, sampleCallback]
+        ["animation", 0.0,   assert_width(10)],
+        ["animation", 2.0,   assert_width(15)],
+        ["animation", 3.999, assert_width(20)],
+        ["animation", 4,     assert_width(42)],
+    ];
+
+    runAnimationTest(t, expectedValues);
+  });
+
+</script>

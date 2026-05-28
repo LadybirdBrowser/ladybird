@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Container Relative Units: ineligible container</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<style>
+  #grandparent, #parent { container-type: size; }
+  #grandparent { width: 300px; height: 250px; }
+  #parent { width: 200px; height: 150px; }
+  #target { width: 10cqw; height: 10cqh; }
+</style>
+<div id="log"></div>
+<div id="grandparent">
+  <div id="parent">
+    <div id="target"></div>
+  </div>
+</div>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<script>
+  setup(() => assert_implements_size_container_queries());
+  const cases = {
+    "/* basic */": [20, 15],
+    "display: table": [30, 25],
+    "display: table-cell": [30, 25],
+    "display: inline": [30, 25],
+    "display: contents": [30, 25],
+    "display: none": [30, 25],
+    "container-type: normal": [30, 25],
+    "container-type: inline-size": [20, 25],
+    "container-type: inline-size; writing-mode: vertical-lr": [30, 15],
+  };
+  const parent = document.getElementById("parent");
+  const target = document.getElementById("target");
+  const cs = getComputedStyle(target);
+  for (let [style, [width, height]] of Object.entries(cases)) {
+    test(() => {
+      parent.style.cssText = style;
+      assert_equals(cs.width, width + "px", "width");
+      assert_equals(cs.height, height + "px", "height");
+    }, style);
+  }
+</script>

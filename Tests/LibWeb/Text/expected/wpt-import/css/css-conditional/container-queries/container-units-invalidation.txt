@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	cqi respond when selected container changes type (inline-size -> normal)
+Fail	cqb respond when selected container changes type (size -> normal)
+Fail	cqb respond when intermediate container changes type (inline-size -> size)
+Fail	cqi respond when selected container changes inline-size
+Fail	cqb respond when selected container changes block-size

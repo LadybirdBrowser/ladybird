@@ -1,0 +1,111 @@
+<!doctype html>
+<title>Container Relative Units: in @container prelude</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  .size { container-type: size; }
+  .inline { container-type: inline-size; }
+  .ancestor {
+     container-type: size;
+     width: 64px;
+     height: 160px;
+  }
+  .parent {
+     container-type: inline-size;
+     width: 32px;
+     height: 77px;
+   }
+  .container {
+    container-type: size;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Unit should resolve against .parent width. */
+  @container ((width = 16px) and (width = 50cqw)) { #child1 { --cqw:true;  } }
+
+  /* Unit should resolve against .ancestor height. */
+  @container ((width = 16px) and (width = 10cqh)) { #child1 { --cqh:true;  } }
+
+  /* Unit should resolve against .parent width. */
+  @container ((width = 16px) and (width = 50cqi)) { #child1 { --cqi:true;  } }
+
+  /* Unit should resolve against .ancestor height. */
+  @container ((width = 16px) and (width = 10cqb)) { #child1 { --cqb:true;  } }
+
+  /* Unit should resolve against biggest of w/h. */
+  @container ((width = 16px) and (width = 10cqmax)) { #child1 { --cqmax:true;  } }
+
+  /* Unit should resolve against smallest of w/h. */
+  @container ((width = 16px) and (width = 50cqmin)) { #child1 { --cqmin:true;  } }
+
+  /* Flipped writing mode: */
+
+  /* Non-logical units are the same as above */
+  @container ((width = 16px) and (width = 50cqw)) { #child2 { --cqw:true;  } }
+  @container ((width = 16px) and (width = 10cqh)) { #child2 { --cqh:true;  } }
+  @container ((width = 16px) and (width = 10cqmax)) { #child2 { --cqmax:true;  } }
+  @container ((width = 16px) and (width = 50cqmin)) { #child2 { --cqmin:true;  } }
+
+  /* Unit should resolve against .ancestor height. */
+  @container ((width = 16px) and (width = 50cqb)) { #child2 { --cqi:true;  } }
+
+  /* Unit should resolve against .parent width. */
+  @container ((width = 16px) and (width = 10cqi)) { #child2 { --cqb:true;  } }
+</style>
+
+<div class=ancestor>
+  <div class=parent>
+    <div class=container>
+      <div id=child1>Test1</div>
+    </div>
+  </div>
+</div>
+
+<div class=ancestor>
+  <div class=parent>
+    <div class=container style="writing-mode:vertical-rl;">
+      <div id=child2>Test1</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  let units = [
+    'cqw',
+    'cqh',
+    'cqi',
+    'cqb',
+    'cqmin',
+    'cqmax',
+  ];
+
+  for (let unit of units) {
+    test(() => {
+      assert_equals(getComputedStyle(child1).getPropertyValue(`--${unit}`), 'true');
+    }, `${unit} unit resolves against appropriate container`);
+  }
+
+  // Ensure that the writing mode of the subject element is not relevant for
+  // container-relative units in the @container prelude.
+  for (let unit of units) {
+    test((t) => {
+      t.add_cleanup(() => {
+        child1.style = '';
+      });
+      child1.style.writingMode = 'vertical-rl';
+      assert_equals(getComputedStyle(child1).getPropertyValue(`--${unit}`), 'true');
+    }, `${unit} unit resolves against appropriate container (vertical writing-mode on subject)`);
+  }
+
+  for (let unit of units) {
+    test(() => {
+      assert_equals(getComputedStyle(child2).getPropertyValue(`--${unit}`), 'true');
+    }, `${unit} unit resolves against appropriate container (vertical writing-mode on container)`);
+  }
+
+</script>
