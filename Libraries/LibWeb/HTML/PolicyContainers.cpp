@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibHTTP/StructuredField.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibURL/URL.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
@@ -36,6 +37,79 @@ bool url_requires_storing_the_policy_container_in_history(URL::URL const& url)
     return Fetch::Infrastructure::is_local_url(url);
 }
 
+// https://w3c.github.io/webappsec-subresource-integrity/#processing-an-integrity-policy
+static IntegrityPolicy process_an_integrity_policy(AK::NonnullRefPtr<HTTP::HeaderList> const& headers, StringView header_name)
+{
+    // 1. Let integrityPolicy be a new integrity policy.
+    IntegrityPolicy integrity_policy {};
+
+    // 2. Let dictionary be the result of getting a structured field value from headers given headerName and "dictionary".
+    auto parsed_dictionary = headers->get_a_structured_field_value(header_name, HTTP::StructuredFieldType::Dictionary);
+    if (!parsed_dictionary.has_value()) {
+        return integrity_policy;
+    }
+    auto dictionary = parsed_dictionary.value().get<HTTP::StructuredFieldDictionary>();
+
+    // 3. If dictionary["sources"] does not exist or if its value contains "inline", append "inline" to integrityPolicy’s sources.
+    auto sources = dictionary.members.get("sources"sv);
+    if (!sources.has_value() || (sources->has<HTTP::StructuredFieldInnerList>() && any_of(sources->get<HTTP::StructuredFieldInnerList>().members, [](auto const& member) {
+            return member.item.template has<HTTP::StructuredFieldToken>() && member.item.template get<HTTP::StructuredFieldToken>().value == "inline"sv;
+        }))) {
+        integrity_policy.sources.append("inline"_string);
+    }
+
+    // 4. If dictionary["blocked-destinations"] exists:
+    auto blocked_destinations = dictionary.members.get("blocked-destinations"sv);
+    if (blocked_destinations.has_value() && blocked_destinations->has<HTTP::StructuredFieldInnerList>()) {
+        auto blocked_destinations_list = blocked_destinations->get<HTTP::StructuredFieldInnerList>();
+        // 1. If its value contains "script", append "script" to integrityPolicy’s blocked destinations.
+        if (any_of(blocked_destinations_list.members, [](auto const& member) {
+                return member.item.template has<HTTP::StructuredFieldToken>() && member.item.template get<HTTP::StructuredFieldToken>().value == "script"sv;
+            })) {
+            integrity_policy.blocked_destinations.append(Fetch::Infrastructure::Request::Destination::Script);
+        }
+
+        // 2. If its value contains "style", append "style" to integrityPolicy’s blocked destinations.
+        if (any_of(blocked_destinations_list.members, [](auto const& member) {
+                return member.item.template has<HTTP::StructuredFieldToken>() && member.item.template get<HTTP::StructuredFieldToken>().value == "style"sv;
+            })) {
+            integrity_policy.blocked_destinations.append(Fetch::Infrastructure::Request::Destination::Style);
+        }
+    }
+
+    // 5. If dictionary["endpoints"] exists:
+    auto endpoints = dictionary.members.get("endpoints"sv);
+    if (endpoints.has_value() && endpoints->has<HTTP::StructuredFieldInnerList>()) {
+        // 1. Set integrityPolicy’s endpoints to dictionary['endpoints'].
+        auto endpoints_list = endpoints->get<HTTP::StructuredFieldInnerList>();
+        for (auto const& member : endpoints_list.members) {
+            if (member.item.has<HTTP::StructuredFieldToken>()) {
+                integrity_policy.endpoints.append(member.item.get<HTTP::StructuredFieldToken>().value);
+            }
+        }
+    }
+
+    // 6. Return integrityPolicy.
+    return integrity_policy;
+}
+
+// https://w3c.github.io/webappsec-subresource-integrity/#parse-integrity-policy-headers-section
+static void parse_integrity_policy_headers(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<PolicyContainer> container)
+{
+    // 1. Let headers be response’s header list.
+    auto const& headers = response->header_list();
+
+    // 2. If headers contains integrity-policy, set container’s integrity policy be the result of running processing an integrity policy with the corresponding header value.
+    if (headers->contains("integrity-policy"sv)) {
+        container->integrity_policy = process_an_integrity_policy(headers, "integrity-policy"sv);
+    }
+
+    // 3. If headers contains integrity-policy-report-only, set container’s report only integrity policy be the result of running processing an integrity policy with the corresponding header value.
+    if (headers->contains("integrity-policy-report-only"sv)) {
+        container->report_only_integrity_policy = process_an_integrity_policy(headers, "integrity-policy-report-only"sv);
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/browsers.html#creating-a-policy-container-from-a-fetch-response
 GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Heap& heap, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment>)
 {
@@ -57,7 +131,8 @@ GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Hea
     if (parsed_referrer_policy != ReferrerPolicy::ReferrerPolicy::EmptyString)
         result->referrer_policy = parsed_referrer_policy;
 
-    // FIXME: 6. Parse Integrity-Policy headers with response and result.
+    // 6. Parse Integrity-Policy headers with response and result.
+    parse_integrity_policy_headers(response, result);
 
     // 7. Return result.
     return result;

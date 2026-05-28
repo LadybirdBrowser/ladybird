@@ -353,10 +353,13 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     }
     // 7. Otherwise:
     else {
-        // FIXME: 1. Let oacHeader be the result of getting a structured field value given `Origin-Agent-Cluster` and "item" from response's header list.
+        // 1. Let oacHeader be the result of getting a structured field value given `Origin-Agent-Cluster` and "item" from navigationParams's response's header list.
+        auto oacHeader = navigation_params.response->header_list()->get_a_structured_field_value("Origin-Agent-Cluster"sv, HTTP::StructuredFieldType::Item);
 
-        // FIXME: 2. Let requestsOAC be true if oacHeader is not null and oacHeader[0] is the boolean true; otherwise false.
-        [[maybe_unused]] auto requests_oac = false;
+        // 2. Let requestsOAC be true if oacHeader is not null and oacHeader[0] is the boolean true; otherwise false.
+        [[maybe_unused]] auto requests_oac = oacHeader.has_value()
+            && oacHeader->get<HTTP::StructuredFieldItem>().item.has<HTTP::StructuredFieldBoolean>()
+            && oacHeader->get<HTTP::StructuredFieldItem>().item.get<HTTP::StructuredFieldBoolean>().value;
 
         // FIXME: 3. If navigationParams's reserved environment is a non-secure context, then set requestsOAC to false.
 
