@@ -1811,6 +1811,9 @@ void Node::removed_from(IsSubtreeRoot, Node*, Node&)
     m_inside_blocking_wheel_event_handler = false;
     m_layout_node = nullptr;
     m_paintable = nullptr;
+
+    if (auto* element = as_if<Element>(*this))
+        element->clear_synthetic_pseudo_element_layout_nodes(Badge<Node> {});
 }
 
 // https://dom.spec.whatwg.org/#concept-node-move-ext
