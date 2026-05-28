@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibHTTP/Header.h>
+#include <LibHTTP/StructuredField.h>
 
 namespace HTTP {
 
@@ -90,6 +91,8 @@ public:
             return result;
         });
     }
+
+    [[nodiscard]] Optional<StructuredFieldValue> get_a_structured_field_value(StringView name, StructuredFieldType type) const;
 
 private:
     explicit HeaderList(Vector<Header>);

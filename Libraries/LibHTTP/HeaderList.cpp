@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "HeaderList.h"
 #include <AK/GenericLexer.h>
 #include <AK/HashTable.h>
 #include <AK/StringUtils.h>
@@ -349,6 +350,32 @@ Vector<ByteString> HeaderList::unique_names() const
     }
 
     return header_names;
+}
+
+// https://fetch.spec.whatwg.org/#concept-header-list-get-structured-header
+Optional<StructuredFieldValue> HeaderList::get_a_structured_field_value(StringView name, StructuredFieldType type) const
+{
+    // 1. Assert: type is one of "dictionary", "list", or "item".
+    // NOTE: We enforce this by using an enum.
+
+    // 2. Let value be the result of getting name from list.
+    auto value = this->get(name);
+
+    // 3. If value is null, then return null.
+    if (!value.has_value()) {
+        return {};
+    }
+
+    // 4. Let result be the result of parsing structured fields with input_string set to value and header_type set to type.
+    auto result = HTTP::parse_structured_fields(value.value(), type);
+
+    // 5. If parsing failed, then return null.
+    if (result.is_error()) {
+        return {};
+    }
+
+    // 6. Return result.
+    return result.release_value();
 }
 
 }

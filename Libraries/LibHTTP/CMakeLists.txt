@@ -12,6 +12,7 @@ set(SOURCES
     HTTP.cpp
     HttpRequest.cpp
     Method.cpp
+    StructuredField.cpp
 )
 
 ladybird_lib(LibHTTP http)
