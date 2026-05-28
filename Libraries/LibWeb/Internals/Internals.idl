@@ -75,6 +75,7 @@ interface Internals {
     readonly attribute boolean headless;
 
     DOMString dumpDisplayList();
+    DOMString dumpAccessibilityTree();
     DOMString dumpLayoutTree(Node node);
     DOMString dumpPaintableTree(Node node);
     DOMString dumpStackingContextTree();
