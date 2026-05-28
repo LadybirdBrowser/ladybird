@@ -2175,6 +2175,12 @@ HANDLE_INSTRUCTION(br_if)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+NEVER_INLINE static Outcome synthetic_br_if_nostack_not_taken(HANDLER_PARAMS(DECOMPOSE_PARAMS))
+{
+    short_ip.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label, short_ip.current_ip_value).value();
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
 HANDLE_INSTRUCTION(synthetic_br_if_nostack)
 {
     LOG_INSN;
@@ -2190,13 +2196,8 @@ HANDLE_INSTRUCTION(synthetic_br_if_nostack)
     auto& label = label_stack.data()[label_pos];
     auto expected = label.stack_height() + label.arity();
     auto current = configuration.value_stack().size();
-    if (current != expected) [[unlikely]] {
-        // This branch is definitely taken, but we have to tailcall a different function so we don't pollute this one with vector reallocation nonsense.
-        return [](HANDLER_PARAMS(DECOMPOSE_PARAMS)) NEVER_INLINE static {
-            short_ip.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label, short_ip.current_ip_value).value();
-            TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
-        }(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
-    }
+    if (current != expected) [[unlikely]]
+        return synthetic_br_if_nostack_not_taken(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
     label_stack.unsafe_shrink(label_pos + 1);
     short_ip.current_ip_value = label.continuation().value() - 1;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
