@@ -1518,6 +1518,7 @@ void Application::initialize_actions()
     m_debug_menu->add_separator();
 
     m_debug_menu->add_action(Action::create("Collect Garbage"sv, ActionID::CollectGarbage, debug_request("collect-garbage"sv)));
+    m_debug_menu->add_action(Action::create("Crash Current Page"sv, ActionID::CrashCurrentPage, debug_request("crash-current-page"sv)));
     m_debug_menu->add_separator();
 
     auto spoof_user_agent_menu = Menu::create_group("Spoof User Agent"sv);
