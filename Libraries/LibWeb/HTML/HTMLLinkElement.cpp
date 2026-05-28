@@ -948,9 +948,6 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_fav
             promise->reject(Error::from_string_view("Failed to get bitmap from SVG favicon"sv));
             return promise;
         }
-        auto navigable = document->navigable();
-        if (navigable && navigable->is_traversable())
-            navigable->traversable_navigable()->page().client().page_did_change_favicon(decoded_frame->bitmap());
 
         promise->resolve(decoded_frame->bitmap_ref());
         return promise;
@@ -964,10 +961,6 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_fav
     auto on_successful_decode = [document = GC::Root(document), promise](Web::Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
         auto favicon_bitmap = decoded_image.frames[0].bitmap;
         dbgln_if(IMAGE_DECODER_DEBUG, "Decoded favicon, {}", favicon_bitmap->size());
-
-        auto navigable = document->navigable();
-        if (navigable && navigable->is_traversable())
-            navigable->traversable_navigable()->page().client().page_did_change_favicon(*favicon_bitmap);
 
         promise->resolve(favicon_bitmap.release_nonnull());
         return {};
@@ -1043,7 +1036,11 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
         auto global = GC::Ref { realm.global_object() };
 
         auto process_body = GC::create_function(realm.heap(), [document, request](ByteBuffer body) {
-            (void)decode_favicon(body, request->url(), document);
+            decode_favicon(body, request->url(), document)
+                ->when_resolved(GC::weak_callback(*document, [](DOM::Document& document, NonnullRefPtr<Gfx::Bitmap const>& favicon) {
+                    if (auto navigable = document.navigable(); navigable && navigable->is_traversable())
+                        navigable->traversable_navigable()->page().client().page_did_change_favicon(*favicon);
+                }));
         });
         auto process_body_error = GC::create_function(realm.heap(), [](JS::Value) {
         });
