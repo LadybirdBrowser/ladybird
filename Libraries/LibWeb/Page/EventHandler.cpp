@@ -1490,6 +1490,15 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
     return {};
 }
 
+GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint position)
+{
+    auto target = target_for_mouse_position(position);
+    if (!target.has_value() || !target->paintable)
+        return {};
+
+    return target->paintable->dom_node();
+}
+
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
 {
     auto exact_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);

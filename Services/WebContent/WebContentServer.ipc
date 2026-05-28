@@ -69,6 +69,7 @@ endpoint WebContentServer
     clear_grid_highlight(u64 page_id, Web::UniqueNodeID node_id) =|
     inspect_accessibility_tree(u64 page_id) =|
     get_hovered_node_id(u64 page_id) =|
+    get_node_id_at_position(u64 page_id, u64 request_id, Web::DevicePixelPoint position) =|
 
     js_console_input(u64 page_id, String js_source) =|
     run_javascript(u64 page_id, String js_source) =|

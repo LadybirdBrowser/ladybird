@@ -102,6 +102,7 @@ private:
     virtual void clear_grid_highlight(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void inspect_accessibility_tree(u64 page_id) override;
     virtual void get_hovered_node_id(u64 page_id) override;
+    virtual void get_node_id_at_position(u64 page_id, u64 request_id, Web::DevicePixelPoint position) override;
 
     virtual void list_style_sheets(u64 page_id) override;
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) override;
