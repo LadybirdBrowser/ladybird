@@ -1002,10 +1002,19 @@ void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID nod
     }
 
     auto* node = Web::DOM::Node::from_unique_id(node_id);
-    if (!node || !node->layout_node())
+    if (!node || !node->is_connected())
         return;
 
-    node->document().set_highlighted_node(node, pseudo_element);
+    auto& document = node->document();
+    auto navigable = document.navigable();
+    if (!navigable || navigable->active_document() != &document)
+        return;
+
+    document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
+    if (!node->layout_node())
+        return;
+
+    document.set_highlighted_node(node, pseudo_element);
 }
 
 static Web::Painting::FlexboxInspectorOverlayOptions flexbox_inspector_overlay_options_from_json(JsonValue const& options)
