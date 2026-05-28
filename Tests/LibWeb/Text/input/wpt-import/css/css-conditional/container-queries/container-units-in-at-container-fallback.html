@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<title>Container Relative Units: container relative units fall back to small viewport</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  iframe {
+    width: 200px;
+    height: 320px;
+  }
+</style>
+<iframe id=iframe srcdoc="
+  <style>
+    #parent {
+      container-type: inline-size;
+      width: 64px;
+      height: 50px;
+    }
+    #container {
+      container-type: size;
+      width: 32px;
+      height: 32px;
+    }
+
+    #target1, #target2 { color: green; }
+
+    /* Unit should evaluate against width of #parent */
+    @container ((height = 32px) and (height = 50cqw)) {
+      #target1 { color: blue; }
+    }
+
+    /* Unit should evaluate against height of iframe */
+    @container ((height = 32px) and (height = 10cqh)) {
+      #target2 { color: blue; }
+    }
+
+  </style>
+  <div id=parent>
+    <div id=container>
+      <div id=target1></div>
+      <div id=target2></div>
+    </div>
+  </div>
+"></iframe>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  function waitForLoad(w) {
+    return new Promise(resolve => w.addEventListener('load', resolve));
+  }
+
+  promise_test(async () => {
+    await waitForLoad(window);
+    let inner_target1 = iframe.contentDocument.querySelector('#target1');
+    let inner_target2 = iframe.contentDocument.querySelector('#target2');
+    assert_equals(getComputedStyle(inner_target1).color, 'rgb(0, 0, 255)');
+    assert_equals(getComputedStyle(inner_target2).color, 'rgb(0, 0, 255)');
+
+    iframe.style = 'height:400px';
+
+    // #target1 is not affected since it evaluated against another container.
+    // #target2 *is* affected, because it evaluated against the iframe size
+    // which just changed.
+    assert_equals(getComputedStyle(inner_target1).color, 'rgb(0, 0, 255)');
+    assert_equals(getComputedStyle(inner_target2).color, 'rgb(0, 128, 0)');
+  }, 'Use small viewport size as fallback');
+</script>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>Container-relative units in @media</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+
+<style>
+  iframe {
+    width: 200px;
+    height: 100px;
+  }
+</style>
+
+<iframe id=iframe></iframe>
+
+<script>
+setup(() => assert_implements_size_container_queries());
+
+const doc = iframe.contentDocument;
+const win = iframe.contentWindow;
+
+function test_media_query(feature, result, description) {
+  test((t) => {
+    t.add_cleanup(() => { doc.body.innerHTML = ''; })
+    doc.body.innerHTML = `
+      <style>
+        body {
+          color: red;
+        }
+        @media (${feature}) {
+          body {
+            color: green;
+          }
+        }
+      </style>
+      `;
+    assert_equals(win.getComputedStyle(doc.body).color, result);
+  }, description);
+}
+
+function test_media_query_applies(feature) {
+  test_media_query(feature, 'rgb(0, 128, 0)', `@media(${feature}) applies`);
+}
+
+function test_media_query_does_not_apply(feature) {
+  test_media_query(feature, 'rgb(255, 0, 0)', `@media(${feature}) does not apply`);
+}
+
+// Container-relative units resolve against the "small viewport size" for
+// media queries.
+test_media_query_applies('width:100cqw');
+test_media_query_applies('width:100cqi');
+test_media_query_applies('width:100cqmax');
+test_media_query_applies('height:100cqh');
+test_media_query_applies('height:100cqb');
+test_media_query_applies('height:100cqmin');
+test_media_query_does_not_apply('width:90cqw');
+test_media_query_does_not_apply('height:90cqh');
+
+</script>

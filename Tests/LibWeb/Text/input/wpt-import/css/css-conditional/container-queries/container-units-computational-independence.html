@@ -1,0 +1,20 @@
+<!doctype html>
+<title>Container Relative Units: Computationally independent</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1/#computationally-independent">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  const units = ['cqw', 'cqh', 'cqi', 'cqb', 'cqmin', 'cqmax'];
+
+  for (let unit of units) {
+    test(function() {
+      assert_throws_dom('SyntaxError', () => {
+        CSS.registerProperty({ name: '--x', inherits: false, syntax: '<length>', initialValue: `1${unit}` });
+      });
+    }, `Container relative unit ${unit} is not computationally independent`);
+  }
+</script>

@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	/* basic */
+Fail	display: table
+Fail	display: table-cell
+Fail	display: inline
+Fail	display: contents
+Fail	display: none
+Fail	container-type: normal
+Fail	container-type: inline-size
+Fail	container-type: inline-size; writing-mode: vertical-lr

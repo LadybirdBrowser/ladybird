@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Container relative unit cqw is not computationally independent
+Pass	Container relative unit cqh is not computationally independent
+Pass	Container relative unit cqi is not computationally independent
+Pass	Container relative unit cqb is not computationally independent
+Pass	Container relative unit cqmin is not computationally independent
+Pass	Container relative unit cqmax is not computationally independent

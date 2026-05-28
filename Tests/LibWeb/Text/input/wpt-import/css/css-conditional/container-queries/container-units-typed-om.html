@@ -1,0 +1,59 @@
+<!doctype html>
+<title>Container Relative Units: CSS Typed OM</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div id=element></div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  const units = ['cqw', 'cqh', 'cqi', 'cqb', 'cqmin', 'cqmax'];
+  const functions = {
+    cqw: CSS.cqw,
+    cqh: CSS.cqh,
+    cqi: CSS.cqi,
+    cqb: CSS.cqb,
+    cqmin: CSS.cqmin,
+    cqmax: CSS.cqmax,
+  };
+
+  for (let unit of units) {
+    let func = functions[unit];
+
+    test(() => {
+      assert_equals(`${func(10)}`, `10${unit}`);
+    }, `CSS.${unit} function`);
+
+    test(() => {
+      try {
+        element.style.top = `10${unit}`;
+        let value = element.attributeStyleMap.get('top');
+        assert_equals(value.value, 10);
+        assert_equals(value.unit, unit);
+      } finally {
+        element.style = '';
+      }
+    }, `Reify value with ${unit} unit`);
+
+    test(() => {
+      try {
+        element.attributeStyleMap.set('top', `10${unit}`);
+        assert_equals(element.style.top, `10${unit}`);
+      } finally {
+        element.style = '';
+      }
+    }, `Set value with ${unit} unit (string)`);
+
+    test(() => {
+      try {
+        element.attributeStyleMap.set('top', func(10));
+        assert_equals(element.style.top, `10${unit}`);
+      } finally {
+        element.style = '';
+      }
+    }, `Set value with ${unit} unit (CSS.${unit})`);
+  }
+
+</script>

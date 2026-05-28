@@ -1,0 +1,63 @@
+<!doctype html>
+<title>Container Relative Units: Shadow DOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-queries">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #outer {
+    container-type: size;
+    width: 200px;
+    height: 200px;
+  }
+  #direct {
+    container-type: inline-size;
+    width: 50cqw;
+    height: 50cqh;
+  }
+  #nondirect {
+    width: 10cqw;
+    height: 10cqh;
+    background: green;
+  }
+</style>
+<div id=outer>
+  <div>
+    <template shadowrootmode="open">
+      <style>
+        #inner {
+          container-type: size;
+          width: 30px;
+          height: 30px;
+        }
+      </style>
+      <div id=inner>
+        <slot></slot>
+      </div>
+    </template>
+    <div>
+      <div id=direct>
+        <div id=nondirect>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  setup(() => {
+    assert_implements_size_container_queries();
+  });
+
+  test(() => {
+    let cs = getComputedStyle(direct);
+    assert_equals(cs.width, '15px');
+    assert_equals(cs.height, '15px');
+  }, 'Direct slotted child queries flat tree');
+
+  test(() => {
+    let cs = getComputedStyle(nondirect);
+    assert_equals(cs.width, '1.5px');
+    assert_equals(cs.height, '3px');
+  }, 'Nondirect slotted child queries flat tree ancestors');
+</script>

@@ -1,0 +1,58 @@
+<!doctype html>
+<title>Container Relative Units: evaluate against the content box</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+.size {
+  container-type: size;
+  width:100px;
+  height:50px;
+  border: 10px solid green;
+  padding: 10px;
+}
+.border-box {
+  box-sizing: border-box;
+}
+</style>
+<div id=ref></div>
+<div class="size">
+  <div id=child></div>
+</div>
+<div class="size border-box">
+  <div id=child2></div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  function assert_unit_equals(element, actual, expected) {
+    try {
+      element.style.padding = actual;
+      ref.style.padding = expected;
+      assert_equals(getComputedStyle(element).paddingLeft,
+                    getComputedStyle(ref).paddingLeft);
+    } finally {
+      element.style = '';
+      ref.style = '';
+    }
+  }
+
+  test(function() {
+    assert_unit_equals(child, '10cqi', '10px');
+    assert_unit_equals(child, '10cqw', '10px');
+    assert_unit_equals(child, '10cqb', '5px');
+    assert_unit_equals(child, '10cqh', '5px');
+    assert_unit_equals(child, '10cqmin', '5px');
+    assert_unit_equals(child, '10cqmax', '10px');
+  }, 'Container units are relative to the content box of the container');
+
+  test(function() {
+    assert_unit_equals(child2, '10cqi', '6px');
+    assert_unit_equals(child2, '10cqw', '6px');
+    assert_unit_equals(child2, '10cqb', '1px');
+    assert_unit_equals(child2, '10cqh', '1px');
+    assert_unit_equals(child2, '10cqmin', '1px');
+    assert_unit_equals(child2, '10cqmax', '6px');
+  }, 'Container units are relative to the content box of the container (box-sizing: border-box)');
+</script>
