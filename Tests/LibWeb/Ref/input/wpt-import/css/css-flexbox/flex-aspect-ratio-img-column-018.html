@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>SVG as flex item</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item" title="Part E">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#min-max-widths">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Flex base size of svg item with aspect ratio + no intrinsic width or height honors transferred max-width." />
+
+<p>Test passes if there is a filled green square.</p>
+
+<div style="display: flex; flex-direction: column; align-items: flex-start; width: 200px;">
+  <svg viewBox="0 0 1 1" style="max-width: 100px; background: green;"></svg>
+</div>

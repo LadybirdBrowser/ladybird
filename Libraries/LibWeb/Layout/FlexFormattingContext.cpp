@@ -792,7 +792,7 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
     //         - in response to cross size min/max constraints.
     auto auto_size = item.box->auto_content_box_size();
     if (auto_size.has_aspect_ratio()) {
-        if (!item.used_flex_basis_is_definite && !auto_size.has_width() && !auto_size.has_height() && !has_definite_cross_size(item)) {
+        if (!item.used_flex_basis_is_definite && !auto_size.has_width() && !auto_size.has_height() && !has_definite_cross_size(item) && has_definite_main_size(m_flex_container_state)) {
             item.flex_base_size = inner_main_size(m_flex_container_state);
         }
         item.flex_base_size = adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(child_box, item.flex_base_size, computed_cross_min_size(child_box), computed_cross_max_size(child_box));
