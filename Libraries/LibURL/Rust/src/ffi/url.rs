@@ -232,9 +232,8 @@ pub unsafe extern "C" fn rust_url_basic_parse(
     on_complete: FfiUrlResultFn,
 ) -> bool {
     abort_on_panic(|| {
-        // SAFETY: caller guarantees input and options are valid.
-        let input_bytes = unsafe { std::slice::from_raw_parts(input, input_length) };
-        let input_str = String::from_utf8_lossy(input_bytes);
+        // SAFETY: caller guarantees input is scalar-value UTF-8 and valid for input_length bytes.
+        let input_str = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(input, input_length)) };
 
         let options = unsafe { options.as_ref() };
 
@@ -258,9 +257,9 @@ pub unsafe extern "C" fn rust_url_basic_parse(
         parse_options.base_url = base_url.as_ref();
 
         let (did_succeed, maybe_url) = if let Some(mut existing_url) = existing_url {
-            let did_succeed = basic_parse_into(&input_str, &mut existing_url, &parse_options);
+            let did_succeed = basic_parse_into(input_str, &mut existing_url, &parse_options);
             (did_succeed, Some(existing_url))
-        } else if let Some(parsed) = basic_parse(&input_str, parse_options) {
+        } else if let Some(parsed) = basic_parse(input_str, parse_options) {
             (true, Some(parsed))
         } else {
             (false, None)
@@ -302,11 +301,10 @@ pub unsafe extern "C" fn rust_url_parse_host(
     on_complete: FfiHostResultFn,
 ) -> bool {
     abort_on_panic(|| {
-        // SAFETY: caller guarantees input is valid.
-        let input_bytes = unsafe { std::slice::from_raw_parts(input, input_length) };
-        let input_str = String::from_utf8_lossy(input_bytes);
+        // SAFETY: caller guarantees input is scalar-value UTF-8 and valid for input_length bytes.
+        let input_str = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(input, input_length)) };
 
-        let Some(host) = parse_host(&input_str, is_opaque) else {
+        let Some(host) = parse_host(input_str, is_opaque) else {
             // SAFETY: on_complete is a valid function pointer; ctx is caller-provided.
             unsafe { on_complete(ctx, std::ptr::null()) };
             return false;

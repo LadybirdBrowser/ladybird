@@ -418,11 +418,15 @@ static void on_parse_host_complete(void* ctx_ptr, FFI::FfiUrlHost const* ffi_res
 
 Optional<Host> parse_host(StringView input, bool is_opaque)
 {
+    // URL parsing expects a scalar-value UTF-8 string, but WTF-8 can be provided.
+    auto processed_input = String::from_utf8_with_replacement_character(input, String::WithBOMHandling::No);
+    auto processed_input_view = processed_input.bytes_as_string_view();
+
     Optional<Host> result;
     HostParseCallbackCtx ctx { .result = &result };
     bool const did_succeed = FFI::rust_url_parse_host(
-        reinterpret_cast<uint8_t const*>(input.characters_without_null_termination()),
-        input.length(),
+        reinterpret_cast<uint8_t const*>(processed_input_view.characters_without_null_termination()),
+        processed_input_view.length(),
         is_opaque,
         &ctx,
         on_parse_host_complete);
@@ -436,6 +440,9 @@ Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, U
     auto const state_override_from_cpp = [](Parser::State state) {
         return static_cast<FFI::State>(to_underlying(state));
     };
+
+    // URL parsing expects a scalar-value UTF-8 string, but WTF-8 can be provided.
+    auto processed_input = String::from_utf8_with_replacement_character(input, String::WithBOMHandling::No);
 
     Optional<UrlFfiStorage> base_storage;
     if (base_url.has_value())
@@ -460,9 +467,10 @@ Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, U
 
     Optional<URL> result;
     ParseCallbackCtx ctx { .result = &result, .url_inout = url };
+    auto processed_input_view = processed_input.bytes_as_string_view();
     bool const did_succeed = rust_url_basic_parse(
-        reinterpret_cast<uint8_t const*>(input.characters_without_null_termination()),
-        input.length(),
+        reinterpret_cast<uint8_t const*>(processed_input_view.characters_without_null_termination()),
+        processed_input_view.length(),
         &options,
         &ctx,
         on_basic_parse_complete);
