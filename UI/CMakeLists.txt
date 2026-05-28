@@ -99,8 +99,6 @@ else()
     )
 endif()
 
-set(ladybird_helper_processes Compositor ImageDecoder RequestServer WebContent WebWorker)
-
 add_dependencies(ladybird ${ladybird_helper_processes})
 # FIXME: Increase support for building targets on Windows
 if (NOT WIN32)
