@@ -14,15 +14,145 @@
 
 #include <QAction>
 #include <QEvent>
+#include <QIcon>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QStyle>
+#include <QStyleOptionToolButton>
+#include <QStylePainter>
 #include <QToolButton>
-#include <qapplication.h>
 
 namespace Ladybird {
 
 static constexpr int BOOKMARK_BUTTON_MAX_WIDTH = 150;
 static constexpr int BOOKMARK_BUTTON_ICON_SIZE = 16;
+static constexpr int BOOKMARK_BUTTON_MIN_HEIGHT = 24;
+static constexpr int BOOKMARK_BUTTON_VERTICAL_PADDING = 8;
+static constexpr int BOOKMARK_BUTTON_HORIZONTAL_PADDING = 7;
+static constexpr int BOOKMARK_BUTTON_ICON_TEXT_SPACING = 6;
+static constexpr int BOOKMARK_BUTTON_TEXT_ELISION_PADDING = 2;
+
+static constexpr char const* BOOKMARK_ITEM_PROPERTY = "bookmark_item";
+
+static QStyleOptionToolButton bookmark_button_style_option(QToolButton const& button)
+{
+    QStyleOptionToolButton option;
+    option.initFrom(&button);
+
+    option.rect = button.rect();
+    option.icon = button.icon();
+    option.iconSize = button.iconSize();
+    option.text = button.text();
+    option.toolButtonStyle = button.toolButtonStyle();
+    option.arrowType = button.arrowType();
+    option.subControls = QStyle::SC_ToolButton;
+
+    if (button.arrowType() != Qt::NoArrow)
+        option.features |= QStyleOptionToolButton::Arrow;
+
+    switch (button.popupMode()) {
+    case QToolButton::DelayedPopup:
+        option.features |= QStyleOptionToolButton::PopupDelay;
+        break;
+    case QToolButton::MenuButtonPopup:
+        option.features |= QStyleOptionToolButton::MenuButtonPopup;
+        option.subControls |= QStyle::SC_ToolButtonMenu;
+        break;
+    case QToolButton::InstantPopup:
+        option.features |= QStyleOptionToolButton::Menu;
+        break;
+    }
+
+    if (button.autoRaise())
+        option.state |= QStyle::State_AutoRaise;
+    if (button.menu())
+        option.features |= QStyleOptionToolButton::HasMenu;
+    if (button.isDown())
+        option.state |= QStyle::State_Sunken;
+
+    return option;
+}
+
+struct BookmarkButtonLayout {
+    QRect content_rect;
+    QRect icon_rect;
+    QRect text_rect;
+    int menu_indicator_width { 0 };
+    int icon_width { 0 };
+    int icon_text_spacing { 0 };
+    int available_text_width { 0 };
+    int preferred_width { 0 };
+};
+static BookmarkButtonLayout bookmark_button_layout(QToolButton const& button, QStyleOptionToolButton const& option, QString const& text, QRect const& button_rect)
+{
+    BookmarkButtonLayout layout;
+
+    if (button.menu())
+        layout.menu_indicator_width = button.style()->pixelMetric(QStyle::PM_MenuButtonIndicator, &option, &button);
+
+    layout.icon_width = button.icon().isNull() ? 0 : button.iconSize().width();
+    layout.icon_text_spacing = layout.icon_width > 0 && !text.isEmpty() ? BOOKMARK_BUTTON_ICON_TEXT_SPACING : 0;
+
+    layout.content_rect = button_rect;
+    layout.content_rect.adjust(BOOKMARK_BUTTON_HORIZONTAL_PADDING, 0, -BOOKMARK_BUTTON_HORIZONTAL_PADDING, 0);
+    layout.content_rect.adjust(0, 0, -layout.menu_indicator_width, 0);
+
+    auto text_left = layout.content_rect.left() + layout.icon_width + layout.icon_text_spacing;
+    layout.available_text_width = max(layout.content_rect.right() - text_left + 1, 0);
+    layout.text_rect = QRect { text_left, layout.content_rect.top(), layout.available_text_width, layout.content_rect.height() };
+
+    if (layout.icon_width > 0) {
+        auto icon_size = option.iconSize;
+        layout.icon_rect = QRect {
+            layout.content_rect.left(),
+            layout.content_rect.top() + ((layout.content_rect.height() - icon_size.height()) / 2),
+            icon_size.width(),
+            icon_size.height(),
+        };
+    }
+
+    auto preferred_width = (BOOKMARK_BUTTON_HORIZONTAL_PADDING * 2)
+        + layout.icon_width
+        + layout.icon_text_spacing
+        + button.fontMetrics().horizontalAdvance(text)
+        + BOOKMARK_BUTTON_TEXT_ELISION_PADDING
+        + layout.menu_indicator_width;
+    layout.preferred_width = min(preferred_width, button_rect.width());
+
+    return layout;
+}
+
+static void paint_bookmark_button(QToolButton& button)
+{
+    QStylePainter painter(&button);
+
+    auto option = bookmark_button_style_option(button);
+    auto layout = bookmark_button_layout(button, option, option.text, button.rect());
+
+    auto frame_option = option;
+    frame_option.icon = {};
+    frame_option.text.clear();
+    painter.drawComplexControl(QStyle::CC_ToolButton, frame_option);
+
+    if (layout.icon_width > 0) {
+        auto mode = button.isEnabled() ? QIcon::Normal : QIcon::Disabled;
+        if (button.isEnabled() && (option.state & QStyle::State_MouseOver))
+            mode = QIcon::Active;
+
+        option.icon.paint(&painter, layout.icon_rect, Qt::AlignCenter, mode, button.isChecked() ? QIcon::On : QIcon::Off);
+    }
+
+    auto elided_text = button.fontMetrics().elidedText(option.text, Qt::ElideRight, layout.available_text_width);
+
+    button.style()->drawItemText(
+        &painter,
+        layout.text_rect,
+        Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
+        option.palette,
+        button.isEnabled(),
+        elided_text,
+        QPalette::ButtonText);
+}
 
 static void install_menu_event_filter(QObject* filter, QMenu* menu)
 {
@@ -77,9 +207,27 @@ void BookmarksBar::rebuild()
     clear();
 
     auto set_button_properties = [&](QToolButton* button, QString const& title) {
-        button->setText(button->fontMetrics().elidedText(title, Qt::ElideRight, BOOKMARK_BUTTON_MAX_WIDTH - 28));
+        button->setProperty(BOOKMARK_ITEM_PROPERTY, true);
         button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        button->ensurePolished();
+
+        auto option = bookmark_button_style_option(*button);
+
+        auto bookmark_button_height = max(BOOKMARK_BUTTON_MIN_HEIGHT, max(button->fontMetrics().height(), button->iconSize().height()) + BOOKMARK_BUTTON_VERTICAL_PADDING);
+        auto max_size_rect = QRect { 0, 0, BOOKMARK_BUTTON_MAX_WIDTH, bookmark_button_height };
+
+        auto layout = bookmark_button_layout(*button, option, title, max_size_rect);
+
+        auto available_title_width = max(layout.available_text_width - BOOKMARK_BUTTON_TEXT_ELISION_PADDING, 0);
+        auto text = button->fontMetrics().elidedText(title, Qt::ElideRight, available_title_width);
+        button->setText(text);
+
+        layout = bookmark_button_layout(*button, option, text, max_size_rect);
+
+        button->setFixedWidth(layout.preferred_width);
         button->setMaximumWidth(BOOKMARK_BUTTON_MAX_WIDTH);
+        button->setFixedHeight(bookmark_button_height);
+
         button->installEventFilter(this);
     };
 
@@ -139,6 +287,13 @@ void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::Bookmark
 
 bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
 {
+    if (event->type() == QEvent::Paint) {
+        if (auto* button = as_if<QToolButton>(object); button && button->property(BOOKMARK_ITEM_PROPERTY).toBool()) {
+            paint_bookmark_button(*button);
+            return true;
+        }
+    }
+
     if (event->type() == QEvent::MouseButtonPress) {
         auto& mouse_event = as<QMouseEvent>(*event);
 
