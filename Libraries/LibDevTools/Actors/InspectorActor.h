@@ -23,6 +23,7 @@ public:
     static RefPtr<WalkerActor> walker_for(WeakPtr<InspectorActor> const&);
 
     void on_navigation_started();
+    void on_navigation_finished();
 
 private:
     InspectorActor(DevToolsServer&, String name, WeakPtr<TabActor>);

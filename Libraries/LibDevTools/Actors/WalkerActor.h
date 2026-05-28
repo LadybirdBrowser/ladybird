@@ -34,6 +34,7 @@ public:
     Optional<Node> dom_node(StringView actor);
     Optional<String> node_actor_name_for(Web::UniqueNodeID) const;
     void document_unloaded();
+    void replace_dom_tree(JsonObject);
 
 private:
     WalkerActor(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);

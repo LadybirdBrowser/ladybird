@@ -19,6 +19,7 @@
 #include <LibDevTools/Actors/ThreadActor.h>
 #include <LibDevTools/Actors/ThreadConfigurationActor.h>
 #include <LibDevTools/Actors/WatcherActor.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
@@ -34,7 +35,14 @@ WatcherActor::WatcherActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
 {
 }
 
-WatcherActor::~WatcherActor() = default;
+WatcherActor::~WatcherActor()
+{
+    if (!m_is_watching_frame_targets)
+        return;
+
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().did_disconnect_devtools_client(tab->description());
+}
 
 void WatcherActor::handle_message(Message const& message)
 {
@@ -100,23 +108,18 @@ void WatcherActor::handle_message(Message const& message)
             return;
 
         if (target_type == "frame"sv) {
-            auto& css_properties = devtools().register_actor<CSSPropertiesActor>();
-            auto& console = devtools().register_actor<ConsoleActor>(m_tab);
-            auto& inspector = devtools().register_actor<InspectorActor>(m_tab);
-            auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
-            auto& thread = devtools().register_actor<ThreadActor>();
-            auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
+            if (!m_is_watching_frame_targets) {
+                if (auto tab = m_tab.strong_ref())
+                    devtools().delegate().did_connect_devtools_client(tab->description());
+                m_is_watching_frame_targets = true;
+            }
 
-            auto& target = devtools().register_actor<FrameActor>(m_tab, css_properties, console, inspector, style_sheets, thread, accessibility);
-            m_target = target;
+            auto& target = create_frame_target();
 
-            response.set("type"sv, "target-available-form"sv);
-            response.set("target"sv, target.serialize_target());
             send_response(message, move(response));
 
+            send_frame_target_available_message(target);
             target.send_frame_update_message();
-
-            send_message({});
             return;
         }
     }
@@ -161,6 +164,63 @@ JsonObject WatcherActor::serialize_description() const
     description.set("resources"sv, move(resources));
 
     return description;
+}
+
+FrameActor& WatcherActor::create_frame_target()
+{
+    auto& css_properties = devtools().register_actor<CSSPropertiesActor>();
+    auto& console = devtools().register_actor<ConsoleActor>(m_tab);
+    auto& inspector = devtools().register_actor<InspectorActor>(m_tab);
+    auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
+    auto& thread = devtools().register_actor<ThreadActor>();
+    auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
+
+    auto& target = devtools().register_actor<FrameActor>(m_tab, make_weak_ptr<WatcherActor>(), css_properties, console, inspector, style_sheets, thread, accessibility);
+    m_target = target;
+    return target;
+}
+
+void WatcherActor::send_frame_target_available_message()
+{
+    auto& target = create_frame_target();
+    send_frame_target_available_message(target);
+}
+
+void WatcherActor::switch_frame_target(FrameActor& previous_target, String const& url, String const& title)
+{
+    auto previous_target_ref = m_target.strong_ref();
+    if (!previous_target_ref || previous_target_ref.ptr() != &previous_target)
+        return;
+
+    send_frame_target_destroyed_message(*previous_target_ref);
+    previous_target_ref->stop_listening();
+    devtools().unregister_actor(previous_target_ref->name());
+
+    auto& target = create_frame_target();
+    send_frame_target_available_message(target);
+    target.send_frame_update_message();
+    target.set_pending_navigation_document_events_after_target_switch(url, title);
+}
+
+void WatcherActor::send_frame_target_available_message(FrameActor& target)
+{
+    JsonObject message;
+    message.set("type"sv, "target-available-form"sv);
+    message.set("target"sv, target.serialize_target());
+    send_message(move(message));
+}
+
+void WatcherActor::send_frame_target_destroyed_message(FrameActor& target)
+{
+    JsonObject options;
+    options.set("isTargetSwitching"sv, true);
+    options.set("shouldDestroyTargetFront"sv, true);
+
+    JsonObject message;
+    message.set("type"sv, "target-destroyed-form"sv);
+    message.set("target"sv, target.serialize_target());
+    message.set("options"sv, move(options));
+    send_message(move(message));
 }
 
 }
