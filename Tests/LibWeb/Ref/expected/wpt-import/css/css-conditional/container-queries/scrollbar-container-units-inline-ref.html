@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+.container {
+  display: inline-block;
+  border: solid 3px cornflowerblue;
+  width: 100px;
+  height: 100px;
+  container-type: inline-size;
+}
+div > div {
+  box-sizing: border-box;
+  width: 100%;
+  height: 200px;
+  border: solid 10px orange;
+}
+</style>
+<div class="container" style="overflow-y: scroll;">
+  <div></div>
+</div>
+<div class="container" style="overflow-y: auto;">
+  <div style="width: 100px;"></div>
+</div>
+<div class="container" style="overflow-y: auto; scrollbar-gutter: stable;">
+  <div></div>
+</div>
+<div class="container" style="overflow-y: auto; scrollbar-gutter: stable;">
+  <div style="height: 50px;"></div>
+</div>

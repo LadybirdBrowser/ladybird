@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>Container-relative units in ::selection (ref)</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<style>
+  #outer {
+    width: 200px;
+    height: 200px;
+    border: 1px solid black;
+  }
+  #inner {
+    width: 100px;
+    height: 100px;
+    background-color: skyblue;
+  }
+  #inner::selection {
+    background-color: seagreen;
+    text-decoration: underline solid;
+    text-underline-offset: 10px;
+  }
+</style>
+<div id=outer>
+  <div id=inner>
+    Some text
+  </div>
+</div>
+
+<script>
+  let range = document.createRange();
+  range.selectNode(inner);
+  window.getSelection().addRange(range);
+</script>

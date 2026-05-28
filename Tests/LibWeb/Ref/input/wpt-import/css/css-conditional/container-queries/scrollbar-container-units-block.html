@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/10043#issuecomment-2165291421">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-conditional/container-queries/scrollbar-container-units-block-ref.html">
+<style>
+.container {
+  display: inline-block;
+  border: solid 3px cornflowerblue;
+  width: 100px;
+  height: 100px;
+  container-type: size;
+}
+div > div {
+  box-sizing: border-box;
+  width: 200px;
+  height: 100cqh;
+  border: solid 10px orange;
+}
+</style>
+<div class="container" style="overflow-x: scroll;">
+  <div></div>
+</div>
+<div class="container" style="overflow-x: auto;">
+  <div></div>
+</div>

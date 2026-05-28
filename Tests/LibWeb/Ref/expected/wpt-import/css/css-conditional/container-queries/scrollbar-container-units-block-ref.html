@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+.container {
+  display: inline-block;
+  border: solid 3px cornflowerblue;
+  width: 100px;
+  height: 100px;
+  container-type: size;
+}
+div > div {
+  box-sizing: border-box;
+  width: 200px;
+  height: 100%;
+  border: solid 10px orange;
+}
+</style>
+<div class="container" style="overflow-x: scroll;">
+  <div></div>
+</div>
+<div class="container" style="overflow-x: auto;">
+  <div style="height: 100px;"></div>
+</div>
