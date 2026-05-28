@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Encoding {
@@ -30,7 +31,7 @@ public:
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(GC::Ptr<WebIDL::BufferSource>, Optional<Bindings::TextDecodeOptions> const& options = {}) const;
+    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant>, Optional<Bindings::TextDecodeOptions> const& options = {}) const;
 
 private:
     TextDecoder(JS::Realm&, TextCodec::Decoder&, FlyString encoding, ErrorMode error_mode, bool ignore_bom);

@@ -28,8 +28,8 @@
 namespace Web::XHR {
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
-using DocumentOrXMLHttpRequestBodyInit = Variant<GC::Ref<Web::DOM::Document>, GC::Ref<Web::FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<Web::DOMURL::URLSearchParams>, AK::String>;
-using NullableDocumentOrXMLHttpRequestBodyInit = Variant<GC::Ref<Web::DOM::Document>, GC::Ref<Web::FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<Web::DOMURL::URLSearchParams>, AK::String, Empty>;
+using DocumentOrXMLHttpRequestBodyInit = FlattenVariant<Variant<GC::Ref<Web::DOM::Document>>, Fetch::XMLHttpRequestBodyInit>;
+using NullableDocumentOrXMLHttpRequestBodyInit = FlattenVariant<DocumentOrXMLHttpRequestBodyInit, Variant<Empty>>;
 
 class XMLHttpRequest final : public XMLHttpRequestEventTarget {
     WEB_PLATFORM_OBJECT(XMLHttpRequest, XMLHttpRequestEventTarget);

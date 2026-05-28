@@ -477,7 +477,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     // 37. If init["body"] exists and is non-null, then:
     if (init.body.has_value() && !init.body->has<Empty>()) {
         // 1. Let bodyWithType be the result of extracting init["body"], with keepalive set to request's keepalive.
-        auto body_with_type = TRY(extract_body(realm, init.body->downcast<GC::Ref<Streams::ReadableStream>, GC::Ref<FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String>(), request->keepalive()));
+        auto body_with_type = TRY(extract_body(realm, init.body->downcast<BodyInit>(), request->keepalive()));
 
         // 2. Set initBody to bodyWithType’s body.
         init_body = body_with_type.body;

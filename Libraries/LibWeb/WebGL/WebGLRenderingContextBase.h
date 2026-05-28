@@ -84,31 +84,23 @@ protected:
     }
 
     template<typename T>
-    static ErrorOr<Span<T>> get_offset_span(GC::Ref<WebIDL::BufferableObjectBase> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override = 0)
+    static ErrorOr<Span<T>> get_offset_span(WebIDL::BufferSource src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override = 0)
     {
-        auto buffer_size = src_data->byte_length();
+        auto buffer_size = src_data.byte_length();
         if (buffer_size % sizeof(T) != 0) [[unlikely]]
             return Error::from_errno(EINVAL);
 
-        auto raw_object = src_data->raw_object();
-
-        if (auto* array_buffer = as_if<JS::ArrayBuffer>(*raw_object)) {
-            return TRY(get_offset_span(array_buffer->span(), src_offset, src_length_override)).reinterpret<T>();
-        }
-
-        if (auto* data_view = as_if<JS::DataView>(*raw_object)) {
-            return TRY(get_offset_span(data_view->viewed_array_buffer()->span(), src_offset, src_length_override)).reinterpret<T>();
-        }
-
-        // NOTE: This has to be done because src_offset is the number of elements to offset by, not the number of bytes.
-#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type)                         \
-    if (auto* typed_array = as_if<JS::ClassName>(*raw_object)) {                                            \
-        return TRY(get_offset_span(typed_array->data(), src_offset, src_length_override)).reinterpret<T>(); \
-    }
-        JS_ENUMERATE_TYPED_ARRAYS
-#undef __JS_ENUMERATE
-
-        VERIFY_NOT_REACHED();
+        return src_data.buffer_source().visit(
+            [&](GC::Ref<JS::ArrayBuffer> array_buffer) -> ErrorOr<Span<T>> {
+                return TRY(get_offset_span(array_buffer->span(), src_offset, src_length_override)).template reinterpret<T>();
+            },
+            [&](GC::Ref<JS::DataView> data_view) -> ErrorOr<Span<T>> {
+                return TRY(get_offset_span(data_view->viewed_array_buffer()->span(), src_offset, src_length_override)).template reinterpret<T>();
+            },
+            [&](auto const& typed_array) -> ErrorOr<Span<T>> {
+                // NOTE: src_offset is the number of elements to offset by, not the number of bytes.
+                return TRY(get_offset_span(typed_array->data(), src_offset, src_length_override)).template reinterpret<T>();
+            });
     }
 
     static ErrorOr<Span<float>> span_from_float32_list(Float32List& float32_list, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override = 0)

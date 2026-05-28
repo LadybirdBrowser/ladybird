@@ -15,6 +15,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/Streams/ReadableStream.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Streams {
@@ -98,12 +99,12 @@ void readable_byte_stream_controller_handle_queue_drain(ReadableByteStreamContro
 void readable_byte_stream_controller_invalidate_byob_request(ReadableByteStreamController&);
 [[nodiscard]] SinglyLinkedList<GC::Root<PullIntoDescriptor>> readable_byte_stream_controller_process_pull_into_descriptors_using_queue(ReadableByteStreamController&);
 void readable_byte_stream_controller_process_read_requests_using_queue(ReadableByteStreamController& controller);
-void readable_byte_stream_controller_pull_into(ReadableByteStreamController&, WebIDL::ArrayBufferView&, u64 min, ReadIntoRequest&);
+void readable_byte_stream_controller_pull_into(ReadableByteStreamController&, WebIDL::ArrayBufferView, u64 min, ReadIntoRequest&);
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(ReadableByteStreamController&, u64 bytes_written);
 void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamController&, PullIntoDescriptor&);
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_state(ReadableByteStreamController&, u64 bytes_written, PullIntoDescriptor&);
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(ReadableByteStreamController&, u64 bytes_written);
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(JS::Realm&, ReadableByteStreamController&, WebIDL::ArrayBufferView&);
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(JS::Realm&, ReadableByteStreamController&, WebIDL::ArrayBufferView);
 GC::Ref<PullIntoDescriptor> readable_byte_stream_controller_shift_pending_pull_into(ReadableByteStreamController& controller);
 bool readable_byte_stream_controller_should_call_pull(ReadableByteStreamController const&);
 WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&, ReadableByteStreamController&, GC::Ref<StartAlgorithm>, GC::Ref<PullAlgorithm>, GC::Ref<CancelAlgorithm>, double high_water_mark, JS::Value auto_allocate_chunk_size);

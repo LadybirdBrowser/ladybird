@@ -473,7 +473,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& r
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-cloneasuint8array
-WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm& realm, WebIDL::ArrayBufferView& view)
+WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm& realm, WebIDL::ArrayBufferView view)
 {
     auto& vm = realm.vm();
 

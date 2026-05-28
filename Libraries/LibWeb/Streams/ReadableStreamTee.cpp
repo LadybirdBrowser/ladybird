@@ -222,7 +222,7 @@ void ReadableByteStreamTeeDefaultReadRequest::on_chunk(JS::Value chunk)
         // 4. If canceled1 is false and canceled2 is false,
         if (!m_params->canceled1 && !m_params->canceled2) {
             // 1. Let cloneResult be CloneAsUint8Array(chunk).
-            auto chunk_view = m_realm->create<WebIDL::ArrayBufferView>(chunk.as_object());
+            auto chunk_view = WebIDL::ArrayBufferView::from_object(chunk.as_object());
             auto clone_result = clone_as_uint8_array(m_realm, chunk_view);
 
             // 2. If cloneResult is an abrupt completion,
@@ -351,7 +351,7 @@ void ReadableByteStreamTeeBYOBReadRequest::visit_edges(Visitor& visitor)
 // https://streams.spec.whatwg.org/#ref-for-read-into-request-chunk-steps①
 void ReadableByteStreamTeeBYOBReadRequest::on_chunk(JS::Value chunk)
 {
-    auto chunk_view = m_realm->create<WebIDL::ArrayBufferView>(chunk.as_object());
+    auto chunk_view = WebIDL::ArrayBufferView::from_object(chunk.as_object());
 
     // 1. Queue a microtask to perform the following steps:
     HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this, chunk = chunk_view]() {
@@ -461,7 +461,7 @@ void ReadableByteStreamTeeBYOBReadRequest::on_close(JS::Value chunk)
 
         // 2. If byobCanceled is false, perform ! ReadableByteStreamControllerRespondWithNewView(byobBranch.[[controller]], chunk).
         if (!byob_cancelled) {
-            auto array_buffer_view = m_realm->create<WebIDL::ArrayBufferView>(chunk.as_object());
+            auto array_buffer_view = WebIDL::ArrayBufferView::from_object(chunk.as_object());
             MUST(readable_byte_stream_controller_respond_with_new_view(m_realm, byob_controller, array_buffer_view));
         }
 

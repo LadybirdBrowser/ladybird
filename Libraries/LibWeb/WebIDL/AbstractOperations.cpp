@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -111,6 +112,20 @@ ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source)
 
     // 10. Return bytes.
     return bytes;
+}
+
+ErrorOr<ByteBuffer> get_buffer_source_copy(BufferSource const& buffer_source)
+{
+    return buffer_source.buffer_source().visit([](auto const& object) -> ErrorOr<ByteBuffer> {
+        return get_buffer_source_copy(*object);
+    });
+}
+
+ErrorOr<ByteBuffer> get_buffer_source_copy(ArrayBufferView const& array_buffer_view)
+{
+    return array_buffer_view.array_buffer_view().visit([](auto const& object) -> ErrorOr<ByteBuffer> {
+        return get_buffer_source_copy(*object);
+    });
 }
 
 // https://webidl.spec.whatwg.org/#call-user-object-operation-return

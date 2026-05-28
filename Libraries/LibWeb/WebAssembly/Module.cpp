@@ -19,11 +19,11 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Module);
 
-WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(JS::Realm& realm, GC::Ref<WebIDL::BufferSource> bytes)
+WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(JS::Realm& realm, WebIDL::BufferSource bytes)
 {
     auto& vm = realm.vm();
 
-    auto stable_bytes_or_error = WebIDL::get_buffer_source_copy(bytes->raw_object());
+    auto stable_bytes_or_error = WebIDL::get_buffer_source_copy(bytes);
     if (stable_bytes_or_error.is_error()) {
         VERIFY(stable_bytes_or_error.error().code() == ENOMEM);
         return vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));

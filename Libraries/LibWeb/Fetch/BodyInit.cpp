@@ -96,9 +96,9 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
             source = bytes;
             return {};
         },
-        [&](GC::Ref<WebIDL::BufferSource> buffer_source) -> WebIDL::ExceptionOr<void> {
+        [&](WebIDL::BufferSourceVariant buffer_source) -> WebIDL::ExceptionOr<void> {
             // Set source to a copy of the bytes held by object.
-            source = MUST(WebIDL::get_buffer_source_copy(*buffer_source->raw_object()));
+            source = MUST(WebIDL::get_buffer_source_copy(buffer_source));
             return {};
         },
         [&](GC::Ref<XHR::FormData> form_data) -> WebIDL::ExceptionOr<void> {

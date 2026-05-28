@@ -324,14 +324,14 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK:
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-appendbuffer
-WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(GC::Ref<WebIDL::BufferSource> data)
+WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSource data)
 {
     // 1. Run the prepare append algorithm.
-    TRY(prepare_append(data->byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));
+    TRY(prepare_append(data.byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));
 
     // 2. Add data to the end of the [[input buffer]].
-    if (auto array_buffer = data->viewed_array_buffer(); array_buffer && !array_buffer->is_detached()) {
-        auto bytes = array_buffer->buffer().bytes().slice(data->byte_offset(), data->byte_length());
+    if (auto array_buffer = data.viewed_array_buffer(); array_buffer && !array_buffer->is_detached()) {
+        auto bytes = array_buffer->buffer().bytes().slice(data.byte_offset(), data.byte_length());
         m_processor->append_to_input_buffer(bytes);
     }
 

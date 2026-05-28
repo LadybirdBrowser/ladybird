@@ -300,7 +300,7 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS:
     if (input.is_object() && (is<JS::TypedArrayBase>(input.as_object()) || is<JS::ArrayBuffer>(input.as_object()) || is<JS::DataView>(input.as_object()))) {
 
         // 1. If input is detached then return invalid.
-        if (WebIDL::is_buffer_source_detached(input))
+        if (WebIDL::BufferSource::is_detached(input))
             return Key::create_invalid(realm, "Detached buffer is not supported as key"_string);
 
         // 2. Let bytes be the result of getting a copy of the bytes held by the buffer source input.

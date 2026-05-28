@@ -592,7 +592,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     });
 
     // 16. Let pullWithBYOBReader be the following steps, given view and forBranch2:
-    auto pull_with_byob_reader = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise, forward_reader_error](GC::Ref<WebIDL::ArrayBufferView> view, bool for_branch2) mutable {
+    auto pull_with_byob_reader = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise, forward_reader_error](WebIDL::ArrayBufferView view, bool for_branch2) mutable {
         // 1. If reader implements ReadableStreamDefaultReader,
         if (auto const* default_reader = params->reader.get_pointer<GC::Ref<ReadableStreamDefaultReader>>()) {
             // 2. Assert: reader.[[readRequests]] is empty.
@@ -646,7 +646,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         }
         // 5. Otherwise, perform pullWithBYOBReader, given byobRequest.[[view]] and false.
         else {
-            pull_with_byob_reader->function()(*byob_request->view(), false);
+            pull_with_byob_reader->function()(byob_request->view().downcast<WebIDL::ArrayBufferViewVariant>(), false);
         }
 
         // 6. Return a promise resolved with undefined.
@@ -678,7 +678,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         }
         // 5. Otherwise, perform pullWithBYOBReader, given byobRequest.[[view]] and true.
         else {
-            pull_with_byob_reader->function()(*byob_request->view(), true);
+            pull_with_byob_reader->function()(byob_request->view().downcast<WebIDL::ArrayBufferViewVariant>(), true);
         }
 
         // 6. Return a promise resolved with undefined.
@@ -2198,7 +2198,7 @@ GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_requ
         byob_request->set_controller(controller);
 
         // 5. Set byobRequest.[[view]] to view.
-        byob_request->set_view(realm.create<WebIDL::ArrayBufferView>(view));
+        byob_request->set_view(WebIDL::ArrayBufferView::from_object(view));
 
         // 6. Set controller.[[byobRequest]] to byobRequest.
         controller.set_byob_request(byob_request);
@@ -2321,7 +2321,7 @@ void readable_byte_stream_controller_process_read_requests_using_queue(ReadableB
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-pull-into
-void readable_byte_stream_controller_pull_into(ReadableByteStreamController& controller, WebIDL::ArrayBufferView& view, u64 min, ReadIntoRequest& read_into_request)
+void readable_byte_stream_controller_pull_into(ReadableByteStreamController& controller, WebIDL::ArrayBufferView view, u64 min, ReadIntoRequest& read_into_request)
 {
     auto& realm = controller.realm();
     auto& vm = realm.vm();
@@ -2336,12 +2336,12 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     GC::Ref<JS::NativeFunction> ctor = realm.intrinsics().data_view_constructor();
 
     // 4. If view has a [[TypedArrayName]] internal slot (i.e., it is not a DataView),
-    if (auto const* typed_array = view.bufferable_object().get_pointer<GC::Ref<JS::TypedArrayBase>>()) {
+    if (auto typed_array = view.typed_array_base()) {
         // 1. Set elementSize to the element size specified in the typed array constructors table for view.[[TypedArrayName]].
-        element_size = (*typed_array)->element_size();
+        element_size = typed_array->element_size();
 
         // 2. Set ctor to the constructor specified in the typed array constructors table for view.[[TypedArrayName]].
-        switch ((*typed_array)->kind()) {
+        switch (typed_array->kind()) {
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
     case JS::TypedArrayBase::Kind::ClassName:                                       \
         ctor = realm.intrinsics().snake_name##_constructor();                       \
@@ -2656,7 +2656,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(Reada
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-respond-with-new-view
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(JS::Realm& realm, ReadableByteStreamController& controller, WebIDL::ArrayBufferView& view)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(JS::Realm& realm, ReadableByteStreamController& controller, WebIDL::ArrayBufferView view)
 {
     // 1. Assert: controller.[[pendingPullIntos]] is not empty.
     VERIFY(!controller.pending_pull_intos().is_empty());

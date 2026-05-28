@@ -65,30 +65,6 @@ static bool is_platform_object(Context const& context, Type const& type)
     return context.interfaces.contains(type.name()) || type.name() == "WindowProxy"sv;
 }
 
-// https://webidl.spec.whatwg.org/#idl-buffer-source-types
-static bool is_javascript_builtin_buffer_source_type(Type const& type)
-{
-    static constexpr Array types = {
-        "ArrayBuffer"sv,
-        "SharedArrayBuffer"sv,
-        "DataView"sv,
-        "Int8Array"sv,
-        "Int16Array"sv,
-        "Int32Array"sv,
-        "BigInt64Array"sv,
-        "Uint8Array"sv,
-        "Uint16Array"sv,
-        "Uint32Array"sv,
-        "BigUint64Array"sv,
-        "Uint8ClampedArray"sv,
-        "Float16Array"sv,
-        "Float32Array"sv,
-        "Float64Array"sv,
-    };
-
-    return types.span().contains_slow(type.name());
-}
-
 static ByteString interface_cpp_type_name(Interface const& interface)
 {
     if (!interface.fully_qualified_name.is_empty())
@@ -112,7 +88,7 @@ static ByteString cpp_type_name(Type const& type, Context const& context)
 {
     if (is_platform_object(context, type))
         return interface_cpp_type_name(context, type);
-    if (is_javascript_builtin_buffer_source_type(type))
+    if (type.is_buffer_source())
         return ByteString::formatted("JS::{}", type.name());
     return type.name();
 }
@@ -220,10 +196,10 @@ static bool type_contains_gc_like_value(Context const& context, Type const& type
     bool contains_gc_like_value = false;
     for_each_type_reference(context, type, TypeTraversalMode::ExpandDictionariesAndCallbacks, [&](Type const& referenced_type) {
         if (is_platform_object(context, referenced_type)
-            || is_javascript_builtin_buffer_source_type(referenced_type)
+            || referenced_type.is_buffer_source()
             || callback_interface_for_type(context, referenced_type)
             || context.callback_functions.contains(referenced_type.name())
-            || referenced_type.name().is_one_of("any"sv, "object"sv, "BufferSource"sv, "ArrayBufferView"sv, "Promise"sv)) {
+            || referenced_type.name().is_one_of("any"sv, "object"sv, "Promise"sv)) {
             contains_gc_like_value = true;
         }
     });
@@ -262,7 +238,7 @@ static CppType cpp_type_for_non_nullable_idl_type(Context const& context, Type c
     if (is_platform_object(context, type))
         return gc_ref_type(interface_cpp_type_name(context, type));
 
-    if (is_javascript_builtin_buffer_source_type(type))
+    if (type.is_buffer_source())
         return gc_ref_type(ByteString::formatted("JS::{}", type.name()));
 
     if (auto const* callback_interface = callback_interface_for_type(context, type))
@@ -322,12 +298,6 @@ static CppType cpp_type_for_non_nullable_idl_type(Context const& context, Type c
 
     if (type.name() == "object")
         return gc_ref_type("JS::Object"sv);
-
-    if (type.name() == "BufferSource")
-        return gc_ref_type("WebIDL::BufferSource"sv);
-
-    if (type.name() == "ArrayBufferView")
-        return gc_ref_type("WebIDL::ArrayBufferView"sv);
 
     if (type.name() == "Promise")
         return gc_ref_type("WebIDL::Promise"sv);
@@ -565,7 +535,7 @@ struct GeneratedIncludes {
 
 static void add_javascript_builtin_buffer_source_type_include(Type const& type, GeneratedIncludes& includes)
 {
-    VERIFY(is_javascript_builtin_buffer_source_type(type));
+    VERIFY(type.is_buffer_source());
 
     if (type.name() == "DataView"sv)
         includes.add_header("LibJS/Runtime/DataView.h"sv);
@@ -798,7 +768,7 @@ static ByteString cpp_default_expression(Context const& context, Type const& typ
         if (IDL::is_platform_object(context, type)
             || callback_interface_for_type(context, type)
             || context.callback_functions.contains(type.name())
-            || type.name().is_one_of("Promise"sv, "object"sv, "BufferSource"sv, "ArrayBufferView"sv)) {
+            || type.name().is_one_of("Promise"sv, "object"sv)) {
             return "{}"sv;
         }
 
@@ -1301,50 +1271,16 @@ static void generate_object_to_cpp(SourceGenerator& scoped_generator)
 
 static void generate_buffer_source_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, GeneratedIncludes& includes)
 {
-    auto is_exact_javascript_buffer_source_type = is_javascript_builtin_buffer_source_type(type);
-    if (is_exact_javascript_buffer_source_type) {
-        add_javascript_builtin_buffer_source_type_include(type, includes);
-        scoped_generator.set("parameter.type.buffer_cpp", ByteString::formatted("JS::{}", type.name()));
-    } else {
-        includes.add_header("AK/TypeCasts.h"sv);
-        includes.add_header("LibWeb/WebIDL/Buffers.h"sv);
-        includes.add_header("LibJS/Runtime/ArrayBuffer.h"sv);
-        includes.add_header("LibJS/Runtime/DataView.h"sv);
-        includes.add_header("LibJS/Runtime/TypedArray.h"sv);
-        scoped_generator.set("parameter.type.buffer_cpp", "WebIDL::BufferSource");
-    }
+    add_javascript_builtin_buffer_source_type_include(type, includes);
+    scoped_generator.set("parameter.type.buffer_cpp", ByteString::formatted("JS::{}", type.name()));
 
-    if (is_exact_javascript_buffer_source_type) {
-        scoped_generator.append(R"~~~(
+    scoped_generator.append(R"~~~(
     auto @cpp_name@_builtin_buffer = @js_name@@js_suffix@.as_if<@parameter.type.buffer_cpp@>();
     if (!@cpp_name@_builtin_buffer) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
     }
 
     GC::Ref<@parameter.type.buffer_cpp@> @cpp_name@ = *@cpp_name@_builtin_buffer;
-)~~~");
-    } else {
-        scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object()))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-    }
-
-    GC::Ref<WebIDL::BufferSource> @cpp_name@ = realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@.as_object());
-)~~~");
-    }
-}
-
-static void generate_array_buffer_view_to_cpp(SourceGenerator& scoped_generator, GeneratedIncludes& includes)
-{
-    includes.add_header("AK/TypeCasts.h"sv);
-    includes.add_header("LibJS/Runtime/DataView.h"sv);
-    includes.add_header("LibJS/Runtime/TypedArray.h"sv);
-
-    scoped_generator.append(R"~~~(
-        if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-
-        GC::Ref<WebIDL::ArrayBufferView> @cpp_name@ = realm.create<WebIDL::ArrayBufferView>(@js_name@@js_suffix@.as_object());
 )~~~");
 }
 
@@ -1658,67 +1594,48 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
     }
 
-    // Note: This covers steps 6-8 for when Buffersource is in a union with a type other than "object".
-    //       Since in that case, the return type would be Handle<BufferSource>, and not Handle<Object>.
-    if (any_of(types, [](auto const& type) { return type->name() == "BufferSource"; }) && !includes_object) {
-        includes.add_header("AK/TypeCasts.h"sv);
-        includes.add_header("LibJS/Runtime/ArrayBuffer.h"sv);
-        includes.add_header("LibJS/Runtime/DataView.h"sv);
-        includes.add_header("LibJS/Runtime/TypedArray.h"sv);
-        union_generator.append(R"~~~(
-            if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object) || is<JS::DataView>(@js_name@@js_suffix@_object) || is<JS::TypedArrayBase>(@js_name@@js_suffix@_object)) {
-                GC::Ref<WebIDL::BufferSource> source_object = realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@_object);
-                return source_object;
-            }
-)~~~");
-    }
-
     // 6. If Type(V) is Object and V has an [[ArrayBufferData]] internal slot, then
     //    1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
     //    2. If types includes object, then return the IDL value that is a reference to the object V.
-    if (any_of(types, [](auto const& type) { return type->name() == "ArrayBuffer"; }) || includes_object) {
+    if (any_of(types, [](auto const& type) { return type->name() == "ArrayBuffer"; })) {
         includes.add_header("AK/TypeCasts.h"sv);
         includes.add_header("LibJS/Runtime/ArrayBuffer.h"sv);
         union_generator.append(R"~~~(
             if (auto* array_buffer = as_if<JS::ArrayBuffer>(@js_name@@js_suffix@_object))
-                return *array_buffer;
+                return @union_type@ { GC::Ref { *array_buffer } };
 )~~~");
     }
 
     // 7. If Type(V) is Object and V has a [[DataView]] internal slot, then:
     //    1. If types includes DataView, then return the result of converting V to DataView.
     //    2. If types includes object, then return the IDL value that is a reference to the object V.
-    if (any_of(types, [](auto const& type) { return type->name() == "DataView"; }) || includes_object) {
+    if (any_of(types, [](auto const& type) { return type->name() == "DataView"; })) {
         includes.add_header("AK/TypeCasts.h"sv);
         includes.add_header("LibJS/Runtime/DataView.h"sv);
         union_generator.append(R"~~~(
             if (auto* data_view = as_if<JS::DataView>(@js_name@@js_suffix@_object))
-                return *data_view;
+                return @union_type@ { GC::Ref { *data_view } };
 )~~~");
     }
 
     // 8. If Type(V) is Object and V has a [[TypedArrayName]] internal slot, then:
     //    1. If types includes a typed array type whose name is the value of V’s [[TypedArrayName]] internal slot, then return the result of converting V to that type.
     //    2. If types includes object, then return the IDL value that is a reference to the object V.
-    auto typed_array_name = types.find_if([](auto const& type) {
-        return type->name().is_one_of("Int8Array"sv, "Int16Array"sv, "Int32Array"sv, "Uint8Array"sv, "Uint16Array"sv, "Uint32Array"sv, "Uint8ClampedArray"sv, "BigInt64Array"sv, "BigUint64Array"sv, "Float16Array"sv, "Float32Array"sv, "Float64Array"sv);
-    });
+    if (any_of(types, [](auto const& type) { return type->is_typed_array(); })) {
+        includes.add_header("AK/TypeCasts.h"sv);
+        includes.add_header("LibJS/Runtime/TypedArray.h"sv);
 
-    if (typed_array_name != types.end()) {
-        includes.add_header("AK/TypeCasts.h"sv);
-        includes.add_header("LibJS/Runtime/TypedArray.h"sv);
-        union_generator.set("typed_array_type", (*typed_array_name)->name());
-        union_generator.append(R"~~~(
+        for (auto const& type : types) {
+            if (!type->is_typed_array())
+                continue;
+
+            auto typed_array_generator = union_generator.fork();
+            typed_array_generator.set("typed_array_type", type->name());
+            typed_array_generator.append(R"~~~(
             if (auto* typed_array = as_if<JS::@typed_array_type@>(@js_name@@js_suffix@_object))
-                return *typed_array;
+                return @union_type@ { GC::Ref { *typed_array } };
 )~~~");
-    } else if (includes_object) {
-        includes.add_header("AK/TypeCasts.h"sv);
-        includes.add_header("LibJS/Runtime/TypedArray.h"sv);
-        union_generator.append(R"~~~(
-            if (auto* typed_array = as_if<JS::TypedArrayBase>(@js_name@@js_suffix@_object))
-                return *typed_array;
-)~~~");
+        }
     }
 
     // 9. If IsCallable(V) is true, then:
@@ -2045,10 +1962,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_promise_to_cpp(scoped_generator, includes);
     } else if (parameter.type->name() == "object") {
         generate_object_to_cpp(scoped_generator);
-    } else if (is_javascript_builtin_buffer_source_type(parameter.type) || parameter.type->name() == "BufferSource"sv) {
+    } else if (parameter.type->is_buffer_source()) {
         generate_buffer_source_to_cpp(scoped_generator, *parameter.type, includes);
-    } else if (parameter.type->name() == "ArrayBufferView") {
-        generate_array_buffer_view_to_cpp(scoped_generator, includes);
     } else if (parameter.type->name() == "any") {
         generate_any_to_cpp(scoped_generator);
     } else if (context.enumerations.contains(parameter.type->name())) {
@@ -2358,9 +2273,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     } else if (type.is_integer()) {
         generate_from_integral(scoped_generator, type, generate_optional_integral_type);
-    } else if (type.name() == "Location" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
-        if (is_javascript_builtin_buffer_source_type(type))
-            add_javascript_builtin_buffer_source_type_include(type, includes);
+    } else if (type.name() == "Location" || type.name() == "any") {
         scoped_generator.append(R"~~~(
     @result_expression@ @value_non_optional@;
 )~~~");
@@ -2368,10 +2281,6 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         includes.add_header("LibWeb/WebIDL/Promise.h"sv);
         scoped_generator.append(R"~~~(
     @result_expression@ GC::Ref { as<JS::Promise>(*@value_non_optional@->promise()) };
-)~~~");
-    } else if (type.name() == "ArrayBufferView" || type.name() == "BufferSource") {
-        scoped_generator.append(R"~~~(
-    @result_expression@ JS::Value(@value_non_optional@->raw_object());
 )~~~");
     } else if (is<IDL::UnionType>(type)) {
         auto& union_type = as<IDL::UnionType>(type);
@@ -2515,7 +2424,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     @result_expression@ JS::Value(const_cast<JS::Object*>(@value_non_optional@));
 )~~~");
     } else {
-        if (is_javascript_builtin_buffer_source_type(type))
+        if (type.is_buffer_source())
             add_javascript_builtin_buffer_source_type_include(type, includes);
         scoped_generator.append(R"~~~(
     @result_expression@ &const_cast<@type@&>(*@value_non_optional@);

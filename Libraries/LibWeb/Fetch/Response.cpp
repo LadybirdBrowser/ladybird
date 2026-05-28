@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm
 
     // 4. If body is non-null, then set bodyWithType to the result of extracting body.
     if (!body.has<Empty>())
-        body_with_type = TRY(extract_body(realm, body.downcast<GC::Ref<Streams::ReadableStream>, GC::Ref<FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String>()));
+        body_with_type = TRY(extract_body(realm, body.downcast<BodyInit>()));
 
     // 5. Perform initialize a response given this, init, and bodyWithType.
     TRY(response_object->initialize_response(init, body_with_type));

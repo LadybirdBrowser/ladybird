@@ -124,6 +124,14 @@ public:
     // https://webidl.spec.whatwg.org/#idl-sequence
     bool is_sequence() const { return is_parameterized() && m_name == "sequence"; }
 
+    bool is_buffer() const;
+
+    bool is_typed_array() const;
+
+    bool is_buffer_view() const;
+
+    bool is_buffer_source() const;
+
     // https://webidl.spec.whatwg.org/#dfn-distinguishable
     bool is_distinguishable_from(Interface const&, Type const& other) const;
 
