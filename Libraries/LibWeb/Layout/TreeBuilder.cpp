@@ -497,6 +497,10 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
 {
     auto& document = element.document();
 
+    // Clear stale layout nodes before deciding if this pseudo-element still generates one.
+    if (auto existing_pseudo = element.get_synthetic_pseudo_element(pseudo_element); existing_pseudo.has_value() && existing_pseudo->layout_node())
+        existing_pseudo->set_layout_node(nullptr);
+
     auto pseudo_element_style = element.computed_properties(pseudo_element);
     if (!pseudo_element_style)
         return {};

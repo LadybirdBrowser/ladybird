@@ -390,6 +390,7 @@ public:
     bool has_synthetic_pseudo_elements() const;
     void clear_synthetic_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder>) { clear_synthetic_pseudo_element_layout_nodes(); }
     void clear_synthetic_pseudo_element_layout_nodes(Badge<Document>) { clear_synthetic_pseudo_element_layout_nodes(); }
+    void clear_synthetic_pseudo_element_layout_nodes(Badge<Node>) { clear_synthetic_pseudo_element_layout_nodes(); }
 
     void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
 
