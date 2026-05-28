@@ -7,16 +7,11 @@
 #pragma once
 
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/WebIDL/Types.h>
-
-namespace Web::CSS {
-
-class CSSStyleSheet;
-
-}
 
 namespace Web::Internals {
 
@@ -71,6 +66,11 @@ public:
     String current_cursor();
 
     String selected_text_for_clipboard();
+
+    void set_marked_text_from_input_method(Utf16String const& text);
+    void commit_text_from_input_method(Utf16String const& text);
+    void unmark_text_from_input_method();
+    GC::Ptr<Geometry::DOMRect> current_caret_rect();
 
     WebIDL::ExceptionOr<bool> dispatch_user_activated_event(DOM::EventTarget&, DOM::Event& event);
 

@@ -8306,6 +8306,63 @@ GC::Ptr<DOM::Position> Document::cursor_position() const
     return nullptr;
 }
 
+Optional<CSSPixelRect> Document::current_caret_rect()
+{
+    // Returns the bounds of the current text caret in viewport-relative CSS pixels. Used to position platform overlays
+    // such as the IME candidate window. Returns nothing when no editable element is focused or when layout isn't ready.
+    auto position = cursor_position();
+    if (!position)
+        return {};
+    auto& dom_node = *position->node();
+
+    update_layout(UpdateLayoutReason::InputCaretRect);
+
+    auto* layout_node = dom_node.layout_node();
+    if (!layout_node)
+        return {};
+
+    // The caret rects computed here are document-relative (absolute). Platform IME overlays are positioned relative to
+    // the viewport — so translate by scroll offset and map through any containing navigables to the top-level viewport.
+    auto to_viewport_rect = [this](CSSPixelRect rect) -> CSSPixelRect {
+        auto navigable = this->navigable();
+        if (!navigable)
+            return rect;
+        auto scroll = navigable->viewport_scroll_offset();
+        CSSPixelRect viewport_rect { rect.x() - scroll.x(), rect.y() - scroll.y(), rect.width(), rect.height() };
+        return navigable->to_top_level_rect(viewport_rect);
+    };
+
+    // Walk up to the nearest PaintableWithLines, which is where text fragments live.
+    Painting::PaintableWithLines const* paintable_with_lines = nullptr;
+    for (auto paintable = layout_node->first_paintable(); paintable; paintable = paintable->parent()) {
+        if (auto const* with_lines = as_if<Painting::PaintableWithLines>(*paintable)) {
+            paintable_with_lines = with_lines;
+            break;
+        }
+    }
+
+    if (paintable_with_lines) {
+        for (auto const& fragment : paintable_with_lines->fragments()) {
+            if (fragment.layout_node().dom_node() != &dom_node)
+                continue;
+            auto const offset = position->offset();
+            if (offset < fragment.dom_start_offset_in_node() || offset > fragment.dom_end_offset_in_node())
+                continue;
+            return to_viewport_rect(fragment.range_rect(Painting::Paintable::SelectionState::StartAndEnd, offset, offset));
+        }
+    }
+
+    // Empty editable elements have no fragments; fall back to the padding-box corner.
+    if (auto* node_with_style = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(*layout_node)) {
+        auto paintable = node_with_style->first_paintable();
+        if (auto const* box = as_if<Painting::PaintableBox>(paintable.ptr())) {
+            auto content_box = box->absolute_padding_box_rect();
+            return to_viewport_rect(CSSPixelRect { content_box.x(), content_box.y(), 1, node_with_style->computed_values().line_height() });
+        }
+    }
+    return {};
+}
+
 void Document::reset_cursor_blink_cycle()
 {
     m_cursor_blink_state = true;

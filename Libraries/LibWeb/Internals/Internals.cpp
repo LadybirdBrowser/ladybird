@@ -33,6 +33,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
@@ -416,6 +417,30 @@ String Internals::current_cursor()
 String Internals::selected_text_for_clipboard()
 {
     return page().focused_navigable().selected_text();
+}
+
+void Internals::set_marked_text_from_input_method(Utf16String const& text)
+{
+    page().focused_navigable().set_marked_text_from_input_method(text);
+}
+
+void Internals::commit_text_from_input_method(Utf16String const& text)
+{
+    page().focused_navigable().commit_text_from_input_method(text);
+}
+
+void Internals::unmark_text_from_input_method()
+{
+    page().focused_navigable().unmark_text_from_input_method();
+}
+
+GC::Ptr<Geometry::DOMRect> Internals::current_caret_rect()
+{
+    auto& active_document = window().associated_document();
+    auto rect = active_document.current_caret_rect();
+    if (!rect.has_value())
+        return nullptr;
+    return MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect->x()), static_cast<double>(rect->y()), static_cast<double>(rect->width()), static_cast<double>(rect->height())));
 }
 
 WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTarget& target, DOM::Event& event)

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<input id="input" value="abc">
+<textarea id="textarea">xyz</textarea>
+<div id="editable" contenteditable="true">qwe</div>
+<input id="readonly_input" value="ro" readonly>
+<input id="preedit_input" value="">
+<script>
+    asyncTest(async done => {
+        // Spec for <input>/<textarea> fires 'input' via a queued element task. Wait for it.
+        const waitForEvent = (target, type) => new Promise(resolve => {
+            target.addEventListener(type, e => resolve({ inputType: e.inputType, data: e.data }), { once: true });
+        });
+
+        // <input>: committed IME text is inserted via commit and eventually fires an input event.
+        const input = document.getElementById("input");
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        let event_promise = waitForEvent(input, "input");
+        internals.commitTextFromInputMethod("def");
+        let event = await event_promise;
+        println(`input.value after IME commit: ${JSON.stringify(input.value)}`);
+        println(`input event on <input>: ${JSON.stringify(event)}`);
+
+        // <textarea>: same path.
+        const textarea = document.getElementById("textarea");
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        event_promise = waitForEvent(textarea, "input");
+        internals.commitTextFromInputMethod("yyy");
+        event = await event_promise;
+        println(`textarea.value after IME commit: ${JSON.stringify(textarea.value)}`);
+        println(`input event on <textarea>: ${JSON.stringify(event)}`);
+
+        // contenteditable: fires input synchronously through the editing pipeline.
+        const editable = document.getElementById("editable");
+        editable.focus();
+        getSelection().selectAllChildren(editable);
+        getSelection().collapseToEnd();
+        const collected_editable_events = [];
+        editable.addEventListener("input", e => collected_editable_events.push({ inputType: e.inputType, data: e.data }), { once: true });
+        internals.commitTextFromInputMethod("rty");
+        println(`editable.textContent after IME commit: ${JSON.stringify(editable.textContent)}`);
+        println(`input event on contenteditable: ${JSON.stringify(collected_editable_events[0])}`);
+
+        // No focus on any editable: must be a no-op (no exception, no event).
+        document.activeElement?.blur();
+        let no_focus_threw = false;
+        try {
+            internals.commitTextFromInputMethod("ignored");
+        } catch (e) {
+            no_focus_threw = true;
+        }
+        println(`unfocused commit threw: ${no_focus_threw}`);
+
+        // <input readonly>: not editable, IME commit must not change the value.
+        const ro = document.getElementById("readonly_input");
+        ro.focus();
+        internals.commitTextFromInputMethod("nope");
+        println(`readonly value unchanged: ${ro.value === "ro"}`);
+
+        // currentCaretRect returns a sensible rect on a focused editable, null otherwise.
+        input.focus();
+        input.setSelectionRange(0, 0);
+        const rect = internals.currentCaretRect();
+        println(`focused-input caret rect non-null: ${rect !== null}`);
+        println(`focused-input caret rect has positive height: ${rect && rect.height > 0}`);
+
+        document.activeElement?.blur();
+        const no_focus_rect = internals.currentCaretRect();
+        println(`unfocused caret rect: ${no_focus_rect === null ? "null" : "non-null"}`);
+
+        // Empty editable: the caret rect must still be sensible.
+        const empty = document.getElementById("preedit_input"); // value is ""
+        empty.focus();
+        empty.setSelectionRange(0, 0);
+        const empty_rect = internals.currentCaretRect();
+        println(`empty-input caret rect non-null: ${empty_rect !== null}`);
+        println(`empty-input caret rect has positive height: ${empty_rect && empty_rect.height > 0}`);
+
+        // Marked-text (preedit) composition. LibWeb owns the marked-text range: each setMarkedText replaces the
+        // previous preedit, commitText finalizes it, and unmarkText finalizes leaving the preedit in place.
+        const preedit = document.getElementById("preedit_input");
+        preedit.value = "";
+        preedit.focus();
+        preedit.setSelectionRange(0, 0);
+
+        // Build a preedit one character at a time; each update replaces the previous marked text.
+        internals.setMarkedTextFromInputMethod("n");
+        println(`after first preedit keystroke: ${JSON.stringify(preedit.value)}`);
+        internals.setMarkedTextFromInputMethod("ni");
+        println(`after extending preedit: ${JSON.stringify(preedit.value)}`);
+        internals.setMarkedTextFromInputMethod("你");
+        println(`after candidate replaces preedit: ${JSON.stringify(preedit.value)}`);
+
+        // Commit the candidate; the composition ends.
+        internals.commitTextFromInputMethod("你");
+        println(`after commit: ${JSON.stringify(preedit.value)}`);
+
+        // A fresh composition appends after the committed text.
+        internals.setMarkedTextFromInputMethod("h");
+        internals.setMarkedTextFromInputMethod("ha");
+        internals.commitTextFromInputMethod("好");
+        println(`after second composition commit: ${JSON.stringify(preedit.value)}`);
+
+        // unmarkText finalizes the current preedit in place (keeps it).
+        internals.setMarkedTextFromInputMethod("?");
+        internals.unmarkTextFromInputMethod();
+        println(`after unmark keeps preedit: ${JSON.stringify(preedit.value)}`);
+
+        // Aborting a composition: the IME clears the preedit with an empty marked text.
+        internals.setMarkedTextFromInputMethod("xx");
+        internals.setMarkedTextFromInputMethod("");
+        println(`after abort clears preedit: ${JSON.stringify(preedit.value)}`);
+
+        // After an abort, a fresh composition must start at the current caret — not reuse the old marked-text start.
+        preedit.setSelectionRange(1, 1);
+        internals.setMarkedTextFromInputMethod("z");
+        println(`after abort, fresh preedit at moved caret: ${JSON.stringify(preedit.value)}`);
+
+        // #5: currentCaretRect is viewport-relative, so scrolling the page moves the caret rect by the scroll delta.
+        const tall = document.createElement("div");
+        tall.style.height = "3000px";
+        document.body.appendChild(tall);
+        const scrolled = document.createElement("input");
+        scrolled.value = "scroll";
+        document.body.appendChild(scrolled);
+        scrolled.focus();
+        scrolled.setSelectionRange(0, 0);
+        window.scrollTo(0, 0);
+        const caret_at_0 = internals.currentCaretRect();
+        window.scrollTo(0, 400);
+        const scroll_y = window.scrollY;
+        const caret_scrolled = internals.currentCaretRect();
+        window.scrollTo(0, 0);
+        const moved = (caret_at_0 && caret_scrolled) ? caret_at_0.y - caret_scrolled.y : null;
+        println(`caret rect is viewport-relative (moves with scroll): ${moved !== null && scroll_y > 0 && Math.abs(moved - scroll_y) < 1}`);
+
+        done();
+    });
+</script>

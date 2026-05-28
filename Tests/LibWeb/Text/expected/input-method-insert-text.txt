@@ -1,0 +1,22 @@
+input.value after IME commit: "abcdef"
+input event on <input>: {"inputType":"insertText","data":"def"}
+textarea.value after IME commit: "xyzyyy"
+input event on <textarea>: {"inputType":"insertText","data":"yyy"}
+editable.textContent after IME commit: "qwerty"
+input event on contenteditable: {"inputType":"insertText","data":"rty"}
+unfocused commit threw: false
+readonly value unchanged: true
+focused-input caret rect non-null: true
+focused-input caret rect has positive height: true
+unfocused caret rect: null
+empty-input caret rect non-null: true
+empty-input caret rect has positive height: true
+after first preedit keystroke: "n"
+after extending preedit: "ni"
+after candidate replaces preedit: "你"
+after commit: "你"
+after second composition commit: "你好"
+after unmark keeps preedit: "你好?"
+after abort clears preedit: "你好?"
+after abort, fresh preedit at moved caret: "你z好?"
+caret rect is viewport-relative (moves with scroll): true
