@@ -121,6 +121,18 @@ void FrameActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "reload"sv) {
+        bool bypass_cache = false;
+        if (auto options = message.data.get_object("options"sv); options.has_value())
+            bypass_cache = options->get_bool("force"sv).value_or(false);
+
+        if (auto tab = m_tab.strong_ref())
+            devtools().delegate().reload_tab(tab->description(), bypass_cache);
+
+        send_response(message, move(response));
+        return;
+    }
+
     if (message.type == "listFrames"sv) {
         send_response(message, move(response));
         send_pending_navigation_document_events_after_target_switch();

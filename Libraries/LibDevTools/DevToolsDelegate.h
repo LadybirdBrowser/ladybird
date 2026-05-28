@@ -34,6 +34,7 @@ public:
 
     virtual Vector<TabDescription> tab_list() const { return {}; }
     virtual Vector<CSSProperty> css_property_list() const { return {}; }
+    virtual void reload_tab(TabDescription const&, bool bypass_cache) const { (void)bypass_cache; }
 
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }

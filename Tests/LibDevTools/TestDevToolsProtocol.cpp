@@ -376,6 +376,12 @@ public:
         return properties;
     }
 
+    virtual void reload_tab(DevTools::TabDescription const&, bool bypass_cache) const override
+    {
+        ++reload_tab_call_count;
+        last_reload_bypass_cache = bypass_cache;
+    }
+
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
     {
         ++inspect_tab_call_count;
@@ -826,6 +832,7 @@ public:
     mutable size_t stop_listening_for_navigation_events_call_count { 0 };
     mutable size_t did_connect_devtools_client_call_count { 0 };
     mutable size_t did_disconnect_devtools_client_call_count { 0 };
+    mutable size_t reload_tab_call_count { 0 };
 
     mutable Optional<Web::UniqueNodeID> last_highlighted_dom_node;
     mutable Optional<Web::CSS::PseudoElement> last_highlighted_pseudo_element;
@@ -849,6 +856,7 @@ public:
     mutable Optional<String> last_tag;
     mutable Optional<String> last_attribute;
     mutable size_t last_attribute_count { 0 };
+    mutable Optional<bool> last_reload_bypass_cache;
 };
 
 class ProtocolClient {
@@ -1272,7 +1280,9 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     auto& client = *session->client;
     (void)client.read_message();
 
-    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto tab = get_tab(client);
+    auto tab_actor = actor_from(tab, "actor"sv);
+    auto target = get_frame_target(client, tab_actor);
     auto inspector_actor = actor_from(target, "inspectorActor"sv);
     auto walker = get_walker(client, inspector_actor);
     auto walker_actor = actor_from(walker, "actor"sv);
@@ -1367,6 +1377,14 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     auto new_walker_root_actor = actor_from(new_walker_root, "actor"sv);
     auto heading_actor = query_selector(client, actor_from(new_walker, "actor"sv), new_walker_root_actor, "h1"sv);
     EXPECT(!heading_actor.is_empty());
+
+    JsonObject reload_descriptor;
+    reload_descriptor.set("to"sv, tab_actor);
+    reload_descriptor.set("type"sv, "reloadDescriptor"sv);
+    reload_descriptor.set("bypassCache"sv, true);
+    EXPECT_EQ(client.request(move(reload_descriptor)).get_string("from"sv).value(), tab_actor);
+    EXPECT_EQ(session->delegate.reload_tab_call_count, 1u);
+    EXPECT(session->delegate.last_reload_bypass_cache.value());
 
     session->delegate.emit_navigation_start();
     (void)read_packet_with_type(client, "root-destroyed"sv);

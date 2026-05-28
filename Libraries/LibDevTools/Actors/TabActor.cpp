@@ -50,6 +50,13 @@ void TabActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "reloadDescriptor"sv) {
+        auto bypass_cache = message.data.get_bool("bypassCache"sv).value_or(false);
+        devtools().delegate().reload_tab(m_description, bypass_cache);
+        send_response(message, move(response));
+        return;
+    }
+
     send_unrecognized_packet_type_error(message);
 }
 
