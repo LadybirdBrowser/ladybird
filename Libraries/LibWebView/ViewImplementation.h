@@ -21,6 +21,7 @@
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibCore/SharedVersion.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
@@ -120,6 +121,14 @@ public:
     void inspect_dom_tree();
     void inspect_accessibility_tree();
     void get_hovered_node_id();
+    void start_node_picker(DevTools::DevToolsDelegate::OnNodePickerEvent);
+    void stop_node_picker();
+    void clear_node_picker();
+    bool is_node_picker_active() const { return m_node_picker_active; }
+    void node_picker_hover(Web::DevicePixelPoint);
+    void node_picker_pick(Web::DevicePixelPoint);
+    void node_picker_preview(Web::DevicePixelPoint);
+    void node_picker_cancel();
 
     void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element);
     void inspect_grid_layouts(Web::UniqueNodeID root_node_id);
@@ -246,7 +255,6 @@ public:
     Function<void(Optional<JsonObject>)> on_received_current_flexbox;
     Function<void(JsonObject)> on_received_accessibility_tree;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
-    Function<void(u64 request_id, Web::UniqueNodeID)> on_received_node_id_at_position;
     Function<void(Mutation)> on_dom_mutation_received;
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;
     Function<void(String)> on_received_dom_node_html;
@@ -448,6 +456,20 @@ protected:
 
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };
+
+    enum class NodePickerRequestType : u8 {
+        Hovered,
+        Picked,
+        Previewed,
+    };
+    void request_node_picker_hit_test(NodePickerRequestType, Web::DevicePixelPoint);
+    void did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID);
+
+    bool m_node_picker_active { false };
+    Optional<Web::UniqueNodeID> m_node_picker_hovered_node_id;
+    u64 m_next_node_picker_request_id { 1 };
+    HashMap<u64, NodePickerRequestType> m_pending_node_picker_requests;
+    DevTools::DevToolsDelegate::OnNodePickerEvent m_on_node_picker_event;
 
     bool m_devtools_connected { false };
     bool m_needs_beforeunload_check { true };

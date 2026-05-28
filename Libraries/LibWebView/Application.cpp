@@ -1851,6 +1851,24 @@ void Application::clear_inspected_dom_node(DevTools::TabDescription const& descr
         view->clear_inspected_dom_node();
 }
 
+void Application::start_node_picker(DevTools::TabDescription const& description, OnNodePickerEvent on_node_picker_event) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->start_node_picker(move(on_node_picker_event));
+}
+
+void Application::stop_node_picker(DevTools::TabDescription const& description) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->stop_node_picker();
+}
+
+void Application::clear_node_picker(DevTools::TabDescription const& description) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->clear_node_picker();
+}
+
 void Application::highlight_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const
 {
     if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
