@@ -187,6 +187,27 @@ private:
     __weak id m_control { nil };
 };
 
+class MenuObserver final : public WebView::Menu::Observer {
+public:
+    static NonnullOwnPtr<MenuObserver> create(NSMenuItem* item)
+    {
+        return adopt_own(*new MenuObserver(item));
+    }
+
+    virtual void on_visible_state_changed(WebView::Menu& menu) override
+    {
+        [m_item setHidden:!menu.visible()];
+    }
+
+private:
+    explicit MenuObserver(NSMenuItem* item)
+        : m_item(item)
+    {
+    }
+
+    __weak NSMenuItem* m_item { nil };
+};
+
 static void initialize_native_icon(WebView::Action& action, id control)
 {
     static constexpr CGFloat const MENU_ICON_SIZE = 16;
@@ -357,6 +378,21 @@ static void initialize_native_control(WebView::Action& action, id control)
     action.add_observer(move(observer));
 }
 
+static void initialize_native_menu(WebView::Menu& menu, NSMenuItem* item)
+{
+    auto observer = MenuObserver::create(item);
+
+    auto* guard = [[DeallocGuard alloc] init:[menu = menu.make_weak_ptr(), observer = observer.ptr()]() {
+        if (menu)
+            menu->remove_observer(*observer);
+    }];
+
+    static char guard_key = 0;
+    objc_setAssociatedObject(item, &guard_key, guard, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    menu.add_observer(move(observer));
+}
+
 static void add_items_to_menu(NSMenu* nsmenu, WebView::Menu& menu)
 {
     for (auto& menu_item : menu.items()) {
@@ -421,6 +457,7 @@ NSMenuItem* create_application_menu_item(WebView::Menu& menu)
                                             action:nil
                                      keyEquivalent:@""];
     [item setSubmenu:create_application_menu(menu)];
+    initialize_native_menu(menu, item);
 
     if (menu.render_group_icon())
         set_control_image(item, @"folder");
