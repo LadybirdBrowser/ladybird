@@ -34,6 +34,7 @@ enum class MediaSeekMode : u8 {
 };
 
 class SourceElementSelector;
+class HTMLParser;
 
 using OptionalMediaProvider = Variant<Empty, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
 
@@ -62,6 +63,7 @@ public:
 
     String const& current_src() const { return m_current_src; }
     void select_resource();
+    void set_needs_load_restart_when_connected(Badge<HTMLParser>) { m_needs_load_restart_when_connected = true; }
 
     OptionalMediaProvider src_object() const;
     WebIDL::ExceptionOr<void> set_src_object(OptionalMediaProvider);
@@ -188,6 +190,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
     virtual void children_changed(ChildrenChangedMetadata const& metadata) override;
 
@@ -305,6 +308,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-networkstate
     NetworkState m_network_state { NetworkState::Empty };
+    bool m_needs_load_restart_when_connected { false };
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-readystate
     ReadyState m_ready_state { ReadyState::HaveNothing };

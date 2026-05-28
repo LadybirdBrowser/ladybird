@@ -1,0 +1,19 @@
+document-parser networkState: 3
+document-parser error: 4
+document-parser emptied events: 0
+parser-created networkState: 3
+parser-created error: 4
+parser-created loadstart events: 1
+parser-created error events: 1
+parser-created emptied events: 0
+explicit-load parser-created networkState: 3
+explicit-load parser-created error: 4
+explicit-load parser-created loadstart events: 1
+explicit-load parser-created error events: 1
+changed-src parser-created networkState: 3
+changed-src parser-created error: 4
+changed-src parser-created loadstart events: 1
+changed-src parser-created error events: 1
+script-created networkState: 3
+script-created error: 4
+script-created emptied events: 0

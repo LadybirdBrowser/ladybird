@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="documentParserVideo" src=""></video>
+<script>
+    let documentParserEmptiedEvents = 0;
+    documentParserVideo.addEventListener("emptied", () => ++documentParserEmptiedEvents);
+
+    asyncTest(async done => {
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        println(`document-parser networkState: ${documentParserVideo.networkState}`);
+        println(`document-parser error: ${documentParserVideo.error?.code}`);
+        println(`document-parser emptied events: ${documentParserEmptiedEvents}`);
+
+        const container = document.createElement("div");
+        container.innerHTML = `<video src=""></video>`;
+        const parserCreatedVideo = container.querySelector("video");
+        let parserCreatedLoadStartEvents = 0;
+        let parserCreatedErrorEvents = 0;
+        let parserCreatedEmptiedEvents = 0;
+        parserCreatedVideo.addEventListener("loadstart", () => ++parserCreatedLoadStartEvents);
+        parserCreatedVideo.addEventListener("error", () => ++parserCreatedErrorEvents);
+        parserCreatedVideo.addEventListener("emptied", () => ++parserCreatedEmptiedEvents);
+
+        document.body.appendChild(container);
+
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        println(`parser-created networkState: ${parserCreatedVideo.networkState}`);
+        println(`parser-created error: ${parserCreatedVideo.error?.code}`);
+        println(`parser-created loadstart events: ${parserCreatedLoadStartEvents}`);
+        println(`parser-created error events: ${parserCreatedErrorEvents}`);
+        println(`parser-created emptied events: ${parserCreatedEmptiedEvents}`);
+
+        const explicitLoadContainer = document.createElement("div");
+        explicitLoadContainer.innerHTML = `<video src=""></video>`;
+        const explicitLoadVideo = explicitLoadContainer.querySelector("video");
+        let explicitLoadLoadStartEvents = 0;
+        let explicitLoadErrorEvents = 0;
+        explicitLoadVideo.addEventListener("loadstart", () => ++explicitLoadLoadStartEvents);
+        explicitLoadVideo.addEventListener("error", () => ++explicitLoadErrorEvents);
+        explicitLoadVideo.load();
+
+        document.body.appendChild(explicitLoadContainer);
+
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        println(`explicit-load parser-created networkState: ${explicitLoadVideo.networkState}`);
+        println(`explicit-load parser-created error: ${explicitLoadVideo.error?.code}`);
+        println(`explicit-load parser-created loadstart events: ${explicitLoadLoadStartEvents}`);
+        println(`explicit-load parser-created error events: ${explicitLoadErrorEvents}`);
+
+        const changedSrcContainer = document.createElement("div");
+        changedSrcContainer.innerHTML = `<video src=""></video>`;
+        const changedSrcVideo = changedSrcContainer.querySelector("video");
+        let changedSrcLoadStartEvents = 0;
+        let changedSrcErrorEvents = 0;
+        changedSrcVideo.addEventListener("loadstart", () => ++changedSrcLoadStartEvents);
+        changedSrcVideo.addEventListener("error", () => ++changedSrcErrorEvents);
+        changedSrcVideo.setAttribute("src", "#changed");
+
+        document.body.appendChild(changedSrcContainer);
+
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        println(`changed-src parser-created networkState: ${changedSrcVideo.networkState}`);
+        println(`changed-src parser-created error: ${changedSrcVideo.error?.code}`);
+        println(`changed-src parser-created loadstart events: ${changedSrcLoadStartEvents}`);
+        println(`changed-src parser-created error events: ${changedSrcErrorEvents}`);
+
+        const scriptCreatedVideo = document.createElement("video");
+        let scriptCreatedEmptiedEvents = 0;
+        scriptCreatedVideo.addEventListener("emptied", () => ++scriptCreatedEmptiedEvents);
+        scriptCreatedVideo.src = "";
+
+        document.body.appendChild(scriptCreatedVideo);
+
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        println(`script-created networkState: ${scriptCreatedVideo.networkState}`);
+        println(`script-created error: ${scriptCreatedVideo.error?.code}`);
+        println(`script-created emptied events: ${scriptCreatedEmptiedEvents}`);
+        done();
+    });
+</script>

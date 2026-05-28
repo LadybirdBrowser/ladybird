@@ -201,6 +201,22 @@ void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String>
     }
 }
 
+void HTMLMediaElement::inserted()
+{
+    Base::inserted();
+
+    // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-algorithm-at-creation
+    // If a media element is created with a src attribute, the user agent must immediately invoke the
+    // media element's resource selection algorithm.
+    // NB: Parser-created media elements can reach inserted() in NETWORK_NO_SOURCE if that creation-time
+    //     load was missed.
+    if (is_connected() && m_needs_load_restart_when_connected && m_network_state == NetworkState::NoSource && has_attribute(HTML::AttributeNames::src)
+        && m_current_src.is_empty() && !m_error) {
+        m_needs_load_restart_when_connected = false;
+        select_resource();
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-srcobject
 OptionalMediaProvider HTMLMediaElement::src_object() const
 {
@@ -685,6 +701,7 @@ GC::Ref<TextTrack> HTMLMediaElement::add_text_track(Bindings::TextTrackKind kind
 WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
     m_first_data_load_event_since_load_start = true;
+    m_needs_load_restart_when_connected = false;
 
     // 1. Abort any already-running instance of the resource selection algorithm for this element.
     //    NOTE: All deferred subroutines of the resource selection algorithm will be queued under the media element task

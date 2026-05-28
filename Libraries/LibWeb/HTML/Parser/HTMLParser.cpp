@@ -199,6 +199,11 @@ void HTMLParser::configure_element_created_by_rust_parser(DOM::Element& element)
         return;
     }
 
+    if (m_parsing_fragment && element.is_html_media_element() && element.namespace_uri() == Namespace::HTML
+        && element.has_attribute(HTML::AttributeNames::src)) {
+        as<HTMLMediaElement>(element).set_needs_load_restart_when_connected({});
+    }
+
     if (element.local_name() != HTML::TagNames::script || element.namespace_uri() != Namespace::HTML)
         return;
 
