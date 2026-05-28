@@ -19,6 +19,7 @@
 #include <QTabBar>
 
 class QPropertyAnimation;
+class QWindow;
 class QToolButton;
 class QWidget;
 
@@ -172,11 +173,17 @@ private:
     void update_menu_bar_window_control_icons();
     void toggle_window_maximized();
     bool start_window_move();
+    bool connect_window_screen_changed_signal();
+    void disconnect_window_screen_changed_signal();
+    void connect_screen_signals(QScreen*);
+    void disconnect_screen_signals(QScreen*);
+    void screen_changed(QScreen*);
 
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
 
     QScreen* m_current_screen { nullptr };
+    QWindow* m_window_screen_changed_signal_window { nullptr };
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
 
