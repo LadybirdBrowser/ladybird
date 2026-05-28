@@ -791,6 +791,34 @@ void ViewImplementation::paste_text_from_clipboard()
     client().async_paste(page_id(), Application::the().clipboard_text());
 }
 
+void ViewImplementation::set_marked_text_from_input_method(Utf16String const& text)
+{
+    client().async_set_marked_text_from_input_method(page_id(), text);
+}
+
+void ViewImplementation::commit_text_from_input_method(Utf16String const& text)
+{
+    client().async_commit_text_from_input_method(page_id(), text);
+}
+
+void ViewImplementation::unmark_text_from_input_method()
+{
+    client().async_unmark_text_from_input_method(page_id());
+}
+
+Optional<Web::DevicePixelRect> ViewImplementation::get_input_caret_rect()
+{
+    // Returns the most-recent caret position pushed by WebContent (see set_input_caret_rect). Deliberately makes no
+    // synchronous IPC request: This is read from inside AppKit text-input callbacks — where blocking can re-enter the
+    // run loop and deadlock the input method.
+    return m_input_caret_rect;
+}
+
+void ViewImplementation::set_input_caret_rect(Badge<WebContentClient>, Optional<Web::DevicePixelRect> rect)
+{
+    m_input_caret_rect = rect;
+}
+
 void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem> items)
 {
     client().async_retrieved_clipboard_entries(page_id(), request_id, items);

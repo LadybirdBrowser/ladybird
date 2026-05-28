@@ -1683,6 +1683,43 @@ void ConnectionFromClient::paste(u64 page_id, Utf16String text)
         page->page().focused_navigable().paste(text);
 }
 
+void ConnectionFromClient::set_marked_text_from_input_method(u64 page_id, Utf16String text)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().focused_navigable().set_marked_text_from_input_method(text);
+    update_input_method_caret_rect(page_id);
+}
+
+void ConnectionFromClient::commit_text_from_input_method(u64 page_id, Utf16String text)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().focused_navigable().commit_text_from_input_method(text);
+    update_input_method_caret_rect(page_id);
+}
+
+void ConnectionFromClient::unmark_text_from_input_method(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().focused_navigable().unmark_text_from_input_method();
+}
+
+void ConnectionFromClient::update_input_method_caret_rect(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    // Push the updated caret position to the UI — so platform input methods can place their overlays. We deliberately
+    // push this asynchronously — rather than answering a synchronous request from inside an AppKit text-input callback.
+    // Blocking there re-enters the run loop — and can deadlock input-method server <-> UI <-> WebContent message flow.
+    Optional<Web::DevicePixelRect> caret_rect;
+    if (auto document = page->page().focused_navigable().active_document()) {
+        if (auto rect = document->current_caret_rect(); rect.has_value())
+            caret_rect = page->page().enclosing_device_rect(*rect);
+    }
+    async_did_update_input_caret_rect(page_id, caret_rect);
+}
+
 void ConnectionFromClient::set_content_blockers(u64 page_id, Core::AnonymousBuffer patterns_buffer)
 {
     auto& blocker = Web::ContentBlocker::the();

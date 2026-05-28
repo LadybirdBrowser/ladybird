@@ -182,6 +182,10 @@ private:
     virtual void find_in_page_previous_match(u64 page_id) override;
 
     virtual void paste(u64 page_id, Utf16String text) override;
+    virtual void set_marked_text_from_input_method(u64 page_id, Utf16String text) override;
+    virtual void commit_text_from_input_method(u64 page_id, Utf16String text) override;
+    virtual void unmark_text_from_input_method(u64 page_id) override;
+    void update_input_method_caret_rect(u64 page_id);
 
     virtual void system_time_zone_changed() override;
 

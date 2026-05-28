@@ -49,6 +49,18 @@ interface Internals {
     // Excludes nodes whose used value of user-select is 'none' — mirroring what browsers actually copy.
     DOMString selectedTextForClipboard();
 
+    // Drive marked/preedit-text composition via the same path platform input methods use. setMarkedTextFromInputMethod
+    // updates the inline preedit — replacing any previous preedit. commitText finalizes the composition with the given
+    // text. unmarkText finalizes the composition — leaving the current preedit in place. Each fires an InputEvent with
+    // inputType = "insertText" on the focused editable. All are no-ops if nothing editable is focused.
+    undefined setMarkedTextFromInputMethod(Utf16DOMString text);
+    undefined commitTextFromInputMethod(Utf16DOMString text);
+    undefined unmarkTextFromInputMethod();
+
+    // Returns the bounds of the current text caret in viewport-relative CSS pixels — or null if no editable element is
+    // focused. Used for verifying the data the platform UI feeds into IME overlay positioning.
+    DOMRect? currentCaretRect();
+
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
     undefined spoofCurrentURL(USVString url);
 

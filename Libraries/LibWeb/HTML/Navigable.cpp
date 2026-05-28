@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/DocumentLoading.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -327,6 +328,7 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_page);
     visitor.visit(m_parent);
     visitor.visit(m_active_document);
+    visitor.visit(m_input_method_composition_node);
     visitor.visit(m_container);
     m_event_handler.visit_edges(visitor);
 
@@ -3351,6 +3353,75 @@ void Navigable::paste(Utf16String const& text)
         return;
 
     m_event_handler.handle_paste(text);
+}
+
+void Navigable::set_marked_text_from_input_method(Utf16String const& text)
+{
+    // Platform input methods call this on each composition update, with the current marked/preedit text. LibWeb owns
+    // the marked-text range – so each update replaces the previously-marked text. The UI doesn't track the preedit
+    // extent or pass a replacement length. An empty marked string means there's no preedit: so, clear any text marked
+    // thus far, and end the composition — rather than starting or keeping a composition that has no marked text.
+    if (text.is_empty()) {
+        if (m_input_method_composition_node)
+            replace_input_method_marked_text(text);
+        m_input_method_composition_node = nullptr;
+        return;
+    }
+    replace_input_method_marked_text(text);
+}
+
+void Navigable::commit_text_from_input_method(Utf16String const& text)
+{
+    // The input method has committed text and finished the composition. Replace the marked text with the committed
+    // text, then end the composition — so the text becomes ordinary editable content.
+    replace_input_method_marked_text(text);
+    m_input_method_composition_node = nullptr;
+}
+
+void Navigable::unmark_text_from_input_method()
+{
+    // The input method has finished the composition — leaving the current marked text in place. End the composition
+    // without altering the content.
+    m_input_method_composition_node = nullptr;
+}
+
+void Navigable::replace_input_method_marked_text(Utf16String const& text)
+{
+    // Insert text from a platform input method into the currently-focused editable, via the same input-events target
+    // that keyboard typing uses — so observers see the correct InputEvent.inputType.
+    auto document = active_document();
+    if (!document || !document->is_fully_active()) {
+        m_input_method_composition_node = nullptr;
+        return;
+    }
+    auto* target = document->active_input_events_target();
+    if (!target) {
+        m_input_method_composition_node = nullptr;
+        return;
+    }
+
+    // Drop a stale composition start (for example, if the editable content was replaced out from under us).
+    if (m_input_method_composition_node && !m_input_method_composition_node->is_connected())
+        m_input_method_composition_node = nullptr;
+
+    // The caret is the end of the marked text. Read it while the selection is still collapsed. Forming the marked-text
+    // selection below would otherwise make cursor_position() return null for form controls.
+    auto caret = document->cursor_position();
+    if (!caret)
+        return;
+
+    if (m_input_method_composition_node) {
+        // A composition is already in progress. Select the existing marked text [composition start, caret] — so that
+        // the insertion below replaces it.
+        target->set_selection_anchor(*m_input_method_composition_node, m_input_method_composition_offset);
+        target->set_selection_focus(caret->node(), caret->offset());
+    } else {
+        // Begin a new composition at the caret. The marked text spans from here to the caret as it is updated.
+        m_input_method_composition_node = caret->node();
+        m_input_method_composition_offset = caret->offset();
+    }
+
+    target->handle_insert(UIEvents::InputTypes::insertText, text);
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block

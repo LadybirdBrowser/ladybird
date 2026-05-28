@@ -220,6 +220,9 @@ public:
     String cut_selected_text() const;
     void select_all();
     void paste(Utf16String const&);
+    void set_marked_text_from_input_method(Utf16String const& text);
+    void commit_text_from_input_method(Utf16String const& text);
+    void unmark_text_from_input_method();
 
     Web::EventHandler& event_handler() { return m_event_handler; }
     Web::EventHandler const& event_handler() const { return m_event_handler; }
@@ -321,6 +324,13 @@ private:
     // AD-HOC: Direct reference to the active document, decoupled from session history.
     //         This is the authoritative source for active_document().
     GC::Ptr<DOM::Document> m_active_document;
+
+    // AD-HOC: Active IME composition state. While a composition is in progress, m_input_method_composition_node and
+    //         m_input_method_composition_offset record the start of the marked (preedit) text; the marked text spans
+    //         from there to the caret. A null node means no composition is in progress.
+    void replace_input_method_marked_text(Utf16String const& text);
+    GC::Ptr<DOM::Node> m_input_method_composition_node;
+    size_t m_input_method_composition_offset { 0 };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-closing
     bool m_closing { false };

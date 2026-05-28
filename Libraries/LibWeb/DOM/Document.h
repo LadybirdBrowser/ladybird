@@ -134,6 +134,7 @@ enum class InvalidateLayoutTreeReason {
     X(InspectAccessibilityTree)              \
     X(InspectDOMTree)                        \
     X(InspectDevToolsLayoutData)             \
+    X(InputCaretRect)                        \
     X(InternalsHitTest)                      \
     X(MediaQueryListMatches)                 \
     X(NavigableSelectedText)                 \
@@ -979,6 +980,7 @@ public:
     InputEventsTarget* active_input_events_target(DOM::Node const* for_node = nullptr);
     GC::Ptr<DOM::Position> cursor_position() const;
     void set_cursor_position_needs_repaint();
+    Optional<CSSPixelRect> current_caret_rect();
 
     bool cursor_blink_state() const { return m_cursor_blink_state; }
 
