@@ -51,6 +51,14 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
     return static_cast<u64>([screen_number unsignedLongLongValue]);
 }
 
+static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge const& web_view_bridge, Web::DevicePixelPoint widget_position)
+{
+    return {
+        widget_position.x().value() * web_view_bridge.device_pixel_ratio(),
+        widget_position.y().value() * web_view_bridge.device_pixel_ratio(),
+    };
+}
+
 @interface LadybirdWebViewContentLayer : CALayer
 @end
 
@@ -931,6 +939,11 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
     if (!self.current_key_down_event)
         return;
 
+    if (m_web_view_bridge->is_node_picker_active()) {
+        self.current_key_down_event = nil;
+        return;
+    }
+
     auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, self.current_key_down_event);
     m_web_view_bridge->enqueue_input_event(move(key_event));
 
@@ -1128,6 +1141,11 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
 
 - (void)mouseExited:(NSEvent*)event
 {
+    if (m_web_view_bridge->is_node_picker_active()) {
+        m_web_view_bridge->clear_node_picker();
+        return;
+    }
+
     Web::MouseEvent mouse_event { Web::MouseEvent::Type::MouseLeave, {}, {}, Web::UIEvents::MouseButton::None, Web::UIEvents::MouseButton::None, Web::UIEvents::KeyModifier::Mod_None, 0, 0, 0, nullptr };
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
@@ -1135,11 +1153,19 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
 - (void)mouseMoved:(NSEvent*)event
 {
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::None);
+    if (m_web_view_bridge->is_node_picker_active()) {
+        m_web_view_bridge->node_picker_hover(node_picker_position_for(*m_web_view_bridge, mouse_event.position));
+        return;
+    }
+
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
 - (void)scrollWheel:(NSEvent*)event
 {
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseWheel, event, self, Web::UIEvents::MouseButton::Middle);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
@@ -1149,17 +1175,31 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
     [[self window] makeFirstResponder:self];
 
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, Web::UIEvents::MouseButton::Primary);
+    if (m_web_view_bridge->is_node_picker_active()) {
+        if ((event.modifierFlags & NSEventModifierFlagCommand) != 0)
+            m_web_view_bridge->node_picker_preview(node_picker_position_for(*m_web_view_bridge, mouse_event.position));
+        else
+            m_web_view_bridge->node_picker_pick(node_picker_position_for(*m_web_view_bridge, mouse_event.position));
+        return;
+    }
+
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
 - (void)mouseUp:(NSEvent*)event
 {
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseUp, event, self, Web::UIEvents::MouseButton::Primary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
 - (void)mouseDragged:(NSEvent*)event
 {
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::Primary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
@@ -1168,18 +1208,27 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
 {
     [[self window] makeFirstResponder:self];
 
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, Web::UIEvents::MouseButton::Secondary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
 - (void)rightMouseUp:(NSEvent*)event
 {
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseUp, event, self, Web::UIEvents::MouseButton::Secondary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
 - (void)rightMouseDragged:(NSEvent*)event
 {
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::Secondary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
@@ -1191,6 +1240,9 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
 
     [[self window] makeFirstResponder:self];
 
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, Web::UIEvents::MouseButton::Middle);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
@@ -1200,6 +1252,9 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
     if (event.buttonNumber != 2)
         return;
 
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseUp, event, self, Web::UIEvents::MouseButton::Middle);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
@@ -1207,6 +1262,9 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
 - (void)otherMouseDragged:(NSEvent*)event
 {
     if (event.buttonNumber != 2)
+        return;
+
+    if (m_web_view_bridge->is_node_picker_active())
         return;
 
     auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::Middle);
@@ -1235,6 +1293,13 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
         return;
     }
 
+    if (m_web_view_bridge->is_node_picker_active()) {
+        auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
+        if (key_event.key == Web::UIEvents::KeyCode::Key_Escape)
+            m_web_view_bridge->node_picker_cancel();
+        return;
+    }
+
     self.current_key_down_event = event;
     [self interpretKeyEvents:@[ event ]];
 }
@@ -1245,6 +1310,9 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
         return;
     }
 
+    if (m_web_view_bridge->is_node_picker_active())
+        return;
+
     auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyUp, event);
     m_web_view_bridge->enqueue_input_event(move(key_event));
 }
@@ -1252,6 +1320,11 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
 - (void)flagsChanged:(NSEvent*)event
 {
     if (self.event_being_redispatched == event) {
+        return;
+    }
+
+    if (m_web_view_bridge->is_node_picker_active()) {
+        m_modifier_flags = event.modifierFlags;
         return;
     }
 
