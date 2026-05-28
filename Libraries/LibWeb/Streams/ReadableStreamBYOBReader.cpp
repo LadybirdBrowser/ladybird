@@ -107,24 +107,24 @@ private:
 GC_DEFINE_ALLOCATOR(BYOBReaderReadIntoRequest);
 
 // https://streams.spec.whatwg.org/#byob-reader-read
-GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(GC::Ref<WebIDL::ArrayBufferView> view, Bindings::ReadableStreamBYOBReaderReadOptions options)
+GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(WebIDL::ArrayBufferView view, Bindings::ReadableStreamBYOBReaderReadOptions options)
 {
     auto& realm = this->realm();
 
     // 1. If view.[[ByteLength]] is 0, return a promise rejected with a TypeError exception.
-    if (view->byte_length() == 0) {
+    if (view.byte_length() == 0) {
         WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in an empty buffer"sv };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
     // 2. If view.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is 0, return a promise rejected with a TypeError exception.
-    if (view->viewed_array_buffer()->byte_length() == 0) {
+    if (view.viewed_array_buffer()->byte_length() == 0) {
         WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in an empty buffer"sv };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
 
     // 3. If ! IsDetachedBuffer(view.[[ViewedArrayBuffer]]) is true, return a promise rejected with a TypeError exception.
-    if (view->viewed_array_buffer()->is_detached()) {
+    if (view.viewed_array_buffer()->is_detached()) {
         WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "Cannot read in a detached buffer"sv };
         return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
     }
@@ -136,20 +136,18 @@ GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(GC::Ref<WebIDL::ArrayBuf
     }
 
     // 5. If view has a [[TypedArrayName]] internal slot,
-    if (view->is_typed_array_base()) {
-        auto const& typed_array = *view->bufferable_object().get<GC::Ref<JS::TypedArrayBase>>();
-
+    if (auto typed_array = view.typed_array_base()) {
         // 1. If options["min"] > view.[[ArrayLength]], return a promise rejected with a RangeError exception.
-        if (options.min > typed_array.array_length().length()) {
+        if (options.min > typed_array->array_length().length()) {
             WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."sv };
             return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
         }
     }
-
     // 6. Otherwise (i.e., it is a DataView),
-    if (view->is_data_view()) {
+    else {
+        VERIFY(view.array_buffer_view().has<GC::Ref<JS::DataView>>());
         // 1. If options["min"] > view.[[ByteLength]], return a promise rejected with a RangeError exception.
-        if (options.min > view->byte_length()) {
+        if (options.min > view.byte_length()) {
             WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::RangeError, "options[\"min\"] cannot be larger than the length of the view."sv };
             return WebIDL::create_rejected_promise_from_exception(realm, move(exception));
         }
@@ -174,7 +172,7 @@ GC::Ref<WebIDL::Promise> ReadableStreamBYOBReader::read(GC::Ref<WebIDL::ArrayBuf
     auto read_into_request = heap().allocate<BYOBReaderReadIntoRequest>(realm, promise_capability);
 
     // 10. Perform ! ReadableStreamBYOBReaderRead(this, view, options["min"], readIntoRequest).
-    readable_stream_byob_reader_read(*this, *view, options.min, *read_into_request);
+    readable_stream_byob_reader_read(*this, view, options.min, *read_into_request);
 
     // 11. Return promise.
     return promise_capability;

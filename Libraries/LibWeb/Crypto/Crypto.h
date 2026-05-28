@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Crypto {
@@ -24,7 +25,8 @@ public:
 
     GC::Ref<SubtleCrypto> subtle() const;
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::ArrayBufferView>> get_random_values(GC::Ref<WebIDL::ArrayBufferView>) const;
+    WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> get_random_values(WebIDL::ArrayBufferViewVariant array) const;
+
     String random_uuid() const;
 
 protected:

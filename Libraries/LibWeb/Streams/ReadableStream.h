@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
+#include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::Streams {
 
@@ -97,7 +98,7 @@ public:
     void set_up_with_byte_reading_support(GC::Ptr<PullAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {}, double high_water_mark = 0);
     GC::Ref<ReadableStream> piped_through(GC::Ref<TransformStream>, bool prevent_close = false, bool prevent_abort = false, bool prevent_cancel = false, GC::Ptr<DOM::AbortSignal> signal = {});
 
-    GC::Ptr<WebIDL::ArrayBufferView> current_byob_request_view();
+    Optional<WebIDL::ArrayBufferView> current_byob_request_view();
 
     // ^Transferable
     virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;

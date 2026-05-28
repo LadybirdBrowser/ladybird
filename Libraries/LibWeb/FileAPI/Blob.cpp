@@ -107,8 +107,8 @@ ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Bin
                 return bytes.try_append(s.bytes());
             },
             // 2. If element is a BufferSource, get a copy of the bytes held by the buffer source, and append those bytes to bytes.
-            [&](GC::Ref<WebIDL::BufferSource> const& buffer_source) -> ErrorOr<void> {
-                auto data_buffer = TRY(WebIDL::get_buffer_source_copy(*buffer_source->raw_object()));
+            [&](WebIDL::BufferSourceVariant buffer_source) -> ErrorOr<void> {
+                auto data_buffer = TRY(WebIDL::get_buffer_source_copy(buffer_source));
                 return bytes.try_append(data_buffer.bytes());
             },
             // 3. If element is a Blob, append the bytes it represents to bytes.

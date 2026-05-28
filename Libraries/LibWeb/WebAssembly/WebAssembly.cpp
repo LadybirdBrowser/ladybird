@@ -104,10 +104,10 @@ void initialize(JS::Object& self, JS::Realm&)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-validate
-bool validate(JS::VM& vm, GC::Ref<WebIDL::BufferSource> bytes)
+bool validate(JS::VM& vm, WebIDL::BufferSource bytes)
 {
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
-    auto stable_bytes = WebIDL::get_buffer_source_copy(*bytes->raw_object());
+    auto stable_bytes = WebIDL::get_buffer_source_copy(bytes);
     if (stable_bytes.is_error()) {
         VERIFY(stable_bytes.error().code() == ENOMEM);
         return false;
@@ -125,12 +125,12 @@ bool validate(JS::VM& vm, GC::Ref<WebIDL::BufferSource> bytes)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-compile
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM& vm, GC::Ref<WebIDL::BufferSource> bytes)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM& vm, WebIDL::BufferSource bytes)
 {
     auto& realm = *vm.current_realm();
 
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
-    auto stable_bytes = WebIDL::get_buffer_source_copy(*bytes->raw_object());
+    auto stable_bytes = WebIDL::get_buffer_source_copy(bytes);
     if (stable_bytes.is_error()) {
         VERIFY(stable_bytes.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
@@ -149,12 +149,12 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM& vm, GC::
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
 // https://webassembly.github.io/content-security-policy/js-api/#dom-webassembly-instantiate
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Ref<WebIDL::BufferSource> bytes, GC::Ptr<JS::Object> import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object)
 {
     auto& realm = *vm.current_realm();
 
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
-    auto stable_bytes = WebIDL::get_buffer_source_copy(*bytes->raw_object());
+    auto stable_bytes = WebIDL::get_buffer_source_copy(bytes);
     if (stable_bytes.is_error()) {
         VERIFY(stable_bytes.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));

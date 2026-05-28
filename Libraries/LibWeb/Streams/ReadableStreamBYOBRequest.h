@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Streams {
@@ -22,14 +23,14 @@ class ReadableStreamBYOBRequest : public Bindings::PlatformObject {
 public:
     virtual ~ReadableStreamBYOBRequest() override = default;
 
-    GC::Ptr<WebIDL::ArrayBufferView> view();
+    WebIDL::NullableArrayBufferViewVariant view();
 
     void set_controller(GC::Ptr<ReadableByteStreamController> value) { m_controller = value; }
 
-    void set_view(GC::Ptr<WebIDL::ArrayBufferView> value) { m_view = value; }
+    void set_view(WebIDL::NullableArrayBufferViewVariant value) { m_view = value; }
 
     WebIDL::ExceptionOr<void> respond(WebIDL::UnsignedLongLong bytes_written);
-    WebIDL::ExceptionOr<void> respond_with_new_view(GC::Root<WebIDL::ArrayBufferView> const& view);
+    WebIDL::ExceptionOr<void> respond_with_new_view(WebIDL::ArrayBufferView view);
 
 private:
     explicit ReadableStreamBYOBRequest(JS::Realm&);
@@ -44,7 +45,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreambyobrequest-view
     // A typed array representing the destination region to which the controller can write generated data, or null after the BYOB request has been invalidated.
-    GC::Ptr<WebIDL::ArrayBufferView> m_view;
+    WebIDL::NullableArrayBufferViewVariant m_view;
 };
 
 }

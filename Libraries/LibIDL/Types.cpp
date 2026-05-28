@@ -251,6 +251,34 @@ bool Type::is_distinguishable_from(IDL::Interface const& interface, IDL::Type co
     return table[to_underlying(this_distinguishability)][to_underlying(other_distinguishability)];
 }
 
+// https://webidl.spec.whatwg.org/#buffer-types
+bool Type::is_buffer() const
+{
+    // The buffer types are ArrayBuffer and SharedArrayBuffer.
+    return m_name.is_one_of("ArrayBuffer", "SharedArrayBuffer");
+}
+
+// https://webidl.spec.whatwg.org/#dfn-typed-array-type
+bool Type::is_typed_array() const
+{
+    // The typed array types are Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array, Uint8ClampedArray, BigInt64Array, BigUint64Array, Float16Array, Float32Array, and Float64Array.
+    return m_name.is_one_of("Int8Array", "Int16Array", "Int32Array", "Uint8Array", "Uint16Array", "Uint32Array", "Uint8ClampedArray", "BigInt64Array", "BigUint64Array", "Float16Array", "Float32Array", "Float64Array");
+}
+
+// https://webidl.spec.whatwg.org/#buffer-view-types
+bool Type::is_buffer_view() const
+{
+    // The buffer view types are DataView and the typed array types.
+    return m_name == "DataView" || is_typed_array();
+}
+
+// https://webidl.spec.whatwg.org/#dfn-buffer-source-type
+bool Type::is_buffer_source() const
+{
+    // The buffer source types are the buffer types and the buffer view types.
+    return is_buffer() || is_buffer_view();
+}
+
 // https://webidl.spec.whatwg.org/#dfn-json-types
 bool Type::is_json(Context const& context) const
 {

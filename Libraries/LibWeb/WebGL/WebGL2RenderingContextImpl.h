@@ -13,6 +13,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebGL {
@@ -26,7 +27,7 @@ public:
     WebGL2RenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
 
     void copy_buffer_sub_data(WebIDL::UnsignedLong read_target, WebIDL::UnsignedLong write_target, WebIDL::LongLong read_offset, WebIDL::LongLong write_offset, WebIDL::LongLong size);
-    void get_buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong src_byte_offset, GC::Ref<WebIDL::ArrayBufferView> dst_buffer, WebIDL::UnsignedLongLong dst_offset, WebIDL::UnsignedLong length);
+    void get_buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong src_byte_offset, WebIDL::ArrayBufferView dst_buffer, WebIDL::UnsignedLongLong dst_offset, WebIDL::UnsignedLong length);
     void blit_framebuffer(WebIDL::Long src_x0, WebIDL::Long src_y0, WebIDL::Long src_x1, WebIDL::Long src_y1, WebIDL::Long dst_x0, WebIDL::Long dst_y0, WebIDL::Long dst_x1, WebIDL::Long dst_y1, WebIDL::UnsignedLong mask, WebIDL::UnsignedLong filter);
     void framebuffer_texture_layer(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, GC::Ptr<WebGLTexture> texture, WebIDL::Long level, WebIDL::Long layer);
     void invalidate_framebuffer(WebIDL::UnsignedLong target, Vector<WebIDL::UnsignedLong> attachments);
@@ -36,9 +37,9 @@ public:
     void renderbuffer_storage_multisample(WebIDL::UnsignedLong target, WebIDL::Long samples, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height);
     void tex_storage2d(WebIDL::UnsignedLong target, WebIDL::Long levels, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height);
     void tex_storage3d(WebIDL::UnsignedLong target, WebIDL::Long levels, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth);
-    void tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Ptr<WebIDL::ArrayBufferView> src_data);
-    void tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Ref<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset);
-    void tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, GC::Ptr<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset);
+    void tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant src_data);
+    void tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset);
+    void tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant src_data, WebIDL::UnsignedLongLong src_offset);
     void uniform1ui(GC::Ptr<WebGLUniformLocation> location, WebIDL::UnsignedLong v0);
     void uniform2ui(GC::Ptr<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1);
     void uniform3ui(GC::Ptr<WebGLUniformLocation> location, WebIDL::UnsignedLong v0, WebIDL::UnsignedLong v1, WebIDL::UnsignedLong v2);
@@ -103,8 +104,8 @@ public:
     void delete_vertex_array(GC::Ptr<WebGLVertexArrayObject> vertex_array);
     bool is_vertex_array(GC::Ptr<WebGLVertexArrayObject> vertex_array);
     void bind_vertex_array(GC::Ptr<WebGLVertexArrayObject> array);
-    void compressed_tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, GC::Ref<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override);
-    void compressed_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, GC::Ref<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override);
+    void compressed_tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override);
+    void compressed_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, WebIDL::ArrayBufferView src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override);
 };
 
 }

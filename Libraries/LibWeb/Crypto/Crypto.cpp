@@ -49,17 +49,19 @@ GC::Ref<SubtleCrypto> Crypto::subtle() const
 }
 
 // https://w3c.github.io/webcrypto/#dfn-Crypto-method-getRandomValues
-WebIDL::ExceptionOr<GC::Ref<WebIDL::ArrayBufferView>> Crypto::get_random_values(GC::Ref<WebIDL::ArrayBufferView> array) const
+WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> Crypto::get_random_values(WebIDL::ArrayBufferViewVariant array) const
 {
+    WebIDL::ArrayBufferView array_view { array };
+
     // 1. If array is not an Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array, then throw a TypeMismatchError and terminate the algorithm.
-    if (!array->is_typed_array_base())
+    auto typed_array = array_view.typed_array_base();
+    if (!typed_array)
         return WebIDL::TypeMismatchError::create(realm(), "array must be one of Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array"_utf16);
 
-    auto const& typed_array = *array->bufferable_object().get<GC::Ref<JS::TypedArrayBase>>();
-    if (!typed_array.element_name().is_one_of("Int8Array"sv, "Uint8Array"sv, "Uint8ClampedArray"sv, "Int16Array"sv, "Uint16Array"sv, "Int32Array"sv, "Uint32Array"sv, "BigInt64Array"sv, "BigUint64Array"sv))
+    if (!typed_array->element_name().is_one_of("Int8Array"sv, "Uint8Array"sv, "Uint8ClampedArray"sv, "Int16Array"sv, "Uint16Array"sv, "Int32Array"sv, "Uint32Array"sv, "BigInt64Array"sv, "BigUint64Array"sv))
         return WebIDL::TypeMismatchError::create(realm(), "array must be one of Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, BigInt64Array, or BigUint64Array"_utf16);
 
-    auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(typed_array, JS::ArrayBuffer::Order::SeqCst);
+    auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(*typed_array, JS::ArrayBuffer::Order::SeqCst);
 
     // IMPLEMENTATION DEFINED: If the viewed array buffer is out-of-bounds, throw a InvalidStateError and terminate the algorithm.
     if (JS::is_typed_array_out_of_bounds(typed_array_record))
@@ -70,7 +72,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::ArrayBufferView>> Crypto::get_random_values(
         return WebIDL::QuotaExceededError::create(realm(), "array's byteLength may not be greater than 65536"_utf16);
 
     // 3. Overwrite all elements of array with cryptographically strong random values of the appropriate type.
-    fill_with_random(array->viewed_array_buffer()->bytes().slice(array->byte_offset(), array->byte_length()));
+    fill_with_random(array_view.viewed_array_buffer()->bytes().slice(array_view.byte_offset(), array_view.byte_length()));
 
     // 4. Return array.
     return array;

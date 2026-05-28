@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
+#include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::CSS {
 
@@ -23,7 +24,7 @@ class FontFace final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(FontFace);
 
 public:
-    using FontFaceSource = Variant<String, GC::Ref<WebIDL::BufferSource>>;
+    using FontFaceSource = FlattenVariant<Variant<String>, WebIDL::BufferSourceVariant>;
 
     [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
     [[nodiscard]] static GC::Ref<FontFace> create_css_connected(JS::Realm&, CSSFontFaceRule&);

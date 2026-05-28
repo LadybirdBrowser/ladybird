@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::MediaSourceExtensions {
 
@@ -50,7 +51,7 @@ public:
     void set_content_type(String const& type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
-    WebIDL::ExceptionOr<void> append_buffer(GC::Ref<WebIDL::BufferSource>);
+    WebIDL::ExceptionOr<void> append_buffer(WebIDL::BufferSource);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
     WebIDL::ExceptionOr<void> abort();

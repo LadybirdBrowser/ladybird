@@ -18,12 +18,15 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::WebIDL {
 
 bool is_buffer_source_type(JS::Value);
 GC::Ptr<JS::ArrayBuffer> underlying_buffer_source(JS::Object& buffer_source);
 WEB_API ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source);
+WEB_API ErrorOr<ByteBuffer> get_buffer_source_copy(BufferSource const&);
+WEB_API ErrorOr<ByteBuffer> get_buffer_source_copy(ArrayBufferView const&);
 
 JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString const& operation_name, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args);
 

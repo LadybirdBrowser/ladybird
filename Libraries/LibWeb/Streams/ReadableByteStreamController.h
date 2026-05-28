@@ -11,6 +11,7 @@
 #include <AK/SinglyLinkedList.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Streams/Algorithms.h>
+#include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::Streams {
 
@@ -123,7 +124,7 @@ public:
     Optional<double> desired_size() const;
     WebIDL::ExceptionOr<void> close();
     void error(Optional<JS::Value> error);
-    WebIDL::ExceptionOr<void> enqueue(GC::Ref<WebIDL::ArrayBufferView>);
+    WebIDL::ExceptionOr<void> enqueue(WebIDL::ArrayBufferView);
 
     Optional<u64> const& auto_allocate_chunk_size() { return m_auto_allocate_chunk_size; }
     void set_auto_allocate_chunk_size(Optional<u64> value) { m_auto_allocate_chunk_size = value; }

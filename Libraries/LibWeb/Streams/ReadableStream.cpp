@@ -294,7 +294,7 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
 
     // 4. If stream’s current BYOB request view is non-null, then set desiredSize to stream’s current BYOB request
     //    view's byte length.
-    if (auto byob_view = current_byob_request_view())
+    if (auto byob_view = current_byob_request_view(); byob_view.has_value())
         desired_size = byob_view->byte_length();
 
     // 5. Let pullSize be the smaller value of available and desiredSize.
@@ -307,7 +307,7 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
     // NB: We skip this step. No caller actually wants its bytes trimmed, and we don't take the bytes by reference anyways.
 
     // 8. If stream’s current BYOB request view is non-null, then:
-    if (auto byob_view = current_byob_request_view()) {
+    if (auto byob_view = current_byob_request_view(); byob_view.has_value()) {
         // 1. Write pulled into stream’s current BYOB request view.
         byob_view->write(pulled);
 
@@ -328,7 +328,7 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
 }
 
 // https://streams.spec.whatwg.org/#readablestream-current-byob-request-view
-GC::Ptr<WebIDL::ArrayBufferView> ReadableStream::current_byob_request_view()
+Optional<WebIDL::ArrayBufferView> ReadableStream::current_byob_request_view()
 {
     // 1. Assert: stream.[[controller]] implements ReadableByteStreamController.
     VERIFY(m_controller->has<GC::Ref<ReadableByteStreamController>>());
@@ -341,7 +341,10 @@ GC::Ptr<WebIDL::ArrayBufferView> ReadableStream::current_byob_request_view()
         return {};
 
     // 4. Return byobRequest.[[view]].
-    return byob_request->view();
+    auto view = byob_request->view();
+    if (view.has<Empty>())
+        return {};
+    return view.downcast<WebIDL::ArrayBufferViewVariant>();
 }
 
 // https://streams.spec.whatwg.org/#readablestream-enqueue
@@ -362,21 +365,21 @@ WebIDL::ExceptionOr<void> ReadableStream::enqueue(JS::Value chunk)
 
         // 2. Assert: chunk is an ArrayBufferView.
         VERIFY(chunk.is_object());
-        auto chunk_view = heap().allocate<WebIDL::ArrayBufferView>(chunk.as_object());
+        auto chunk_view = WebIDL::ArrayBufferView { WebIDL::ArrayBufferView::from_object(chunk.as_object()) };
 
         // 3. Let byobView be the current BYOB request view for stream.
         auto byob_view = current_byob_request_view();
 
         // 4. If byobView is non-null, and chunk.[[ViewedArrayBuffer]] is byobView.[[ViewedArrayBuffer]], then:
-        if (byob_view && chunk_view->viewed_array_buffer() == byob_view->viewed_array_buffer()) {
+        if (byob_view.has_value() && chunk_view.viewed_array_buffer() == byob_view->viewed_array_buffer()) {
             // 1. Assert: chunk.[[ByteOffset]] is byobView.[[ByteOffset]].
-            VERIFY(chunk_view->byte_offset() == byob_view->byte_offset());
+            VERIFY(chunk_view.byte_offset() == byob_view->byte_offset());
 
             // 2. Assert: chunk.[[ByteLength]] ≤ byobView.[[ByteLength]].
-            VERIFY(chunk_view->byte_length() <= byob_view->byte_length());
+            VERIFY(chunk_view.byte_length() <= byob_view->byte_length());
 
             // 3. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], chunk.[[ByteLength]]).
-            TRY(readable_byte_stream_controller_respond(readable_byte_controller, chunk_view->byte_length()));
+            TRY(readable_byte_stream_controller_respond(readable_byte_controller, chunk_view.byte_length()));
         }
         // 5. Otherwise, perform ? ReadableByteStreamControllerEnqueue(stream.[[controller]], chunk).
         else {

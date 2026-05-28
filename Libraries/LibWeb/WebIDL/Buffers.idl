@@ -1,0 +1,8 @@
+// https://webidl.spec.whatwg.org/#ArrayBufferView
+typedef (Int8Array or Int16Array or Int32Array or
+         Uint8Array or Uint16Array or Uint32Array or Uint8ClampedArray or
+         BigInt64Array or BigUint64Array or
+         Float16Array or Float32Array or Float64Array or DataView) ArrayBufferView;
+
+// https://webidl.spec.whatwg.org/#BufferSource
+typedef (ArrayBufferView or ArrayBuffer) BufferSource;

@@ -13,11 +13,12 @@
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::FileAPI {
 
-using BlobPart = Variant<GC::Ref<WebIDL::BufferSource>, GC::Ref<Blob>, String>;
+using BlobPart = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<Blob>, String>>;
 using BlobParts = GC::ConservativeVector<BlobPart>;
 using BlobPartsOrByteBuffer = Variant<BlobParts, ByteBuffer>;
 

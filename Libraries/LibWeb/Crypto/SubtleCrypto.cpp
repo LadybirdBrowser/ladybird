@@ -171,7 +171,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-encrypt
-GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -188,7 +188,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algori
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the encrypt() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(*data_parameter->raw_object());
+    auto data_or_error = WebIDL::get_buffer_source_copy(data_parameter);
     if (data_or_error.is_error()) {
         VERIFY(data_or_error.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
@@ -246,7 +246,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algori
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-decrypt
-GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -263,7 +263,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algori
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the decrypt() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(*data_parameter->raw_object());
+    auto data_or_error = WebIDL::get_buffer_source_copy(data_parameter);
     if (data_or_error.is_error()) {
         VERIFY(data_or_error.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
@@ -321,7 +321,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algori
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-digest
-GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, GC::Ref<WebIDL::BufferSource> data)
+GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, WebIDL::BufferSource data)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -339,7 +339,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorit
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the digest() method.
-    auto data_buffer_or_error = WebIDL::get_buffer_source_copy(*data->raw_object());
+    auto data_buffer_or_error = WebIDL::get_buffer_source_copy(data);
     if (data_buffer_or_error.is_error()) {
         VERIFY(data_buffer_or_error.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
@@ -446,7 +446,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::generate_key(AlgorithmIdentifier algorith
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-importKey
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, Variant<GC::Ref<WebIDL::BufferSource>, Bindings::JsonWebKey> key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, ImportKeyData key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
 
@@ -468,7 +468,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
         }
 
         // 2. Let keyData be the result of getting a copy of the bytes held by the keyData parameter passed to the importKey() method.
-        real_key_data = MUST(WebIDL::get_buffer_source_copy(*key_data.get<GC::Ref<WebIDL::BufferSource>>()->raw_object()));
+        real_key_data = MUST(WebIDL::get_buffer_source_copy(key_data.downcast<WebIDL::BufferSourceVariant>()));
     }
 
     if (format == Bindings::KeyFormat::Jwk) {
@@ -574,7 +574,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::export_key(Bindings::KeyFormat format, GC
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-sign
-GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -591,7 +591,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the sign() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(*data_parameter->raw_object());
+    auto data_or_error = WebIDL::get_buffer_source_copy(data_parameter);
     if (data_or_error.is_error()) {
         VERIFY(data_or_error.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
@@ -652,7 +652,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-verify
-GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Ref<WebIDL::BufferSource> signature_data, GC::Ref<WebIDL::BufferSource> data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource signature_data, WebIDL::BufferSource data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -669,7 +669,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorit
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let signature be the result of getting a copy of the bytes held by the signature parameter passed to the verify() method.
-    auto signature_or_error = WebIDL::get_buffer_source_copy(*signature_data->raw_object());
+    auto signature_or_error = WebIDL::get_buffer_source_copy(signature_data);
     if (signature_or_error.is_error()) {
         VERIFY(signature_or_error.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
@@ -677,7 +677,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorit
     auto signature = signature_or_error.release_value();
 
     // 5. Let data be the result of getting a copy of the bytes held by the data parameter passed to the verify() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(*data_parameter->raw_object());
+    auto data_or_error = WebIDL::get_buffer_source_copy(data_parameter);
     if (data_or_error.is_error()) {
         VERIFY(data_or_error.error().code() == ENOMEM);
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
@@ -1037,7 +1037,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-unwrapKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, KeyDataType wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, WebIDL::BufferSource wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     // 8. Let realm be the relevant realm of this.
     auto& realm = this->realm();
@@ -1078,7 +1078,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
     auto normalized_key_algorithm = normalized_key_algorithm_or_error.release_value();
 
     // 7. Let wrappedKey be the result of getting a copy of the bytes held by the wrappedKey parameter passed to the unwrapKey() method.
-    auto real_wrapped_key = MUST(WebIDL::get_buffer_source_copy(*wrapped_key.get<GC::Ref<WebIDL::BufferSource>>()->raw_object()));
+    auto real_wrapped_key = MUST(WebIDL::get_buffer_source_copy(wrapped_key));
 
     // 9. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
@@ -1386,7 +1386,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier enca
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Ref<WebIDL::BufferSource> ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSource ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     auto& realm = this->realm();
     auto& global = realm.global_object();
@@ -1398,7 +1398,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
 
     // 2. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
     //    decapsulateKey() method.
-    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(*ciphertext->raw_object()));
+    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(ciphertext));
 
     // 3. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
     //    decapsulationAlgorithm and op set to "decapsulate".
@@ -1494,7 +1494,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateBits
-GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Ref<WebIDL::BufferSource> ciphertext)
+GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSource ciphertext)
 {
     auto& realm = this->realm();
     auto& global = realm.global_object();
@@ -1505,7 +1505,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier deca
 
     // 2. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
     //    decapsulateBits() method.
-    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(*ciphertext->raw_object()));
+    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(ciphertext));
 
     // 3. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
     //    decapsulationAlgorithm and op set to "decapsulate".

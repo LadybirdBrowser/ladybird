@@ -305,7 +305,7 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> 
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-send
-WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Ref<WebIDL::BufferSource>, GC::Ref<FileAPI::Blob>, String> const& data)
+WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
 {
     auto state = ready_state();
     if (state == Requests::WebSocket::ReadyState::Connecting)
@@ -315,11 +315,12 @@ WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Ref<WebIDL::BufferSource>,
             [this](String const& string) {
                 m_websocket->send(string);
             },
-            [this](GC::Ref<WebIDL::BufferSource> buffer_source) {
+            [this](WebIDL::BufferSourceVariant buffer_source_variant) {
+                auto buffer_source = WebIDL::BufferSource { buffer_source_variant };
                 ReadonlyBytes buffer;
 
-                if (auto array_buffer = buffer_source->viewed_array_buffer(); array_buffer && !array_buffer->is_detached())
-                    buffer = array_buffer->bytes().slice(buffer_source->byte_offset(), buffer_source->byte_length());
+                if (auto array_buffer = buffer_source.viewed_array_buffer(); array_buffer && !array_buffer->is_detached())
+                    buffer = array_buffer->bytes().slice(buffer_source.byte_offset(), buffer_source.byte_length());
 
                 m_websocket->send(buffer, false);
             },

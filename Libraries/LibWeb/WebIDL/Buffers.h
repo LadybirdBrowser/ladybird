@@ -11,85 +11,79 @@
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::WebIDL {
 
-bool is_buffer_source_detached(JS::Value const&);
+using ArrayBufferViewVariant = Variant<
+    GC::Ref<JS::Int8Array>,
+    GC::Ref<JS::Int16Array>,
+    GC::Ref<JS::Int32Array>,
+    GC::Ref<JS::Uint8Array>,
+    GC::Ref<JS::Uint16Array>,
+    GC::Ref<JS::Uint32Array>,
+    GC::Ref<JS::Uint8ClampedArray>,
+    GC::Ref<JS::BigInt64Array>,
+    GC::Ref<JS::BigUint64Array>,
+    GC::Ref<JS::Float16Array>,
+    GC::Ref<JS::Float32Array>,
+    GC::Ref<JS::Float64Array>,
+    GC::Ref<JS::DataView>>;
 
-using BufferableObject = Variant<
-    GC::Ref<JS::TypedArrayBase>,
-    GC::Ref<JS::DataView>,
-    GC::Ref<JS::ArrayBuffer>>;
+using NullableArrayBufferViewVariant = FlattenVariant<ArrayBufferViewVariant, Variant<Empty>>;
 
-class BufferableObjectBase : public JS::Cell {
-    GC_CELL(BufferableObjectBase, JS::Cell);
-    GC_DECLARE_ALLOCATOR(BufferableObjectBase);
+using BufferSourceVariant = FlattenVariant<ArrayBufferViewVariant, Variant<GC::Ref<JS::ArrayBuffer>>>;
+using NullableBufferSourceVariant = FlattenVariant<BufferSourceVariant, Variant<Empty>>;
 
+class BufferSource {
 public:
-    virtual ~BufferableObjectBase() override = default;
+    static BufferSourceVariant from_object(GC::Ref<JS::Object>);
+    static bool is_detached(JS::Value const&);
+
+    BufferSource(BufferSourceVariant const&);
+    BufferSource(ArrayBufferViewVariant const&);
+    BufferSource(ArrayBufferView const&);
 
     u32 byte_length() const;
     u32 byte_offset() const;
     u32 element_size() const;
 
-    GC::Ref<JS::Object> raw_object();
-    GC::Ref<JS::Object const> raw_object() const { return const_cast<BufferableObjectBase&>(*this).raw_object(); }
+    BufferSourceVariant const& buffer_source() const { return m_buffer_source; }
+    BufferSourceVariant& buffer_source() { return m_buffer_source; }
 
-    GC::Ptr<JS::ArrayBuffer> viewed_array_buffer();
-
-    BufferableObject const& bufferable_object() const { return m_bufferable_object; }
-    BufferableObject& bufferable_object() { return m_bufferable_object; }
-
-protected:
-    BufferableObjectBase(GC::Ref<JS::Object>);
-
-    virtual void visit_edges(Visitor&) override;
+    GC::Ptr<JS::ArrayBuffer> viewed_array_buffer() const;
+    GC::Ptr<JS::TypedArrayBase> typed_array_base() const;
 
     bool is_data_view() const;
-    bool is_typed_array_base() const;
     bool is_array_buffer() const;
 
-    static BufferableObject bufferable_object_from_raw_object(GC::Ref<JS::Object>);
-
-    BufferableObject m_bufferable_object;
+private:
+    BufferSourceVariant m_buffer_source;
 };
 
 // https://webidl.spec.whatwg.org/#ArrayBufferView
-//
-// typedef (Int8Array or Int16Array or Int32Array or
-//          Uint8Array or Uint16Array or Uint32Array or Uint8ClampedArray or
-//          BigInt64Array or BigUint64Array or
-//          Float32Array or Float64Array or DataView) ArrayBufferView;
-class ArrayBufferView : public BufferableObjectBase {
-    GC_CELL(ArrayBufferView, BufferableObjectBase);
-    GC_DECLARE_ALLOCATOR(ArrayBufferView);
-
+class ArrayBufferView {
 public:
-    using BufferableObjectBase::BufferableObjectBase;
+    static ArrayBufferViewVariant from_object(GC::Ref<JS::Object>);
 
-    virtual ~ArrayBufferView() override;
+    ArrayBufferView(ArrayBufferViewVariant const&);
 
-    using BufferableObjectBase::is_data_view;
-    using BufferableObjectBase::is_typed_array_base;
+    u32 byte_length() const;
+    u32 byte_offset() const;
+    u32 element_size() const;
+
+    ArrayBufferViewVariant const& array_buffer_view() const { return m_array_buffer_view; }
+    ArrayBufferViewVariant& array_buffer_view() { return m_array_buffer_view; }
+
+    GC::Ptr<JS::ArrayBuffer> viewed_array_buffer() const;
+    GC::Ptr<JS::TypedArrayBase> typed_array_base() const;
+
+    bool is_data_view() const;
 
     void write(ReadonlyBytes, u32 starting_offset = 0);
-};
 
-// https://webidl.spec.whatwg.org/#BufferSource
-//
-// typedef (ArrayBufferView or ArrayBuffer) BufferSource;
-class BufferSource : public BufferableObjectBase {
-    GC_CELL(BufferSource, BufferableObjectBase);
-    GC_DECLARE_ALLOCATOR(BufferSource);
-
-public:
-    using BufferableObjectBase::BufferableObjectBase;
-
-    virtual ~BufferSource() override;
-
-    using BufferableObjectBase::is_array_buffer;
-    using BufferableObjectBase::is_data_view;
-    using BufferableObjectBase::is_typed_array_base;
+private:
+    ArrayBufferViewVariant m_array_buffer_view;
 };
 
 }

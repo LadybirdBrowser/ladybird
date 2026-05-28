@@ -12,14 +12,16 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#bodyinit
-using BodyInit = Variant<GC::Ref<Streams::ReadableStream>, GC::Ref<FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String>;
-using NullableBodyInit = Variant<GC::Ref<Streams::ReadableStream>, GC::Ref<FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String, Empty>;
+using XMLHttpRequestBodyInit = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<FileAPI::Blob>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String>>;
+using BodyInit = FlattenVariant<Variant<GC::Ref<Streams::ReadableStream>>, XMLHttpRequestBodyInit>;
+using NullableBodyInit = FlattenVariant<BodyInit, Variant<Empty>>;
 
-using BodyInitOrReadableBytes = Variant<GC::Ref<Streams::ReadableStream>, GC::Ref<FileAPI::Blob>, GC::Ref<WebIDL::BufferSource>, GC::Ref<XHR::FormData>, GC::Ref<DOMURL::URLSearchParams>, String, ReadonlyBytes, Core::ImmutableBytes>;
+using BodyInitOrReadableBytes = FlattenVariant<BodyInit, Variant<ReadonlyBytes, Core::ImmutableBytes>>;
 WEB_API Infrastructure::BodyWithType safely_extract_body(JS::Realm&, BodyInitOrReadableBytes const&);
 WEB_API WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm&, BodyInitOrReadableBytes const&, bool keepalive = false);
 
