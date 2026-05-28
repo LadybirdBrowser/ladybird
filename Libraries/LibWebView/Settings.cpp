@@ -70,6 +70,14 @@ static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Cou
         .array_element_type = {},
     },
     {
+        .id = ConfigVariableID::ShowAdvancedDebugMenu,
+        .name = "debug.ui.show_advanced_debug_menu"sv,
+        .title = "Show Advanced Debug Menu"sv,
+        .description = "Show the advanced Debug menu in the application menu."sv,
+        .default_value = false,
+        .array_element_type = {},
+    },
+    {
         .id = ConfigVariableID::ContentBlockerListPaths,
         .name = "content_blocking.list_paths"sv,
         .title = "Content blocker list paths"sv,
