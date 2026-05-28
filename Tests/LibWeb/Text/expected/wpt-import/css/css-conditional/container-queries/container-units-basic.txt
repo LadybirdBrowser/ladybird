@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Container relative units
-Fail	Container relative units in math functions
+2 Pass
+Pass	Container relative units
+Pass	Container relative units in math functions

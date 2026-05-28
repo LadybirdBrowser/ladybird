@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 3753 tests
 
-3751 Pass
-2 Fail
+3752 Pass
+1 Fail
 Pass	Property color value 'hsl(120 30% 50%)'
 Pass	Property color value 'hsl(120 30% 50% / 0.5)'
 Pass	Property color value 'hsl(120 30% 50% / 50%)'
@@ -3755,5 +3755,5 @@ Pass	Property color value 'hsl(60deg 100% 37.5% / calc(50% + (sign(1em - 10px) *
 Pass	Property color value 'hsla(60deg 100% 37.5% / calc(50% + (sign(1em - 10px) * 10%)))'
 Pass	Property color value 'hsl(60 100 37.5 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
 Pass	Property color value 'hsla(60 100 37.5 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
-Fail	Property color value 'hsla(calc(50deg + (sign(2cqw - 10px) * 10deg)), 100%, 37.5%, 51%)'
+Pass	Property color value 'hsla(calc(50deg + (sign(2cqw - 10px) * 10deg)), 100%, 37.5%, 51%)'
 Fail	Property color value 'hsla(calc(50deg + (sign(2cqw - 10px) * 10deg)), 100%, 37.5%, 52%)'

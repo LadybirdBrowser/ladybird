@@ -2,28 +2,28 @@ Harness status: OK
 
 Found 24 tests
 
-24 Fail
-Fail	CSS.cqw function
-Fail	Reify value with cqw unit
-Fail	Set value with cqw unit (string)
-Fail	Set value with cqw unit (CSS.cqw)
-Fail	CSS.cqh function
-Fail	Reify value with cqh unit
-Fail	Set value with cqh unit (string)
-Fail	Set value with cqh unit (CSS.cqh)
-Fail	CSS.cqi function
-Fail	Reify value with cqi unit
-Fail	Set value with cqi unit (string)
-Fail	Set value with cqi unit (CSS.cqi)
-Fail	CSS.cqb function
-Fail	Reify value with cqb unit
-Fail	Set value with cqb unit (string)
-Fail	Set value with cqb unit (CSS.cqb)
-Fail	CSS.cqmin function
-Fail	Reify value with cqmin unit
-Fail	Set value with cqmin unit (string)
-Fail	Set value with cqmin unit (CSS.cqmin)
-Fail	CSS.cqmax function
-Fail	Reify value with cqmax unit
-Fail	Set value with cqmax unit (string)
-Fail	Set value with cqmax unit (CSS.cqmax)
+24 Pass
+Pass	CSS.cqw function
+Pass	Reify value with cqw unit
+Pass	Set value with cqw unit (string)
+Pass	Set value with cqw unit (CSS.cqw)
+Pass	CSS.cqh function
+Pass	Reify value with cqh unit
+Pass	Set value with cqh unit (string)
+Pass	Set value with cqh unit (CSS.cqh)
+Pass	CSS.cqi function
+Pass	Reify value with cqi unit
+Pass	Set value with cqi unit (string)
+Pass	Set value with cqi unit (CSS.cqi)
+Pass	CSS.cqb function
+Pass	Reify value with cqb unit
+Pass	Set value with cqb unit (string)
+Pass	Set value with cqb unit (CSS.cqb)
+Pass	CSS.cqmin function
+Pass	Reify value with cqmin unit
+Pass	Set value with cqmin unit (string)
+Pass	Set value with cqmin unit (CSS.cqmin)
+Pass	CSS.cqmax function
+Pass	Reify value with cqmax unit
+Pass	Set value with cqmax unit (string)
+Pass	Set value with cqmax unit (CSS.cqmax)

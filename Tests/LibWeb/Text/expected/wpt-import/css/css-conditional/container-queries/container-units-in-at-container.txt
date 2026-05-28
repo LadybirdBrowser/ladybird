@@ -2,22 +2,22 @@ Harness status: OK
 
 Found 18 tests
 
-18 Fail
-Fail	cqw unit resolves against appropriate container
-Fail	cqh unit resolves against appropriate container
-Fail	cqi unit resolves against appropriate container
-Fail	cqb unit resolves against appropriate container
-Fail	cqmin unit resolves against appropriate container
-Fail	cqmax unit resolves against appropriate container
-Fail	cqw unit resolves against appropriate container (vertical writing-mode on subject)
-Fail	cqh unit resolves against appropriate container (vertical writing-mode on subject)
-Fail	cqi unit resolves against appropriate container (vertical writing-mode on subject)
-Fail	cqb unit resolves against appropriate container (vertical writing-mode on subject)
-Fail	cqmin unit resolves against appropriate container (vertical writing-mode on subject)
-Fail	cqmax unit resolves against appropriate container (vertical writing-mode on subject)
-Fail	cqw unit resolves against appropriate container (vertical writing-mode on container)
-Fail	cqh unit resolves against appropriate container (vertical writing-mode on container)
-Fail	cqi unit resolves against appropriate container (vertical writing-mode on container)
-Fail	cqb unit resolves against appropriate container (vertical writing-mode on container)
-Fail	cqmin unit resolves against appropriate container (vertical writing-mode on container)
-Fail	cqmax unit resolves against appropriate container (vertical writing-mode on container)
+18 Pass
+Pass	cqw unit resolves against appropriate container
+Pass	cqh unit resolves against appropriate container
+Pass	cqi unit resolves against appropriate container
+Pass	cqb unit resolves against appropriate container
+Pass	cqmin unit resolves against appropriate container
+Pass	cqmax unit resolves against appropriate container
+Pass	cqw unit resolves against appropriate container (vertical writing-mode on subject)
+Pass	cqh unit resolves against appropriate container (vertical writing-mode on subject)
+Pass	cqi unit resolves against appropriate container (vertical writing-mode on subject)
+Pass	cqb unit resolves against appropriate container (vertical writing-mode on subject)
+Pass	cqmin unit resolves against appropriate container (vertical writing-mode on subject)
+Pass	cqmax unit resolves against appropriate container (vertical writing-mode on subject)
+Pass	cqw unit resolves against appropriate container (vertical writing-mode on container)
+Pass	cqh unit resolves against appropriate container (vertical writing-mode on container)
+Pass	cqi unit resolves against appropriate container (vertical writing-mode on container)
+Pass	cqb unit resolves against appropriate container (vertical writing-mode on container)
+Pass	cqmin unit resolves against appropriate container (vertical writing-mode on container)
+Pass	cqmax unit resolves against appropriate container (vertical writing-mode on container)

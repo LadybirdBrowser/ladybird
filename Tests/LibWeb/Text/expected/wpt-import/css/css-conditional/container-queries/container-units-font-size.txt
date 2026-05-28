@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	font-size cqw uses the nearest eligible container
+Pass	font-size cqi uses the subject writing mode
+Pass	font-size cqw responds when the nearest container size changes

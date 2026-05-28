@@ -1705,6 +1705,16 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
 
 ComputationContext const& StyleComputer::get_computation_context_for_property(PropertyID property_id, ComputedProperties const& style, Optional<DOM::AbstractElement> abstract_element) const
 {
+    auto subject_inline_axis_is_horizontal = [&]() {
+        if (!abstract_element.has_value())
+            return true;
+        if (auto computed_properties = abstract_element->computed_properties(); computed_properties)
+            return computed_properties->writing_mode() == WritingMode::HorizontalTb;
+        if (auto inheritance_parent = abstract_element->element_to_inherit_style_from(); inheritance_parent.has_value() && inheritance_parent->computed_properties())
+            return inheritance_parent->computed_properties()->writing_mode() == WritingMode::HorizontalTb;
+        return true;
+    }();
+
     switch (property_id) {
     // FIXME: While `color-scheme` doesn't actually require a computation context (since it only takes keyword values)
     //        we still try to generate one in `compute_property_values()` and since we need `color-scheme` to be
@@ -1730,11 +1740,14 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
     case PropertyID::TextRendering: {
         if (!m_cached_font_computation_context.has_value()) {
             auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
+            auto length_resolution_context = inheritance_parent.has_value()
+                ? Length::ResolutionContext::for_element(inheritance_parent.value())
+                : Length::ResolutionContext::for_document(m_document);
+            length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
+            length_resolution_context.subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr;
 
             m_cached_font_computation_context = {
-                .length_resolution_context = inheritance_parent.has_value()
-                    ? Length::ResolutionContext::for_element(inheritance_parent.value())
-                    : Length::ResolutionContext::for_document(m_document),
+                .length_resolution_context = length_resolution_context,
                 .abstract_element = abstract_element
             };
         }
@@ -1762,6 +1775,8 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
                     .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element()
                         ? style.font_metrics_depend_on_viewport_metrics()
                         : m_root_element_font_metrics_depend_on_viewport_metrics,
+                    .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
+                    .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
                 },
                 .abstract_element = abstract_element
             };
@@ -1781,6 +1796,8 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
                     .root_font_metrics = m_root_element_font_metrics,
                     .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
                     .root_font_metrics_depend_on_viewport_metrics = abstract_element.has_value() && abstract_element->element().is_html_html_element() ? style.font_metrics_depend_on_viewport_metrics() : m_root_element_font_metrics_depend_on_viewport_metrics,
+                    .subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal,
+                    .subject_element = abstract_element.has_value() ? &abstract_element->element() : nullptr,
                 },
                 .abstract_element = abstract_element,
                 .color_scheme = style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes())
@@ -2293,6 +2310,8 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
             .root_font_metrics = m_root_element_font_metrics,
             .font_metrics_depend_on_viewport_metrics = current_size_depends_on_viewport_metrics || inherited_font_metrics_depend_on_viewport_metrics,
             .root_font_metrics_depend_on_viewport_metrics = m_root_element_font_metrics_depend_on_viewport_metrics,
+            .subject_inline_axis_is_horizontal = ancestor.computed_properties()->writing_mode() == WritingMode::HorizontalTb,
+            .subject_element = &ancestor.element(),
         };
         resolution_context.set_did_resolve_viewport_relative_length(did_resolve_viewport_relative_length);
         current_size_in_px = font_size_value->as_length().length().to_px(resolution_context);

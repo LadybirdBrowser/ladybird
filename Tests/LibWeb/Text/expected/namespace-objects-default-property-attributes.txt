@@ -74,6 +74,36 @@ cm configurable: true
 cm enumerable: true
 cm value before: function cm() { [native code] }
 cm value after: replaced
+cqb writable: true
+cqb configurable: true
+cqb enumerable: true
+cqb value before: function cqb() { [native code] }
+cqb value after: replaced
+cqh writable: true
+cqh configurable: true
+cqh enumerable: true
+cqh value before: function cqh() { [native code] }
+cqh value after: replaced
+cqi writable: true
+cqi configurable: true
+cqi enumerable: true
+cqi value before: function cqi() { [native code] }
+cqi value after: replaced
+cqmax writable: true
+cqmax configurable: true
+cqmax enumerable: true
+cqmax value before: function cqmax() { [native code] }
+cqmax value after: replaced
+cqmin writable: true
+cqmin configurable: true
+cqmin enumerable: true
+cqmin value before: function cqmin() { [native code] }
+cqmin value after: replaced
+cqw writable: true
+cqw configurable: true
+cqw enumerable: true
+cqw value before: function cqw() { [native code] }
+cqw value after: replaced
 dvb writable: true
 dvb configurable: true
 dvb enumerable: true

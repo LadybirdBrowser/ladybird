@@ -36,6 +36,24 @@
     "cm": {
       "number-of-canonical-unit": 37.7952755905511811023622047244094488188976377952755905511811023622047244094
     },
+    "cqb": {
+      "relative-to": "container"
+    },
+    "cqh": {
+      "relative-to": "container"
+    },
+    "cqi": {
+      "relative-to": "container"
+    },
+    "cqmax": {
+      "relative-to": "container"
+    },
+    "cqmin": {
+      "relative-to": "container"
+    },
+    "cqw": {
+      "relative-to": "container"
+    },
     "dvb": {
       "relative-to": "viewport"
     },

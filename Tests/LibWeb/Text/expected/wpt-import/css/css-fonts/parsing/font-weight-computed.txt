@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 58 tests
 
-57 Pass
-1 Fail
+58 Pass
 Pass	Property font-weight value 'normal'
 Pass	Property font-weight value 'bold'
 Pass	Property font-weight value '1'
@@ -23,7 +22,7 @@ Pass	Property font-weight value 'calc(100)'
 Pass	Property font-weight value 'calc(0)'
 Pass	Property font-weight value 'calc(-100)'
 Pass	Property font-weight value 'calc(100 + 100)'
-Fail	Property font-weight value 'calc(100 + (sign(20cqw - 10px) * 5))'
+Pass	Property font-weight value 'calc(100 + (sign(20cqw - 10px) * 5))'
 Pass	1 made bolder computes to 400
 Pass	50 made bolder computes to 400
 Pass	100 made bolder computes to 400

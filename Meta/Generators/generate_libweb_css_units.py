@@ -70,6 +70,7 @@ double ratio_between_units({name_titlecase}Unit, {name_titlecase}Unit);
     out.write("""
 bool is_absolute(LengthUnit);
 bool is_font_relative(LengthUnit);
+bool is_container_relative(LengthUnit);
 bool is_viewport_relative(LengthUnit);
 inline bool is_relative(LengthUnit unit) { return !is_absolute(unit); }
 
@@ -225,6 +226,21 @@ bool is_font_relative(LengthUnit unit)
 """)
     for unit_name, unit in length_units.items():
         if unit.get("relative-to") != "font":
+            continue
+        out.write(f"    case LengthUnit::{title_casify(unit_name)}:\n")
+    out.write("""
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool is_container_relative(LengthUnit unit)
+{
+    switch (unit) {
+""")
+    for unit_name, unit in length_units.items():
+        if unit.get("relative-to") != "container":
             continue
         out.write(f"    case LengthUnit::{title_casify(unit_name)}:\n")
     out.write("""

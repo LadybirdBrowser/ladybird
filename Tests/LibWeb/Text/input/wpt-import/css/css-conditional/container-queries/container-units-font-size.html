@@ -1,0 +1,62 @@
+<!doctype html>
+<title>Container Relative Units: font-size resolution</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<style>
+  #outer_inline {
+    container-type: inline-size;
+    width: 500px;
+  }
+  #inner_inline {
+    container-type: inline-size;
+    width: 300px;
+  }
+  #outer_size {
+    container-type: size;
+    width: 500px;
+    height: 400px;
+  }
+  #inner_size {
+    container-type: size;
+    width: 300px;
+    height: 200px;
+  }
+  #child_cqw {
+    font-size: 10cqw;
+  }
+  #child_cqi {
+    font-size: 10cqi;
+    writing-mode: vertical-rl;
+  }
+</style>
+<div id="outer_inline">
+  <div id="inner_inline">
+    <div id="child_cqw">Test</div>
+  </div>
+</div>
+<div id="outer_size">
+  <div id="inner_size">
+    <div id="child_cqi">Test</div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test(() => {
+    assert_equals(getComputedStyle(child_cqw).fontSize, '30px');
+  }, 'font-size cqw uses the nearest eligible container');
+
+  test(() => {
+    assert_equals(getComputedStyle(child_cqi).fontSize, '20px');
+  }, 'font-size cqi uses the subject writing mode');
+
+  test((t) => {
+    t.add_cleanup(() => {
+      inner_inline.style.width = '';
+    });
+    inner_inline.style.width = '400px';
+    assert_equals(getComputedStyle(child_cqw).fontSize, '40px');
+  }, 'font-size cqw responds when the nearest container size changes');
+</script>

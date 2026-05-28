@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +9,8 @@
 
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Ptr.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/SerializationMode.h>
@@ -48,10 +50,10 @@ public:
 
     bool is_absolute() const { return CSS::is_absolute(m_unit); }
     bool is_font_relative() const { return CSS::is_font_relative(m_unit); }
+    bool is_container_relative() const { return CSS::is_container_relative(m_unit); }
     bool is_viewport_relative() const { return CSS::is_viewport_relative(m_unit); }
     bool is_relative() const { return CSS::is_relative(m_unit); }
-    // FIXME: Mark container query units as not computationally independent once we support them
-    bool is_computationally_independent() const { return !is_font_relative(); }
+    bool is_computationally_independent() const { return !is_font_relative() && !is_container_relative(); }
 
     double raw_value() const { return m_value; }
     LengthUnit unit() const { return m_unit; }
@@ -67,6 +69,8 @@ public:
         FontMetrics root_font_metrics;
         bool font_metrics_depend_on_viewport_metrics { false };
         bool root_font_metrics_depend_on_viewport_metrics { false };
+        bool subject_inline_axis_is_horizontal { true };
+        GC::Ptr<DOM::Element const> subject_element { nullptr };
 
         void set_did_resolve_viewport_relative_length(bool& did_resolve_viewport_relative_length) const
         {
@@ -114,8 +118,12 @@ public:
                 && font_metrics == other.font_metrics
                 && root_font_metrics == other.root_font_metrics
                 && font_metrics_depend_on_viewport_metrics == other.font_metrics_depend_on_viewport_metrics
-                && root_font_metrics_depend_on_viewport_metrics == other.root_font_metrics_depend_on_viewport_metrics;
+                && root_font_metrics_depend_on_viewport_metrics == other.root_font_metrics_depend_on_viewport_metrics
+                && subject_inline_axis_is_horizontal == other.subject_inline_axis_is_horizontal
+                && subject_element == other.subject_element;
         }
+
+        void visit_edges(GC::Cell::Visitor&) const;
 
         mutable bool* m_did_resolve_viewport_relative_length { nullptr };
     };
@@ -141,6 +149,8 @@ public:
             context.record_viewport_relative_length_resolution();
             return viewport_relative_length_to_px_without_rounding(context.viewport_rect);
         }
+        if (is_container_relative())
+            return container_relative_length_to_px_without_rounding(context);
 
         VERIFY_NOT_REACHED();
     }
@@ -153,6 +163,14 @@ public:
             return font_relative_length_to_px(font_metrics, root_font_metrics);
         if (is_viewport_relative())
             return viewport_relative_length_to_px(viewport_rect);
+        if (is_container_relative()) {
+            ResolutionContext context {
+                .viewport_rect = viewport_rect,
+                .font_metrics = font_metrics,
+                .root_font_metrics = root_font_metrics,
+            };
+            return CSSPixels::nearest_value_for(container_relative_length_to_px_without_rounding(context));
+        }
 
         VERIFY_NOT_REACHED();
     }
@@ -179,6 +197,7 @@ public:
     double font_relative_length_to_px_without_rounding(FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
     CSSPixels viewport_relative_length_to_px(CSSPixelRect const& viewport_rect) const;
     double viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const;
+    double container_relative_length_to_px_without_rounding(ResolutionContext const&) const;
 
     // Returns empty optional if it's already absolute.
     Optional<Length> absolutize(ResolutionContext const&) const;

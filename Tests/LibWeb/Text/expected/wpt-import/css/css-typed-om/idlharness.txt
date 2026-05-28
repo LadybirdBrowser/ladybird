@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-439 Pass
-106 Fail
+445 Pass
+100 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -520,12 +520,12 @@ Pass	CSS namespace: operation dvi(double)
 Pass	CSS namespace: operation dvb(double)
 Pass	CSS namespace: operation dvmin(double)
 Pass	CSS namespace: operation dvmax(double)
-Fail	CSS namespace: operation cqw(double)
-Fail	CSS namespace: operation cqh(double)
-Fail	CSS namespace: operation cqi(double)
-Fail	CSS namespace: operation cqb(double)
-Fail	CSS namespace: operation cqmin(double)
-Fail	CSS namespace: operation cqmax(double)
+Pass	CSS namespace: operation cqw(double)
+Pass	CSS namespace: operation cqh(double)
+Pass	CSS namespace: operation cqi(double)
+Pass	CSS namespace: operation cqb(double)
+Pass	CSS namespace: operation cqmin(double)
+Pass	CSS namespace: operation cqmax(double)
 Pass	CSS namespace: operation cm(double)
 Pass	CSS namespace: operation mm(double)
 Pass	CSS namespace: operation Q(double)
