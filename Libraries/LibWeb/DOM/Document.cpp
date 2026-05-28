@@ -4983,10 +4983,9 @@ void Document::check_favicon_after_loading_link_resource()
         return;
 
     auto favicon_link_elements = HTMLCollection::create(*head_element, HTMLCollection::Scope::Descendants, [](Element const& element) {
-        if (!is<HTML::HTMLLinkElement>(element))
-            return false;
-
-        return static_cast<HTML::HTMLLinkElement const&>(element).has_loaded_icon();
+        if (auto const* link_element = as_if<HTML::HTMLLinkElement>(element))
+            return link_element->has_loaded_icon();
+        return false;
     });
 
     if (favicon_link_elements->length() == 0) {
@@ -4994,31 +4993,29 @@ void Document::check_favicon_after_loading_link_resource()
         return;
     }
 
-    // 4.6.7.8 Link type "icon"
-    //
-    // If there are multiple equally appropriate icons, user agents must use the last one declared
-    // in tree order at the time that the user agent collected the list of icons.
-    //
-    // If multiple icons are provided, the user agent must select the most appropriate icon
-    // according to the type, media, and sizes attributes.
-    //
-    // FIXME: There is no selective behavior yet for favicons.
+    // If multiple icons are provided, the user agent must select the most appropriate icon according to the type,
+    // media, and sizes attributes. If there are multiple equally appropriate icons, user agents must use the last one
+    // declared in tree order at the time that the user agent collected the list of icons.
+    RefPtr<Gfx::Bitmap const> largest_icon;
+
     for (auto i = favicon_link_elements->length(); i-- > 0;) {
-        auto favicon_element = favicon_link_elements->item(i);
-
-        if (favicon_element == m_active_element.ptr())
+        auto* link_element = static_cast<HTML::HTMLLinkElement*>(favicon_link_elements->item(i));
+        if (link_element == m_active_element.ptr())
             return;
 
-        // If the user agent tries to use an icon but that icon is determined, upon closer examination,
-        // to in fact be inappropriate (...), then the user agent must try the next-most-appropriate icon
-        // as determined by the attributes.
-        if (static_cast<HTML::HTMLLinkElement*>(favicon_element)->load_favicon_and_use_if_window_is_active()) {
-            m_active_favicon = favicon_element;
-            return;
+        // If the user agent tries to use an icon but that icon is determined, upon closer examination, to in fact be
+        // inappropriate (e.g. because it uses an unsupported format), then the user agent must try the
+        // next-most-appropriate icon as determined by the attributes.
+        if (auto icon = link_element->load_favicon_if_window_is_active()) {
+            if (!largest_icon || icon->size().area() > largest_icon->size().area()) {
+                m_active_favicon = link_element;
+                largest_icon = move(icon);
+            }
         }
     }
 
-    dbgln_if(SPAM_DEBUG, "No favicon found to be used");
+    if (!largest_icon)
+        dbgln_if(SPAM_DEBUG, "No favicon found to be used");
 }
 
 void Document::set_window(HTML::Window& window)

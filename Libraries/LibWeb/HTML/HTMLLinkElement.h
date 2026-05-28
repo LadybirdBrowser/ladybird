@@ -39,7 +39,7 @@ public:
 
     bool has_loaded_icon() const;
     bool has_icon_keyword() const;
-    bool load_favicon_and_use_if_window_is_active();
+    RefPtr<Gfx::Bitmap const> load_favicon_if_window_is_active();
 
     static void load_fallback_favicon_if_needed(GC::Ref<DOM::Document>);
 
