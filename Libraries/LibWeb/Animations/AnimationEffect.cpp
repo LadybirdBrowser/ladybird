@@ -820,11 +820,7 @@ static bool animated_property_changes_are_visual_context_only(HashMap<CSS::Prope
             CSS::PropertyID::Rotate,
             CSS::PropertyID::Scale,
             CSS::PropertyID::Translate,
-            CSS::PropertyID::Perspective,
-            CSS::PropertyID::TransformOrigin,
-            CSS::PropertyID::PerspectiveOrigin,
-            CSS::PropertyID::Opacity,
-            CSS::PropertyID::Filter);
+            CSS::PropertyID::Opacity);
     };
 
     bool saw_changed_property = false;
