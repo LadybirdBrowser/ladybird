@@ -143,6 +143,7 @@ private:
         URL::URL url);
 
     void transition_to_state(State);
+    void transition_to_network_lookup();
     void process();
 
     void handle_initial_state();

@@ -37,9 +37,9 @@ Vector<ProxyData> get_proxies_from_mac_system_configuration(URL::URL const& url)
     auto check_proxy = [&](CFStringRef enable_key, CFStringRef host_key, CFStringRef port_key, ProxyData::Type type) {
         CFNumberRef enabled = (CFNumberRef)CFDictionaryGetValue(proxies, enable_key);
         if (enabled) {
-            int val = 0;
-            CFNumberGetValue(enabled, kCFNumberIntType, &val);
-            if (val) {
+            int enabled_val = 0;
+            CFNumberGetValue(enabled, kCFNumberIntType, &enabled_val);
+            if (enabled_val) {
                 CFStringRef host = (CFStringRef)CFDictionaryGetValue(proxies, host_key);
                 CFNumberRef port = (CFNumberRef)CFDictionaryGetValue(proxies, port_key);
                 if (host && port) {
@@ -58,7 +58,7 @@ Vector<ProxyData> get_proxies_from_mac_system_configuration(URL::URL const& url)
     if (url.scheme() == "http") {
         check_proxy(kSCPropNetProxiesHTTPEnable, kSCPropNetProxiesHTTPProxy, kSCPropNetProxiesHTTPPort, ProxyData::Type::HTTP);
     } else if (url.scheme() == "https") {
-        check_proxy(kSCPropNetProxiesHTTPSEnable, kSCPropNetProxiesHTTPSProxy, kSCPropNetProxiesHTTPSPort, ProxyData::Type::HTTPS);
+        check_proxy(kSCPropNetProxiesHTTPSEnable, kSCPropNetProxiesHTTPSProxy, kSCPropNetProxiesHTTPSPort, ProxyData::Type::HTTP);
     }
 
     check_proxy(kSCPropNetProxiesSOCKSEnable, kSCPropNetProxiesSOCKSProxy, kSCPropNetProxiesSOCKSPort, ProxyData::Type::SOCKS5);

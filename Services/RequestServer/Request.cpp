@@ -386,7 +386,7 @@ NonnullOwnPtr<Request> Request::connect(
 {
     auto request = adopt_own(*new Request { request_id, client, curl_multi, resolver, move(url) });
     request->m_connect_cache_level = cache_level;
-    request->transition_to_state(State::DNSLookup);
+    request->transition_to_network_lookup();
     return request;
 }
 
@@ -583,6 +583,25 @@ void Request::process()
     }
 }
 
+void Request::transition_to_network_lookup()
+{
+    if (Proxy::use_system_proxy()) {
+        auto proxies = Proxy::get_proxies_for_url(m_url);
+        if (!proxies.is_empty()) {
+            m_proxy_data = proxies.first(); // FIXME: Support multiple proxies (e.g. fallback proxies).
+            if (!m_proxy_data.is_direct()) {
+                if (m_type == RequestType::Connect)
+                    transition_to_state(State::Connect);
+                else
+                    transition_to_state(State::RetrieveCookie);
+                return;
+            }
+        }
+    }
+
+    transition_to_state(State::DNSLookup);
+}
+
 void Request::handle_initial_state()
 {
     // Check for resource substitution before anything else.
@@ -610,7 +629,7 @@ void Request::handle_initial_state()
                             m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials);
 
                         if (is_revalidation_request())
-                            transition_to_state(State::DNSLookup);
+                            transition_to_network_lookup();
                         else
                             transition_to_state(State::ReadCache);
                     } else if (m_type == RequestType::BackgroundRevalidation) {
@@ -651,19 +670,7 @@ void Request::handle_initial_state()
             return;
     }
 
-    if (Proxy::use_system_proxy()) {
-        auto proxies = Proxy::get_proxies_for_url(m_url);
-        if (!proxies.is_empty()) {
-            m_proxy_data = proxies.first(); // FIXME: Support multiple proxies (e.g. fallback proxies).
-            if (!m_proxy_data.is_direct()) {
-                dbgln("Using system proxy {}:{} for {}", m_proxy_data.host, m_proxy_data.port, m_url.serialize());
-                transition_to_state(State::RetrieveCookie);
-                return;
-            }
-        }
-    }
-
-    transition_to_state(State::DNSLookup);
+    transition_to_network_lookup();
 }
 
 void Request::handle_read_cache_state()
@@ -867,14 +874,38 @@ void Request::handle_connect_state()
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
     set_option(CURLOPT_CONNECT_ONLY, 1L);
 
-    // Pre-populate the multi's hostcache so libcurl skips its threaded resolver entirely.
-    VERIFY(m_dns_result);
-    auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
-    if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
-        set_option(CURLOPT_RESOLVE, resolve_list);
-        m_curl_string_lists.append(resolve_list);
-    } else {
+    switch (m_proxy_data.type) {
+    case Proxy::ProxyData::Type::Direct:
+        break;
+    case Proxy::ProxyData::Type::HTTP:
+        set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+        set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
+        set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        break;
+    case Proxy::ProxyData::Type::HTTPS:
+        set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+        set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
+        set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        break;
+    case Proxy::ProxyData::Type::SOCKS5:
+        set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
+        set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
+        set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        break;
+    default:
         VERIFY_NOT_REACHED();
+    }
+
+    if (m_proxy_data.is_direct()) {
+        // Pre-populate the multi's hostcache so libcurl skips its threaded resolver entirely.
+        VERIFY(m_dns_result);
+        auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            m_curl_string_lists.append(resolve_list);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
     }
 
     mark_lifecycle_event(this, &WireStats::curl_added_at);

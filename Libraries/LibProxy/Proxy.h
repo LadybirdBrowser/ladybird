@@ -49,6 +49,21 @@ struct ProxyData {
     bool operator==(ProxyData const&) const = default;
 
     static ErrorOr<ProxyData> from_url(URL::URL const&);
+
+    ALWAYS_INLINE String print_type() const
+    {
+        switch (type) {
+        case Type::Direct:
+            return "direct"_string;
+        case Type::SOCKS5:
+            return "socks5"_string;
+        case Type::HTTP:
+            return "http"_string;
+        case Type::HTTPS:
+            return "https"_string;
+        }
+        VERIFY_NOT_REACHED();
+    }
 };
 
 Vector<ProxyData> get_proxies_for_url(URL::URL const&);
@@ -58,5 +73,6 @@ Vector<ProxyData> get_proxies_from_mac_system_configuration(URL::URL const&);
 #endif
 
 // FIXME: Add more platform-specific proxy retrieval functions here (e.g. Android, BSD, Windows).
+// FIXME: Add support to Proxy auto-configuration (PAC) js script here.
 
 }

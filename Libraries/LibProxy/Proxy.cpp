@@ -16,13 +16,11 @@ static Atomic<ProxyMode> g_proxy_mode { ProxyMode::System };
 
 void set_proxy_mode(ProxyMode const& new_mode)
 {
-    dbgln("Setting proxy mode to {}", print_proxy_mode(new_mode));
     g_proxy_mode.store(new_mode);
 }
 
 ProxyMode proxy_mode()
 {
-    dbgln("Getting proxy mode: {}", print_proxy_mode(g_proxy_mode.load()));
     return g_proxy_mode.load();
 }
 
