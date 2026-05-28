@@ -39,6 +39,8 @@ WalkerActor::WalkerActor(DevToolsServer& devtools, String name, WeakPtr<TabActor
 
 WalkerActor::~WalkerActor()
 {
+    stop_node_picker();
+
     if (auto tab = m_tab.strong_ref())
         devtools().delegate().stop_listening_for_dom_mutations(tab->description());
 }
@@ -395,6 +397,33 @@ void WalkerActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "pick"sv) {
+        if (auto tab = m_tab.strong_ref()) {
+            m_is_picking_node = true;
+            m_picker_hovered_node_id.clear();
+            devtools().delegate().start_node_picker(tab->description(), weak_callback(*this, [](auto& self, DevToolsDelegate::NodePickerEvent event) {
+                self.handle_node_picker_event(event);
+            }));
+        }
+
+        send_response(message, move(response));
+        return;
+    }
+
+    if (message.type == "cancelPick"sv) {
+        stop_node_picker();
+        send_response(message, move(response));
+        return;
+    }
+
+    if (message.type == "clearPicker"sv) {
+        if (auto tab = m_tab.strong_ref())
+            devtools().delegate().clear_node_picker(tab->description());
+        m_picker_hovered_node_id.clear();
+        send_response(message, move(response));
+        return;
+    }
+
     if (message.type == "querySelector"sv) {
         auto node = get_required_parameter<String>(message, "node"sv);
         if (!node.has_value())
@@ -659,6 +688,120 @@ Optional<Node> WalkerActor::dom_node(StringView actor)
 Optional<String> WalkerActor::node_actor_name_for(Web::UniqueNodeID node_id) const
 {
     return m_dom_node_id_to_actor_map.get(node_id).copy();
+}
+
+Optional<JsonObject const&> WalkerActor::element_node_for_picker_node(JsonObject const& node) const
+{
+    // To match Firefox, don't make text nodes pickable. Instead, find their nearest ancestor element node.
+    auto const* candidate = &node;
+    while (candidate) {
+        if (candidate->get_string("type"sv).value_or({}) == "element"sv)
+            return *candidate;
+
+        auto parent = m_dom_node_to_parent_map.get(candidate);
+        if (!parent.has_value())
+            break;
+        candidate = parent.value();
+    }
+
+    return {};
+}
+
+JsonObject WalkerActor::serialize_disconnected_node(JsonObject const& node) const
+{
+    JsonArray new_parents;
+    for (auto parent = m_dom_node_to_parent_map.get(&node); parent.has_value() && parent.value() && parent.value() != &m_dom_tree; parent = m_dom_node_to_parent_map.get(parent.value()))
+        new_parents.must_append(serialize_node(*parent.value()));
+
+    JsonObject disconnected_node;
+    disconnected_node.set("node"sv, serialize_node(node));
+    disconnected_node.set("newParents"sv, move(new_parents));
+    return disconnected_node;
+}
+
+void WalkerActor::handle_node_picker_event(DevToolsDelegate::NodePickerEvent event)
+{
+    if (!m_is_picking_node && event.type != DevToolsDelegate::NodePickerEvent::Type::Canceled)
+        return;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    if (event.type == DevToolsDelegate::NodePickerEvent::Type::Canceled) {
+        stop_node_picker();
+
+        JsonObject packet;
+        packet.set("type"sv, "pickerNodeCanceled"sv);
+        send_message(move(packet));
+        return;
+    }
+
+    if (!event.node_id.has_value() || *event.node_id == 0) {
+        if (event.type == DevToolsDelegate::NodePickerEvent::Type::Hovered)
+            devtools().delegate().clear_node_picker(tab->description());
+        return;
+    }
+
+    auto actor_name = node_actor_name_for(*event.node_id);
+    if (!actor_name.has_value())
+        return;
+
+    auto dom_node = this->dom_node(actor_name.value());
+    if (!dom_node.has_value())
+        return;
+
+    auto picker_node = element_node_for_picker_node(dom_node->node);
+    if (!picker_node.has_value())
+        return;
+
+    auto picker_node_id = picker_node->get_integer<Web::UniqueNodeID::Type>("id"sv);
+    if (!picker_node_id.has_value())
+        return;
+    Web::UniqueNodeID picked_node_id { *picker_node_id };
+
+    if (event.type == DevToolsDelegate::NodePickerEvent::Type::Hovered) {
+        if (m_picker_hovered_node_id == picked_node_id)
+            return;
+
+        m_picker_hovered_node_id = picked_node_id;
+        devtools().delegate().highlight_dom_node(tab->description(), picked_node_id, {});
+    }
+
+    JsonObject packet;
+    switch (event.type) {
+    case DevToolsDelegate::NodePickerEvent::Type::Hovered:
+        packet.set("type"sv, "pickerNodeHovered"sv);
+        break;
+    case DevToolsDelegate::NodePickerEvent::Type::Picked:
+        packet.set("type"sv, "pickerNodePicked"sv);
+        break;
+    case DevToolsDelegate::NodePickerEvent::Type::Previewed:
+        packet.set("type"sv, "pickerNodePreviewed"sv);
+        break;
+    case DevToolsDelegate::NodePickerEvent::Type::Canceled:
+        VERIFY_NOT_REACHED();
+    }
+
+    packet.set("node"sv, serialize_disconnected_node(*picker_node));
+    send_message(move(packet));
+
+    if (event.type == DevToolsDelegate::NodePickerEvent::Type::Picked)
+        stop_node_picker();
+}
+
+void WalkerActor::stop_node_picker()
+{
+    if (!m_is_picking_node)
+        return;
+
+    if (auto tab = m_tab.strong_ref()) {
+        devtools().delegate().stop_node_picker(tab->description());
+        devtools().delegate().clear_node_picker(tab->description());
+    }
+
+    m_is_picking_node = false;
+    m_picker_hovered_node_id.clear();
 }
 
 Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const& node, StringView selector)
