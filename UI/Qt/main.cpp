@@ -11,6 +11,9 @@
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
+#if defined(LADYBIRD_QT_HAVE_POSITIONING)
+#    include <UI/Qt/GeolocationProviderQt.h>
+#endif
 #include <UI/Qt/Settings.h>
 
 #include <QCoreApplication>
@@ -50,6 +53,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // The web content view is a native QRhiWidget child. Keep it from forcing
     // every sibling in the tab UI to become native as well.
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+#endif
+
+#if defined(LADYBIRD_QT_HAVE_POSITIONING)
+    Ladybird::install_qt_geolocation_provider();
 #endif
 
     auto app = TRY(Ladybird::Application::create(arguments));
