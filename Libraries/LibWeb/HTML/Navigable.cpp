@@ -3241,25 +3241,32 @@ bool Navigable::is_focused() const
 
 static String visible_text_in_range(DOM::Range const& range)
 {
-    // NOTE: This is an adaption of Range stringification, but we skip over DOM nodes that don't have a corresponding layout node.
+    // NOTE: This is an adaption of Range stringification — but we skip over DOM nodes that don't have a corresponding
+    //       layout node, and over nodes whose used value of user-select is 'none'. The latter implements
+    //       https://drafts.csswg.org/css-ui/#valdef-user-select-none — applied at the clipboard-extraction boundary.
     StringBuilder builder;
 
+    auto is_user_select_none = [](DOM::Node const& node) {
+        auto const* layout = node.layout_node();
+        return layout && layout->user_select_used_value() == CSS::UserSelect::None;
+    };
+
     if (range.start_container() == range.end_container() && is<DOM::Text>(*range.start_container())) {
-        if (!range.start_container()->layout_node())
+        if (!range.start_container()->layout_node() || is_user_select_none(*range.start_container()))
             return String {};
         return static_cast<DOM::Text const&>(*range.start_container()).data().substring_view(range.start_offset(), range.end_offset() - range.start_offset()).to_utf8_but_should_be_ported_to_utf16();
     }
 
-    if (is<DOM::Text>(*range.start_container()) && range.start_container()->layout_node())
+    if (is<DOM::Text>(*range.start_container()) && range.start_container()->layout_node() && !is_user_select_none(*range.start_container()))
         builder.append(static_cast<DOM::Text const&>(*range.start_container()).data().substring_view(range.start_offset()));
 
     range.for_each_contained([&](GC::Ref<DOM::Node> node) {
-        if (is<DOM::Text>(*node) && node->layout_node())
+        if (is<DOM::Text>(*node) && node->layout_node() && !is_user_select_none(*node))
             builder.append(static_cast<DOM::Text const&>(*node).data());
         return IterationDecision::Continue;
     });
 
-    if (is<DOM::Text>(*range.end_container()) && range.end_container()->layout_node())
+    if (is<DOM::Text>(*range.end_container()) && range.end_container()->layout_node() && !is_user_select_none(*range.end_container()))
         builder.append(static_cast<DOM::Text const&>(*range.end_container()).data().substring_view(0, range.end_offset()));
 
     return MUST(builder.to_string());

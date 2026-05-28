@@ -45,6 +45,10 @@ interface Internals {
 
     DOMString currentCursor();
 
+    // Returns the text that would be placed on the clipboard if the user copied the current selection now.
+    // Excludes nodes whose used value of user-select is 'none' — mirroring what browsers actually copy.
+    DOMString selectedTextForClipboard();
+
     boolean dispatchUserActivatedEvent(EventTarget target, Event event);
     undefined spoofCurrentURL(USVString url);
 
