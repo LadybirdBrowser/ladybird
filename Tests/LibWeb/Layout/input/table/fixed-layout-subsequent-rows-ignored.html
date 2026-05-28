@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- This test ensures that in fixed table layouts, only cells in the first row are considered for column measurement.
+     Any width specified on cells in subsequent rows must be ignored for column layout, so the columns remain equal width (50px each). -->
+<style>
+table {
+    table-layout: fixed;
+    width: 100px;
+    border-collapse: collapse;
+}
+td {
+    padding: 0;
+    border: none;
+}
+.row2-cell {
+    width: 80px;
+}
+div {
+    height: 10px;
+    background: blue;
+}
+</style>
+<table>
+    <tr>
+        <td><div></div></td>
+        <td><div></div></td>
+    </tr>
+    <tr>
+        <td class="row2-cell"><div></div></td>
+        <td><div></div></td>
+    </tr>
+</table>

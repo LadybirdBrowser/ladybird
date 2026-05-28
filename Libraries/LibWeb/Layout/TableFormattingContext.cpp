@@ -130,7 +130,9 @@ void TableFormattingContext::compute_constrainedness()
 
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box->computed_values();
-        if (computed_values.width().is_length()) {
+        // https://drafts.csswg.org/css-tables-3/#computing-column-measures
+        // For the purpose of measuring a column when laid out in fixed mode, only cells which originate in the first row of the table (after reordering the header and footer) will be considered, if any.
+        if (computed_values.width().is_length() && (!use_fixed_mode_layout() || cell.row_index == 0)) {
             m_columns[cell.column_index].is_constrained = true;
         }
 
@@ -175,10 +177,27 @@ void TableFormattingContext::compute_cell_measures()
         // The outer min-content width of a table-cell is max(min-width, min-content width) adjusted by the cell intrinsic offsets.
         auto min_width = computed_values.min_width().to_px(cell.box, containing_block_width);
         auto cell_intrinsic_width_offsets = padding_left + padding_right + border_left + border_right;
-        // For fixed mode, according to https://www.w3.org/TR/css-tables-3/#computing-column-measures:
+        // For fixed mode, according to https://drafts.csswg.org/css-tables-3/#computing-column-measures:
         // The min-content and max-content width of cells is considered zero unless they are directly specified as a length-percentage,
         // in which case they are resolved based on the table width (if it is definite, otherwise use 0).
         auto width_is_specified_length_or_percentage = computed_values.width().is_length() || computed_values.width().is_percentage();
+        if (use_fixed_mode_layout()) {
+            if (computed_values.width().is_percentage()) {
+                CSSPixels reference_width = 0;
+                auto table_width = table_box().computed_values().width();
+                if (table_width.is_length() || table_width.is_percentage())
+                    reference_width = table_width.to_px(table_box(), containing_block_width);
+                min_content_width = max_content_width = computed_values.width().to_px(cell.box, reference_width);
+            } else if (computed_values.width().is_length()) {
+                min_content_width = max_content_width = computed_values.width().to_px(cell.box, containing_block_width);
+            } else {
+                min_content_width = max_content_width = 0;
+            }
+
+            if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox)
+                min_content_width = max_content_width = max(CSSPixels(0), min_content_width - cell_intrinsic_width_offsets);
+        }
+
         if (!use_fixed_mode_layout() || width_is_specified_length_or_percentage) {
             cell.outer_min_width = max(min_width, min_content_width) + cell_intrinsic_width_offsets;
         }
@@ -277,8 +296,11 @@ void TableFormattingContext::initialize_table_measures<TableFormattingContext::C
     // Implement the following parts of the specification, accounting for fixed layout mode:
     // https://www.w3.org/TR/css-tables-3/#min-content-width-of-a-column-based-on-cells-of-span-up-to-1
     // https://www.w3.org/TR/css-tables-3/#max-content-width-of-a-column-based-on-cells-of-span-up-to-1
+    bool const fixed = use_fixed_mode_layout();
     for (auto& cell : m_cells) {
-        if (cell.column_span == 1 && (cell.row_index == 0 || !use_fixed_mode_layout())) {
+        // https://drafts.csswg.org/css-tables-3/#computing-column-measures
+        // For the purpose of measuring a column when laid out in fixed mode, only cells which originate in the first row of the table (after reordering the header and footer) will be considered, if any.
+        if (cell.column_span == 1 && (cell.row_index == 0 || !fixed)) {
             m_columns[cell.column_index].min_size = max(m_columns[cell.column_index].min_size, cell.outer_min_width);
             m_columns[cell.column_index].max_size = max(m_columns[cell.column_index].max_size, cell.outer_max_width);
         }
@@ -301,9 +323,16 @@ void TableFormattingContext::compute_intrinsic_percentage(size_t max_cell_span)
         intrinsic_percentage_contribution_by_index[rc_index] = rows_or_columns[rc_index].intrinsic_percentage;
     }
 
+    [[maybe_unused]] bool const fixed_layout = use_fixed_mode_layout();
     for (size_t current_span = 2; current_span <= max_cell_span; current_span++) {
         // https://www.w3.org/TR/css-tables-3/#intrinsic-percentage-width-of-a-column-based-on-cells-of-span-up-to-n-n--1
         for (auto& cell : m_cells) {
+            if constexpr (IsSame<RowOrColumn, Column>) {
+                // https://drafts.csswg.org/css-tables-3/#computing-column-measures
+                // For the purpose of measuring a column when laid out in fixed mode, only cells which originate in the first row of the table (after reordering the header and footer) will be considered, if any.
+                if (fixed_layout && cell.row_index != 0)
+                    continue;
+            }
             auto cell_span_value = cell_span<RowOrColumn>(cell);
             if (cell_span_value != current_span) {
                 continue;
@@ -372,8 +401,15 @@ void TableFormattingContext::compute_table_measures()
 
     auto& rows_or_columns = table_rows_or_columns<RowOrColumn>();
 
+    [[maybe_unused]] bool const fixed_layout = use_fixed_mode_layout();
     size_t max_cell_span = 1;
     for (auto& cell : m_cells) {
+        if constexpr (IsSame<RowOrColumn, Column>) {
+            // https://drafts.csswg.org/css-tables-3/#computing-column-measures
+            // For the purpose of measuring a column when laid out in fixed mode, only cells which originate in the first row of the table (after reordering the header and footer) will be considered, if any.
+            if (fixed_layout && cell.row_index != 0)
+                continue;
+        }
         max_cell_span = max(max_cell_span, cell_span<RowOrColumn>(cell));
     }
 
@@ -389,6 +425,12 @@ void TableFormattingContext::compute_table_measures()
         Vector<Vector<CSSPixels>> cell_max_contributions_by_rc_index;
         cell_max_contributions_by_rc_index.resize(rows_or_columns.size());
         for (auto& cell : m_cells) {
+            if constexpr (IsSame<RowOrColumn, Column>) {
+                // https://drafts.csswg.org/css-tables-3/#computing-column-measures
+                // For the purpose of measuring a column when laid out in fixed mode, only cells which originate in the first row of the table (after reordering the header and footer) will be considered, if any.
+                if (fixed_layout && cell.row_index != 0)
+                    continue;
+            }
             auto cell_span_value = cell_span<RowOrColumn>(cell);
             if (cell_span_value == current_span) {
                 // Define the baseline max-content size as the sum of the max-content sizes based on cells of span up to N-1 of all columns that the cell spans.
@@ -598,17 +640,21 @@ void TableFormattingContext::compute_table_width()
         // https://www.w3.org/TR/CSS22/tables.html#auto-table-layout
         // A percentage value for a column width is relative to the table width. If the table has 'width: auto',
         // a percentage represents a constraint on the column's width, which a UA should try to satisfy.
-        for (auto& cell : m_cells) {
-            auto const& cell_width = cell.box->computed_values().width();
-            if (cell_width.is_percentage()) {
-                CSSPixels adjusted_used_width = undistributable_space;
-                if (cell_width.percentage().value() != 0)
-                    adjusted_used_width += CSSPixels::nearest_value_for(ceil(100 / cell_width.percentage().value() * cell.outer_max_width));
+        if (!use_fixed_mode_layout()) {
+            for (auto& cell : m_cells) {
+                auto const& cell_width = cell.box->computed_values().width();
+                if (cell_width.is_percentage()) {
+                    auto const pct = cell_width.percentage().value();
+                    if (pct == 0)
+                        continue;
 
-                if (width_of_table_containing_block.is_definite())
-                    used_width = min(max(used_width, adjusted_used_width), width_of_table_containing_block.to_px_or_zero());
-                else
+                    CSSPixels adjusted_used_width = undistributable_space
+                        + CSSPixels::nearest_value_for(ceil(100 / pct * cell.outer_max_width));
+
                     used_width = max(used_width, adjusted_used_width);
+                    if (width_of_table_containing_block.is_definite())
+                        used_width = min(used_width, width_of_table_containing_block.to_px_or_zero());
+                }
             }
         }
     } else if (computed_values.width().is_max_content()) {
@@ -1955,7 +2001,14 @@ void TableFormattingContext::initialize_intrinsic_percentages_from_cells()
 {
     auto& rows_or_columns = table_rows_or_columns<RowOrColumn>();
 
+    [[maybe_unused]] bool const fixed_layout = use_fixed_mode_layout();
     for (auto& cell : m_cells) {
+        if constexpr (IsSame<RowOrColumn, Column>) {
+            // https://drafts.csswg.org/css-tables-3/#computing-column-measures
+            // For the purpose of measuring a column when laid out in fixed mode, only cells which originate in the first row of the table (after reordering the header and footer) will be considered, if any.
+            if (fixed_layout && cell.row_index != 0)
+                continue;
+        }
         auto cell_span_value = cell_span<RowOrColumn>(cell);
         auto cell_start_rc_index = cell_index<RowOrColumn>(cell);
         auto cell_end_rc_index = cell_start_rc_index + cell_span_value;

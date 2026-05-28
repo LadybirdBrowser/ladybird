@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- This test ensures that in fixed table layouts, explicit cell widths take precedence over intrinsic content size. 
+     Previously, the table would incorrectly squash to 10px instead of honoring the 50px cell width. -->
+<style>
+table {
+    table-layout: fixed;
+    width: 0;
+    border-collapse: collapse;
+}
+td {
+    width: 50px;
+    padding: 0;
+    border: none;
+}
+div {
+    width: 10px;
+    height: 10px;
+    background: red;
+}
+</style>
+<table>
+    <tr>
+        <td>
+            <div></div>
+        </td>
+    </tr>
+</table>
