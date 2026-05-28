@@ -1797,6 +1797,12 @@ Vector<DevTools::CSSProperty> Application::css_property_list() const
     return property_list;
 }
 
+void Application::reload_tab(DevTools::TabDescription const& description, bool) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->reload();
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
