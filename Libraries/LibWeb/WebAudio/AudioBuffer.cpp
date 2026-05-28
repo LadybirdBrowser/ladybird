@@ -87,7 +87,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> AudioBuffer::get_channel_data(Web
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-copyfromchannel
-WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Root<JS::Float32Array> const& destination, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset) const
+WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Ref<JS::Float32Array> destination, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset) const
 {
     // The copyFromChannel() method copies the samples from the specified channel of the AudioBuffer to the destination array.
     //
@@ -113,7 +113,7 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Root<JS::Float32Arr
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-copytochannel
-WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Root<JS::Float32Array> const& source, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset)
+WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Ref<JS::Float32Array> source, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset)
 {
     // The copyToChannel() method copies the samples to the specified channel of the AudioBuffer from the source array.
     //

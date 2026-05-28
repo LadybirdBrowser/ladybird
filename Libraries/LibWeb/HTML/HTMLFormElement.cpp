@@ -754,7 +754,7 @@ static ErrorOr<Vector<DOMURL::QueryParam>> convert_to_list_of_name_value_pairs(G
         // 2. If entry's value is a File object, then let value be entry's value's name. Otherwise, let value be entry's value.
         String value;
         entry.value.visit(
-            [&value](GC::Root<FileAPI::File> const& file) {
+            [&value](GC::Ref<FileAPI::File> file) {
                 value = file->name();
             },
             [&value](String const& string) {

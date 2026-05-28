@@ -84,13 +84,13 @@ WebIDL::ExceptionOr<void> ElementInternals::set_form_value(ElementInternalsFormV
     // 6. Otherwise, set element's state to state.
     else {
         auto state_value = state.value().visit(
-            [](GC::Root<FileAPI::File> const& file) -> FormAssociatedElement::FACESubmissionValue {
+            [](GC::Ref<FileAPI::File> file) -> FormAssociatedElement::FACESubmissionValue {
                 return GC::Ref { *file };
             },
             [](String const& string) -> FormAssociatedElement::FACESubmissionValue {
                 return string;
             },
-            [](GC::Root<XHR::FormData> const& form_data) -> FormAssociatedElement::FACESubmissionValue {
+            [](GC::Ref<XHR::FormData> form_data) -> FormAssociatedElement::FACESubmissionValue {
                 return form_data->entry_list();
             },
             [](Empty const& empty) -> FormAssociatedElement::FACESubmissionValue {

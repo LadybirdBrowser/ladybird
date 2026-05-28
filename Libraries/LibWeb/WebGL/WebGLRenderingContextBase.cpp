@@ -266,25 +266,25 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
     //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
     // FIXME: If source is null then an INVALID_VALUE error is generated.
     auto frame = source.visit(
-        [](GC::Root<HTML::HTMLImageElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
+        [](GC::Ref<HTML::HTMLImageElement> source) -> Optional<Gfx::DecodedImageFrame> {
             return source->current_image_frame();
         },
-        [](GC::Root<HTML::HTMLCanvasElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
+        [](GC::Ref<HTML::HTMLCanvasElement> source) -> Optional<Gfx::DecodedImageFrame> {
             auto surface = source->surface();
             if (!surface)
                 return Gfx::DecodedImageFrame { *source->get_bitmap_from_surface() };
             return Gfx::DecodedImageFrame { *surface->snapshot_bitmap() };
         },
-        [](GC::Root<HTML::OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> {
+        [](GC::Ref<HTML::OffscreenCanvas> source) -> Optional<Gfx::DecodedImageFrame> {
             return Gfx::DecodedImageFrame { *source->bitmap() };
         },
-        [](GC::Root<HTML::HTMLVideoElement> const& source) -> Optional<Gfx::DecodedImageFrame> {
+        [](GC::Ref<HTML::HTMLVideoElement> source) -> Optional<Gfx::DecodedImageFrame> {
             return source->current_decoded_image_frame();
         },
-        [](GC::Root<HTML::ImageBitmap> const& source) -> Optional<Gfx::DecodedImageFrame> {
+        [](GC::Ref<HTML::ImageBitmap> source) -> Optional<Gfx::DecodedImageFrame> {
             return Gfx::DecodedImageFrame { *source->bitmap() };
         },
-        [](GC::Root<HTML::ImageData> const& source) -> Optional<Gfx::DecodedImageFrame> {
+        [](GC::Ref<HTML::ImageData> source) -> Optional<Gfx::DecodedImageFrame> {
             return Gfx::DecodedImageFrame { source->bitmap() };
         });
     if (!frame.has_value())

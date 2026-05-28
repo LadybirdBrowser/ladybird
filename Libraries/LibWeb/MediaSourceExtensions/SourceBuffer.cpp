@@ -324,7 +324,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK:
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-appendbuffer
-WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(GC::Root<WebIDL::BufferSource> const& data)
+WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(GC::Ref<WebIDL::BufferSource> data)
 {
     // 1. Run the prepare append algorithm.
     TRY(prepare_append(data->byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));

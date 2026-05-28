@@ -227,7 +227,7 @@ void BaseAudioContext::queue_control_message(ControlMessage message)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<JS::ArrayBuffer> const& audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
+GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Ref<JS::ArrayBuffer> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
 {
     auto& realm = this->realm();
 
@@ -281,7 +281,7 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<JS::ArrayB
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, [[maybe_unused]] GC::Root<JS::ArrayBuffer> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
+void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, [[maybe_unused]] GC::Ref<JS::ArrayBuffer> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
 {
     auto& realm = this->realm();
 

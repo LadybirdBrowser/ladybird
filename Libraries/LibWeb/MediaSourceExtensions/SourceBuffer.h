@@ -50,7 +50,7 @@ public:
     void set_content_type(String const& type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
-    WebIDL::ExceptionOr<void> append_buffer(GC::Root<WebIDL::BufferSource> const&);
+    WebIDL::ExceptionOr<void> append_buffer(GC::Ref<WebIDL::BufferSource>);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
     WebIDL::ExceptionOr<void> abort();

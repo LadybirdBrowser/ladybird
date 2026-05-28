@@ -29,8 +29,8 @@ public:
     virtual ~DOMMatrix() override;
 
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_matrix(JS::VM&, Bindings::DOMMatrixInit other = {});
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float32_array(JS::VM&, GC::Root<JS::Float32Array> const&);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float64_array(JS::VM&, GC::Root<JS::Float64Array> const&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float32_array(JS::VM&, GC::Ref<JS::Float32Array>);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_float64_array(JS::VM&, GC::Ref<JS::Float64Array>);
 
     void set_m11(double value);
     void set_m12(double value);
