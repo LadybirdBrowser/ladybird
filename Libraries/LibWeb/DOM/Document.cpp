@@ -5014,8 +5014,12 @@ void Document::check_favicon_after_loading_link_resource()
         }
     }
 
-    if (!largest_icon)
+    if (largest_icon) {
+        if (auto navigable = this->navigable(); navigable && navigable->is_traversable())
+            navigable->traversable_navigable()->page().client().page_did_change_favicon(*largest_icon);
+    } else {
         dbgln_if(SPAM_DEBUG, "No favicon found to be used");
+    }
 }
 
 void Document::set_window(HTML::Window& window)
