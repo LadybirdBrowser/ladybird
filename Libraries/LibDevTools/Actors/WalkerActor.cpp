@@ -1040,6 +1040,21 @@ void WalkerActor::document_unloaded()
     send_message(move(message));
 }
 
+void WalkerActor::replace_dom_tree(JsonObject dom_tree)
+{
+    stop_node_picker();
+    clear_dom_tree_state();
+
+    m_dom_tree = move(dom_tree);
+    m_has_live_dom_tree = true;
+    populate_dom_tree_cache();
+
+    JsonObject message;
+    message.set("type"sv, "root-available"sv);
+    message.set("node"sv, serialize_root());
+    send_message(move(message));
+}
+
 void WalkerActor::clear_dom_tree_state()
 {
     m_dom_node_mutations.clear();

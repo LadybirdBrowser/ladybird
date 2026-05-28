@@ -644,11 +644,15 @@ public:
     virtual void listen_for_navigation_events(DevTools::TabDescription const&, OnNavigationStarted on_started, OnNavigationFinished on_finished) const override
     {
         ++listen_for_navigation_events_call_count;
-        on_navigation_started = move(on_started);
-        on_navigation_finished = move(on_finished);
+        navigation_listeners.append({ move(on_started), move(on_finished) });
     }
 
-    virtual void stop_listening_for_navigation_events(DevTools::TabDescription const&) const override { ++stop_listening_for_navigation_events_call_count; }
+    virtual void stop_listening_for_navigation_events(DevTools::TabDescription const&) const override
+    {
+        ++stop_listening_for_navigation_events_call_count;
+        if (!navigation_listeners.is_empty())
+            navigation_listeners.take_first();
+    }
     virtual void did_connect_devtools_client(DevTools::TabDescription const&) const override { ++did_connect_devtools_client_call_count; }
     virtual void did_disconnect_devtools_client(DevTools::TabDescription const&) const override { ++did_disconnect_devtools_client_call_count; }
 
@@ -731,14 +735,23 @@ public:
 
     void emit_navigation_start() const
     {
-        VERIFY(on_navigation_started);
-        on_navigation_started("https://example.test/next"_string);
+        VERIFY(!navigation_listeners.is_empty());
+        auto listener_count = navigation_listeners.size();
+        for (size_t i = 0; i < listener_count; ++i)
+            navigation_listeners[i].on_navigation_started("https://example.test/next"_string);
     }
 
     void emit_navigation_finish() const
     {
-        VERIFY(on_navigation_finished);
-        on_navigation_finished("https://example.test/next"_string, "Next page"_string);
+        VERIFY(!navigation_listeners.is_empty());
+        auto listener_count = navigation_listeners.size();
+        for (size_t i = 0; i < listener_count; ++i)
+            navigation_listeners[i].on_navigation_finished("https://example.test/next"_string, "Next page"_string);
+    }
+
+    size_t navigation_listener_count() const
+    {
+        return navigation_listeners.size();
     }
 
     void switch_to_navigation_dom_tree() const
@@ -760,9 +773,13 @@ public:
     mutable Function<void(DevToolsDelegate::NetworkResponseData)> on_network_response_headers_received;
     mutable Function<void(u64, ByteBuffer)> on_network_response_body_received;
     mutable Function<void(DevToolsDelegate::NetworkRequestCompleteData)> on_network_request_finished;
-    mutable Function<void(String)> on_navigation_started;
-    mutable Function<void(String, String)> on_navigation_finished;
     mutable Function<void(DevToolsDelegate::NodePickerEvent)> on_node_picker_event;
+
+    struct NavigationListener {
+        Function<void(String)> on_navigation_started;
+        Function<void(String, String)> on_navigation_finished;
+    };
+    mutable Vector<NavigationListener> navigation_listeners;
 
     mutable bool use_navigation_dom_tree { false };
 
@@ -901,7 +918,9 @@ private:
             || *type == "pickerNodeHovered"sv
             || *type == "pickerNodePicked"sv
             || *type == "pickerNodePreviewed"sv
-            || *type == "tabListChanged"sv;
+            || *type == "tabListChanged"sv
+            || *type == "target-available-form"sv
+            || *type == "target-destroyed-form"sv;
     }
 
     JsonObject request(JsonObject message, StringView response_actor)
@@ -995,9 +1014,13 @@ static JsonObject get_frame_target(ProtocolClient& client, StringView tab_actor)
     request.set("type"sv, "watchTargets"sv);
     request.set("targetType"sv, "frame"sv);
 
-    auto response = client.request(move(request));
-    VERIFY(response.get_string("type"sv).value() == "target-available-form"sv);
-    return response.get_object("target"sv).release_value();
+    EXPECT_EQ(client.request(move(request)).get_string("from"sv).value(), watcher_actor);
+
+    while (true) {
+        auto message = client.read_message();
+        if (message.get_string("type"sv).value_or({}) == "target-available-form"sv)
+            return message.get_object("target"sv).release_value();
+    }
 }
 
 static JsonObject get_walker(ProtocolClient& client, StringView inspector_actor)
@@ -1243,7 +1266,7 @@ TEST_CASE(walker_node_picker)
     EXPECT_EQ(client.request(move(children)).get_array("nodes"sv)->size(), 1u);
 }
 
-TEST_CASE(inspector_walker_navigation_unloads_root)
+TEST_CASE(inspector_walker_navigation_reloads_root)
 {
     auto session = create_session();
     auto& client = *session->client;
@@ -1255,6 +1278,7 @@ TEST_CASE(inspector_walker_navigation_unloads_root)
     auto walker_actor = actor_from(walker, "actor"sv);
     auto root_node = walker.get_object("root"sv).release_value();
     auto root_node_actor = actor_from(root_node, "actor"sv);
+    EXPECT_EQ(session->delegate.navigation_listener_count(), 1u);
 
     auto div_actor = query_selector(client, walker_actor, root_node_actor, "div"sv);
 
@@ -1278,6 +1302,93 @@ TEST_CASE(inspector_walker_navigation_unloads_root)
 
     EXPECT_EQ(session->delegate.clear_highlighted_dom_node_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
+
+    auto will_navigate = read_resource(client, "document-event"sv);
+    EXPECT_EQ(will_navigate.get_string("name"sv).value(), "will-navigate"sv);
+    EXPECT_EQ(will_navigate.get_string("newURI"sv).value(), "https://example.test/next"sv);
+    EXPECT(!will_navigate.has_string("url"sv));
+
+    session->delegate.switch_to_navigation_dom_tree();
+    session->delegate.emit_navigation_finish();
+
+    auto root_available = read_packet_with_type(client, "root-available"sv);
+    auto new_root_node = root_available.get_object("node"sv).release_value();
+    auto new_root_node_actor = actor_from(new_root_node, "actor"sv);
+    auto main_actor = query_selector(client, walker_actor, new_root_node_actor, "main"sv);
+
+    JsonObject main_is_in_dom_tree;
+    main_is_in_dom_tree.set("to"sv, walker_actor);
+    main_is_in_dom_tree.set("type"sv, "isInDOMTree"sv);
+    main_is_in_dom_tree.set("node"sv, main_actor);
+    EXPECT(client.request(move(main_is_in_dom_tree)).get_bool("attached"sv).value());
+
+    EXPECT_EQ(session->delegate.inspect_tab_call_count, 2u);
+
+    auto target_destroyed = read_packet_with_type(client, "target-destroyed-form"sv);
+    auto destroyed_target = target_destroyed.get_object("target"sv).release_value();
+    EXPECT_EQ(actor_from(destroyed_target, "actor"sv), actor_from(target, "actor"sv));
+    auto options = target_destroyed.get_object("options"sv).release_value();
+    EXPECT(options.get_bool("isTargetSwitching"sv).value());
+    EXPECT(options.get_bool("shouldDestroyTargetFront"sv).value());
+
+    auto new_target_available = read_packet_with_type(client, "target-available-form"sv);
+    auto new_target = new_target_available.get_object("target"sv).release_value();
+    EXPECT_NE(actor_from(new_target, "actor"sv), actor_from(target, "actor"sv));
+    EXPECT_EQ(new_target.get_string("url"sv).value(), "https://example.test/next"sv);
+    EXPECT_NE(
+        new_target.get_integer<u64>("innerWindowId"sv).value(),
+        target.get_integer<u64>("innerWindowId"sv).value());
+
+    EXPECT_EQ(client.request(actor_from(new_target, "actor"sv), "listFrames"sv).get_string("from"sv).value(), actor_from(new_target, "actor"sv));
+
+    auto dom_loading = read_resource(client, "document-event"sv);
+    EXPECT_EQ(dom_loading.get_string("name"sv).value(), "dom-loading"sv);
+    EXPECT_EQ(dom_loading.get_string("url"sv).value(), "https://example.test/next"sv);
+    EXPECT(!dom_loading.has_string("title"sv));
+
+    auto dom_interactive = read_resource(client, "document-event"sv);
+    EXPECT_EQ(dom_interactive.get_string("name"sv).value(), "dom-interactive"sv);
+    EXPECT_EQ(dom_interactive.get_string("url"sv).value(), "https://example.test/next"sv);
+    EXPECT_EQ(dom_interactive.get_string("title"sv).value(), "Next page"sv);
+
+    auto dom_complete = read_resource(client, "document-event"sv);
+    EXPECT_EQ(dom_complete.get_string("name"sv).value(), "dom-complete"sv);
+    EXPECT(!dom_complete.has_string("url"sv));
+    EXPECT(!dom_complete.has_string("title"sv));
+
+    EXPECT_EQ(session->delegate.navigation_listener_count(), 1u);
+    EXPECT_EQ(session->delegate.listen_for_navigation_events_call_count, 2u);
+    EXPECT_EQ(session->delegate.stop_listening_for_navigation_events_call_count, 1u);
+    EXPECT_EQ(session->delegate.did_connect_devtools_client_call_count, 1u);
+    EXPECT_EQ(session->delegate.did_disconnect_devtools_client_call_count, 0u);
+
+    auto new_walker = get_walker(client, actor_from(new_target, "inspectorActor"sv));
+    auto new_walker_root = new_walker.get_object("root"sv).release_value();
+    auto new_walker_root_actor = actor_from(new_walker_root, "actor"sv);
+    auto heading_actor = query_selector(client, actor_from(new_walker, "actor"sv), new_walker_root_actor, "h1"sv);
+    EXPECT(!heading_actor.is_empty());
+
+    session->delegate.emit_navigation_start();
+    (void)read_packet_with_type(client, "root-destroyed"sv);
+
+    session->delegate.emit_navigation_finish();
+    (void)read_packet_with_type(client, "root-available"sv);
+
+    auto refreshed_target_destroyed = read_packet_with_type(client, "target-destroyed-form"sv);
+    auto refreshed_destroyed_target = refreshed_target_destroyed.get_object("target"sv).release_value();
+    EXPECT_EQ(actor_from(refreshed_destroyed_target, "actor"sv), actor_from(new_target, "actor"sv));
+
+    auto refreshed_target_available = read_packet_with_type(client, "target-available-form"sv);
+    auto refreshed_target = refreshed_target_available.get_object("target"sv).release_value();
+    EXPECT_NE(actor_from(refreshed_target, "actor"sv), actor_from(new_target, "actor"sv));
+    EXPECT_NE(
+        refreshed_target.get_integer<u64>("innerWindowId"sv).value(),
+        new_target.get_integer<u64>("innerWindowId"sv).value());
+    EXPECT_EQ(session->delegate.navigation_listener_count(), 1u);
+    EXPECT_EQ(session->delegate.listen_for_navigation_events_call_count, 3u);
+    EXPECT_EQ(session->delegate.stop_listening_for_navigation_events_call_count, 2u);
+    EXPECT_EQ(session->delegate.did_connect_devtools_client_call_count, 1u);
+    EXPECT_EQ(session->delegate.did_disconnect_devtools_client_call_count, 0u);
 }
 
 TEST_CASE(inspector_walker_highlighter_layout_and_editing)
@@ -1757,11 +1868,17 @@ TEST_CASE(console_network_navigation_and_accessibility)
 
     session->delegate.emit_navigation();
     EXPECT_EQ(read_resource(client, "document-event"sv).get_string("name"sv).value(), "will-navigate"sv);
-    while (true) {
-        auto packet = client.read_message();
-        if (packet.get_string("type"sv).value_or({}) == "tabNavigated"sv && packet.get_string("state"sv).value_or({}) == "stop"sv)
-            break;
-    }
+
+    (void)read_packet_with_type(client, "target-destroyed-form"sv);
+    auto new_target_available = read_packet_with_type(client, "target-available-form"sv);
+    target = new_target_available.get_object("target"sv).release_value();
+    accessibility_actor = actor_from(target, "accessibilityActor"sv);
+
+    EXPECT_EQ(client.request(actor_from(target, "actor"sv), "listFrames"sv).get_string("from"sv).value(), actor_from(target, "actor"sv));
+
+    EXPECT_EQ(read_resource(client, "document-event"sv).get_string("name"sv).value(), "dom-loading"sv);
+    EXPECT_EQ(read_resource(client, "document-event"sv).get_string("name"sv).value(), "dom-interactive"sv);
+    EXPECT_EQ(read_resource(client, "document-event"sv).get_string("name"sv).value(), "dom-complete"sv);
 
     EXPECT(client.request(accessibility_actor, "bootstrap"sv).has_object("state"sv));
     EXPECT(client.request(accessibility_actor, "getTraits"sv).get_object("traits"sv)->get_bool("tabbingOrder"sv).value());

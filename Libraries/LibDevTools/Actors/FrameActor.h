@@ -22,15 +22,17 @@ class DEVTOOLS_API FrameActor final : public Actor {
 public:
     static constexpr auto base_name = "frame"sv;
 
-    static NonnullRefPtr<FrameActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<StyleSheetsActor>, WeakPtr<ThreadActor>, WeakPtr<AccessibilityActor>);
+    static NonnullRefPtr<FrameActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<WatcherActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<StyleSheetsActor>, WeakPtr<ThreadActor>, WeakPtr<AccessibilityActor>);
     virtual ~FrameActor() override;
 
     void send_frame_update_message();
+    void set_pending_navigation_document_events_after_target_switch(String const& url, String const& title);
+    void stop_listening();
 
     JsonObject serialize_target() const;
 
 private:
-    FrameActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<StyleSheetsActor>, WeakPtr<ThreadActor>, WeakPtr<AccessibilityActor>);
+    FrameActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<WatcherActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<ConsoleActor>, WeakPtr<InspectorActor>, WeakPtr<StyleSheetsActor>, WeakPtr<ThreadActor>, WeakPtr<AccessibilityActor>);
 
     void style_sheets_available(JsonObject& response, Vector<Web::CSS::StyleSheetIdentifier> style_sheets);
 
@@ -45,8 +47,16 @@ private:
 
     void on_navigation_started(String url);
     void on_navigation_finished(String url, String title);
+    void send_document_event(StringView name, String const& url, Optional<StringView> title = {});
+    void send_pending_navigation_document_events_after_target_switch();
+
+    struct PendingNavigationDocumentEvents {
+        String url;
+        String title;
+    };
 
     WeakPtr<TabActor> m_tab;
+    WeakPtr<WatcherActor> m_watcher;
 
     WeakPtr<CSSPropertiesActor> m_css_properties;
     WeakPtr<ConsoleActor> m_console;
@@ -55,7 +65,9 @@ private:
     WeakPtr<ThreadActor> m_thread;
     WeakPtr<AccessibilityActor> m_accessibility;
 
+    Optional<PendingNavigationDocumentEvents> m_pending_navigation_document_events_after_target_switch;
     HashMap<u64, NonnullRefPtr<NetworkEventActor>> m_network_events;
+    bool m_is_listening { false };
 };
 
 }

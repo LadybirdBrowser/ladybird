@@ -78,4 +78,11 @@ void TabActor::reset_selected_node()
     devtools().delegate().clear_inspected_dom_node(description());
 }
 
+void TabActor::navigate_to(String url, String title)
+{
+    m_description.url = move(url);
+    m_description.title = move(title);
+    ++m_inner_window_id;
+}
+
 }
