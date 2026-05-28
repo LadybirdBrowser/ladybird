@@ -190,7 +190,7 @@
       "dependencies": [
         {
           "name": "libadwaita",
-          "platform": "linux"
+          "platform": "linux | osx"
         },
         {
           "name": "wayland",

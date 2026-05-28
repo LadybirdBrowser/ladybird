@@ -101,7 +101,7 @@ class Platform:
         Keep in sync with Meta/CMake/gui_framework.cmake
         """
         if self.host_system == HostSystem.macOS:
-            return [GUIFramework.Qt, GUIFramework.AppKit]
+            return [GUIFramework.Qt, GUIFramework.AppKit, GUIFramework.Gtk]
         if self.host_system in (HostSystem.Linux, HostSystem.BSD):
             return [GUIFramework.Qt, GUIFramework.Gtk]
         return [GUIFramework.Qt]
