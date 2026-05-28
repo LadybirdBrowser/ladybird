@@ -131,6 +131,40 @@ static JsonObject make_dom_tree()
     return document;
 }
 
+static JsonObject make_navigation_dom_tree()
+{
+    JsonObject heading = make_node(105, "element"sv, "H1"sv);
+    heading.set("visible"sv, true);
+
+    JsonObject main = make_node(104, "element"sv, "MAIN"sv);
+    main.set("visible"sv, true);
+
+    JsonArray main_children;
+    main_children.must_append(move(heading));
+    main.set("children"sv, move(main_children));
+
+    JsonArray body_children;
+    body_children.must_append(move(main));
+
+    JsonObject body = make_node(103, "element"sv, "BODY"sv);
+    body.set("visible"sv, true);
+    body.set("children"sv, move(body_children));
+
+    JsonArray html_children;
+    html_children.must_append(move(body));
+
+    JsonObject html = make_node(102, "element"sv, "HTML"sv);
+    html.set("visible"sv, true);
+    html.set("children"sv, move(html_children));
+
+    JsonArray document_children;
+    document_children.must_append(move(html));
+
+    JsonObject document = make_node(101, "document"sv, "#document"sv);
+    document.set("children"sv, move(document_children));
+    return document;
+}
+
 static JsonObject make_accessibility_tree()
 {
     JsonObject button = make_node(4, "element"sv, "Target button"sv);
@@ -345,7 +379,7 @@ public:
     virtual void inspect_tab(DevTools::TabDescription const&, OnTabInspectionComplete callback) const override
     {
         ++inspect_tab_call_count;
-        callback(make_dom_tree());
+        callback(use_navigation_dom_tree ? make_navigation_dom_tree() : make_dom_tree());
     }
 
     virtual void inspect_accessibility_tree(DevTools::TabDescription const&, OnAccessibilityTreeInspectionComplete callback) const override
@@ -691,10 +725,25 @@ public:
 
     void emit_navigation() const
     {
+        emit_navigation_start();
+        emit_navigation_finish();
+    }
+
+    void emit_navigation_start() const
+    {
         VERIFY(on_navigation_started);
-        VERIFY(on_navigation_finished);
         on_navigation_started("https://example.test/next"_string);
+    }
+
+    void emit_navigation_finish() const
+    {
+        VERIFY(on_navigation_finished);
         on_navigation_finished("https://example.test/next"_string, "Next page"_string);
+    }
+
+    void switch_to_navigation_dom_tree() const
+    {
+        use_navigation_dom_tree = true;
     }
 
     void emit_node_picker_event(DevToolsDelegate::NodePickerEvent event) const
@@ -714,6 +763,8 @@ public:
     mutable Function<void(String)> on_navigation_started;
     mutable Function<void(String, String)> on_navigation_finished;
     mutable Function<void(DevToolsDelegate::NodePickerEvent)> on_node_picker_event;
+
+    mutable bool use_navigation_dom_tree { false };
 
     mutable size_t inspect_tab_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
