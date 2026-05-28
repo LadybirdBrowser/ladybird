@@ -385,6 +385,22 @@ public:
     virtual void clear_inspected_dom_node(DevTools::TabDescription const&) const override { ++clear_inspected_dom_node_call_count; }
     virtual void clear_highlighted_dom_node(DevTools::TabDescription const&) const override { ++clear_highlighted_dom_node_call_count; }
 
+    virtual void start_node_picker(DevTools::TabDescription const&, OnNodePickerEvent callback) const override
+    {
+        ++start_node_picker_call_count;
+        on_node_picker_event = move(callback);
+    }
+
+    virtual void stop_node_picker(DevTools::TabDescription const&) const override
+    {
+        ++stop_node_picker_call_count;
+    }
+
+    virtual void clear_node_picker(DevTools::TabDescription const&) const override
+    {
+        ++clear_node_picker_call_count;
+    }
+
     virtual void inspect_grid_layouts(DevTools::TabDescription const&, Web::UniqueNodeID root_node_id, OnGridLayoutsReceived callback) const override
     {
         ++inspect_grid_layouts_call_count;
@@ -681,6 +697,12 @@ public:
         on_navigation_finished("https://example.test/next"_string, "Next page"_string);
     }
 
+    void emit_node_picker_event(DevToolsDelegate::NodePickerEvent event) const
+    {
+        VERIFY(on_node_picker_event);
+        on_node_picker_event(move(event));
+    }
+
     mutable Function<void(WebView::DOMNodeProperties)> on_dom_node_properties;
     mutable Function<void(WebView::Mutation)> on_dom_mutation;
     mutable Function<void(Web::CSS::StyleSheetIdentifier const&, String)> on_style_sheet_source;
@@ -691,6 +713,7 @@ public:
     mutable Function<void(DevToolsDelegate::NetworkRequestCompleteData)> on_network_request_finished;
     mutable Function<void(String)> on_navigation_started;
     mutable Function<void(String, String)> on_navigation_finished;
+    mutable Function<void(DevToolsDelegate::NodePickerEvent)> on_node_picker_event;
 
     mutable size_t inspect_tab_call_count { 0 };
     mutable size_t inspect_accessibility_tree_call_count { 0 };
@@ -698,6 +721,9 @@ public:
     mutable size_t stop_listening_for_dom_properties_call_count { 0 };
     mutable size_t inspect_dom_node_call_count { 0 };
     mutable size_t clear_inspected_dom_node_call_count { 0 };
+    mutable size_t start_node_picker_call_count { 0 };
+    mutable size_t stop_node_picker_call_count { 0 };
+    mutable size_t clear_node_picker_call_count { 0 };
     mutable size_t inspect_grid_layouts_call_count { 0 };
     mutable size_t inspect_current_grid_call_count { 0 };
     mutable size_t inspect_current_flexbox_call_count { 0 };
@@ -820,6 +846,10 @@ private:
             || *type == "resources-available-array"sv
             || *type == "resources-updated-array"sv
             || *type == "newMutations"sv
+            || *type == "pickerNodeCanceled"sv
+            || *type == "pickerNodeHovered"sv
+            || *type == "pickerNodePicked"sv
+            || *type == "pickerNodePreviewed"sv
             || *type == "tabListChanged"sv;
     }
 
@@ -957,6 +987,15 @@ static JsonObject read_resource(ProtocolClient& client, StringView resource_type
     }
 }
 
+static JsonObject read_packet_with_type(ProtocolClient& client, StringView packet_type)
+{
+    while (true) {
+        auto message = client.read_message();
+        if (message.get_string("type"sv).value_or({}) == packet_type)
+            return message;
+    }
+}
+
 TEST_CASE(root_actor_and_connection_errors)
 {
     auto session = create_session();
@@ -1065,6 +1104,92 @@ TEST_CASE(target_bootstrap_and_lifetime)
     EXPECT_EQ(session->delegate.stop_listening_for_dom_mutations_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_highlighted_dom_node_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
+}
+
+TEST_CASE(walker_node_picker)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto inspector_actor = actor_from(target, "inspectorActor"sv);
+    auto walker = get_walker(client, inspector_actor);
+    auto walker_actor = actor_from(walker, "actor"sv);
+    auto root_node_actor = walker.get_object("root"sv)->get_string("actor"sv).release_value();
+
+    EXPECT_EQ(client.request(walker_actor, "pick"sv).get_string("from"sv).value(), walker_actor);
+    EXPECT_EQ(session->delegate.start_node_picker_call_count, 1u);
+
+    session->delegate.emit_node_picker_event({
+        .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Hovered,
+        .node_id = Web::UniqueNodeID { 5 },
+    });
+
+    auto hover_event = read_packet_with_type(client, "pickerNodeHovered"sv);
+    EXPECT_EQ(hover_event.get_string("type"sv).value(), "pickerNodeHovered"sv);
+    EXPECT_EQ(hover_event.get_object("node"sv)->get_object("node"sv)->get_string("nodeName"sv).value(), "DIV"sv);
+    auto const& hover_new_parents = *hover_event.get_object("node"sv)->get_array("newParents"sv);
+    EXPECT_EQ(hover_new_parents.size(), 2u);
+    EXPECT_EQ(hover_new_parents.at(0).as_object().get_string("nodeName"sv).value(), "BODY"sv);
+    EXPECT_EQ(hover_new_parents.at(1).as_object().get_string("nodeName"sv).value(), "HTML"sv);
+    EXPECT_EQ(session->delegate.highlight_dom_node_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_highlighted_dom_node.value(), Web::UniqueNodeID { 4 });
+
+    session->delegate.emit_node_picker_event({
+        .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Hovered,
+        .node_id = Web::UniqueNodeID { 4 },
+    });
+    EXPECT_EQ(session->delegate.highlight_dom_node_call_count, 1u);
+
+    session->delegate.emit_node_picker_event({
+        .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Previewed,
+        .node_id = Web::UniqueNodeID { 8 },
+    });
+
+    auto preview_event = read_packet_with_type(client, "pickerNodePreviewed"sv);
+    EXPECT_EQ(preview_event.get_string("type"sv).value(), "pickerNodePreviewed"sv);
+    EXPECT_EQ(preview_event.get_object("node"sv)->get_object("node"sv)->get_string("nodeName"sv).value(), "SPAN"sv);
+    EXPECT_EQ(preview_event.get_object("node"sv)->get_array("newParents"sv)->size(), 2u);
+    EXPECT_EQ(session->delegate.stop_node_picker_call_count, 0u);
+
+    session->delegate.emit_node_picker_event({
+        .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Picked,
+        .node_id = Web::UniqueNodeID { 5 },
+    });
+
+    auto picked_event = read_packet_with_type(client, "pickerNodePicked"sv);
+    EXPECT_EQ(picked_event.get_string("type"sv).value(), "pickerNodePicked"sv);
+    EXPECT_EQ(picked_event.get_object("node"sv)->get_object("node"sv)->get_string("nodeName"sv).value(), "DIV"sv);
+    EXPECT_EQ(picked_event.get_object("node"sv)->get_array("newParents"sv)->size(), 2u);
+    EXPECT_EQ(session->delegate.stop_node_picker_call_count, 1u);
+    EXPECT_EQ(session->delegate.clear_node_picker_call_count, 1u);
+
+    EXPECT_EQ(client.request(walker_actor, "pick"sv).get_string("from"sv).value(), walker_actor);
+    EXPECT_EQ(session->delegate.start_node_picker_call_count, 2u);
+
+    session->delegate.emit_node_picker_event({
+        .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Canceled,
+        .node_id = {},
+    });
+
+    auto canceled_event = read_packet_with_type(client, "pickerNodeCanceled"sv);
+    EXPECT_EQ(canceled_event.get_string("type"sv).value(), "pickerNodeCanceled"sv);
+    EXPECT_EQ(session->delegate.stop_node_picker_call_count, 2u);
+    EXPECT_EQ(session->delegate.clear_node_picker_call_count, 2u);
+
+    EXPECT_EQ(client.request(walker_actor, "pick"sv).get_string("from"sv).value(), walker_actor);
+    EXPECT_EQ(client.request(walker_actor, "clearPicker"sv).get_string("from"sv).value(), walker_actor);
+    EXPECT_EQ(session->delegate.clear_node_picker_call_count, 3u);
+    EXPECT_EQ(client.request(walker_actor, "cancelPick"sv).get_string("from"sv).value(), walker_actor);
+    EXPECT_EQ(session->delegate.stop_node_picker_call_count, 3u);
+    EXPECT_EQ(session->delegate.clear_node_picker_call_count, 4u);
+
+    JsonObject children;
+    children.set("to"sv, walker_actor);
+    children.set("type"sv, "children"sv);
+    children.set("node"sv, root_node_actor);
+    EXPECT_EQ(client.request(move(children)).get_array("nodes"sv)->size(), 1u);
 }
 
 TEST_CASE(inspector_walker_highlighter_layout_and_editing)

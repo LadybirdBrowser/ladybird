@@ -47,6 +47,23 @@ public:
     virtual void inspect_dom_node(TabDescription const&, WebView::DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const { }
     virtual void clear_inspected_dom_node(TabDescription const&) const { }
 
+    struct NodePickerEvent {
+        enum class Type : u8 {
+            Hovered,
+            Picked,
+            Previewed,
+            Canceled,
+        };
+
+        Type type;
+        Optional<Web::UniqueNodeID> node_id;
+    };
+
+    using OnNodePickerEvent = Function<void(NodePickerEvent)>;
+    virtual void start_node_picker(TabDescription const&, OnNodePickerEvent) const { }
+    virtual void stop_node_picker(TabDescription const&) const { }
+    virtual void clear_node_picker(TabDescription const&) const { }
+
     using OnGridLayoutsReceived = Function<void(JsonArray)>;
     using OnCurrentGridReceived = Function<void(Optional<JsonObject>)>;
     using OnCurrentFlexboxReceived = Function<void(Optional<JsonObject>)>;

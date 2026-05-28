@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Actors/NodeActor.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
 #include <LibDevTools/Node.h>
 #include <LibWeb/Forward.h>
@@ -55,6 +56,10 @@ private:
     void populate_dom_tree_cache(JsonObject& node, JsonObject const* parent);
 
     NodeActor const& actor_for_node(JsonObject const& node);
+    void handle_node_picker_event(DevToolsDelegate::NodePickerEvent);
+    void stop_node_picker();
+    Optional<JsonObject const&> element_node_for_picker_node(JsonObject const&) const;
+    JsonObject serialize_disconnected_node(JsonObject const&) const;
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<LayoutInspectorActor> m_layout_inspector;
@@ -69,6 +74,9 @@ private:
     HashMap<Web::UniqueNodeID, String> m_dom_node_id_to_actor_map;
 
     HashMap<NodeIdentifier, WeakPtr<NodeActor>> m_node_actors;
+
+    bool m_is_picking_node { false };
+    Optional<Web::UniqueNodeID> m_picker_hovered_node_id;
 };
 
 }
