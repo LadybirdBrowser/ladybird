@@ -191,14 +191,7 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
                         [_overflow_menu addItem:Ladybird::create_application_menu_item(action)];
                     },
                     [&](NonnullRefPtr<WebView::Menu> const& folder) {
-                        auto* folder_item = [[NSMenuItem alloc] initWithTitle:Ladybird::string_to_ns_string(folder->title())
-                                                                       action:nil
-                                                                keyEquivalent:@""];
-
-                        auto* submenu = Ladybird::create_application_menu(folder);
-                        [folder_item setSubmenu:submenu];
-
-                        [_overflow_menu addItem:folder_item];
+                        [_overflow_menu addItem:Ladybird::create_application_menu_item(*folder)];
                     },
                     [](WebView::Separator) {});
             }
