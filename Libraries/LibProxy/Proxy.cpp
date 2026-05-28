@@ -6,6 +6,7 @@
 
 #include "Proxy.h"
 #include <AK/String.h>
+#include <AK/StringUtils.h>
 #include <AK/StringView.h>
 #include <LibCore/Environment.h>
 #include <LibURL/Parser.h>
@@ -76,6 +77,28 @@ static Vector<ProxyData> get_proxies_from_environment(URL::URL const& url)
     Vector<ProxyData> results;
 
     Optional<String> proxy_env;
+    proxy_env = get_env_var("no_proxy"sv);
+    if (!proxy_env.has_value()) {
+        proxy_env = get_env_var("NO_PROXY"sv);
+    }
+    if (proxy_env.has_value()) {
+        auto no_proxy_list_res = proxy_env.value().split(',');
+        if (no_proxy_list_res.is_error()) {
+            auto error = no_proxy_list_res.release_error();
+            warnln("Failed to parse no_proxy environment variable '{}': {}", proxy_env.value(), error);
+        } else {
+            auto no_proxy_list = no_proxy_list_res.release_value();
+
+            for (auto& entry : no_proxy_list) {
+                auto trimmed_entry = entry.trim_whitespace().value_or(""_string);
+                if (trimmed_entry.is_empty())
+                    continue;
+                if (url.host().has_value() && AK::StringUtils::matches(url.host()->serialize(), trimmed_entry, CaseSensitivity::CaseInsensitive)) {
+                    return {};
+                }
+            }
+        }
+    }
     if (url.scheme() == "http") {
         proxy_env = get_env_var("http_proxy"sv);
         if (!proxy_env.has_value())
@@ -98,7 +121,6 @@ static Vector<ProxyData> get_proxies_from_environment(URL::URL const& url)
         if (parsed_proxy.has_value())
             results.append(parsed_proxy.value());
     }
-    // FIXME: Support no_proxy environment variable to bypass proxies.
 
     return results;
 }
