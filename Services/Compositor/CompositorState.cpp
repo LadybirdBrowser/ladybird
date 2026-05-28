@@ -427,7 +427,7 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::
         async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     store_pending_async_scroll_offsets(context_state, scroll_offsets, operation_id);
     context_state.async_scrolling_viewport_rect = async_scroll_viewport_rect;
-    present_frame(context_id, context_state, async_scroll_viewport_rect);
+    schedule_present_frame(context_id, context_state, async_scroll_viewport_rect);
     return { true, operation_id };
 }
 
@@ -461,21 +461,9 @@ bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId conte
         async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     store_pending_async_scroll_offsets(context_state, scroll_offsets);
     context_state.async_scrolling_viewport_rect = async_scroll_viewport_rect;
-    context_state.deferred_async_scroll_present_viewport_rect = async_scroll_viewport_rect;
-    context_state.has_deferred_async_scroll_present = true;
+    schedule_present_frame(context_id, context_state, async_scroll_viewport_rect);
     context_state.web_content_client->request_rendering_update();
     return true;
-}
-
-void CompositorState::present_deferred_async_scroll_frame(Web::Compositor::CompositorContextId context_id)
-{
-    auto* context = context_if_present(context_id);
-    if (!context || !context->has_deferred_async_scroll_present)
-        return;
-
-    auto viewport_rect = context->deferred_async_scroll_present_viewport_rect;
-    context->has_deferred_async_scroll_present = false;
-    present_frame(context_id, *context, viewport_rect);
 }
 
 bool CompositorState::should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId context_id) const
@@ -486,8 +474,7 @@ bool CompositorState::should_defer_main_thread_present_for_async_scroll(Web::Com
     if (context->pending_async_scroll_offsets.is_empty())
         return false;
 
-    return context->has_deferred_async_scroll_present
-        || context->pending_present_frame.has_value()
+    return context->pending_present_frame.has_value()
         || context->gpu_present_bitmap_id_awaiting_completion.has_value()
         || context->presented_bitmap_id_awaiting_ack.has_value();
 }
@@ -531,13 +518,15 @@ void CompositorState::set_display_metadata(Web::Compositor::CompositorContextId 
 
     context->display_id = display_id;
     context->display_refresh_rate = refresh_rate;
+    if (context->pending_present_frame_scheduled)
+        schedule_pending_present_frame_on_vsync(context_id, *context);
 }
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
-    present_frame(context_id, *context, viewport_rect);
+    schedule_present_frame(context_id, *context, viewport_rect);
 }
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, Gfx::IntRect viewport_rect)
@@ -584,15 +573,58 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
     schedule_gpu_completion_check();
 }
 
-void CompositorState::drain_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId context_id, ContextState& context)
+void CompositorState::schedule_present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, Gfx::IntRect viewport_rect)
+{
+    context.pending_present_frame = viewport_rect;
+    schedule_pending_present_frame_on_vsync(context_id, context);
+}
+
+void CompositorState::schedule_pending_present_frame_on_vsync(Web::Compositor::CompositorContextId, ContextState& context)
+{
+    context.pending_present_frame_scheduled = true;
+    vsync_scheduler_for_display(context.display_id).schedule(context.display_refresh_rate);
+}
+
+void CompositorState::schedule_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId context_id, ContextState& context)
 {
     if (context.gpu_present_bitmap_id_awaiting_completion.has_value() || context.presented_bitmap_id_awaiting_ack.has_value())
         return;
     if (!context.pending_present_frame.has_value())
         return;
+    if (context.pending_present_frame_scheduled)
+        return;
 
-    auto pending_present_frame = context.pending_present_frame.release_value();
-    present_frame(context_id, context, pending_present_frame);
+    schedule_pending_present_frame_on_vsync(context_id, context);
+}
+
+VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> display_id)
+{
+    return *m_vsync_schedulers_by_display.ensure(display_id, [this, display_id] {
+        return create_vsync_scheduler(display_id, [this, display_id] {
+            present_pending_frames_on_vsync(display_id);
+        });
+    });
+}
+
+void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
+{
+    for (auto& context_entry : m_contexts) {
+        auto context_id = context_entry.key;
+        auto& context = *context_entry.value;
+        if (!context.pending_present_frame_scheduled)
+            continue;
+        if (context.display_id != display_id)
+            continue;
+
+        context.pending_present_frame_scheduled = false;
+        if (context.gpu_present_bitmap_id_awaiting_completion.has_value() || context.presented_bitmap_id_awaiting_ack.has_value())
+            continue;
+        if (!context.pending_present_frame.has_value())
+            continue;
+
+        auto pending_present_frame = context.pending_present_frame.release_value();
+        present_frame(context_id, context, pending_present_frame);
+    }
 }
 
 bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId context_id, Gfx::ShareableBitmap& target_bitmap)
@@ -620,7 +652,7 @@ void CompositorState::presented_bitmap_ready_to_paint(Web::Compositor::Composito
         return;
 
     context->presented_bitmap_id_awaiting_ack.clear();
-    drain_pending_present_frame_if_unblocked(context_id, *context);
+    schedule_pending_present_frame_if_unblocked(context_id, *context);
 }
 
 void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_present)
@@ -659,7 +691,7 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
             publish_to_parent_surface(*context, mode);
         });
 
-    drain_pending_present_frame_if_unblocked(context_id, *context);
+    schedule_pending_present_frame_if_unblocked(context_id, *context);
 }
 
 void CompositorState::cancel_pending_async_presents_for_context(Web::Compositor::CompositorContextId context_id)
@@ -955,7 +987,7 @@ bool CompositorState::apply_viewport_scrollbar_drag(Web::Compositor::CompositorC
     auto async_scroll_viewport_rect = context.async_scrolling_viewport_rect;
     async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     context.async_scrolling_viewport_rect = async_scroll_viewport_rect;
-    present_frame(context_id, context, async_scroll_viewport_rect);
+    schedule_present_frame(context_id, context, async_scroll_viewport_rect);
     VERIFY(context.web_content_client);
     context.web_content_client->request_rendering_update();
     return true;
@@ -965,7 +997,7 @@ void CompositorState::present_viewport_scrollbar_overlay(Web::Compositor::Compos
 {
     if (context.async_scrolling_viewport_rect.is_empty())
         return;
-    present_frame(context_id, context, context.async_scrolling_viewport_rect);
+    schedule_present_frame(context_id, context, context.async_scrolling_viewport_rect);
 }
 
 bool CompositorState::paint_viewport_scrollbar_overlay(ContextState& context, Gfx::PaintingSurface& surface)
@@ -1031,7 +1063,7 @@ void CompositorState::present_current_frame(Web::Compositor::CompositorContextId
         return;
     if (!context.presented_frame.has_value())
         return;
-    present_frame(context_id, context, *context.presented_frame);
+    schedule_present_frame(context_id, context, *context.presented_frame);
 }
 
 void CompositorState::publish_to_parent_surface(ContextState& context, Web::Compositor::PublishToCompositorSurface const& mode)

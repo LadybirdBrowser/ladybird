@@ -91,15 +91,7 @@ Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse Connec
 
 Messages::CompositorControlServer::AsyncScrollByResponse ConnectionFromClient::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
-    auto handled = m_compositor_state->async_scroll_by(context_id, position, delta_in_device_pixels);
-    if (handled) {
-        deferred_invoke([this, context_id] {
-            if (!is_open())
-                return;
-            m_compositor_state->present_deferred_async_scroll_frame(context_id);
-        });
-    }
-    return handled;
+    return m_compositor_state->async_scroll_by(context_id, position, delta_in_device_pixels);
 }
 
 void ConnectionFromClient::presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id)

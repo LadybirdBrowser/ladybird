@@ -3,6 +3,7 @@ set(SOURCES
     CompositorState.cpp
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
+    VSyncScheduler.cpp
 )
 
 set(GENERATED_SOURCES
