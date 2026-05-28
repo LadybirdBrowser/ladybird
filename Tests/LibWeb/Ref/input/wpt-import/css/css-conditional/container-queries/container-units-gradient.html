@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>Container Relative Units in gradients</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-conditional/container-queries/container-units-gradient-ref.html">
+<style>
+  .container {
+    container-type: size;
+    width: 400px;
+    height: 300px;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .box {
+    width: 100px;
+    height: 100px;
+    margin: 5px;
+  }
+</style>
+<div class=container>
+  <div class=box style="background:linear-gradient(green 5cqw, blue 10cqh)"></div>
+  <div class=box style="background:linear-gradient(green 5cqi, blue 10cqb)"></div>
+  <div class=box style="background:linear-gradient(green 5cqmin, blue 10cqmax)"></div>
+  <div class=box style="background:radial-gradient(green 5cqw, blue 10cqh)"></div>
+  <div class=box style="background:conic-gradient(from 180deg at 10cqh, green, blue);"></div>
+</div>
