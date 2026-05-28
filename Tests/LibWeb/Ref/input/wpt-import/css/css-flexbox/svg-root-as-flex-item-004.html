@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>SVG root as flex item</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item" title="Part E">
+<link rel="help" href="https://www.w3.org/TR/css-sizing-3/#intrinsic-sizes" title="For boxes with an intrinsic aspect ratio, but no intrinsic size">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="SVG's intrinsic width when used as flex base size stretches into the available size when it has no specified intrinsic sizes and is passed through the aspect ratio " />
+
+<style>
+#reference-overlapped-red {
+  position: absolute;
+  background-color: red;
+  width: 100px;
+  height: 100px;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div id="reference-overlapped-red"></div>
+
+<div style="display: flex; flex-direction: column; width: 100px; align-items: flex-start;">
+  <svg viewBox="0 0 200 200">
+    <rect width="100%" height="100%" fill="green" />
+  </svg>
+</div>
