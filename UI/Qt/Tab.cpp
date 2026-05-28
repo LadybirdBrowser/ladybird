@@ -104,7 +104,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     m_toolbar_container = new QWidget(this);
     m_toolbar_container->setObjectName("LadybirdToolbarContainer");
-    m_toolbar_container->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
+    m_toolbar_container->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     m_toolbar = new QWidget(this);
     m_toolbar->setObjectName("LadybirdNavigationToolbar");
