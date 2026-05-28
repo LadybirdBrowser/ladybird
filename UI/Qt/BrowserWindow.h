@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
@@ -113,6 +114,7 @@ public:
     void adopt_tab(Tab&, int index);
 
     double refresh_rate() const { return m_refresh_rate; }
+    Optional<u64> display_id() const { return m_display_id; }
 
     void on_devtools_enabled();
     void on_devtools_disabled();
@@ -178,12 +180,14 @@ private:
     void connect_screen_signals(QScreen*);
     void disconnect_screen_signals(QScreen*);
     void screen_changed(QScreen*);
+    void display_metadata_changed(Optional<u64> display_id, qreal refresh_rate);
 
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
 
     QScreen* m_current_screen { nullptr };
     QWindow* m_window_screen_changed_signal_window { nullptr };
+    Optional<u64> m_display_id;
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
 

@@ -20,13 +20,14 @@ static T scale_for_device(T size, double device_pixel_ratio)
     return size.template to_type<double>().scaled(device_pixel_ratio).template to_type<int>();
 }
 
-ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second)
+ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id)
 {
-    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, maximum_frames_per_second));
+    return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
 }
 
-WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second)
+WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id)
     : m_screen_rects(move(screen_rects))
+    , m_display_id(display_id)
 {
     m_device_pixel_ratio = device_pixel_ratio;
     m_maximum_frames_per_second = static_cast<double>(maximum_frames_per_second);
@@ -54,10 +55,12 @@ void WebViewBridge::set_viewport_rect(Gfx::IntRect viewport_rect)
     handle_resize();
 }
 
-void WebViewBridge::set_maximum_frames_per_second(u64 maximum_frames_per_second)
+void WebViewBridge::set_display_metadata(u64 maximum_frames_per_second, Optional<u64> display_id)
 {
     m_maximum_frames_per_second = static_cast<double>(maximum_frames_per_second);
+    m_display_id = display_id;
     client().async_set_maximum_frames_per_second(m_client_state.page_index, maximum_frames_per_second);
+    update_compositor_display_metadata();
 }
 
 void WebViewBridge::exit_fullscreen()
@@ -141,6 +144,7 @@ void WebViewBridge::initialize_client(CreateNewClient create_new_client)
 {
     ViewImplementation::initialize_client(create_new_client);
     update_palette();
+    update_compositor_display_metadata();
 
     if (!m_screen_rects.is_empty()) {
         // FIXME: Update the screens again if they ever change.
@@ -154,6 +158,15 @@ void WebViewBridge::initialize_client_as_child(WebViewBridge& parent, u64 page_i
     m_client_state.page_index = page_index;
 
     initialize_client(CreateNewClient::No);
+}
+
+void WebViewBridge::update_compositor_display_metadata()
+{
+    if (!m_client_state.client)
+        return;
+
+    auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
+    WebView::Application::the().update_compositor_display_metadata(compositor_context_id, m_display_id, m_maximum_frames_per_second);
 }
 
 }

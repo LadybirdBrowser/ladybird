@@ -39,6 +39,18 @@ struct HideCursor {
     }
 };
 
+static Optional<u64> display_id_for_screen(NSScreen* screen)
+{
+    if (screen == nil)
+        return {};
+
+    NSNumber* screen_number = [[screen deviceDescription] objectForKey:@"NSScreenNumber"];
+    if (screen_number == nil)
+        return {};
+
+    return static_cast<u64>([screen_number unsignedLongLongValue]);
+}
+
 @interface LadybirdWebViewContentLayer : CALayer
 @end
 
@@ -131,8 +143,9 @@ struct HideCursor {
         // This returns device pixel ratio of the screen the window is opened in
         auto device_pixel_ratio = [[NSScreen mainScreen] backingScaleFactor];
         auto maximum_frames_per_second = [[NSScreen mainScreen] maximumFramesPerSecond];
+        auto display_id = display_id_for_screen([NSScreen mainScreen]);
 
-        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second));
+        m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
         [self setWebViewCallbacks];
 
         self.page_context_menu = Ladybird::create_context_menu(self, [self view].page_context_menu());
@@ -203,7 +216,8 @@ struct HideCursor {
 
 - (void)handleDisplayRefreshRateChange
 {
-    m_web_view_bridge->set_maximum_frames_per_second([[[self window] screen] maximumFramesPerSecond]);
+    auto* screen = [[self window] screen];
+    m_web_view_bridge->set_display_metadata([screen maximumFramesPerSecond], display_id_for_screen(screen));
 }
 
 - (void)handleEnteredFullScreen

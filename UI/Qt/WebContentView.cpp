@@ -66,6 +66,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
     m_device_pixel_ratio = devicePixelRatio();
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
+    m_display_id = initial_state.display_id;
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
 
     QObject::connect(qGuiApp, &QGuiApplication::screenRemoved, [this](QScreen*) {
@@ -612,8 +613,24 @@ void WebContentView::set_zoom_level(double zoom_level)
 
 void WebContentView::set_maximum_frames_per_second(double maximum_frames_per_second)
 {
+    set_display_metadata(m_display_id, maximum_frames_per_second);
+}
+
+void WebContentView::set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second)
+{
+    m_display_id = display_id;
     m_maximum_frames_per_second = maximum_frames_per_second;
     client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
+    update_compositor_display_metadata();
+}
+
+void WebContentView::update_compositor_display_metadata()
+{
+    if (!m_client_state.client)
+        return;
+
+    auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
+    WebView::Application::the().update_compositor_display_metadata(compositor_context_id, m_display_id, m_maximum_frames_per_second);
 }
 
 void WebContentView::update_viewport_size()
@@ -706,6 +723,7 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
 {
     ViewImplementation::initialize_client(create_new_client);
 
+    update_compositor_display_metadata();
     update_palette();
     update_screen_rects();
 }

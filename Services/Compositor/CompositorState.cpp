@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
 #include <LibCore/EventLoop.h>
@@ -516,6 +517,20 @@ void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId
     resize_backing_stores_if_needed(context_id, *context);
     if (context->window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes)
         schedule_backing_store_shrink(context_id, *context);
+}
+
+void CompositorState::set_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+
+    VERIFY(refresh_rate == refresh_rate);
+    VERIFY(refresh_rate > 0);
+    VERIFY(refresh_rate < AK::Infinity<double>);
+
+    context->display_id = display_id;
+    context->display_refresh_rate = refresh_rate;
 }
 
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)

@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/Math.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -50,6 +51,15 @@
 namespace WebView {
 
 Application* Application::s_the = nullptr;
+
+static constexpr double default_display_refresh_rate = 60.0;
+
+static double sanitized_display_refresh_rate(double refresh_rate)
+{
+    if (refresh_rate != refresh_rate || refresh_rate <= 0 || refresh_rate >= AK::Infinity<double>)
+        return default_display_refresh_rate;
+    return refresh_rate;
+}
 
 struct ApplicationSettingsObserver final : public SettingsObserver {
     virtual void show_bookmarks_bar_changed() override
@@ -568,6 +578,15 @@ void Application::update_compositor_viewport(Web::Compositor::CompositorContextI
     VERIFY(m_compositor_client);
 
     m_compositor_client->async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
+}
+
+void Application::update_compositor_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_set_display_metadata(context_id, display_id, sanitized_display_refresh_rate(refresh_rate));
 }
 
 bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
