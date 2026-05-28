@@ -1243,6 +1243,43 @@ TEST_CASE(walker_node_picker)
     EXPECT_EQ(client.request(move(children)).get_array("nodes"sv)->size(), 1u);
 }
 
+TEST_CASE(inspector_walker_navigation_unloads_root)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto inspector_actor = actor_from(target, "inspectorActor"sv);
+    auto walker = get_walker(client, inspector_actor);
+    auto walker_actor = actor_from(walker, "actor"sv);
+    auto root_node = walker.get_object("root"sv).release_value();
+    auto root_node_actor = actor_from(root_node, "actor"sv);
+
+    auto div_actor = query_selector(client, walker_actor, root_node_actor, "div"sv);
+
+    JsonObject watch_root;
+    watch_root.set("to"sv, walker_actor);
+    watch_root.set("type"sv, "watchRootNode"sv);
+    EXPECT_EQ(client.request(move(watch_root)).get_string("type"sv).value(), "root-available"sv);
+
+    session->delegate.emit_navigation_start();
+
+    auto root_destroyed = read_packet_with_type(client, "root-destroyed"sv);
+    auto destroyed_node = root_destroyed.get_object("node"sv).release_value();
+    EXPECT_EQ(destroyed_node.get_string("actor"sv).value(), root_node_actor);
+    EXPECT(destroyed_node.get_bool("isTopLevelDocument"sv).value());
+
+    JsonObject is_in_dom_tree;
+    is_in_dom_tree.set("to"sv, walker_actor);
+    is_in_dom_tree.set("type"sv, "isInDOMTree"sv);
+    is_in_dom_tree.set("node"sv, div_actor);
+    EXPECT(!client.request(move(is_in_dom_tree)).get_bool("attached"sv).value());
+
+    EXPECT_EQ(session->delegate.clear_highlighted_dom_node_call_count, 1u);
+    EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
+}
+
 TEST_CASE(inspector_walker_highlighter_layout_and_editing)
 {
     auto session = create_session();

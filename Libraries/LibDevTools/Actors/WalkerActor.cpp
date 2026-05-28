@@ -542,6 +542,9 @@ bool WalkerActor::is_suitable_for_dom_inspection(JsonValue const& node)
 
 JsonValue WalkerActor::serialize_root() const
 {
+    if (!m_has_live_dom_tree)
+        return {};
+
     return serialize_node(m_dom_tree);
 }
 
@@ -671,6 +674,9 @@ Optional<Node> WalkerActor::dom_node_for(WeakPtr<WalkerActor> const& weak_walker
 
 Optional<Node> WalkerActor::dom_node(StringView actor)
 {
+    if (!m_has_live_dom_tree)
+        return {};
+
     auto tab = m_tab.strong_ref();
     if (!tab)
         return {};
@@ -687,6 +693,9 @@ Optional<Node> WalkerActor::dom_node(StringView actor)
 
 Optional<String> WalkerActor::node_actor_name_for(Web::UniqueNodeID node_id) const
 {
+    if (!m_has_live_dom_tree)
+        return {};
+
     return m_dom_node_id_to_actor_map.get(node_id).copy();
 }
 
@@ -913,6 +922,9 @@ Optional<JsonObject const&> WalkerActor::remove_node(JsonObject const& node)
 
 void WalkerActor::new_dom_node_mutation(WebView::Mutation mutation)
 {
+    if (!m_has_live_dom_tree)
+        return;
+
     auto serialized_target = JsonValue::from_string(mutation.serialized_target);
     if (serialized_target.is_error() || !serialized_target.value().is_object()) {
         dbgln_if(DEVTOOLS_DEBUG, "Unable to parse serialized target as JSON object: {}", serialized_target.error());
@@ -1003,11 +1015,44 @@ bool WalkerActor::replace_node_in_tree(JsonObject replacement)
 
 void WalkerActor::populate_dom_tree_cache()
 {
+    clear_dom_tree_cache();
+
+    if (!m_has_live_dom_tree)
+        return;
+
+    populate_dom_tree_cache(m_dom_tree, nullptr);
+}
+
+void WalkerActor::document_unloaded()
+{
+    if (!m_has_live_dom_tree)
+        return;
+
+    auto root = serialize_root();
+
+    stop_node_picker();
+    clear_dom_tree_state();
+    m_has_live_dom_tree = false;
+
+    JsonObject message;
+    message.set("type"sv, "root-destroyed"sv);
+    message.set("node"sv, move(root));
+    send_message(move(message));
+}
+
+void WalkerActor::clear_dom_tree_state()
+{
+    m_dom_node_mutations.clear();
+    m_has_new_mutations_since_last_mutations_request = false;
+    clear_dom_tree_cache();
+    m_node_actors.clear();
+}
+
+void WalkerActor::clear_dom_tree_cache()
+{
     m_dom_node_to_parent_map.clear();
     m_actor_to_dom_node_map.clear();
     m_dom_node_id_to_actor_map.clear();
-
-    populate_dom_tree_cache(m_dom_tree, nullptr);
 }
 
 void WalkerActor::populate_dom_tree_cache(JsonObject& node, JsonObject const* parent)

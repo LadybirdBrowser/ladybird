@@ -91,6 +91,14 @@ void InspectorActor::received_dom_tree(JsonObject& response, JsonObject dom_tree
     response.set("walker"sv, move(walker));
 }
 
+void InspectorActor::on_navigation_started()
+{
+    if (auto walker = m_walker.strong_ref())
+        walker->document_unloaded();
+    if (auto tab = m_tab.strong_ref())
+        tab->reset_selected_node();
+}
+
 RefPtr<TabActor> InspectorActor::tab_for(WeakPtr<InspectorActor> const& weak_inspector)
 {
     if (auto inspector = weak_inspector.strong_ref())

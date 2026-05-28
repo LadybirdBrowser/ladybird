@@ -508,6 +508,9 @@ void FrameActor::on_network_request_finished(DevToolsDelegate::NetworkRequestCom
 
 void FrameActor::on_navigation_started(String url)
 {
+    if (auto inspector = m_inspector.strong_ref())
+        inspector->on_navigation_started();
+
     // Clear our internal tracking of network events
     m_network_events.clear();
 
