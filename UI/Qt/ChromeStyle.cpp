@@ -280,6 +280,10 @@ QMenu::item:disabled {{
     color: {6};
 }}
 
+QMenu::icon {{
+    left: 8px;
+}}
+
 QMenu::separator {{
     background: {4};
     height: 1px;

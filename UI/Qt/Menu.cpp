@@ -171,12 +171,10 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
         break;
     case WebView::ActionID::BookmarkItem:
-        if (include_action_icon == IncludeActionIcon::Yes) {
-            if (auto icon = action.base64_png_icon(); icon.has_value())
-                qaction.setIcon(icon_from_base64_png(*icon));
-            else
-                qaction.setIcon(create_tvg_icon_with_theme_colors("globe", palette));
-        }
+        if (auto icon = action.base64_png_icon(); icon.has_value())
+            qaction.setIcon(icon_from_base64_png(*icon));
+        else
+            qaction.setIcon(create_tvg_icon_with_theme_colors("globe", palette));
         break;
 
     case WebView::ActionID::OpenProcessesPage:
@@ -237,6 +235,9 @@ static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu
             [&](NonnullRefPtr<WebView::Menu> const& submenu) {
                 auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &qmenu);
                 add_items_to_menu(*qsubmenu, parent, submenu);
+
+                if (submenu->render_group_icon())
+                    qsubmenu->setIcon(create_tvg_icon_with_theme_colors("folder", parent.palette()));
 
                 add_properties(*qsubmenu, *submenu);
                 qmenu.addMenu(qsubmenu);
