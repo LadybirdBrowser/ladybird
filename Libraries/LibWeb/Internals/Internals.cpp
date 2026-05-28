@@ -591,6 +591,11 @@ String Internals::dump_display_list()
     return window().associated_document().dump_display_list();
 }
 
+String Internals::dump_accessibility_tree()
+{
+    return window().associated_document().dump_accessibility_tree_as_json();
+}
+
 String Internals::dump_layout_tree(GC::Ref<DOM::Node> node)
 {
     node->document().update_layout(DOM::UpdateLayoutReason::Debugging);

@@ -5834,6 +5834,8 @@ GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
 
 String Document::dump_accessibility_tree_as_json()
 {
+    update_layout(UpdateLayoutReason::InspectAccessibilityTree);
+
     StringBuilder builder;
     auto accessibility_tree = AccessibilityTreeNode::create(this, nullptr);
     build_accessibility_tree(*&accessibility_tree);

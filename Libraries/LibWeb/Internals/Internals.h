@@ -105,6 +105,7 @@ public:
     bool headless();
 
     String dump_display_list();
+    String dump_accessibility_tree();
     String dump_layout_tree(GC::Ref<DOM::Node>);
     String dump_paintable_tree(GC::Ref<DOM::Node>);
     String dump_stacking_context_tree();
