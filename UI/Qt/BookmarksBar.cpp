@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <UI/Qt/BookmarksBar.h>
@@ -17,6 +18,7 @@
 #include <QIcon>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QStyle>
 #include <QStyleOptionToolButton>
 #include <QStylePainter>
@@ -33,6 +35,7 @@ static constexpr int BOOKMARK_BUTTON_ICON_TEXT_SPACING = 6;
 static constexpr int BOOKMARK_BUTTON_TEXT_ELISION_PADDING = 2;
 
 static constexpr char const* BOOKMARK_ITEM_PROPERTY = "bookmark_item";
+static constexpr char const* BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY = "bookmark_context_menu_open";
 
 static QStyleOptionToolButton bookmark_button_style_option(QToolButton const& button)
 {
@@ -69,6 +72,8 @@ static QStyleOptionToolButton bookmark_button_style_option(QToolButton const& bu
         option.features |= QStyleOptionToolButton::HasMenu;
     if (button.isDown())
         option.state |= QStyle::State_Sunken;
+    if (button.property(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY).toBool())
+        option.state |= QStyle::State_MouseOver;
 
     return option;
 }
@@ -347,6 +352,16 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
     } else if (auto* button = as_if<QToolButton>(item)) {
         auto* action = button->defaultAction();
         extract_item_properties(action);
+
+        auto set_button_context_menu_property = [button = QPointer { button }](bool open) {
+            if (button) {
+                button->setProperty(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY, open);
+                button->update();
+            }
+        };
+
+        ScopeGuard guard { [&]() { set_button_context_menu_property(false); } };
+        set_button_context_menu_property(true);
 
         if (m_selected_bookmark_menu_item_type == "bookmark")
             bookmark_context_menu().exec(event->globalPosition().toPoint());
