@@ -88,6 +88,14 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
                 Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
             });
     }
+
+    virtual void config_variable_changed(ConfigVariableID variable) override
+    {
+        if (variable == ConfigVariableID::ShowAdvancedDebugMenu) {
+            auto enabled = Application::settings().config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu);
+            Application::the().debug_menu().set_visible(enabled);
+        }
+    }
 };
 
 struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
@@ -1478,6 +1486,7 @@ void Application::initialize_actions()
     m_inspect_menu->add_action(*m_toggle_devtools_action);
 
     m_debug_menu = Menu::create("Debug"sv);
+    m_debug_menu->set_visible(m_settings.config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu));
     m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
     m_debug_menu->add_action(Action::create("Dump DOM Tree"sv, ActionID::DumpDOMTree, debug_request("dump-dom-tree"sv)));
     m_debug_menu->add_action(Action::create("Dump Layout Tree"sv, ActionID::DumpLayoutTree, debug_request("dump-layout-tree"sv)));
