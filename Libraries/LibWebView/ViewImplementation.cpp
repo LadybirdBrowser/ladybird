@@ -465,6 +465,110 @@ void ViewImplementation::get_hovered_node_id()
     client().async_get_hovered_node_id(page_id());
 }
 
+void ViewImplementation::start_node_picker(DevTools::DevToolsDelegate::OnNodePickerEvent on_node_picker_event)
+{
+    m_node_picker_active = true;
+    m_node_picker_hovered_node_id.clear();
+    m_pending_node_picker_requests.clear();
+    m_on_node_picker_event = move(on_node_picker_event);
+}
+
+void ViewImplementation::stop_node_picker()
+{
+    if (!m_node_picker_active)
+        return;
+
+    clear_node_picker();
+    m_node_picker_active = false;
+    m_pending_node_picker_requests.clear();
+    m_on_node_picker_event = nullptr;
+}
+
+void ViewImplementation::clear_node_picker()
+{
+    m_node_picker_hovered_node_id.clear();
+    clear_highlighted_dom_node();
+}
+
+void ViewImplementation::node_picker_hover(Web::DevicePixelPoint position)
+{
+    request_node_picker_hit_test(NodePickerRequestType::Hovered, position);
+}
+
+void ViewImplementation::node_picker_pick(Web::DevicePixelPoint position)
+{
+    request_node_picker_hit_test(NodePickerRequestType::Picked, position);
+}
+
+void ViewImplementation::node_picker_preview(Web::DevicePixelPoint position)
+{
+    request_node_picker_hit_test(NodePickerRequestType::Previewed, position);
+}
+
+void ViewImplementation::node_picker_cancel()
+{
+    if (!m_node_picker_active)
+        return;
+
+    if (m_on_node_picker_event) {
+        m_on_node_picker_event({
+            .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Canceled,
+            .node_id = {},
+        });
+    }
+}
+
+void ViewImplementation::request_node_picker_hit_test(NodePickerRequestType type, Web::DevicePixelPoint position)
+{
+    if (!m_node_picker_active)
+        return;
+
+    auto request_id = m_next_node_picker_request_id++;
+    m_pending_node_picker_requests.set(request_id, type);
+    client().async_get_node_id_at_position(page_id(), request_id, position);
+}
+
+void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID node_id)
+{
+    auto request_type = m_pending_node_picker_requests.take(request_id);
+    if (!request_type.has_value() || !m_node_picker_active)
+        return;
+
+    if (*request_type == NodePickerRequestType::Hovered) {
+        if (node_id == m_node_picker_hovered_node_id.value_or(0))
+            return;
+
+        m_node_picker_hovered_node_id = node_id;
+        if (node_id == 0) {
+            clear_node_picker();
+            return;
+        }
+    } else if (node_id == 0) {
+        return;
+    }
+
+    if (!m_on_node_picker_event)
+        return;
+
+    DevTools::DevToolsDelegate::NodePickerEvent::Type event_type;
+    switch (*request_type) {
+    case NodePickerRequestType::Hovered:
+        event_type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Hovered;
+        break;
+    case NodePickerRequestType::Picked:
+        event_type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Picked;
+        break;
+    case NodePickerRequestType::Previewed:
+        event_type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Previewed;
+        break;
+    }
+
+    m_on_node_picker_event({
+        .type = event_type,
+        .node_id = node_id,
+    });
+}
+
 void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type property_type, Optional<Web::CSS::PseudoElement> pseudo_element)
 {
     client().async_inspect_dom_node(page_id(), property_type, node_id, pseudo_element);
