@@ -159,7 +159,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, Bindi
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat32array
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM& vm, GC::Root<JS::Float32Array> const& array)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM& vm, GC::Ref<JS::Float32Array> array)
 {
     auto& realm = *vm.current_realm();
     ReadonlySpan<float> elements = array->data();
@@ -180,7 +180,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM& vm
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat64array
-WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float64_array(JS::VM& vm, GC::Root<JS::Float64Array> const& array)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float64_array(JS::VM& vm, GC::Ref<JS::Float64Array> array)
 {
     auto& realm = *vm.current_realm();
     ReadonlySpan<double> elements = array->data();

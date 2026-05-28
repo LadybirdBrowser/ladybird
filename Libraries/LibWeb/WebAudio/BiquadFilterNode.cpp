@@ -66,7 +66,7 @@ GC::Ref<AudioParam> BiquadFilterNode::gain() const
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-getfrequencyresponse
-WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(GC::Root<JS::Float32Array> const& frequency_hz, GC::Root<JS::Float32Array> const& mag_response, GC::Root<JS::Float32Array> const& phase_response)
+WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(GC::Ref<JS::Float32Array> frequency_hz, GC::Ref<JS::Float32Array> mag_response, GC::Ref<JS::Float32Array> phase_response)
 {
     (void)frequency_hz;
     (void)mag_response;

@@ -34,8 +34,8 @@ public:
     virtual ~DOMMatrixReadOnly() override;
 
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_matrix(JS::VM&, Bindings::DOMMatrixInit& other);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float32_array(JS::VM&, GC::Root<JS::Float32Array> const&);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float64_array(JS::VM&, GC::Root<JS::Float64Array> const&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float32_array(JS::VM&, GC::Ref<JS::Float32Array>);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float64_array(JS::VM&, GC::Ref<JS::Float64Array>);
 
     // https://drafts.fxtf.org/geometry/#dommatrix-attributes
     double m11() const { return m_matrix[0, 0]; }

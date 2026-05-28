@@ -104,7 +104,7 @@ GC::Ref<WebIDL::Promise> Cache::match_all(Optional<Fetch::RequestInfo> request, 
     if (request.has_value()) {
         TRY(request->visit(
             // 1. If request is a Request object, then:
-            [&](GC::Root<Fetch::Request> const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            [&](GC::Ref<Fetch::Request> request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
                 // 1. Set r to request’s request.
                 inner_request = request->request();
 
@@ -415,7 +415,7 @@ GC::Ref<WebIDL::Promise> Cache::put(Fetch::RequestInfo request, GC::Ref<Fetch::R
 
     TRY(request.visit(
         // 2. If request is a Request object, then set innerRequest to request’s request.
-        [&](GC::Root<Fetch::Request> const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+        [&](GC::Ref<Fetch::Request> request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
             inner_request = request->request();
             return {};
         },
@@ -545,7 +545,7 @@ GC::Ref<WebIDL::Promise> Cache::delete_(Fetch::RequestInfo request, Bindings::Ca
 
     TRY(request.visit(
         // 2. If request is a Request object, then:
-        [&](GC::Root<Fetch::Request> const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+        [&](GC::Ref<Fetch::Request> request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
             // 1. Set r to request’s request.
             inner_request = request->request();
 
@@ -633,7 +633,7 @@ GC::Ref<WebIDL::Promise> Cache::keys(Optional<Fetch::RequestInfo> request, Bindi
     if (request.has_value()) {
         TRY(request->visit(
             // 1. If request is a Request object, then:
-            [&](GC::Root<Fetch::Request> const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            [&](GC::Ref<Fetch::Request> request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
                 // 1. Set r to request’s request.
                 inner_request = request->request();
 

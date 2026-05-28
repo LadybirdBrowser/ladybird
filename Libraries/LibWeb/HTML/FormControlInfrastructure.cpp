@@ -316,7 +316,7 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVec
         auto escaped_name = TRY(escape_line_feed_carriage_return_double_quote(normalized_name));
 
         TRY(entry.value.visit(
-            [&](GC::Root<FileAPI::File> const& file) -> ErrorOr<void> {
+            [&](GC::Ref<FileAPI::File> file) -> ErrorOr<void> {
                 // For filenames replace any 0x0A (LF) bytes with the byte sequence `%0A`, 0x0D (CR) with `%0D` and 0x22 (") with `%22`
                 auto escaped_filename = TRY(escape_line_feed_carriage_return_double_quote(file->name()));
                 // Add a `Content-Disposition` header with a `name` set to entry's name and `filename` set to entry's filename.
