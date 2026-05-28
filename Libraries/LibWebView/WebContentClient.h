@@ -124,6 +124,7 @@ private:
     virtual void did_inspect_current_flexbox(u64 page_id, String) override;
     virtual void did_inspect_accessibility_tree(u64 page_id, String) override;
     virtual void did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id) override;
+    virtual void did_get_node_id_at_position(u64 page_id, u64 request_id, Web::UniqueNodeID node_id) override;
     virtual void did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> node_id) override;
     virtual void did_mutate_dom(u64 page_id, Mutation) override;
     virtual void did_get_dom_node_html(u64 page_id, String html) override;

@@ -327,6 +327,15 @@ EventResult Page::handle_mouseleave()
     return top_level_traversable()->event_handler().handle_mouseleave();
 }
 
+UniqueNodeID Page::node_id_at_position(DevicePixelPoint position)
+{
+    auto node = top_level_traversable()->event_handler().target_node_for_mouse_position(device_to_css_point(position));
+    if (!node)
+        return 0;
+
+    return node->unique_id();
+}
+
 EventResult Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
     return top_level_traversable()->event_handler().handle_mousewheel(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, async_scroll_performed_default_action, async_scroll_operation);
