@@ -614,13 +614,11 @@ void MediaControls::update_volume_and_mute_indicator()
         m_mute_icon_state = new_volume_icon_state;
     }
 
-    static Vector<String> s_muted_class = { "muted"_string };
     if (muted != m_was_muted) {
         MUST(m_dom->mute_button->class_list()->toggle("muted"_string, muted));
         m_was_muted = muted;
     }
 
-    static Vector<String> s_hidden_class = { "hidden"_string };
     if (has_audio != m_had_audio) {
         MUST(m_dom->volume_area->class_list()->toggle("hidden"_string, !has_audio));
         m_had_audio = has_audio;
