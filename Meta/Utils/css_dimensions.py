@@ -70,7 +70,7 @@ def json_is_valid(dimensions_data: dict[str, Any], json_path: str) -> bool:
                     canonical_unit = unit_name
             if relative_to is not None:
                 if dimension_name == "length":
-                    if relative_to not in ("font", "viewport"):
+                    if relative_to not in ("font", "viewport", "container"):
                         print(
                             f"{json_path}: {dimension_name} unit `{unit_name}` is marked as relative to "
                             f"`{relative_to}`, which is unsupported.",

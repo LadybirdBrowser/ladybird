@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 468 tests
 
-466 Pass
-2 Fail
+467 Pass
+1 Fail
 Pass	Property color value 'color(srgb 0% 0% 0%)'
 Pass	Property color value 'color(srgb 10% 10% 10%)'
 Pass	Property color value 'color(srgb .2 .2 25%)'
@@ -470,5 +470,5 @@ Pass	Property color value 'color(display-p3 0.5 -199 0.75)' [Display P3 color wi
 Pass	Property color value 'color(display-p3 184 1.00001 1103)' [Display P3 color with component > 1 should not clamp]
 Pass	Property color value 'color(srgb 0.1 0.2 0.3 / 1.9)' [Alpha > 1 should clamp]
 Pass	Property color value 'color(srgb 1 1 1 / -0.2)' [Negative alpha should clamp]
-Fail	Property color value 'color(srgb calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0 0 / 0.51)'
+Pass	Property color value 'color(srgb calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0 0 / 0.51)'
 Fail	Property color value 'color(srgb calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0 0 / 0.52)'

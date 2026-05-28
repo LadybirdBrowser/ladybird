@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 33 tests
 
-32 Pass
-1 Fail
+33 Pass
 Pass	Property grid-area value 'auto / auto / auto / auto'
 Pass	Property grid-row value 'auto / auto'
 Pass	Property grid-column-end value 'auto'
@@ -21,7 +20,7 @@ Pass	Property grid-row-end value '1 -πA'
 Pass	Property grid-column-end value '5 π_'
 Pass	Property grid-row-start value 'calc(1.1) -a-'
 Pass	Property grid-row-start value 'calc(10) -a-'
-Fail	Property grid-row-start value 'calc(10 + (sign(2cqw - 10px) * 5)) -a-'
+Pass	Property grid-row-start value 'calc(10 + (sign(2cqw - 10px) * 5)) -a-'
 Pass	Property grid-area value 'span 2 i / auto / auto / auto'
 Pass	Property grid-row value 'span 2 / auto'
 Pass	Property grid-column-start value 'span 1 i'

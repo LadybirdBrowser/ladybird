@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 24 tests
 
-24 Fail
-Fail	CSS Animation using cqw unit
+4 Pass
+20 Fail
+Pass	CSS Animation using cqw unit
 Fail	CSS Animation using cqw unit responds to changing container size
 Fail	CSS Animation using cqh unit
 Fail	CSS Animation using cqh unit responds to changing container size
@@ -15,15 +16,15 @@ Fail	CSS Animation using cqmin unit
 Fail	CSS Animation using cqmin unit responds to changing container size
 Fail	CSS Animation using cqmax unit
 Fail	CSS Animation using cqmax unit responds to changing container size
-Fail	Web Animation using cqw unit
+Pass	Web Animation using cqw unit
 Fail	Web Animation using cqw unit responds to changing container size
 Fail	Web Animation using cqh unit
 Fail	Web Animation using cqh unit responds to changing container size
-Fail	Web Animation using cqi unit
+Pass	Web Animation using cqi unit
 Fail	Web Animation using cqi unit responds to changing container size
 Fail	Web Animation using cqb unit
 Fail	Web Animation using cqb unit responds to changing container size
-Fail	Web Animation using cqmin unit
+Pass	Web Animation using cqmin unit
 Fail	Web Animation using cqmin unit responds to changing container size
 Fail	Web Animation using cqmax unit
 Fail	Web Animation using cqmax unit responds to changing container size

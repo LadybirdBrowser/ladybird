@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Query with container-relative units are responsive to changes
+1 Pass
+Pass	Query with container-relative units are responsive to changes

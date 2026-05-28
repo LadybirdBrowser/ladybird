@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 17 tests
 
-15 Pass
-2 Fail
+16 Pass
+1 Fail
 Pass	e.style['font-style'] = "normal" should set the property value
 Pass	e.style['font-style'] = "italic" should set the property value
 Pass	e.style['font-style'] = "oblique" should set the property value
@@ -20,4 +20,4 @@ Pass	e.style['font-style'] = "oblique calc(90deg)" should set the property value
 Pass	e.style['font-style'] = "oblique calc(100deg)" should set the property value
 Pass	e.style['font-style'] = "oblique calc(-100deg)" should set the property value
 Pass	e.style['font-style'] = "oblique calc(30deg * 2)" should set the property value
-Fail	e.style['font-style'] = "oblique calc(30deg + (sign(2cqw - 10px) * 5deg))" should set the property value
+Pass	e.style['font-style'] = "oblique calc(30deg + (sign(2cqw - 10px) * 5deg))" should set the property value

@@ -30,6 +30,7 @@ struct ComputationContext {
 
     void visit_edges(GC::Cell::Visitor& visitor)
     {
+        length_resolution_context.visit_edges(visitor);
         if (abstract_element.has_value())
             abstract_element->visit(visitor);
     }

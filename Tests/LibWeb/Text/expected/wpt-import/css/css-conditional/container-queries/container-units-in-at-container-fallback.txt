@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Use small viewport size as fallback
+1 Pass
+Pass	Use small viewport size as fallback
