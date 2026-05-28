@@ -33,6 +33,7 @@ public:
     static Optional<Node> dom_node_for(WeakPtr<WalkerActor> const&, StringView actor);
     Optional<Node> dom_node(StringView actor);
     Optional<String> node_actor_name_for(Web::UniqueNodeID) const;
+    void document_unloaded();
 
 private:
     WalkerActor(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);
@@ -52,6 +53,8 @@ private:
 
     bool replace_node_in_tree(JsonObject replacement);
 
+    void clear_dom_tree_cache();
+    void clear_dom_tree_state();
     void populate_dom_tree_cache();
     void populate_dom_tree_cache(JsonObject& node, JsonObject const* parent);
 
@@ -65,6 +68,7 @@ private:
     WeakPtr<LayoutInspectorActor> m_layout_inspector;
 
     JsonObject m_dom_tree;
+    bool m_has_live_dom_tree { true };
 
     Vector<WebView::Mutation> m_dom_node_mutations;
     bool m_has_new_mutations_since_last_mutations_request { false };

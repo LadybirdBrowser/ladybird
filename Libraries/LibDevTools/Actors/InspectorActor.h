@@ -22,6 +22,8 @@ public:
     static RefPtr<TabActor> tab_for(WeakPtr<InspectorActor> const&);
     static RefPtr<WalkerActor> walker_for(WeakPtr<InspectorActor> const&);
 
+    void on_navigation_started();
+
 private:
     InspectorActor(DevToolsServer&, String name, WeakPtr<TabActor>);
 
