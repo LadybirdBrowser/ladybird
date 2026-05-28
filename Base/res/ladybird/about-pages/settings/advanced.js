@@ -68,13 +68,13 @@ function createRow(variable) {
     row.classList.add("inline-container");
     row.dataset.filterText = `${variable.name} ${variable.title} ${variable.description}`.toLowerCase();
 
-    const name = document.createElement("p");
-    name.classList.add("config-name");
-    name.textContent = variable.name;
-
     const title = document.createElement("p");
     title.classList.add("config-title");
     title.textContent = variable.title;
+
+    const name = document.createElement("p");
+    name.classList.add("config-name");
+    name.textContent = variable.name;
 
     const description = document.createElement("p");
     description.classList.add("description");
@@ -82,7 +82,7 @@ function createRow(variable) {
 
     const label = document.createElement("label");
     label.htmlFor = variable.name;
-    label.append(name, title, description);
+    label.append(title, name, description);
 
     row.append(label, createControl(variable));
     return row;
