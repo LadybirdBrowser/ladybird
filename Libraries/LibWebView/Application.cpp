@@ -1803,6 +1803,12 @@ void Application::reload_tab(DevTools::TabDescription const& description, bool) 
         view->reload();
 }
 
+void Application::traverse_the_history_by_delta(DevTools::TabDescription const& description, int delta) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->traverse_the_history_by_delta(delta);
+}
+
 void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
