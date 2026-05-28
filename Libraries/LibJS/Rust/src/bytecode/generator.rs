@@ -58,6 +58,7 @@ pub struct PendingSharedFunctionData {
 }
 
 /// Metadata computed from scope analysis for a SharedFunctionInstanceData.
+#[derive(Clone)]
 pub struct FunctionSfdMetadata {
     pub uses_this: bool,
     pub this_value_needs_environment_resolution: bool,

@@ -54,7 +54,7 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::C
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::heap_bytecode(), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
 {
     auto filename = source_code->filename();
     auto rust_compilation = RustIntegration::materialize_bytecode_cache_script(bytecode_cache, move(source_code), realm);
@@ -62,38 +62,34 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(
         return Vector<ParserError> {};
     if (rust_compilation->is_error())
         return rust_compilation->release_error();
-    return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::mapped_bytecode_cache(), host_defined);
+    return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::mapped_bytecode_cache(move(bytecode_cache)), host_defined);
 }
 
-bool Script::try_install_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
+bool Script::try_install_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
 {
-    if (m_executable_backing.is_mapped_bytecode_cache()) {
-        RustIntegration::free_decoded_bytecode_cache_blob(bytecode_cache);
+    if (m_executable_backing.is_mapped_bytecode_cache())
         return false;
-    }
 
-    if (!m_executable) {
-        RustIntegration::free_decoded_bytecode_cache_blob(bytecode_cache);
+    if (!m_executable)
         return false;
-    }
 
     auto shared_function_data = collect_shared_function_data();
     auto executable = RustIntegration::try_install_bytecode_cache_script(bytecode_cache, move(source_code), realm(), *m_executable, shared_function_data);
     if (!executable)
         return false;
 
-    complete_bytecode_cache_install(*executable);
+    complete_bytecode_cache_install(*executable, move(bytecode_cache));
     return true;
 }
 
-void Script::install_generated_bytecode_cache(FFI::DecodedBytecodeCacheBlob* bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
+void Script::install_generated_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code)
 {
     VERIFY(can_install_generated_bytecode_cache());
     VERIFY(m_executable);
 
     auto shared_function_data = collect_shared_function_data();
     auto executable = RustIntegration::install_generated_bytecode_cache_script(bytecode_cache, move(source_code), realm(), *m_executable, shared_function_data);
-    complete_bytecode_cache_install(executable);
+    complete_bytecode_cache_install(executable, move(bytecode_cache));
 }
 
 bool Script::can_generate_bytecode_cache() const
@@ -129,11 +125,11 @@ Vector<SharedFunctionInstanceData*> Script::collect_shared_function_data()
     return shared_function_data;
 }
 
-void Script::complete_bytecode_cache_install(GC::Ref<Bytecode::Executable> executable)
+void Script::complete_bytecode_cache_install(GC::Ref<Bytecode::Executable> executable, NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache)
 {
     m_executable = executable;
     m_shared_function_data.clear_non_bytecode_cache_compile_inputs();
-    m_executable_backing.finish_bytecode_cache_install();
+    m_executable_backing.finish_bytecode_cache_install(move(bytecode_cache));
     verify_executable_backing_invariants();
 }
 

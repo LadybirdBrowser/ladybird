@@ -32,6 +32,7 @@ struct DecodedBytecodeCacheBlob;
 
 namespace RustIntegration {
 
+class DecodedBytecodeCache;
 struct ScriptResult;
 
 }
@@ -59,7 +60,7 @@ public:
     static Result<GC::Ref<Script>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, HostDefined* = nullptr, size_t line_number_offset = 1);
     static Result<GC::Ref<Script>, Vector<ParserError>> create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
     static Result<GC::Ref<Script>, Vector<ParserError>> create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
-    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_bytecode_cache(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
+    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache>, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
 
     Realm& realm() { return *m_realm; }
     Vector<LoadedModuleRequest>& loaded_modules() { return m_loaded_modules; }
@@ -74,8 +75,8 @@ public:
     [[nodiscard]] bool can_install_generated_bytecode_cache() const;
     void begin_bytecode_cache_generation();
     void finish_bytecode_cache_generation_without_install();
-    bool try_install_bytecode_cache(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code);
-    void install_generated_bytecode_cache(FFI::DecodedBytecodeCacheBlob*, NonnullRefPtr<SourceCode const> source_code);
+    bool try_install_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache>, NonnullRefPtr<SourceCode const> source_code);
+    void install_generated_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache>, NonnullRefPtr<SourceCode const> source_code);
 
     ThrowCompletionOr<void> global_declaration_instantiation(VM&, GlobalEnvironment&);
 
@@ -97,7 +98,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
     Vector<SharedFunctionInstanceData*> collect_shared_function_data();
-    void complete_bytecode_cache_install(GC::Ref<Bytecode::Executable>);
+    void complete_bytecode_cache_install(GC::Ref<Bytecode::Executable>, NonnullRefPtr<RustIntegration::DecodedBytecodeCache>);
     void verify_executable_backing_invariants();
 
     GC::Ptr<Realm> m_realm;                       // [[Realm]]

@@ -15,7 +15,6 @@ namespace JS::FFI {
 
 struct ParsedProgram;
 struct CompiledProgram;
-struct DecodedBytecodeCacheBlob;
 
 }
 
@@ -34,7 +33,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create(ByteString const& filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::ParsedProgram* parsed);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::CompiledProgram* compiled);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::DecodedBytecodeCacheBlob*);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache>);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_javascript_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_css_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject&);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_json_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject&);
