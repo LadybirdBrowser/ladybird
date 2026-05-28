@@ -14,6 +14,7 @@
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
+#include <Compositor/VSyncScheduler.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Point.h>
@@ -88,7 +89,6 @@ public:
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking);
     bool async_scroll_by(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta);
-    void present_deferred_async_scroll_frame(Web::Compositor::CompositorContextId);
     bool should_defer_main_thread_present_for_async_scroll(Web::Compositor::CompositorContextId) const;
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
@@ -150,11 +150,10 @@ private:
         double display_refresh_rate { 60.0 };
 
         Optional<Gfx::IntRect> pending_present_frame;
+        bool pending_present_frame_scheduled { false };
         Optional<Gfx::IntRect> presented_frame;
         Optional<i32> gpu_present_bitmap_id_awaiting_completion;
         Optional<i32> presented_bitmap_id_awaiting_ack;
-        bool has_deferred_async_scroll_present { false };
-        Gfx::IntRect deferred_async_scroll_present_viewport_rect;
 
         void stop_backing_store_shrink_timer();
     };
@@ -195,9 +194,13 @@ private:
     void present_current_frame(Web::Compositor::CompositorContextId, ContextState&);
     void publish_to_parent_surface(ContextState&, Web::Compositor::PublishToCompositorSurface const&);
     void present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
+    void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect);
+    void schedule_pending_present_frame_on_vsync(Web::Compositor::CompositorContextId, ContextState&);
+    void schedule_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId, ContextState&);
+    VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
+    void present_pending_frames_on_vsync(Optional<u64> display_id);
     void publish_backing_stores(Web::Compositor::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
     void did_finish_async_present(PendingAsyncPresent&);
-    void drain_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId, ContextState&);
     void cancel_pending_async_presents_for_context(Web::Compositor::CompositorContextId);
     void schedule_gpu_completion_check();
     void check_gpu_completions();
@@ -206,6 +209,7 @@ private:
     DoublyLinkedList<PendingAsyncPresent> m_pending_async_presents;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     OwnPtr<Web::Painting::DisplayListPlayerSkia> m_display_list_player;
+    HashMap<Optional<u64>, OwnPtr<VSyncScheduler>> m_vsync_schedulers_by_display;
     RefPtr<Core::Timer> m_gpu_completion_timer;
     CompositorStateClient* m_client { nullptr };
     bool m_async_scrolling_enabled { true };
