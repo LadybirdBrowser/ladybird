@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 120 tests
 
-119 Pass
-1 Fail
+120 Pass
 Pass	Property color value 'lab(0 0 0)'
 Pass	Property color value 'lab(0 0 0 / 1)'
 Pass	Property color value 'lab(0 0 0 / 0.5)'
@@ -120,7 +119,7 @@ Pass	Property color value 'lab(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.51)
 Pass	Property color value 'oklab(calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0.3 0.5 / 0.51)'
 Pass	Property color value 'lch(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.51)'
 Pass	Property color value 'oklch(calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0.3 50 / 0.51)'
-Fail	Property color value 'lab(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.52)'
+Pass	Property color value 'lab(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.52)'
 Pass	Property color value 'oklab(calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0.3 0.5 / 0.52)'
 Pass	Property color value 'lch(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.52)'
 Pass	Property color value 'oklch(calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0.3 50 / 0.52)'

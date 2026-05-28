@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-2 Pass
-3 Fail
+5 Pass
 Pass	cqi respond when selected container changes type (inline-size -> normal)
 Pass	cqb respond when selected container changes type (size -> normal)
-Fail	cqb respond when intermediate container changes type (inline-size -> size)
-Fail	cqi respond when selected container changes inline-size
-Fail	cqb respond when selected container changes block-size
+Pass	cqb respond when intermediate container changes type (inline-size -> size)
+Pass	cqi respond when selected container changes inline-size
+Pass	cqb respond when selected container changes block-size
