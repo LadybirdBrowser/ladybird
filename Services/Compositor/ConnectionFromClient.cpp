@@ -42,10 +42,10 @@ void ConnectionFromClient::did_present_frame(Web::Compositor::CompositorContextI
 Messages::CompositorControlServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#endif
+    // Connection gets parent PID via SOCKET_TAKEOVER
     VERIFY_NOT_REACHED();
+#endif
+    return Core::System::getpid();
 }
 
 Messages::CompositorControlServer::ConnectWebContentResponse ConnectionFromClient::connect_web_content()

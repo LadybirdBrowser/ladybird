@@ -86,7 +86,8 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     // Note: Core::System::socketpair creates inheritable sockets both on Linux and Windows unless SOCK_CLOEXEC is specified.
     TRY(Core::System::set_close_on_exec(socket_fds[0], true));
 
-    auto takeover_string = MUST(String::formatted("{}:{}", options.name, socket_fds[1]));
+    // Pass parent PID via SOCKET_TAKEOVER to avoid deadlock IPC messages on Windows
+    auto takeover_string = MUST(String::formatted("{}:{}:{}", options.name, socket_fds[1], Core::System::getpid()));
     TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, takeover_string, Core::Environment::Overwrite::Yes));
 
     auto process = TRY(Core::Process::spawn(spawn_options));

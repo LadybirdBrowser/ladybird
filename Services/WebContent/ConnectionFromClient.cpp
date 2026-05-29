@@ -14,6 +14,7 @@
 #include <AK/JsonObject.h>
 #include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
+#include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
@@ -105,10 +106,8 @@ void ConnectionFromClient::die()
 
 Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
-#ifdef AK_OS_WINDOWS
-    m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
-#endif
+    // This should never be called for WebContent since we configure the transport
+    // via LADYBIRD_PARENT_PID environment variable to avoid a synchronous IPC call
     VERIFY_NOT_REACHED();
 }
 
@@ -178,6 +177,11 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
 {
     auto transport = MUST(handle.create_transport());
     m_compositor_connection = adopt_ref(*new CompositorConnection(move(transport)));
+#ifdef AK_OS_WINDOWS
+    // Compositor-WebContent connections are peer-to-peer and need to exchange PIDs
+    auto response = m_compositor_connection->send_sync<Messages::CompositorWebContentServer::InitTransport>(Core::System::getpid());
+    m_compositor_connection->transport().set_peer_pid(response->peer_pid());
+#endif
     m_compositor_connection->on_mouse_event = [this](u64 page_id, Web::MouseEvent event) {
         mouse_event(page_id, move(event));
     };

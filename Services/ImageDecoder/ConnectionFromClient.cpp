@@ -49,10 +49,11 @@ void ConnectionFromClient::die()
 Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
+    // On Windows: Primary connections configure transport via SOCKET_TAKEOVER in main()
+    // Secondary connections (peer-to-peer between child processes) use InitTransport to exchange PIDs
     m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
 #endif
-    VERIFY_NOT_REACHED();
+    return Core::System::getpid();
 }
 
 ErrorOr<IPC::TransportHandle> ConnectionFromClient::connect_new_client()
@@ -63,6 +64,7 @@ ErrorOr<IPC::TransportHandle> ConnectionFromClient::connect_new_client()
     // Note: A ref is stored in the static s_connections map
     auto client = adopt_ref(*new ConnectionFromClient(move(paired.local)));
 
+    // Secondary connections will exchange PIDs via InitTransport
     return handle;
 }
 

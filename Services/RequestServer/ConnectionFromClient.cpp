@@ -162,10 +162,13 @@ void ConnectionFromClient::die()
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
+    // Primary connections configure transport via SOCKET_TAKEOVER and should not call this
+    // Secondary connections (peer-to-peer between child processes) still need to exchange PIDs
+    VERIFY(g_primary_connection != this);
+
     m_transport->set_peer_pid(peer_pid);
-    return Core::System::getpid();
 #endif
-    VERIFY_NOT_REACHED();
+    return Core::System::getpid();
 }
 
 Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
@@ -205,6 +208,7 @@ ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket()
     // Note: A ref is stored in the m_connections map
     auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, m_connections, m_disk_cache));
 
+    // Secondary connections will exchange PIDs via InitTransport
     return handle;
 }
 

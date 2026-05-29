@@ -10,6 +10,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
+#include <LibCore/SystemServerTakeover.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
 
@@ -31,6 +32,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop event_loop;
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<ImageDecoder::ConnectionFromClient>(mach_server_name));
+
+#if defined(AK_OS_WINDOWS)
+    // Configure primary connection transport with parent PID from SOCKET_TAKEOVER
+    auto parent_pid = Core::get_parent_pid_from_socket_takeover();
+    VERIFY(parent_pid.has_value());
+    client->transport().set_peer_pid(*parent_pid);
+#endif
 
     return event_loop.exec();
 }

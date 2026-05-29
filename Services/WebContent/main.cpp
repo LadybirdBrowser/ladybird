@@ -6,11 +6,13 @@
 
 #include <AK/LexicalPath.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
+#include <LibCore/SystemServerTakeover.h>
 #include <LibCore/TimeZone.h>
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
@@ -263,6 +265,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         make<IPC::Transport>(move(transport_ports.receive_right), move(transport_ports.send_right)));
 #else
     auto webcontent_client = TRY(IPC::take_over_accepted_client_from_system_server<WebContent::ConnectionFromClient>(mach_server_name));
+
+#    if defined(AK_OS_WINDOWS)
+    // Configure transport with parent PID from SOCKET_TAKEOVER, avoiding the need for InitTransport sync
+    webcontent_client->transport().set_peer_pid(*Core::get_parent_pid_from_socket_takeover());
+#    endif
 #endif
 
     auto& heap = Web::Bindings::main_thread_vm().heap();

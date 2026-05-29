@@ -57,8 +57,13 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
                 client->set_pid(process.pid());
 
             if constexpr (requires { client->transport().set_peer_pid(0); } && !IsSame<ClientType, WebWorkerClient>) {
+#if defined(AK_OS_WINDOWS)
+                // All helper processes skip the InitTransport message and set the pid via SOCKET_TAKEOVER on Windows
+                client->transport().set_peer_pid(process.pid());
+#else
                 auto response = client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
                 client->transport().set_peer_pid(response->peer_pid());
+#endif
             }
 
             WebView::Application::the().add_child_process(move(process));

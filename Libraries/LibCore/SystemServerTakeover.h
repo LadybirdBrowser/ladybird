@@ -12,5 +12,6 @@
 namespace Core {
 
 CORE_API ErrorOr<NonnullOwnPtr<Core::LocalSocket>> take_over_socket_from_system_server(ByteString const& socket_path = {});
+CORE_API Optional<pid_t> get_parent_pid_from_socket_takeover();
 
 }

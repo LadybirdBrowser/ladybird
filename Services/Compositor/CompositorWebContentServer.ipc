@@ -13,6 +13,8 @@
 
 endpoint CompositorWebContentServer
 {
+    init_transport(int peer_pid) => (int peer_pid)
+
     set_presentation_mode(Web::Compositor::CompositorContextId context_id, Web::Compositor::PresentationMode presentation_mode) =|
     destroy_context(Web::Compositor::CompositorContextId context_id) =|
 
