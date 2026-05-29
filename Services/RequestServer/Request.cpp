@@ -368,9 +368,10 @@ NonnullOwnPtr<Request> Request::fetch(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path)
+    ByteString alt_svc_cache_path,
+    Proxy::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), move(proxy_data) });
     request->process();
 
     return request;
@@ -401,9 +402,10 @@ NonnullOwnPtr<Request> Request::revalidate(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path)
+    ByteString alt_svc_cache_path,
+    Proxy::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
+    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), move(proxy_data) });
     request->process();
 
     return request;
@@ -422,7 +424,8 @@ Request::Request(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    ByteString alt_svc_cache_path)
+    ByteString alt_svc_cache_path,
+    Proxy::ProxyData proxy_data)
     : m_request_id(request_id)
     , m_type(type)
     , m_disk_cache(disk_cache)
@@ -436,6 +439,7 @@ Request::Request(
     , m_request_body(move(request_body))
     , m_include_credentials(include_credentials)
     , m_alt_svc_cache_path(move(alt_svc_cache_path))
+    , m_proxy_data(move(proxy_data))
     , m_response_headers(HTTP::HeaderList::create())
 {
     if constexpr (REQUESTSERVER_WIRE_DEBUG)
@@ -585,6 +589,15 @@ void Request::process()
 
 void Request::transition_to_network_lookup()
 {
+    if (!m_proxy_data.is_direct()) {
+        // Client has provided proxy data, skip proxy resolution
+        if (m_type == RequestType::Connect)
+            transition_to_state(State::Connect);
+        else
+            transition_to_state(State::RetrieveCookie);
+        return;
+    }
+
     if (Proxy::use_system_proxy()) {
         auto proxies = Proxy::get_proxies_for_url(m_url);
         if (!proxies.is_empty()) {
@@ -626,7 +639,7 @@ void Request::handle_initial_state()
 
                     if (m_cache_entry_reader.has_value()) {
                         if (m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::StaleWhileRevalidate)
-                            m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials);
+                            m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials, m_proxy_data);
 
                         if (is_revalidation_request())
                             transition_to_network_lookup();

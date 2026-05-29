@@ -25,6 +25,9 @@ void watch_system_proxy_changes(Function<void()> callback)
 {
 #if defined(AK_OS_MACOS)
     watch_system_proxy_changes_mac(move(callback));
+#else
+    // Avoid "unused parameter" error.
+    (void)callback;
 #endif
 }
 

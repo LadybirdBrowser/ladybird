@@ -76,12 +76,12 @@ void RequestClient::die()
     }
 }
 
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, ::Proxy::ProxyData const& proxy_data)
 {
     auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
 
-    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials);
+    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data);
     auto request = Request::create_from_id({}, *this, request_id);
     m_requests.set(request_id, request);
     return request;

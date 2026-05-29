@@ -7,10 +7,8 @@
 #include "../Proxy.h"
 #include "ProxyPlatform.h"
 #include <AK/ByteString.h>
-#include <CoreFoundation/CoreFoundation.h>
 #include <LibCore/Environment.h>
 #include <LibURL/Parser.h>
-#include <SystemConfiguration/SystemConfiguration.h>
 
 namespace Proxy {
 

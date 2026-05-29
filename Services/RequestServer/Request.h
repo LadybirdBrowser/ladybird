@@ -43,7 +43,8 @@ public:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        ByteString alt_svc_cache_path);
+        ByteString alt_svc_cache_path,
+        Proxy::ProxyData proxy_data);
 
     static NonnullOwnPtr<Request> connect(
         u64 request_id,
@@ -64,7 +65,8 @@ public:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        ByteString alt_svc_cache_path);
+        ByteString alt_svc_cache_path,
+        Proxy::ProxyData proxy_data);
 
     virtual ~Request() override;
 
@@ -133,7 +135,8 @@ private:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        ByteString alt_svc_cache_path);
+        ByteString alt_svc_cache_path,
+        Proxy::ProxyData proxy_data);
 
     Request(
         u64 request_id,
@@ -199,7 +202,6 @@ private:
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
 
     ByteString m_alt_svc_cache_path;
-    // This is not provided by the client, but resolved by the class Request itself.
     Proxy::ProxyData m_proxy_data;
 
     Optional<u32> m_status_code;

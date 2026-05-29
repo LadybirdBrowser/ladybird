@@ -18,6 +18,7 @@
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
+#include <LibProxy/Proxy.h>
 #include <LibURL/URL.h>
 
 namespace IPC {
@@ -143,7 +144,7 @@ template<>
 ErrorOr<void> encode(Encoder&, Core::AnonymousBuffer const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Core::ProxyData const&);
+ErrorOr<void> encode(Encoder&, Proxy::ProxyData const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::Blob const&);

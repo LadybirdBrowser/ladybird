@@ -13,6 +13,7 @@
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibProxy/Proxy.h>
 #include <LibRequests/CacheSizes.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/WebSocket.h>
@@ -35,7 +36,7 @@ public:
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestClient() override;
 
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes);
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, ::Proxy::ProxyData const& proxy_data = {});
     bool stop_request(Badge<Request>, Request&);
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
 

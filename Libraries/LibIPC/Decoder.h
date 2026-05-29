@@ -23,6 +23,7 @@
 #include <LibIPC/Concepts.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
+#include <LibProxy/Proxy.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 
@@ -139,7 +140,7 @@ template<>
 ErrorOr<Core::AnonymousBuffer> decode(Decoder&);
 
 template<>
-ErrorOr<Core::ProxyData> decode(Decoder&);
+ErrorOr<Proxy::ProxyData> decode(Decoder&);
 
 template<>
 ErrorOr<URL::BlobURLEntry::Blob> decode(Decoder&);

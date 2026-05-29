@@ -43,7 +43,7 @@ public:
 
     static Optional<ConnectionFromClient&> primary_connection();
 
-    void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials);
+    void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials, Proxy::ProxyData);
     void request_complete(Badge<Request>, Request const&);
 
 private:
@@ -59,7 +59,7 @@ private:
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
     virtual void set_proxy_mode(u8 proxy_mode) override;
-    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials) override;
+    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, Proxy::ProxyData) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString, ByteString) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
