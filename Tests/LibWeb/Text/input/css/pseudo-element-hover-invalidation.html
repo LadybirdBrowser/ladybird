@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    a {
+        display: block;
+        width: 100px;
+        height: 100px;
+    }
+
+    a::before {
+        content: "before";
+        color: red;
+    }
+
+    a:hover::before {
+        color: green;
+    }
+</style>
+<script src="../include.js"></script>
+<a href="#">Hover me</a>
+<script>
+    test(() => {
+        const anchor = document.querySelector("a");
+
+        println("initial color: " + getComputedStyle(anchor, "::before").color);
+
+        internals.mouseMove(50, 50);
+        println("hovered color: " + getComputedStyle(anchor, "::before").color);
+
+        internals.mouseMove(150, 150);
+        println("unhovered color: " + getComputedStyle(anchor, "::before").color);
+    });
+</script>

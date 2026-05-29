@@ -1,0 +1,3 @@
+plain text hover: styleInvalidations=0, elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+link hover: styleInvalidations=1, elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+link color: rgb(0, 128, 0)

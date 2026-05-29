@@ -118,8 +118,14 @@ void invalidate_node_style_for_properties(DOM::Node& node, DOM::StyleInvalidatio
     if (options.invalidate_self)
         node.set_needs_style_update(true);
 
-    auto invalidate_for_style_scope = [&node, reason, &properties](CSS::StyleScope& style_scope) {
+    auto invalidate_for_style_scope = [&node, reason, &properties, options](CSS::StyleScope& style_scope) {
         auto plan = node.document().style_computer().invalidation_plan_for_properties(properties, style_scope);
+        if (!options.invalidate_self_from_property_plan && plan->invalidate_self) {
+            auto plan_without_self_invalidation = CSS::InvalidationPlan::create();
+            plan_without_self_invalidation->include_all_from(*plan);
+            plan_without_self_invalidation->invalidate_self = false;
+            plan = move(plan_without_self_invalidation);
+        }
         return node.document().style_invalidator().enqueue_invalidation_plan(node, reason, *plan);
     };
 

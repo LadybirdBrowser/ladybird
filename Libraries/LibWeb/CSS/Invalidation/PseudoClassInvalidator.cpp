@@ -8,9 +8,11 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Invalidation/AncestorTraversal.h>
+#include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
@@ -32,6 +34,65 @@ static AncestorTraversal ancestor_traversal_for_pseudo_class(CSS::PseudoClass ps
     }
 }
 
+static bool pseudo_class_subject_may_match_element(DOM::Element& element, CSS::Selector const& selector, CSS::PseudoClass pseudo_class)
+{
+    auto const& compound_selectors = selector.compound_selectors();
+    for (size_t i = compound_selectors.size(); i > 0; --i) {
+        auto const& compound_selector = compound_selectors[i - 1];
+        bool contains_pseudo_class = false;
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
+                && simple_selector.pseudo_class().type == pseudo_class) {
+                contains_pseudo_class = true;
+                break;
+            }
+        }
+        if (!contains_pseudo_class)
+            continue;
+
+        if (!compound_may_match_element(element, compound_selector, pseudo_class))
+            return false;
+
+        if (compound_selector.simple_selectors.size() > 1 || i == 1)
+            return true;
+
+        if (compound_selector.combinator != CSS::Selector::Combinator::None)
+            return true;
+
+        // Some selectors are represented with the pseudo-class in its own
+        // compound. In that case, the preceding compound carries the subject
+        // constraints, such as the `a` in `a:hover`.
+        return compound_may_match_element(element, compound_selectors[i - 2], pseudo_class);
+    }
+    return true;
+}
+
+static bool element_may_match_rule_containing_pseudo_class_in_style_scope(DOM::Element& element, CSS::StyleScope& style_scope, CSS::PseudoClass pseudo_class)
+{
+    bool may_match = false;
+    auto abstract_element = DOM::AbstractElement { element };
+    style_scope.get_pseudo_class_rule_cache(pseudo_class).for_each_matching_rules(abstract_element, [&](auto const& matching_rules) {
+        for (auto const& matching_rule : matching_rules) {
+            if (pseudo_class_subject_may_match_element(element, matching_rule.selector, pseudo_class)) {
+                may_match = true;
+                return IterationDecision::Break;
+            }
+        }
+        return IterationDecision::Continue;
+    });
+    return may_match;
+}
+
+static bool element_may_match_rule_containing_pseudo_class(DOM::Element& element, CSS::PseudoClass pseudo_class)
+{
+    bool may_match = false;
+    element.for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
+        if (element_may_match_rule_containing_pseudo_class_in_style_scope(element, scope, pseudo_class))
+            may_match = true;
+    });
+    return may_match;
+}
+
 void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_class, GC::Ptr<DOM::Node> old_state, GC::Ptr<DOM::Node> new_state)
 {
     if (!old_state && !new_state)
@@ -41,10 +102,13 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
     auto traversal = ancestor_traversal_for_pseudo_class(pseudo_class);
 
     Vector<CSS::InvalidationSet::Property, 1> properties { { CSS::InvalidationSet::Property::Type::PseudoClass, pseudo_class } };
-    DOM::StyleInvalidationOptions options { .invalidate_self = true };
     auto reason = DOM::StyleInvalidationReason::PseudoClassStateChange;
 
     auto invalidate = [&](DOM::Element& element) {
+        DOM::StyleInvalidationOptions options {
+            .invalidate_self = element_may_match_rule_containing_pseudo_class(element, pseudo_class),
+        };
+        options.invalidate_self_from_property_plan = options.invalidate_self;
         element.invalidate_style(reason, properties, options);
 
         // The interaction-state pseudo classes (Hover/Focus/etc.) aren't tracked in

@@ -9,6 +9,7 @@
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/Invalidation/HasMutationFeatureCollector.h>
 #include <LibWeb/CSS/Invalidation/HasMutationInvalidator.h>
+#include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -209,57 +210,6 @@ static bool selector_may_match_mutation_features(Selector const& selector, Pendi
     return visit_selector(selector);
 }
 
-static bool compound_may_match_anchor_ignoring_has(Selector::CompoundSelector const& compound_selector, DOM::Element const& anchor)
-{
-    for (auto const& simple_selector : compound_selector.simple_selectors) {
-        switch (simple_selector.type) {
-        case Selector::SimpleSelector::Type::Universal:
-            break;
-        case Selector::SimpleSelector::Type::Nesting:
-        case Selector::SimpleSelector::Type::Invalid:
-        case Selector::SimpleSelector::Type::PseudoElement:
-            return true;
-        case Selector::SimpleSelector::Type::TagName:
-            if (anchor.local_name() != simple_selector.qualified_name().name.lowercase_name)
-                return false;
-            break;
-        case Selector::SimpleSelector::Type::Id: {
-            auto id = anchor.id();
-            if (!id.has_value() || *id != simple_selector.name())
-                return false;
-            break;
-        }
-        case Selector::SimpleSelector::Type::Class:
-            if (!anchor.class_names().contains_slow(simple_selector.name()))
-                return false;
-            break;
-        case Selector::SimpleSelector::Type::Attribute: {
-            bool has_attribute = false;
-            anchor.for_each_attribute([&](FlyString const& name, String const&) {
-                if (name == simple_selector.attribute().qualified_name.name.lowercase_name)
-                    has_attribute = true;
-            });
-            if (!has_attribute)
-                return false;
-            break;
-        }
-        case Selector::SimpleSelector::Type::PseudoClass:
-            switch (simple_selector.pseudo_class().type) {
-            case PseudoClass::Has:
-                break;
-            case PseudoClass::Root:
-                if (&anchor != anchor.document().document_element())
-                    return false;
-                break;
-            default:
-                return true;
-            }
-            break;
-        }
-    }
-    return true;
-}
-
 static bool has_rule_that_may_be_affected_by_mutation(StyleScope& style_scope, DOM::Element const& anchor, PendingHasInvalidationMutationFeatures const& mutation_features)
 {
     bool found_has_rule = false;
@@ -275,7 +225,7 @@ static bool has_rule_that_may_be_affected_by_mutation(StyleScope& style_scope, D
                         continue;
                     auto const& pseudo_class = simple_selector.pseudo_class();
                     if (pseudo_class.type == PseudoClass::Has) {
-                        if (!compound_may_match_anchor_ignoring_has(compound_selector, anchor))
+                        if (!compound_may_match_element(anchor, compound_selector, PseudoClass::Has))
                             continue;
                         found_has_rule = true;
                         for (auto const& argument_selector : pseudo_class.argument_selector_list) {

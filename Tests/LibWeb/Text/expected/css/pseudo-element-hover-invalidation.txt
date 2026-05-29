@@ -1,0 +1,3 @@
+initial color: rgb(255, 0, 0)
+hovered color: rgb(0, 128, 0)
+unhovered color: rgb(255, 0, 0)

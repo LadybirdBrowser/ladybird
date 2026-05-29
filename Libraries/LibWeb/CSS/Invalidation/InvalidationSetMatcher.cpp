@@ -19,6 +19,74 @@
 
 namespace Web::CSS::Invalidation {
 
+static bool compound_may_match_element_impl(DOM::Element const& element, Selector::CompoundSelector const& compound_selector, Optional<PseudoClass> ignored_pseudo_class, bool in_selector_list_argument)
+{
+    for (auto const& simple_selector : compound_selector.simple_selectors) {
+        switch (simple_selector.type) {
+        case Selector::SimpleSelector::Type::Universal:
+            break;
+        case Selector::SimpleSelector::Type::Nesting:
+        case Selector::SimpleSelector::Type::Invalid:
+            return true;
+        case Selector::SimpleSelector::Type::PseudoElement:
+            if (in_selector_list_argument)
+                return false;
+            break;
+        case Selector::SimpleSelector::Type::TagName:
+            if (element.lowercased_local_name() != simple_selector.qualified_name().name.lowercase_name)
+                return false;
+            break;
+        case Selector::SimpleSelector::Type::Id: {
+            auto id = element.id();
+            if (!id.has_value() || *id != simple_selector.name())
+                return false;
+            break;
+        }
+        case Selector::SimpleSelector::Type::Class:
+            if (!element.class_names().contains_slow(simple_selector.name()))
+                return false;
+            break;
+        case Selector::SimpleSelector::Type::Attribute:
+            if (!element.has_attribute(simple_selector.attribute().qualified_name.name.lowercase_name))
+                return false;
+            break;
+        case Selector::SimpleSelector::Type::PseudoClass: {
+            auto const& pseudo_class = simple_selector.pseudo_class();
+            if (ignored_pseudo_class.has_value() && pseudo_class.type == *ignored_pseudo_class)
+                break;
+            switch (pseudo_class.type) {
+            case PseudoClass::Is:
+            case PseudoClass::Where: {
+                bool argument_may_match = false;
+                for (auto const& argument_selector : pseudo_class.argument_selector_list) {
+                    if (compound_may_match_element_impl(element, argument_selector->compound_selectors().last(), ignored_pseudo_class, true)) {
+                        argument_may_match = true;
+                        break;
+                    }
+                }
+                if (!argument_may_match)
+                    return false;
+                break;
+            }
+            case PseudoClass::Root:
+                if (&element != element.document().document_element())
+                    return false;
+                break;
+            default:
+                break;
+            }
+            break;
+        }
+        }
+    }
+    return true;
+}
+
+bool compound_may_match_element(DOM::Element const& element, Selector::CompoundSelector const& compound_selector, Optional<PseudoClass> ignored_pseudo_class)
+{
+    return compound_may_match_element_impl(element, compound_selector, ignored_pseudo_class, false);
+}
+
 bool element_matches_any_invalidation_set_property(DOM::Element const& element, InvalidationSet const& set)
 {
     auto includes_property = [&](InvalidationSet::Property const& property) {
