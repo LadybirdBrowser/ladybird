@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="root-style"></style>
+<style id="end-style"></style>
+<style id="replace-style"></style>
+<div id="root-candidate">
+    <div id="root-target" class="x">root target</div>
+</div>
+<div id="end-scope" class="scope-root">
+    <div id="end-boundary">
+        <div id="end-target" class="x">end target</div>
+    </div>
+</div>
+<div id="replace-root" class="replace-root">
+    <div id="replace-target" class="x">replace target</div>
+</div>
+<script>
+    async function waitForImportedSheet(styleElement) {
+        while (styleElement.sheet.cssRules.length === 0 || styleElement.sheet.cssRules[0].styleSheet === null)
+            await animationFrame();
+    }
+
+    function propertyValue(id, property) {
+        return getComputedStyle(document.getElementById(id)).getPropertyValue(property);
+    }
+
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    asyncTest(async done => {
+        const rootImportURL = `data:text/css;base64,${btoa(".x { --root-hit: yes; }")}`;
+        const rootStyle = document.getElementById("root-style");
+        rootStyle.textContent = `@import "${rootImportURL}" scope((.scope-root));`;
+        await waitForImportedSheet(rootStyle);
+
+        println(`root before: ${propertyValue("root-target", "--root-hit")}`);
+        document.getElementById("root-candidate").classList.add("scope-root");
+        println(`root after: ${propertyValue("root-target", "--root-hit")}`);
+
+        const insightsStyle = document.createElement("style");
+        insightsStyle.textContent = `@import "${rootImportURL}" scope((.scope-root:has(.hit)));`;
+        document.head.appendChild(insightsStyle);
+        await waitForImportedSheet(insightsStyle);
+        println(`scope insights has: ${internals.styleSheetMayHaveHasSelectors(insightsStyle.sheet)}`);
+
+        const endImportURL = `data:text/css;base64,${btoa(".x { --end-hit: yes; }")}`;
+        const endStyle = document.getElementById("end-style");
+        endStyle.textContent = `@import "${endImportURL}" scope((.scope-root) to (.limit));`;
+        await waitForImportedSheet(endStyle);
+
+        println(`end before: ${propertyValue("end-target", "--end-hit")}`);
+        document.getElementById("end-boundary").classList.add("limit");
+        println(`end after: ${propertyValue("end-target", "--end-hit")}`);
+
+        const replaceImportURL = `data:text/css;base64,${btoa(".x { --replace-hit: yes; }")}`;
+        const replaceStyle = document.getElementById("replace-style");
+        replaceStyle.textContent = `@import "${replaceImportURL}" scope((.other-root));`;
+        await waitForImportedSheet(replaceStyle);
+
+        println(`replace before: ${propertyValue("replace-target", "--replace-hit")}`);
+        replaceStyle.sheet.deleteRule(0);
+        replaceStyle.sheet.insertRule(`@import "${replaceImportURL}" scope((.replace-root));`, 0);
+        await waitForImportedSheet(replaceStyle);
+        println(`replace after: ${propertyValue("replace-target", "--replace-hit")}`);
+
+        replaceStyle.sheet.deleteRule(0);
+        println(`remove after: ${propertyValue("replace-target", "--replace-hit")}`);
+
+        const removeStyle = document.createElement("style");
+        removeStyle.textContent = `@import "${replaceImportURL}" scope((.replace-root));`;
+        document.head.appendChild(removeStyle);
+        await waitForImportedSheet(removeStyle);
+
+        const replaceTarget = document.getElementById("replace-target");
+        settleAndReset(replaceTarget);
+        removeStyle.remove();
+        getComputedStyle(replaceTarget).color;
+        println(`stylesheet remove full invalidation: ${internals.getStyleInvalidationCounters().fullStyleInvalidations >= 1}`);
+
+        done();
+    });
+</script>
