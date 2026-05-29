@@ -248,12 +248,13 @@ Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_
     return nullptr;
 }
 
-static bool scope_selector_matches(Selector const& selector, DOM::Element const& element, MatchingRule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, GC::Ptr<DOM::ParentNode const> scope)
+static bool scope_selector_matches(Selector const& selector, DOM::Element const& element, DOM::Element const& subject, MatchingRule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, GC::Ptr<DOM::ParentNode const> scope)
 {
     SelectorEngine::MatchContext context {
         .style_sheet_for_rule = *rule.sheet,
-        .subject = element,
+        .subject = subject,
         .rule_shadow_root = rule_root,
+        .collect_per_element_selector_involvement_metadata = true,
     };
     return SelectorEngine::matches(selector, DOM::AbstractElement(element), shadow_host, context, scope);
 }
@@ -276,7 +277,7 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
             if (outer_root && !outer_root->is_inclusive_ancestor_of(*candidate))
                 break;
             for (auto const& selector : *scope_rule.start_selectors_for_matching()) {
-                if (scope_selector_matches(selector, *candidate, rule, shadow_host, rule_root, outer_root)) {
+                if (scope_selector_matches(selector, *candidate, abstract_element.element(), rule, shadow_host, rule_root, outer_root)) {
                     root = candidate;
                     break;
                 }
@@ -320,7 +321,7 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
     if (scope_rule.end_selectors_for_matching().has_value()) {
         for (auto const* candidate = &abstract_element.element(); candidate; candidate = candidate->parent_element().ptr()) {
             for (auto const& selector : *scope_rule.end_selectors_for_matching()) {
-                if (scope_selector_matches(selector, *candidate, rule, shadow_host, rule_root, root))
+                if (scope_selector_matches(selector, *candidate, abstract_element.element(), rule, shadow_host, rule_root, root))
                     return {};
             }
             if (candidate == root)

@@ -2,34 +2,33 @@ Harness status: OK
 
 Found 29 tests
 
-3 Pass
-26 Fail
-Fail	Element becoming scope root
-Fail	Element becoming scope root (selector list)
-Fail	Element becoming scope root, with inner :scope rule
-Fail	Parent element becoming scope limit
-Fail	Parent element becoming scope limit (selector list)
-Fail	Subject element becoming scope limit
-Fail	Parent element affecting scope limit
-Fail	Sibling element affecting scope limit
-Fail	Toggling inner/outer scope roots
-Fail	Element becoming root, with :scope in subject
-Fail	Scope root with :has()
-Fail	Scope root with :has(), :scope subject
-Fail	Scope root with :has(), :scope both subject and non-subject
-Fail	Scope limit with :has()
-Fail	Element becoming root, with :scope selected by ~ combinator
-Fail	Element becoming root via ~ combinator
-Fail	Element becoming root via + combinator
-Fail	:not(scope) in subject
-Fail	:not(scope) in ancestor
-Fail	:not(scope) in limit subject
-Fail	:not(scope) in limit ancestor
-Fail	:nth-child() in scope root
-Fail	:nth-child() in scope limit
+29 Pass
+Pass	Element becoming scope root
+Pass	Element becoming scope root (selector list)
+Pass	Element becoming scope root, with inner :scope rule
+Pass	Parent element becoming scope limit
+Pass	Parent element becoming scope limit (selector list)
+Pass	Subject element becoming scope limit
+Pass	Parent element affecting scope limit
+Pass	Sibling element affecting scope limit
+Pass	Toggling inner/outer scope roots
+Pass	Element becoming root, with :scope in subject
+Pass	Scope root with :has()
+Pass	Scope root with :has(), :scope subject
+Pass	Scope root with :has(), :scope both subject and non-subject
+Pass	Scope limit with :has()
+Pass	Element becoming root, with :scope selected by ~ combinator
+Pass	Element becoming root via ~ combinator
+Pass	Element becoming root via + combinator
+Pass	:not(scope) in subject
+Pass	:not(scope) in ancestor
+Pass	:not(scope) in limit subject
+Pass	:not(scope) in limit ancestor
+Pass	:nth-child() in scope root
+Pass	:nth-child() in scope limit
 Pass	Modifying selectorText invalidates affected elements
 Pass	Modifying selectorText invalidates affected elements (>)
 Pass	Relative selectors set with selectorText are relative to :scope and &
-Fail	Ancestor element affecting nested scope root (Through latter selector in list)
-Fail	Parent element of subject affecting scope limit
-Fail	Sandwiched deep implicit scope root, :scope in subject
+Pass	Ancestor element affecting nested scope root (Through latter selector in list)
+Pass	Parent element of subject affecting scope limit
+Pass	Sandwiched deep implicit scope root, :scope in subject

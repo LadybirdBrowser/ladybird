@@ -244,6 +244,23 @@ static GC::Ptr<CSSContainerRule const> current_container_rule(Vector<GC::Ptr<CSS
     return container_rule_stack.last();
 }
 
+static void collect_scope_boundary_selector_dependencies(CSSScopeRule const& scope_rule, StyleCache& style_cache)
+{
+    auto collect_selector_list = [&](Optional<SelectorList> const& selector_list) {
+        if (!selector_list.has_value())
+            return;
+        for (auto const& selector : *selector_list) {
+            style_cache.style_invalidation_data.build_invalidation_sets_for_scope_boundary_selector(selector);
+            StyleScope::collect_selector_insights(selector, style_cache.selector_insights);
+        }
+    };
+
+    for (auto const* current_scope_rule = &scope_rule; current_scope_rule; current_scope_rule = current_scope_rule->nearest_ancestor_scope_rule().ptr()) {
+        collect_selector_list(current_scope_rule->start_selectors_for_matching());
+        collect_selector_list(current_scope_rule->end_selectors_for_matching());
+    }
+}
+
 using RuleCacheStyleRuleCallback = Function<void(CSSRule const&, GC::Ptr<CSSContainerRule const>, GC::Ptr<CSSScopeRule const>)>;
 
 static void for_each_style_producing_rule_for_rule_cache(
@@ -384,6 +401,8 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
             for (auto const& selector : absolutized_selectors) {
                 style_cache.style_invalidation_data.build_invalidation_sets_for_selector(selector);
             }
+            if (scope_rule)
+                collect_scope_boundary_selector_dependencies(*scope_rule, style_cache);
 
             for (CSS::Selector const& selector : absolutized_selectors) {
                 MatchingRule matching_rule {
