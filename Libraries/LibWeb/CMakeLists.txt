@@ -782,6 +782,7 @@ set(SOURCES
     Layout/NavigableContainerViewport.cpp
     Layout/Node.cpp
     Layout/RadioButton.cpp
+    Layout/RangeInputBox.cpp
     Layout/ReplacedBox.cpp
     Layout/ReplacedWithChildrenFormattingContext.cpp
     Layout/SVGBox.cpp
