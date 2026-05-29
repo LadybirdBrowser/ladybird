@@ -57,6 +57,16 @@ void TabActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "navigateTo"sv) {
+        auto url = get_required_parameter<String>(message, "url"sv);
+        if (!url.has_value())
+            return;
+
+        devtools().delegate().navigate_tab(m_description, *url);
+        send_response(message, move(response));
+        return;
+    }
+
     if (message.type == "goBack"sv) {
         devtools().delegate().traverse_the_history_by_delta(m_description, -1);
         send_response(message, move(response));
