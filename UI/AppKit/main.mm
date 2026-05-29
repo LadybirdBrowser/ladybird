@@ -19,6 +19,12 @@
 #    error "This project requires ARC"
 #endif
 
+namespace Ladybird {
+
+void install_core_location_geolocation_provider();
+
+}
+
 static void open_urls_from_client(Vector<URL::URL> const& urls, WebView::NewWindow new_window)
 {
     ApplicationDelegate* delegate = [NSApp delegate];
@@ -38,6 +44,8 @@ static void open_urls_from_client(Vector<URL::URL> const& urls, WebView::NewWind
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
+
+    Ladybird::install_core_location_geolocation_provider();
 
     auto app = TRY(Ladybird::Application::create(arguments));
     WebView::BrowserProcess browser_process;
