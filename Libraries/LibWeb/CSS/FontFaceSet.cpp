@@ -167,6 +167,14 @@ void FontFaceSet::clear()
     }
 }
 
+void FontFaceSet::reevaluate_descriptors_for_viewport_change()
+{
+    for (auto font_face_value : *m_set_entries) {
+        auto& font_face = as<FontFace>(font_face_value.key.as_object());
+        font_face.reevaluate_descriptors_for_viewport_change();
+    }
+}
+
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-onloading
 void FontFaceSet::set_onloading(WebIDL::CallbackType* event_handler)
 {

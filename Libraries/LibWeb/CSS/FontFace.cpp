@@ -308,6 +308,40 @@ void FontFace::reparse_connected_css_font_face_rule_descriptors()
     set_line_gap_override_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::LineGapOverride)));
 }
 
+void FontFace::reevaluate_descriptors_for_viewport_change()
+{
+    if (!m_css_font_face_rule)
+        return;
+
+    auto previous_weight_range = m_cached_weight_range;
+    auto previous_slope = m_cached_slope;
+    auto previous_width = m_cached_width;
+    auto previous_family = m_family;
+
+    reparse_connected_css_font_face_rule_descriptors();
+
+    bool changed = previous_weight_range.min != m_cached_weight_range.min
+        || previous_weight_range.max != m_cached_weight_range.max
+        || previous_slope != m_cached_slope
+        || previous_width != m_cached_width
+        || previous_family != m_family;
+    if (!changed)
+        return;
+
+    auto computer = font_computer();
+    if (!computer.has_value() || !should_be_registered_with_font_computer())
+        return;
+
+    FontFaceKey previous_key {
+        .family_name = FlyString(previous_family),
+        .weight = previous_weight_range,
+        .slope = previous_slope,
+        .width = previous_width,
+    };
+    computer->unregister_font_face_with_key(*this, previous_key);
+    computer->register_font_face(*this);
+}
+
 ParsedFontFace FontFace::parsed_font_face() const
 {
     if (m_css_font_face_rule)

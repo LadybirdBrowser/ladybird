@@ -76,6 +76,7 @@ public:
     bool is_css_connected() const { return m_css_font_face_rule != nullptr; }
     void disconnect_from_css_rule();
     void reparse_connected_css_font_face_rule_descriptors();
+    void reevaluate_descriptors_for_viewport_change();
 
     ParsedFontFace parsed_font_face() const;
 

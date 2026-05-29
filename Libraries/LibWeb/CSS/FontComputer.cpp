@@ -796,12 +796,17 @@ void FontComputer::unregister_font_face(GC::Ref<FontFace> face)
         .slope = face->declared_slope(),
         .width = face->declared_width(),
     };
+    unregister_font_face_with_key(face, key);
+    did_load_font(key.family_name);
+}
+
+void FontComputer::unregister_font_face_with_key(GC::Ref<FontFace> face, FontFaceKey const& key)
+{
     if (auto it = m_font_faces.find(key); it != m_font_faces.end()) {
         it->value.remove_all_matching([&](auto const& entry) { return entry == face; });
         if (it->value.is_empty())
             m_font_faces.remove(it);
     }
-    did_load_font(key.family_name);
 }
 
 GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
