@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    internals.setPreferredColorScheme("dark");
+    internals.updateStyle();
+    println(`Forced dark: ${matchMedia("(prefers-color-scheme: dark)").matches}`);
+
+    internals.setPreferredColorScheme("auto");
+    internals.updateStyle();
+    println(`Reset to auto: ${matchMedia("(prefers-color-scheme: dark)").matches}`);
+});
+</script>

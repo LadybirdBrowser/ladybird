@@ -3,6 +3,10 @@
 <style>
 body { margin: 0; }
 #container { width: 100px; }
+::selection {
+    background-color: rgba(61, 174, 233, 0.5);
+    color: black;
+}
 </style>
 <!-- Test that trailing whitespace at end of wrapped lines is included in selection highlight. -->
 <div id="container"><span id="text">one two three four</span></div>

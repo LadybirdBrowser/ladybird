@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-default-color-scheme-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+.light {
+    color-scheme: light;
+}
+.dark {
+    color-scheme: dark;
+}
+</style>
+
+<p id="container"><span class="light">Light scheme</span><br><span class="dark">Dark scheme</span></p>
+
+<script>
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("container"));
+getSelection().addRange(range);
+</script>

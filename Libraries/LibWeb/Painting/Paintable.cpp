@@ -7,6 +7,7 @@
  */
 
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -15,6 +16,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -281,19 +283,40 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
 //        fill-color, stroke-width, and CSS custom properties.
 Paintable::SelectionStyle Paintable::selection_style() const
 {
-    auto color_scheme = computed_values().color_scheme();
-    SelectionStyle default_style { CSS::SystemColor::highlight(color_scheme), {}, {}, {} };
+    auto default_style_for_color_scheme = [&](CSS::PreferredColorScheme color_scheme, bool use_palette_for_normal_color_scheme = true) {
+        auto palette = document().page().palette();
+        auto palette_color_scheme = palette.is_dark() ? CSS::PreferredColorScheme::Dark : CSS::PreferredColorScheme::Light;
+        if (color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme) {
+            return SelectionStyle {
+                CSS::SystemColor::transform_selection_background_color(palette.selection()),
+                palette.selection_text(),
+                {},
+                {},
+            };
+        }
+
+        return SelectionStyle {
+            CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::highlight(color_scheme)),
+            CSS::SystemColor::highlight_text(color_scheme),
+            {},
+            {},
+        };
+    };
 
     // For text nodes, check the parent element since text nodes don't have computed properties.
     auto node = dom_node();
     if (!node)
-        return default_style;
+        return default_style_for_color_scheme(computed_values().color_scheme());
 
     DOM::Element const* element = as_if<DOM::Element>(*node);
     if (!element)
         element = node->parent_element();
     if (!element)
-        return default_style;
+        return default_style_for_color_scheme(computed_values().color_scheme());
+
+    auto color_scheme_is_normal = element->computed_properties()->property(CSS::PropertyID::ColorScheme).as_color_scheme().schemes().is_empty();
+    auto use_palette_for_normal_color_scheme = color_scheme_is_normal && !document().supported_color_schemes().has_value();
+    auto default_style = default_style_for_color_scheme(computed_values().color_scheme(), use_palette_for_normal_color_scheme);
 
     auto style_from_element = [&](DOM::Element const& element) -> Optional<SelectionStyle> {
         auto element_layout_node = element.layout_node();

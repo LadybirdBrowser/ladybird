@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-with-custom-image-background-ref.html" />
+<style>
+img {
+    width: 50px;
+    height: 50px;
+}
+img::selection {
+    background-color: red;
+}
+</style>
+<img id="selected-image" src="../data/smiley.png">
+<script>
+const range = document.createRange();
+range.selectNode(document.getElementById("selected-image"));
+getSelection().addRange(range);
+</script>

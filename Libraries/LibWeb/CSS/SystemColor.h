@@ -24,6 +24,7 @@ Color canvas_text(PreferredColorScheme);
 Color field(PreferredColorScheme);
 Color field_text(PreferredColorScheme);
 Color gray_text(PreferredColorScheme);
+Color transform_selection_background_color(Color);
 WEB_API Color highlight(PreferredColorScheme);
 WEB_API Color highlight_text(PreferredColorScheme);
 Color link_text(PreferredColorScheme);
