@@ -238,21 +238,6 @@ public:
         : m_pending_lookups(make<RedBlackTree<u16, PendingLookup>>())
         , m_create_socket(move(create_socket))
     {
-        m_cache.with_write_locked([&](auto& cache) {
-            auto add_v4v6_entry = [&cache](StringView name_string, IPv4Address v4, IPv6Address v6) {
-                auto name = Messages::DomainName::from_string(name_string);
-                auto ptr = make_ref_counted<LookupResult>(name);
-                ptr->will_add_record_of_type(Messages::ResourceType::A);
-                ptr->will_add_record_of_type(Messages::ResourceType::AAAA);
-                cache.set(name_string, ptr);
-
-                ptr->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { v4 }, .raw = {} });
-                ptr->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { v6 }, .raw = {} });
-                ptr->finished_request();
-            };
-
-            add_v4v6_entry("localhost"sv, { 127, 0, 0, 1 }, IPv6Address::loopback());
-        });
     }
 
     NonnullRefPtr<Core::Promise<Empty>> when_socket_ready()
@@ -403,6 +388,22 @@ public:
                 lookup_path = "literal-ipv6"sv;
                 return promise;
             }
+        }
+
+        // https://www.rfc-editor.org/rfc/rfc6761#section-6.3
+        // "localhost" and names within ".localhost" resolve to loopback for address queries and are never sent
+        // upstream; we answer in-process since the host resolver and upstream server are not guaranteed to.
+        if (name == "localhost"sv || name.ends_with(".localhost"sv)) {
+            dbgln_if(DNS_DEBUG, "DNS: Resolving {} as loopback", name);
+            auto result = make_ref_counted<LookupResult>(Messages::DomainName::from_string(name));
+            if (desired_types.contains_slow(Messages::ResourceType::A))
+                result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { IPv4Address { 127, 0, 0, 1 } }, .raw = {} });
+            if (desired_types.contains_slow(Messages::ResourceType::AAAA))
+                result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { IPv6Address::loopback() }, .raw = {} });
+            result->finished_request();
+            promise->resolve(move(result));
+            lookup_path = "localhost-loopback"sv;
+            return promise;
         }
 
         if (auto result = lookup_in_cache(name, class_, desired_types)) {
