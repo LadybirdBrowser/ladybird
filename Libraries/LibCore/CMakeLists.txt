@@ -12,7 +12,6 @@ set(SOURCES
     EventReceiver.cpp
     File.cpp
     GeolocationProvider.cpp
-    GeolocationProviderUnimplemented.cpp
     ImmutableBytes.cpp
     MimeData.cpp
     Notifier.cpp
@@ -29,6 +28,13 @@ set(SOURCES
     TimeZone.cpp
     Version.cpp
 )
+
+if (APPLE)
+    list(APPEND SOURCES GeolocationProviderCoreLocation.mm)
+    set_source_files_properties(GeolocationProviderCoreLocation.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+else()
+    list(APPEND SOURCES GeolocationProviderUnimplemented.cpp)
+endif()
 
 if (WIN32)
     list(APPEND SOURCES
@@ -115,6 +121,7 @@ endif()
 
 if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework CoreFoundation")
+    target_link_libraries(LibCore PUBLIC "-framework CoreLocation")
     target_link_libraries(LibCore PUBLIC "-framework CoreServices")
     target_link_libraries(LibCore PUBLIC "-framework Foundation")
     target_link_libraries(LibCore PUBLIC "-framework IOSurface")
