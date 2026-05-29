@@ -1,6 +1,9 @@
 name: Flatpak
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || format('{0}-{1}', github.ref, github.run_number) }}
