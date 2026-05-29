@@ -712,7 +712,7 @@ QWidget#LadybirdFindInPageBar QLabel {{
         background, surface, hover, pressed, border, control_border, accent, text, muted);
 }
 
-QString status_bar_style_sheet(QPalette const& palette)
+QString devtools_banner_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_background(palette));
     auto border = style_sheet_color(chrome_border(palette));
@@ -722,22 +722,23 @@ QString status_bar_style_sheet(QPalette const& palette)
     auto text = style_sheet_color(chrome_text(palette));
 
     return qformatted(R"(
-QWidget#LadybirdStatusBar {{
+QWidget#LadybirdDevToolsBanner {{
     background: {0};
     border-top: 1px solid {1};
 }}
 
-QWidget#LadybirdStatusBar QPushButton {{
+QWidget#LadybirdDevToolsBanner QLabel,
+QWidget#LadybirdDevToolsBanner QPushButton {{
     background: transparent;
     color: {5};
 }}
 
-QWidget#LadybirdStatusBar QPushButton:hover {{
+QWidget#LadybirdDevToolsBanner QPushButton:hover {{
     background: {3};
     border-color: {2};
 }}
 
-QWidget#LadybirdStatusBar QPushButton:pressed {{
+QWidget#LadybirdDevToolsBanner QPushButton:pressed {{
     background: {4};
     border-color: {2};
 }}

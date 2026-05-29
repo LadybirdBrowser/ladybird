@@ -19,6 +19,7 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/DevToolsBanner.h>
 #include <UI/Qt/Icon.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
@@ -46,10 +47,10 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QShortcut>
-#include <QStatusBar>
 #include <QStyle>
 #include <QTabBar>
 #include <QTimer>
+#include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QWidget>
 #include <QWindow>
@@ -472,7 +473,20 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_tabs_container->set_new_tab_action(m_new_tab_action);
 
-    setCentralWidget(m_tabs_container);
+    auto* main_widget = new QWidget(this);
+    auto* main_layout = new QVBoxLayout(main_widget);
+    main_layout->setContentsMargins(0, 0, 0, 0);
+    main_layout->setSpacing(0);
+    main_layout->addWidget(m_tabs_container, 1);
+
+    m_devtools_banner = new DevToolsBanner(main_widget);
+    connect(m_devtools_banner, &DevToolsBanner::disable_requested, this, [] {
+        MUST(WebView::Application::the().toggle_devtools_enabled());
+    });
+    m_devtools_banner->hide();
+    main_layout->addWidget(m_devtools_banner);
+
+    setCentralWidget(main_widget);
     setContextMenuPolicy(Qt::PreventContextMenu);
 
     if (browser_options.devtools_port.has_value())
@@ -510,23 +524,13 @@ void BrowserWindow::update_bookmarks_bar_display(bool show_bookmarks_bar)
 
 void BrowserWindow::on_devtools_enabled()
 {
-    statusBar()->setObjectName("LadybirdStatusBar");
-    statusBar()->setStyleSheet(ChromeStyle::status_bar_style_sheet(current_tab()->palette()));
-
-    auto* disable_button = new QPushButton("Disable", this);
-
-    connect(disable_button, &QPushButton::clicked, this, []() {
-        MUST(WebView::Application::the().toggle_devtools_enabled());
-    });
-
-    statusBar()->addPermanentWidget(disable_button);
-
-    statusBar()->showMessage(qformatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
+    m_devtools_banner->set_port(WebView::Application::browser_options().devtools_port.value_or(0));
+    m_devtools_banner->show();
 }
 
 void BrowserWindow::on_devtools_disabled()
 {
-    setStatusBar(nullptr);
+    m_devtools_banner->hide();
 }
 
 Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab)

@@ -30,6 +30,7 @@ namespace Ladybird {
 class Tab;
 class WebContentView;
 class BrowserWindow;
+class DevToolsBanner;
 
 class ExitFullscreenButton : public QPushButton {
     Q_OBJECT
@@ -200,6 +201,7 @@ private:
 
     TabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
+    DevToolsBanner* m_devtools_banner { nullptr };
 
     QMenu* m_hamburger_menu { nullptr };
     QMenu* m_bookmarks_menu { nullptr };
