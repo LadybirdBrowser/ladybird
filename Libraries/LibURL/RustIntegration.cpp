@@ -168,7 +168,7 @@ static FFI::FfiUrlHost host_to_ffi(Optional<Host> const& host)
         },
         [&](String const& str) {
             result.kind = FFI::RustUrlHostKind::String;
-            result.string_data = reinterpret_cast<uint8_t const*>(str.bytes().data());
+            result.string_data = reinterpret_cast<u8 const*>(str.bytes().data());
             result.string_length = str.bytes().size();
         });
     return result;
@@ -357,9 +357,9 @@ static UrlFfiStorage url_to_ffi(URL const& url)
 {
     UrlFfiStorage storage;
 
-    storage.ffi_url.scheme = { reinterpret_cast<uint8_t const*>(url.scheme().bytes().data()), url.scheme().bytes().size() };
-    storage.ffi_url.username = { reinterpret_cast<uint8_t const*>(url.username().bytes().data()), url.username().bytes().size() };
-    storage.ffi_url.password = { reinterpret_cast<uint8_t const*>(url.password().bytes().data()), url.password().bytes().size() };
+    storage.ffi_url.scheme = { reinterpret_cast<u8 const*>(url.scheme().bytes().data()), url.scheme().bytes().size() };
+    storage.ffi_url.username = { reinterpret_cast<u8 const*>(url.username().bytes().data()), url.username().bytes().size() };
+    storage.ffi_url.password = { reinterpret_cast<u8 const*>(url.password().bytes().data()), url.password().bytes().size() };
 
     storage.ffi_url.host = host_to_ffi(url.host());
 
@@ -369,7 +369,7 @@ static UrlFfiStorage url_to_ffi(URL const& url)
     storage.path_segments.ensure_capacity(url.paths().size());
     for (auto const& segment : url.paths()) {
         storage.path_segments.unchecked_append({
-            reinterpret_cast<uint8_t const*>(segment.bytes().data()),
+            reinterpret_cast<u8 const*>(segment.bytes().data()),
             segment.bytes().size(),
         });
     }
@@ -380,11 +380,11 @@ static UrlFfiStorage url_to_ffi(URL const& url)
 
     storage.ffi_url.has_query = url.query().has_value();
     if (url.query().has_value())
-        storage.ffi_url.query = { reinterpret_cast<uint8_t const*>(url.query()->bytes().data()), url.query()->bytes().size() };
+        storage.ffi_url.query = { reinterpret_cast<u8 const*>(url.query()->bytes().data()), url.query()->bytes().size() };
 
     storage.ffi_url.has_fragment = url.fragment().has_value();
     if (url.fragment().has_value())
-        storage.ffi_url.fragment = { reinterpret_cast<uint8_t const*>(url.fragment()->bytes().data()), url.fragment()->bytes().size() };
+        storage.ffi_url.fragment = { reinterpret_cast<u8 const*>(url.fragment()->bytes().data()), url.fragment()->bytes().size() };
 
     return storage;
 }
@@ -425,7 +425,7 @@ Optional<Host> parse_host(StringView input, bool is_opaque)
     Optional<Host> result;
     HostParseCallbackCtx ctx { .result = &result };
     bool const did_succeed = FFI::rust_url_parse_host(
-        reinterpret_cast<uint8_t const*>(processed_input_view.characters_without_null_termination()),
+        reinterpret_cast<u8 const*>(processed_input_view.characters_without_null_termination()),
         processed_input_view.length(),
         is_opaque,
         &ctx,
@@ -460,7 +460,7 @@ Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, U
         .has_state_override = state_override.has_value(),
         .state_override = state_override.map(state_override_from_cpp).value_or(FFI::State::SchemeStart),
         .encoding = {
-            reinterpret_cast<uint8_t const*>(encoding.has_value() ? encoding->characters_without_null_termination() : nullptr),
+            reinterpret_cast<u8 const*>(encoding.has_value() ? encoding->characters_without_null_termination() : nullptr),
             encoding.value_or(""sv).length(),
         },
     };
@@ -469,7 +469,7 @@ Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, U
     ParseCallbackCtx ctx { .result = &result, .url_inout = url };
     auto processed_input_view = processed_input.bytes_as_string_view();
     bool const did_succeed = rust_url_basic_parse(
-        reinterpret_cast<uint8_t const*>(processed_input_view.characters_without_null_termination()),
+        reinterpret_cast<u8 const*>(processed_input_view.characters_without_null_termination()),
         processed_input_view.length(),
         &options,
         &ctx,
@@ -483,7 +483,7 @@ Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, U
 
 namespace URL::FFI {
 
-extern "C" bool textcodec_rust_encode(uint8_t const* encoding, size_t encoding_length, uint8_t const* input, size_t input_length, void* ctx, FfiByteFn on_byte, FfiCodePointFn on_error)
+extern "C" bool textcodec_rust_encode(u8 const* encoding, size_t encoding_length, u8 const* input, size_t input_length, void* ctx, FfiByteFn on_byte, FfiCodePointFn on_error)
 {
     auto encoder = TextCodec::encoder_for(StringView { encoding, encoding_length });
     if (!encoder.has_value())
