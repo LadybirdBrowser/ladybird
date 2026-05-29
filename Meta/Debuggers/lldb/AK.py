@@ -86,6 +86,21 @@ def ak_optional_summary(valobj, internal_dict):
     if m_pointer and m_pointer.IsValid():
         return "Some" if m_pointer.GetValueAsUnsigned() != 0 else "None"
 
+    m_value = valobj.GetChildMemberWithName("m_value")
+    if m_value and m_value.IsValid():
+        options = lldb.SBExpressionOptions()  # type: ignore
+        options.SetTimeoutInMicroSeconds(500_000)
+        result = valobj.EvaluateExpression("has_value()", options)
+
+        error = result.GetError()
+        if error.Fail():
+            print(f"Eval failed for {valobj.GetName()}: {error.GetCString()}")
+            return ""
+        if not result.IsValid():
+            return ""
+
+        return "Some" if result.GetValueAsUnsigned() != 0 else "None"
+
     return None
 
 
@@ -138,59 +153,41 @@ def ak_singlylinkedlist_summary(valobj, internal_dict):
     return f"size={size}"
 
 
-def ak_string_summary(valobj, internal_dict):
-    valobj = valobj.GetNonSyntheticValue()
-    process = valobj.GetProcess()
-    if not process.IsValid():
-        return None
-
-    impl = valobj.GetChildMemberWithName("m_impl")
-    short_string = impl.GetChildMemberWithName("short_string")
-    short_string_tag = short_string.GetChildMemberWithName("byte_count_and_short_string_flag").GetValueAsUnsigned()
-
-    if short_string_tag & 1:
-        length = short_string_tag >> 2
-        if length == 0:
-            return '""'
-
-        storage = short_string.GetChildMemberWithName("storage")
-        bytes_start = storage.GetLoadAddress()
-        raw_bytes = read_process_memory(process, bytes_start, length)
-        if raw_bytes is None:
-            return None
-        return '"' + raw_bytes.decode("utf-8", "replace") + '"'
-
-    data_ptr = impl.GetChildMemberWithName("data")
-    if data_ptr.GetValueAsUnsigned() == 0:
-        return '""'
-
-    string_data = data_ptr.Dereference()
-    if not string_data.IsValid():
-        return None
-
-    if string_data.GetChildMemberWithName("m_substring").GetValueAsUnsigned() != 0:
-        return None
-
-    length = string_data.GetChildMemberWithName("m_byte_count").GetValueAsUnsigned()
+def format_stringview(stringview_valobj):
+    length = stringview_valobj.GetChildMemberWithName("m_length").GetValueAsUnsigned()
     if length == 0:
         return '""'
+    characters = stringview_valobj.GetChildMemberWithName("m_characters")
+    arr = characters.GetPointeeData(0, length).uint8s
+    return '"' + bytes(arr).decode("utf-8", "replace") + '"'
 
-    bytes_start = string_data.GetChildMemberWithName("m_bytes_or_substring_data").GetLoadAddress()
-    raw_bytes = read_process_memory(process, bytes_start, length)
-    if raw_bytes is None:
+
+def eval_string_summary(valobj, internal_dict):
+    valobj = valobj.GetNonSyntheticValue()
+
+    options = lldb.SBExpressionOptions()  # type: ignore
+    options.SetTimeoutInMicroSeconds(500_000)
+    sv = valobj.EvaluateExpression("bytes_as_string_view()", options)
+
+    error = sv.GetError()
+    if error.Fail():
+        return None
+    if not sv or not sv.IsValid():
         return None
 
-    return '"' + raw_bytes.decode("utf-8", "replace") + '"'
+    return format_stringview(sv)
+
+
+def ak_string_summary(valobj, internal_dict):
+    return eval_string_summary(valobj, internal_dict)
+
+
+def ak_flystring_summary(valobj, internal_dict):
+    return eval_string_summary(valobj, internal_dict)
 
 
 def ak_stringview_summary(valobj, internal_dict):
-    length = valobj.GetChildMemberWithName("m_length").GetValueAsUnsigned()
-    if length == 0:
-        return '""'
-
-    characters = valobj.GetChildMemberWithName("m_characters")
-    arr = characters.GetPointeeData(0, length).uint8s
-    return '"' + bytes(arr).decode("utf-8", "replace") + '"'
+    return format_stringview(valobj)
 
 
 def ak_variant_summary(valobj, internal_dict):
@@ -548,6 +545,7 @@ def __lldb_init_module(debugger, internal_dict):
         'type summary add -x "^AK::RefPtr(<.*>)?$" -F AK.ak_refptr_summary',
         'type summary add -x "^AK::SinglyLinkedList(<.*>)?$" -F AK.ak_singlylinkedlist_summary',
         'type summary add -x "^AK::String(<.*>)?$" -F AK.ak_string_summary',
+        'type summary add -x "^AK::FlyString(<.*>)?$" -F AK.ak_flystring_summary',
         'type summary add -x "^AK::StringView(<.*>)?$" -F AK.ak_stringview_summary',
         'type summary add -x "^AK::Variant(<.*>)?$" -F AK.ak_variant_summary',
         'type summary add -x "^AK::Vector(<.*>)?$" -F AK.ak_vector_summary',

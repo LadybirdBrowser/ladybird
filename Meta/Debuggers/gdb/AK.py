@@ -44,6 +44,8 @@ def handler_class_for_type(type, re=re.compile("^([^<]+)(<.*>)?$")):
         return AKSinglyLinkedList
     elif klass == "AK::String":
         return AKString
+    elif klass == "AK::FlyString":
+        return AKFlyString
     elif klass == "AK::ByteString":
         return AKByteString
     elif klass == "AK::StringView":
@@ -192,6 +194,20 @@ class AKString:
         return "AK::String"
 
 
+class AKFlyString:
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        gdb.set_convenience_variable("_tmp", self.val.reference_value())
+        string_view = gdb.parse_and_eval("$_tmp.bytes_as_string_view()")
+        return AKStringView(string_view).to_string()
+
+    @classmethod
+    def prettyprint_type(cls, type):
+        return "AK::FlyString"
+
+
 class AKByteString:
     def __init__(self, val):
         self.val = val
@@ -319,17 +335,87 @@ class AKVariant:
 class AKOptional:
     def __init__(self, val):
         self.val = val
-        self.has_value = bool(self.val["m_has_value"])
         self.contained_type = self.val.type.strip_typedefs().template_argument(0)
 
+    def _direct_field(self, name):
+        for field in self.val.type.strip_typedefs().fields():
+            if field.name == name and not field.is_base_class:
+                return self.val[name]
+
+        for field in self.val.type.strip_typedefs().fields():
+            if not field.is_base_class:
+                continue
+
+            try:
+                base = self.val[field]
+            except gdb.error:
+                continue
+
+            for base_field in base.type.strip_typedefs().fields():
+                if base_field.name == name and not base_field.is_base_class:
+                    return base[name]
+
+        return None
+
+    def _storage_field(self):
+        for field in self.val.type.strip_typedefs().fields():
+            if field.is_base_class or field.name is not None:
+                continue
+
+            try:
+                anonymous_storage = self.val[field]
+                return anonymous_storage["m_storage"]
+            except gdb.error:
+                continue
+
+        return None
+
+    def _has_value(self):
+        m_has_value = self._direct_field("m_has_value")
+        if m_has_value is not None:
+            return bool(m_has_value)
+
+        m_pointer = self._direct_field("m_pointer")
+        if m_pointer is not None:
+            return int(m_pointer) != 0
+
+        m_value = self._direct_field("m_value")
+        if m_value is not None:
+            gdb.set_convenience_variable("_op", self.val.reference_value())
+            try:
+                return bool(gdb.parse_and_eval("$_op.has_value()"))
+            except gdb.error:
+                return None
+
+        return False
+
     def to_string(self):
-        return AKOptional.prettyprint_type(self.val.type)
+        has_value = self._has_value()
+
+        if has_value is None:
+            return "<eval failed>"
+
+        return "Some" if has_value else "None"
 
     def children(self):
-        if self.has_value:
-            data = self.val["m_storage"]
-            return [(self.contained_type.name, data)]
-        return [("OptionalNone", "{}")]
+        has_value = self._has_value()
+
+        if has_value is False:
+            return []
+
+        m_storage = self._storage_field()
+        if m_storage is not None:
+            return [("value", m_storage)]
+
+        m_pointer = self._direct_field("m_pointer")
+        if m_pointer is not None:
+            return [("value", m_pointer.dereference())]
+
+        m_value = self._direct_field("m_value")
+        if m_value is not None:
+            return [("value", m_value)]
+
+        return []
 
     @classmethod
     def prettyprint_type(cls, type):
