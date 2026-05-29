@@ -430,7 +430,7 @@ public:
     decltype(auto) downcast() &&
     {
         if constexpr (sizeof...(NewTs) == 1 && (IsSpecializationOf<NewTs, Variant> && ...)) {
-            return move(*this).template downcast_variant<NewTs...>();
+            return move(*this).downcast_variant(TypeWrapper<NewTs...> {});
         } else {
             Variant<NewTs...> instance { Variant<NewTs...>::invalid_index, Detail::VariantConstructTag {} };
             visit([&](auto& value) {

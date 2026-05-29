@@ -132,6 +132,11 @@ TEST_CASE(as)
     EXPECT(one_integer_to_rule_them_all.has<i8>());
     EXPECT_EQ(fake_integer.get<i8>(), 60);
     EXPECT_EQ(one_integer_to_rule_them_all.get<i8>(), 60);
+
+    using OptionalFancyType = Variant<i8, i16, Empty>;
+    auto definitely_fancy = OptionalFancyType { static_cast<i16>(12) }.downcast<SomeFancyType>();
+    EXPECT(definitely_fancy.has<i16>());
+    EXPECT_EQ(definitely_fancy.get<i16>(), 12);
 }
 
 TEST_CASE(moved_from_state)
