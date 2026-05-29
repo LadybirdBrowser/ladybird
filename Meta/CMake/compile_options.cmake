@@ -114,6 +114,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES
     add_cxx_compile_options(-Wno-user-defined-literals)
     add_cxx_compile_options(-Wno-unqualified-std-cast-call)
 
+    if (LADYBIRD_ENABLE_PCH)
+        add_cxx_compile_options(-Xclang -fno-pch-timestamp)
+    endif()
+
     # Used for the #embed directive.
     # FIXME: Remove this once #embed is no longer an extension.
     add_cxx_compile_options(-Wno-c23-extensions)
@@ -175,6 +179,10 @@ elseif (MSVC)
     # enable control flow protection
     add_cxx_compile_options(/guard:cf)
 
+    if (LADYBIRD_ENABLE_PCH)
+        add_cxx_compile_options(-Xclang -fno-pch-timestamp)
+    endif()
+
     # Linker options
     # increase stack size reserve to match Linux
     add_cxx_link_options(/STACK:0x800000)
@@ -194,7 +202,14 @@ include(${CMAKE_CURRENT_LIST_DIR}/sanitizers.cmake)
 include(CheckPIESupported)
 check_pie_supported(LANGUAGES CXX)
 if(CMAKE_CXX_LINK_PIE_SUPPORTED)
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+    # PIE doesn't really matter for us since all our logic is in libraries,
+    # This allows for shared PCH files between libraries and executables
+    # If we instead enable the POSITION_INDEPENDENT_CODE cmake option
+    # executables get -fPIE and libraries -fPIC
+    # https://gitlab.kitware.com/cmake/cmake/-/work_items/20289
+    if (NOT MSVC)
+        add_compile_options(-fPIC)
+    endif()
 endif()
 
 if (LINUX)

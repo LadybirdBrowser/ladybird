@@ -98,6 +98,12 @@ public:
         auto& diag_engine = result.Context->getDiagnostics();
 
         if (auto const* capture = result.Nodes.getNodeAs<clang::LambdaCapture>("lambda-capture")) {
+
+            // Skip this for loaded PCH files. This was already visited when compiling the PCH.
+            // If we don't skip this we have false failures because there is no preprocessor state for these.
+            if (result.Context->getSourceManager().isLoadedSourceLocation(capture->getLocation()))
+                return;
+
             if (capture->capturesThis() || capture->getCaptureKind() != clang::LCK_ByRef)
                 return;
 

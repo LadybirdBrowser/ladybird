@@ -354,6 +354,11 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     if (!record || !record->isCompleteDefinition() || (!record->isClass() && !record->isStruct()))
         return true;
 
+    // Skip this for loaded PCH files. This was already visited when compiling the PCH.
+    // If we don't skip this we have false failures because there is no preprocessor state for these.
+    if (m_context.getSourceManager().isLoadedSourceLocation(record->getLocation()))
+        return true;
+
     // Cell triggers a bunch of warnings for its empty visit_edges implementation, but
     // it doesn't have any members anyways so it's fine to just ignore.
     auto qualified_name = record->getQualifiedNameAsString();
@@ -689,6 +694,11 @@ bool LibJSGCVisitor::VisitCXXMethodDecl(clang::CXXMethodDecl* method)
 
     auto const* parent_class = base_method->getParent();
     if (!parent_class)
+        return true;
+
+    // Skip this for loaded PCH files. This was already visited when compiling the PCH.
+    // If we don't skip this we have false failures because there is no preprocessor state for these.
+    if (m_context.getSourceManager().isLoadedSourceLocation(method->getLocation()))
         return true;
 
     auto method_name = method->getNameAsString();
