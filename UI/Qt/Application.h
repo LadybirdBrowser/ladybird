@@ -60,6 +60,7 @@ private:
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) override;
 
     virtual bool supports_vertical_tabs() const override { return true; }
+    virtual bool supports_server_side_window_decorations() const override { return true; }
     virtual void update_tabs_display() const override;
 
     virtual void rebuild_bookmarks_menu() const override;

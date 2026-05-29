@@ -99,6 +99,12 @@ static QPointer<Tab> s_active_tab_dragged_tab;
 static QPointer<TabWidget> s_pending_tab_drop_target;
 static int s_pending_tab_drop_index { -1 };
 
+static bool window_uses_client_side_decorations(QWidget& widget)
+{
+    auto* top_level_window = qobject_cast<BrowserWindow*>(widget.window());
+    return !top_level_window || top_level_window->uses_client_side_decorations();
+}
+
 static QPainterPath tab_shape_path(QRectF const& rect, qreal top_radius, qreal bottom_radius)
 {
     top_radius = min(top_radius, rect.height() / 2.0);
@@ -735,7 +741,7 @@ void TabBar::mouseReleaseEvent(QMouseEvent* event)
 
 void TabBar::mouseDoubleClickEvent(QMouseEvent* event)
 {
-    if (tab_index_at(event->pos()) < 0 && event->button() == Qt::LeftButton) {
+    if (window_uses_client_side_decorations(*this) && tab_index_at(event->pos()) < 0 && event->button() == Qt::LeftButton) {
         toggle_window_maximized();
         event->accept();
         return;
@@ -1465,7 +1471,7 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
         }
     }
 
-    if (watched == m_tab_bar_row || watched == m_vertical_tab_bar_column) {
+    if ((watched == m_tab_bar_row || watched == m_vertical_tab_bar_column) && window_uses_client_side_decorations(*this)) {
         auto is_empty_chrome_area = [this, watched](QMouseEvent const& mouse_event) {
             if (watched == m_vertical_tab_bar_column) {
                 auto* child = m_vertical_tab_bar_column->childAt(mouse_event.pos());

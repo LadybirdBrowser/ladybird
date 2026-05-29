@@ -106,6 +106,7 @@ public:
     FullscreenMode& fullscreen_mode();
 
     QMenu& hamburger_menu() const { return *m_hamburger_menu; }
+    static bool uses_client_side_decorations();
 
     QAction& new_window_action() const { return *m_new_window_action; }
     QAction& find_action() const { return *m_find_in_page_action; }
@@ -181,6 +182,7 @@ private:
     void update_menu_bar_style();
     void update_menu_bar_visibility(bool);
     void update_menu_bar_window_control_icons();
+    void update_window_decoration_state();
     void toggle_window_maximized();
     bool start_window_move();
     bool connect_window_screen_changed_signal();
