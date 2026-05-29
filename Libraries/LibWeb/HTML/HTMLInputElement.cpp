@@ -53,6 +53,7 @@
 #include <LibWeb/Layout/CheckBox.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/RadioButton.h>
+#include <LibWeb/Layout/RangeInputBox.h>
 #include <LibWeb/Layout/TextInputBox.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
@@ -168,6 +169,8 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
     case TypeAttributeState::Number:
         // FIXME: text padding issues
         return heap().allocate<Layout::TextInputBox>(document(), *this, move(style));
+    case TypeAttributeState::Range:
+        return heap().allocate<Layout::RangeInputBox>(document(), *this, move(style));
     default:
         return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
     }

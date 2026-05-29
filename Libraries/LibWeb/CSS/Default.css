@@ -74,7 +74,6 @@ option {
 /* Custom <input type="range"> styles */
 input[type=range] {
     display: inline-block;
-    width: 20ch;
     height: 16px;
 
     &::slider-track {
