@@ -881,16 +881,19 @@ void Request::handle_connect_state()
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        set_option(CURLOPT_NOPROXY, "");
         break;
     case Proxy::ProxyData::Type::HTTPS:
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        set_option(CURLOPT_NOPROXY, "");
         break;
     case Proxy::ProxyData::Type::SOCKS5:
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        set_option(CURLOPT_NOPROXY, "");
         break;
     default:
         VERIFY_NOT_REACHED();
@@ -1017,16 +1020,19 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        set_option(CURLOPT_NOPROXY, "");
         break;
     case Proxy::ProxyData::Type::HTTPS:
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        set_option(CURLOPT_NOPROXY, "");
         break;
     case Proxy::ProxyData::Type::SOCKS5:
         set_option(CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
         set_option(CURLOPT_PROXY, m_proxy_data.host.to_byte_string().characters());
         set_option(CURLOPT_PROXYPORT, static_cast<long>(m_proxy_data.port));
+        set_option(CURLOPT_NOPROXY, "");
         break;
     default:
         VERIFY_NOT_REACHED();

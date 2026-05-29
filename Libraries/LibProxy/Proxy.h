@@ -37,6 +37,7 @@ bool use_system_proxy();
 struct ProxyData {
     enum class Type : u8 {
         Direct,
+        // We do not support SOCKS5, as it is a very old protocol and doesn't support IPv6
         SOCKS5,
         HTTP,
         HTTPS
@@ -67,12 +68,5 @@ struct ProxyData {
 };
 
 Vector<ProxyData> get_proxies_for_url(URL::URL const&);
-
-#if defined(AK_OS_MACOS)
-Vector<ProxyData> get_proxies_from_mac_system_configuration(URL::URL const&);
-#endif
-
-// FIXME: Add more platform-specific proxy retrieval functions here (e.g. Android, BSD, Windows).
-// FIXME: Add support to Proxy auto-configuration (PAC) js script here.
 
 }
