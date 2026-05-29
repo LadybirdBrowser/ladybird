@@ -7,6 +7,11 @@ set(SOURCES
 
 add_executable(WebDriver ${SOURCES})
 
+
+if (LADYBIRD_ENABLE_PCH)
+    target_precompile_headers(WebDriver PRIVATE ${LADYBIRD_SOURCE_DIR}/AK/PCH.h)
+endif()
+
 target_include_directories(WebDriver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 target_include_directories(WebDriver PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(WebDriver PRIVATE ${LADYBIRD_SOURCE_DIR})

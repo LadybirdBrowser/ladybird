@@ -14,4 +14,4 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibGfx LIBS LibGfx)
 endforeach()
 
-ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)
+ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia SKIP_PCH)

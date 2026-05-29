@@ -66,6 +66,9 @@ set(SOURCES
 
 if (APPLE)
     list(APPEND SOURCES MetalContext.mm)
+    if (LADYBIRD_ENABLE_PCH)
+        set_source_files_properties(MetalContext.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    endif()
 endif()
 
 if (HAS_VULKAN)

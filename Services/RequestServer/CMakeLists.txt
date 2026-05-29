@@ -27,6 +27,11 @@ ladybird_generated_sources(requestserverservice)
 
 add_executable(RequestServer main.cpp)
 
+if (LADYBIRD_ENABLE_PCH)
+    target_precompile_headers(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/AK/PCH.h)
+    target_precompile_headers(RequestServer REUSE_FROM requestserverservice)
+endif()
+
 target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 

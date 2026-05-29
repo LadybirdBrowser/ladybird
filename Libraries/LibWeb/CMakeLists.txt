@@ -1246,7 +1246,7 @@ set(GENERATED_SOURCES
     HTML/Parser/NamedCharacterReferences.cpp
 )
 
-ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
+ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT PCH_HEADER PCH.h)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibSync LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 

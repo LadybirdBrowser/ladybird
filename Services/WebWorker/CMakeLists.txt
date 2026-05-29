@@ -18,6 +18,11 @@ target_link_libraries(webworkerservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
 add_executable(WebWorker main.cpp)
 
+if (LADYBIRD_ENABLE_PCH)
+    target_precompile_headers(webworkerservice PRIVATE ${LADYBIRD_SOURCE_DIR}/AK/PCH.h)
+    target_precompile_headers(WebWorker REUSE_FROM webworkerservice)
+endif()
+
 target_include_directories(WebWorker PRIVATE ${LADYBIRD_SOURCE_DIR})
 target_link_libraries(WebWorker PRIVATE webworkerservice OpenSSL::Crypto OpenSSL::SSL)
 

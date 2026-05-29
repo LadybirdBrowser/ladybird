@@ -40,6 +40,11 @@ target_sources(ladybird PRIVATE
     Widgets/LadybirdWebView.cpp
     "${GTK_GRESOURCE_SOURCE}"
 )
+
+if (LADYBIRD_ENABLE_PCH)
+    target_precompile_headers(ladybird PRIVATE ${LADYBIRD_SOURCE_DIR}/AK/PCH.h)
+endif()
+
 target_link_libraries(ladybird PRIVATE PkgConfig::GTK4 PkgConfig::LIBADWAITA)
 add_dependencies(ladybird gtk_ui_resources)
 create_ladybird_bundle(ladybird)

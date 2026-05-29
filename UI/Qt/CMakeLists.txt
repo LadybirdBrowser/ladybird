@@ -28,6 +28,10 @@ target_sources(ladybird PRIVATE
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 create_ladybird_bundle(ladybird)
 
+if (LADYBIRD_ENABLE_PCH)
+    target_precompile_headers(ladybird PRIVATE ${LADYBIRD_SOURCE_DIR}/AK/PCH.h)
+endif()
+
 if (WIN32)
     ladybird_windows_bin(ladybird CONSOLE)
     qt_generate_deploy_script(

@@ -37,6 +37,11 @@ target_link_libraries(webcontentservice PRIVATE SDL3::SDL3)
 
 add_executable(WebContent main.cpp)
 
+if (LADYBIRD_ENABLE_PCH)
+    target_precompile_headers(webcontentservice PRIVATE ${LADYBIRD_SOURCE_DIR}/AK/PCH.h)
+    target_precompile_headers(WebContent REUSE_FROM webcontentservice)
+endif()
+
 target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 if(WIN32)

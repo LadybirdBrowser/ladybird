@@ -54,7 +54,7 @@ configure_file(Debug.h.in Debug.h @ONLY)
 
 if(cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
     target_link_libraries(AK PRIVATE cpptrace::cpptrace)
-    target_compile_definitions(AK PRIVATE AK_HAS_CPPTRACE=1)
+    target_compile_definitions(AK PUBLIC AK_HAS_CPPTRACE=1)
 elseif(Backtrace_FOUND)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30)
         target_link_libraries(AK PRIVATE Backtrace::Backtrace)

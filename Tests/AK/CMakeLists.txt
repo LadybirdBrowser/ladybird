@@ -99,6 +99,9 @@ if (WIN32)
 endif()
 
 if (APPLE)
+    if (LADYBIRD_ENABLE_PCH)
+        set_source_files_properties(TestFunctionObjC.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    endif()
     ladybird_test(TestFunctionObjC.mm AK NAME TestFunctionObjC)
 
     ladybird_test(TestFunctionObjC.mm AK NAME TestFunctionObjCArc)

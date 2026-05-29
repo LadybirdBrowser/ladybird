@@ -18,6 +18,11 @@ ladybird_generated_sources(compositorservice)
 
 add_executable(Compositor main.cpp)
 
+if (LADYBIRD_ENABLE_PCH)
+    target_precompile_headers(compositorservice PRIVATE ${LADYBIRD_SOURCE_DIR}/AK/PCH.h)
+    target_precompile_headers(Compositor REUSE_FROM compositorservice)
+endif()
+
 target_include_directories(compositorservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(compositorservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 

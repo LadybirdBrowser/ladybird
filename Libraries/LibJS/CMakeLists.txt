@@ -269,7 +269,7 @@ generate_bytecode_def_derived()
 
 set(GENERATED_SOURCES Bytecode/Op.cpp)
 
-ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
+ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT PCH_HEADER PCH.h)
 
 target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibTextCodec LibGC simdjson::simdjson)
 
