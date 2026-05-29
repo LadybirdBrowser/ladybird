@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="light" style="color-scheme: light; color: HighlightText"></div>
+<div id="dark" style="color-scheme: dark; color: HighlightText"></div>
+<script>
+test(() => {
+    println(`Light HighlightText: ${getComputedStyle(document.getElementById("light")).color}`);
+    println(`Dark HighlightText: ${getComputedStyle(document.getElementById("dark")).color}`);
+});
+</script>

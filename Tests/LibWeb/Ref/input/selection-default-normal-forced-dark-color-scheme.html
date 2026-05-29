@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-default-normal-forced-dark-color-scheme-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+</style>
+
+<p id="target">Normal color scheme</p>
+
+<script>
+addEventListener("pagehide", () => {
+    internals.setPreferredColorScheme("auto");
+});
+
+internals.setPreferredColorScheme("dark");
+
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("target"));
+getSelection().addRange(range);
+</script>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-default-link-ref.html">
+<style>
+body,
+td {
+    color: #828282;
+}
+td {
+    font-size: 20px;
+    line-height: 1.5;
+}
+a:link {
+    color: #000000;
+    text-decoration: none;
+}
+a:visited {
+    color: #828282;
+    text-decoration: none;
+}
+</style>
+
+<table><tr><td id="target"><a href="#">Default link selection</a></td></tr></table>
+
+<script>
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("target"));
+getSelection().addRange(range);
+</script>

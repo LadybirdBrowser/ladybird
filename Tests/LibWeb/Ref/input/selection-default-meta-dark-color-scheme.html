@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta name="color-scheme" content="dark">
+<link rel="match" href="../expected/selection-default-meta-dark-color-scheme-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+</style>
+
+<p id="target">Meta dark scheme</p>
+
+<script>
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("target"));
+getSelection().addRange(range);
+</script>
