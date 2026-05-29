@@ -448,16 +448,26 @@ impl ScopeCollector {
     pub fn close_scope(&mut self) {
         let index = self.current.expect("close_scope with no current scope");
 
-        if let Some(parent_index) = self.records[index].parent
-            && !self.records[index].has_function_parameters
-        {
-            let c = &self.records[index];
-            let arguments = c.contains_access_to_arguments_object_in_non_strict_mode;
-            let eval = c.contains_direct_call_to_eval;
-            let contains_await = c.contains_await_expression;
-            self.records[parent_index].contains_access_to_arguments_object_in_non_strict_mode |= arguments;
-            self.records[parent_index].contains_direct_call_to_eval |= eval;
-            self.records[parent_index].contains_await_expression |= contains_await;
+        if let Some(parent_index) = self.records[index].parent {
+            if !self.records[index].has_function_parameters {
+                // Non-function scopes (blocks, catch, etc.): propagate all flags.
+                let c = &self.records[index];
+                let arguments = c.contains_access_to_arguments_object_in_non_strict_mode;
+                let eval = c.contains_direct_call_to_eval;
+                let contains_await = c.contains_await_expression;
+                self.records[parent_index].contains_access_to_arguments_object_in_non_strict_mode |= arguments;
+                self.records[parent_index].contains_direct_call_to_eval |= eval;
+                self.records[parent_index].contains_await_expression |= contains_await;
+            } else if self.records[index].is_arrow_function {
+                // https://tc39.es/ecma262/#sec-arrow-function-definitions-runtime-semantics-evaluation
+                // Arrow functions do not have their own `arguments` binding;
+                // references to `arguments` inside an arrow resolve to the
+                // enclosing non-arrow function's `arguments`. Propagate the
+                // flag so the enclosing function knows its parameters must
+                // stay in the environment for the mapped arguments object.
+                self.records[parent_index].contains_access_to_arguments_object_in_non_strict_mode |=
+                    self.records[index].contains_access_to_arguments_object_in_non_strict_mode;
+            }
         }
 
         self.current = self.records[index].parent;
