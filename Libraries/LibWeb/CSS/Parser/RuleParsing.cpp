@@ -237,15 +237,23 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
     return CSSStyleRule::create(realm(), move(selectors), *declaration, *nested_rules);
 }
 
+static bool selector_list_contains_pseudo_element(SelectorList const& selectors)
+{
+    for (auto const& selector : selectors) {
+        if (selector->target_pseudo_element().has_value())
+            return true;
+    }
+    return false;
+}
+
 GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 {
-    // https://drafts.csswg.org/css-cascade-5/#at-import
+    // https://drafts.csswg.org/css-cascade-6/#at-import
     // @import [ <url> | <string> ]
-    //         [ layer | layer(<layer-name>) ]?
-    //         <import-conditions> ;
-    //
-    // <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
-    //                      <media-query-list>?
+    //         [[ layer | layer(<layer-name>) ]
+    //          || [ scope | scope(<scope-start> | <scope-boundaries>) ]
+    //          || supports( [ <supports-condition> | <declaration> ] ) ]?
+    //         <media-import-condition> ;
     TokenStream tokens { rule.prelude };
 
     if (rule.is_block_rule) {
@@ -283,43 +291,167 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
     tokens.discard_whitespace();
     Optional<FlyString> layer;
-    // [ layer | layer(<layer-name>) ]?
-    if (tokens.next_token().is_ident("layer"sv)) {
-        tokens.discard_a_token(); // layer
-        layer = FlyString {};
-    } else if (tokens.next_token().is_function("layer"sv)) {
+    Optional<CSSImportRule::ImportScope> scope;
+    RefPtr<Supports> supports {};
+
+    auto parse_scope_selector_list = [&](TokenStream<ComponentValue>& selector_tokens, SelectorType selector_type) -> Optional<SelectorList> {
+        auto maybe_selectors = parse_a_selector_list(selector_tokens, selector_type);
+        selector_tokens.discard_whitespace();
+        if (maybe_selectors.is_error() || maybe_selectors.value().is_empty() || selector_tokens.has_next_token())
+            return {};
+
+        auto selectors = maybe_selectors.release_value();
+        if (selector_list_contains_pseudo_element(selectors))
+            return {};
+        return selectors;
+    };
+
+    auto parse_parenthesized_scope_selector_list = [&](TokenStream<ComponentValue>& selector_tokens, SelectorType selector_type) -> Optional<SelectorList> {
+        if (!(selector_tokens.next_token().is_block() && selector_tokens.next_token().block().is_paren()))
+            return {};
+
+        auto const& selector_block = selector_tokens.consume_a_token().block();
+        TokenStream block_tokens { selector_block.value };
+        return parse_scope_selector_list(block_tokens, selector_type);
+    };
+
+    auto contains_unparenthesized_scope_boundary_keyword = [](Vector<ComponentValue> const& component_values) {
+        ComponentValue const* previous_non_whitespace_token = nullptr;
+        for (auto const& component_value : component_values) {
+            if (component_value.is(Token::Type::Whitespace))
+                continue;
+
+            if (component_value.is_ident("to"sv)) {
+                if (!previous_non_whitespace_token)
+                    return true;
+                if (!previous_non_whitespace_token->is_delim('.') && !previous_non_whitespace_token->is(Token::Type::Colon))
+                    return true;
+            }
+
+            previous_non_whitespace_token = &component_value;
+        }
+
+        return false;
+    };
+
+    auto parse_layer = [&]() -> bool {
+        if (layer.has_value())
+            return false;
+
+        if (tokens.next_token().is_ident("layer"sv)) {
+            tokens.discard_a_token(); // layer
+            layer = FlyString {};
+            return true;
+        }
+
+        if (!tokens.next_token().is_function("layer"sv))
+            return false;
+
         auto layer_transaction = tokens.begin_transaction();
         auto& layer_function = tokens.consume_a_token().function();
         TokenStream layer_tokens { layer_function.value };
         auto name = parse_layer_name(layer_tokens, AllowBlankLayerName::No);
         layer_tokens.discard_whitespace();
-        if (!name.has_value() || layer_tokens.has_next_token()) {
-            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@import"_fly_string,
-                .prelude = tokens.dump_string(),
-                .description = MUST(String::formatted("Unable to parse `{}` as a valid layer.", layer_function.original_source_text())),
-            });
-        } else {
-            layer_transaction.commit();
-            layer = name.release_value();
-        }
-    }
+        if (!name.has_value() || layer_tokens.has_next_token())
+            return false;
 
-    // <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
-    //                      <media-query-list>?
-    tokens.discard_whitespace();
-    RefPtr<Supports> supports {};
-    if (tokens.next_token().is_function("supports"sv)) {
+        layer_transaction.commit();
+        layer = name.release_value();
+        return true;
+    };
+
+    auto parse_scope = [&]() -> bool {
+        if (scope.has_value())
+            return false;
+
+        if (tokens.next_token().is_ident("scope"sv)) {
+            tokens.discard_a_token(); // scope
+            scope = CSSImportRule::ImportScope {};
+            return true;
+        }
+
+        if (!tokens.next_token().is_function("scope"sv))
+            return false;
+
+        auto scope_transaction = tokens.begin_transaction();
+        auto& scope_function = tokens.consume_a_token().function();
+        TokenStream scope_tokens { scope_function.value };
+        CSSImportRule::ImportScope parsed_scope;
+
+        scope_tokens.discard_whitespace();
+        if (scope_tokens.is_empty()) {
+            scope_transaction.commit();
+            scope = move(parsed_scope);
+            return true;
+        }
+
+        if (scope_tokens.next_token().is_block() && scope_tokens.next_token().block().is_paren()) {
+            auto start_selectors = parse_parenthesized_scope_selector_list(scope_tokens, SelectorType::Standalone);
+            if (!start_selectors.has_value())
+                return false;
+            parsed_scope.start_selectors = start_selectors.release_value();
+            scope_tokens.discard_whitespace();
+        }
+
+        if (scope_tokens.next_token().is_ident("to"sv)) {
+            scope_tokens.discard_a_token(); // to
+            scope_tokens.discard_whitespace();
+            auto end_selectors = parse_parenthesized_scope_selector_list(scope_tokens, SelectorType::Relative);
+            if (!end_selectors.has_value())
+                return false;
+            parsed_scope.end_selectors = end_selectors.release_value();
+            scope_tokens.discard_whitespace();
+        }
+
+        if (!parsed_scope.start_selectors.has_value() && !parsed_scope.end_selectors.has_value()) {
+            if (contains_unparenthesized_scope_boundary_keyword(scope_function.value))
+                return false;
+
+            auto start_selectors = parse_scope_selector_list(scope_tokens, SelectorType::Standalone);
+            if (!start_selectors.has_value())
+                return false;
+            parsed_scope.start_selectors = start_selectors.release_value();
+        }
+
+        if (scope_tokens.has_next_token())
+            return false;
+
+        scope_transaction.commit();
+        scope = move(parsed_scope);
+        return true;
+    };
+
+    auto parse_supports = [&]() -> bool {
+        if (supports)
+            return false;
+        if (!tokens.next_token().is_function("supports"sv))
+            return false;
+
+        auto supports_transaction = tokens.begin_transaction();
         auto component_value = tokens.consume_a_token();
         TokenStream supports_tokens { component_value.function().value };
-        supports = parse_a_supports(supports_tokens);
-        if (!supports) {
+        auto parsed_supports = parse_a_supports(supports_tokens);
+        if (!parsed_supports) {
             m_rule_context.append(RuleContext::SupportsCondition);
             auto supports_declaration = parse_supports_declaration(supports_tokens);
             m_rule_context.take_last();
             if (supports_declaration)
-                supports = Supports::create(supports_declaration.release_nonnull<BooleanExpression>());
+                parsed_supports = Supports::create(supports_declaration.release_nonnull<BooleanExpression>());
         }
+
+        if (!parsed_supports)
+            return false;
+
+        supports_transaction.commit();
+        supports = move(parsed_supports);
+        return true;
+    };
+
+    while (true) {
+        tokens.discard_whitespace();
+        if (parse_layer() || parse_scope() || parse_supports())
+            continue;
+        break;
     }
 
     auto media_query_list = parse_a_media_query_list(tokens);
@@ -333,7 +465,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    return CSSImportRule::create(realm(), url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), move(layer), move(supports), MediaList::create(realm(), move(media_query_list)));
+    return CSSImportRule::create(realm(), url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), move(layer), move(scope), move(supports), MediaList::create(realm(), move(media_query_list)));
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
@@ -883,15 +1015,6 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     }
 
     return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
-}
-
-static bool selector_list_contains_pseudo_element(SelectorList const& selectors)
-{
-    for (auto const& selector : selectors) {
-        if (selector->target_pseudo_element().has_value())
-            return true;
-    }
-    return false;
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule

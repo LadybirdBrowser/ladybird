@@ -10,6 +10,7 @@
 
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -23,7 +24,12 @@ class WEB_API CSSImportRule final
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, RefPtr<Supports>, GC::Ref<MediaList>);
+    struct ImportScope {
+        Optional<SelectorList> start_selectors;
+        Optional<SelectorList> end_selectors;
+    };
+
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual ~CSSImportRule() override;
 
@@ -39,12 +45,15 @@ public:
     Optional<String> supports_text() const;
 
     bool matches() const;
+    bool has_scope() const { return m_scope.has_value(); }
+    Optional<SelectorList> const& scope_start_selectors() const;
+    Optional<SelectorList> const& scope_end_selectors() const;
 
     Optional<FlyString> internal_layer_name() const { return m_layer_internal; }
     Optional<FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
 
 private:
-    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, RefPtr<Supports>, GC::Ref<MediaList>);
+    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, Optional<ImportScope>&&, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -63,6 +72,7 @@ private:
     GC::Ptr<DOM::Document> m_document;
     Optional<FlyString> m_layer;
     Optional<FlyString> m_layer_internal;
+    Optional<ImportScope> m_scope;
     RefPtr<Supports> m_supports;
     GC::Ref<MediaList> m_media;
     GC::Ptr<CSSStyleSheet> m_style_sheet;

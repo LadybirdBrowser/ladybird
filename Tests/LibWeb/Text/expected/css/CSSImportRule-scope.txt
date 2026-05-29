@@ -1,0 +1,23 @@
+PASS all scoped imports parsed
+PASS bare scope import rule parsed
+PASS bare scope import rule serialized as scoped
+PASS empty scope() import rule parsed
+PASS empty scope() import rule serialized as scoped
+PASS start selector import rule parsed
+PASS start selector import rule serialized as scoped
+PASS start selector list import rule parsed
+PASS start selector list import rule serialized as scoped
+PASS end selector import rule parsed
+PASS end selector import rule serialized as scoped
+PASS start and end selector import rule parsed
+PASS start and end selector import rule serialized as scoped
+PASS combined modifier import rule parsed
+PASS combined modifier import rule has layer
+PASS combined modifier import rule has supports
+PASS combined modifier import rule has media
+PASS combined modifier import rule serialized as scoped
+PASS unordered modifier import rule parsed
+PASS unordered modifier import rule has layer
+PASS unordered modifier import rule has supports
+PASS unordered modifier import rule has media
+PASS unordered modifier import rule serialized as scoped

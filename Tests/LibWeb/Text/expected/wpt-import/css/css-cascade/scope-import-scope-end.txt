@@ -4,5 +4,5 @@ Found 2 tests
 
 1 Pass
 1 Fail
-Fail	Scope-imported rule applies within scope, above limit
-Pass	Scope-imported rule does not apply below limit
+Pass	Scope-imported rule applies within scope, above limit
+Fail	Scope-imported rule does not apply below limit
