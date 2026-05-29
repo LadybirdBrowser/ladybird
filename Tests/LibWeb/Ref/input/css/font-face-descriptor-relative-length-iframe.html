@@ -42,7 +42,11 @@
         <script>
             function waitForFonts() {
                 iframe.contentDocument.fonts.ready.then(() => {
-                    document.documentElement.classList = "";
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            document.documentElement.classList = "";
+                        });
+                    });
                 });
             }
         </script>
