@@ -482,6 +482,15 @@ SelectorInsights const& CSSStyleSheet::selector_insights() const
             return;
         }
 
+        if (rule.type() == CSSRule::Type::Import) {
+            auto const& import_rule = as<CSSImportRule>(rule);
+            if (import_rule.has_scope()) {
+                collect_optional_selector_list(import_rule.scope_start_selectors_for_matching());
+                collect_optional_selector_list(import_rule.scope_end_selectors_for_matching());
+            }
+            return;
+        }
+
         if (rule.type() == CSSRule::Type::Style) {
             collect_selector_list(static_cast<CSSStyleRule const&>(rule).absolutized_selectors());
             return;

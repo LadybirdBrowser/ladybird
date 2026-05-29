@@ -563,7 +563,7 @@ void add_shadow_root_stylesheet_effects_for_broad_invalidation(DOM::Node& root, 
 static bool rule_requires_broad_add_or_remove_invalidation(CSSRule const& rule)
 {
     if (auto const* import_rule = as_if<CSSImportRule>(rule))
-        return import_rule->layer_name().has_value();
+        return import_rule->layer_name().has_value() || import_rule->has_scope();
 
     switch (rule.type()) {
     case CSSRule::Type::Property:

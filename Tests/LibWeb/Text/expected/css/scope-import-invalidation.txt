@@ -1,0 +1,9 @@
+root before: 
+root after: yes
+scope insights has: true
+end before: yes
+end after: 
+replace before: 
+replace after: yes
+remove after: 
+stylesheet remove full invalidation: true
