@@ -400,6 +400,7 @@ QPixmap TabBar::render_tab_drag_pixmap(int index) const
     pixmap.fill(Qt::transparent);
 
     QPainter painter(&pixmap);
+    painter.setOpacity(0.75);
     const_cast<TabBar&>(*this).render(&painter, QPoint(), QRegion(tab_rect), QWidget::DrawChildren);
     return pixmap;
 }
