@@ -2273,7 +2273,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     } else if (type.is_integer()) {
         generate_from_integral(scoped_generator, type, generate_optional_integral_type);
-    } else if (type.name() == "Location" || type.name() == "any") {
+    } else if (type.name() == "any") {
         scoped_generator.append(R"~~~(
     @result_expression@ @value_non_optional@;
 )~~~");
