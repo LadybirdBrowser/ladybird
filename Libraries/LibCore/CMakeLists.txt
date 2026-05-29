@@ -11,6 +11,8 @@ set(SOURCES
     EventLoopImplementation.cpp
     EventReceiver.cpp
     File.cpp
+    GeolocationProvider.cpp
+    GeolocationProviderUnimplemented.cpp
     ImmutableBytes.cpp
     MimeData.cpp
     Notifier.cpp
