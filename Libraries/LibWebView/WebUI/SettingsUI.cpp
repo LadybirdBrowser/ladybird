@@ -39,6 +39,8 @@ static bool should_show_config_variable([[maybe_unused]] ConfigVariableID id)
     if (id == ConfigVariableID::UseRoundedWindowCorners)
         return false;
 #endif
+    if (id == ConfigVariableID::UseServerSideWindowDecorations)
+        return Application::the().supports_server_side_window_decorations();
 
     return true;
 }

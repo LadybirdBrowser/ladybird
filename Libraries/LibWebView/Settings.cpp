@@ -98,6 +98,14 @@ static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Cou
         .default_value = true,
         .array_element_type = {},
     },
+    {
+        .id = ConfigVariableID::UseServerSideWindowDecorations,
+        .name = "ui.window.use_server_side_decorations"sv,
+        .title = "Use server-side window decorations"sv,
+        .description = "Use the system window frame instead of the custom title bar and window controls."sv,
+        .default_value = false,
+        .array_element_type = {},
+    },
 } };
 
 ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions()

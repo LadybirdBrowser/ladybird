@@ -73,6 +73,7 @@ public:
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
     virtual bool supports_vertical_tabs() const { return false; }
+    virtual bool supports_server_side_window_decorations() const { return false; }
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);
 
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }

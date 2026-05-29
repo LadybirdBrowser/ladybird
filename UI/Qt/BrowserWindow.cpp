@@ -231,7 +231,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 {
     auto const& browser_options = WebView::Application::browser_options();
 
-    setWindowFlag(Qt::FramelessWindowHint);
+    setWindowFlag(Qt::FramelessWindowHint, uses_client_side_decorations());
     setAttribute(Qt::WA_OpaquePaintEvent);
     setWindowIcon(app_icon());
     qApp->installEventFilter(this);
@@ -571,6 +571,11 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Tab& par
 FullscreenMode& BrowserWindow::fullscreen_mode()
 {
     return *m_fullscreen_mode;
+}
+
+bool BrowserWindow::uses_client_side_decorations()
+{
+    return !WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseServerSideWindowDecorations);
 }
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
@@ -931,8 +936,8 @@ void BrowserWindow::update_menu_bar_visibility(bool show_menubar)
 {
     menuBar()->setVisible(show_menubar);
     if (m_menu_bar_window_controls)
-        m_menu_bar_window_controls->setVisible(show_menubar);
-    m_tabs_container->set_window_controls_visible(!show_menubar);
+        m_menu_bar_window_controls->setVisible(show_menubar && uses_client_side_decorations());
+    m_tabs_container->set_window_controls_visible(!show_menubar && uses_client_side_decorations());
 }
 
 void BrowserWindow::update_menu_bar_window_control_icons()
@@ -945,6 +950,33 @@ void BrowserWindow::update_menu_bar_window_control_icons()
     m_menu_bar_maximize_window_button->setIcon(create_chrome_icon(is_maximized ? ChromeIcon::WindowRestore : ChromeIcon::WindowMaximize, palette()));
     m_menu_bar_maximize_window_button->setToolTip(is_maximized ? "Restore" : "Maximize");
     m_menu_bar_close_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowClose, palette()));
+}
+
+void BrowserWindow::update_window_decoration_state()
+{
+    clear_resize_cursor();
+
+    auto should_be_frameless = uses_client_side_decorations();
+    auto is_frameless = windowFlags().testFlag(Qt::FramelessWindowHint);
+
+    if (is_frameless != should_be_frameless) {
+        auto was_visible = isVisible();
+        auto was_fullscreen = isFullScreen();
+        auto was_maximized = isMaximized();
+
+        setWindowFlag(Qt::FramelessWindowHint, should_be_frameless);
+
+        if (was_visible) {
+            if (was_fullscreen)
+                showFullScreen();
+            else if (was_maximized)
+                showMaximized();
+            else
+                show();
+        }
+    }
+
+    update_menu_bar_visibility(Settings::the()->show_menubar());
 }
 
 void BrowserWindow::toggle_window_maximized()
@@ -1133,6 +1165,8 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
     auto* widget = as_if<QWidget>(object);
     if (!widget || widget->window() != this)
         return QMainWindow::eventFilter(object, event);
+    if (!uses_client_side_decorations())
+        return QMainWindow::eventFilter(object, event);
 
     auto const is_button = qobject_cast<QAbstractButton*>(object) != nullptr;
 
@@ -1233,7 +1267,7 @@ Optional<Qt::CursorShape> BrowserWindow::resize_cursor_for_edges(Qt::Edges edges
 
 void BrowserWindow::update_resize_cursor(QPoint const& position)
 {
-    if (isMaximized() || isFullScreen() || !rect().contains(position)) {
+    if (!uses_client_side_decorations() || isMaximized() || isFullScreen() || !rect().contains(position)) {
         clear_resize_cursor();
         return;
     }
@@ -1301,6 +1335,8 @@ void BrowserWindow::config_variable_changed(WebView::ConfigVariableID variable)
 {
     if (variable == WebView::ConfigVariableID::UseRoundedWindowCorners)
         update_window_corners();
+    else if (variable == WebView::ConfigVariableID::UseServerSideWindowDecorations)
+        update_window_decoration_state();
 }
 
 void BrowserWindow::update_window_corners()
