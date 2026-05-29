@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<title>@import scope(), '&' selectors</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#at-import">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@import url("resources/scope-imported.css") scope((.scope));
+</style>
+<main id=main>
+  <div class=scope>
+    <div class=w>Inside</div>
+    <div class=scope>
+      <div class=w>Inner (W)</div>
+      <div class=u>Inner (U)</div>
+    </div>
+  </div>
+</main>
+<script>
+  test(() => {
+    let e = main.querySelector('#main > .scope > .w');
+    assert_equals(getComputedStyle(e).getPropertyValue('--w'), '1');
+  }, 'The & selector matches the scoping root');
+
+  test(() => {
+    let w = main.querySelector('#main > .scope > .scope > .w');
+    assert_equals(getComputedStyle(w).getPropertyValue('--w'), '1');
+    // The '& > & > .u' selector should behave like ':scope > :scope > .u'
+    // and therefore never match.
+    let u = main.querySelector('#main > .scope > .scope > .u');
+    assert_equals(getComputedStyle(u).getPropertyValue('--u'), '');
+  }, 'The & selector behaves like :scope');
+</script>

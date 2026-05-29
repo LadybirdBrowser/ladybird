@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>@import scope() with &lt;scope-end&gt;</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#at-import">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@import url("resources/scope-imported.css") scope((.scope) to (.limit));
+</style>
+<main id=main>
+  <div class=scope>
+    <div class=x>Inside</div>
+    <div class=limit>
+      <div class=x>Below limit</div>
+    </div>
+  </div>
+</main>
+<script>
+  test(() => {
+    let e = main.querySelector('.scope > .x');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), '1');
+  }, 'Scope-imported rule applies within scope, above limit');
+
+  test(() => {
+    let e = main.querySelector('.limit > .x');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), '');
+  }, 'Scope-imported rule does not apply below limit');
+</script>
