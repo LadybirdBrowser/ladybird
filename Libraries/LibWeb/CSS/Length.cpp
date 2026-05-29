@@ -28,6 +28,8 @@ namespace Web::CSS {
 void Length::ResolutionContext::visit_edges(GC::Cell::Visitor& visitor) const
 {
     visitor.visit(subject_element);
+    visitor.visit(cached_width_query_container);
+    visitor.visit(cached_height_query_container);
 }
 
 enum class ContainerRelativeAxis {
@@ -74,6 +76,24 @@ static DOM::Element const* nearest_query_container_for_axis(DOM::Element const& 
             return container;
     }
     return nullptr;
+}
+
+static Optional<GC::Ptr<DOM::Element const>>& cached_query_container_for_axis(Length::ResolutionContext const& context, ContainerRelativeAxis axis)
+{
+    if (axis == ContainerRelativeAxis::Width)
+        return context.cached_width_query_container;
+    return context.cached_height_query_container;
+}
+
+static GC::Ptr<DOM::Element const> get_or_compute_query_container_for_axis(Length::ResolutionContext const& context, ContainerRelativeAxis axis)
+{
+    auto& cached_query_container = cached_query_container_for_axis(context, axis);
+    if (!cached_query_container.has_value()) {
+        cached_query_container = nullptr;
+        if (context.subject_element)
+            cached_query_container = nearest_query_container_for_axis(*context.subject_element, axis);
+    }
+    return cached_query_container.value();
 }
 
 Length::FontMetrics::FontMetrics(CSSPixels font_size, Gfx::FontPixelMetrics const& pixel_metrics, CSSPixels line_height)
@@ -191,7 +211,7 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
         auto& subject = *context.subject_element;
         const_cast<DOM::Element&>(subject).set_style_depends_on_size_container_query();
 
-        auto query_container = nearest_query_container_for_axis(subject, physical_axis);
+        auto query_container = get_or_compute_query_container_for_axis(context, physical_axis);
         if (!query_container) {
             context.record_viewport_relative_length_resolution();
             auto viewport_length = physical_axis == ContainerRelativeAxis::Width ? context.viewport_rect.width() : context.viewport_rect.height();
