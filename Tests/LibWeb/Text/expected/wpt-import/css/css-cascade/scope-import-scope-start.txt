@@ -4,5 +4,5 @@ Found 2 tests
 
 1 Pass
 1 Fail
-Fail	Scope-imported rule applies within scope
-Pass	Scope-imported rule does not apply outside of scope
+Pass	Scope-imported rule applies within scope
+Fail	Scope-imported rule does not apply outside of scope

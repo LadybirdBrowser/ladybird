@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<style>
+    @import url("data:text/css,") scope;
+    @import url("data:text/css,") scope();
+    @import url("data:text/css,") scope(.scope);
+    @import url("data:text/css,") scope(.scope, .other);
+    @import url("data:text/css,") scope(to (.limit));
+    @import url("data:text/css,") scope((.scope) to (.limit));
+    @import url("data:text/css,") layer(foo) supports(display: block) scope(.scope) screen;
+    @import url("data:text/css,") supports(display: block) scope(.scope) layer(bar) screen;
+</style>
+<script src="../include.js"></script>
+<script>
+    function expect(condition, description) {
+        println(`${condition ? "PASS" : "FAIL"} ${description}`);
+    }
+
+    function expectCSSImportRule(rule, description) {
+        expect(rule instanceof CSSImportRule, description);
+    }
+
+    function expectScopedImport(rule, scopeText, description) {
+        expect(rule.cssText.includes(scopeText), description);
+    }
+
+    function expectImplicitScopedImport(rule, description) {
+        expect(rule.cssText.includes(" scope"), description);
+    }
+
+    test(() => {
+        let rules = document.styleSheets[0].cssRules;
+        expect(rules.length === 8, "all scoped imports parsed");
+
+        expectCSSImportRule(rules[0], "bare scope import rule parsed");
+        expectImplicitScopedImport(rules[0], "bare scope import rule serialized as scoped");
+
+        expectCSSImportRule(rules[1], "empty scope() import rule parsed");
+        expectImplicitScopedImport(rules[1], "empty scope() import rule serialized as scoped");
+
+        expectCSSImportRule(rules[2], "start selector import rule parsed");
+        expectScopedImport(rules[2], "scope(.scope)", "start selector import rule serialized as scoped");
+
+        expectCSSImportRule(rules[3], "start selector list import rule parsed");
+        expectScopedImport(rules[3], "scope(.scope, .other)", "start selector list import rule serialized as scoped");
+
+        expectCSSImportRule(rules[4], "end selector import rule parsed");
+        expectScopedImport(rules[4], "scope(to (.limit))", "end selector import rule serialized as scoped");
+
+        expectCSSImportRule(rules[5], "start and end selector import rule parsed");
+        expectScopedImport(rules[5], "scope((.scope) to (.limit))", "start and end selector import rule serialized as scoped");
+
+        expectCSSImportRule(rules[6], "combined modifier import rule parsed");
+        expect(rules[6].layerName === "foo", "combined modifier import rule has layer");
+        expect(rules[6].supportsText === "display: block", "combined modifier import rule has supports");
+        expect(rules[6].media.mediaText === "screen", "combined modifier import rule has media");
+        expectScopedImport(rules[6], "scope(.scope)", "combined modifier import rule serialized as scoped");
+
+        expectCSSImportRule(rules[7], "unordered modifier import rule parsed");
+        expect(rules[7].layerName === "bar", "unordered modifier import rule has layer");
+        expect(rules[7].supportsText === "display: block", "unordered modifier import rule has supports");
+        expect(rules[7].media.mediaText === "screen", "unordered modifier import rule has media");
+        expectScopedImport(rules[7], "scope(.scope)", "unordered modifier import rule serialized as scoped");
+    });
+</script>
