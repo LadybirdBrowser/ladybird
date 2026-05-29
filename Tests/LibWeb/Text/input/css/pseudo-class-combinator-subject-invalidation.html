@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    a,
+    #target {
+        display: block;
+        width: 100px;
+        height: 100px;
+    }
+
+    span {
+        color: red;
+    }
+
+    a > :hover {
+        color: green;
+    }
+</style>
+<script src="../include.js"></script>
+<a href="#"><span id="target">Hover me</span></a>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+
+        println("initial color: " + getComputedStyle(target).color);
+
+        internals.mouseMove(50, 50);
+        println("hovered color: " + getComputedStyle(target).color);
+
+        internals.mouseMove(150, 150);
+        println("unhovered color: " + getComputedStyle(target).color);
+    });
+</script>

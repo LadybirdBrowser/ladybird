@@ -63,6 +63,7 @@ enum class StyleInvalidationReason {
 
 struct StyleInvalidationOptions {
     bool invalidate_self { false };
+    bool invalidate_self_from_property_plan { true };
 };
 
 }
