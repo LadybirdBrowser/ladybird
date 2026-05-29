@@ -382,6 +382,12 @@ public:
         last_reload_bypass_cache = bypass_cache;
     }
 
+    virtual void navigate_tab(DevTools::TabDescription const&, String const& url) const override
+    {
+        ++navigate_tab_call_count;
+        last_navigated_url = url;
+    }
+
     virtual void traverse_the_history_by_delta(DevTools::TabDescription const&, int delta) const override
     {
         ++traverse_the_history_by_delta_call_count;
@@ -838,6 +844,7 @@ public:
     mutable size_t stop_listening_for_navigation_events_call_count { 0 };
     mutable size_t did_connect_devtools_client_call_count { 0 };
     mutable size_t did_disconnect_devtools_client_call_count { 0 };
+    mutable size_t navigate_tab_call_count { 0 };
     mutable size_t reload_tab_call_count { 0 };
     mutable size_t traverse_the_history_by_delta_call_count { 0 };
 
@@ -863,6 +870,7 @@ public:
     mutable Optional<String> last_tag;
     mutable Optional<String> last_attribute;
     mutable size_t last_attribute_count { 0 };
+    mutable Optional<String> last_navigated_url;
     mutable Optional<bool> last_reload_bypass_cache;
     mutable Optional<int> last_history_delta;
 };
@@ -1164,6 +1172,15 @@ TEST_CASE(history_navigation_requests)
     (void)client.read_message();
 
     auto tab_actor = actor_from(get_tab(client), "actor"sv);
+
+    JsonObject navigate_to;
+    navigate_to.set("to"sv, tab_actor);
+    navigate_to.set("type"sv, "navigateTo"sv);
+    navigate_to.set("url"sv, "https://example.test/from-devtools"sv);
+    navigate_to.set("waitForLoad"sv, false);
+    EXPECT_EQ(client.request(move(navigate_to)).get_string("from"sv).value(), tab_actor);
+    EXPECT_EQ(session->delegate.navigate_tab_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_navigated_url.value(), "https://example.test/from-devtools"sv);
 
     EXPECT_EQ(client.request(tab_actor, "goBack"sv).get_string("from"sv).value(), tab_actor);
     EXPECT_EQ(session->delegate.traverse_the_history_by_delta_call_count, 1u);
