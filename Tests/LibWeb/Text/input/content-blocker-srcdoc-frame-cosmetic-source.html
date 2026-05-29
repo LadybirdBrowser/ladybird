@@ -1,38 +1,33 @@
 <!DOCTYPE html>
 <script src="./include.js"></script>
 <script>
-    asyncTest(async () => {
-        const server = httpTestServer();
-        const targetURL = await server.createEcho("GET", "/content-blocker-srcdoc-frame-cosmetic-source.html", {
-            status: 200,
-            headers: {
-                "Content-Type": "text/html",
-            },
-            body: `
-                <!DOCTYPE html>
-                <iframe id="frame" srcdoc="<div class='ad'></div>"></iframe>
-                <script>
-                    let output = "";
-                    function println(line) {
-                        output += line + "\\n";
-                    }
+    asyncTest(async done => {
+        // The srcdoc iframe inherits its base URL from its parent document. We need it to be localhost so that the
+        // content blocker's matching rule will apply to it.
+        const base = document.createElement("base");
+        base.href = "http://localhost/";
+        document.head.appendChild(base);
 
-                    window.addEventListener("load", () => {
-                        const target = document.getElementById("frame").contentDocument.querySelector(".ad");
-                        println(getComputedStyle(target).display);
+        try {
+            const iframe = document.createElement("iframe");
+            const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+            iframe.srcdoc = `<div class="ad"></div>`;
+            document.body.appendChild(iframe);
+            await loaded;
 
-                        internals.setContentBlockers("localhost##.ad");
-                        println(getComputedStyle(target).display);
+            const target = iframe.contentDocument.querySelector(".ad");
 
-                        internals.setContentBlockers("");
-                        println(getComputedStyle(target).display);
+            println(getComputedStyle(target).display);
 
-                        internals.signalTestIsDone(output);
-                    });
-                </scr` + `ipt>
-            `,
-        });
+            internals.setContentBlockers("localhost##.ad");
+            println(getComputedStyle(target).display);
 
-        location.href = targetURL;
+            internals.setContentBlockers("");
+            println(getComputedStyle(target).display);
+        } finally {
+            internals.setContentBlockers("");
+        }
+
+        done();
     });
 </script>
