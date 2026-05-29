@@ -120,6 +120,7 @@ public:
 
     void register_font_face(GC::Ref<FontFace>);
     void unregister_font_face(GC::Ref<FontFace>);
+    void unregister_font_face_with_key(GC::Ref<FontFace>, FontFaceKey const&);
 
     GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 

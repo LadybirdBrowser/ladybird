@@ -8,6 +8,7 @@
 
 #include <LibCore/Timer.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -2942,6 +2943,7 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
         else
             document->invalidate_style_for_viewport_change();
         document->set_needs_media_query_evaluation();
+        document->fonts()->reevaluate_descriptors_for_viewport_change();
         document->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
 

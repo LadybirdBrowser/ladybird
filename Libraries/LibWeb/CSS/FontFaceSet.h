@@ -32,6 +32,8 @@ public:
 
     void add_css_connected_font(GC::Ref<FontFace>);
 
+    void reevaluate_descriptors_for_viewport_change();
+
     void set_onloading(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloading();
     void set_onloadingdone(WebIDL::CallbackType*);
