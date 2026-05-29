@@ -339,10 +339,20 @@ void TabBar::leaveEvent(QEvent* event)
 
 void TabBar::mouseReleaseEvent(QMouseEvent* event)
 {
-    auto had_pressed_tab = !!m_pressed_tab;
+    auto pressed_tab = m_pressed_tab;
     m_pressed_tab = nullptr;
+
+    if (event->button() == Qt::MiddleButton && pressed_tab && m_tab_widget) {
+        if (auto index = m_tab_widget->index_of(pressed_tab); index >= 0 && tabAt(event->pos()) == index) {
+            emit tabCloseRequested(index);
+            event->accept();
+            return;
+        }
+    }
+
     QTabBar::mouseReleaseEvent(event);
-    if (had_pressed_tab)
+
+    if (pressed_tab)
         event->accept();
 }
 
@@ -620,16 +630,7 @@ void TabWidget::set_window_controls_visible(bool visible)
 
 bool TabWidget::event(QEvent* event)
 {
-    if (auto type = event->type(); type == QEvent::MouseButtonRelease) {
-        auto const* mouse_event = static_cast<QMouseEvent const*>(event);
-
-        if (mouse_event->button() == Qt::MiddleButton) {
-            if (auto index = m_tab_bar->tabAt(mouse_event->pos()); index != -1) {
-                emit tab_close_requested(index);
-                return true;
-            }
-        }
-    } else if (type == QEvent::PaletteChange) {
+    if (auto type = event->type(); type == QEvent::PaletteChange) {
         recreate_icons();
         update_chrome_style();
     } else if (type == QEvent::WindowStateChange) {
