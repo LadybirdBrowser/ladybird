@@ -93,8 +93,10 @@ void invalidate_element_if_affected_by_has(DOM::Element& element)
 {
     if (element.affected_by_has_pseudo_class_in_subject_position())
         element.set_needs_style_update(true);
-    if (element.affected_by_has_pseudo_class_in_non_subject_position())
+    if (element.affected_by_has_pseudo_class_in_subject_position()
+        || element.affected_by_has_pseudo_class_in_non_subject_position()) {
         element.invalidate_style(DOM::StyleInvalidationReason::Other, { { InvalidationSet::Property::Type::PseudoClass, PseudoClass::Has } }, {});
+    }
 }
 
 static bool is_in_has_scope(DOM::Element const& element)

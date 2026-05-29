@@ -108,6 +108,7 @@ struct StyleInvalidationData {
     bool has_selectors_sensitive_to_featureless_subtree_changes { false };
 
     void build_invalidation_sets_for_selector(Selector const& selector);
+    void build_invalidation_sets_for_scope_boundary_selector(Selector const& selector);
 };
 
 }
