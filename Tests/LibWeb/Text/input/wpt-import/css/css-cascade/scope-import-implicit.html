@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>@import scope(), implicit scope</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#at-import">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main>
+  <div class=scope>
+    <style>
+    @import url("resources/scope-imported.css") scope();
+    </style>
+    <div class=x>Inside</div>
+  </div>
+  <div class=x>Outside</div>
+</main>
+<script>
+  test(() => {
+    let e = main.querySelector('.scope > .x');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), '1');
+  }, 'Scope-imported rule applies within implicit scope');
+
+  test(() => {
+    let e = main.querySelector('main > .x');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), '');
+  }, 'Scope-imported rule does not apply outside of implicit scope');
+</script>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>@import scope(), :scope rules in imported stylesheet</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#at-import">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@import url("resources/scope-imported.css") scope((.scope));
+</style>
+<main id=main>
+  <div class=scope>
+    <div class=y>Inside</div>
+    <div>
+      <div class=y>Inside, but should not match</div>
+    </div>
+  </div>
+  <div class=y>Outside</div>
+</main>
+<script>
+  test(() => {
+    let inside = main.querySelector('.scope > .y');
+    assert_equals(getComputedStyle(inside).getPropertyValue('--y'), '1');
+
+    let inside_no_match = main.querySelector('.scope > div > .y');
+    assert_equals(getComputedStyle(inside_no_match).getPropertyValue('--y'), '');
+
+    let outside = main.querySelector('#main > .y');
+    assert_equals(getComputedStyle(outside).getPropertyValue('--y'), '');
+  }, 'The :scope pseudo-class works in imported stylesheets');
+</script>

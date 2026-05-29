@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>@import scope(), same stylesheet imported multiple times</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#at-import">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@import url("resources/scope-imported.css") scope((.scope1));
+@import url("resources/scope-imported.css") scope((.scope2));
+</style>
+<main id=main>
+  <div class=scope1>
+    <div class=x>Inside</div>
+  </div>
+  <div class=scope2>
+    <div class=x>Inside</div>
+  </div>
+  <div class=x>Outside</div>
+</main>
+<script>
+  test(() => {
+    let e1 = main.querySelector('.scope1 > .x');
+    let e2 = main.querySelector('.scope2 > .x');
+    assert_equals(getComputedStyle(e1).getPropertyValue('--x'), '1');
+    assert_equals(getComputedStyle(e2).getPropertyValue('--x'), '1');
+  }, 'A stylesheet may be imported multiple times, and scoped differently');
+
+  test(() => {
+    let e = main.querySelector('main > .x');
+    assert_equals(getComputedStyle(e).getPropertyValue('--x'), '');
+  }, 'Scope-imported rule does not apply outside of scope');
+</script>

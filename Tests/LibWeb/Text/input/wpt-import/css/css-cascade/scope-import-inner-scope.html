@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>@import scope(), :scope rules in imported stylesheet</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-6/#at-import">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@import url("resources/scope-imported.css") scope((.scope));
+</style>
+<main id=main>
+  <div class=scope>
+    <div class=inner-scope>
+      <div class=z>Inside</div>
+    </div>
+  </div>
+  <div class=inner-scope>
+    <div class=z>Outside</div>
+  </div>
+</main>
+<script>
+  test(() => {
+    let e = main.querySelector('.scope > .inner-scope > .z');
+    assert_equals(getComputedStyle(e).getPropertyValue('--z'), '1');
+  }, '@scope within scope-imported stylesheet matches');
+
+  test(() => {
+    let e = main.querySelector('#main > .inner-scope > .z');
+    assert_equals(getComputedStyle(e).getPropertyValue('--z'), '');
+  }, '@scope within scope-imported does not ignore import scope');
+</script>
