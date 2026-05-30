@@ -409,8 +409,17 @@ OwnPtr<FormattingContext> FormattingContext::layout_inside(Box const& child_box,
         // OPTIMIZATION: If we're doing intrinsic sizing and `child_box` has definite size in both axes,
         //               we don't need to layout its insides. The size is resolvable without learning
         //               the metrics of whatever's inside the box.
+        //
+        // https://drafts.csswg.org/css2/#propdef-vertical-align
+        // The baseline of an inline-block is the baseline of its last line box in the normal flow, unless it has
+        // either no in-flow line boxes or if its 'overflow' property has a computed value other than visible, in which
+        // case the baseline is the bottom margin edge.
+        //
+        // Inline-level boxes can contribute a baseline to their parent line box, so they still need their contents
+        // laid out even when their own intrinsic size is already definite.
         auto const& used_values = m_state.get(child_box);
         if (layout_mode == LayoutMode::IntrinsicSizing
+            && !child_box.is_inline()
             && used_values.width_constraint == SizeConstraint::None
             && used_values.height_constraint == SizeConstraint::None
             && used_values.has_definite_width()

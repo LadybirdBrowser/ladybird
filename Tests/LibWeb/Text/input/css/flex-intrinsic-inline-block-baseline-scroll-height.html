@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+#scroller {
+    height: 120px;
+    overflow: auto;
+    width: 300px;
+}
+
+#content {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100%;
+}
+
+#inner {
+    list-style: none;
+    margin: 0;
+    min-height: 0;
+    overflow: clip;
+    padding: 0;
+}
+
+.message {
+    line-height: 22px;
+    min-height: 44px;
+    padding-bottom: 2px;
+    padding-top: 2px;
+}
+
+.header {
+    display: block;
+    font: 16px/22px sans-serif;
+    line-height: 22px;
+    min-height: 22px;
+}
+
+.timestamp {
+    display: inline-block;
+    font: 12px/22px sans-serif;
+    height: 20px;
+    overflow: visible;
+    width: 40px;
+}
+
+.spacer {
+    height: 40px;
+}
+</style>
+<div id="scroller">
+    <div id="content">
+        <ol id="inner">
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:00</span></h3>
+                <div>one</div></div></li>
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:01</span></h3>
+                <div>two</div></div></li>
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:02</span></h3>
+                <div>three</div></div></li>
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:03</span></h3>
+                <div>four</div></div></li>
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:04</span></h3>
+                <div>five</div></div></li>
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:05</span></h3>
+                <div>six</div></div></li>
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:06</span></h3>
+                <div>seven</div></div></li>
+            <li><div class="message"><h3 class="header">Alice <span class="timestamp">1:07</span></h3>
+                <div>eight</div></div></li>
+            <li><div class="spacer"></div></li>
+        </ol>
+    </div>
+</div>
+<script>
+test(() => {
+    const scroller = document.getElementById("scroller");
+    const inner = document.getElementById("inner");
+    const spacer = document.querySelector(".spacer");
+
+    scroller.scrollTop = scroller.scrollHeight;
+
+    const blankTail = Math.round(inner.getBoundingClientRect().bottom - spacer.getBoundingClientRect().bottom);
+    println(`blank tail after spacer: ${blankTail}px`);
+});
+</script>
