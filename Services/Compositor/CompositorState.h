@@ -73,7 +73,7 @@ public:
     ContextOwnerCheckResult check_context_owner(Web::Compositor::CompositorContextId, CompositorStateWebContentClient&);
     void destroy_contexts_for_web_content_client(CompositorStateWebContentClient&);
 
-    void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration, CompositorStateWebContentClient&);
+    void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&);
     void destroy_context(Web::Compositor::CompositorContextId);
 
     void set_presentation_mode(Web::Compositor::CompositorContextId, Web::Compositor::PresentationMode);
@@ -116,7 +116,6 @@ private:
 
         CompositorStateWebContentClient* web_content_client { nullptr };
         Optional<u64> page_id;
-        Web::Compositor::PagePresentationRegistration page_presentation_registration { Web::Compositor::PagePresentationRegistration::No };
 
         Web::Compositor::PresentationMode presentation_mode { Empty {} };
         Optional<PublishedSurface> published_surface;

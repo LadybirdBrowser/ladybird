@@ -431,9 +431,7 @@ public:
     {
         if (page_presentation_registration == Compositor::PagePresentationRegistration::Yes)
             return Compositor::compositor_context_id_for_page(id());
-        auto context_id = Compositor::allocate_compositor_context_id();
-        VERIFY(!Compositor::is_page_presenting_compositor_context_id(context_id));
-        return context_id;
+        VERIFY_NOT_REACHED();
     }
     virtual void request_frame() = 0;
     virtual void page_did_change_title(Utf16String const&) { }

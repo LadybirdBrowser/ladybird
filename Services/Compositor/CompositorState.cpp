@@ -172,23 +172,18 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
     }
 }
 
-void CompositorState::create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration, CompositorStateWebContentClient& web_content_client)
+void CompositorState::create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client)
 {
     VERIFY(!m_contexts.contains(context_id));
-    if (page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes) {
-        VERIFY(page_id.has_value());
-    } else {
-        VERIFY(!page_id.has_value());
-        VERIFY(!Web::Compositor::is_page_presenting_compositor_context_id(context_id));
-    }
+    if (page_id.has_value())
+        VERIFY(context_id == Web::Compositor::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [] {
         return make<ContextState>();
     });
     context.web_content_client = &web_content_client;
     context.page_id = page_id;
-    context.page_presentation_registration = page_presentation_registration;
-    if (page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes)
+    if (page_id.has_value())
         context.presentation_mode = Web::Compositor::PresentToClient {};
     resize_backing_stores_if_needed(context_id, context);
 }
@@ -224,7 +219,7 @@ void CompositorState::set_presentation_mode(Web::Compositor::CompositorContextId
     presentation_mode.visit(
         [](Empty const&) {},
         [&](Web::Compositor::PresentToClient const&) {
-            VERIFY(context_state.page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes);
+            VERIFY(context_state.page_id.has_value());
         },
         [&](Web::Compositor::PublishToCompositorSurface const& mode) {
             auto* parent_context = context_if_present(mode.target_context_id);
@@ -384,8 +379,6 @@ bool CompositorState::dispatch_mouse_event_to_web_content(Web::Compositor::Compo
     VERIFY(context->web_content_client);
 
     auto page_id = context->page_id;
-    if (!page_id.has_value() && Web::Compositor::is_page_presenting_compositor_context_id(context_id))
-        page_id = Web::Compositor::page_id_for_compositor_context_id(context_id);
     VERIFY(page_id.has_value());
 
     context->web_content_client->dispatch_mouse_event_to_web_content(*page_id, event);
@@ -497,7 +490,7 @@ void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId
         return;
 
     context->viewport_size = viewport_size;
-    auto is_page_presentation_context = context->page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes;
+    auto is_page_presentation_context = context->page_id.has_value();
     context->window_resize_in_progress = is_page_presentation_context
         ? window_resize_in_progress
         : Web::Compositor::WindowResizingInProgress::No;
