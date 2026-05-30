@@ -60,7 +60,6 @@ private:
     friend class DisplayList;
     DisplayListCommandSequence();
 
-    DisplayListResourceStorage m_resource_storage;
     ByteBuffer m_command_bytes;
 };
 
@@ -188,8 +187,8 @@ public:
         DisplayListCommandSequence::for_each_command_header(command_bytes(), move(callback));
     }
 
-    void append_command_sequence(DisplayListCommandSequence const&, AccumulatedVisualContextTree const&, VisualContextIndex, DisplayListResourceStorage&);
-    DisplayListCommandSequence copy_command_sequence_from(size_t command_start_offset, DisplayListResourceStorage const&) const;
+    void append_command_sequence(DisplayListCommandSequence const&, AccumulatedVisualContextTree const&, VisualContextIndex);
+    DisplayListCommandSequence copy_command_sequence_from(size_t command_start_offset) const;
     size_t command_byte_size() const { return m_command_bytes.size(); }
 
 private:

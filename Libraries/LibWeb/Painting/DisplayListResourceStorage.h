@@ -27,6 +27,9 @@
 namespace Web::Painting {
 
 struct DisplayListResourceSet {
+    bool is_empty() const;
+    void include(DisplayListResourceSet const&);
+
     HashTable<FontResourceId> fonts;
     HashTable<ImageFrameResourceId> image_frames;
     HashTable<VideoFrameResourceId> video_frames;
@@ -84,11 +87,13 @@ public:
     DisplayListResourceId add_display_list(DisplayListResource&&);
     void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
     void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
-    void append_referenced_resources_from(DisplayListResourceStorage const& source, ReadonlyBytes command_bytes);
     void apply_transaction(DisplayListResourceTransaction&&);
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
     DisplayListResourceSet collect_referenced_resources(ReadonlyBytes command_bytes) const;
+    void acquire_cache_references(DisplayListResourceSet const&);
+    void release_cache_references(DisplayListResourceSet const&);
+    DisplayListResourceSet cache_referenced_resources() const;
     void retain_only(DisplayListResourceSet const&);
     void update_video_frame(VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(VideoFrameResourceId);
@@ -111,6 +116,11 @@ private:
     HashMap<u64, RefPtr<Media::VideoFrame const>> m_video_frames;
     HashMap<u64, DisplayListResource> m_display_lists;
     HashMap<u64, Gfx::DecodedImageFrame> m_compositor_surfaces;
+
+    HashMap<u64, size_t> m_font_cache_reference_counts;
+    HashMap<u64, size_t> m_image_frame_cache_reference_counts;
+    HashMap<u64, size_t> m_video_frame_cache_reference_counts;
+    HashMap<u64, size_t> m_display_list_cache_reference_counts;
 };
 
 }

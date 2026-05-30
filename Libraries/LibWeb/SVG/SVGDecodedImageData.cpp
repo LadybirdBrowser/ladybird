@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -136,30 +137,57 @@ size_t SVGDecodedImageData::external_memory_size() const
     return size;
 }
 
-Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& resource_storage) const
+static void copy_referenced_resources_to(
+    Painting::DisplayListResourceStorage& destination,
+    Painting::DisplayListResourceStorage const& source,
+    Painting::DisplayListResourceSet const& referenced_resources)
 {
+    Painting::DisplayListResourceSet empty_resource_set;
+    destination.apply_transaction(source.create_transaction(empty_resource_set, referenced_resources));
+}
+
+void SVGDecodedImageData::prune_cached_display_list_resources() const
+{
+    auto& resource_storage = m_document->navigable()->display_list_resource_storage();
+
+    Painting::DisplayListResourceSet retained_resources;
+    for (auto const& cached_display_list : m_cached_display_lists) {
+        retained_resources.include(
+            resource_storage.collect_referenced_resources(*cached_display_list.value.display_list));
+    }
+    resource_storage.retain_only(retained_resources);
+}
+
+Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& destination_resource_storage) const
+{
+    auto& resource_storage = m_document->navigable()->display_list_resource_storage();
+
     if (auto it = m_cached_display_lists.find(size); it != m_cached_display_lists.end()) {
-        resource_storage.append_referenced_resources_from(it->value.resource_storage, it->value.display_list->command_bytes());
+        auto referenced_resources = resource_storage.collect_referenced_resources(*it->value.display_list);
+        copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
         return Painting::DisplayListResource { *it->value.display_list, it->value.visual_context_tree };
     }
 
     // FIXME: Evict least used entries.
-    if (m_cached_display_lists.size() > 10)
+    if (m_cached_display_lists.size() > 10) {
         m_cached_display_lists.remove(m_cached_display_lists.begin());
+        prune_cached_display_list_resources();
+    }
 
-    Painting::DisplayListResourceStorage local_storage;
     m_document->navigable()->set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
-    auto display_list = m_document->record_display_list({}, local_storage);
+    auto display_list = m_document->record_display_list({}, resource_storage);
     if (!display_list)
         return {};
 
-    resource_storage.append_referenced_resources_from(local_storage, display_list->command_bytes());
+    auto referenced_resources = resource_storage.collect_referenced_resources(*display_list);
+    copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
     auto document_paintable = m_document->paintable();
     VERIFY(document_paintable);
     auto visual_context_tree = document_paintable->visual_context_tree();
     auto display_list_resource = Painting::DisplayListResource { *display_list, visual_context_tree };
-    m_cached_display_lists.set(size, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(local_storage) });
+    m_cached_display_lists.set(size, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree) });
+    prune_cached_display_list_resources();
     return display_list_resource;
 }
 

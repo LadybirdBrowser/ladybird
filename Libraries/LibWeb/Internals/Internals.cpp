@@ -792,8 +792,7 @@ static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::
     auto document_paintable = document.paintable();
     if (!navigable || !document_paintable)
         return {};
-    Painting::DisplayListResourceStorage resource_storage;
-    auto display_list = document.record_display_list(HTML::PaintConfig {}, resource_storage);
+    auto display_list = document.record_display_list(HTML::PaintConfig {}, navigable->display_list_resource_storage());
     if (!display_list)
         return {};
     return AsyncScrollingStateSnapshot {
