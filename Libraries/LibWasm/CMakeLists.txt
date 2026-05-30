@@ -12,7 +12,7 @@ if (NOT WIN32)
     list(APPEND SOURCES WASI/Wasi.cpp)
 endif()
 
-option(ENABLE_CRANELIFT_JIT "Enable Cranelift-based AOT compilation for WebAssembly" OFF)
+option(ENABLE_CRANELIFT_JIT "Enable Cranelift-based AOT compilation for WebAssembly" ON)
 
 set(WASM_COMPILED_FAULT_RECOVERY_SUPPORTED 0)
 
