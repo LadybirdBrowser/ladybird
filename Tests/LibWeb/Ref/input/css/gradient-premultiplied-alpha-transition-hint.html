@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/gradient-premultiplied-alpha-transition-hint-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-50000" />
+<style>
+  html, body { margin: 0; padding: 0; }
+  div { width: 300px; height: 80px; }
+  .linear { background: linear-gradient(to right, #ff0000, 50%, #0000ff1a); }
+  .radial { background: radial-gradient(circle farthest-side at left center, #ff0000, 50%, #0000ff1a); }
+  .conic  { background: conic-gradient(from 0deg at center, #ff0000, 50%, #0000ff1a); }
+</style>
+<div class="linear"></div>
+<div class="radial"></div>
+<div class="conic"></div>

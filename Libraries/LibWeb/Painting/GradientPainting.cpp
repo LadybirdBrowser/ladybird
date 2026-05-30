@@ -82,7 +82,7 @@ static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopL
         for (auto const& transition_hint_relative_sampling_position : transition_hint_relative_sampling_positions) {
             auto position = previous_color_stop.position + transition_hint_relative_sampling_position * distance_between_stops;
             auto value = Gfx::color_stop_step(previous_color_stop, next_color_stop, position);
-            auto color = previous_color_stop.color.interpolate(next_color_stop.color, value);
+            auto color = previous_color_stop.color.mixed_with(next_color_stop.color, value);
             stops_with_replaced_transition_hints.empend(color, position);
         }
 
@@ -109,7 +109,7 @@ static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, 
     auto get_color_between_stops = [](float position, auto const& current_stop, auto const& previous_stop) {
         auto distance_between_stops = current_stop.position - previous_stop.position;
         auto percentage = (position - previous_stop.position) / distance_between_stops;
-        return previous_stop.color.interpolate(current_stop.color, percentage);
+        return previous_stop.color.mixed_with(current_stop.color, percentage);
     };
 
     for (auto repeat_count = 1; repeat_count <= negative_repeat_count; repeat_count++) {

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/gradient-premultiplied-alpha-repeating-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-4000" />
+<style>
+  html, body { margin: 0; padding: 0; }
+  div { width: 200px; height: 200px; display: inline-block; }
+  .conic  { background: repeating-conic-gradient(from 0deg at center, #ff0000 0deg, #0000ff19 144deg); }
+  .radial { background: repeating-radial-gradient(circle farthest-corner at center, #ff0000 0%, #0000ff19 40%); }
+</style>
+<div class="conic"></div><div class="radial"></div>
