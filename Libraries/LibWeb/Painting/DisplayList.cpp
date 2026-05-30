@@ -85,15 +85,13 @@ bool DisplayList::append_bytes(
 void DisplayList::append_command_sequence(
     DisplayListCommandSequence const& sequence,
     AccumulatedVisualContextTree const& visual_context_tree,
-    VisualContextIndex context_index,
-    DisplayListResourceStorage& resource_storage)
+    VisualContextIndex context_index)
 {
     VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
 
     auto command_bytes = MUST(ByteBuffer::copy(sequence.m_command_bytes.span()));
 
     set_command_sequence_visual_context(command_bytes.span(), context_index);
-    resource_storage.append_referenced_resources_from(sequence.m_resource_storage, command_bytes.span());
     VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
     VERIFY(command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
 
@@ -101,14 +99,13 @@ void DisplayList::append_command_sequence(
         m_command_bytes.append(command_bytes.data(), command_bytes.size());
 }
 
-DisplayListCommandSequence DisplayList::copy_command_sequence_from(
-    size_t command_start_offset,
-    DisplayListResourceStorage const& resource_storage) const
+DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t command_start_offset) const
 {
     VERIFY(command_start_offset <= m_command_bytes.size());
     DisplayListCommandSequence sequence;
-    sequence.m_command_bytes = MUST(m_command_bytes.slice(command_start_offset, m_command_bytes.size() - command_start_offset));
-    sequence.m_resource_storage.append_referenced_resources_from(resource_storage, sequence.m_command_bytes.span());
+    sequence.m_command_bytes = MUST(m_command_bytes.slice(
+        command_start_offset,
+        m_command_bytes.size() - command_start_offset));
     return sequence;
 }
 

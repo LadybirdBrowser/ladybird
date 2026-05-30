@@ -57,8 +57,17 @@ Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_d
 
 Node::~Node() = default;
 
+static void invalidate_paint_caches(Node& node)
+{
+    for (auto& paintable : node.paintables()) {
+        if (auto* paintable_box = as_if<Painting::PaintableBox>(*paintable))
+            paintable_box->invalidate_paint_cache();
+    }
+}
+
 void Node::prepare_for_detach_from_layout_tree()
 {
+    invalidate_paint_caches(*this);
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
         node_with_style->clear_image_observers();
     if (auto* image_box = as_if<ImageBox>(*this))
@@ -1327,6 +1336,7 @@ void Node::add_paintable(RefPtr<Painting::Paintable> paintable)
 
 void Node::clear_paintables()
 {
+    invalidate_paint_caches(*this);
     for (auto& paintable : m_paintable) {
         if (paintable->parent())
             paintable->remove();

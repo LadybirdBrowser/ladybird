@@ -8478,6 +8478,8 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
         if (auto navigable = this->navigable()) {
             if (navigable->record_display_list_and_scroll_state(paint_config))
                 return;
+            (void)record_display_list(paint_config, navigable->display_list_resource_storage());
+            return;
         }
         Painting::DisplayListResourceStorage resource_storage;
         (void)record_display_list(paint_config, resource_storage);
@@ -8888,7 +8890,7 @@ String Document::dump_display_list()
     if (!viewport_paintable)
         return "No paintable"_string;
 
-    Painting::DisplayListResourceStorage resource_storage;
+    auto& resource_storage = navigable()->display_list_resource_storage();
     auto display_list = record_display_list(HTML::PaintConfig {}, resource_storage);
     if (!display_list)
         return "No display list"_string;

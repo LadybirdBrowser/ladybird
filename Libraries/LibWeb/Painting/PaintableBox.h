@@ -304,7 +304,7 @@ public:
 
     static constexpr size_t paint_phase_count = to_underlying(PaintPhase::Overlay) + 1;
 
-    void invalidate_paint_cache() const { m_cached_phase_commands = {}; }
+    void invalidate_paint_cache() const;
 
     bool has_cached_commands(PaintPhase phase) const
     {
@@ -316,10 +316,7 @@ public:
         return m_cached_phase_commands[to_underlying(phase)].value();
     }
 
-    void set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const
-    {
-        m_cached_phase_commands[to_underlying(phase)] = move(commands);
-    }
+    void set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const;
 
     void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
     [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const { return m_fixed_background_visual_context; }
@@ -348,6 +345,8 @@ private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
+    void acquire_cache_references_for_cached_commands(DisplayListCommandSequence const&) const;
+    void release_cache_references_for_cached_commands(DisplayListCommandSequence const&) const;
 
     RefPtr<StackingContext> m_stacking_context;
 

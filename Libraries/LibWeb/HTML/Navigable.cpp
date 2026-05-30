@@ -3489,6 +3489,7 @@ bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
         VERIFY(recorded_document_paintable);
         visual_context_tree = recorded_document_paintable->visual_context_tree();
         display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
+        display_list_resources.include(m_display_list_resource_storage.cache_referenced_resources());
         resource_transaction = m_display_list_resource_storage.create_transaction(
             m_compositor_display_list_resources,
             display_list_resources);

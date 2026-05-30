@@ -43,8 +43,6 @@ public:
 
     virtual StringView class_name() const { return "Paintable"sv; }
 
-    void detach_from_layout_node();
-
     [[nodiscard]] bool is_visible() const
     {
         auto const& cv = computed_values();
@@ -147,6 +145,7 @@ protected:
     explicit Paintable(Layout::Node const&);
 
     void paint_with_inspector_overlay_context(DisplayListRecordingContext&, Function<void()> const&) const;
+    bool has_layout_node() const { return m_layout_node; }
 
     virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const { }
     Optional<WeakPtr<PaintableBox>> mutable m_containing_block;

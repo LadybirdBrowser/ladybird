@@ -50,6 +50,7 @@ private:
     RefPtr<Gfx::PaintingSurface> surface(size_t frame_index, Gfx::IntSize) const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
     Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
+    void prune_cached_display_list_resources() const;
 
     // FIXME: Remove this once everything is using surfaces instead.
     mutable HashMap<Gfx::IntSize, Gfx::DecodedImageFrame> m_cached_rendered_frames;
@@ -59,7 +60,6 @@ private:
     struct CachedDisplayList {
         NonnullRefPtr<Painting::DisplayList> display_list;
         Painting::AccumulatedVisualContextTree visual_context_tree;
-        Painting::DisplayListResourceStorage resource_storage;
     };
     mutable HashMap<Gfx::IntSize, CachedDisplayList> m_cached_display_lists;
 

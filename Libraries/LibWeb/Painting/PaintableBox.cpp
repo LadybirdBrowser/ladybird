@@ -385,6 +385,44 @@ PaintableBox::PaintableBox(Layout::InlineNode const& layout_box)
 
 PaintableBox::~PaintableBox()
 {
+    if (has_layout_node())
+        invalidate_paint_cache();
+}
+
+void PaintableBox::acquire_cache_references_for_cached_commands(DisplayListCommandSequence const& commands) const
+{
+    auto& resource_storage = navigable()->display_list_resource_storage();
+    auto referenced_resources = resource_storage.collect_referenced_resources(commands.command_bytes());
+    if (referenced_resources.is_empty())
+        return;
+    resource_storage.acquire_cache_references(referenced_resources);
+}
+
+void PaintableBox::release_cache_references_for_cached_commands(DisplayListCommandSequence const& commands) const
+{
+    auto& resource_storage = navigable()->display_list_resource_storage();
+    auto referenced_resources = resource_storage.collect_referenced_resources(commands.command_bytes());
+    if (referenced_resources.is_empty())
+        return;
+    resource_storage.release_cache_references(referenced_resources);
+}
+
+void PaintableBox::invalidate_paint_cache() const
+{
+    for (auto const& commands : m_cached_phase_commands) {
+        if (commands.has_value())
+            release_cache_references_for_cached_commands(commands.value());
+    }
+    m_cached_phase_commands = {};
+}
+
+void PaintableBox::set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const
+{
+    auto& cached_commands = m_cached_phase_commands[to_underlying(phase)];
+    if (cached_commands.has_value())
+        release_cache_references_for_cached_commands(cached_commands.value());
+    acquire_cache_references_for_cached_commands(commands);
+    cached_commands = move(commands);
 }
 
 void PaintableBox::reset_for_relayout()
@@ -420,7 +458,7 @@ void PaintableBox::reset_for_relayout()
     m_grid_layout_data = nullptr;
     m_flex_layout_data = nullptr;
 
-    m_cached_phase_commands = {};
+    invalidate_paint_cache();
 
     invalidate_stacking_context();
 }

@@ -235,6 +235,8 @@ public:
     bool record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
+    Painting::DisplayListResourceStorage& display_list_resource_storage() { return m_display_list_resource_storage; }
+    Painting::DisplayListResourceStorage const& display_list_resource_storage() const { return m_display_list_resource_storage; }
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
