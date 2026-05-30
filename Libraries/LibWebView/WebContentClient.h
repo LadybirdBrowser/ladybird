@@ -196,18 +196,11 @@ private:
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
-    struct CompositorContextRegistration {
-        Optional<u64> page_id;
-        Web::Compositor::PagePresentationRegistration page_presentation_registration { Web::Compositor::PagePresentationRegistration::No };
-    };
-
-    void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration);
+    void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<u64> page_id);
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
     HashTable<u64> m_detached_pages_pending_close;
-    HashMap<Web::Compositor::CompositorContextId, CompositorContextRegistration> m_compositor_contexts;
-    HashMap<u64, Web::Compositor::CompositorContextId> m_page_compositor_context_ids;
-    HashMap<Web::Compositor::CompositorContextId, u64> m_page_ids_for_compositor_context_ids;
+    HashMap<Web::Compositor::CompositorContextId, Optional<u64>> m_compositor_contexts;
     HashMap<u64, String> m_history_recorded_urls_for_current_load;
     Optional<i32> m_compositor_connection_id;
     u64 m_initial_page_id { 0 };

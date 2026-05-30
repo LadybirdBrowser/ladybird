@@ -523,8 +523,14 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 
 u64 Application::allocate_page_id()
 {
-    VERIFY(m_next_page_id < Web::Compositor::page_presenting_context_id_tag);
-    return m_next_page_id++;
+    VERIFY(m_next_page_or_compositor_context_id > 0);
+    return m_next_page_or_compositor_context_id++;
+}
+
+Web::Compositor::CompositorContextId Application::allocate_compositor_context_id()
+{
+    VERIFY(m_next_page_or_compositor_context_id > 0);
+    return Web::Compositor::CompositorContextId { m_next_page_or_compositor_context_id++ };
 }
 
 static bool can_send_compositor_process_ipc(RefPtr<CompositorClient> const& compositor_client)
@@ -552,7 +558,7 @@ ErrorOr<void> Application::connect_web_content_to_compositor(WebContentClient& w
     return {};
 }
 
-void Application::register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
+void Application::register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
@@ -565,10 +571,10 @@ void Application::register_compositor_context(WebContentClient& web_content_clie
     }
     VERIFY(web_content_connection_id.has_value());
 
-    m_compositor_client->create_context(context_id, page_id, page_presentation_registration, *web_content_connection_id);
+    m_compositor_client->create_context(context_id, page_id, *web_content_connection_id);
 }
 
-ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
+ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id)
 {
     if (!m_compositor_client)
         return Error::from_string_literal("Compositor process is not available");
@@ -580,7 +586,7 @@ ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web
     }
     VERIFY(web_content_connection_id.has_value());
 
-    auto result = m_compositor_client->try_create_context(context_id, page_id, page_presentation_registration, *web_content_connection_id);
+    auto result = m_compositor_client->try_create_context(context_id, page_id, *web_content_connection_id);
     if (result.is_error())
         return Error::from_string_literal("Compositor process disconnected while creating context");
 
