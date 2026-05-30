@@ -66,7 +66,8 @@
 - (void)handleVisibility:(BOOL)is_visible;
 
 - (void)findInPage:(NSString*)query
-    caseSensitivity:(CaseSensitivity)case_sensitivity;
+    caseSensitivity:(CaseSensitivity)case_sensitivity
+              regex:(bool)regex;
 - (void)findInPageNextMatch;
 - (void)findInPagePreviousMatch;
 

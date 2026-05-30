@@ -271,6 +271,7 @@ public:
         CaseSensitivity case_sensitivity { CaseSensitivity::CaseInsensitive };
         WrapAround wrap_around { WrapAround::Yes };
         ClearSelectionOnNoMatch clear_selection_on_no_match { ClearSelectionOnNoMatch::Yes };
+        bool use_regex { false };
     };
     struct FindInPageResult {
         size_t current_match_index { 0 };

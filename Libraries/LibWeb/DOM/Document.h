@@ -951,6 +951,7 @@ public:
     [[nodiscard]] bool is_decoded_svg() const { return m_is_decoded_svg; }
 
     Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
+    Vector<GC::Root<Range>> find_matching_regex(String const& pattern, CaseSensitivity);
 
     void parse_html_from_a_string(StringView);
     static WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::VM&, TrustedTypes::TrustedHTMLOrString const&);

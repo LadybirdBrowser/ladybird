@@ -21,10 +21,12 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
 @interface SearchPanel () <NSSearchFieldDelegate>
 {
     CaseSensitivity m_case_sensitivity;
+    bool m_use_regex;
 }
 
 @property (nonatomic, strong) NSSearchField* search_field;
 @property (nonatomic, strong) NSButton* search_match_case;
+@property (nonatomic, strong) NSButton* search_regex;
 @property (nonatomic, strong) NSTextField* result_label;
 
 @end
@@ -56,6 +58,12 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
         [self.search_match_case setState:NSControlStateValueOff];
         m_case_sensitivity = CaseSensitivity::CaseInsensitive;
 
+        self.search_regex = [NSButton checkboxWithTitle:@"Regex"
+                                                 target:self
+                                                 action:@selector(find:)];
+        [self.search_regex setState:NSControlStateValueOff];
+        m_use_regex = false;
+
         self.result_label = [NSTextField labelWithString:@""];
         [self.result_label setHidden:YES];
 
@@ -69,6 +77,7 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
         [self addView:search_previous inGravity:NSStackViewGravityLeading];
         [self addView:search_next inGravity:NSStackViewGravityLeading];
         [self addView:self.search_match_case inGravity:NSStackViewGravityLeading];
+        [self addView:self.search_regex inGravity:NSStackViewGravityLeading];
         [self addView:self.result_label inGravity:NSStackViewGravityLeading];
         [self addView:search_done inGravity:NSStackViewGravityTrailing];
 
@@ -119,7 +128,7 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
 
     if (![self isHidden]) {
         [self.search_field setStringValue:query];
-        [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity];
+        [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity regex:m_use_regex];
 
         [self.window makeFirstResponder:self.search_field];
     }
@@ -170,12 +179,14 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
         auto case_sensitivity = [self.search_match_case state] == NSControlStateValueOff
             ? CaseSensitivity::CaseInsensitive
             : CaseSensitivity::CaseSensitive;
+        auto use_regex = [self.search_regex state] == NSControlStateValueOn;
 
-        if (case_sensitivity != m_case_sensitivity || ![[self.search_field stringValue] isEqual:query]) {
+        if (use_regex != m_use_regex || case_sensitivity != m_case_sensitivity || ![[self.search_field stringValue] isEqual:query]) {
             [self.search_field setStringValue:query];
             m_case_sensitivity = case_sensitivity;
+            m_use_regex = use_regex;
 
-            [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity];
+            [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity regex:m_use_regex];
             return YES;
         }
     }
@@ -193,7 +204,7 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
 - (void)controlTextDidChange:(NSNotification*)notification
 {
     auto* query = [self.search_field stringValue];
-    [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity];
+    [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity regex:m_use_regex];
 
     [self setPasteBoardContents:query];
 }

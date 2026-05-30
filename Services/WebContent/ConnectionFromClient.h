@@ -175,7 +175,7 @@ private:
     virtual Messages::WebContentServer::CutSelectedTextResponse cut_selected_text(u64 page_id) override;
     virtual void select_all(u64 page_id) override;
 
-    virtual void find_in_page(u64 page_id, String query, CaseSensitivity) override;
+    virtual void find_in_page(u64 page_id, String query, CaseSensitivity, bool regex) override;
     virtual void find_in_page_next_match(u64 page_id) override;
     virtual void find_in_page_previous_match(u64 page_id) override;
 

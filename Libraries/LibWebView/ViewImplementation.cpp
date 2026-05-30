@@ -430,9 +430,9 @@ void ViewImplementation::select_all()
     client().async_select_all(page_id());
 }
 
-void ViewImplementation::find_in_page(String const& query, CaseSensitivity case_sensitivity)
+void ViewImplementation::find_in_page(String const& query, CaseSensitivity case_sensitivity, bool regex)
 {
-    client().async_find_in_page(page_id(), query, case_sensitivity);
+    client().async_find_in_page(page_id(), query, case_sensitivity, regex);
 }
 
 void ViewImplementation::find_in_page_next_match()

@@ -900,7 +900,9 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
 
     auto should_update_match_index = false;
     for (auto const& document : documents_in_active_window()) {
-        auto matches = document->find_matching_text(query.string, query.case_sensitivity);
+        auto matches = query.use_regex
+            ? document->find_matching_regex(query.string, query.case_sensitivity)
+            : document->find_matching_text(query.string, query.case_sensitivity);
         if (document == top_level_traversable()->active_document()) {
             if (auto range = active_range(*document)) {
                 auto new_match_index = find_current_match_index(*range, matches);

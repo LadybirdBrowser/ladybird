@@ -103,7 +103,7 @@ endpoint WebContentServer
     select_all(u64 page_id) =|
     paste(u64 page_id, Utf16String text) =|
 
-    find_in_page(u64 page_id, String query, AK::CaseSensitivity case_sensitivity) =|
+    find_in_page(u64 page_id, String query, AK::CaseSensitivity case_sensitivity, bool regex) =|
     find_in_page_next_match(u64 page_id) =|
     find_in_page_previous_match(u64 page_id) =|
 

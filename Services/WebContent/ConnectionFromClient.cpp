@@ -1592,13 +1592,13 @@ void ConnectionFromClient::select_all(u64 page_id)
         page->page().focused_navigable().select_all();
 }
 
-void ConnectionFromClient::find_in_page(u64 page_id, String query, CaseSensitivity case_sensitivity)
+void ConnectionFromClient::find_in_page(u64 page_id, String query, CaseSensitivity case_sensitivity, bool regex)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
 
-    auto result = page->page().find_in_page({ .string = query, .case_sensitivity = case_sensitivity });
+    auto result = page->page().find_in_page({ .string = query, .case_sensitivity = case_sensitivity, .use_regex = regex });
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 

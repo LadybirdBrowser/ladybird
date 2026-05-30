@@ -112,7 +112,7 @@ public:
     ByteString cut_selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
     void select_all();
-    void find_in_page(String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
+    void find_in_page(String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive, bool regex = false);
     void find_in_page_next_match();
     void find_in_page_previous_match();
 
