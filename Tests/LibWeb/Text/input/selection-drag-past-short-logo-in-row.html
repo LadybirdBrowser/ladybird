@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+
+    footer {
+        margin-top: 300px;
+    }
+
+    #intro {
+        margin-left: 101px;
+        width: 740px;
+    }
+
+    #logos {
+        margin-left: 249px;
+        white-space: nowrap;
+    }
+
+    #tall-logo {
+        height: 77px;
+        width: 135px;
+    }
+
+    #short-logo {
+        height: 21px;
+        width: 193px;
+    }
+</style>
+<footer>
+<address id="intro">This site is operated by the Linux Kernel Organization, a <a>501(c)3 nonprofit corporation</a>, with support from the following sponsors.</address>
+<address id="logos">
+    <a id="tall-link"><img id="tall-logo" alt="" height="77" width="135" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></a>
+    &nbsp;
+    <a id="short-link"><img id="short-logo" alt="" height="21" width="193" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></a>
+    &nbsp;
+    <a><img alt="" height="35" width="91" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></a>
+    <br>
+    <a><img alt="" height="42" width="128" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></a>
+    &nbsp;
+    <a><img alt="" height="36" width="150" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></a>
+</address>
+</footer>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = intro.firstChild;
+        const wordStart = textNode.data.indexOf("Organization");
+        const range = document.createRange();
+        range.setStart(textNode, wordStart);
+        range.setEnd(textNode, wordStart + "Organization".length);
+
+        const wordRect = range.getBoundingClientRect();
+        const shortLink = document.getElementById("short-link");
+        const shortLogo = document.getElementById("short-logo");
+        const shortLogoRect = shortLogo.getBoundingClientRect();
+        const startX = Math.floor(wordRect.x + wordRect.width / 2);
+        const startY = Math.floor(wordRect.y + wordRect.height / 2);
+        const endX = Math.floor(shortLogoRect.x + shortLogoRect.width / 2);
+        const endY = Math.ceil(shortLogoRect.bottom) + 8;
+
+        let shortLogoWasSelected = false;
+        let shortLogoStayedSelected = true;
+
+        internals.mouseDown(startX, startY);
+        for (let y = startY; y <= endY; ++y) {
+            internals.mouseMove(endX, y);
+            if (getSelection().containsNode(shortLink, true))
+                shortLogoWasSelected = true;
+            else if (shortLogoWasSelected)
+                shortLogoStayedSelected = false;
+        }
+        internals.mouseUp(endX, endY);
+
+        println(`short logo was selected: ${shortLogoWasSelected}`);
+        println(`short logo stayed selected: ${shortLogoStayedSelected}`);
+    });
+</script>

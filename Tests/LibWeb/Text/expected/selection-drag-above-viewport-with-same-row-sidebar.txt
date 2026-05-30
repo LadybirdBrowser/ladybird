@@ -1,0 +1,3 @@
+selected main title: true
+selected forward text: false
+selected sidebar text: false

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 16px Arial, sans-serif;
+    }
+
+    article {
+        display: flex;
+        gap: 220px;
+        padding: 220px 0 0 200px;
+    }
+
+    td, th {
+        line-height: 22px;
+        padding: 0 18px 0 0;
+        text-align: left;
+    }
+
+    #latest {
+        text-align: center;
+    }
+
+    #latest-label {
+        font-size: 22px;
+        font-weight: bold;
+        line-height: 22px;
+    }
+
+    #latest-version {
+        display: block;
+        font-size: 80px;
+        font-weight: bold;
+        line-height: 20px;
+    }
+</style>
+<article>
+    <table>
+        <tr><th>Protocol</th><th>Location</th></tr>
+        <tr><td>HTTP</td><td>https://www.example.test/pub/</td></tr>
+        <tr><td>GIT</td><td>https://git.example.test/</td></tr>
+        <tr><td>RSYNC</td><td>rsync://rsync.example.test/pub/</td></tr>
+    </table>
+    <table id="latest">
+        <tr><td><strong id="latest-label">Latest Release</strong></td></tr>
+        <tr><td><a id="latest-version">7.0.10</a></td></tr>
+    </table>
+</article>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const label = document.getElementById("latest-label");
+        const version = document.getElementById("latest-version");
+        const labelRect = label.getBoundingClientRect();
+        const versionRect = version.getBoundingClientRect();
+        const x = Math.floor(labelRect.left + 2);
+        const startY = Math.floor(labelRect.y + labelRect.height / 2);
+        const overflowY = Math.ceil(versionRect.bottom) + 15;
+
+        internals.mouseDown(x, startY);
+        internals.mouseMove(x, overflowY);
+        internals.mouseUp(x, overflowY);
+
+        println(`kept label selected below overflowing text: ${getSelection().toString().includes("Latest Release")}`);
+    });
+</script>

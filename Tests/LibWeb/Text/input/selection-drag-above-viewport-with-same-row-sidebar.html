@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px Arial, sans-serif;
+        line-height: 30px;
+    }
+
+    .title {
+        left: 300px;
+        position: absolute;
+        top: 50px;
+    }
+
+    .content {
+        left: 300px;
+        position: absolute;
+        top: 240px;
+        width: 500px;
+    }
+
+    .sidebar-title {
+        left: 900px;
+        position: absolute;
+        top: 50px;
+    }
+</style>
+<body>
+    <div class="title">Article Title</div>
+    <div class="content">
+        <p>Before target text</p>
+        <p id="target">A manpage viewer</p>
+        <p>After target text</p>
+    </div>
+    <div class="sidebar-title">Categories</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = target.firstChild;
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        const rect = range.getBoundingClientRect();
+        const startX = rect.x + rect.width / 2;
+        const startY = rect.y + rect.height / 2;
+
+        internals.mouseDown(startX, startY);
+        for (let y = Math.floor(startY) - 1; y >= 40; --y)
+            internals.mouseMove(startX, y);
+        internals.mouseUp(startX, 40);
+
+        const selectedText = getSelection().toString();
+        println(`selected main title: ${selectedText.includes("Article Title")}`);
+        println(`selected forward text: ${selectedText.includes("After target text")}`);
+        println(`selected sidebar text: ${selectedText.includes("Categories")}`);
+    });
+</script>

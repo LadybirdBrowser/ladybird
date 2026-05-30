@@ -1,0 +1,6 @@
+selected description on row: true
+kept description below row text: true
+snapped before header text: false
+selected far description on row: true
+kept far description below row text: true
+far snapped before header text: false

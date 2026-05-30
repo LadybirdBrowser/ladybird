@@ -56,6 +56,7 @@ private:
         CSSPixelRect caret_rect;
         Optional<size_t> caret_line_index;
         Optional<CSSPixelRect> caret_line_rect;
+        Optional<CSSPixelRect> block_container_margin_rect;
         VisualContextIndex visual_context_index;
         BorderRadiiData border_radii;
     };
@@ -67,6 +68,7 @@ private:
 
     struct CaretLine {
         CSSPixelRect rect;
+        Optional<CSSPixelRect> block_container_margin_rect;
         VisualContextIndex visual_context_index;
         size_t first_caret_item_index { 0 };
         size_t last_caret_item_index { 0 };
@@ -87,7 +89,9 @@ private:
     [[nodiscard]] CSSPixelRect caret_line_rect_for_item(Item const&) const;
     [[nodiscard]] bool item_contains(Item const&, CSSPixelPoint local_point, ChromeMetrics const&) const;
     [[nodiscard]] DOM::Node const* item_dom_node(Item const&) const;
+    [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(Item const&) const;
     [[nodiscard]] bool item_can_produce_caret_position(Item const&) const;
+    [[nodiscard]] bool item_is_direct_caret_target(Item const&) const;
     [[nodiscard]] HitTestResult hit_test_result_for_item(Item const&, CSSPixelPoint local_point) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_for_item(Item const&, CSSPixelPoint local_point, CaretPositionType = CaretPositionType::Closest) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_for_hit_container(Item const&) const;

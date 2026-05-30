@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 12px Arial, sans-serif;
+        margin: 0;
+    }
+
+    #post {
+        margin: 100px;
+    }
+
+    #info {
+        height: 12px;
+        line-height: 12px;
+    }
+
+    #message {
+        line-height: 16px;
+        margin: 6px 0 0;
+    }
+</style>
+<div id="post">
+    <div id="info"><span>05/30/26(Sat)</span><span id="time">01:35:43</span>&nbsp;</div>
+    <blockquote id="message">What is so impressive about the Steam Controller?</blockquote>
+</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const timeRect = time.getBoundingClientRect();
+        const infoRect = info.getBoundingClientRect();
+        const position = document.caretPositionFromPoint(
+            Math.floor(timeRect.x + timeRect.width / 2),
+            Math.ceil(infoRect.bottom) + 1);
+
+        println(`caret below post info starts message: ${position.offsetNode === message.firstChild && position.offset === 0}`);
+    });
+</script>

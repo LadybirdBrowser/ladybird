@@ -54,9 +54,13 @@
         const startX = rect.x + rect.width / 2;
         const startY = rect.y + rect.height / 2;
 
+        let flippedForwardInTopFiftyPixels = false;
         internals.mouseDown(startX, startY);
-        for (let y = Math.floor(startY) - 1; y >= 0; --y)
+        for (let y = Math.floor(startY) - 1; y >= 0; --y) {
             internals.mouseMove(startX, y);
+            if (y <= 50 && getSelection().toString().includes("Several new system calls"))
+                flippedForwardInTopFiftyPixels = true;
+        }
 
         const selectedAtViewportTop = getSelection().toString();
         internals.mouseLeave();
@@ -65,6 +69,7 @@
         const selectedAboveViewport = getSelection().toString();
 
         println(`selection reached viewport top: ${selectedAtViewportTop.includes("Terminal tabs") && selectedAtViewportTop.includes("A manpa")}`);
+        println(`selection never flipped forward in top 50 pixels: ${!flippedForwardInTopFiftyPixels}`);
         println(`above viewport matches viewport top: ${selectedAboveViewport === selectedAtViewportTop}`);
         println(`above viewport selected forward text: ${selectedAboveViewport.includes("Several new system calls")}`);
     });

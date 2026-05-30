@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 24px Arial, sans-serif;
+        margin: 0;
+    }
+
+    #content {
+        margin: 100px 0 0 200px;
+        width: 520px;
+    }
+
+    #description {
+        line-height: 32px;
+        margin: 0 0 20px;
+    }
+
+    #meta {
+        font-size: 20px;
+        line-height: 26px;
+    }
+</style>
+<div id="content">
+    <p id="description">No user monetization. <a id="link">501(c)(3) non-profit</a></p>
+    <div id="meta"><span><strong id="status">Status:</strong> In active development</span></div>
+</div>
+<script>
+    function textRect(textNode, text) {
+        const index = textNode.data.indexOf(text);
+        const range = document.createRange();
+        range.setStart(textNode, index);
+        range.setEnd(textNode, index + text.length);
+        return range.getBoundingClientRect();
+    }
+
+    test(() => {
+        document.body.offsetWidth;
+
+        const descriptionText = description.firstChild;
+        const monetizationRect = textRect(descriptionText, "monetization");
+        const linkRect = link.getBoundingClientRect();
+        const belowMonetization = document.caretPositionFromPoint(
+            Math.floor(monetizationRect.x + monetizationRect.width / 2),
+            Math.ceil(monetizationRect.bottom) + 1);
+
+        println(`below monetization stays in description text: ${belowMonetization.offsetNode === descriptionText}`);
+        println(`below monetization does not snap to following link: ${belowMonetization.getClientRect().x < linkRect.x}`);
+
+        const statusElement = document.getElementById("status");
+        const activeText = statusElement.nextSibling;
+        const statusText = statusElement.firstChild;
+        const statusRect = statusElement.getBoundingClientRect();
+        const activeRect = textRect(activeText, "active");
+        const aboveStatusLine = document.caretPositionFromPoint(
+            Math.floor(activeRect.x + activeRect.width / 2),
+            Math.floor(statusRect.y) - 2);
+
+        println(`above status line snaps to logical line start: ${aboveStatusLine.offsetNode === statusText && aboveStatusLine.offset === 0}`);
+    });
+</script>

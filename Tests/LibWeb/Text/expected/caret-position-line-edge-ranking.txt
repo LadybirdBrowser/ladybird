@@ -1,0 +1,3 @@
+below monetization stays in description text: true
+below monetization does not snap to following link: true
+above status line snaps to logical line start: true

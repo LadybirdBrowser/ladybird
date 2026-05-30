@@ -19,6 +19,9 @@ static constexpr double spatial_index_cell_size = 128.0;
 static constexpr size_t max_bucketed_cells_per_item = 64;
 // Treat small block-axis gaps between caret line fragments as the same visual row.
 static constexpr CSSPixels caret_line_block_axis_range_slop = 4;
+// Prefer a nearby line in the same visual column over a slightly closer line in another column.
+static constexpr CSSPixels caret_line_block_axis_compare_slop = 12;
+// Within the chosen line, tolerate larger block-axis differences before snapping across inline gaps.
 static constexpr CSSPixels caret_item_block_axis_compare_slop = 32;
 
 static i32 spatial_index_cell_for(CSSPixels offset)
@@ -81,11 +84,6 @@ static CSSPixels distance_to_range(CSSPixels coordinate, CSSPixels start, CSSPix
     return 0;
 }
 
-static CSSPixels block_axis_distance_to_rect(CSSPixelRect rect, CSSPixelPoint point, CSS::WritingMode writing_mode)
-{
-    return distance_to_range(block_axis_coordinate(point, writing_mode), block_axis_start(rect, writing_mode), block_axis_end(rect, writing_mode));
-}
-
 static CSSPixels block_axis_distance_to_line_rect(CSSPixelRect rect, CSSPixelPoint point, CSS::WritingMode writing_mode)
 {
     return distance_to_range(block_axis_coordinate(point, writing_mode), block_axis_start(rect, writing_mode) - caret_line_block_axis_range_slop, block_axis_end(rect, writing_mode) + caret_line_block_axis_range_slop);
@@ -132,16 +130,19 @@ static bool local_point_is_before_box(Paintable const& paintable, CSSPixelRect r
         : inline_coordinate <= inline_middle;
 }
 
-static bool local_point_is_before_line(Paintable const& paintable, CSSPixelRect rect, CSSPixelPoint local_point)
+static Optional<CSSPixelRect> absolute_margin_box_rect_for_containing_block(Paintable const& paintable)
 {
-    auto const& computed_values = paintable.computed_values();
-    auto writing_mode = computed_values.writing_mode();
-    auto block_coordinate = block_axis_coordinate(local_point, writing_mode);
-    if (block_coordinate < block_axis_start(rect, writing_mode))
-        return !computed_values.block_axis_is_reverse();
-    if (block_coordinate >= block_axis_end(rect, writing_mode))
-        return computed_values.block_axis_is_reverse();
-    return false;
+    auto containing_block = paintable.containing_block();
+    if (!containing_block)
+        return {};
+
+    auto margin_box = containing_block->box_model().margin_box();
+    return CSSPixelRect {
+        containing_block->absolute_x() - margin_box.left,
+        containing_block->absolute_y() - margin_box.top,
+        containing_block->content_width() + margin_box.left + margin_box.right,
+        containing_block->content_height() + margin_box.top + margin_box.bottom,
+    };
 }
 
 NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create(u64 visual_context_tree_version)
@@ -163,11 +164,15 @@ CSSPixelRect HitTestDisplayList::caret_line_rect_for_item(Item const& item) cons
     auto writing_mode = item.paintable->computed_values().writing_mode();
     auto line_rect = item.caret_line_rect.value();
     if (writing_mode_is_horizontal(writing_mode)) {
-        rect.set_y(line_rect.y());
-        rect.set_height(line_rect.height());
+        auto top = min(rect.top(), line_rect.top());
+        auto bottom = max(rect.bottom(), line_rect.bottom());
+        rect.set_y(top);
+        rect.set_height(bottom - top);
     } else {
-        rect.set_x(line_rect.x());
-        rect.set_width(line_rect.width());
+        auto left = min(rect.left(), line_rect.left());
+        auto right = max(rect.right(), line_rect.right());
+        rect.set_x(left);
+        rect.set_width(right - left);
     }
     return rect;
 }
@@ -191,6 +196,7 @@ void HitTestDisplayList::append_box(PaintableBox const& paintable_box, Paintable
         .caret_rect = rect,
         .caret_line_index = caret_line_index,
         .caret_line_rect = caret_line_rect,
+        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(paintable_box),
         .visual_context_index = visual_context_index,
         .border_radii = border_radii,
     });
@@ -214,6 +220,7 @@ void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment,
         .caret_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, fragment.dom_start_offset_in_node(), fragment.dom_end_offset_in_node()),
         .caret_line_index = fragment.line_box_data().index,
         .caret_line_rect = fragment.absolute_line_box_rect(),
+        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(fragment_paintable),
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
@@ -233,6 +240,7 @@ void HitTestDisplayList::append_empty_editable(PaintableWithLines const& paintab
         .caret_rect = rect,
         .caret_line_index = {},
         .caret_line_rect = {},
+        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(paintable),
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
@@ -252,6 +260,7 @@ void HitTestDisplayList::append_chrome_widget(PaintableBox const& paintable_box,
         .caret_rect = {},
         .caret_line_index = {},
         .caret_line_rect = {},
+        .block_container_margin_rect = {},
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
@@ -309,10 +318,14 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
         return item.text_fragment && item.text_fragment->layout_node().dom_node();
     case ItemKind::EmptyEditable:
         return item.paintable->dom_node();
-    case ItemKind::Box:
+    case ItemKind::Box: {
+        auto const* paintable_box = as_if<PaintableBox>(item.paintable.ptr());
+        if (paintable_box && paintable_box->effective_z_index().value_or(0) < 0)
+            return false;
         return item.paintable->dom_node()
             && item.paintable->dom_node()->parent()
             && (item.paintable->layout_node().is_atomic_inline() || item.paintable->layout_node().is_replaced_box());
+    }
     case ItemKind::ChromeWidget:
         return false;
     }
@@ -345,6 +358,8 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index)
             && first_line_item.paintable->layout_node().containing_block() == item.paintable->layout_node().containing_block()
             && (same_recorded_line || same_inferred_line)) {
             line.rect.unite(item_line_rect);
+            if (!line.block_container_margin_rect.has_value())
+                line.block_container_margin_rect = item.block_container_margin_rect;
             line.last_caret_item_index = caret_item_index;
             return;
         }
@@ -352,6 +367,7 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index)
 
     m_caret_lines.append({
         .rect = item_line_rect,
+        .block_container_margin_rect = item.block_container_margin_rect,
         .visual_context_index = item.visual_context_index,
         .first_caret_item_index = caret_item_index,
         .last_caret_item_index = caret_item_index,
@@ -369,6 +385,17 @@ Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Visua
     if (!result.has_value())
         return {};
     return (*result / pixel_ratio).to_type<CSSPixels>();
+}
+
+CSSPixelRect HitTestDisplayList::viewport_rect_for_item(Item const& item, CSSPixelRect const& rect, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel) const
+{
+    if (!item.visual_context_index.value())
+        return rect;
+
+    auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
+    auto const& visual_context_tree = viewport_paintable.visual_context_tree();
+    auto result = visual_context_tree.transform_rect_to_viewport(item.visual_context_index, rect.to_type<float>() * pixel_ratio, viewport_paintable.scroll_state_snapshot());
+    return result.scaled(1.0f / pixel_ratio).to_type<CSSPixels>();
 }
 
 bool HitTestDisplayList::item_contains(Item const& item, CSSPixelPoint local_point, ChromeMetrics const& chrome_metrics) const
@@ -397,6 +424,21 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
         return item.text_fragment ? item.text_fragment->layout_node().dom_node() : nullptr;
     }
     VERIFY_NOT_REACHED();
+}
+
+DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const& item) const
+{
+    for (auto const* current = item.paintable.ptr(); current; current = current->parent()) {
+        if (auto node = current->dom_node())
+            return node;
+    }
+    return nullptr;
+}
+
+bool HitTestDisplayList::item_is_direct_caret_target(Item const& item) const
+{
+    auto const* dom_node = item_dom_node(item);
+    return dom_node && dom_node == event_dispatch_dom_node_for_item(item);
 }
 
 HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSSPixelPoint local_point) const
@@ -503,12 +545,44 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(CaretLine co
 {
     auto const& first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
     auto writing_mode = first_item.paintable->computed_values().writing_mode();
+    auto inline_axis_is_reverse = first_item.paintable->computed_values().inline_axis_is_reverse();
+    auto item_at_line_edge = [&](CaretPositionType type) -> Item const& {
+        auto coordinate_for_item = [&](Item const& item) {
+            if (type == CaretPositionType::Before)
+                return inline_axis_is_reverse ? inline_axis_end(item.caret_rect, writing_mode) : inline_axis_start(item.caret_rect, writing_mode);
+            return inline_axis_is_reverse ? inline_axis_start(item.caret_rect, writing_mode) : inline_axis_end(item.caret_rect, writing_mode);
+        };
+        auto coordinate_is_closer_to_line_edge = [&](CSSPixels coordinate, CSSPixels best_coordinate) {
+            if (type == CaretPositionType::Before)
+                return inline_axis_is_reverse ? coordinate > best_coordinate : coordinate < best_coordinate;
+            return inline_axis_is_reverse ? coordinate < best_coordinate : coordinate > best_coordinate;
+        };
+
+        auto best_item_index = m_caret_item_indices[line.first_caret_item_index];
+        auto best_coordinate = coordinate_for_item(m_items[best_item_index]);
+
+        for (auto caret_item_index = line.first_caret_item_index + 1; caret_item_index <= line.last_caret_item_index; ++caret_item_index) {
+            auto item_index = m_caret_item_indices[caret_item_index];
+            auto const& item = m_items[item_index];
+            auto coordinate = coordinate_for_item(item);
+            if (coordinate_is_closer_to_line_edge(coordinate, best_coordinate)) {
+                best_item_index = item_index;
+                best_coordinate = coordinate;
+            }
+        }
+        return m_items[best_item_index];
+    };
+
     auto block_coordinate = block_axis_coordinate(local_point, writing_mode);
-    if (block_coordinate < block_axis_start(line.rect, writing_mode) || block_coordinate >= block_axis_end(line.rect, writing_mode)) {
-        auto type = local_point_is_before_line(*first_item.paintable, line.rect, local_point) ? CaretPositionType::Before : CaretPositionType::After;
-        auto caret_item_index = type == CaretPositionType::Before ? line.first_caret_item_index : line.last_caret_item_index;
-        return caret_position_for_item(m_items[m_caret_item_indices[caret_item_index]], local_point, type);
-    }
+    // Once a line has been selected, points before or after its block-axis range resolve to the logical line edges.
+    // Points inside the line range resolve to the closest caret-capable item on that line.
+    if (block_coordinate < block_axis_start(line.rect, writing_mode))
+        return caret_position_for_item(item_at_line_edge(CaretPositionType::Before), local_point, CaretPositionType::Before);
+
+    auto inline_coordinate = inline_axis_coordinate(local_point, writing_mode);
+    if (block_coordinate >= block_axis_end(line.rect, writing_mode)
+        && (inline_coordinate < inline_axis_start(line.rect, writing_mode) || inline_coordinate >= inline_axis_end(line.rect, writing_mode)))
+        return caret_position_for_item(item_at_line_edge(CaretPositionType::After), local_point, CaretPositionType::After);
 
     Optional<size_t> closest_item_index;
     auto closest_block_distance = CSSPixels::max();
@@ -530,6 +604,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(CaretLine co
 
     if (!closest_item_index.has_value())
         return {};
+
     return caret_position_for_item(m_items[*closest_item_index], local_point);
 }
 
@@ -616,56 +691,142 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             topmost_hit_item_local_point = local_point;
     }
 
-    if (topmost_item_index.has_value() && (!topmost_hit_item_index.has_value() || *topmost_item_index >= *topmost_hit_item_index)) {
+    // Direct caret hits win unless another non-caret item is visibly on top of them.
+    auto topmost_caret_item_matches_hit_item = [&] {
+        return topmost_hit_item_index.has_value()
+            && *topmost_item_index == *topmost_hit_item_index
+            && item_is_direct_caret_target(m_items[*topmost_item_index]);
+    };
+    if (topmost_item_index.has_value() && (!topmost_hit_item_index.has_value() || topmost_caret_item_matches_hit_item())) {
         VERIFY(topmost_item_local_point.has_value());
         if (auto caret_position = caret_position_for_item(m_items[*topmost_item_index], *topmost_item_local_point); caret_position.has_value())
             return caret_position;
     }
 
+    // If the point is over a non-caret item, only consider caret lines inside that item's event-dispatch node first.
+    // This prevents overlays or side content from snapping the caret to unrelated nearby text.
     DOM::Node const* line_scope_dom_node = nullptr;
     if (topmost_hit_item_index.has_value()) {
         auto const& topmost_hit_item = m_items[*topmost_hit_item_index];
-        if (!item_can_produce_caret_position(topmost_hit_item))
-            line_scope_dom_node = item_dom_node(topmost_hit_item);
+        if (!item_can_produce_caret_position(topmost_hit_item) || !item_is_direct_caret_target(topmost_hit_item))
+            line_scope_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item);
     }
 
-    Optional<size_t> closest_line_index;
-    Optional<CSSPixelPoint> closest_line_local_point;
-    auto closest_line_distance = CSSPixels::max();
+    struct ClosestLine {
+        Optional<size_t> index;
+        Optional<CSSPixelPoint> local_point;
+        CSSPixels block_distance { CSSPixels::max() };
+        CSSPixels block_start_distance { CSSPixels::max() };
+        CSSPixels inline_distance { CSSPixels::max() };
+        Optional<CSSPixelRect> block_container_margin_rect;
+        bool is_before_point { false };
+    };
 
-    for (size_t line_index = 0; line_index < m_caret_lines.size(); ++line_index) {
-        auto const& line = m_caret_lines[line_index];
-        if (line_scope_dom_node && !line_contains_descendant_of(line, *line_scope_dom_node))
-            continue;
+    auto line_after_point_is_better_candidate = [](CSSPixels block_start_distance, CSSPixels inline_distance, CSSPixels closest_block_start_distance, CSSPixels closest_inline_distance) {
+        if (absolute_difference(block_start_distance, closest_block_start_distance) <= caret_line_block_axis_compare_slop) {
+            if (inline_distance != closest_inline_distance)
+                return inline_distance < closest_inline_distance;
+            return block_start_distance < closest_block_start_distance;
+        }
+        return block_start_distance < closest_block_start_distance;
+    };
 
-        auto local_point = local_point_for_visual_context(line.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
-        if (!local_point.has_value())
-            continue;
+    auto find_closest_line = [&](DOM::Node const* scope_dom_node) {
+        ClosestLine closest_line;
+        ClosestLine closest_line_after_point;
 
-        auto first_item_index = m_caret_item_indices[line.first_caret_item_index];
-        auto const& first_item = m_items[first_item_index];
-        auto distance = block_axis_distance_to_rect(line.rect, *local_point, first_item.paintable->computed_values().writing_mode());
-        if (!closest_line_index.has_value() || distance <= closest_line_distance) {
-            closest_line_index = line_index;
-            closest_line_local_point = local_point;
-            closest_line_distance = distance;
+        for (size_t line_index = 0; line_index < m_caret_lines.size(); ++line_index) {
+            auto const& line = m_caret_lines[line_index];
+            if (scope_dom_node && !line_contains_descendant_of(line, *scope_dom_node))
+                continue;
+
+            auto local_point = local_point_for_visual_context(line.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
+            if (!local_point.has_value())
+                continue;
+
+            auto first_item_index = m_caret_item_indices[line.first_caret_item_index];
+            auto const& first_item = m_items[first_item_index];
+            auto writing_mode = first_item.paintable->computed_values().writing_mode();
+            auto block_distance = block_axis_distance_to_line_rect(line.rect, *local_point, writing_mode);
+            auto block_coordinate = block_axis_coordinate(*local_point, writing_mode);
+            auto inline_distance = inline_axis_distance_to_rect(line.rect, *local_point, writing_mode);
+            if (!closest_line.index.has_value()
+                || caret_line_is_better_candidate(block_distance, inline_distance, closest_line.block_distance, closest_line.inline_distance, caret_line_block_axis_compare_slop)) {
+                closest_line.index = line_index;
+                closest_line.local_point = local_point;
+                closest_line.block_distance = block_distance;
+                closest_line.inline_distance = inline_distance;
+                closest_line.block_container_margin_rect = line.block_container_margin_rect;
+                closest_line.is_before_point = block_axis_end(line.rect, writing_mode) < block_coordinate;
+            }
+
+            auto block_start = block_axis_start(line.rect, writing_mode);
+            if (block_start <= block_coordinate)
+                continue;
+
+            // Keep track of the nearest following line separately. This lets a point in the gap between blocks move
+            // forward when the next line is close and at least as good an inline-axis match.
+            auto block_start_distance = block_start - block_coordinate;
+            if (!closest_line_after_point.index.has_value()
+                || line_after_point_is_better_candidate(block_start_distance, inline_distance, closest_line_after_point.block_start_distance, closest_line_after_point.inline_distance)) {
+                closest_line_after_point.index = line_index;
+                closest_line_after_point.local_point = local_point;
+                closest_line_after_point.block_distance = block_distance;
+                closest_line_after_point.block_start_distance = block_start_distance;
+                closest_line_after_point.inline_distance = inline_distance;
+                closest_line_after_point.block_container_margin_rect = line.block_container_margin_rect;
+            }
+        }
+
+        if (closest_line.index.has_value()
+            && closest_line.is_before_point
+            && closest_line_after_point.index.has_value()
+            && closest_line_after_point.block_distance <= caret_line_block_axis_compare_slop
+            && closest_line_after_point.inline_distance <= closest_line.inline_distance) {
+            auto const& line = m_caret_lines[*closest_line.index];
+            auto first_item_index = m_caret_item_indices[line.first_caret_item_index];
+            auto const& first_item = m_items[first_item_index];
+            auto writing_mode = first_item.paintable->computed_values().writing_mode();
+            auto block_coordinate = block_axis_coordinate(*closest_line.local_point, writing_mode);
+            auto point_is_in_closest_line_block_container_margin = closest_line.block_container_margin_rect.has_value()
+                && block_coordinate < block_axis_end(*closest_line.block_container_margin_rect, writing_mode);
+            auto lines_share_block_container_margin = closest_line.block_container_margin_rect.has_value()
+                && closest_line_after_point.block_container_margin_rect.has_value()
+                && *closest_line.block_container_margin_rect == *closest_line_after_point.block_container_margin_rect;
+            // A point still inside the previous block container's margin box should not jump to text in a different
+            // block container, even if that following line is close. This keeps drags below body text out of sidebars.
+            if (point_is_in_closest_line_block_container_margin && !lines_share_block_container_margin)
+                return closest_line;
+            return closest_line_after_point;
+        }
+        return closest_line;
+    };
+
+    auto closest_line = find_closest_line(line_scope_dom_node);
+    if (line_scope_dom_node) {
+        // The scoped search is only a guard against unrelated nearby content. If there is a plainly closer line
+        // outside the scope, use it instead.
+        auto unscoped_closest_line = find_closest_line(nullptr);
+        if (!closest_line.index.has_value()
+            || (unscoped_closest_line.index.has_value() && unscoped_closest_line.block_distance < closest_line.block_distance)) {
+            closest_line = unscoped_closest_line;
         }
     }
 
-    if (!closest_line_index.has_value()) {
+    if (!closest_line.index.has_value()) {
         if (topmost_hit_item_index.has_value())
             return caret_position_for_hit_container(m_items[*topmost_hit_item_index]);
         return {};
     }
-    VERIFY(closest_line_local_point.has_value());
-    auto caret_position = caret_position_for_line(m_caret_lines[*closest_line_index], *closest_line_local_point);
+    VERIFY(closest_line.local_point.has_value());
+    auto caret_position = caret_position_for_line(m_caret_lines[*closest_line.index], *closest_line.local_point);
     if (!caret_position.has_value())
         return {};
 
     if (topmost_hit_item_index.has_value()) {
         auto const& topmost_hit_item = m_items[*topmost_hit_item_index];
-        if (auto const* topmost_hit_dom_node = item_dom_node(topmost_hit_item); topmost_hit_dom_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_position->boundary.node)) {
-            if (item_can_produce_caret_position(topmost_hit_item)) {
+        if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item); topmost_hit_dom_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_position->boundary.node)) {
+            if (item_can_produce_caret_position(topmost_hit_item) && item_is_direct_caret_target(topmost_hit_item)) {
                 VERIFY(topmost_hit_item_local_point.has_value());
                 return caret_position_for_item(topmost_hit_item, *topmost_hit_item_local_point);
             }
