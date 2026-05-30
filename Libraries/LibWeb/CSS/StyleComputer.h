@@ -111,6 +111,8 @@ public:
         GC::Ptr<DOM::ShadowRoot const> shadow_root;
         GC::Ptr<DOM::Element const> scope_root;
         size_t scope_proximity { NumericLimits<size_t>::max() };
+
+        void visit_edges(GC::Cell::Visitor& visitor);
     };
 
     [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules(DOM::AbstractElement, CascadeOrigin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
@@ -230,6 +232,8 @@ private:
     }
 
     CSSPixelRect m_viewport_rect;
+
+    mutable Vector<ScopedMatchingRule> m_rules_to_run_scratch;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
     OwnPtr<SelectorEngine::HasResultCache> m_has_result_cache;
