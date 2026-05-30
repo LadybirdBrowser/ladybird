@@ -48,6 +48,8 @@ public:
 
     virtual void die() override;
 
+    void initialize_page_host();
+
     void request_file(u64 page_id, Web::FileRequest);
 
     PageHost& page_host() { return *m_page_host; }
@@ -199,7 +201,7 @@ private:
     virtual void exit_fullscreen(u64 page_id) override;
 
     RefPtr<CompositorConnection> m_compositor_connection;
-    NonnullOwnPtr<PageHost> m_page_host;
+    OwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
     int last_id { 0 };

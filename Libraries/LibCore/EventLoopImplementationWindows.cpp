@@ -268,15 +268,30 @@ void EventLoopImplementationWindows::wake()
 
 static int notifier_type_to_network_event(NotificationType type)
 {
-    switch (type) {
-    case NotificationType::Read:
-        return FD_READ | FD_CLOSE | FD_ACCEPT;
-    case NotificationType::Write:
-        return FD_WRITE;
-    default:
-        dbgln("This notification type is not implemented: {}", (int)type);
+    int events = 0;
+
+    if (has_flag(type, NotificationType::Read))
+        events |= FD_READ | FD_ACCEPT | FD_CLOSE;
+
+    if (has_flag(type, NotificationType::Write))
+        events |= FD_WRITE | FD_CLOSE;
+
+    // Note: NotificationType::Error and NotificationType::HangUp don't map to specific
+    // Windows events in the same way as Unix POLLERR/POLLHUP. However, FD_CLOSE can be
+    // used to detect socket closure/errors. We include FD_CLOSE when Read/Write are set,
+    // and also allow it to be registered standalone for error-only notifiers.
+    if (has_flag(type, NotificationType::Error) || has_flag(type, NotificationType::HangUp)) {
+        // If no Read/Write flags are set, register FD_CLOSE by itself
+        if (events == 0)
+            events |= FD_CLOSE;
+    }
+
+    if (events == 0) {
+        dbgln("No valid notification type specified: {}", (int)type);
         VERIFY_NOT_REACHED();
     }
+
+    return events;
 }
 
 void EventLoopManagerWindows::register_notifier(Notifier& notifier)
@@ -306,7 +321,12 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
 {
     auto* thread_data = ThreadData::the();
-    VERIFY(thread_data);
+    if (!thread_data) {
+        // ThreadData may not exist if we're being called during shutdown or from a thread
+        // that never created an event loop. In this case, the notifier was never registered,
+        // so there's nothing to unregister.
+        return;
+    }
 
     auto& notifiers = thread_data->notifiers;
     auto maybe_notifier_data = notifiers.take(&notifier);

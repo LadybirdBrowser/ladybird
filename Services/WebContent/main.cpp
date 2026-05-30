@@ -275,7 +275,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             dbgln("Failed to connect to image decoder: {}", result.error());
     };
 
-    return event_loop.exec();
+    auto result = event_loop.exec();
+
+    Web::Platform::ImageCodecPlugin::shutdown();
+
+    return result;
 }
 
 static ErrorOr<void> load_content_blockers(StringView config_path)

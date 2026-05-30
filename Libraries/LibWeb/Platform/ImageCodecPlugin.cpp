@@ -30,4 +30,10 @@ void ImageCodecPlugin::install(ImageCodecPlugin& plugin)
     s_the = &plugin;
 }
 
+void ImageCodecPlugin::shutdown()
+{
+    delete s_the;
+    s_the = nullptr;
+}
+
 }

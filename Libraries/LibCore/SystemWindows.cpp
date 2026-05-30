@@ -307,6 +307,20 @@ ErrorOr<size_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockadd
     return sent;
 }
 
+ErrorOr<size_t> recv(int sockfd, Bytes buffer, int flags)
+{
+    auto received = ::recv(sockfd, reinterpret_cast<char*>(buffer.data()), static_cast<int>(buffer.size()), flags);
+    if (received == SOCKET_ERROR) {
+        auto error = WSAGetLastError();
+
+        // FIXME: This works but allowing windows specific errors to leak through is probably not ideal long-term. Better to eventually return an abstraction to handle all OS erros in a consistent way
+        return error == WSAEWOULDBLOCK
+            ? Error::from_errno(EWOULDBLOCK)
+            : Error::from_windows_error(error);
+    }
+    return received;
+}
+
 ErrorOr<size_t> recvfrom(int sockfd, Bytes buffer, int flags, struct sockaddr* address, socklen_t* address_length)
 {
     auto received = ::recvfrom(sockfd, reinterpret_cast<char*>(buffer.data()), static_cast<int>(buffer.size()), flags, address, address_length);

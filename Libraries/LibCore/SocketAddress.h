@@ -12,6 +12,8 @@
 #include <LibCore/Export.h>
 
 #if defined(AK_OS_WINDOWS)
+#    undef SOCK_STREAM
+#    undef SOCK_DGRAM
 constexpr inline int SOCK_STREAM = 1;
 constexpr inline int SOCK_DGRAM = 2;
 

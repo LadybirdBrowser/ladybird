@@ -46,6 +46,7 @@ private:
     Web::Page& page();
     Web::Page const& page() const;
 
+    virtual Messages::WebWorkerServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::Bindings::AgentType) override;
