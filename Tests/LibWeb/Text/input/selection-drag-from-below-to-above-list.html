@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<body>
+<ul>
+    <li>abc</li>
+    <li>def</li>
+    <ul>
+        <li>foo</li>
+        <li>bar</li>
+        <li>baz</li>
+    </ul>
+</ul>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        internals.mouseDown(500, 500);
+        internals.mouseMove(500, 0);
+        internals.mouseUp(500, 0);
+
+        println(`selected top text: ${getSelection().toString().includes("abc")}`);
+    });
+</script>

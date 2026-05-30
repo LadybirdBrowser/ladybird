@@ -52,11 +52,41 @@ struct BorderRadiiData {
         if (!has_any_radius())
             return true;
 
-        auto to_corner = [](BorderRadiusData const& r) -> Gfx::CornerRadius {
-            return { static_cast<int>(r.horizontal_radius.to_float()), static_cast<int>(r.vertical_radius.to_float()) };
+        auto outside_ellipse = [&](BorderRadiusData const& radius, CSSPixels center_x, CSSPixels center_y) {
+            auto dx = (point.x() - center_x).to_double() / radius.horizontal_radius.to_double();
+            auto dy = (point.y() - center_y).to_double() / radius.vertical_radius.to_double();
+            return dx * dx + dy * dy > 1.0;
         };
-        Gfx::CornerRadii corners { to_corner(top_left), to_corner(top_right), to_corner(bottom_right), to_corner(bottom_left) };
-        return corners.contains(point.to_type<int>(), rect.to_type<int>());
+
+        if (top_left) {
+            auto center_x = rect.left() + top_left.horizontal_radius;
+            auto center_y = rect.top() + top_left.vertical_radius;
+            if (point.x() < center_x && point.y() < center_y && outside_ellipse(top_left, center_x, center_y))
+                return false;
+        }
+
+        if (top_right) {
+            auto center_x = rect.right() - top_right.horizontal_radius;
+            auto center_y = rect.top() + top_right.vertical_radius;
+            if (point.x() > center_x && point.y() < center_y && outside_ellipse(top_right, center_x, center_y))
+                return false;
+        }
+
+        if (bottom_right) {
+            auto center_x = rect.right() - bottom_right.horizontal_radius;
+            auto center_y = rect.bottom() - bottom_right.vertical_radius;
+            if (point.x() > center_x && point.y() > center_y && outside_ellipse(bottom_right, center_x, center_y))
+                return false;
+        }
+
+        if (bottom_left) {
+            auto center_x = rect.left() + bottom_left.horizontal_radius;
+            auto center_y = rect.bottom() - bottom_left.vertical_radius;
+            if (point.x() < center_x && point.y() > center_y && outside_ellipse(bottom_left, center_x, center_y))
+                return false;
+        }
+
+        return true;
     }
 
     inline void shrink(CSSPixels top, CSSPixels right, CSSPixels bottom, CSSPixels left)

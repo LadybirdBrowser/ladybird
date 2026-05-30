@@ -113,9 +113,9 @@ private:
     void maybe_show_context_menu(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
     bool maybe_request_paste_for_middle_click(DOM::Document&, CSSPixelPoint visual_viewport_position);
 
-    bool initiate_character_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect, bool shift_held);
-    bool initiate_word_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect);
-    bool initiate_paragraph_selection(DOM::Document&, Painting::HitTestResult const&, CSS::UserSelect);
+    bool initiate_character_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect, bool shift_held);
+    bool initiate_word_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
+    bool initiate_paragraph_selection(DOM::Document&, Painting::CaretPosition const&, CSS::UserSelect);
 
     void update_mouse_selection(CSSPixelPoint visual_viewport_position);
     void apply_mouse_selection(CSSPixelPoint visual_viewport_position);

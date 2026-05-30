@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        position: absolute;
+        left: 40px;
+        top: 40px;
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+
+    #large {
+        position: absolute;
+        left: 0;
+        top: 200px;
+        width: 2000px;
+        height: 2000px;
+        background: red;
+    }
+</style>
+<div id="target"></div>
+<div id="large"></div>
+<script>
+    test(() => {
+        println(document.elementFromPoint(50, 50).id);
+        println(internals.hitTest(50, 50).node.id);
+    });
+</script>

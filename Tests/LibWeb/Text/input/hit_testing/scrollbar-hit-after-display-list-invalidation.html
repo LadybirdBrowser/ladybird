@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scrollable {
+        width: 100px;
+        height: 100px;
+        overflow-y: scroll;
+    }
+
+    #content {
+        height: 1000px;
+    }
+</style>
+<div id="scrollable">
+    <div id="content"></div>
+</div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        scrollable.style.borderLeft = "1px solid transparent";
+
+        internals.mouseDown(97, 90);
+        internals.mouseUp(97, 90);
+        println(`scrolled after scrollbar click: ${scrollable.scrollTop > 0}`);
+    });
+</script>

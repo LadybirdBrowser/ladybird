@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerenitySans, sans-serif;
+    }
+
+    img {
+        display: block;
+        width: 240px;
+        height: 80px;
+        background: blue;
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    p {
+        margin: 0;
+        font-weight: bold;
+    }
+</style>
+<img id="banner" alt="">
+<h1 id="heading">SerenityOS</h1>
+<p id="tagline">A graphical Unix-like operating system for desktop computers!</p>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const taglineText = tagline.firstChild;
+        const range = document.createRange();
+        const offset = taglineText.data.indexOf("desktop computers") + "desktop ".length;
+        range.setStart(taglineText, offset);
+        range.setEnd(taglineText, offset + 1);
+
+        const startRect = range.getBoundingClientRect();
+        const bannerRect = banner.getBoundingClientRect();
+        internals.mouseDown(startRect.x + 1, startRect.y + startRect.height / 2);
+        internals.mouseMove(bannerRect.x + bannerRect.width / 2, bannerRect.y + bannerRect.height / 2);
+        internals.mouseUp(bannerRect.x + bannerRect.width / 2, bannerRect.y + bannerRect.height / 2);
+
+        const selection = getSelection();
+        println(`selected heading text: ${selection.toString().includes("SerenityOS")}`);
+        println(`selected image: ${selection.containsNode(banner, true)}`);
+    });
+</script>

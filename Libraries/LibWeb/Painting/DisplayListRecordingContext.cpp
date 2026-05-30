@@ -11,8 +11,9 @@ namespace Web {
 
 static u64 s_next_paint_generation_id = 0;
 
-DisplayListRecordingContext::DisplayListRecordingContext(Painting::DisplayListRecorder& display_list_recorder, Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics)
+DisplayListRecordingContext::DisplayListRecordingContext(Painting::DisplayListRecorder& display_list_recorder, Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Painting::HitTestDisplayList* hit_test_display_list)
     : m_display_list_recorder(display_list_recorder)
+    , m_hit_test_display_list(hit_test_display_list)
     , m_palette(palette)
     , m_device_pixel_converter(device_pixels_per_css_pixel)
     , m_chrome_metrics(chrome_metrics)

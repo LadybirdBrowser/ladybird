@@ -35,6 +35,7 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigator.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
@@ -43,6 +44,8 @@
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/ChromeWidget.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
@@ -1485,7 +1488,11 @@ CSSPixelPoint EventHandler::compute_mouse_event_movement(CSSPixelPoint screen_po
 
 Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelPoint position)
 {
-    if (auto result = paint_root()->hit_test(position, Painting::HitTestType::Exact); result.has_value())
+    auto document = m_navigable->active_document();
+    if (!document)
+        return {};
+
+    if (auto result = document->hit_test(position, Painting::HitTestType::Exact); result.has_value())
         return Target { .paintable = result->paintable.ptr(), .chrome_widget = result->chrome_widget, .index_in_node = result->index_in_node };
     return {};
 }
@@ -1501,7 +1508,7 @@ GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint po
 
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
 {
-    auto exact_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
+    auto exact_hit = m_navigable->active_document()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
     if (!exact_hit.has_value())
         return {};
 
@@ -1524,7 +1531,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         if (!m_navigable->page().enable_autoscroll())
             return;
 
-        auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
+        auto hit = document.hit_test(visual_viewport_position, Painting::HitTestType::Exact);
         if (!hit.has_value())
             return;
 
@@ -1563,35 +1570,31 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
     if (!paint_root())
         return;
 
-    // NB: Now we can do selection with a cursor hit test.
-    auto cursor_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
-    if (!cursor_hit.has_value())
-        return;
-
-    auto dom_node = cursor_hit->paintable->dom_node();
-    if (!dom_node)
+    // NB: Now we can do selection with a caret-position hit test.
+    auto caret_position = document.caret_position_from_point(visual_viewport_position);
+    if (!caret_position.has_value())
         return;
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
     // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting a
     // drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
-    auto user_select = cursor_hit->paintable->layout_node().user_select_used_value();
+    auto user_select = caret_position->paintable->layout_node().user_select_used_value();
     if (user_select == CSS::UserSelect::None)
         return;
 
     auto selection_started = [&] {
         if (click_count == 3)
-            return initiate_paragraph_selection(document, *cursor_hit, user_select);
+            return initiate_paragraph_selection(document, *caret_position, user_select);
         if (click_count == 2)
-            return initiate_word_selection(document, *cursor_hit, user_select);
+            return initiate_word_selection(document, *caret_position, user_select);
 
-        return initiate_character_selection(document, *cursor_hit, user_select, modifiers & UIEvents::KeyModifier::Mod_Shift);
+        return initiate_character_selection(document, *caret_position, user_select, modifiers & UIEvents::KeyModifier::Mod_Shift);
     }();
     if (!selection_started)
         return;
     VERIFY(m_selection_mode != SelectionMode::None);
 
-    if (auto container = AutoScrollHandler::find_scrollable_ancestor(*cursor_hit->paintable))
+    if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_position->paintable))
         m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
 }
 
@@ -1700,18 +1703,44 @@ static bool is_middle_click_paste_target(DOM::Node const& node)
     }) != nullptr;
 }
 
+static DOM::BoundaryPoint choose_caret_boundary_for_selection_focus(Painting::CaretPosition const& caret_position, DOM::BoundaryPoint anchor)
+{
+    // Atomic and replaced boxes expose both DOM edges as possible caret positions. When extending a selection,
+    // use the edge that keeps the new focus on the side of the box away from the existing anchor.
+    if (!caret_position.secondary_boundary.has_value())
+        return caret_position.boundary;
+
+    auto primary_boundary = caret_position.boundary;
+    auto secondary_boundary = caret_position.secondary_boundary.value();
+    if (&anchor.node->shadow_including_root() != &primary_boundary.node->shadow_including_root()
+        || &anchor.node->shadow_including_root() != &secondary_boundary.node->shadow_including_root())
+        return primary_boundary;
+
+    auto anchor_to_primary = DOM::position_of_boundary_point_relative_to_other_boundary_point(anchor, primary_boundary);
+    auto anchor_to_secondary = DOM::position_of_boundary_point_relative_to_other_boundary_point(anchor, secondary_boundary);
+    auto primary_to_secondary = DOM::position_of_boundary_point_relative_to_other_boundary_point(primary_boundary, secondary_boundary);
+
+    if (anchor_to_primary == DOM::RelativeBoundaryPointPosition::Before && anchor_to_secondary == DOM::RelativeBoundaryPointPosition::Before)
+        return primary_to_secondary == DOM::RelativeBoundaryPointPosition::Before ? secondary_boundary : primary_boundary;
+
+    if (anchor_to_primary == DOM::RelativeBoundaryPointPosition::After && anchor_to_secondary == DOM::RelativeBoundaryPointPosition::After)
+        return primary_to_secondary == DOM::RelativeBoundaryPointPosition::Before ? primary_boundary : secondary_boundary;
+
+    return primary_boundary;
+}
+
 bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document, CSSPixelPoint visual_viewport_position)
 {
     auto& page = m_navigable->page();
     if (!page.enable_primary_paste())
         return false;
 
-    auto cursor_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
-    if (!cursor_hit.has_value())
+    auto caret_position = document.caret_position_from_point(visual_viewport_position);
+    if (!caret_position.has_value())
         return false;
 
-    auto hit_node = cursor_hit->paintable->dom_node();
-    if (!hit_node || !is_middle_click_paste_target(*hit_node))
+    auto hit_node = caret_position->boundary.node;
+    if (!is_middle_click_paste_target(*hit_node))
         return false;
 
     if (auto focus_candidate = focus_candidate_for_position(visual_viewport_position))
@@ -1719,11 +1748,11 @@ bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document,
     else if (auto editing_host = hit_node->editing_host())
         HTML::run_focusing_steps(editing_host, nullptr, HTML::FocusTrigger::Click);
 
-    auto* target = document.active_input_events_target(hit_node);
+    auto* target = document.active_input_events_target(&*hit_node);
     if (!target)
         return false;
 
-    target->set_selection_anchor(*hit_node, cursor_hit->index_in_node);
+    target->set_selection_anchor(*hit_node, caret_position->boundary.offset);
     page.client().page_did_request_primary_paste();
     return true;
 }
@@ -1859,26 +1888,26 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
     (void)selection->set_base_and_extent(*anchor_node, anchor_offset, *focus_node, focus_offset);
 }
 
-bool EventHandler::initiate_character_selection(DOM::Document& document, Painting::HitTestResult const& hit, CSS::UserSelect user_select, bool shift_held)
+bool EventHandler::initiate_character_selection(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select, bool shift_held)
 {
-    auto& hit_node = *hit.paintable->dom_node();
+    auto hit_node = caret_position.boundary.node;
 
-    size_t index = hit.index_in_node;
-    if (InputEventsTarget* active_target = document.active_input_events_target(&hit_node)) {
+    size_t index = caret_position.boundary.offset;
+    if (InputEventsTarget* active_target = document.active_input_events_target(&*hit_node)) {
         m_mouse_selection_target = active_target;
 
         if (shift_held)
-            active_target->set_selection_focus(hit_node, index);
+            active_target->set_selection_focus(*hit_node, index);
         else
-            active_target->set_selection_anchor(hit_node, index);
+            active_target->set_selection_anchor(*hit_node, index);
     } else {
         m_mouse_selection_target = nullptr;
 
         if (auto selection = document.get_selection()) {
             if (auto anchor_node = selection->anchor_node(); anchor_node && shift_held)
-                set_user_selection(*anchor_node, selection->anchor_offset(), hit_node, index, selection, user_select);
+                set_user_selection(*anchor_node, selection->anchor_offset(), *hit_node, index, selection, user_select);
             else
-                set_user_selection(hit_node, index, hit_node, index, selection, user_select);
+                set_user_selection(*hit_node, index, *hit_node, index, selection, user_select);
         }
     }
 
@@ -1886,13 +1915,16 @@ bool EventHandler::initiate_character_selection(DOM::Document& document, Paintin
     return true;
 }
 
-bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::HitTestResult const& hit, CSS::UserSelect user_select)
+bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)
 {
-    auto* hit_paintable = as_if<Painting::TextPaintable>(*hit.paintable);
+    auto* hit_paintable = as_if<Painting::TextPaintable>(*caret_position.paintable);
     if (!hit_paintable)
         return false;
+    if (!is<DOM::Text>(*caret_position.boundary.node))
+        return false;
 
-    auto& hit_node = as<DOM::Text>(*hit_paintable->dom_node());
+    auto& hit_node = as<DOM::Text>(*caret_position.boundary.node);
+    auto hit_index = caret_position.boundary.offset;
 
     size_t previous_boundary = 0;
     size_t next_boundary = 0;
@@ -1903,8 +1935,8 @@ bool EventHandler::initiate_word_selection(DOM::Document& document, Painting::Hi
         auto& segmenter = word_segmenter();
         segmenter.set_segmented_text(hit_paintable->layout_node().text_for_rendering());
 
-        previous_boundary = segmenter.previous_boundary(hit.index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-        next_boundary = segmenter.next_boundary(hit.index_in_node).value_or(hit_node.length());
+        previous_boundary = segmenter.previous_boundary(hit_index, Unicode::Segmenter::Inclusive::Yes).value_or(0);
+        next_boundary = segmenter.next_boundary(hit_index).value_or(hit_node.length());
     }
 
     m_selection_mode = SelectionMode::Word;
@@ -1968,13 +2000,13 @@ static GC::Ref<DOM::Range> find_paragraph_range(DOM::Text& text_node, WebIDL::Un
     return DOM::Range::create(*start_node, start_offset, *end_node, end_offset);
 }
 
-bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Painting::HitTestResult const& hit, CSS::UserSelect user_select)
+bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)
 {
-    if (!is<DOM::Text>(*hit.paintable->dom_node()))
+    if (!is<DOM::Text>(*caret_position.boundary.node))
         return false;
 
-    auto& hit_node = as<DOM::Text>(*hit.paintable->dom_node());
-    size_t hit_index = hit.index_in_node;
+    auto& hit_node = as<DOM::Text>(*caret_position.boundary.node);
+    size_t hit_index = caret_position.boundary.offset;
 
     // For input/textarea elements, select the current line (delimited by newlines).
     if (auto* target = document.active_input_events_target(&hit_node)) {
@@ -2014,16 +2046,21 @@ void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position
 
 void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
 {
-    auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor);
-    if (!hit.has_value() || !hit->paintable->dom_node())
+    auto& document = *m_navigable->active_document();
+    auto caret_position = document.caret_position_from_point(visual_viewport_position);
+    if (!caret_position.has_value())
         return;
 
-    auto& document = *m_navigable->active_document();
-    auto& hit_dom_node = *hit->paintable->dom_node();
-    GC::Ref<DOM::Node> focus_node = hit_dom_node;
-    size_t focus_index = hit->index_in_node;
+    auto focus_boundary = caret_position->boundary;
     GC::Ptr<DOM::Node> anchor_node;
     Optional<size_t> anchor_offset;
+
+    if (auto selection = document.get_selection(); selection && selection->anchor_node()) {
+        focus_boundary = choose_caret_boundary_for_selection_focus(*caret_position, { *selection->anchor_node(), selection->anchor_offset() });
+    }
+
+    GC::Ref<DOM::Node> focus_node = focus_boundary.node;
+    size_t focus_index = focus_boundary.offset;
 
     // In word selection mode, extend selection by whole words.
     if (m_selection_mode == SelectionMode::Word && m_selection_origin && is<DOM::Text>(*focus_node)) {
@@ -2100,10 +2137,10 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
             if (selection_anchor_node) {
                 if (&selection_anchor_node->root() == &focus_node->root()) {
                     auto selection_anchor_offset = anchor_offset.has_value() ? anchor_offset.value() : selection->anchor_offset();
-                    set_user_selection(*selection_anchor_node, selection_anchor_offset, *focus_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
+                    set_user_selection(*selection_anchor_node, selection_anchor_offset, *focus_node, focus_index, selection, caret_position->paintable->layout_node().user_select_used_value());
                 }
             } else {
-                set_user_selection(*focus_node, focus_index, *focus_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
+                set_user_selection(*focus_node, focus_index, *focus_node, focus_index, selection, caret_position->paintable->layout_node().user_select_used_value());
             }
 
             document.set_needs_repaint(Badge<EventHandler> {});

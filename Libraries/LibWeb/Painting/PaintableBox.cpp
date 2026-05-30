@@ -33,6 +33,7 @@
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
+#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/SVGPaintable.h>
@@ -403,6 +404,7 @@ void PaintableBox::reset_for_relayout()
     m_overflow_data.clear();
     m_override_borders_data.clear();
     m_table_cell_coordinates.clear();
+    m_containing_line_box_data.clear();
     m_sticky_insets = nullptr;
 
     m_absolute_rect.clear();
@@ -438,6 +440,17 @@ CSSPixelPoint PaintableBox::scroll_offset() const
     if (auto const* element = as_if<DOM::Element>(dom_node().ptr()))
         return element->scroll_offset({});
     return {};
+}
+
+Optional<CSSPixelRect> PaintableBox::absolute_containing_line_box_rect() const
+{
+    if (!m_containing_line_box_data.has_value())
+        return {};
+
+    auto rect = m_containing_line_box_data->rect;
+    if (auto containing_block = this->containing_block())
+        rect.translate_by(containing_block->absolute_position());
+    return rect;
 }
 
 PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset)
@@ -994,6 +1007,49 @@ void PaintableBox::record_async_scrolling_metadata(DisplayListRecordingContext& 
             });
         }
     }
+}
+
+void PaintableBox::record_hit_test_items(DisplayListRecordingContext& context, PaintPhase phase) const
+{
+    auto* hit_test_display_list = context.hit_test_display_list();
+    if (!hit_test_display_list)
+        return;
+
+    auto const is_visible = computed_values().visibility() == CSS::Visibility::Visible;
+    if (!is_visible || !visible_for_hit_testing())
+        return;
+
+    if (phase == PaintPhase::Background) {
+        Paintable* target = const_cast<PaintableBox*>(this);
+        if (layout_node().is_anonymous()
+            && !layout_node().is_generated_for_pseudo_element()
+            && !layout_node().is_list_item_marker_box()) {
+            auto continuation_node = layout_node_with_style_and_box_metrics().continuation_of_node();
+            if (!continuation_node)
+                return;
+            while (continuation_node->continuation_of_node())
+                continuation_node = continuation_node->continuation_of_node();
+            auto& continuation_paintable = *continuation_node->first_paintable();
+            if (!continuation_paintable.visible_for_hit_testing())
+                return;
+            target = &continuation_paintable;
+        }
+
+        hit_test_display_list->append_box(*this, *target, absolute_border_box_rect(), accumulated_visual_context_index(), border_radii_data());
+        return;
+    }
+
+    if (phase != PaintPhase::Overlay)
+        return;
+
+    auto& box = const_cast<PaintableBox&>(*this);
+    if (has_resizer())
+        hit_test_display_list->append_chrome_widget(*this, box.ensure_resize_handle(), accumulated_visual_context_index());
+
+    if (could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal))
+        hit_test_display_list->append_chrome_widget(*this, box.ensure_scrollbar(ScrollDirection::Horizontal), accumulated_visual_context_index());
+    if (could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))
+        hit_test_display_list->append_chrome_widget(*this, box.ensure_scrollbar(ScrollDirection::Vertical), accumulated_visual_context_index());
 }
 
 void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase) const
@@ -1647,42 +1703,6 @@ bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigne
     return scroll_handled == ScrollHandled::Yes;
 }
 
-TraversalDecision PaintableBox::hit_test_chrome(CSSPixelPoint adjusted_position, Function<TraversalDecision(HitTestResult)> const& callback) const
-{
-    // The vast majority of paintable boxes have no resizer and no scrollable axis. Reject those before constructing
-    // ChromeMetrics or allocating any Scrollbar.
-    auto has_resizer = this->has_resizer();
-    auto can_scroll_horizontally = could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal);
-    auto can_scroll_vertically = could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
-    if (!has_resizer && !can_scroll_horizontally && !can_scroll_vertically)
-        return TraversalDecision::Continue;
-
-    // FIXME: This const_cast is not great, but this method is invoked from overrides of virtual const methods.
-    HitTestResult result { .paintable = const_cast<PaintableBox&>(*this) };
-    ChromeMetrics metrics = document().page().chrome_metrics();
-
-    if (has_resizer && resizer_contains(adjusted_position, metrics)) {
-        result.chrome_widget = const_cast<PaintableBox&>(*this).ensure_resize_handle();
-        return callback(result);
-    }
-
-    auto check_scrollbar = [&](ScrollDirection direction) -> TraversalDecision {
-        auto scrollbar = const_cast<PaintableBox&>(*this).ensure_scrollbar(direction);
-        if (scrollbar->contains(adjusted_position, metrics)) {
-            result.chrome_widget = scrollbar;
-            return callback(result);
-        }
-        return TraversalDecision::Continue;
-    };
-
-    if (can_scroll_horizontally && check_scrollbar(ScrollDirection::Horizontal) == TraversalDecision::Break)
-        return TraversalDecision::Break;
-    if (can_scroll_vertically && check_scrollbar(ScrollDirection::Vertical) == TraversalDecision::Break)
-        return TraversalDecision::Break;
-
-    return TraversalDecision::Continue;
-}
-
 bool PaintableBox::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& metrics) const
 {
     auto handle_rect = absolute_resizer_rect(metrics);
@@ -1692,102 +1712,6 @@ bool PaintableBox::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetri
     handle_rect->inflate(0, bottom_left_resizer ? 0 : box_model().border.right, box_model().border.bottom, bottom_left_resizer ? box_model().border.left : 0);
 
     return handle_rect->contains(adjusted_position);
-}
-
-TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
-{
-    auto const is_visible = computed_values().visibility() == CSS::Visibility::Visible;
-
-    Optional<CSSPixelPoint> local_position = transform_point_to_local(position);
-
-    // Only hit test chrome (scrollbars, etc.) for visible elements.
-    if (is_visible && visible_for_hit_testing()) {
-        if (hit_test_chrome(local_position.value_or(position), callback) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-    }
-
-    if (is_viewport_paintable()) {
-        auto& viewport_paintable = const_cast<ViewportPaintable&>(static_cast<ViewportPaintable const&>(*this));
-        viewport_paintable.build_stacking_context_tree_if_needed();
-        viewport_paintable.document().update_paint_and_hit_testing_properties_if_needed();
-        viewport_paintable.refresh_scroll_state();
-        return stacking_context()->hit_test(position, type, callback);
-    }
-
-    if (stacking_context())
-        return TraversalDecision::Continue;
-
-    if (hit_test_children(position, type, callback) == TraversalDecision::Break)
-        return TraversalDecision::Break;
-
-    // Hidden elements and elements with pointer-events: none shouldn't be hit.
-    if (!is_visible || !visible_for_hit_testing())
-        return TraversalDecision::Continue;
-
-    if (!local_position.has_value())
-        return TraversalDecision::Continue;
-
-    auto border_box_rect = absolute_border_box_rect();
-    if (!border_box_rect.contains(local_position.value()))
-        return TraversalDecision::Continue;
-
-    if (auto radii = border_radii_data(); radii.has_any_radius()) {
-        if (!radii.contains(local_position.value(), border_box_rect))
-            return TraversalDecision::Continue;
-    }
-
-    if (hit_test_continuation(callback) == TraversalDecision::Break)
-        return TraversalDecision::Break;
-
-    return callback(HitTestResult { .paintable = const_cast<PaintableBox&>(*this) });
-}
-
-TraversalDecision PaintableBox::hit_test_continuation(Function<TraversalDecision(HitTestResult)> const& callback) const
-{
-    // If we're hit testing the "middle" part of a continuation chain, we are dealing with an anonymous box that is
-    // linked to a parent inline node. Since our block element children did not match the hit test, but we did, we
-    // should walk the continuation chain up to the inline parent and return a hit on that instead.
-    auto continuation_node = layout_node_with_style_and_box_metrics().continuation_of_node();
-    if (!continuation_node || !layout_node().is_anonymous())
-        return TraversalDecision::Continue;
-
-    while (continuation_node->continuation_of_node())
-        continuation_node = continuation_node->continuation_of_node();
-    auto& paintable = *continuation_node->first_paintable();
-    if (!paintable.visible_for_hit_testing())
-        return TraversalDecision::Continue;
-
-    return callback(HitTestResult { .paintable = paintable });
-}
-
-Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestType type) const
-{
-    Optional<HitTestResult> result;
-    (void)PaintableBox::hit_test(position, type, [&](HitTestResult candidate) {
-        if (!result.has_value()
-            || candidate.vertical_distance.value_or(CSSPixels::max_integer_value) < result->vertical_distance.value_or(CSSPixels::max_integer_value)
-            || candidate.horizontal_distance.value_or(CSSPixels::max_integer_value) < result->horizontal_distance.value_or(CSSPixels::max_integer_value)) {
-            result = move(candidate);
-        }
-
-        if (result.has_value() && (type == HitTestType::Exact || (result->vertical_distance == 0 && result->horizontal_distance == 0)))
-            return TraversalDecision::Break;
-        return TraversalDecision::Continue;
-    });
-    return result;
-}
-
-TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
-{
-    for (auto child = last_child(); child; child = child->previous_sibling()) {
-        if (child->is_positioned() && child->computed_values().z_index().value_or(0) == 0)
-            continue;
-        if (child->has_stacking_context())
-            continue;
-        if (child->hit_test(position, type, callback) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-    }
-    return TraversalDecision::Continue;
 }
 
 void PaintableBox::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)

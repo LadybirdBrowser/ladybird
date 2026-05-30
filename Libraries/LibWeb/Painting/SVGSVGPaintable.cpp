@@ -60,6 +60,7 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
     context.display_list_recorder().begin_masks(masks);
 
     if (!skip_painting) {
+        svg_box.record_hit_test_items(context, phase);
         svg_box.paint(context, PaintPhase::Foreground);
         paint_descendants(context, svg_box, phase);
     }

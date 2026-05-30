@@ -18,8 +18,6 @@ public:
     static NonnullRefPtr<SVGForeignObjectPaintable> create(Layout::SVGForeignObjectBox const&);
     virtual StringView class_name() const override { return "SVGForeignObjectPaintable"sv; }
 
-    virtual TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const override;
-
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     Layout::SVGForeignObjectBox const& layout_box() const;

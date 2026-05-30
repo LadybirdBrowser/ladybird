@@ -7,6 +7,7 @@
 
 #include <LibGfx/Quad.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 
@@ -41,18 +42,6 @@ Optional<CSSPixelRect> SVGPathPaintable::clip_path_geometry_bounds(Gfx::AffineTr
     path.offset(svg_node->paintable_box()->absolute_rect().location().to_type<float>());
 
     return path.bounding_box().to_type<CSSPixels>();
-}
-
-TraversalDecision SVGPathPaintable::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
-{
-    if (!computed_path().has_value())
-        return TraversalDecision::Continue;
-
-    auto transformed_path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform());
-    if (!transformed_path.bounding_box().contains(position.to_type<float>()))
-        return TraversalDecision::Continue;
-
-    return SVGGraphicsPaintable::hit_test(position, type, callback);
 }
 
 static Gfx::WindingRule to_gfx_winding_rule(SVG::FillRule fill_rule)
@@ -222,6 +211,29 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             break;
         }
     }
+}
+
+void SVGPathPaintable::record_hit_test_items(DisplayListRecordingContext& context, PaintPhase phase) const
+{
+    if (phase != PaintPhase::Foreground)
+        return;
+
+    auto* hit_test_display_list = context.hit_test_display_list();
+    if (!hit_test_display_list)
+        return;
+
+    if (!computed_path().has_value())
+        return;
+
+    if (computed_values().visibility() != CSS::Visibility::Visible || !visible_for_hit_testing())
+        return;
+
+    auto transformed_path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform());
+    auto bounding_box = transformed_path.bounding_box().to_type<CSSPixels>();
+    if (bounding_box.is_empty())
+        return;
+
+    hit_test_display_list->append_box(*this, const_cast<SVGPathPaintable&>(*this), bounding_box, accumulated_visual_context_index(), {});
 }
 
 }

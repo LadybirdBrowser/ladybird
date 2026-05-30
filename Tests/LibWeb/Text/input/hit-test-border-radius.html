@@ -11,8 +11,19 @@
     left: 0;
     cursor: pointer;
 }
+
+#fractional-pill {
+    width: 129.96875px;
+    height: 46.09375px;
+    background: green;
+    border-radius: 999px;
+    position: absolute;
+    top: 250.390625px;
+    left: 411.5625px;
+}
 </style>
 <div id="target"></div>
+<div id="fractional-pill"></div>
 <script>
 test(() => {
     // Corner at (5,5) - outside due to border-radius
@@ -21,6 +32,8 @@ test(() => {
     let hit2 = internals.hitTest(25, 25);
     // Center
     let hit3 = internals.hitTest(100, 100);
+    // Inside the bottom-right curve of a fractional pill-shaped rect.
+    let hit4 = internals.hitTest(527, 294);
 
     println("Corner (5,5):");
     printElement(hit1.node);
@@ -28,5 +41,7 @@ test(() => {
     printElement(hit2.node);
     println("Center (100,100):");
     printElement(hit3.node);
+    println("Fractional pill bottom-right curve (527,294):");
+    printElement(hit4.node);
 });
 </script>

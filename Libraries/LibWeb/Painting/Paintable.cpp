@@ -122,16 +122,29 @@ bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, 
     return false;
 }
 
-TraversalDecision Paintable::hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const&) const
-{
-    return TraversalDecision::Continue;
-}
-
 bool Paintable::has_stacking_context() const
 {
     if (auto const* paintable_box = as_if<PaintableBox>(this))
         return paintable_box->stacking_context();
     return false;
+}
+
+DOM::Node* HitTestResult::dom_node()
+{
+    for (auto* current = paintable.ptr(); current; current = current->parent()) {
+        if (auto node = current->dom_node())
+            return node;
+    }
+    return nullptr;
+}
+
+DOM::Node const* HitTestResult::dom_node() const
+{
+    for (auto const* current = paintable.ptr(); current; current = current->parent()) {
+        if (auto node = current->dom_node())
+            return node;
+    }
+    return nullptr;
 }
 
 RefPtr<StackingContext> Paintable::enclosing_stacking_context()

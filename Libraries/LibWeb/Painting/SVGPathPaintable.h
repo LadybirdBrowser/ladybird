@@ -18,10 +18,10 @@ public:
     static NonnullRefPtr<SVGPathPaintable> create(Layout::SVGGraphicsBox const&);
     virtual StringView class_name() const override { return "SVGPathPaintable"sv; }
 
-    virtual TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const override;
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
+    virtual void record_hit_test_items(DisplayListRecordingContext&, PaintPhase) const override;
 
     SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(*Paintable::dom_node()); }
 
