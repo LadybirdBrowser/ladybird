@@ -1269,17 +1269,147 @@ static void generate_object_to_cpp(SourceGenerator& scoped_generator)
 )~~~");
 }
 
-static void generate_buffer_source_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, GeneratedIncludes& includes)
+// https://webidl.spec.whatwg.org/#js-buffer-source-types
+static void generate_buffer_source_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, HashMap<ByteString, ByteString> const& extended_attributes, GeneratedIncludes& includes)
 {
     add_javascript_builtin_buffer_source_type_include(type, includes);
     scoped_generator.set("parameter.type.buffer_cpp", ByteString::formatted("JS::{}", type.name()));
 
-    scoped_generator.append(R"~~~(
+    // A JavaScript value V is converted to an IDL ArrayBuffer value by running the following algorithm:
+    if (type.name() == "ArrayBuffer"sv) {
+        // 1. If V is not an Object, or V does not have an [[ArrayBufferData]] internal slot, then throw a TypeError.
+        scoped_generator.append(R"~~~(
     auto @cpp_name@_builtin_buffer = @js_name@@js_suffix@.as_if<@parameter.type.buffer_cpp@>();
-    if (!@cpp_name@_builtin_buffer) {
+    if (!@cpp_name@_builtin_buffer)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+)~~~");
+
+        // 2. If IsSharedArrayBuffer(V) is true, then throw a TypeError.
+        scoped_generator.append(R"~~~(
+    if (@cpp_name@_builtin_buffer->is_shared_array_buffer())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer);
+)~~~");
+
+        // 3. If the conversion is not to an IDL type associated with the [AllowResizable] extended attribute, and
+        //    IsFixedLengthArrayBuffer(V) is false, then throw a TypeError.
+        if (!extended_attributes.contains("AllowResizable"sv)) {
+            scoped_generator.append(R"~~~(
+    if (!@cpp_name@_builtin_buffer->is_fixed_length())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "fixed-length @parameter.type.name@");
+)~~~");
+        }
+
+        // 4. Return the IDL ArrayBuffer value that is a reference to the same object as V.
+        scoped_generator.append(R"~~~(
+    GC::Ref<@parameter.type.buffer_cpp@> @cpp_name@ = *@cpp_name@_builtin_buffer;
+)~~~");
+        return;
     }
 
+    // A JavaScript value V is converted to an IDL SharedArrayBuffer value by running the following algorithm:
+    if (type.name() == "SharedArrayBuffer"sv) {
+        // 1. If V is not an Object, or V does not have an [[ArrayBufferData]] internal slot, then throw a TypeError.
+        scoped_generator.append(R"~~~(
+    auto @cpp_name@_builtin_buffer = @js_name@@js_suffix@.as_if<@parameter.type.buffer_cpp@>();
+    if (!@cpp_name@_builtin_buffer)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+)~~~");
+
+        // 2. If IsSharedArrayBuffer(V) is false, then throw a TypeError.
+        scoped_generator.append(R"~~~(
+    if (!@cpp_name@_builtin_buffer->is_shared_array_buffer())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotASharedArrayBuffer);
+)~~~");
+
+        // 3. If the conversion is not to an IDL type associated with the [AllowResizable] extended attribute, and
+        //    IsFixedLengthArrayBuffer(V) is false, then throw a TypeError.
+        if (!extended_attributes.contains("AllowResizable"sv)) {
+            scoped_generator.append(R"~~~(
+    if (!@cpp_name@_builtin_buffer->is_fixed_length())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "fixed-length @parameter.type.name@");
+)~~~");
+        }
+
+        // 4. Return the IDL SharedArrayBuffer value that is a reference to the same object as V.
+        scoped_generator.append(R"~~~(
+    GC::Ref<@parameter.type.buffer_cpp@> @cpp_name@ = *@cpp_name@_builtin_buffer;
+)~~~");
+        return;
+    }
+
+    // A JavaScript value V is converted to an IDL DataView value by running the following algorithm:
+    if (type.name() == "DataView"sv) {
+        // 1. If V is not an Object, or V does not have a [[DataView]] internal slot, then throw a TypeError.
+        scoped_generator.append(R"~~~(
+    auto @cpp_name@_builtin_buffer = @js_name@@js_suffix@.as_if<@parameter.type.buffer_cpp@>();
+    if (!@cpp_name@_builtin_buffer)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+    auto& @cpp_name@_viewed_array_buffer = *@cpp_name@_builtin_buffer->viewed_array_buffer();
+)~~~");
+
+        // 2. If the conversion is not to an IDL type associated with the [AllowShared] extended attribute, and
+        //    IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is true, then throw a TypeError.
+        if (!extended_attributes.contains("AllowShared"sv)) {
+            scoped_generator.append(R"~~~(
+    if (@cpp_name@_viewed_array_buffer.is_shared_array_buffer())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer);
+)~~~");
+        }
+
+        // 3. If the conversion is not to an IDL type associated with the [AllowResizable] extended attribute, and
+        //    IsFixedLengthArrayBuffer(V.[[ViewedArrayBuffer]]) is false, then throw a TypeError.
+        if (!extended_attributes.contains("AllowResizable"sv)) {
+            scoped_generator.append(R"~~~(
+    if (!@cpp_name@_viewed_array_buffer.is_fixed_length())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "fixed-length @parameter.type.name@");
+)~~~");
+        }
+
+        // 4. Return the IDL DataView value that is a reference to the same object as V.
+        scoped_generator.append(R"~~~(
+    GC::Ref<@parameter.type.buffer_cpp@> @cpp_name@ = *@cpp_name@_builtin_buffer;
+)~~~");
+        return;
+    }
+
+    // A JavaScript value V is converted to an IDL Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array,
+    // Uint8ClampedArray, BigInt64Array, BigUint64Array, Float16Array, Float32Array, or Float64Array value by running the
+    // following algorithm:
+    VERIFY(type.is_typed_array());
+
+    // 1. Let T be the IDL type V is being converted to.
+
+    // 2. If V is not an Object, or V does not have a [[TypedArrayName]] internal slot with a value equal to T’s name,
+    //    then throw a TypeError.
+    scoped_generator.append(R"~~~(
+    auto @cpp_name@_builtin_buffer = @js_name@@js_suffix@.as_if<@parameter.type.buffer_cpp@>();
+    if (!@cpp_name@_builtin_buffer)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+    auto& @cpp_name@_viewed_array_buffer = *@cpp_name@_builtin_buffer->viewed_array_buffer();
+)~~~");
+
+    // 3. If the conversion is not to an IDL type associated with the [AllowShared] extended attribute, and
+    //    IsSharedArrayBuffer(V.[[ViewedArrayBuffer]]) is true, then throw a TypeError.
+    if (!extended_attributes.contains("AllowShared"sv)) {
+        scoped_generator.append(R"~~~(
+    if (@cpp_name@_viewed_array_buffer.is_shared_array_buffer())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer);
+)~~~");
+    }
+
+    // 4. If the conversion is not to an IDL type associated with the [AllowResizable] extended attribute, and
+    //    IsFixedLengthArrayBuffer(V.[[ViewedArrayBuffer]]) is false, then throw a TypeError.
+    if (!extended_attributes.contains("AllowResizable"sv)) {
+        scoped_generator.append(R"~~~(
+    if (!@cpp_name@_viewed_array_buffer.is_fixed_length())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "fixed-length @parameter.type.name@");
+)~~~");
+    }
+
+    // 5. Return the IDL value of type T that is a reference to the same object as V.
+    scoped_generator.append(R"~~~(
     GC::Ref<@parameter.type.buffer_cpp@> @cpp_name@ = *@cpp_name@_builtin_buffer;
 )~~~");
 }
@@ -1594,31 +1724,82 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
     }
 
-    // 6. If Type(V) is Object and V has an [[ArrayBufferData]] internal slot, then
+    auto generate_buffer_source_union_return = [&](SourceGenerator& generator, Type const& type, ByteString const& union_cpp_name) {
+        IDL::Parameter idl_parameter { .type = type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = parameter.extended_attributes };
+        generate_to_cpp(generator, idl_parameter, js_name, js_suffix, union_cpp_name, context, includes, false, {}, false, recursion_depth + 1);
+
+        generator.set("buffer_source.union_cpp_name", union_cpp_name);
+        generator.append(R"~~~(
+                return @union_type@ { @buffer_source.union_cpp_name@ };
+)~~~");
+    };
+
+    RefPtr<Type const> array_buffer_type;
+    RefPtr<Type const> shared_array_buffer_type;
+    RefPtr<Type const> data_view_type;
+    for (auto& type : types) {
+        if (type->name() == "ArrayBuffer"sv)
+            array_buffer_type = type;
+        else if (type->name() == "SharedArrayBuffer"sv)
+            shared_array_buffer_type = type;
+        else if (type->name() == "DataView"sv)
+            data_view_type = type;
+    }
+
+    // 6. If Type(V) is Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is false, then:
     //    1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
     //    2. If types includes object, then return the IDL value that is a reference to the object V.
-    if (any_of(types, [](auto const& type) { return type->name() == "ArrayBuffer"; })) {
+    // 7. If Type(V) is Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is true, then:
+    //    1. If types includes SharedArrayBuffer, then return the result of converting V to SharedArrayBuffer.
+    //    2. If types includes object, then return the IDL value that is a reference to the object V.
+    if (array_buffer_type || shared_array_buffer_type) {
         includes.add_header("AK/TypeCasts.h"sv);
         includes.add_header("LibJS/Runtime/ArrayBuffer.h"sv);
         union_generator.append(R"~~~(
-            if (auto* array_buffer = as_if<JS::ArrayBuffer>(@js_name@@js_suffix@_object))
-                return @union_type@ { GC::Ref { *array_buffer } };
+            if (auto* array_buffer = as_if<JS::ArrayBuffer>(@js_name@@js_suffix@_object)) {
+)~~~");
+
+        if (array_buffer_type) {
+            union_generator.append(R"~~~(
+                if (!array_buffer->is_shared_array_buffer()) {
+)~~~");
+            generate_buffer_source_union_return(union_generator, *array_buffer_type, "array_buffer_union_type"sv);
+            union_generator.append(R"~~~(
+                }
+)~~~");
+        }
+
+        if (shared_array_buffer_type) {
+            union_generator.append(R"~~~(
+                if (array_buffer->is_shared_array_buffer()) {
+)~~~");
+            generate_buffer_source_union_return(union_generator, *shared_array_buffer_type, "shared_array_buffer_union_type"sv);
+            union_generator.append(R"~~~(
+                }
+)~~~");
+        }
+
+        union_generator.append(R"~~~(
+            }
 )~~~");
     }
 
-    // 7. If Type(V) is Object and V has a [[DataView]] internal slot, then:
+    // 8. If Type(V) is Object and V has a [[DataView]] internal slot, then:
     //    1. If types includes DataView, then return the result of converting V to DataView.
     //    2. If types includes object, then return the IDL value that is a reference to the object V.
-    if (any_of(types, [](auto const& type) { return type->name() == "DataView"; })) {
+    if (data_view_type) {
         includes.add_header("AK/TypeCasts.h"sv);
         includes.add_header("LibJS/Runtime/DataView.h"sv);
         union_generator.append(R"~~~(
-            if (auto* data_view = as_if<JS::DataView>(@js_name@@js_suffix@_object))
-                return @union_type@ { GC::Ref { *data_view } };
+            if (as_if<JS::DataView>(@js_name@@js_suffix@_object)) {
+)~~~");
+        generate_buffer_source_union_return(union_generator, *data_view_type, "data_view_union_type"sv);
+        union_generator.append(R"~~~(
+            }
 )~~~");
     }
 
-    // 8. If Type(V) is Object and V has a [[TypedArrayName]] internal slot, then:
+    // 9. If Type(V) is Object and V has a [[TypedArrayName]] internal slot, then:
     //    1. If types includes a typed array type whose name is the value of V’s [[TypedArrayName]] internal slot, then return the result of converting V to that type.
     //    2. If types includes object, then return the IDL value that is a reference to the object V.
     if (any_of(types, [](auto const& type) { return type->is_typed_array(); })) {
@@ -1632,13 +1813,16 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
             auto typed_array_generator = union_generator.fork();
             typed_array_generator.set("typed_array_type", type->name());
             typed_array_generator.append(R"~~~(
-            if (auto* typed_array = as_if<JS::@typed_array_type@>(@js_name@@js_suffix@_object))
-                return @union_type@ { GC::Ref { *typed_array } };
+            if (as_if<JS::@typed_array_type@>(@js_name@@js_suffix@_object)) {
+)~~~");
+            generate_buffer_source_union_return(typed_array_generator, *type, ByteString::formatted("{}_union_type", type->name().to_snakecase()));
+            typed_array_generator.append(R"~~~(
+            }
 )~~~");
         }
     }
 
-    // 9. If IsCallable(V) is true, then:
+    // 10. If IsCallable(V) is true, then:
     //     1. If types includes a callback function type, then return the result of converting V to that callback function type.
     //     2. If types includes object, then return the IDL value that is a reference to the object V.
     bool includes_callback_function = any_of(types, [&context](auto const& type) { return context.callback_functions.contains(type->name()); });
@@ -1655,7 +1839,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
     }
 
-    // 10. If Type(V) is Object, then:
+    // 11. If Type(V) is Object, then:
     //     1. If types includes a sequence type, then:
     RefPtr<IDL::ParameterizedType const> sequence_type;
     for (auto& type : types) {
@@ -1963,7 +2147,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "object") {
         generate_object_to_cpp(scoped_generator);
     } else if (parameter.type->is_buffer_source()) {
-        generate_buffer_source_to_cpp(scoped_generator, *parameter.type, includes);
+        generate_buffer_source_to_cpp(scoped_generator, *parameter.type, parameter.extended_attributes, includes);
     } else if (parameter.type->name() == "any") {
         generate_any_to_cpp(scoped_generator);
     } else if (context.enumerations.contains(parameter.type->name())) {
