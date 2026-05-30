@@ -31,6 +31,14 @@ static void set_or_append_pending_scroll_offset(
     pending_scroll_offsets.append(scroll_offset);
 }
 
+ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client)
+    : m_web_content_client(web_content_client)
+    , m_page_id(page_id)
+{
+    if (page_id.has_value())
+        m_presentation_mode = Web::Compositor::PresentToClient {};
+}
+
 ContextState::~ContextState()
 {
     stop_backing_store_shrink_timer();
@@ -41,31 +49,20 @@ bool ContextState::presentation_mode_presents_to_client(Web::Compositor::Present
     return presentation_mode.has<Web::Compositor::PresentToClient>();
 }
 
-void ContextState::initialize(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client)
-{
-    m_web_content_client = &web_content_client;
-    m_page_id = page_id;
-    if (page_id.has_value())
-        m_presentation_mode = Web::Compositor::PresentToClient {};
-}
-
 bool ContextState::is_owned_by(CompositorStateWebContentClient const& web_content_client) const
 {
-    VERIFY(m_web_content_client);
-    return m_web_content_client == &web_content_client;
+    return &m_web_content_client == &web_content_client;
 }
 
 void ContextState::request_rendering_update()
 {
-    VERIFY(m_web_content_client);
-    m_web_content_client->request_rendering_update();
+    m_web_content_client.request_rendering_update();
 }
 
 void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event)
 {
-    VERIFY(m_web_content_client);
     VERIFY(m_page_id.has_value());
-    m_web_content_client->dispatch_mouse_event_to_web_content(*m_page_id, event);
+    m_web_content_client.dispatch_mouse_event_to_web_content(*m_page_id, event);
 }
 
 void ContextState::set_presentation_mode(Web::Compositor::PresentationMode presentation_mode)
@@ -339,7 +336,6 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
 {
     if (!presents_to_client())
         return {};
-    VERIFY(m_web_content_client);
     if (!m_can_accept_async_wheel_events)
         return {};
 

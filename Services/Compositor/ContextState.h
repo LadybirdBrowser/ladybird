@@ -84,12 +84,11 @@ public:
         i32 bitmap_id { 0 };
     };
 
-    ContextState() = default;
+    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&);
     ~ContextState();
 
     static bool presentation_mode_presents_to_client(Web::Compositor::PresentationMode const&);
 
-    void initialize(Optional<u64> page_id, CompositorStateWebContentClient&);
     bool is_owned_by(CompositorStateWebContentClient const&) const;
     void request_rendering_update();
     void dispatch_mouse_event_to_web_content(Web::MouseEvent const&);
@@ -170,7 +169,7 @@ private:
     bool can_render_frame() const;
     void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&);
 
-    CompositorStateWebContentClient* m_web_content_client { nullptr };
+    CompositorStateWebContentClient& m_web_content_client;
     Optional<u64> m_page_id;
 
     Web::Compositor::PresentationMode m_presentation_mode { Empty {} };
