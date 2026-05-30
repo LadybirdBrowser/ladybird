@@ -271,6 +271,34 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     if (!paint_root())
         return EventResult::Dropped;
 
+    ArmedScopeGuard update_caret_hit_test_debug_overlay = [&] {
+        if (!m_navigable->should_show_caret_hit_test_debug_overlay())
+            return;
+        if (m_navigable->active_document() != document)
+            return;
+        if (!document->is_fully_active())
+            return;
+
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+        if (!paint_root())
+            return;
+
+        auto caret_position = document->caret_position_from_point(visual_viewport_position);
+        if (caret_position.has_value()) {
+            document->set_caret_hit_test_debug_rect(caret_position->debug_rect);
+            dbgln("Caret hit test: point=({}, {}) boundary=({}, {}) paintable={} debug_rect={}",
+                visual_viewport_position.x(),
+                visual_viewport_position.y(),
+                caret_position->boundary.node->debug_description(),
+                caret_position->boundary.offset,
+                caret_position->paintable->debug_description(),
+                caret_position->debug_rect);
+        } else {
+            document->set_caret_hit_test_debug_rect({});
+            dbgln("Caret hit test: point=({}, {}) no caret position", visual_viewport_position.x(), visual_viewport_position.y());
+        }
+    };
+
     if (m_mousedown_target_is_drag_candidate) {
         static constexpr CSSPixels DRAG_THRESHOLD = 5;
         auto delta = visual_viewport_position - *m_mousedown_visual_viewport_position;

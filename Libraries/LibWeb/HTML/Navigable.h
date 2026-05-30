@@ -257,6 +257,8 @@ public:
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
 
     void set_should_show_line_box_borders(bool);
+    void set_should_show_caret_hit_test_debug_overlay(bool);
+    bool should_show_caret_hit_test_debug_overlay() const { return m_should_show_caret_hit_test_debug_overlay; }
 
     bool is_svg_page() const { return m_is_svg_page; }
 
@@ -344,6 +346,7 @@ private:
     bool m_needs_to_record_display_list { true };
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
+    bool m_should_show_caret_hit_test_debug_overlay { false };
     Optional<PaintConfig> m_compositor_display_list_paint_config;
     Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Painting::DisplayListResourceSet m_compositor_display_list_resources;

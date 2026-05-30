@@ -100,6 +100,7 @@ enum class ActionID {
     DumpGCGraph,
     DumpWasmStats,
     ShowLineBoxBorders,
+    ShowCaretHitTestDebugOverlay,
     CollectGarbage,
     CrashCurrentPage,
     SpoofUserAgent,

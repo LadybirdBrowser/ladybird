@@ -8436,8 +8436,30 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         paintable_box->paint_grid_inspector_overlay(context, grid_highlight.options);
     }
 
+    if (config.should_show_caret_hit_test_debug_overlay && m_caret_hit_test_debug_rect.has_value()) {
+        auto caret_rect = context.enclosing_device_rect(*m_caret_hit_test_debug_rect).to_type<int>();
+        auto caret_x = caret_rect.x();
+        auto caret_top = caret_rect.y();
+        auto caret_bottom = caret_rect.bottom();
+        auto marker_color = Color::Magenta;
+
+        display_list_recorder.draw_line({ caret_x, caret_top }, { caret_x, caret_bottom }, marker_color, 2);
+        display_list_recorder.draw_line({ caret_x - 4, caret_top }, { caret_x + 4, caret_top }, marker_color, 2);
+        display_list_recorder.draw_line({ caret_x - 4, caret_bottom }, { caret_x + 4, caret_bottom }, marker_color, 2);
+    }
+
     m_hit_test_display_list = move(hit_test_display_list);
     return display_list;
+}
+
+void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
+{
+    if (m_caret_hit_test_debug_rect == rect)
+        return;
+
+    m_caret_hit_test_debug_rect = rect;
+    set_needs_repaint(InvalidateDisplayList::Yes);
+    page().client().request_frame();
 }
 
 Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()

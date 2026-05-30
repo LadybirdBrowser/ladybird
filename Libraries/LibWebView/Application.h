@@ -375,6 +375,7 @@ private:
 
     RefPtr<Menu> m_debug_menu;
     RefPtr<Action> m_show_line_box_borders_action;
+    RefPtr<Action> m_show_caret_hit_test_debug_overlay_action;
     RefPtr<Action> m_enable_scripting_action;
     RefPtr<Action> m_enable_content_blocking_action;
     RefPtr<Action> m_block_pop_ups_action;
