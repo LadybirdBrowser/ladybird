@@ -1780,6 +1780,11 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
 
     play_or_cancel_animations_after_display_property_change();
     exit_fullscreen_on_element_removal();
+
+    m_computed_properties = nullptr;
+    for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement&) {
+        set_computed_properties(pseudo_element_type, nullptr);
+    });
 }
 
 void Element::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
@@ -1985,8 +1990,13 @@ bool Element::has_synthetic_pseudo_elements() const
 void Element::clear_synthetic_pseudo_element_layout_nodes()
 {
     for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
-        if (auto layout_node = pseudo_element.layout_node())
+        if (auto layout_node = pseudo_element.layout_node()) {
+            layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
+                node.clear_paintables();
+                return TraversalDecision::Continue;
+            });
             layout_node->prepare_subtree_for_detach_from_layout_tree();
+        }
         pseudo_element.set_layout_node(nullptr);
     });
 }

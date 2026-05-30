@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Concepts.h>
 #include <AK/Optional.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
@@ -388,9 +389,8 @@ public:
     GC::Ptr<Layout::NodeWithStyle> pseudo_element_unsafe_layout_node(CSS::PseudoElement) const;
 
     bool has_synthetic_pseudo_elements() const;
-    void clear_synthetic_pseudo_element_layout_nodes(Badge<Layout::TreeBuilder>) { clear_synthetic_pseudo_element_layout_nodes(); }
-    void clear_synthetic_pseudo_element_layout_nodes(Badge<Document>) { clear_synthetic_pseudo_element_layout_nodes(); }
-    void clear_synthetic_pseudo_element_layout_nodes(Badge<Node>) { clear_synthetic_pseudo_element_layout_nodes(); }
+    template<OneOf<Layout::TreeBuilder, Document, Node> T>
+    void clear_synthetic_pseudo_element_layout_nodes(Badge<T>) { clear_synthetic_pseudo_element_layout_nodes(); }
 
     void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
 
