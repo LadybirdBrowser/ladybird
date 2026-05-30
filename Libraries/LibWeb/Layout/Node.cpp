@@ -732,6 +732,13 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_background_layers(move(background_layers));
 
+    auto mask_layers = computed_style.mask_layers();
+
+    for (auto const& layer : mask_layers)
+        const_cast<CSS::AbstractImageStyleValue&>(*layer.background_image).load_any_resources(*this);
+
+    computed_values.set_mask_layers(move(mask_layers));
+
     computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
     computed_values.set_background_color_clip(computed_style.background_color_clip());
 
@@ -956,7 +963,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_shape_rendering(computed_style.shape_rendering());
     computed_values.set_paint_order(computed_style.paint_order());
 
-    // FIXME: We should actually support more than one mask image rather than just using the first
+    // FIXME: We should support SVG mask references in every mask layer rather than just using the first.
     auto const& mask_image = [&] -> CSS::StyleValue const& {
         auto const& value = computed_style.property(CSS::PropertyID::MaskImage);
 

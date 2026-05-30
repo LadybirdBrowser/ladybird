@@ -14,6 +14,7 @@
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -349,11 +350,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     });
 
     auto const& computed_values = paintable_box().computed_values();
-    auto mask_image = computed_values.mask_image();
-
-    if (mask_image) {
-        mask_image->resolve_for_size(paintable_box().layout_node_with_style_and_box_metrics(), paintable_box().absolute_padding_box_rect().size());
-    }
+    auto const& mask_layers = computed_values.mask_layers();
 
     auto effective_context_index = paintable_box().accumulated_visual_context_index();
     context.display_list_recorder().set_accumulated_visual_context(effective_context_index);
@@ -368,13 +365,16 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     // Collect all masks (CSS mask-image, SVG <mask>, SVG <clipPath>).
     Vector<DisplayListRecorder::MaskInfo> masks;
 
-    if (mask_image) {
+    if (!mask_layers.is_empty()) {
         auto visual_context_tree = AccumulatedVisualContextTree::create();
         auto mask_display_list = DisplayList::create(visual_context_tree);
         DisplayListRecorder display_list_recorder(*mask_display_list, visual_context_tree, context.display_list_recorder().resource_storage());
         auto mask_painting_context = context.clone(display_list_recorder);
-        auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
-        mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);
+        auto absolute_mask_rect = paintable_box().absolute_border_box_rect();
+        auto mask_rect_in_device_pixels = context.enclosing_device_rect(absolute_mask_rect);
+        auto mask_rect = CSSPixelRect { {}, absolute_mask_rect.size() };
+        auto resolved_mask = resolve_background_layers(mask_layers, paintable_box(), Color::Transparent, CSS::BackgroundBox::BorderBox, mask_rect, {});
+        paint_background(mask_painting_context, paintable_box(), CSS::ImageRendering::Auto, resolved_mask, {});
         masks.append({ { *mask_display_list, move(visual_context_tree) }, mask_rect_in_device_pixels.to_type<int>(), Gfx::MaskKind::Alpha });
     }
 
