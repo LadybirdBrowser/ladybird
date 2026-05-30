@@ -15,6 +15,7 @@
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/VSyncScheduler.h>
+#include <Compositor/ViewportScrollbarController.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Point.h>
@@ -100,12 +101,6 @@ public:
 private:
     CompositorState(RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
 
-    struct ViewportScrollbarDrag {
-        size_t scrollbar_index { 0 };
-        float primary_position { 0 };
-        float thumb_grab_position { 0 };
-    };
-
     struct ContextState {
         ~ContextState();
 
@@ -128,10 +123,7 @@ private:
         BackingStoreManager backing_store_manager;
 
         Web::Compositor::AsyncScrollTree async_scroll_tree;
-        Vector<Web::Compositor::ViewportScrollbar> viewport_scrollbars;
-        Optional<size_t> hovered_viewport_scrollbar_index;
-        Optional<size_t> captured_viewport_scrollbar_index;
-        float viewport_scrollbar_thumb_grab_position { 0 };
+        ViewportScrollbarController viewport_scrollbar_controller;
 
         Vector<Web::Compositor::AsyncScrollOffset> pending_async_scroll_offsets;
         Vector<Web::Compositor::AsyncScrollOperationID> completed_async_scroll_operation_ids;
@@ -179,14 +171,7 @@ private:
     Optional<Gfx::FloatPoint> viewport_scroll_offset_from(ContextState&, Vector<Web::Compositor::AsyncScrollOffset> const&) const;
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(ContextState&, Vector<Web::Compositor::AsyncScrollOffset> const&);
     void store_pending_async_scroll_offsets(ContextState&, Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
-    Optional<size_t> hit_test_viewport_scrollbar(ContextState&, Gfx::FloatPoint position) const;
-    Optional<ViewportScrollbarDrag> begin_viewport_scrollbar_drag(ContextState&, Gfx::FloatPoint position);
-    Optional<ViewportScrollbarDrag> captured_viewport_scrollbar_drag(ContextState&, Gfx::FloatPoint position);
-    Optional<ViewportScrollbarDrag> release_captured_viewport_scrollbar_drag(ContextState&, Gfx::FloatPoint position);
-    void set_hovered_viewport_scrollbar(Web::Compositor::CompositorContextId, ContextState&, Optional<size_t>);
-    bool apply_viewport_scrollbar_drag(Web::Compositor::CompositorContextId, ContextState&, size_t scrollbar_index, float primary_position, float thumb_grab_position);
-    void present_viewport_scrollbar_overlay(Web::Compositor::CompositorContextId, ContextState&);
-    bool paint_viewport_scrollbar_overlay(ContextState&, Gfx::PaintingSurface&);
+    bool apply_viewport_scrollbar_drag(Web::Compositor::CompositorContextId, ContextState&, ViewportScrollbarController::Drag const&);
     void schedule_backing_store_shrink(Web::Compositor::CompositorContextId, ContextState&);
     void shrink_backing_stores_after_resize(Web::Compositor::CompositorContextId);
     void resize_backing_stores_if_needed(Web::Compositor::CompositorContextId, ContextState&);
