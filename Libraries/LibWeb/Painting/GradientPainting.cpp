@@ -212,17 +212,21 @@ static ResolvedColorStopData resolve_color_stop_positions(Layout::NodeWithStyle 
     };
     while (i < resolved_color_stops.size() - 1) {
         auto& stop = resolved_color_stops[i];
-        if (!isfinite(stop.position)) {
-            auto run_start = i - 1;
-            auto start_position = resolved_color_stops[i++].transition_hint.value_or(resolved_color_stops[run_start].position);
-            auto run_end = find_run_end();
-            auto end_position = resolved_color_stops[run_end].transition_hint.value_or(resolved_color_stops[run_end].position);
-            auto spacing = (end_position - start_position) / (run_end - run_start);
-            for (auto j = run_start + 1; j < run_end; j++) {
-                resolved_color_stops[j].position = start_position + (j - run_start) * spacing;
-            }
+        if (isfinite(stop.position)) {
+            i++;
+            continue;
         }
-        i++;
+        auto run_start = i - 1;
+        auto start_position = resolved_color_stops[i++].transition_hint.value_or(resolved_color_stops[run_start].position);
+        auto run_end = find_run_end();
+        auto end_position = resolved_color_stops[run_end].transition_hint.value_or(resolved_color_stops[run_end].position);
+        auto spacing = (end_position - start_position) / (run_end - run_start);
+        for (auto j = run_start + 1; j < run_end; j++) {
+            resolved_color_stops[j].position = start_position + (j - run_start) * spacing;
+        }
+        // The stop ending this run might have a transition hint but no position of its own.
+        // Resume from it (instead of skipping past it) so the next run gives it a position.
+        i = run_end;
     }
 
     // Determine the location of the transition hint as a percentage of the distance between the two color stops,

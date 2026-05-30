@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-162;totalPixels=0-435">
+<style>
+  body {
+    margin: 0;
+    background-color: white;
+  }
+
+  .gradient {
+    width: 600px;
+    height: 100px;
+  }
+
+  /* A transition hint (the bare 75%) sits between two color stops that have no
+     explicit position of their own. The hint must act as a positional anchor
+     while the stop it is attached to (#0ff) still gets evenly spaced. */
+  .with-hint {
+    background: linear-gradient(to right, #f00, #ff0, 75%, #0ff, #00f);
+  }
+
+  /* The same curve unrolled into explicit, manually interpolated stops, so a
+     regression that mishandles the transition hint diverges visibly. */
+  .explicit-stops {
+    background: linear-gradient(
+      to right,
+      #ff0000,
+      #ffff00 37.5%,
+      #f6ff09 50%,
+      #e7ff18,
+      #cfff30,
+      #adff52,
+      #7fff80,
+      #46ffb9,
+      #00ffff 87.5%,
+      #0000ff);
+  }
+</style>
+<div class="gradient with-hint"></div>
+<div class="gradient explicit-stops"></div>
