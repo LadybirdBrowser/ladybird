@@ -25,6 +25,32 @@ describe("[[Call]] trap normal behavior", () => {
         expect(p(2, 4)).toBe(6);
         expect(p(2, 4, true)).toBe(8);
     });
+
+    test("trap receives only passed arguments", () => {
+        let receivedArguments;
+        const p = new Proxy(function (_formalParameter) {}, {
+            apply(_target, _thisValue, arguments_) {
+                receivedArguments = arguments_;
+            },
+        });
+
+        p();
+        expect(receivedArguments.length).toBe(0);
+
+        p(1, 2);
+        expect(receivedArguments.length).toBe(2);
+        expect(receivedArguments[0]).toBe(1);
+        expect(receivedArguments[1]).toBe(2);
+    });
+
+    test("forwarding uses only passed arguments", () => {
+        const p = new Proxy(function (_formalParameter) {
+            return arguments.length;
+        }, {});
+
+        expect(p()).toBe(0);
+        expect(p(1, 2)).toBe(2);
+    });
 });
 
 describe("[[Call]] invariants", () => {
