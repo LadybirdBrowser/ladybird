@@ -70,7 +70,7 @@ void CompositorState::create_context(Web::Compositor::CompositorContextId contex
         VERIFY(context_id == Web::Compositor::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [&] {
-        return make<ContextState>(page_id, web_content_client);
+        return make<ContextState>(page_id, web_content_client, m_async_scrolling_enabled);
     });
     resize_backing_stores_if_needed(context_id, context);
 }
@@ -122,7 +122,7 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
     VERIFY(context);
 
     context->apply_display_list_resource_transaction(move(resource_transaction));
-    context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot), m_async_scrolling_enabled);
+    context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
 }
 
 void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)

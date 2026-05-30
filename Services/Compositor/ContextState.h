@@ -84,7 +84,7 @@ public:
         i32 bitmap_id { 0 };
     };
 
-    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&);
+    ContextState(Optional<u64> page_id, CompositorStateWebContentClient&, bool async_scrolling_enabled);
     ~ContextState();
 
     static bool presentation_mode_presents_to_client(Web::Compositor::PresentationMode const&);
@@ -110,8 +110,7 @@ public:
     void install_display_list_update(
         NonnullRefPtr<Web::Painting::DisplayList>,
         Web::Painting::AccumulatedVisualContextTree,
-        Web::Painting::ScrollStateSnapshot&&,
-        bool async_scrolling_enabled);
+        Web::Painting::ScrollStateSnapshot&&);
     void update_scroll_state(Web::Painting::ScrollStateSnapshot&&);
     void update_video_frame(Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(Web::Painting::VideoFrameResourceId);
@@ -158,7 +157,6 @@ public:
 
 private:
     void stop_backing_store_shrink_timer();
-    void clear_async_scrolling_state();
     Web::Painting::AccumulatedVisualContextTree const& current_visual_context_tree() const;
     Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<Web::Compositor::AsyncScrollOffset> const&) const;
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&);
@@ -171,6 +169,7 @@ private:
 
     CompositorStateWebContentClient& m_web_content_client;
     Optional<u64> m_page_id;
+    bool const m_async_scrolling_enabled { true };
 
     Web::Compositor::PresentationMode m_presentation_mode { Empty {} };
     Optional<PublishedSurface> m_published_surface;
