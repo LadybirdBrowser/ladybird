@@ -662,6 +662,87 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
     return layers;
 }
 
+Vector<BackgroundLayerData> ComputedProperties::mask_layers() const
+{
+    auto property_values = [&](PropertyID property_id) {
+        auto const& value = property(property_id);
+        if (value.is_value_list())
+            return value.as_value_list().values();
+        return StyleValueVector { value };
+    };
+
+    auto const mask_image_values = property_values(PropertyID::MaskImage);
+
+    if (all_of(mask_image_values, [](auto const& value) { return value->to_keyword() == Keyword::None; }))
+        return {};
+
+    auto mask_clip_values = property_values(PropertyID::MaskClip);
+    auto mask_origin_values = property_values(PropertyID::MaskOrigin);
+    auto mask_position_values = property_values(PropertyID::MaskPosition);
+    auto mask_repeat_values = property_values(PropertyID::MaskRepeat);
+    auto mask_size_values = property_values(PropertyID::MaskSize);
+
+    Vector<BackgroundLayerData> layers;
+    layers.ensure_capacity(mask_image_values.size());
+
+    for (size_t i = 0; i < mask_image_values.size(); i++) {
+        auto const& mask_image_value = mask_image_values[i];
+
+        if (mask_image_value->to_keyword() == Keyword::None || !mask_image_value->is_abstract_image())
+            continue;
+
+        auto const& mask_clip_value = mask_clip_values[i % mask_clip_values.size()];
+        auto const& mask_origin_value = mask_origin_values[i % mask_origin_values.size()];
+        auto const& mask_position_value = mask_position_values[i % mask_position_values.size()];
+        auto const& mask_repeat_value = mask_repeat_values[i % mask_repeat_values.size()];
+        auto const& mask_size_value = mask_size_values[i % mask_size_values.size()];
+
+        BackgroundLayerData layer {
+            .background_image = mask_image_value->as_abstract_image(),
+            .origin = BackgroundBox::BorderBox,
+            .clip = BackgroundBox::BorderBox,
+        };
+
+        if (mask_clip_value->to_keyword() != Keyword::NoClip) {
+            if (auto clip = keyword_to_background_box(mask_clip_value->to_keyword()); clip.has_value())
+                layer.clip = clip.release_value();
+        }
+
+        if (auto origin = keyword_to_background_box(mask_origin_value->to_keyword()); origin.has_value())
+            layer.origin = origin.release_value();
+
+        auto const& position = mask_position_value->as_position();
+        layer.position_x = LengthPercentage::from_style_value(position.edge_x()->as_edge().offset());
+        layer.position_y = LengthPercentage::from_style_value(position.edge_y()->as_edge().offset());
+
+        layer.repeat_x = mask_repeat_value->as_repeat_style().repeat_x();
+        layer.repeat_y = mask_repeat_value->as_repeat_style().repeat_y();
+
+        if (mask_size_value->is_background_size()) {
+            layer.size_type = CSS::BackgroundSize::LengthPercentage;
+            layer.size_x = CSS::LengthPercentageOrAuto::from_style_value(mask_size_value->as_background_size().size_x());
+            layer.size_y = CSS::LengthPercentageOrAuto::from_style_value(mask_size_value->as_background_size().size_y());
+        } else if (mask_size_value->is_keyword()) {
+            switch (mask_size_value->to_keyword()) {
+            case CSS::Keyword::Contain:
+                layer.size_type = CSS::BackgroundSize::Contain;
+                break;
+            case CSS::Keyword::Cover:
+                layer.size_type = CSS::BackgroundSize::Cover;
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+
+        layers.unchecked_append(layer);
+    }
+
+    return layers;
+}
+
 BackgroundBox ComputedProperties::background_color_clip() const
 {
     // The background color is clipped according to the final layer's background-clip value. We propagate this

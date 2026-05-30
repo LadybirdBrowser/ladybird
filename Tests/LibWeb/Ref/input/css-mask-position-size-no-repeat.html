@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-mask-position-size-no-repeat-ref.html" />
+<style>
+    body {
+        margin: 0;
+        background: red;
+    }
+
+    .masked {
+        width: 100px;
+        height: 100px;
+        background: green;
+        mask: linear-gradient(#000, #000) bottom / 100% 20px no-repeat;
+    }
+</style>
+<div class="masked"></div>

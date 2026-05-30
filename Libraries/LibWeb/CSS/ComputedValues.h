@@ -704,6 +704,7 @@ public:
     Color background_color() const { return m_noninherited.background_color; }
     BackgroundBox background_color_clip() const { return m_noninherited.background_color_clip; }
     Vector<BackgroundLayerData> const& background_layers() const { return m_noninherited.background_layers; }
+    Vector<BackgroundLayerData> const& mask_layers() const { return m_noninherited.mask_layers; }
 
     Color webkit_text_fill_color() const { return m_inherited.webkit_text_fill_color; }
 
@@ -893,6 +894,7 @@ protected:
         Color background_color { InitialValues::background_color() };
         int order { InitialValues::order() };
         Vector<BackgroundLayerData> background_layers;
+        Vector<BackgroundLayerData> mask_layers;
         FlexDirection flex_direction { InitialValues::flex_direction() };
         ColumnSpan column_span { InitialValues::column_span() };
         BackgroundBox background_color_clip { InitialValues::background_color_clip() };
@@ -980,6 +982,8 @@ protected:
         {
             for (auto& layer : background_layers)
                 layer.background_image->visit_edges(visitor);
+            for (auto& layer : mask_layers)
+                layer.background_image->visit_edges(visitor);
             if (mask_image)
                 mask_image->visit_edges(visitor);
             for (auto const& transform : transformations)
@@ -1031,6 +1035,7 @@ public:
     void set_background_color(Color color) { m_noninherited.background_color = color; }
     void set_background_color_clip(BackgroundBox box) { m_noninherited.background_color_clip = box; }
     void set_background_layers(Vector<BackgroundLayerData>&& layers) { m_noninherited.background_layers = move(layers); }
+    void set_mask_layers(Vector<BackgroundLayerData>&& layers) { m_noninherited.mask_layers = move(layers); }
     void set_float(Float value) { m_noninherited.float_ = value; }
     void set_clear(Clear value) { m_noninherited.clear = value; }
     void set_z_index(Optional<int> value) { m_noninherited.z_index = move(value); }
