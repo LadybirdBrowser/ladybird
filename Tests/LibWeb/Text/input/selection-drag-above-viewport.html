@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px Arial, sans-serif;
+        line-height: 30px;
+    }
+
+    #menu {
+        height: 28px;
+        left: 0;
+        overflow: hidden;
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 100;
+    }
+
+    .main {
+        margin-top: 42px;
+        width: 870px;
+    }
+
+    .article {
+        padding-top: 50px;
+    }
+
+    li {
+        height: 30px;
+    }
+</style>
+<body>
+    <div id="menu">Applications Blog Posts GitHub Packages</div>
+    <div class="main">
+        <div class="article">
+            <p>ToaruOS 2.3 is now available.</p>
+            <p>This release comes with many new features, including:</p>
+            <ul>
+                <li>Terminal tabs</li>
+                <li id="target">A manpage viewer</li>
+                <li>Several new system calls</li>
+            </ul>
+        </div>
+    </div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = target.firstChild;
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        const rect = range.getBoundingClientRect();
+        const startX = rect.x + rect.width / 2;
+        const startY = rect.y + rect.height / 2;
+
+        internals.mouseDown(startX, startY);
+        for (let y = Math.floor(startY) - 1; y >= 0; --y)
+            internals.mouseMove(startX, y);
+
+        const selectedAtViewportTop = getSelection().toString();
+        internals.mouseLeave();
+        internals.mouseMove(startX, -50);
+        internals.mouseUp(startX, -50);
+        const selectedAboveViewport = getSelection().toString();
+
+        println(`selection reached viewport top: ${selectedAtViewportTop.includes("Terminal tabs") && selectedAtViewportTop.includes("A manpa")}`);
+        println(`above viewport matches viewport top: ${selectedAboveViewport === selectedAtViewportTop}`);
+        println(`above viewport selected forward text: ${selectedAboveViewport.includes("Several new system calls")}`);
+    });
+</script>

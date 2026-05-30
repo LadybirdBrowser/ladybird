@@ -7,7 +7,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -73,12 +72,6 @@ static CSSPixelPoint compute_auto_scroll_speed(CSSPixelPoint mouse, CSSPixelRect
     };
 }
 
-static bool is_in_form_associated_text_control(DOM::Element const& element)
-{
-    auto const& host = element.containing_shadow_root() ? *element.containing_shadow_root()->host() : element;
-    return is<HTML::FormAssociatedTextControlElement>(host);
-}
-
 AutoScrollHandler::AutoScrollHandler(HTML::Navigable& navigable, DOM::Element& container)
     : m_navigable(navigable)
     , m_container_element(container)
@@ -113,9 +106,7 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
     }
 
     activate();
-    if (is_in_form_associated_text_control(m_container_element))
-        return constrained(mouse_position, *scrollport);
-    return mouse_position;
+    return constrained(mouse_position, *scrollport);
 }
 
 GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Paintable const& paintable)
@@ -206,10 +197,7 @@ void AutoScrollHandler::perform_tick()
     if (paintable_box->scroll_by(scroll_x, scroll_y) == Painting::PaintableBox::ScrollHandled::No)
         return;
 
-    auto selection_position = is_in_form_associated_text_control(m_container_element)
-        ? constrained(m_mouse_position, *scrollport)
-        : m_mouse_position;
-    m_navigable->event_handler().apply_mouse_selection(selection_position);
+    m_navigable->event_handler().apply_mouse_selection(constrained(m_mouse_position, *scrollport));
 }
 
 }
