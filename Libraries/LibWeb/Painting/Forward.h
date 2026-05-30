@@ -11,6 +11,7 @@
 namespace Web::Painting {
 
 class HitTestDisplayList;
+enum class CaretPositionMode : u8;
 enum class HitTestType : u8;
 struct CaretPosition;
 struct HitTestResult;
