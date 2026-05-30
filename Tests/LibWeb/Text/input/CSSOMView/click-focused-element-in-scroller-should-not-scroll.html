@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+#scroller {
+    height: 100px;
+    overflow: auto;
+    width: 200px;
+}
+
+.spacer {
+    height: 400px;
+}
+</style>
+<div id="scroller">
+    <div class="spacer"></div>
+    <button id="target">target</button>
+    <div style="height: 20px"></div>
+</div>
+<script>
+asyncTest(done => {
+    const scroller = document.getElementById("scroller");
+    const target = document.getElementById("target");
+
+    scroller.scrollTop = scroller.scrollHeight;
+    const before = scroller.scrollTop;
+
+    const rect = target.getBoundingClientRect();
+    internals.click(rect.left + 5, rect.top + rect.height / 2);
+
+    setTimeout(() => {
+        println(`scrollTop before click: ${before}`);
+        println(`scrollTop after click: ${scroller.scrollTop}`);
+        done();
+    }, 0);
+});
+</script>
