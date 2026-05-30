@@ -36,79 +36,6 @@ static void set_or_append_pending_scroll_offset(Vector<Web::Compositor::AsyncScr
     pending_scroll_offsets.append(scroll_offset);
 }
 
-static Gfx::Orientation orientation_for_scrollbar(Web::Compositor::ViewportScrollbar const& scrollbar)
-{
-    return scrollbar.vertical ? Gfx::Orientation::Vertical : Gfx::Orientation::Horizontal;
-}
-
-struct ViewportScrollbarIdentity {
-    Web::Compositor::AsyncScrollNodeID scroll_node_id;
-    bool vertical { false };
-};
-
-static ViewportScrollbarIdentity viewport_scrollbar_identity(Web::Compositor::ViewportScrollbar const& scrollbar)
-{
-    return { scrollbar.scroll_node_id, scrollbar.vertical };
-}
-
-static Optional<ViewportScrollbarIdentity> viewport_scrollbar_identity_at(ReadonlySpan<Web::Compositor::ViewportScrollbar> scrollbars, Optional<size_t> scrollbar_index)
-{
-    if (!scrollbar_index.has_value() || *scrollbar_index >= scrollbars.size())
-        return {};
-    return viewport_scrollbar_identity(scrollbars[*scrollbar_index]);
-}
-
-static Optional<size_t> find_viewport_scrollbar_index(ReadonlySpan<Web::Compositor::ViewportScrollbar> scrollbars, ViewportScrollbarIdentity identity)
-{
-    for (size_t i = 0; i < scrollbars.size(); ++i) {
-        if (scrollbars[i].scroll_node_id == identity.scroll_node_id && scrollbars[i].vertical == identity.vertical)
-            return i;
-    }
-    return {};
-}
-
-static Gfx::IntRect scrollbar_gutter_rect(Web::Compositor::ViewportScrollbar const& scrollbar, bool expanded)
-{
-    return expanded ? scrollbar.expanded_gutter_rect : scrollbar.gutter_rect;
-}
-
-static double scrollbar_scroll_size(Web::Compositor::ViewportScrollbar const& scrollbar, bool expanded)
-{
-    return expanded ? scrollbar.expanded_scroll_size : scrollbar.scroll_size;
-}
-
-static Gfx::IntRect translated_thumb_rect(Web::Compositor::ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset, bool expanded)
-{
-    auto orientation = orientation_for_scrollbar(scrollbar);
-    auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
-    thumb_rect.translate_primary_offset_for_orientation(orientation, static_cast<int>(scroll_offset.primary_offset_for_orientation(orientation) * scrollbar_scroll_size(scrollbar, expanded)));
-    return thumb_rect;
-}
-
-static Gfx::IntRect translated_thumb_rect(Web::Compositor::ViewportScrollbar const& scrollbar, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
-{
-    auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
-    auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
-    auto device_offset = scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_frame_index);
-    if (scrollbar.vertical)
-        thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * scroll_size));
-    else
-        thumb_rect.translate_by(static_cast<int>(-device_offset.x() * scroll_size), 0);
-    return thumb_rect;
-}
-
-static Gfx::IntRect scrollbar_hit_rect(Web::Compositor::ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset)
-{
-    static constexpr int scrollbar_hit_slop = 4;
-
-    auto rect = translated_thumb_rect(scrollbar, scroll_offset, false).united(translated_thumb_rect(scrollbar, scroll_offset, true));
-    auto expanded_gutter_rect = scrollbar_gutter_rect(scrollbar, true);
-    if (!expanded_gutter_rect.is_empty())
-        rect.unite(expanded_gutter_rect);
-    rect.inflate(scrollbar_hit_slop, scrollbar_hit_slop);
-    return rect;
-}
-
 NonnullRefPtr<CompositorState> CompositorState::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, bool async_scrolling_enabled)
 {
     return adopt_ref(*new CompositorState(move(skia_backend_context), async_scrolling_enabled));
@@ -327,40 +254,44 @@ bool CompositorState::handle_mouse_event(Web::Compositor::CompositorContextId co
         if (event.button != Web::UIEvents::MouseButton::Primary)
             return false;
 
-        auto drag = begin_viewport_scrollbar_drag(context_state, position);
+        auto drag = context_state.viewport_scrollbar_controller.begin_drag(context_state.async_scroll_tree, context_state.scroll_state_snapshot, position);
         if (!drag.has_value())
             return false;
 
-        present_viewport_scrollbar_overlay(context_id, context_state);
-        apply_viewport_scrollbar_drag(context_id, context_state, drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position);
+        if (!context_state.async_scrolling_viewport_rect.is_empty())
+            schedule_present_frame(context_id, context_state, context_state.async_scrolling_viewport_rect);
+        apply_viewport_scrollbar_drag(context_id, context_state, *drag);
         return true;
     }
     case Web::MouseEvent::Type::MouseMove: {
-        auto had_capture = context_state.captured_viewport_scrollbar_index.has_value();
+        auto had_capture = context_state.viewport_scrollbar_controller.has_captured_scrollbar();
         if (had_capture) {
-            auto drag = captured_viewport_scrollbar_drag(context_state, position);
+            auto drag = context_state.viewport_scrollbar_controller.captured_drag(position);
             if (!drag.has_value())
                 return false;
-            apply_viewport_scrollbar_drag(context_id, context_state, drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position);
+            apply_viewport_scrollbar_drag(context_id, context_state, *drag);
             return true;
         }
 
-        auto hovered_scrollbar_index = hit_test_viewport_scrollbar(context_state, position);
-        set_hovered_viewport_scrollbar(context_id, context_state, hovered_scrollbar_index);
+        auto hovered_scrollbar_index = context_state.viewport_scrollbar_controller.hit_test(context_state.async_scroll_tree, context_state.scroll_state_snapshot, position);
+        if (context_state.viewport_scrollbar_controller.set_hovered_scrollbar(hovered_scrollbar_index) && !context_state.async_scrolling_viewport_rect.is_empty())
+            schedule_present_frame(context_id, context_state, context_state.async_scrolling_viewport_rect);
         return hovered_scrollbar_index.has_value();
     }
     case Web::MouseEvent::Type::MouseUp: {
-        auto drag = release_captured_viewport_scrollbar_drag(context_state, position);
+        auto drag = context_state.viewport_scrollbar_controller.release_captured_drag(position);
         if (!drag.has_value())
             return false;
 
-        present_viewport_scrollbar_overlay(context_id, context_state);
-        apply_viewport_scrollbar_drag(context_id, context_state, drag->scrollbar_index, drag->primary_position, drag->thumb_grab_position);
+        if (!context_state.async_scrolling_viewport_rect.is_empty())
+            schedule_present_frame(context_id, context_state, context_state.async_scrolling_viewport_rect);
+        apply_viewport_scrollbar_drag(context_id, context_state, *drag);
         return true;
     }
     case Web::MouseEvent::Type::MouseLeave: {
-        auto had_capture = context_state.captured_viewport_scrollbar_index.has_value();
-        set_hovered_viewport_scrollbar(context_id, context_state, {});
+        auto had_capture = context_state.viewport_scrollbar_controller.has_captured_scrollbar();
+        if (context_state.viewport_scrollbar_controller.set_hovered_scrollbar({}) && !context_state.async_scrolling_viewport_rect.is_empty())
+            schedule_present_frame(context_id, context_state, context_state.async_scrolling_viewport_rect);
         return had_capture;
     }
     case Web::MouseEvent::Type::MouseWheel:
@@ -543,7 +474,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
             painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
         });
     m_display_list_player->execute(*context.display_list, context.visual_context_tree.value(), context.display_list_resource_storage, context.scroll_state_snapshot, back_store);
-    paint_viewport_scrollbar_overlay(context, back_store);
+    context.viewport_scrollbar_controller.paint(back_store, *m_display_list_player, context.scroll_state_snapshot);
     auto rendered_bitmap_id = context.backing_store_manager.back_bitmap_id();
     context.gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
     if (presentation_mode_presents_to_client(context.presentation_mode))
@@ -675,7 +606,7 @@ void CompositorState::present_context_synchronously(ContextState& context)
         painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
     }
     m_display_list_player->execute(*context.display_list, context.visual_context_tree.value(), context.display_list_resource_storage, context.scroll_state_snapshot, back_store);
-    paint_viewport_scrollbar_overlay(context, back_store);
+    context.viewport_scrollbar_controller.paint(back_store, *m_display_list_player, context.scroll_state_snapshot);
     m_display_list_player->flush(back_store);
     context.backing_store_manager.swap();
     context.presented_frame = viewport_rect;
@@ -696,7 +627,7 @@ bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId co
 
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
     m_display_list_player->execute(*context->display_list, context->visual_context_tree.value(), context->display_list_resource_storage, context->scroll_state_snapshot, *target_surface);
-    paint_viewport_scrollbar_overlay(*context, *target_surface);
+    context->viewport_scrollbar_controller.paint(*target_surface, *m_display_list_player, context->scroll_state_snapshot);
     m_display_list_player->flush(*target_surface);
     return true;
 }
@@ -846,9 +777,7 @@ void CompositorState::install_display_list_update(ContextState& context, Nonnull
 
     if (!m_async_scrolling_enabled) {
         context.async_scroll_tree.set_state({});
-        context.viewport_scrollbars.clear();
-        context.hovered_viewport_scrollbar_index.clear();
-        context.captured_viewport_scrollbar_index.clear();
+        context.viewport_scrollbar_controller.clear();
         context.pending_async_scroll_offsets.clear();
         context.completed_async_scroll_operation_ids.clear();
         context.wheel_routing_admission = Web::Compositor::WheelRoutingAdmission::NoAsyncScrollingState;
@@ -870,11 +799,7 @@ void CompositorState::install_display_list_update(ContextState& context, Nonnull
     context.wheel_routing_admission = wheel_routing_admission;
     context.can_accept_async_wheel_events = wheel_routing_admission == Web::Compositor::WheelRoutingAdmission::Accepted;
 
-    auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(context.viewport_scrollbars, context.hovered_viewport_scrollbar_index);
-    auto captured_scrollbar_identity = viewport_scrollbar_identity_at(context.viewport_scrollbars, context.captured_viewport_scrollbar_index);
-    context.viewport_scrollbars = async_scrolling_state.viewport_scrollbars;
-    context.hovered_viewport_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(context.viewport_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
-    context.captured_viewport_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(context.viewport_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
+    context.viewport_scrollbar_controller.set_scrollbars(async_scrolling_state.viewport_scrollbars);
     context.async_scroll_tree.set_state(move(async_scrolling_state));
     if (!context.pending_async_scroll_offsets.is_empty()) {
         if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(context, context.pending_async_scroll_offsets); viewport_scroll_offset.has_value())
@@ -918,122 +843,13 @@ void CompositorState::store_pending_async_scroll_offsets(ContextState& context, 
         context.completed_async_scroll_operation_ids.append(*operation_id);
 }
 
-Optional<size_t> CompositorState::hit_test_viewport_scrollbar(ContextState& context, Gfx::FloatPoint position) const
+bool CompositorState::apply_viewport_scrollbar_drag(Web::Compositor::CompositorContextId context_id, ContextState& context, ViewportScrollbarController::Drag const& drag)
 {
-    for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
-        auto const& scrollbar = context.viewport_scrollbars[i];
-        auto scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.scroll_state_snapshot);
-        if (!scroll_offset.has_value())
-            continue;
-
-        if (scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position))
-            return i;
-    }
-    return {};
-}
-
-Optional<CompositorState::ViewportScrollbarDrag> CompositorState::begin_viewport_scrollbar_drag(ContextState& context, Gfx::FloatPoint position)
-{
-    for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
-        auto const& scrollbar = context.viewport_scrollbars[i];
-        auto scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.scroll_state_snapshot);
-        if (!scroll_offset.has_value())
-            continue;
-
-        auto expanded = context.hovered_viewport_scrollbar_index == i || context.captured_viewport_scrollbar_index == i;
-        auto orientation = orientation_for_scrollbar(scrollbar);
-        auto thumb_rect = translated_thumb_rect(scrollbar, *scroll_offset, expanded);
-        auto primary_position = position.primary_offset_for_orientation(orientation);
-        float thumb_grab_position = 0;
-        if (thumb_rect.to_type<float>().contains(position)) {
-            thumb_grab_position = primary_position - static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
-        } else if (scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position)) {
-            auto gutter_rect = scrollbar_gutter_rect(scrollbar, true);
-            auto thumb_size = static_cast<float>(thumb_rect.primary_size_for_orientation(orientation));
-            auto gutter_start = static_cast<float>(gutter_rect.primary_offset_for_orientation(orientation));
-            auto gutter_size = static_cast<float>(gutter_rect.primary_size_for_orientation(orientation));
-            auto offset_relative_to_gutter = primary_position - gutter_start;
-            thumb_grab_position = max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
-        } else {
-            continue;
-        }
-
-        context.captured_viewport_scrollbar_index = i;
-        context.hovered_viewport_scrollbar_index = i;
-        context.viewport_scrollbar_thumb_grab_position = thumb_grab_position;
-        return ViewportScrollbarDrag { i, primary_position, thumb_grab_position };
-    }
-
-    return {};
-}
-
-Optional<CompositorState::ViewportScrollbarDrag> CompositorState::captured_viewport_scrollbar_drag(ContextState& context, Gfx::FloatPoint position)
-{
-    if (!context.captured_viewport_scrollbar_index.has_value())
-        return {};
-    auto scrollbar_index = *context.captured_viewport_scrollbar_index;
-    if (scrollbar_index >= context.viewport_scrollbars.size()) {
-        context.captured_viewport_scrollbar_index.clear();
-        return {};
-    }
-    auto const& scrollbar = context.viewport_scrollbars[scrollbar_index];
-    auto primary_position = position.primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
-    return ViewportScrollbarDrag { scrollbar_index, primary_position, context.viewport_scrollbar_thumb_grab_position };
-}
-
-Optional<CompositorState::ViewportScrollbarDrag> CompositorState::release_captured_viewport_scrollbar_drag(ContextState& context, Gfx::FloatPoint position)
-{
-    if (!context.captured_viewport_scrollbar_index.has_value())
-        return {};
-    auto scrollbar_index = *context.captured_viewport_scrollbar_index;
-    auto thumb_grab_position = context.viewport_scrollbar_thumb_grab_position;
-    if (scrollbar_index >= context.viewport_scrollbars.size()) {
-        context.captured_viewport_scrollbar_index.clear();
-        return {};
-    }
-    auto const& scrollbar = context.viewport_scrollbars[scrollbar_index];
-    auto primary_position = position.primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
-    context.captured_viewport_scrollbar_index.clear();
-    return ViewportScrollbarDrag { scrollbar_index, primary_position, thumb_grab_position };
-}
-
-void CompositorState::set_hovered_viewport_scrollbar(Web::Compositor::CompositorContextId context_id, ContextState& context, Optional<size_t> scrollbar_index)
-{
-    if (context.hovered_viewport_scrollbar_index == scrollbar_index)
-        return;
-
-    context.hovered_viewport_scrollbar_index = scrollbar_index;
-    present_viewport_scrollbar_overlay(context_id, context);
-}
-
-bool CompositorState::apply_viewport_scrollbar_drag(Web::Compositor::CompositorContextId context_id, ContextState& context, size_t scrollbar_index, float primary_position, float thumb_grab_position)
-{
-    if (scrollbar_index >= context.viewport_scrollbars.size())
+    auto scroll_delta = context.viewport_scrollbar_controller.scroll_delta_for_drag(context.async_scroll_tree, context.scroll_state_snapshot, drag);
+    if (!scroll_delta.has_value())
         return false;
 
-    auto const& scrollbar = context.viewport_scrollbars[scrollbar_index];
-    auto expanded = context.hovered_viewport_scrollbar_index == scrollbar_index || context.captured_viewport_scrollbar_index == scrollbar_index;
-    auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
-    if (scroll_size == 0)
-        return false;
-
-    auto current_scroll_offset = context.async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, context.scroll_state_snapshot);
-    if (!current_scroll_offset.has_value())
-        return false;
-
-    auto orientation = orientation_for_scrollbar(scrollbar);
-    auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
-    auto min_thumb_position = static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
-    auto max_thumb_position = min_thumb_position + scrollbar.max_scroll_offset * static_cast<float>(scroll_size);
-    auto target_thumb_position = AK::clamp(primary_position - thumb_grab_position, min_thumb_position, max_thumb_position);
-    auto target_scroll_offset = (target_thumb_position - min_thumb_position) / static_cast<float>(scroll_size);
-
-    Gfx::FloatPoint delta;
-    delta.set_primary_offset_for_orientation(orientation, target_scroll_offset - current_scroll_offset->primary_offset_for_orientation(orientation));
-    if (delta.x() == 0 && delta.y() == 0)
-        return false;
-
-    auto scroll_offsets = context.async_scroll_tree.apply_scroll_delta(scrollbar.scroll_node_id, delta, context.scroll_state_snapshot);
+    auto scroll_offsets = context.async_scroll_tree.apply_scroll_delta(scroll_delta->scroll_node_id, scroll_delta->delta, context.scroll_state_snapshot);
     if (scroll_offsets.is_empty())
         return false;
     context.async_scroll_tree.rebuild_wheel_hit_test_targets(context.display_list, context.visual_context_tree.has_value() ? &context.visual_context_tree.value() : nullptr, context.scroll_state_snapshot);
@@ -1049,35 +865,6 @@ bool CompositorState::apply_viewport_scrollbar_drag(Web::Compositor::CompositorC
     schedule_present_frame(context_id, context, async_scroll_viewport_rect);
     VERIFY(context.web_content_client);
     context.web_content_client->request_rendering_update();
-    return true;
-}
-
-void CompositorState::present_viewport_scrollbar_overlay(Web::Compositor::CompositorContextId context_id, ContextState& context)
-{
-    if (context.async_scrolling_viewport_rect.is_empty())
-        return;
-    schedule_present_frame(context_id, context, context.async_scrolling_viewport_rect);
-}
-
-bool CompositorState::paint_viewport_scrollbar_overlay(ContextState& context, Gfx::PaintingSurface& surface)
-{
-    if (context.viewport_scrollbars.is_empty())
-        return false;
-
-    for (size_t i = 0; i < context.viewport_scrollbars.size(); ++i) {
-        auto const& scrollbar = context.viewport_scrollbars[i];
-        auto expanded = context.hovered_viewport_scrollbar_index == i || context.captured_viewport_scrollbar_index == i;
-        Web::Painting::PaintScrollBar paint_scrollbar {
-            .scroll_frame_index = scrollbar.scroll_frame_index,
-            .gutter_rect = scrollbar_gutter_rect(scrollbar, expanded),
-            .thumb_rect = translated_thumb_rect(scrollbar, context.scroll_state_snapshot, expanded),
-            .scroll_size = scrollbar_scroll_size(scrollbar, expanded),
-            .thumb_color = scrollbar.thumb_color,
-            .track_color = scrollbar.track_color,
-            .vertical = scrollbar.vertical,
-        };
-        m_display_list_player->paint_scrollbar(surface, paint_scrollbar);
-    }
     return true;
 }
 

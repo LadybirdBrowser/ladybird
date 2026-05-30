@@ -4,6 +4,7 @@ set(SOURCES
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
     VSyncScheduler.cpp
+    ViewportScrollbarController.cpp
 )
 
 set(GENERATED_SOURCES
