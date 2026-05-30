@@ -1,0 +1,12 @@
+collapsed query 'alpha beta': true
+raw query 'alpha     beta': false
+offset-case startContainer is text node: true
+offset-case startOffset: 0
+offset-case endOffset: 15
+split inline query 'epsilon zeta': true
+cross-node query 'sigma x': true
+cross-node-case endOffset within node: true
+first-letter query 'kappa lambda': true
+first-letter-case endOffset within node: true
+pre raw query 'mu     nu': true
+pre collapsed query 'mu nu': false

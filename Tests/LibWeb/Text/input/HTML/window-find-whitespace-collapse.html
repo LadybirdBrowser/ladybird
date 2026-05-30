@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+    #first-letter-case::first-letter { color: red; }
+    #pre-case { white-space: pre; }
+</style>
+<script src="../include.js"></script>
+<p id="collapse-case">
+alpha     beta
+</p>
+<p id="offset-case">gamma     delta</p>
+<p id="split-inline-case">epsilon <span> zeta</span></p>
+<p id="cross-node-space-case"><span>sigma   </span><span>x</span></p>
+<p id="first-letter-case">kappa lambda</p>
+<p id="pre-case">mu     nu</p>
+<script>
+    test(() => {
+        function find(query) {
+            window.getSelection().removeAllRanges();
+            return window.find(query);
+        }
+
+        // Searching against collapsed whitespace finds the rendered text, not the raw text.
+        println("collapsed query 'alpha beta': " + find("alpha beta"));
+        println("raw query 'alpha     beta': " + find("alpha     beta"));
+
+        // A match maps back to the original (uncollapsed) DOM offsets.
+        find("gamma delta");
+        let range = window.getSelection().getRangeAt(0);
+        println("offset-case startContainer is text node: " + (range.startContainer.nodeType === Node.TEXT_NODE));
+        println("offset-case startOffset: " + range.startOffset);
+        println("offset-case endOffset: " + range.endOffset);
+
+        // Whitespace collapses across adjacent inline text nodes.
+        println("split inline query 'epsilon zeta': " + find("epsilon zeta"));
+        println("cross-node query 'sigma x': " + find("sigma x"));
+
+        // A match ending on a collapsed space that straddles a node boundary must produce an in-bounds DOM offset,
+        // even when the following node is shorter than the offset would be.
+        find("sigma ");
+        range = window.getSelection().getRangeAt(0);
+        println("cross-node-case endOffset within node: " + (range.endOffset <= range.endContainer.length));
+
+        // Searching works across a ::first-letter boundary.
+        println("first-letter query 'kappa lambda': " + find("kappa lambda"));
+        range = window.getSelection().getRangeAt(0);
+        println("first-letter-case endOffset within node: " + (range.endOffset <= range.endContainer.length));
+
+        // 'white-space: pre' preserves whitespace, so the raw text matches and the collapsed text does not.
+        println("pre raw query 'mu     nu': " + find("mu     nu"));
+        println("pre collapsed query 'mu nu': " + find("mu nu"));
+    });
+</script>
