@@ -74,7 +74,7 @@ void StyleScope::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_pending_has_invalidations);
 }
 
-void MatchingRule::visit_edges(GC::Cell::Visitor& visitor)
+void MatchingRule::visit_edges(GC::Cell::Visitor& visitor) const
 {
     visitor.visit(rule);
     visitor.visit(sheet);

@@ -151,6 +151,9 @@ void StyleComputer::visit_edges(Visitor& visitor)
         m_cached_line_height_computation_context->visit_edges(visitor);
     if (m_cached_generic_computation_context.has_value())
         m_cached_generic_computation_context->visit_edges(visitor);
+
+    for (auto& rule : m_rules_to_run_scratch)
+        rule.visit_edges(visitor);
 }
 
 Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)
@@ -371,7 +374,11 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
     else if (shadow_root)
         shadow_host = shadow_root->host();
 
-    Vector<ScopedMatchingRule, 512> rules_to_run;
+    auto& rules_to_run = m_rules_to_run_scratch;
+    VERIFY(rules_to_run.is_empty());
+    ScopeGuard clear_rules_to_run = [&] {
+        rules_to_run.clear_with_capacity();
+    };
 
     auto add_rule_to_run = [&](MatchingRule const& rule_to_run, GC::Ptr<DOM::ShadowRoot const> rule_root) {
         // FIXME: This needs to be revised when adding support for the ::shadow selector, as it needs to cross shadow boundaries.
@@ -3315,6 +3322,14 @@ void RuleCache::for_each_matching_rules(DOM::AbstractElement abstract_element, F
         return;
 
     (void)callback(other_rules);
+}
+
+void StyleComputer::ScopedMatchingRule::visit_edges(GC::Cell::Visitor& visitor)
+{
+    if (rule)
+        rule->visit_edges(visitor);
+    visitor.visit(shadow_root);
+    visitor.visit(scope_root);
 }
 
 }

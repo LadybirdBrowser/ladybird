@@ -49,7 +49,7 @@ struct MatchingRule {
     SelectorList const& absolutized_selectors() const;
     FlyString const& qualified_layer_name() const;
 
-    void visit_edges(GC::Cell::Visitor&);
+    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 struct RuleCache {
