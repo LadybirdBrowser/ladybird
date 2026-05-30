@@ -158,7 +158,7 @@ void InlineLevelIterator::skip_to_next()
     compute_next();
 }
 
-Optional<InlineLevelIterator::Item> InlineLevelIterator::next()
+Optional<InlineLevelIterator::Item&> InlineLevelIterator::next()
 {
     if (m_next_item_index >= m_items.size())
         return {};
@@ -194,8 +194,9 @@ Gfx::GlyphRun::TextType InlineLevelIterator::resolve_text_direction_from_context
     // Search forward in the pre-generated chunks array to find the next chunk with known direction.
     // Since chunks are pre-generated, this is just O(1) array access per iteration.
     Optional<Gfx::GlyphRun::TextType> next_known_direction;
-    for (size_t i = m_text_node_context->next_chunk_index; i < m_text_node_context->chunks.size(); ++i) {
-        auto const& chunk = m_text_node_context->chunks[i];
+    auto const& chunks = m_text_node_context->chunk_list->chunks;
+    for (size_t i = m_text_node_context->next_chunk_index; i < chunks.size(); ++i) {
+        auto const& chunk = chunks[i];
         if (chunk.text_type == Gfx::GlyphRun::TextType::Ltr || chunk.text_type == Gfx::GlyphRun::TextType::Rtl) {
             next_known_direction = chunk.text_type;
             break;
@@ -235,11 +236,12 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
 
         // Get the next chunk from the pre-generated array
         Optional<TextNode::Chunk> chunk_opt;
-        if (m_text_node_context->next_chunk_index < m_text_node_context->chunks.size()) {
-            chunk_opt = m_text_node_context->chunks[m_text_node_context->next_chunk_index++];
+        auto const& chunks = m_text_node_context->chunk_list->chunks;
+        if (m_text_node_context->next_chunk_index < chunks.size()) {
+            chunk_opt = chunks[m_text_node_context->next_chunk_index++];
         }
 
-        bool is_last_chunk = (m_text_node_context->next_chunk_index >= m_text_node_context->chunks.size());
+        bool is_last_chunk = (m_text_node_context->next_chunk_index >= chunks.size());
 
         auto is_empty_editable = false;
         if (!chunk_opt.has_value()) {
@@ -426,7 +428,9 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
     auto const& chunks = text_node.chunks_for_layout(do_wrap_lines, do_respect_linebreaks);
 
     m_text_node_context = TextNodeContext {
-        .chunks = chunks.chunks,
+        // OPTIMIZATION: The chunk list is cached by the TextNode and only read by this iterator, so keep a pointer
+        //               to it instead of copying every chunk when entering a text node.
+        .chunk_list = &chunks,
         .next_chunk_index = 0,
         .should_collapse_whitespace = chunks.should_collapse_whitespace,
         .should_wrap_lines = do_wrap_lines,
