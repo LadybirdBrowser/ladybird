@@ -1,6 +1,7 @@
 set(SOURCES
     BackingStoreManager.cpp
     CompositorState.cpp
+    ContextState.cpp
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
     VSyncScheduler.cpp
