@@ -53,6 +53,7 @@ private:
     QPushButton* m_next_button { nullptr };
     QPushButton* m_exit_button { nullptr };
     QCheckBox* m_match_case { nullptr };
+    QCheckBox* m_regex { nullptr };
     QLabel* m_result_label { nullptr };
     bool m_is_updating_chrome_style { false };
 };

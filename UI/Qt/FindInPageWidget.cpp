@@ -78,6 +78,17 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
         find_text_changed();
     });
 
+    m_regex = new QCheckBox(this);
+    m_regex->setText("Regex");
+    m_regex->setChecked(false);
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    connect(m_regex, &QCheckBox::checkStateChanged, this, [this] {
+#else
+    connect(m_regex, &QCheckBox::stateChanged, this, [this] {
+#endif
+        find_text_changed();
+    });
+
     m_result_label = new QLabel(this);
     m_result_label->setVisible(false);
     m_result_label->setStyleSheet("font-weight: bold;");
@@ -86,6 +97,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     layout->addWidget(m_previous_button);
     layout->addWidget(m_next_button);
     layout->addWidget(m_match_case);
+    layout->addWidget(m_regex);
     layout->addWidget(m_result_label);
     layout->addStretch(1);
     layout->addWidget(m_exit_button);
@@ -119,7 +131,8 @@ void FindInPageWidget::find_text_changed()
 {
     auto query = ak_string_from_qstring(m_find_text->text());
     auto case_sensitive = m_match_case->isChecked() ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive;
-    m_content_view->find_in_page(query, case_sensitive);
+    auto regex = m_regex->isChecked();
+    m_content_view->find_in_page(query, case_sensitive, regex);
 }
 
 void FindInPageWidget::keyPressEvent(QKeyEvent* event)
