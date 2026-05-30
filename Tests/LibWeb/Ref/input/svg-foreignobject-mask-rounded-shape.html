@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-foreignobject-mask-rounded-shape-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-64;totalPixels=0-120">
+<style>
+    body {
+        margin: 0;
+        background: red;
+    }
+
+    .wrapper {
+        position: relative;
+        width: 40px;
+        height: 40px;
+    }
+
+    .shifted-svg {
+        position: absolute;
+        inset-inline-start: -4px;
+        top: -4px;
+    }
+
+    .icon {
+        width: 40px;
+        height: 40px;
+        background: green;
+    }
+</style>
+<div class="wrapper">
+    <svg class="shifted-svg" width="48" height="48" viewBox="-4 -4 48 48" overflow="visible">
+        <defs>
+            <path id="blob-mask" d="M0 12C0 5.37258 5.37258 0 12 0H28C34.6274 0 40 5.37258 40 12V28C40 34.6274 34.6274 40 28 40H12C5.37258 40 0 34.6274 0 28V12Z" />
+        </defs>
+        <mask id="blob" fill="black" x="0" y="0" width="40" height="40">
+            <use href="#blob-mask" fill="white" />
+        </mask>
+        <foreignObject mask="url(#blob)" x="0" y="0" width="40" height="40">
+            <div class="wrapper">
+                <svg class="shifted-svg" width="48" height="48" viewBox="-4 -4 48 48" overflow="visible">
+                    <defs>
+                        <path id="inner-blob-mask" d="M0 12C0 5.37258 5.37258 0 12 0H28C34.6274 0 40 5.37258 40 12V28C40 34.6274 34.6274 40 28 40H12C5.37258 40 0 34.6274 0 28V12Z" />
+                    </defs>
+                    <mask id="inner-blob" fill="black" x="0" y="0" width="40" height="40">
+                        <use href="#inner-blob-mask" fill="white" />
+                    </mask>
+                    <foreignObject mask="url(#inner-blob)" x="0" y="0" width="40" height="40">
+                        <div class="icon"></div>
+                    </foreignObject>
+                </svg>
+            </div>
+        </foreignObject>
+    </svg>
+</div>
