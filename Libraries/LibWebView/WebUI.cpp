@@ -16,29 +16,31 @@
 namespace WebView {
 
 template<typename WebUIType>
-static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client, String host)
+static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client, u64 page_id, String host)
 {
+    VERIFY(page_id > 0);
+
     auto paired = TRY(IPC::Transport::create_paired());
     auto handle = move(paired.remote_handle);
 
     auto web_ui = WebUIType::create(client, move(paired.local), move(host));
-    client.async_connect_to_web_ui(0, move(handle));
+    client.async_connect_to_web_ui(page_id, move(handle));
 
     return web_ui;
 }
 
-ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host)
+ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, u64 page_id, String host)
 {
     RefPtr<WebUI> web_ui;
 
     if (host == "bookmarks"sv)
-        web_ui = TRY(create_web_ui<BookmarksUI>(client, move(host)));
+        web_ui = TRY(create_web_ui<BookmarksUI>(client, page_id, move(host)));
     else if (host == "processes"sv)
-        web_ui = TRY(create_web_ui<ProcessesUI>(client, move(host)));
+        web_ui = TRY(create_web_ui<ProcessesUI>(client, page_id, move(host)));
     else if (host == "settings"sv)
-        web_ui = TRY(create_web_ui<SettingsUI>(client, move(host)));
+        web_ui = TRY(create_web_ui<SettingsUI>(client, page_id, move(host)));
     else if (host == "version"sv)
-        web_ui = TRY(create_web_ui<VersionUI>(client, move(host)));
+        web_ui = TRY(create_web_ui<VersionUI>(client, page_id, move(host)));
 
     if (web_ui)
         web_ui->register_interfaces();

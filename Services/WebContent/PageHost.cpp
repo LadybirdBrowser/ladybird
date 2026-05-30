@@ -20,25 +20,31 @@ namespace WebContent {
 PageHost::PageHost(ConnectionFromClient& client)
     : m_client(client)
 {
-    auto& first_page = create_page();
+}
+
+void PageHost::initialize(u64 initial_page_id)
+{
+    VERIFY(m_pages.is_empty());
+    auto& first_page = create_page(initial_page_id);
     Web::HTML::TraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank());
 }
 
-PageClient& PageHost::create_page()
+PageClient& PageHost::create_page(u64 page_id)
 {
-    m_pages.set(m_next_id, PageClient::create(Web::Bindings::main_thread_vm(), *this, m_next_id));
-    ++m_next_id;
-    return *m_pages.get(m_next_id - 1).value();
+    VERIFY(page_id > 0);
+    VERIFY(!m_pages.contains(page_id));
+    m_pages.set(page_id, PageClient::create(Web::Bindings::main_thread_vm(), *this, page_id));
+    return *m_pages.get(page_id).value();
 }
 
-void PageHost::remove_page(Badge<PageClient>, u64 index)
+void PageHost::remove_page(Badge<PageClient>, u64 page_id)
 {
-    m_pages.remove(index);
+    m_pages.remove(page_id);
 }
 
-Optional<PageClient&> PageHost::page(u64 index)
+Optional<PageClient&> PageHost::page(u64 page_id)
 {
-    return m_pages.get(index).map([](auto& value) -> PageClient& {
+    return m_pages.get(page_id).map([](auto& value) -> PageClient& {
         return *value;
     });
 }

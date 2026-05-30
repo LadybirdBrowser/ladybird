@@ -41,7 +41,7 @@ NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screen
     VERIFY(!m_pending_screenshot);
 
     m_pending_screenshot = Core::Promise<RefPtr<Gfx::Bitmap const>>::construct();
-    client().async_take_document_screenshot(0);
+    client().async_take_document_screenshot(page_id());
 
     return *m_pending_screenshot;
 }

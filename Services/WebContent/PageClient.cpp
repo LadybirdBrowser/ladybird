@@ -702,22 +702,18 @@ void PageClient::page_did_update_resource_count(i32 count_waiting)
 
 PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Web::HTML::TokenizedFeature::NoOpener no_opener)
 {
-    auto& new_client = m_owner.create_page();
-
-    Optional<u64> page_id;
     if (no_opener == Web::HTML::TokenizedFeature::NoOpener::Yes) {
         // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
         // FIXME: For now, just create a new page in the same process anyway
     }
 
-    page_id = new_client.m_id;
-
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, page_id);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
         exit(0);
     }
 
+    auto& new_client = m_owner.create_page(response->new_page_id());
     return { &new_client.page(), response->take_handle() };
 }
 

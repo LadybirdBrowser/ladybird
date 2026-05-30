@@ -504,20 +504,27 @@ void Application::open_url_in_new_window(URL::URL const& url)
     dbgln("open_url_in_new_window() is unsupported on this platform (url: {})", url);
 }
 
-static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, u64 initial_page_id)
 {
     auto request_server_handle = TRY(connect_new_request_server_client());
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
 
-    NonnullRefPtr<WebContentClient> client = view.has_value()
-        ? TRY(WebView::launch_web_content_process(*view))
-        : TRY(WebView::launch_spare_web_content_process());
+    auto client = TRY(WebView::launch_web_content_process(initial_page_id));
+    client->async_initialize(initial_page_id);
+    if (view.has_value())
+        client->assign_view({}, *view);
 
     client->async_connect_to_request_server(move(request_server_handle));
     client->async_connect_to_image_decoder(move(image_decoder_handle));
     TRY(Application::the().connect_web_content_to_compositor(*client));
 
     return client;
+}
+
+u64 Application::allocate_page_id()
+{
+    VERIFY(m_next_page_id < Web::Compositor::page_presenting_context_id_tag);
+    return m_next_page_id++;
 }
 
 static bool can_send_compositor_process_ipc(RefPtr<CompositorClient> const& compositor_client)
@@ -652,7 +659,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
     }
 
     launch_spare_web_content_process();
-    return create_web_content_client(view);
+    return create_web_content_client(view, allocate_page_id());
 }
 
 void Application::launch_spare_web_content_process()
@@ -676,7 +683,7 @@ void Application::launch_spare_web_content_process()
     Core::deferred_invoke([this]() {
         m_has_queued_task_to_launch_spare_web_content_process = false;
 
-        auto web_content_client = create_web_content_client({});
+        auto web_content_client = create_web_content_client({}, allocate_page_id());
         if (web_content_client.is_error()) {
             dbgln("Unable to create spare web content client: {}", web_content_client.error());
             return;
