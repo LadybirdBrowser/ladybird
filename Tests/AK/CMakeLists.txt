@@ -46,17 +46,14 @@ set(AK_TEST_SOURCES
     TestMemory.cpp
     TestMemoryStream.cpp
     TestNeverDestroyed.cpp
-    TestNonnullOwnPtr.cpp
-    TestNonnullRefPtr.cpp
     TestNumberFormat.cpp
     TestOptional.cpp
     TestOptionParser.cpp
-    TestOwnPtr.cpp
+    TestPointers.cpp
     TestQueue.cpp
     TestQuickSort.cpp
     TestRandom.cpp
     TestRedBlackTree.cpp
-    TestRefPtr.cpp
     TestSinglyLinkedList.cpp
     TestSourceGenerator.cpp
     TestSourceLocation.cpp
@@ -78,7 +75,6 @@ set(AK_TEST_SOURCES
     TestUtf8View.cpp
     TestVariant.cpp
     TestVector.cpp
-    TestWeakPtr.cpp
 )
 
 # FIXME: LexicalPathWindows has some parenting and path parts sizing inconsistencies with LexicalPath, so it deserves
