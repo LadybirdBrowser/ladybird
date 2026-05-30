@@ -513,8 +513,7 @@ void ContextState::did_submit_prepared_frame(Gfx::IntRect viewport_rect)
 Optional<Web::Compositor::PublishToCompositorSurface> ContextState::present_synchronously(Web::Painting::DisplayListPlayerSkia& display_list_player)
 {
     auto* publish_mode = m_presentation_mode.get_pointer<Web::Compositor::PublishToCompositorSurface>();
-    if (!publish_mode)
-        return {};
+    VERIFY(publish_mode);
     if (!can_render_frame())
         return {};
     // Don't race an async present already in flight for this context; its own completion will publish.
@@ -546,15 +545,13 @@ bool ContextState::can_paint_screenshot(Gfx::ShareableBitmap& target_bitmap) con
     return m_display_list && target_bitmap.is_valid() && target_bitmap.bitmap();
 }
 
-bool ContextState::paint_screenshot(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap)
+void ContextState::paint_screenshot(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap)
 {
-    if (!can_paint_screenshot(target_bitmap))
-        return false;
+    VERIFY(can_paint_screenshot(target_bitmap));
 
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
     paint_current_display_list(display_list_player, *target_surface);
     display_list_player.flush(*target_surface);
-    return true;
 }
 
 bool ContextState::acknowledge_presented_bitmap(i32 bitmap_id)

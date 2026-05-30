@@ -29,7 +29,7 @@ static ViewportScrollbarIdentity viewport_scrollbar_identity(Web::Compositor::Vi
 
 static Optional<ViewportScrollbarIdentity> viewport_scrollbar_identity_at(ReadonlySpan<Web::Compositor::ViewportScrollbar> scrollbars, Optional<size_t> scrollbar_index)
 {
-    if (!scrollbar_index.has_value() || *scrollbar_index >= scrollbars.size())
+    if (!scrollbar_index.has_value())
         return {};
     return viewport_scrollbar_identity(scrollbars[*scrollbar_index]);
 }
@@ -159,10 +159,6 @@ Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::capture
     if (!m_captured_scrollbar_index.has_value())
         return {};
     auto scrollbar_index = *m_captured_scrollbar_index;
-    if (scrollbar_index >= m_scrollbars.size()) {
-        m_captured_scrollbar_index.clear();
-        return {};
-    }
     auto const& scrollbar = m_scrollbars[scrollbar_index];
     auto primary_position = position.primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
     return Drag { scrollbar_index, primary_position, m_thumb_grab_position };
@@ -174,10 +170,6 @@ Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::release
         return {};
     auto scrollbar_index = *m_captured_scrollbar_index;
     auto thumb_grab_position = m_thumb_grab_position;
-    if (scrollbar_index >= m_scrollbars.size()) {
-        m_captured_scrollbar_index.clear();
-        return {};
-    }
     auto const& scrollbar = m_scrollbars[scrollbar_index];
     auto primary_position = position.primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
     m_captured_scrollbar_index.clear();
@@ -196,9 +188,6 @@ bool ViewportScrollbarController::set_hovered_scrollbar(Optional<size_t> scrollb
 
 Optional<ViewportScrollbarController::ScrollDelta> ViewportScrollbarController::scroll_delta_for_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Drag const& drag) const
 {
-    if (drag.scrollbar_index >= m_scrollbars.size())
-        return {};
-
     auto const& scrollbar = m_scrollbars[drag.scrollbar_index];
     auto expanded = is_expanded(drag.scrollbar_index);
     auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);

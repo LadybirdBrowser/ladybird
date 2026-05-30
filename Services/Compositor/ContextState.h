@@ -153,7 +153,7 @@ public:
     void did_submit_prepared_frame(Gfx::IntRect);
     Optional<Web::Compositor::PublishToCompositorSurface> present_synchronously(Web::Painting::DisplayListPlayerSkia&);
     bool can_paint_screenshot(Gfx::ShareableBitmap&) const;
-    bool paint_screenshot(Web::Painting::DisplayListPlayerSkia&, Gfx::ShareableBitmap&);
+    void paint_screenshot(Web::Painting::DisplayListPlayerSkia&, Gfx::ShareableBitmap&);
     bool acknowledge_presented_bitmap(i32 bitmap_id);
     void did_finish_gpu_present(i32 bitmap_id);
 
