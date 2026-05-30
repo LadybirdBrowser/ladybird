@@ -52,7 +52,7 @@ public:
 
     InlineLevelIterator(Layout::InlineFormattingContext&, LayoutState&, Layout::BlockContainer const& containing_block, LayoutState::UsedValues const& containing_block_used_values, LayoutMode);
 
-    Optional<Item> next();
+    Optional<Item&> next();
     CSSPixels next_non_whitespace_sequence_width();
 
 private:
@@ -80,7 +80,7 @@ private:
     LayoutMode const m_layout_mode;
 
     struct TextNodeContext {
-        Vector<TextNode::Chunk> chunks;
+        TextNode::ChunkList const* chunk_list { nullptr };
         size_t next_chunk_index { 0 };
         bool should_collapse_whitespace {};
         bool should_wrap_lines {};
