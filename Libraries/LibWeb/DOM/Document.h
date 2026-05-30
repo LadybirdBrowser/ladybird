@@ -985,6 +985,8 @@ public:
     GC::Ptr<CaretPosition> caret_position_from_point(double x, double y, Bindings::CaretPositionFromPointOptions const&);
     TraversalDecision hit_test_all(CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
+    void set_caret_hit_test_debug_rect(Optional<CSSPixelRect>);
+
     void set_needs_to_record_display_list();
 
     Unicode::Segmenter& grapheme_segmenter() const;
@@ -1480,6 +1482,7 @@ private:
     bool m_needs_accumulated_visual_contexts_update { false };
     bool m_needs_invalidation_of_elements_affected_by_has { false };
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
+    Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
 
     mutable StyleInvalidationCounters m_style_invalidation_counters;
     mutable u64 m_style_invalidations_since_last_counter_dump { 0 };

@@ -463,6 +463,13 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
+    if (request == "set-caret-hit-test-debug-overlay") {
+        bool state = argument == "on";
+        auto traversable = page->page().top_level_traversable();
+        traversable->set_should_show_caret_hit_test_debug_overlay(state);
+        return;
+    }
+
     if (request == "clear-cache") {
         Web::Fetch::Fetching::clear_http_memory_cache();
         return;

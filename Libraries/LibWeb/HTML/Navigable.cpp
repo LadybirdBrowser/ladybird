@@ -434,8 +434,10 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
 
     // 5. Set navigable's parent to parent.
     m_parent = parent;
-    if (parent)
+    if (parent) {
         m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
+        m_should_show_caret_hit_test_debug_overlay = parent->m_should_show_caret_hit_test_debug_overlay;
+    }
     if (parent && !m_is_svg_page && has_compositor_context() && parent->has_compositor_context()) {
         m_compositor_surface_id = Painting::allocate_compositor_surface_id();
         compositor_context().set_presentation_mode(Compositor::PublishToCompositorSurface {
@@ -3444,6 +3446,21 @@ void Navigable::set_should_show_line_box_borders(bool value)
         child_navigable->set_should_show_line_box_borders(value);
 }
 
+void Navigable::set_should_show_caret_hit_test_debug_overlay(bool value)
+{
+    m_should_show_caret_hit_test_debug_overlay = value;
+
+    if (auto document = active_document()) {
+        if (value)
+            document->set_needs_repaint(Badge<HTML::Navigable> {}, InvalidateDisplayList::Yes);
+        else
+            document->set_caret_hit_test_debug_rect({});
+    }
+
+    for (auto const& child_navigable : child_navigables())
+        child_navigable->set_should_show_caret_hit_test_debug_overlay(value);
+}
+
 bool Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     if (!has_compositor_context())
@@ -3504,7 +3521,7 @@ void Navigable::paint_next_frame()
     }
 
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders };
+    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
     if (is_top_level_traversable()) {
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
     } else {
