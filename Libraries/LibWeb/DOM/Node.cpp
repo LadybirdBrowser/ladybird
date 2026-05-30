@@ -1809,6 +1809,8 @@ void Node::removed_from(IsSubtreeRoot, Node*, Node&)
     m_is_connected = false;
     m_in_editable_subtree = false;
     m_inside_blocking_wheel_event_handler = false;
+    if (m_layout_node)
+        m_layout_node->clear_paintables();
     m_layout_node = nullptr;
     m_paintable = nullptr;
 
