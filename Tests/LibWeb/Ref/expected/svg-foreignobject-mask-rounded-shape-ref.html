@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        background: red;
+    }
+
+    .wrapper {
+        position: relative;
+        width: 40px;
+        height: 40px;
+    }
+
+    .shifted-svg {
+        position: absolute;
+        inset-inline-start: -4px;
+        top: -4px;
+    }
+</style>
+<div class="wrapper">
+    <svg class="shifted-svg" width="48" height="48" viewBox="-4 -4 48 48" overflow="visible">
+        <path fill="green" d="M0 12C0 5.37258 5.37258 0 12 0H28C34.6274 0 40 5.37258 40 12V28C40 34.6274 34.6274 40 28 40H12C5.37258 40 0 34.6274 0 28V12Z" />
+    </svg>
+</div>

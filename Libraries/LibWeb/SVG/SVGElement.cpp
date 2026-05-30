@@ -16,6 +16,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
@@ -287,12 +288,22 @@ void SVGElement::adjust_computed_style(CSS::ComputedProperties& computed_propert
 {
     Base::adjust_computed_style(computed_properties);
 
-    // The outermost <svg> element (no ancestor <svg>) participates in CSS box layout
-    // and may be positioned. All other SVG elements, including nested <svg> elements,
-    // use SVG's coordinate system and must be forced to position:static.
-    if (is<SVGSVGElement>(*this) && !owner_svg_element())
-        return;
+    // An <svg> element that is not in SVG layout participates in CSS box layout
+    // and may be positioned. That includes the outermost <svg>, and <svg>
+    // elements in HTML content inside <foreignObject>.
+    if (is<SVGSVGElement>(*this)) {
+        for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            if (is<SVGForeignObjectElement>(*ancestor))
+                return;
+            if (is<SVGSVGElement>(*ancestor))
+                break;
+        }
+        if (!owner_svg_element())
+            return;
+    }
 
+    // SVG elements in SVG layout use SVG's coordinate system and must be forced
+    // to position: static.
     computed_properties.set_property(CSS::PropertyID::Position, CSS::KeywordStyleValue::create(CSS::Keyword::Static));
 }
 
