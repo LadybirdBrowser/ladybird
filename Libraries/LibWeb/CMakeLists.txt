@@ -334,6 +334,7 @@ set(SOURCES
     DOM/AnchorNameMap.cpp
     DOM/Attr.cpp
     DOM/CDATASection.cpp
+    DOM/CaretPosition.cpp
     DOM/CharacterData.cpp
     DOM/Comment.cpp
     DOM/CustomEvent.cpp

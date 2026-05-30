@@ -82,6 +82,7 @@
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
+#include <LibWeb/DOM/CaretPosition.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/DOMImplementation.h>
@@ -7204,6 +7205,60 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
 
     // 5. Return sequence.
     return sequence;
+}
+
+static bool shadow_root_is_allowed_for_caret_position(ShadowRoot const& shadow_root, Bindings::CaretPositionFromPointOptions const& options)
+{
+    for (auto const& allowed_shadow_root : options.shadow_roots) {
+        if (shadow_root.is_shadow_including_inclusive_ancestor_of(allowed_shadow_root))
+            return true;
+    }
+    return false;
+}
+
+// https://drafts.csswg.org/cssom-view/#dom-document-caretpositionfrompoint
+GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, Bindings::CaretPositionFromPointOptions const& options)
+{
+    // 1. If there is no viewport associated with the document, return null.
+    // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
+    //    bar (if any), or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
+    //    return null.
+    auto viewport_rect = this->viewport_rect();
+    CSSPixelPoint position { x, y };
+    // FIXME: This should account for the size of the scroll bar.
+    if (x < 0 || y < 0 || position.x() > viewport_rect.width() || position.y() > viewport_rect.height())
+        return nullptr;
+
+    // Ensure the layout tree exists prior to hit testing.
+    update_layout(UpdateLayoutReason::DocumentCaretPositionFromPoint);
+
+    // 3. If at the coordinates x,y in the viewport no text insertion point indicator would have been inserted when
+    //    applying the transforms that apply to the descendants of the viewport, return null.
+    auto caret_position = caret_position_from_point(position);
+    if (!caret_position.has_value())
+        return nullptr;
+
+    // FIXME: 4. If at the coordinates x,y in the viewport a text insertion point indicator would have been inserted
+    //           in a text entry widget which is also a replaced element, when applying the transforms that apply to
+    //           the descendants of the viewport, return a caret position for the text entry widget.
+
+    // 5. Otherwise, retarget shadow tree positions whose roots are not allowed by options.shadowRoots.
+    auto start_node = caret_position->boundary.node;
+    auto start_offset = caret_position->boundary.offset;
+    auto* shadow_root = as_if<ShadowRoot>(start_node->root());
+    while (shadow_root && !shadow_root_is_allowed_for_caret_position(*shadow_root, options)) {
+        auto* host = shadow_root->host();
+        auto* host_parent = host->parent();
+        if (!host_parent)
+            return nullptr;
+        start_offset = host->index();
+        start_node = *host_parent;
+        shadow_root = as_if<ShadowRoot>(start_node->root());
+    }
+
+    return CaretPosition::create(realm(), start_node, start_offset, caret_position->debug_rect.map([](auto const& rect) {
+        return rect.template to_type<float>();
+    }));
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-document-scrollingelement

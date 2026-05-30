@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+
+    #target {
+        margin: 20px;
+    }
+</style>
+<div id="target">hello world</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = target.firstChild;
+        const range = document.createRange();
+        range.setStart(textNode, 1);
+        range.setEnd(textNode, 1);
+        const rect = range.getBoundingClientRect();
+        const caretPosition = document.caretPositionFromPoint(rect.x, rect.y + rect.height / 2);
+
+        println(`negative x returns null: ${document.caretPositionFromPoint(-1, 0) === null}`);
+        println(`negative y returns null: ${document.caretPositionFromPoint(0, -1) === null}`);
+        println(`caret position exists: ${caretPosition instanceof CaretPosition}`);
+        println(`offset node is text node: ${caretPosition.offsetNode === textNode}`);
+        println(`offset is valid for text node: ${caretPosition.offset >= 0 && caretPosition.offset <= textNode.length}`);
+        println(`client rect exists: ${caretPosition.getClientRect() instanceof DOMRect}`);
+    });
+</script>

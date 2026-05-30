@@ -1,0 +1,6 @@
+without shadowRoots retargets to host parent: true
+without shadowRoots retargets to host index: true
+unrelated shadowRoot still retargets to host parent: true
+unrelated shadowRoot still retargets to host index: true
+allowed shadowRoot exposes text node: true
+allowed shadowRoot exposes text offset: true

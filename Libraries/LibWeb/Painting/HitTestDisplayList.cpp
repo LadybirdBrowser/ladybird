@@ -488,6 +488,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
         return CaretPosition {
             .paintable = item.paintable,
             .boundary = { const_cast<DOM::Node&>(*fragment_dom_node), static_cast<WebIDL::UnsignedLong>(index_in_node) },
+            .debug_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, index_in_node, index_in_node),
         };
     }
     case ItemKind::EmptyEditable: {
@@ -497,6 +498,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
         return CaretPosition {
             .paintable = item.paintable,
             .boundary = { *dom_node, 0 },
+            .debug_rect = item.caret_rect,
         };
     }
     case ItemKind::Box: {
@@ -521,6 +523,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
             .paintable = item.paintable,
             .boundary = point_is_before_box ? before_boundary : after_boundary,
             .secondary_boundary = point_is_before_box ? after_boundary : before_boundary,
+            .debug_rect = item.caret_rect,
         };
     }
     case ItemKind::ChromeWidget:
@@ -538,6 +541,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Ite
     return CaretPosition {
         .paintable = item.paintable,
         .boundary = { const_cast<DOM::Node&>(*dom_node), 0 },
+        .debug_rect = item.caret_rect,
     };
 }
 
@@ -699,8 +703,12 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     };
     if (topmost_item_index.has_value() && (!topmost_hit_item_index.has_value() || topmost_caret_item_matches_hit_item())) {
         VERIFY(topmost_item_local_point.has_value());
-        if (auto caret_position = caret_position_for_item(m_items[*topmost_item_index], *topmost_item_local_point); caret_position.has_value())
+        if (auto caret_position = caret_position_for_item(m_items[*topmost_item_index], *topmost_item_local_point); caret_position.has_value()) {
+            auto const& item = m_items[*topmost_item_index];
+            if (caret_position->debug_rect.has_value())
+                caret_position->debug_rect = viewport_rect_for_item(item, *caret_position->debug_rect, viewport_paintable, device_pixels_per_css_pixel);
             return caret_position;
+        }
     }
 
     // If the point is over a non-caret item, only consider caret lines inside that item's event-dispatch node first.
@@ -814,21 +822,31 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     }
 
     if (!closest_line.index.has_value()) {
-        if (topmost_hit_item_index.has_value())
-            return caret_position_for_hit_container(m_items[*topmost_hit_item_index]);
+        if (topmost_hit_item_index.has_value()) {
+            auto const& item = m_items[*topmost_hit_item_index];
+            auto caret_position = caret_position_for_hit_container(item);
+            if (caret_position.has_value() && caret_position->debug_rect.has_value())
+                caret_position->debug_rect = viewport_rect_for_item(item, *caret_position->debug_rect, viewport_paintable, device_pixels_per_css_pixel);
+            return caret_position;
+        }
         return {};
     }
     VERIFY(closest_line.local_point.has_value());
     auto caret_position = caret_position_for_line(m_caret_lines[*closest_line.index], *closest_line.local_point);
     if (!caret_position.has_value())
         return {};
+    if (caret_position->debug_rect.has_value())
+        caret_position->debug_rect = viewport_rect_for_item(m_items[m_caret_item_indices[m_caret_lines[*closest_line.index].first_caret_item_index]], *caret_position->debug_rect, viewport_paintable, device_pixels_per_css_pixel);
 
     if (topmost_hit_item_index.has_value()) {
         auto const& topmost_hit_item = m_items[*topmost_hit_item_index];
         if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item); topmost_hit_dom_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_position->boundary.node)) {
             if (item_can_produce_caret_position(topmost_hit_item) && item_is_direct_caret_target(topmost_hit_item)) {
                 VERIFY(topmost_hit_item_local_point.has_value());
-                return caret_position_for_item(topmost_hit_item, *topmost_hit_item_local_point);
+                auto caret_position_for_topmost_hit_item = caret_position_for_item(topmost_hit_item, *topmost_hit_item_local_point);
+                if (caret_position_for_topmost_hit_item.has_value() && caret_position_for_topmost_hit_item->debug_rect.has_value())
+                    caret_position_for_topmost_hit_item->debug_rect = viewport_rect_for_item(topmost_hit_item, *caret_position_for_topmost_hit_item->debug_rect, viewport_paintable, device_pixels_per_css_pixel);
+                return caret_position_for_topmost_hit_item;
             }
             return {};
         }

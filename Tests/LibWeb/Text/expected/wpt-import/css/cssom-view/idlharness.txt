@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 400 tests
 
-326 Pass
-74 Fail
+343 Pass
+57 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -106,20 +106,20 @@ Pass	Screen interface: screen must inherit property "width" with the proper type
 Pass	Screen interface: screen must inherit property "height" with the proper type
 Pass	Screen interface: screen must inherit property "colorDepth" with the proper type
 Pass	Screen interface: screen must inherit property "pixelDepth" with the proper type
-Fail	CaretPosition interface: existence and properties of interface object
-Fail	CaretPosition interface object length
-Fail	CaretPosition interface object name
-Fail	CaretPosition interface: existence and properties of interface prototype object
-Fail	CaretPosition interface: existence and properties of interface prototype object's "constructor" property
-Fail	CaretPosition interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CaretPosition interface: attribute offsetNode
-Fail	CaretPosition interface: attribute offset
-Fail	CaretPosition interface: operation getClientRect()
-Fail	CaretPosition must be primary interface of document.caretPositionFromPoint(5, 5)
-Fail	Stringification of document.caretPositionFromPoint(5, 5)
-Fail	CaretPosition interface: document.caretPositionFromPoint(5, 5) must inherit property "offsetNode" with the proper type
-Fail	CaretPosition interface: document.caretPositionFromPoint(5, 5) must inherit property "offset" with the proper type
-Fail	CaretPosition interface: document.caretPositionFromPoint(5, 5) must inherit property "getClientRect()" with the proper type
+Pass	CaretPosition interface: existence and properties of interface object
+Pass	CaretPosition interface object length
+Pass	CaretPosition interface object name
+Pass	CaretPosition interface: existence and properties of interface prototype object
+Pass	CaretPosition interface: existence and properties of interface prototype object's "constructor" property
+Pass	CaretPosition interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CaretPosition interface: attribute offsetNode
+Pass	CaretPosition interface: attribute offset
+Pass	CaretPosition interface: operation getClientRect()
+Pass	CaretPosition must be primary interface of document.caretPositionFromPoint(5, 5)
+Pass	Stringification of document.caretPositionFromPoint(5, 5)
+Pass	CaretPosition interface: document.caretPositionFromPoint(5, 5) must inherit property "offsetNode" with the proper type
+Pass	CaretPosition interface: document.caretPositionFromPoint(5, 5) must inherit property "offset" with the proper type
+Pass	CaretPosition interface: document.caretPositionFromPoint(5, 5) must inherit property "getClientRect()" with the proper type
 Pass	VisualViewport interface: existence and properties of interface object
 Pass	VisualViewport interface object length
 Pass	VisualViewport interface object name
@@ -309,7 +309,7 @@ Pass	Window interface: window must inherit property "outerHeight" with the prope
 Pass	Window interface: window must inherit property "devicePixelRatio" with the proper type
 Pass	Document interface: operation elementFromPoint(double, double)
 Pass	Document interface: operation elementsFromPoint(double, double)
-Fail	Document interface: operation caretPositionFromPoint(double, double, optional CaretPositionFromPointOptions)
+Pass	Document interface: operation caretPositionFromPoint(double, double, optional CaretPositionFromPointOptions)
 Pass	Document interface: attribute scrollingElement
 Fail	Document interface: operation getBoxQuads(optional BoxQuadOptions)
 Fail	Document interface: operation convertQuadFromNode(DOMQuadInit, GeometryNode, optional ConvertCoordinateOptions)
@@ -319,8 +319,8 @@ Pass	Document interface: document must inherit property "elementFromPoint(double
 Pass	Document interface: calling elementFromPoint(double, double) on document with too few arguments must throw TypeError
 Pass	Document interface: document must inherit property "elementsFromPoint(double, double)" with the proper type
 Pass	Document interface: calling elementsFromPoint(double, double) on document with too few arguments must throw TypeError
-Fail	Document interface: document must inherit property "caretPositionFromPoint(double, double, optional CaretPositionFromPointOptions)" with the proper type
-Fail	Document interface: calling caretPositionFromPoint(double, double, optional CaretPositionFromPointOptions) on document with too few arguments must throw TypeError
+Pass	Document interface: document must inherit property "caretPositionFromPoint(double, double, optional CaretPositionFromPointOptions)" with the proper type
+Pass	Document interface: calling caretPositionFromPoint(double, double, optional CaretPositionFromPointOptions) on document with too few arguments must throw TypeError
 Pass	Document interface: document must inherit property "scrollingElement" with the proper type
 Fail	Document interface: document must inherit property "getBoxQuads(optional BoxQuadOptions)" with the proper type
 Fail	Document interface: calling getBoxQuads(optional BoxQuadOptions) on document with too few arguments must throw TypeError
