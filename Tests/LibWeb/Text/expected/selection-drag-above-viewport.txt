@@ -1,0 +1,3 @@
+selection reached viewport top: true
+above viewport matches viewport top: true
+above viewport selected forward text: false

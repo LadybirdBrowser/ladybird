@@ -1760,6 +1760,34 @@ bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document,
 // https://drafts.csswg.org/css-ui/#propdef-user-select
 static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
 {
+    auto move_focus_before_node = [&](GC::Ref<DOM::Node> node) -> bool {
+        focus_node = node->previous_in_pre_order();
+        if (focus_node) {
+            focus_offset = focus_node->length();
+            return true;
+        }
+        if (!node->parent())
+            return false;
+        focus_node = *node->parent();
+        focus_offset = node->index();
+        return true;
+    };
+
+    auto move_focus_after_node = [&](GC::Ref<DOM::Node> node) -> bool {
+        focus_node = node->next_in_pre_order();
+        while (focus_node && node->is_inclusive_ancestor_of(*focus_node))
+            focus_node = focus_node->next_in_pre_order();
+        if (focus_node) {
+            focus_offset = 0;
+            return true;
+        }
+        if (!node->parent())
+            return false;
+        focus_node = *node->parent();
+        focus_offset = node->index() + 1;
+        return true;
+    };
+
     // https://drafts.csswg.org/css-ui/#valdef-user-select-contain
     // NB: This is clamping the focus node to any node with user-select: contain that stands between it and the anchor node.
     if (focus_node != anchor_node) {
@@ -1802,17 +1830,11 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
             if (
                 potential_contain_node->layout_node() && potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
                 if (potential_contain_node->is_before(*anchor_node)) {
-                    focus_node = potential_contain_node->next_in_pre_order();
-                    while (potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
-                        focus_node = focus_node->next_in_pre_order();
-                    }
-                    focus_offset = 0;
+                    if (!move_focus_after_node(*potential_contain_node))
+                        return;
                 } else {
-                    focus_node = potential_contain_node->previous_in_pre_order();
-                    while (potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
-                        focus_node = focus_node->previous_in_pre_order();
-                    }
-                    focus_offset = focus_node->length();
+                    if (!move_focus_before_node(*potential_contain_node))
+                        return;
                 }
                 // NB: Prevents this from being handled again further down
                 user_select = CSS::UserSelect::Contain;
@@ -1836,13 +1858,11 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         }
         if (focus_node->is_before(*anchor_node)) {
             auto none_element = focus_node;
-            do {
-                focus_node = focus_node->next_in_pre_order();
-            } while (none_element->is_inclusive_ancestor_of(*focus_node));
-            focus_offset = 0;
+            if (!move_focus_after_node(*none_element))
+                return;
         } else {
-            focus_node = focus_node->previous_in_pre_order();
-            focus_offset = focus_node->length();
+            if (!move_focus_before_node(*focus_node))
+                return;
         }
         break;
     case CSS::UserSelect::All:

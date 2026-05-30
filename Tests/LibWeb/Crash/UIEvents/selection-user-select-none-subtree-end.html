@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    html {
+        user-select: none;
+    }
+</style>
+<div id="start">start</div>
+<div id="end">end</div>
+<script>
+    const startRect = start.getBoundingClientRect();
+    const endRect = end.getBoundingClientRect();
+
+    internals.mouseDown(endRect.x + 2, endRect.y + 5);
+    internals.mouseMove(startRect.x + 2, startRect.y + 5);
+    internals.mouseUp(startRect.x + 2, startRect.y + 5);
+</script>
