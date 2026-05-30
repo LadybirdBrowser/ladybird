@@ -31,9 +31,10 @@ static void set_or_append_pending_scroll_offset(
     pending_scroll_offsets.append(scroll_offset);
 }
 
-ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client)
+ContextState::ContextState(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, bool async_scrolling_enabled)
     : m_web_content_client(web_content_client)
     , m_page_id(page_id)
+    , m_async_scrolling_enabled(async_scrolling_enabled)
 {
     if (page_id.has_value())
         m_presentation_mode = Web::Compositor::PresentToClient {};
@@ -128,18 +129,15 @@ void ContextState::apply_display_list_resource_transaction(Web::Painting::Displa
 void ContextState::install_display_list_update(
     NonnullRefPtr<Web::Painting::DisplayList> display_list,
     Web::Painting::AccumulatedVisualContextTree visual_context_tree,
-    Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot,
-    bool async_scrolling_enabled)
+    Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree.version());
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
     m_scroll_state_snapshot = move(scroll_state_snapshot);
 
-    if (!async_scrolling_enabled) {
-        clear_async_scrolling_state();
+    if (!m_async_scrolling_enabled)
         return;
-    }
 
     auto async_scrolling_state = Web::Compositor::async_scrolling_state_from_display_list(*m_display_list);
     auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
@@ -571,18 +569,6 @@ void ContextState::stop_backing_store_shrink_timer()
         return;
     m_backing_store_shrink_timer->on_timeout = {};
     m_backing_store_shrink_timer->stop();
-}
-
-void ContextState::clear_async_scrolling_state()
-{
-    m_async_scroll_tree.set_state({});
-    m_viewport_scrollbar_controller.clear();
-    m_pending_async_scroll_offsets.clear();
-    m_completed_async_scroll_operation_ids.clear();
-    m_wheel_routing_admission = Web::Compositor::WheelRoutingAdmission::NoAsyncScrollingState;
-    m_can_accept_async_wheel_events = false;
-    m_async_scrolling_viewport_rect = {};
-    m_has_async_scrolling_state = false;
 }
 
 Web::Painting::AccumulatedVisualContextTree const& ContextState::current_visual_context_tree() const
