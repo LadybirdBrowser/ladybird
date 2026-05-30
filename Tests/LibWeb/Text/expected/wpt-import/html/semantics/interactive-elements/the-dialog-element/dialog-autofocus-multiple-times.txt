@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	autofocus is run every time a dialog is opened
+1 Pass
+Pass	autofocus is run every time a dialog is opened

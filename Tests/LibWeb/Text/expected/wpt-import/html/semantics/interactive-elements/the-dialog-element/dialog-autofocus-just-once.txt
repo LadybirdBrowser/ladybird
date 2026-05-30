@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	An autofocus element in a dialog element should not try to get focus twice.
+1 Pass
+Pass	An autofocus element in a dialog element should not try to get focus twice.

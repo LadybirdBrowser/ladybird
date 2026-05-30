@@ -256,8 +256,8 @@ void NavigateEvent::potentially_reset_the_focus()
     // 7. Let document be event's relevant global object's associated Document.
     auto& document = relevant_global_object.associated_document();
 
-    // 8. FIXME: Let focusTarget be the autofocus delegate for document.
-    GC::Ptr<DOM::Node> focus_target = nullptr;
+    // 8. Let focusTarget be the autofocus delegate for document.
+    GC::Ptr<DOM::Node> focus_target = autofocus_delegate(document, FocusTrigger::Script);
 
     // 9. If focusTarget is null, then set focusTarget to document's body element.
     if (focus_target == nullptr)

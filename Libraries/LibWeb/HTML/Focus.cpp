@@ -253,11 +253,38 @@ static bool is_focusable_area(DOM::Node& node)
     return node.is_focusable();
 }
 
-// https://html.spec.whatwg.org/multipage/interaction.html#get-the-focusable-area
-static DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger);
+// https://html.spec.whatwg.org/multipage/interaction.html#autofocus-delegate
+DOM::Node* autofocus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger)
+{
+    // 1. For each descendant descendant of focus target, in tree order:
+    for (auto* descendant = focus_target.first_child(); descendant; descendant = descendant->next_in_pre_order(&focus_target)) {
+        // 1. If descendant does not have an autofocus content attribute, then continue.
+        auto* element = as_if<DOM::Element>(descendant);
+        if (!element || !element->has_attribute(HTML::AttributeNames::autofocus))
+            continue;
+
+        // 2. Let focusable area be descendant, if descendant is a focusable area; otherwise let focusable area
+        //    be the result of getting the focusable area for descendant given focus trigger.
+        auto* focusable_area = is_focusable_area(*descendant) ? descendant : get_focusable_area(*descendant, focus_trigger);
+
+        // 3. If focusable area is null, then continue.
+        if (!focusable_area)
+            continue;
+
+        // 4. If focusable area is not click focusable and focus trigger is "click", then continue.
+        if (!focusable_area->is_focusable() && focus_trigger == FocusTrigger::Click)
+            continue;
+
+        // 5. Return focusable area.
+        return focusable_area;
+    }
+
+    // 2. Return null.
+    return nullptr;
+}
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-delegate
-static DOM::Node* focus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger)
+DOM::Node* focus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger)
 {
     auto* where_to_look = &focus_target;
 
@@ -271,8 +298,10 @@ static DOM::Node* focus_delegate(DOM::Node& focus_target, FocusTrigger focus_tri
         where_to_look = shadow_root;
     }
 
-    // FIXME: 4. Let autofocusDelegate be the autofocus delegate for whereToLook given focusTrigger.
-    // FIXME: 5. If autofocusDelegate is not null, then return autofocusDelegate.
+    // 4. Let autofocusDelegate be the autofocus delegate for whereToLook given focusTrigger.
+    // 5. If autofocusDelegate is not null, then return autofocusDelegate.
+    if (auto* autofocus_delegate_result = autofocus_delegate(*where_to_look, focus_trigger))
+        return autofocus_delegate_result;
 
     // 6. For each descendant of whereToLook's descendants, in tree order:
     for (auto* descendant = where_to_look->first_child(); descendant; descendant = descendant->next_in_pre_order(where_to_look)) {
@@ -295,7 +324,8 @@ static DOM::Node* focus_delegate(DOM::Node& focus_target, FocusTrigger focus_tri
     return nullptr;
 }
 
-static DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger)
+// https://html.spec.whatwg.org/multipage/interaction.html#get-the-focusable-area
+DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger)
 {
     // FIXME: Implement the rest of the get the focusable area algorithm.
 

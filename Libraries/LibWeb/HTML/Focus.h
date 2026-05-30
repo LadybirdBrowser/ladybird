@@ -21,4 +21,8 @@ enum class FocusTrigger : u8 {
 WEB_API void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target = nullptr, FocusTrigger focus_trigger = FocusTrigger::Other);
 WEB_API void run_unfocusing_steps(DOM::Node* old_focus_target);
 
+DOM::Node* autofocus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger);
+DOM::Node* focus_delegate(DOM::Node& focus_target, FocusTrigger focus_trigger);
+DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus_trigger);
+
 }

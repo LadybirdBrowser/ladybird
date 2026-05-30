@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/CloseWatcher.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
@@ -489,10 +490,15 @@ void HTMLDialogElement::run_dialog_focusing_steps()
         return;
 
     // 2. Let control be null
-    GC::Ptr<Element> control = nullptr;
+    GC::Ptr<DOM::Node> control = nullptr;
 
-    // FIXME: 3. If subject has the autofocus attribute, then set control to subject.
-    // FIXME: 4. If control is null, then set control to the focus delegate of subject.
+    // 3. If subject has the autofocus attribute, then set control to subject.
+    if (has_attribute(HTML::AttributeNames::autofocus))
+        control = this;
+
+    // 4. If control is null, then set control to the focus delegate of subject.
+    if (!control)
+        control = focus_delegate(*this, FocusTrigger::Script);
 
     // 5. If control is null, then set control to subject.
     if (!control)
@@ -508,8 +514,11 @@ void HTMLDialogElement::run_dialog_focusing_steps()
     if (!control->document().origin().is_same_origin(top_document->origin()))
         return;
 
-    // FIXME: 9. Empty topDocument's autofocus candidates.
-    // FIXME: 10. Set topDocument's autofocus processed flag to true.
+    // 9. Empty topDocument's autofocus candidates.
+    top_document->autofocus_candidates().clear();
+
+    // 10. Set topDocument's autofocus processed flag to true.
+    top_document->set_autofocus_processed_flag(true);
 }
 
 void HTMLDialogElement::set_is_modal(bool is_modal)

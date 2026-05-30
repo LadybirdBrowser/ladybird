@@ -3683,14 +3683,12 @@ void Document::flush_autofocus_candidates()
             continue;
 
         // 9. Let target be element.
-        GC::Ptr<Element> target = element;
+        GC::Ptr<DOM::Node> target = element;
 
-        // FIXME: 10. If target is not a focusable area, then set target to the result of getting the
-        //            focusable area for target.
-        // AD-HOC: We don't implement "get the focusable area" so for now, treat unconnected and non-focusable elements
-        //         as having no focusable area.
+        // 10. If target is not a focusable area, then set target to the result of getting the
+        //     focusable area for target.
         if (!target->is_connected() || !target->is_focusable())
-            target = nullptr;
+            target = HTML::get_focusable_area(*target, HTML::FocusTrigger::Other);
 
         // 11. If target is not null, then:
         if (target) {
