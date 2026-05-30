@@ -109,6 +109,7 @@ interface Document : Node {
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-document-interface
     Element? elementFromPoint(double x, double y);
     sequence<Element> elementsFromPoint(double x, double y);
+    CaretPosition? caretPositionFromPoint(double x, double y, optional CaretPositionFromPointOptions options = {});
     readonly attribute Element? scrollingElement;
 
     // https://w3c.github.io/editing/docs/execCommand/
@@ -132,6 +133,10 @@ interface Document : Node {
     
     // https://w3c.github.io/pointerlock/#extensions-to-the-document-interface
     undefined exitPointerLock();
+};
+
+dictionary CaretPositionFromPointOptions {
+    sequence<ShadowRoot> shadowRoots = [];
 };
 
 // https://dom.spec.whatwg.org/#dictdef-elementcreationoptions

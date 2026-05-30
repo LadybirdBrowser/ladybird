@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+
+    #container {
+        margin: 20px;
+    }
+</style>
+<div id="container"><span id="host"></span><span id="other-host"></span></div>
+<script>
+    function textRect(textNode, text) {
+        const index = textNode.data.indexOf(text);
+        const range = document.createRange();
+        range.setStart(textNode, index);
+        range.setEnd(textNode, index + text.length);
+        return range.getBoundingClientRect();
+    }
+
+    test(() => {
+        const host = document.getElementById("host");
+        const otherHost = document.getElementById("other-host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const inner = document.createElement("span");
+        inner.textContent = "shadow text";
+        shadowRoot.append(inner);
+
+        const otherShadowRoot = otherHost.attachShadow({ mode: "open" });
+        otherShadowRoot.append("other shadow text");
+
+        document.body.offsetWidth;
+
+        const textNode = inner.firstChild;
+        const rect = textRect(textNode, "shadow");
+        const x = rect.x + rect.width / 2;
+        const y = rect.y + rect.height / 2;
+        const hostIndex = Array.prototype.indexOf.call(container.childNodes, host);
+
+        const retargetedPosition = document.caretPositionFromPoint(x, y);
+        println(`without shadowRoots retargets to host parent: ${retargetedPosition.offsetNode === container}`);
+        println(`without shadowRoots retargets to host index: ${retargetedPosition.offset === hostIndex}`);
+
+        const unrelatedShadowRootPosition = document.caretPositionFromPoint(x, y, { shadowRoots: [otherShadowRoot] });
+        println(`unrelated shadowRoot still retargets to host parent: ${unrelatedShadowRootPosition.offsetNode === container}`);
+        println(`unrelated shadowRoot still retargets to host index: ${unrelatedShadowRootPosition.offset === hostIndex}`);
+
+        const exposedPosition = document.caretPositionFromPoint(x, y, { shadowRoots: [shadowRoot] });
+        println(`allowed shadowRoot exposes text node: ${exposedPosition.offsetNode === textNode}`);
+        println(`allowed shadowRoot exposes text offset: ${exposedPosition.offset >= 0 && exposedPosition.offset <= textNode.length}`);
+    });
+</script>

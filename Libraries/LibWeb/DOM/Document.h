@@ -83,6 +83,7 @@ enum class InvalidateLayoutTreeReason {
     X(Debugging)                             \
     X(DocumentElementFromPoint)              \
     X(DocumentElementsFromPoint)             \
+    X(DocumentCaretPositionFromPoint)        \
     X(DocumentFindMatchingText)              \
     X(DocumentSetDesignMode)                 \
     X(DumpDisplayList)                       \
@@ -981,6 +982,7 @@ public:
     Painting::HitTestDisplayList const* ensure_hit_test_display_list();
     Optional<Painting::HitTestResult> hit_test(CSSPixelPoint, Painting::HitTestType);
     Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
+    GC::Ptr<CaretPosition> caret_position_from_point(double x, double y, Bindings::CaretPositionFromPointOptions const&);
     TraversalDecision hit_test_all(CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
     void set_needs_to_record_display_list();

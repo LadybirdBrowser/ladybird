@@ -39,6 +39,7 @@ struct CaretPosition {
     NonnullRefPtr<Paintable> paintable;
     DOM::BoundaryPoint boundary;
     Optional<DOM::BoundaryPoint> secondary_boundary {};
+    Optional<CSSPixelRect> debug_rect {};
 };
 
 enum class HitTestType : u8 {

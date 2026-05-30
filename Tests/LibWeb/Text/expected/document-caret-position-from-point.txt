@@ -1,0 +1,6 @@
+negative x returns null: true
+negative y returns null: true
+caret position exists: true
+offset node is text node: true
+offset is valid for text node: true
+client rect exists: true

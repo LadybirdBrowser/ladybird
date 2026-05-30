@@ -531,6 +531,7 @@ class AccessibilityTreeNode;
 class AnchorNameMap;
 class Attr;
 class CDATASection;
+class CaretPosition;
 class CharacterData;
 class Comment;
 class CustomEvent;
