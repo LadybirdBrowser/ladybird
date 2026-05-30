@@ -69,10 +69,9 @@ void CompositorState::create_context(Web::Compositor::CompositorContextId contex
     if (page_id.has_value())
         VERIFY(context_id == Web::Compositor::compositor_context_id_for_page(*page_id));
 
-    auto& context = *m_contexts.ensure(context_id, [] {
-        return make<ContextState>();
+    auto& context = *m_contexts.ensure(context_id, [&] {
+        return make<ContextState>(page_id, web_content_client);
     });
-    context.initialize(page_id, web_content_client);
     resize_backing_stores_if_needed(context_id, context);
 }
 
