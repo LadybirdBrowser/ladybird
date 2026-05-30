@@ -20,7 +20,6 @@ set(AK_TEST_SOURCES
     TestCircularQueue.cpp
     TestDemangle.cpp
     TestDistinctNumeric.cpp
-    TestDoublyLinkedList.cpp
     TestEndian.cpp
     TestEnumBits.cpp
     TestEnumerate.cpp
@@ -38,9 +37,9 @@ set(AK_TEST_SOURCES
     TestIPAddress.cpp
     TestIndexSequence.cpp
     TestIntegerMath.cpp
-    TestIntrusiveList.cpp
     TestJSON.cpp
     TestLEB128.cpp
+    TestLists.cpp
     TestMemory.cpp
     TestMemoryStream.cpp
     TestNeverDestroyed.cpp
@@ -51,7 +50,6 @@ set(AK_TEST_SOURCES
     TestQueue.cpp
     TestRandom.cpp
     TestRedBlackTree.cpp
-    TestSinglyLinkedList.cpp
     TestSorting.cpp
     TestSourceGenerator.cpp
     TestSourceLocation.cpp
