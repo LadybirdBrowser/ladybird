@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+
+    .message {
+        min-height: 60px;
+        position: relative;
+        width: 500px;
+    }
+
+    .gutter {
+        height: 60px;
+        left: 0;
+        position: absolute;
+        top: 0;
+        width: 72px;
+    }
+
+    .content {
+        margin-left: 72px;
+        padding-top: 8px;
+    }
+</style>
+<div class="message">
+    <div class="gutter"></div>
+    <div class="content" id="content">Alice says hello from the chat history.</div>
+</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const contentRect = content.getBoundingClientRect();
+        internals.mouseDown(10, contentRect.top + 10);
+        internals.mouseMove(contentRect.left + 80, contentRect.top + 20);
+        internals.mouseUp(contentRect.left + 80, contentRect.top + 20);
+
+        println(`selected chat text: ${getSelection().toString().includes("Alice")}`);
+    });
+</script>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+
+    .message {
+        min-height: 48px;
+        width: 500px;
+    }
+
+    .content {
+        padding-top: 4px;
+    }
+</style>
+<div class="message">
+    <div class="content" id="content">Alice says hello from the chat history.</div>
+</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = content.firstChild;
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        const rect = range.getBoundingClientRect();
+        const x = rect.x + rect.width / 2;
+        const y = rect.bottom + 1;
+        internals.mouseDown(x, y);
+        internals.mouseMove(x, y + 3);
+        internals.mouseUp(x, y + 3);
+
+        println(`selected chat text: ${getSelection().toString().length > 0}`);
+    });
+</script>

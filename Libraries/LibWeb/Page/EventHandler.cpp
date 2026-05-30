@@ -1599,7 +1599,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         return;
 
     // NB: Now we can do selection with a caret-position hit test.
-    auto caret_position = document.caret_position_from_point(visual_viewport_position);
+    auto caret_position = document.caret_position_from_point_for_selection_start(visual_viewport_position);
     if (!caret_position.has_value())
         return;
 
@@ -2095,7 +2095,7 @@ void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position
 void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
 {
     auto& document = *m_navigable->active_document();
-    auto caret_position = document.caret_position_from_point(visual_viewport_position);
+    auto caret_position = document.caret_position_from_point_for_selection(visual_viewport_position);
     if (!caret_position.has_value())
         return;
 

@@ -1,0 +1,14 @@
+text_mid_to_next: true
+text_after_to_next: true
+below_text_mid_tiny_down: true
+below_text_mid_to_next: true
+below_text_after_to_next: true
+left_gutter_to_next: true
+name_mid_to_next: true
+name_after_to_next: true
+name_below_to_next: true
+avatar_center_to_next: true
+avatar_left_to_next: true
+avatar_right_to_next: true
+avatar_below_to_next: true
+row_bottom_to_next: true

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+
+    .message {
+        min-height: 72px;
+        padding-left: 72px;
+        position: relative;
+        width: 520px;
+    }
+
+    .avatar {
+        background: #5865f2;
+        border-radius: 50%;
+        height: 40px;
+        left: 16px;
+        position: absolute;
+        top: 8px;
+        width: 40px;
+    }
+
+    .name {
+        font-weight: 700;
+        height: 22px;
+        line-height: 22px;
+        padding-top: 4px;
+    }
+
+    .text {
+        line-height: 22px;
+    }
+
+    .compact {
+        min-height: 30px;
+    }
+
+    .compact .text {
+        padding-top: 4px;
+    }
+</style>
+<div class="message" id="m1">
+    <div class="avatar" id="avatar"></div>
+    <div class="name" id="name">Alice</div>
+    <div class="text" id="text1">Alice says hello from the chat history.</div>
+</div>
+<div class="message compact" id="m2">
+    <div class="text" id="text2">Bob is looking at the next message now.</div>
+</div>
+<script>
+    function textRect(element) {
+        const range = document.createRange();
+        range.selectNodeContents(element.firstChild);
+        return range.getBoundingClientRect();
+    }
+
+    function rectFor(id) {
+        return document.getElementById(id).getBoundingClientRect();
+    }
+
+    function point(name) {
+        const textRect1 = textRect(text1);
+        const nameRect = textRect(document.getElementById("name"));
+        const avatarRect = rectFor("avatar");
+        const messageRect = rectFor("m1");
+        const nextTextRect = textRect(text2);
+        const points = {
+            text_mid: { x: textRect1.x + textRect1.width / 2, y: textRect1.y + textRect1.height / 2 },
+            text_after: { x: textRect1.right + 10, y: textRect1.y + textRect1.height / 2 },
+            text_below_mid: { x: textRect1.x + textRect1.width / 2, y: textRect1.bottom + 1 },
+            text_below_after: { x: textRect1.right + 10, y: textRect1.bottom + 1 },
+            text_left_gutter: { x: textRect1.x - 20, y: textRect1.y + textRect1.height / 2 },
+            name_mid: { x: nameRect.x + nameRect.width / 2, y: nameRect.y + nameRect.height / 2 },
+            name_after: { x: nameRect.right + 10, y: nameRect.y + nameRect.height / 2 },
+            name_below_mid: { x: nameRect.x + nameRect.width / 2, y: nameRect.bottom + 1 },
+            avatar_center: { x: avatarRect.x + avatarRect.width / 2, y: avatarRect.y + avatarRect.height / 2 },
+            avatar_left: { x: avatarRect.x - 4, y: avatarRect.y + avatarRect.height / 2 },
+            avatar_right: { x: avatarRect.right + 4, y: avatarRect.y + avatarRect.height / 2 },
+            avatar_below: { x: avatarRect.x + avatarRect.width / 2, y: avatarRect.bottom + 4 },
+            row_bottom_mid: { x: messageRect.x + messageRect.width / 2, y: messageRect.bottom - 2 },
+            next_text_start: { x: nextTextRect.x + 8, y: nextTextRect.y + nextTextRect.height / 2 },
+            tiny_down_from_below: { x: textRect1.x + textRect1.width / 2, y: textRect1.bottom + 4 },
+        };
+        return points[name];
+    }
+
+    function dragSelect(caseName, startName, endName) {
+        getSelection().removeAllRanges();
+        const start = point(startName);
+        const end = point(endName);
+        internals.mouseDown(start.x, start.y);
+        internals.mouseMove(end.x, end.y);
+        internals.mouseUp(end.x, end.y);
+        println(`${caseName}: ${getSelection().toString().length > 0}`);
+    }
+
+    test(() => {
+        document.body.offsetWidth;
+
+        dragSelect("text_mid_to_next", "text_mid", "next_text_start");
+        dragSelect("text_after_to_next", "text_after", "next_text_start");
+        dragSelect("below_text_mid_tiny_down", "text_below_mid", "tiny_down_from_below");
+        dragSelect("below_text_mid_to_next", "text_below_mid", "next_text_start");
+        dragSelect("below_text_after_to_next", "text_below_after", "next_text_start");
+        dragSelect("left_gutter_to_next", "text_left_gutter", "next_text_start");
+        dragSelect("name_mid_to_next", "name_mid", "next_text_start");
+        dragSelect("name_after_to_next", "name_after", "next_text_start");
+        dragSelect("name_below_to_next", "name_below_mid", "next_text_start");
+        dragSelect("avatar_center_to_next", "avatar_center", "next_text_start");
+        dragSelect("avatar_left_to_next", "avatar_left", "next_text_start");
+        dragSelect("avatar_right_to_next", "avatar_right", "next_text_start");
+        dragSelect("avatar_below_to_next", "avatar_below", "next_text_start");
+        dragSelect("row_bottom_to_next", "row_bottom_mid", "next_text_start");
+    });
+</script>

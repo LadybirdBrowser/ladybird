@@ -8521,7 +8521,27 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point(CSSPixelPo
     if (!hit_test_display_list || !viewport_paintable)
         return {};
     viewport_paintable->refresh_scroll_state();
-    return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
+    return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Normal);
+}
+
+Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection_start(CSSPixelPoint position)
+{
+    auto hit_test_display_list = ensure_hit_test_display_list();
+    auto viewport_paintable = paintable();
+    if (!hit_test_display_list || !viewport_paintable)
+        return {};
+    viewport_paintable->refresh_scroll_state();
+    return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::SelectionStart);
+}
+
+Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(CSSPixelPoint position)
+{
+    auto hit_test_display_list = ensure_hit_test_display_list();
+    auto viewport_paintable = paintable();
+    if (!hit_test_display_list || !viewport_paintable)
+        return {};
+    viewport_paintable->refresh_scroll_state();
+    return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Selection);
 }
 
 TraversalDecision Document::hit_test_all(CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)
