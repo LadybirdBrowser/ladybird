@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	serialization test {length: 128, name: KMAC128}
+Pass	serialization test {length: 160, name: KMAC128}
+Pass	serialization test {length: 256, name: KMAC128}
+Pass	serialization test {length: 128, name: KMAC256}
+Pass	serialization test {length: 160, name: KMAC256}
+Pass	serialization test {length: 256, name: KMAC256}

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	serialization test ML-KEM-512
+Pass	serialization test {name: ML-KEM-512}
+Pass	serialization test ML-KEM-768
+Pass	serialization test {name: ML-KEM-768}
+Pass	serialization test ML-KEM-1024
+Pass	serialization test {name: ML-KEM-1024}

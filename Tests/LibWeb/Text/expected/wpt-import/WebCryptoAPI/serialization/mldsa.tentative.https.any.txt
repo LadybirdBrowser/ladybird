@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	serialization test ML-DSA-44
+Pass	serialization test {name: ML-DSA-44}
+Pass	serialization test ML-DSA-65
+Pass	serialization test {name: ML-DSA-65}
+Pass	serialization test ML-DSA-87
+Pass	serialization test {name: ML-DSA-87}

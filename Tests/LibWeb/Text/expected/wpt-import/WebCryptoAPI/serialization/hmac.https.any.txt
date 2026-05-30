@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	serialization test {hash: SHA-1, length: 160, name: HMAC}
+Pass	serialization test {hash: SHA-256, length: 256, name: HMAC}
+Pass	serialization test {hash: SHA-384, length: 384, name: HMAC}
+Pass	serialization test {hash: SHA-512, length: 512, name: HMAC}
+Pass	serialization test {hash: SHA-1, name: HMAC}
+Pass	serialization test {hash: SHA-256, name: HMAC}
+Pass	serialization test {hash: SHA-384, name: HMAC}
+Pass	serialization test {hash: SHA-512, name: HMAC}

@@ -7,10 +7,12 @@
 
 #include <AK/Memory.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/CryptoKey.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Crypto/CryptoKey.h>
+#include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::Crypto {
@@ -29,6 +31,132 @@ enum class HandleTag : u8 {
     MLKEMPublicKey = 8,
     MLKEMPrivateKey = 9,
 };
+
+enum class KeyAlgorithmTag : u8 {
+    KeyAlgorithm = 0,
+    RsaKeyAlgorithm = 1,
+    RsaHashedKeyAlgorithm = 2,
+    EcKeyAlgorithm = 3,
+    AesKeyAlgorithm = 4,
+    HmacKeyAlgorithm = 5,
+    KmacKeyAlgorithm = 6,
+};
+
+::Crypto::UnsignedBigInteger big_integer_from_api_big_integer(JS::Uint8Array const& big_integer)
+{
+    auto buffer = big_integer.viewed_array_buffer()->bytes().slice(big_integer.byte_offset(), big_integer.byte_length().length());
+    if (!buffer.is_empty())
+        return ::Crypto::UnsignedBigInteger::import_data(buffer);
+    return ::Crypto::UnsignedBigInteger(0);
+}
+
+void serialize_key_algorithm(HTML::TransferDataEncoder& encoder, JS::Object const& object)
+{
+    if (auto const* algorithm = as_if<RsaHashedKeyAlgorithm>(object)) {
+        encoder.encode(KeyAlgorithmTag::RsaHashedKeyAlgorithm);
+        encoder.encode(algorithm->name());
+        encoder.encode(algorithm->modulus_length());
+        encoder.encode_unsigned_big_integer(big_integer_from_api_big_integer(*algorithm->public_exponent()));
+        encoder.encode(MUST(algorithm->hash().name(algorithm->vm())));
+        return;
+    }
+
+    if (auto const* algorithm = as_if<RsaKeyAlgorithm>(object)) {
+        encoder.encode(KeyAlgorithmTag::RsaKeyAlgorithm);
+        encoder.encode(algorithm->name());
+        encoder.encode(algorithm->modulus_length());
+        encoder.encode_unsigned_big_integer(big_integer_from_api_big_integer(*algorithm->public_exponent()));
+        return;
+    }
+
+    if (auto const* algorithm = as_if<EcKeyAlgorithm>(object)) {
+        encoder.encode(KeyAlgorithmTag::EcKeyAlgorithm);
+        encoder.encode(algorithm->name());
+        encoder.encode(algorithm->named_curve());
+        return;
+    }
+
+    if (auto const* algorithm = as_if<AesKeyAlgorithm>(object)) {
+        encoder.encode(KeyAlgorithmTag::AesKeyAlgorithm);
+        encoder.encode(algorithm->name());
+        encoder.encode(algorithm->length());
+        return;
+    }
+
+    if (auto const* algorithm = as_if<HmacKeyAlgorithm>(object)) {
+        encoder.encode(KeyAlgorithmTag::HmacKeyAlgorithm);
+        encoder.encode(algorithm->name());
+        encoder.encode(algorithm->hash()->name());
+        encoder.encode(algorithm->length());
+        return;
+    }
+
+    if (auto const* algorithm = as_if<KmacKeyAlgorithm>(object)) {
+        encoder.encode(KeyAlgorithmTag::KmacKeyAlgorithm);
+        encoder.encode(algorithm->name());
+        encoder.encode(algorithm->length());
+        return;
+    }
+
+    auto const& algorithm = as<KeyAlgorithm>(object);
+    encoder.encode(KeyAlgorithmTag::KeyAlgorithm);
+    encoder.encode(algorithm.name());
+}
+
+WebIDL::ExceptionOr<GC::Ref<JS::Object>> deserialize_key_algorithm(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
+{
+    auto tag = decoder.decode<KeyAlgorithmTag>();
+    switch (tag) {
+    case KeyAlgorithmTag::KeyAlgorithm: {
+        auto algorithm = KeyAlgorithm::create(realm);
+        algorithm->set_name(decoder.decode<String>());
+        return algorithm;
+    }
+    case KeyAlgorithmTag::RsaKeyAlgorithm: {
+        auto algorithm = RsaKeyAlgorithm::create(realm);
+        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_modulus_length(decoder.decode<u32>());
+        TRY(algorithm->set_public_exponent(TRY(decoder.decode_unsigned_big_integer(realm))));
+        return algorithm;
+    }
+    case KeyAlgorithmTag::RsaHashedKeyAlgorithm: {
+        auto algorithm = RsaHashedKeyAlgorithm::create(realm);
+        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_modulus_length(decoder.decode<u32>());
+        TRY(algorithm->set_public_exponent(TRY(decoder.decode_unsigned_big_integer(realm))));
+        algorithm->set_hash(decoder.decode<String>());
+        return algorithm;
+    }
+    case KeyAlgorithmTag::EcKeyAlgorithm: {
+        auto algorithm = EcKeyAlgorithm::create(realm);
+        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_named_curve(decoder.decode<String>());
+        return algorithm;
+    }
+    case KeyAlgorithmTag::AesKeyAlgorithm: {
+        auto algorithm = AesKeyAlgorithm::create(realm);
+        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_length(decoder.decode<u16>());
+        return algorithm;
+    }
+    case KeyAlgorithmTag::HmacKeyAlgorithm: {
+        auto algorithm = HmacKeyAlgorithm::create(realm);
+        algorithm->set_name(decoder.decode<String>());
+        auto hash = KeyAlgorithm::create(realm);
+        hash->set_name(decoder.decode<String>());
+        algorithm->set_hash(hash);
+        algorithm->set_length(decoder.decode<WebIDL::UnsignedLong>());
+        return algorithm;
+    }
+    case KeyAlgorithmTag::KmacKeyAlgorithm: {
+        auto algorithm = KmacKeyAlgorithm::create(realm);
+        algorithm->set_name(decoder.decode<String>());
+        algorithm->set_length(decoder.decode<WebIDL::UnsignedLong>());
+        return algorithm;
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
 
 void serialize_handle(HTML::TransferDataEncoder& encoder, ByteBuffer const& buffer)
 {
@@ -155,11 +283,16 @@ WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> deserialize_rsa_private_key(HTM
     return ::Crypto::PK::RSAPrivateKey { move(modulus), move(private_exponent), move(public_exponent), move(prime1), move(prime2), move(exponent1), move(exponent2), move(coefficient) };
 }
 
+void serialize_ec_public_key(HTML::TransferDataEncoder& encoder, ::Crypto::PK::ECPublicKey const& key)
+{
+    encoder.encode(MUST(key.x_bytes()));
+    encoder.encode(MUST(key.y_bytes()));
+}
+
 void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::ECPublicKey const& key)
 {
     encoder.encode(HandleTag::ECPublicKey);
-    encoder.encode(MUST(key.x_bytes()));
-    encoder.encode(MUST(key.y_bytes()));
+    serialize_ec_public_key(encoder, key);
 }
 
 WebIDL::ExceptionOr<::Crypto::PK::ECPublicKey> deserialize_ec_public_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
@@ -177,7 +310,7 @@ void serialize_handle(HTML::TransferDataEncoder& encoder, ::Crypto::PK::ECPrivat
     encoder.encode(key.parameters());
     encoder.encode(key.public_key().has_value());
     if (key.public_key().has_value())
-        serialize_handle(encoder, *key.public_key());
+        serialize_ec_public_key(encoder, *key.public_key());
 }
 
 WebIDL::ExceptionOr<::Crypto::PK::ECPrivateKey> deserialize_ec_private_key(HTML::TransferDataDecoder& decoder, JS::Realm& realm)
@@ -372,10 +505,8 @@ JS_DEFINE_NATIVE_FUNCTION(CryptoKeyPair::private_key_getter)
     return TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->private_key(); }));
 }
 
-WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {
-    auto& vm = this->vm();
-
     // 1. Set serialized.[[Type]] to the [[type]] internal slot of value.
     serialized.encode(m_type);
 
@@ -383,8 +514,7 @@ WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(HTML::TransferDataEncod
     serialized.encode(m_extractable);
 
     // 3. Set serialized.[[Algorithm]] to the sub-serialization of the [[algorithm]] internal slot of value.
-    auto serialized_algorithm = TRY(HTML::structured_serialize_internal(vm, m_algorithm_cached, for_storage, memory));
-    serialized.append(move(serialized_algorithm));
+    serialize_key_algorithm(serialized, m_algorithm_cached);
 
     // 4. Set serialized.[[Usages]] to the sub-serialization of the [[usages]] internal slot of value.
     serialized.encode(m_usages);
@@ -395,9 +525,8 @@ WebIDL::ExceptionOr<void> CryptoKey::serialization_steps(HTML::TransferDataEncod
     return {};
 }
 
-WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
-    auto& vm = this->vm();
     auto& realm = this->realm();
 
     // 1. Initialize the [[type]] internal slot of value to serialized.[[Type]].
@@ -407,8 +536,7 @@ WebIDL::ExceptionOr<void> CryptoKey::deserialization_steps(HTML::TransferDataDec
     m_extractable = serialized.decode<bool>();
 
     // 3. Initialize the [[algorithm]] internal slot of value to the sub-deserialization of serialized.[[Algorithm]].
-    auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-    m_algorithm_cached = deserialized.as_object();
+    m_algorithm_cached = TRY(deserialize_key_algorithm(serialized, realm));
 
     // 4. Initialize the [[usages]] internal slot of value to the sub-deserialization of serialized.[[Usages]].
     auto usages = serialized.decode<Vector<Bindings::KeyUsage>>();

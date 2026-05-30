@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	serialization test {name: ECDH, namedCurve: P-256}
+Pass	serialization test {name: ECDH, namedCurve: P-384}
+Pass	serialization test {name: ECDH, namedCurve: P-521}
