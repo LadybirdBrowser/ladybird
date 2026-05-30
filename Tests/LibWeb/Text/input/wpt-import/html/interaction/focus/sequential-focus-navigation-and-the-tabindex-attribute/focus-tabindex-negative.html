@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: focus - negative tabindex</title>
+<meta name="timeout" content="long">
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#sequential-focus-navigation-and-the-tabindex-attribute">
+<meta assert="flag" content="interact">
+<meta assert="assert" content="Check if the tabindex attribute controls whether an element is supposed to be focusable">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<div id="log"></div>
+<form id="fm">
+  <input id="test1" tabindex="-1">
+  <input id="test2" tabindex="0">
+</form>
+<script>
+
+var t = async_test("The element with a negative tabindex must not be focused by press 'Tab' key");
+
+setup({timeout: 10000});
+
+document.forms.fm.addEventListener("focus", function (evt) {
+  t.step(function () {
+    var testEle = document.getElementById("test1");
+    assert_equals(testEle.tabIndex, -1, "The tabIndex attribute of the first input element should be -1.");
+    assert_not_equals(evt.target, testEle, "The second input element must be focused.");
+    assert_equals(document.activeElement, document.getElementById("test2"), "The second input element must be activated.");
+  });
+  t.done();
+}, true);
+
+document.addEventListener("keydown", function (evt) {
+  t.step(function () {
+    assert_equals(evt.keyCode, 9, "Please press 'Tab' key.");
+  });
+}, true);
+
+t.step(function () {
+  // TAB = '\ue004'
+  test_driver.send_keys(document.body, "\ue004");
+});
+
+</script>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../html/interaction/focus/the-autofocus-attribute/resources/utils.js"></script>
+<body>
+<dialog>
+<input>
+<input autofocus>
+</dialog>
+<script>
+// https://github.com/whatwg/html/issues/4788
+promise_test(async () => {
+  const dialog = document.querySelector('dialog');
+  dialog.show();
+  assert_equals(document.activeElement, dialog.querySelector('[autofocus]'),
+      'dialog.show() should set focus on a descendant element with an ' +
+      'autofocus attribute.');
+  document.activeElement.blur();
+  await waitUntilStableAutofocusState();
+  assert_equals(document.activeElement, document.body,
+      'Non-dialog autofocus processing should be skipped.');
+}, 'An autofocus element in a dialog element should not try to get focus twice.');
+</script>
+</body>

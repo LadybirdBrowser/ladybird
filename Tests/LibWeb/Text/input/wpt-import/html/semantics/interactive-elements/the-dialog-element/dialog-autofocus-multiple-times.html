@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="./resources/common.js"></script>
+<script>
+promise_test(() => {
+  return waitUntilLoadedAndAutofocused().then(() => {
+        assert_equals(document.activeElement, document.getElementById("outer-button"));
+
+        var focusCount = 0;
+        var dlg = document.getElementById("dlg");
+        var input1 = document.getElementById("input1");
+        var input2 = document.getElementById("input2");
+        input2.onfocus = function() { focusCount += 1 };
+
+        var expectedFocusCount = 3;
+        for (i = 0; i < expectedFocusCount; i++) {
+            dlg.show();
+            assert_equals(document.activeElement, input2);
+            input1.focus();
+            assert_equals(document.activeElement,input1);
+            dlg.close();
+        }
+
+        assert_equals(focusCount.toString(), expectedFocusCount.toString());
+  });
+}, "autofocus is run every time a dialog is opened");
+</script>
+</head>
+<body>
+<button id="outer-button" autofocus></button>
+<dialog id="dlg">
+    <!-- Unfocusable elements with [autofocus] should be ignored. -->
+    <input autofocus disabled>
+    <textarea autofocus hidden></textarea>
+    <input id="input1"></input>
+    <input id="input2" autofocus></input>
+</dialog>
+</body>
+</html>

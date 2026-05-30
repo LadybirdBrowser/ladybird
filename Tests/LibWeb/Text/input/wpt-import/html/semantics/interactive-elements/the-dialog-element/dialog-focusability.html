@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>dialog element: focusability</title>
+<link rel=help href="https://github.com/whatwg/html/pull/8199">
+<link rel=author href="mailto:masonf@chromium.org">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+
+<button id="before">before</button>
+<dialog id="dialog1" open>
+  <button id="within1">button</button>
+</dialog>
+<button id="after1">after 1</button>
+<dialog tabindex=0 id="dialog2" open>
+  <button id="within2">button</button>
+</dialog>
+<button id="after2">after 2</button>
+<dialog tabindex="-1" id="dialog3" open>
+  <button id="within3">button</button>
+</dialog>
+<button id="after3">after 3</button>
+<dialog contenteditable="true" id="dialog4" open>
+  <button id="within4">button</button>
+</dialog>
+<button id="after4">after 4</button>
+
+<style>
+  #dialog1 { top: 25px; }
+  #dialog2 { top: 100px; }
+  #dialog3 { top: 175px; }
+  #dialog4 { top: 250px; }
+</style>
+
+<script>
+  function navigateForward() {
+    const TAB = '\ue004';
+    return test_driver.send_keys(document.body, TAB);
+  }
+  async function assert_focus_order(elements) {
+    assert_true(elements.length >= 2);
+    elements[0].focus();
+    for(let i=0;i<elements.length;++i) {
+      assert_equals(document.activeElement,elements[i],`Focus order mismatch at step ${i+1}/${elements.length}`);
+      await navigateForward();
+    }
+  }
+
+  promise_test(async () => {
+    await new Promise(resolve => window.onload = resolve);
+    await assert_focus_order([before,within1,after1,dialog2,within2,after2,
+      within3,after3,dialog4,within4,after4]);
+  }, "The dialog element itself should not be keyboard focusable.");
+</script>

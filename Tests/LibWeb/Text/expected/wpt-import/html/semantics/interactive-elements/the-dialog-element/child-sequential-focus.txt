@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+1 Pass
+4 Fail
+Pass	dialog element with autofocus should get initial focus.
+Fail	Only keyboard-focusable elements should get dialog initial focus.
+Fail	Autofocus takes precedence over keyboard-focusable requirement.
+Fail	Only keyboard-focusable elements should get dialog initial focus including in subtrees.
+Fail	Only keyboard-focusable elements should get dialog initial focus including in nested buttons.

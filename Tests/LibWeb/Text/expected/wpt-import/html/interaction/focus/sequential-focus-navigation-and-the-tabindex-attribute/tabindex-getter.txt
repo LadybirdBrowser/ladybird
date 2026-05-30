@@ -1,0 +1,126 @@
+Harness status: OK
+
+Found 120 tests
+
+119 Pass
+1 Fail
+Pass	input.tabIndex should return 0 by default
+Pass	input.tabIndex should return -1 when set to -1
+Pass	input.tabIndex should return 0 when set to 0
+Pass	input.tabIndex should return 1 when set to 1
+Pass	input[type='hidden'].tabIndex should return 0 by default
+Pass	input[type='hidden'].tabIndex should return -1 when set to -1
+Pass	input[type='hidden'].tabIndex should return 0 when set to 0
+Pass	input[type='hidden'].tabIndex should return 1 when set to 1
+Pass	button.tabIndex should return 0 by default
+Pass	button.tabIndex should return -1 when set to -1
+Pass	button.tabIndex should return 0 when set to 0
+Pass	button.tabIndex should return 1 when set to 1
+Pass	button[disabled].tabIndex should return 0 by default
+Pass	button[disabled].tabIndex should return -1 when set to -1
+Pass	button[disabled].tabIndex should return 0 when set to 0
+Pass	button[disabled].tabIndex should return 1 when set to 1
+Pass	button[hidden].tabIndex should return 0 by default
+Pass	button[hidden].tabIndex should return -1 when set to -1
+Pass	button[hidden].tabIndex should return 0 when set to 0
+Pass	button[hidden].tabIndex should return 1 when set to 1
+Pass	a.tabIndex should return 0 by default
+Pass	a.tabIndex should return -1 when set to -1
+Pass	a.tabIndex should return 0 when set to 0
+Pass	a.tabIndex should return 1 when set to 1
+Pass	a[href].tabIndex should return 0 by default
+Pass	a[href].tabIndex should return -1 when set to -1
+Pass	a[href].tabIndex should return 0 when set to 0
+Pass	a[href].tabIndex should return 1 when set to 1
+Pass	svg a.tabIndex should return 0 by default
+Pass	svg a.tabIndex should return -1 when set to -1
+Pass	svg a.tabIndex should return 0 when set to 0
+Pass	svg a.tabIndex should return 1 when set to 1
+Pass	textarea.tabIndex should return 0 by default
+Pass	textarea.tabIndex should return -1 when set to -1
+Pass	textarea.tabIndex should return 0 when set to 0
+Pass	textarea.tabIndex should return 1 when set to 1
+Pass	select.tabIndex should return 0 by default
+Pass	select.tabIndex should return -1 when set to -1
+Pass	select.tabIndex should return 0 when set to 0
+Pass	select.tabIndex should return 1 when set to 1
+Pass	select[multiple].tabIndex should return 0 by default
+Pass	select[multiple].tabIndex should return -1 when set to -1
+Pass	select[multiple].tabIndex should return 0 when set to 0
+Pass	select[multiple].tabIndex should return 1 when set to 1
+Pass	option.tabIndex should return -1 by default
+Pass	option.tabIndex should return -1 when set to -1
+Pass	option.tabIndex should return 0 when set to 0
+Pass	option.tabIndex should return 1 when set to 1
+Pass	optgroup.tabIndex should return -1 by default
+Pass	optgroup.tabIndex should return -1 when set to -1
+Pass	optgroup.tabIndex should return 0 when set to 0
+Pass	optgroup.tabIndex should return 1 when set to 1
+Pass	iframe.tabIndex should return 0 by default
+Pass	iframe.tabIndex should return -1 when set to -1
+Pass	iframe.tabIndex should return 0 when set to 0
+Pass	iframe.tabIndex should return 1 when set to 1
+Pass	embed.tabIndex should return -1 by default
+Pass	embed.tabIndex should return -1 when set to -1
+Pass	embed.tabIndex should return 0 when set to 0
+Pass	embed.tabIndex should return 1 when set to 1
+Pass	object.tabIndex should return 0 by default
+Pass	object.tabIndex should return -1 when set to -1
+Pass	object.tabIndex should return 0 when set to 0
+Pass	object.tabIndex should return 1 when set to 1
+Pass	span.tabIndex should return -1 by default
+Pass	span.tabIndex should return -1 when set to -1
+Pass	span.tabIndex should return 0 when set to 0
+Pass	span.tabIndex should return 1 when set to 1
+Pass	div.tabIndex should return -1 by default
+Pass	div.tabIndex should return -1 when set to -1
+Pass	div.tabIndex should return 0 when set to 0
+Pass	div.tabIndex should return 1 when set to 1
+Pass	link#nohref.tabIndex should return -1 by default
+Pass	link#nohref.tabIndex should return -1 when set to -1
+Pass	link#nohref.tabIndex should return 0 when set to 0
+Pass	link#nohref.tabIndex should return 1 when set to 1
+Pass	link[href].tabIndex should return -1 by default
+Pass	link[href].tabIndex should return -1 when set to -1
+Pass	link[href].tabIndex should return 0 when set to 0
+Pass	link[href].tabIndex should return 1 when set to 1
+Pass	details.tabIndex should return -1 by default
+Pass	details.tabIndex should return -1 when set to -1
+Pass	details.tabIndex should return 0 when set to 0
+Pass	details.tabIndex should return 1 when set to 1
+Fail	summary.tabIndex should return 0 by default
+Pass	summary.tabIndex should return -1 when set to -1
+Pass	summary.tabIndex should return 0 when set to 0
+Pass	summary.tabIndex should return 1 when set to 1
+Pass	summary#secondsummary.tabIndex should return -1 by default
+Pass	summary#secondsummary.tabIndex should return -1 when set to -1
+Pass	summary#secondsummary.tabIndex should return 0 when set to 0
+Pass	summary#secondsummary.tabIndex should return 1 when set to 1
+Pass	#hostDelegatesFocus.tabIndex should return -1 by default
+Pass	#hostDelegatesFocus.tabIndex should return -1 when set to -1
+Pass	#hostDelegatesFocus.tabIndex should return 0 when set to 0
+Pass	#hostDelegatesFocus.tabIndex should return 1 when set to 1
+Pass	#hostNonDelegatesFocus.tabIndex should return -1 by default
+Pass	#hostNonDelegatesFocus.tabIndex should return -1 when set to -1
+Pass	#hostNonDelegatesFocus.tabIndex should return 0 when set to 0
+Pass	#hostNonDelegatesFocus.tabIndex should return 1 when set to 1
+Pass	div[contenteditable].tabIndex should return -1 by default
+Pass	div[contenteditable].tabIndex should return -1 when set to -1
+Pass	div[contenteditable].tabIndex should return 0 when set to 0
+Pass	div[contenteditable].tabIndex should return 1 when set to 1
+Pass	#scrollable.tabIndex should return -1 by default
+Pass	#scrollable.tabIndex should return -1 when set to -1
+Pass	#scrollable.tabIndex should return 0 when set to 0
+Pass	#scrollable.tabIndex should return 1 when set to 1
+Pass	fieldset.tabIndex should return -1 by default
+Pass	fieldset.tabIndex should return -1 when set to -1
+Pass	fieldset.tabIndex should return 0 when set to 0
+Pass	fieldset.tabIndex should return 1 when set to 1
+Pass	output.tabIndex should return -1 by default
+Pass	output.tabIndex should return -1 when set to -1
+Pass	output.tabIndex should return 0 when set to 0
+Pass	output.tabIndex should return 1 when set to 1
+Pass	slot.tabIndex should return -1 by default
+Pass	slot.tabIndex should return -1 when set to -1
+Pass	slot.tabIndex should return 0 when set to 0
+Pass	slot.tabIndex should return 1 when set to 1

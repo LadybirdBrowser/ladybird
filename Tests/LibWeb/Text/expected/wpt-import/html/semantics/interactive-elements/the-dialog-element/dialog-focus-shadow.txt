@@ -1,0 +1,56 @@
+Harness status: OK
+
+Found 50 tests
+
+6 Pass
+44 Fail
+Pass	show: No autofocus, no delegatesFocus, no siblings
+Pass	showModal: No autofocus, no delegatesFocus, no siblings
+Fail	show: No autofocus, no delegatesFocus, sibling before
+Fail	showModal: No autofocus, no delegatesFocus, sibling before
+Fail	show: No autofocus, no delegatesFocus, sibling after
+Fail	showModal: No autofocus, no delegatesFocus, sibling after
+Fail	show: No autofocus, yes delegatesFocus, no siblings
+Fail	showModal: No autofocus, yes delegatesFocus, no siblings
+Fail	show: No autofocus, yes delegatesFocus, sibling before
+Fail	showModal: No autofocus, yes delegatesFocus, sibling before
+Fail	show: No autofocus, yes delegatesFocus, sibling after
+Fail	showModal: No autofocus, yes delegatesFocus, sibling after
+Fail	show: Autofocus before, no delegatesFocus
+Fail	showModal: Autofocus before, no delegatesFocus
+Fail	show: Autofocus before, yes delegatesFocus
+Fail	showModal: Autofocus before, yes delegatesFocus
+Fail	show: Autofocus after, no delegatesFocus
+Fail	showModal: Autofocus after, no delegatesFocus
+Fail	show: Autofocus after, yes delegatesFocus
+Fail	showModal: Autofocus after, yes delegatesFocus
+Fail	show: Autofocus on shadow host, yes delegatesFocus, no siblings
+Fail	showModal: Autofocus on shadow host, yes delegatesFocus, no siblings
+Fail	show: Autofocus on shadow host, yes delegatesFocus, sibling before
+Fail	showModal: Autofocus on shadow host, yes delegatesFocus, sibling before
+Fail	show: Autofocus on shadow host, yes delegatesFocus, sibling after
+Fail	showModal: Autofocus on shadow host, yes delegatesFocus, sibling after
+Pass	show: Autofocus on shadow host, no delegatesFocus, no siblings
+Pass	showModal: Autofocus on shadow host, no delegatesFocus, no siblings
+Fail	show: Autofocus on shadow host, no delegatesFocus, sibling before
+Fail	showModal: Autofocus on shadow host, no delegatesFocus, sibling before
+Fail	show: Autofocus on shadow host, no delegatesFocus, sibling after
+Fail	showModal: Autofocus on shadow host, no delegatesFocus, sibling after
+Fail	show: Autofocus inside shadow tree, yes delegatesFocus, no siblings
+Fail	showModal: Autofocus inside shadow tree, yes delegatesFocus, no siblings
+Fail	show: Autofocus inside shadow tree, yes delegatesFocus, sibling before
+Fail	showModal: Autofocus inside shadow tree, yes delegatesFocus, sibling before
+Fail	show: Autofocus inside shadow tree, yes delegatesFocus, sibling after
+Fail	showModal: Autofocus inside shadow tree, yes delegatesFocus, sibling after
+Pass	show: Autofocus inside shadow tree, no delegatesFocus, no siblings
+Pass	showModal: Autofocus inside shadow tree, no delegatesFocus, no siblings
+Fail	show: Autofocus inside shadow tree, no delegatesFocus, sibling before
+Fail	showModal: Autofocus inside shadow tree, no delegatesFocus, sibling before
+Fail	show: Autofocus inside shadow tree, no delegatesFocus, sibling after
+Fail	showModal: Autofocus inside shadow tree, no delegatesFocus, sibling after
+Fail	show: Two shadow trees, both delegatesFocus, first tree doesn't have autofocus element, second does
+Fail	showModal: Two shadow trees, both delegatesFocus, first tree doesn't have autofocus element, second does
+Fail	show: No autofocus, no delegatesFocus, slotted target
+Fail	showModal: No autofocus, no delegatesFocus, slotted target
+Fail	show: Shadowroot on child, no autofocus, no delegatesFocus
+Fail	showModal: Shadowroot on child, no autofocus, no delegatesFocus

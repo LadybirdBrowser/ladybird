@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>tabindex on video elements</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#video">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<div id="test">
+<video></video>
+</div>
+<script>
+var t = async_test("Attributes shouldn't magically appear");
+on_event(window, "load", t.step_func(function() {
+  var el = document.getElementById("test").getElementsByTagName("video")[0];
+  assert_equals(el.hasAttribute("tabindex"), false);
+  t.done()
+}))
+</script>
