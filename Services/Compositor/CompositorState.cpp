@@ -342,8 +342,7 @@ void CompositorState::flush_descendant_surfaces_for_screenshot(Web::Compositor::
     // list, whose embedded-content commands read those child surfaces. So, flush any descendant with a deferred
     // present synchronously (deepest-first) — to capture a complete frame instead of a stale/blank iframe.
     auto* context = context_if_present(context_id);
-    if (!context)
-        return;
+    VERIFY(context);
     for (auto& child : context->child_contexts())
         present_subtree_for_screenshot(child.child_context_id);
 }
@@ -351,8 +350,7 @@ void CompositorState::flush_descendant_surfaces_for_screenshot(Web::Compositor::
 bool CompositorState::present_subtree_for_screenshot(Web::Compositor::CompositorContextId context_id)
 {
     auto* context = context_if_present(context_id);
-    if (!context)
-        return false;
+    VERIFY(context);
 
     bool needs_present = context->needs_synchronous_present_for_screenshot();
     for (auto& child : context->child_contexts()) {
@@ -383,7 +381,8 @@ bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId co
         return false;
 
     flush_descendant_surfaces_for_screenshot(context_id);
-    return context->paint_screenshot(*m_display_list_player, target_bitmap);
+    context->paint_screenshot(*m_display_list_player, target_bitmap);
+    return true;
 }
 
 void CompositorState::presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id)
@@ -445,8 +444,9 @@ void CompositorState::cancel_pending_async_presents_for_context(Web::Compositor:
 
 void CompositorState::schedule_gpu_completion_check()
 {
-    if (!m_skia_backend_context || m_pending_async_presents.is_empty())
+    if (!m_skia_backend_context)
         return;
+    VERIFY(!m_pending_async_presents.is_empty());
 
     if (!m_gpu_completion_timer) {
         m_gpu_completion_timer = Core::Timer::create_repeating(gpu_completion_check_interval_ms, [this] {
@@ -572,8 +572,7 @@ bool CompositorState::apply_context_update_result(
 void CompositorState::publish_backing_stores(Web::Compositor::CompositorContextId context_id, ContextState& context, BackingStoreManager::Publication&& publication)
 {
     VERIFY(m_client);
-    if (!context.presents_to_client())
-        return;
+    VERIFY(context.presents_to_client());
 
     m_client->did_allocate_backing_stores(context_id, publication.front_bitmap_id, move(publication.front_shared_image), publication.back_bitmap_id, move(publication.back_shared_image));
 }
