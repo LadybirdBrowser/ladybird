@@ -268,7 +268,7 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
         paint_node(svg_svg_paintable, context, PaintPhase::Background);
         paint_node(svg_svg_paintable, context, PaintPhase::Border);
 
-        SVGSVGPaintable::paint_descendants(context, svg_svg_paintable, PaintPhase::Foreground);
+        SVGSVGPaintable::paint_svg_box(context, svg_svg_paintable, PaintPhase::Foreground);
 
         paint_node(svg_svg_paintable, context, PaintPhase::Outline);
         if (context.should_paint_overlay()) {

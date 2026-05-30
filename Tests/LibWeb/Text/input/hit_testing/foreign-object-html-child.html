@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        width: 40px;
+        height: 40px;
+        background: green;
+        color: white;
+    }
+
+    #wrapper {
+        position: relative;
+        width: 40px;
+        height: 40px;
+    }
+
+    svg {
+        contain: paint;
+        position: absolute;
+        left: -4px;
+        top: -4px;
+    }
+</style>
+<div id="wrapper">
+    <svg width="48" height="48" viewBox="-4 -4 48 48" overflow="visible">
+        <defs>
+            <path d="M0 0H40V40H0Z" id="mask-shape"></path>
+        </defs>
+        <mask id="mask" fill="black" x="0" y="0" width="40" height="40">
+            <use href="#mask-shape" fill="white"></use>
+        </mask>
+        <foreignObject mask="url(#mask)" x="0" y="0" width="40" height="40">
+            <div id="target">target text</div>
+        </foreignObject>
+    </svg>
+</div>
+<script>
+    test(() => {
+        printElement(internals.hitTest(20, 35).node);
+    });
+</script>

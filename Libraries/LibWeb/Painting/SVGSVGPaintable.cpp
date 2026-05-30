@@ -20,6 +20,17 @@ SVGSVGPaintable::SVGSVGPaintable(Layout::SVGSVGBox const& layout_box)
 {
 }
 
+static void record_foreign_object_descendant_hit_test_items(DisplayListRecordingContext& context, PaintableBox const& paintable)
+{
+    paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+        child.record_hit_test_items(context, PaintPhase::Background);
+        record_foreign_object_descendant_hit_test_items(context, child);
+        child.record_hit_test_items(context, PaintPhase::Foreground);
+        child.record_hit_test_items(context, PaintPhase::Overlay);
+        return IterationDecision::Continue;
+    });
+}
+
 void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, PaintableBox const& svg_box, PaintPhase phase)
 {
     context.display_list_recorder().set_accumulated_visual_context(svg_box.accumulated_visual_context_index());
@@ -61,6 +72,8 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
 
     if (!skip_painting) {
         svg_box.record_hit_test_items(context, phase);
+        if (svg_box.layout_node().is_svg_foreign_object_box())
+            record_foreign_object_descendant_hit_test_items(context, svg_box);
         svg_box.paint(context, PaintPhase::Foreground);
         paint_descendants(context, svg_box, phase);
     }
