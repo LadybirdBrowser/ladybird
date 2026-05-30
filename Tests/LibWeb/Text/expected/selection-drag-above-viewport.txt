@@ -1,3 +1,4 @@
 selection reached viewport top: true
+selection never flipped forward in top 50 pixels: true
 above viewport matches viewport top: true
 above viewport selected forward text: false

@@ -1,0 +1,2 @@
+short logo was selected: true
+short logo stayed selected: true

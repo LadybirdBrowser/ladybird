@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 24px Arial, sans-serif;
+        margin: 0;
+    }
+
+    #hero {
+        position: relative;
+        height: 500px;
+        width: 900px;
+    }
+
+    #copy {
+        margin: 100px 0 0 300px;
+        width: 520px;
+        line-height: 32px;
+    }
+
+    #fade {
+        position: absolute;
+        top: 250px;
+        left: 0;
+        right: 0;
+        height: 250px;
+    }
+</style>
+<div id="hero">
+    <p id="copy">A place to try out the latest web technologies, and.</p>
+    <div id="fade"></div>
+</div>
+<script>
+    function textRect(textNode, text) {
+        const index = textNode.data.indexOf(text);
+        const range = document.createRange();
+        range.setStart(textNode, index);
+        range.setEnd(textNode, index + text.length);
+        return range.getBoundingClientRect();
+    }
+
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = copy.firstChild;
+        const wordRect = textRect(textNode, "latest web technologies");
+        const startX = Math.floor(wordRect.x + wordRect.width / 2);
+        const startY = Math.floor(wordRect.y + wordRect.height / 2);
+        const endY = fade.getBoundingClientRect().y + 20;
+
+        internals.mouseDown(startX, startY);
+        for (let y = startY; y <= endY; ++y)
+            internals.mouseMove(startX, y);
+        internals.mouseUp(startX, endY);
+
+        const selection = getSelection();
+        println(`selection anchor stayed in text: ${selection.anchorNode === textNode}`);
+        println(`selection focus stayed in text: ${selection.focusNode === textNode}`);
+    });
+</script>

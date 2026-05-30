@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 16px Arial, sans-serif;
+    }
+
+    article {
+        display: flex;
+        gap: 220px;
+        padding: 220px 0 0 200px;
+    }
+
+    td, th {
+        line-height: 22px;
+        padding: 0 18px 0 0;
+        text-align: left;
+    }
+
+    #latest {
+        text-align: center;
+    }
+
+    #latest-label {
+        font-size: 22px;
+        font-weight: bold;
+        line-height: 22px;
+    }
+
+    #latest-link {
+        white-space: nowrap;
+    }
+
+    #latest-version {
+        display: inline-block;
+        font-size: 80px;
+        font-weight: bold;
+        line-height: 20px;
+    }
+
+    #download-arrow {
+        height: 48px;
+        width: 68px;
+    }
+</style>
+<article>
+    <table>
+        <tr><th>Protocol</th><th>Location</th></tr>
+        <tr><td>HTTP</td><td>https://www.example.test/pub/</td></tr>
+        <tr><td>GIT</td><td>https://git.example.test/</td></tr>
+        <tr><td>RSYNC</td><td>rsync://rsync.example.test/pub/</td></tr>
+    </table>
+    <table id="latest">
+        <tr><td><strong id="latest-label">Latest Release</strong></td></tr>
+        <tr>
+            <td>
+                <a id="latest-link"><span id="latest-version">7.0.10</span><img id="download-arrow" alt=""></a>
+            </td>
+        </tr>
+    </table>
+</article>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const label = document.getElementById("latest-label");
+        const labelRect = label.getBoundingClientRect();
+        const arrow = document.getElementById("download-arrow");
+        const arrowRect = arrow.getBoundingClientRect();
+        const x = Math.floor(labelRect.x + labelRect.width / 2);
+        const startY = Math.floor(labelRect.y + labelRect.height / 2);
+        const dragX = x + 200;
+        const arrowY = Math.floor(arrowRect.y + arrowRect.height / 2);
+        const belowArrowY = Math.ceil(arrowRect.bottom) + 10;
+
+        internals.mouseDown(x, startY);
+        internals.mouseMove(dragX, startY);
+        internals.mouseMove(dragX, arrowY);
+        internals.mouseMove(dragX, belowArrowY);
+        internals.mouseUp(dragX, belowArrowY);
+
+        println(`kept arrow selected below row: ${getSelection().containsNode(arrow, true)}`);
+    });
+</script>

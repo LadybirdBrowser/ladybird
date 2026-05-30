@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        font: 16px Arial, sans-serif;
+        margin: 0;
+    }
+
+    header {
+        position: relative;
+        margin: 100px;
+        width: 680px;
+    }
+
+    svg {
+        position: absolute;
+        top: -32px;
+        left: 230px;
+        z-index: -10;
+        width: 612px;
+        height: 334px;
+    }
+
+    h1 {
+        font-size: 32px;
+        line-height: 32px;
+        margin: 0;
+    }
+
+    p {
+        line-height: 24px;
+        margin: 32px 0 0;
+    }
+</style>
+<header>
+    <svg viewBox="0 0 612 334">
+        <path d="M0 0 H612 V334 H0 Z"></path>
+    </svg>
+    <h1 id="heading">Hello, my name is Aaron Francis.</h1>
+    <p id="intro">I'm a software developer, content creator, and co-founder of something.</p>
+</header>
+<script>
+    function textRect(textNode, text) {
+        const index = textNode.data.indexOf(text);
+        const range = document.createRange();
+        range.setStart(textNode, index);
+        range.setEnd(textNode, index + text.length);
+        return range.getBoundingClientRect();
+    }
+
+    test(() => {
+        document.body.offsetWidth;
+
+        const headingText = heading.firstChild;
+        const francisRect = textRect(headingText, "Francis");
+        const introRect = intro.getBoundingClientRect();
+        const position = document.caretPositionFromPoint(
+            Math.floor(francisRect.x + francisRect.width / 2),
+            Math.floor(introRect.y) - 4);
+
+        println(`caret below heading moves to following text: ${position.offsetNode === intro.firstChild && position.offset === 0}`);
+    });
+</script>

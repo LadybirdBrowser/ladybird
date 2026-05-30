@@ -1,0 +1,2 @@
+selection anchor stayed in text: true
+selection focus stayed in text: true

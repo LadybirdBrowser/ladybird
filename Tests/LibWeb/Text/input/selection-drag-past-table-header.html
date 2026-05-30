@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 16px Arial, sans-serif;
+    }
+
+    .icon {
+        display: inline-block;
+        height: 22px;
+        width: 20px;
+    }
+</style>
+<body>
+    <h1>Index of /packages</h1>
+    <table>
+        <tr>
+            <th><span class="icon"></span></th>
+            <th>Name</th>
+            <th>Last modified</th>
+            <th>Size</th>
+            <th><span id="description">Description</span></th>
+        </tr>
+        <tr>
+            <th colspan="5"><hr></th>
+        </tr>
+    </table>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = description.firstChild;
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        const rect = range.getBoundingClientRect();
+        const x = Math.ceil(rect.right) + 20;
+        const y = Math.ceil(rect.bottom) + 1;
+        const farX = Math.ceil(rect.right) + 120;
+        const lowerY = Math.ceil(rect.bottom) + 5;
+
+        internals.mouseDown(0, 0);
+        internals.mouseMove(x, Math.floor(rect.y + rect.height / 2));
+        const selectedOnDescription = getSelection().toString();
+        internals.mouseMove(x, y);
+        internals.mouseUp(x, y);
+        const selectedBelowDescription = getSelection().toString();
+
+        internals.mouseDown(0, 0);
+        internals.mouseMove(farX, Math.floor(rect.y + rect.height / 2));
+        const selectedFarOnDescription = getSelection().toString();
+        internals.mouseMove(farX, lowerY);
+        internals.mouseUp(farX, lowerY);
+        const selectedFarBelowDescription = getSelection().toString();
+
+        println(`selected description on row: ${selectedOnDescription.includes("Description")}`);
+        println(`kept description below row text: ${selectedBelowDescription.includes("Description")}`);
+        println(`snapped before header text: ${!selectedBelowDescription.includes("Name")}`);
+        println(`selected far description on row: ${selectedFarOnDescription.includes("Description")}`);
+        println(`kept far description below row text: ${selectedFarBelowDescription.includes("Description")}`);
+        println(`far snapped before header text: ${!selectedFarBelowDescription.includes("Name")}`);
+    });
+</script>
