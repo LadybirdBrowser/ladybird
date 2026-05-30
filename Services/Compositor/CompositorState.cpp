@@ -627,6 +627,70 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
     }
 }
 
+void CompositorState::flush_descendant_surfaces_for_screenshot(Web::Compositor::CompositorContextId context_id)
+{
+    // Presents are scheduled on a vsync timer rather than performed synchronously — so a nested navigable's latest
+    // paint may not yet be published to its parent's compositor surface. A screenshot re-executes the top-level display
+    // list, whose embedded-content commands read those child surfaces. So, flush any descendant with a deferred
+    // present synchronously (deepest-first) — to capture a complete frame instead of a stale/blank iframe.
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+    for (auto& child : context->child_contexts_by_surface_id)
+        present_subtree_for_screenshot(child.value);
+}
+
+bool CompositorState::present_subtree_for_screenshot(Web::Compositor::CompositorContextId context_id)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return false;
+
+    bool needs_present = context->pending_present_frame.has_value() || context->pending_present_frame_scheduled;
+    for (auto& child : context->child_contexts_by_surface_id) {
+        if (present_subtree_for_screenshot(child.value))
+            needs_present = true;
+    }
+
+    if (!needs_present || !context->presentation_mode.has<Web::Compositor::PublishToCompositorSurface>())
+        return false;
+
+    present_context_synchronously(*context);
+    return true;
+}
+
+void CompositorState::present_context_synchronously(ContextState& context)
+{
+    auto* publish_mode = context.presentation_mode.get_pointer<Web::Compositor::PublishToCompositorSurface>();
+    if (!publish_mode)
+        return;
+    if (!context.display_list || !context.visual_context_tree.has_value() || !context.backing_store_manager.is_valid())
+        return;
+    // Don't race an async present already in flight for this context; its own completion will publish.
+    if (context.gpu_present_bitmap_id_awaiting_completion.has_value() || context.presented_bitmap_id_awaiting_ack.has_value())
+        return;
+
+    auto viewport_rect = context.pending_present_frame;
+    if (!viewport_rect.has_value())
+        viewport_rect = context.presented_frame;
+    if (!viewport_rect.has_value())
+        return;
+
+    auto& back_store = context.backing_store_manager.back_store();
+    {
+        Gfx::PainterSkia painter { NonnullRefPtr<Gfx::PaintingSurface> { back_store } };
+        painter.clear_rect(back_store.rect().to_type<float>(), Gfx::Color::Transparent);
+    }
+    m_display_list_player->execute(*context.display_list, context.visual_context_tree.value(), context.display_list_resource_storage, context.scroll_state_snapshot, back_store);
+    paint_viewport_scrollbar_overlay(context, back_store);
+    m_display_list_player->flush(back_store);
+    context.backing_store_manager.swap();
+    context.presented_frame = viewport_rect;
+    context.pending_present_frame.clear();
+    context.pending_present_frame_scheduled = false;
+    publish_to_parent_surface(context, *publish_mode);
+}
+
 bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId context_id, Gfx::ShareableBitmap& target_bitmap)
 {
     auto* context = context_if_present(context_id);
@@ -634,6 +698,8 @@ bool CompositorState::request_screenshot(Web::Compositor::CompositorContextId co
 
     if (!context->display_list || !context->visual_context_tree.has_value() || !target_bitmap.is_valid() || !target_bitmap.bitmap())
         return false;
+
+    flush_descendant_surfaces_for_screenshot(context_id);
 
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
     m_display_list_player->execute(*context->display_list, context->visual_context_tree.value(), context->display_list_resource_storage, context->scroll_state_snapshot, *target_surface);
