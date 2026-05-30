@@ -25,16 +25,14 @@ public:
     Vector<PaintableFragment> const& fragments() const { return m_fragments; }
     Vector<PaintableFragment>& fragments() { return m_fragments; }
 
-    void add_fragment(Layout::LineBoxFragment const& fragment)
+    void add_fragment(Layout::LineBoxFragment const& fragment, LineBoxData line_box_data)
     {
-        m_fragments.append(PaintableFragment { fragment });
+        m_fragments.append(PaintableFragment { fragment, line_box_data });
     }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
+    virtual void record_hit_test_items(DisplayListRecordingContext&, PaintPhase) const override;
     static void paint_text_fragment_debug_highlight(DisplayListRecordingContext&, PaintableFragment const&);
-
-    [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
-    [[nodiscard]] TraversalDecision hit_test_fragments(CSSPixelPoint position, CSSPixelPoint local_position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
     size_t line_index() const { return m_line_index; }
 

@@ -6,8 +6,13 @@
 
 #pragma once
 
+#include <AK/Types.h>
+
 namespace Web::Painting {
 
+class HitTestDisplayList;
+enum class HitTestType : u8;
+struct CaretPosition;
 struct HitTestResult;
 
 }

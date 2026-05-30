@@ -18,7 +18,7 @@ public:
     PaintableBox::ScrollDirection direction() const { return m_direction; }
     bool is_enlarged() const { return m_hovered || m_thumb_grab_position.has_value(); }
 
-    bool contains(CSSPixelPoint position, ChromeMetrics const&) const;
+    virtual bool contains(CSSPixelPoint position, ChromeMetrics const&) const override;
 
     virtual MouseAction handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) override;
     virtual void mouse_enter() override;

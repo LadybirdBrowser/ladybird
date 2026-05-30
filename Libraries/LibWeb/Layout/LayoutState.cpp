@@ -30,6 +30,31 @@ LayoutState::~LayoutState()
 {
 }
 
+static Painting::LineBoxData line_box_data_for(LineBox const& line_box, size_t line_index)
+{
+    CSSPixelRect rect;
+    bool saw_fragment = false;
+    for (auto const& fragment : line_box.fragments()) {
+        auto fragment_rect = CSSPixelRect { fragment.offset(), fragment.size() };
+        if (saw_fragment)
+            rect.unite(fragment_rect);
+        else
+            rect = fragment_rect;
+        saw_fragment = true;
+    }
+
+    if (!saw_fragment)
+        return { line_index, {} };
+
+    auto writing_mode = line_box.fragments().first().writing_mode();
+    if (writing_mode == CSS::WritingMode::HorizontalTb) {
+        rect.set_y(line_box.bottom() - line_box.height());
+        rect.set_height(line_box.height());
+    }
+
+    return { line_index, rect };
+}
+
 void LayoutState::ensure_capacity(u32 node_count)
 {
     m_used_values_store.ensure_capacity(node_count);
@@ -465,14 +490,14 @@ void LayoutState::commit(Box& root)
         box_model.margin = { used_values.margin_top, used_values.margin_right, used_values.margin_bottom, used_values.margin_left };
     };
 
-    auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, size_t line_index, Painting::PaintableBox::FragmentationState fragmentation_state) -> bool {
+    auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, Painting::LineBoxData line_box_data, Painting::PaintableBox::FragmentationState fragmentation_state) -> bool {
         for (auto const* parent = fragment.layout_node().parent(); parent; parent = parent->parent()) {
             if (parent->is_atomic_inline())
                 break;
             if (is<InlineNode>(*parent)) {
                 auto& inline_node = const_cast<InlineNode&>(static_cast<InlineNode const&>(*parent));
-                auto line_paintable = inline_node.create_paintable_for_line_with_index(line_index);
-                line_paintable->add_fragment(fragment);
+                auto line_paintable = inline_node.create_paintable_for_line_with_index(line_box_data.index);
+                line_paintable->add_fragment(fragment, line_box_data);
                 line_paintable->set_fragmentation_state(fragmentation_state);
                 if (auto const* used_values = try_get(inline_node))
                     transfer_box_model_metrics(line_paintable->box_model(), *used_values);
@@ -521,6 +546,7 @@ void LayoutState::commit(Box& root)
             if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable_box)) {
                 for (size_t line_index = 0; line_index < used_values.line_boxes.size(); ++line_index) {
                     auto& line_box = used_values.line_boxes[line_index];
+                    auto line_box_data = line_box_data_for(line_box, line_index);
                     auto first_fragment_continues_last_line_box = false;
                     if (line_index > 0 && used_values.line_boxes[line_index - 1].fragments().size() > 0 && used_values.line_boxes[line_index].fragments().size() > 0) {
                         first_fragment_continues_last_line_box = &used_values.line_boxes[line_index - 1].fragments().last().layout_node() == &used_values.line_boxes[line_index].fragments().first().layout_node();
@@ -546,10 +572,10 @@ void LayoutState::commit(Box& root)
                             fragmentation_state = Painting::PaintableBox::FragmentationState::HorizontalStart;
                         }
 
-                        auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_index, fragmentation_state);
+                        auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_box_data, fragmentation_state);
                         first_fragment_continues_last_line_box = false;
                         if (!did_relocate_fragment)
-                            paintable_with_lines->add_fragment(fragment);
+                            paintable_with_lines->add_fragment(fragment, line_box_data);
                     }
                 }
             }
@@ -629,6 +655,7 @@ void LayoutState::commit(Box& root)
             // However, line box post-processing may remove fragments after we record this coordinate.
             if (containing_line_box_fragment.line_box_index < containing_block_used_values.line_boxes.size()) {
                 auto const& line_box = containing_block_used_values.line_boxes[containing_line_box_fragment.line_box_index];
+                paintable.set_containing_line_box_data(line_box_data_for(line_box, containing_line_box_fragment.line_box_index));
                 if (containing_line_box_fragment.fragment_index < line_box.fragments().size())
                     offset = line_box.fragments()[containing_line_box_fragment.fragment_index].offset();
                 else

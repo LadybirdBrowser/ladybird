@@ -57,6 +57,18 @@ public:
 
     bool has_children() const { return m_first_child; }
 
+    T* first_child_ptr() { return m_first_child.ptr(); }
+    T const* first_child_ptr() const { return m_first_child.ptr(); }
+
+    T* last_child_ptr() { return m_last_child.ptr(); }
+    T const* last_child_ptr() const { return m_last_child.ptr(); }
+
+    T* next_sibling_ptr() { return m_next_sibling.ptr(); }
+    T const* next_sibling_ptr() const { return m_next_sibling.ptr(); }
+
+    T* previous_sibling_ptr() { return m_previous_sibling.ptr(); }
+    T const* previous_sibling_ptr() const { return m_previous_sibling.ptr(); }
+
     RefPtr<T> first_child()
     {
         return m_first_child;

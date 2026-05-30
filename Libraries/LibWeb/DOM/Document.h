@@ -48,7 +48,9 @@
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
+#include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
+#include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -975,6 +977,11 @@ public:
     }
 
     RefPtr<Painting::DisplayList> record_display_list(HTML::PaintConfig, Painting::DisplayListResourceStorage&);
+    Painting::HitTestDisplayList const* hit_test_display_list() const { return m_hit_test_display_list.ptr(); }
+    Painting::HitTestDisplayList const* ensure_hit_test_display_list();
+    Optional<Painting::HitTestResult> hit_test(CSSPixelPoint, Painting::HitTestType);
+    Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
+    TraversalDecision hit_test_all(CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
     void set_needs_to_record_display_list();
 
@@ -1470,6 +1477,7 @@ private:
 
     bool m_needs_accumulated_visual_contexts_update { false };
     bool m_needs_invalidation_of_elements_affected_by_has { false };
+    RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
 
     mutable StyleInvalidationCounters m_style_invalidation_counters;
     mutable u64 m_style_invalidations_since_last_counter_dump { 0 };

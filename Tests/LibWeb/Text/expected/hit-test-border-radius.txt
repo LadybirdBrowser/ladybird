@@ -4,3 +4,5 @@ Near corner (25,25):
 <DIV id="target">
 Center (100,100):
 <DIV id="target">
+Fractional pill bottom-right curve (527,294):
+<DIV id="fractional-pill">

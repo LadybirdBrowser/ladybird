@@ -786,12 +786,19 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 
 void HTMLElement::set_subtree_inertness(bool is_inert)
 {
-    set_inert(is_inert);
+    auto update_inertness = [&](HTMLElement& element) {
+        if (element.is_inert() == is_inert)
+            return;
+        element.set_inert(is_inert);
+        element.set_needs_repaint();
+    };
+
+    update_inertness(*this);
     for_each_in_subtree_of_type<HTMLElement>([&](auto& html_element) {
         if (html_element.has_attribute(HTML::AttributeNames::inert))
             return TraversalDecision::SkipChildrenAndContinue;
         // FIXME: Exclude elements that should escape inertness.
-        html_element.set_inert(is_inert);
+        update_inertness(html_element);
         return TraversalDecision::Continue;
     });
 }

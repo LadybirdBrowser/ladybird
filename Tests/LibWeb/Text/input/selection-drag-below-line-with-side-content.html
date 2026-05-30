@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerenitySans, sans-serif;
+        line-height: 30px;
+    }
+
+    .content {
+        margin-left: 300px;
+        margin-top: 80px;
+        width: 500px;
+    }
+
+    p {
+        margin: 0;
+    }
+
+    ul {
+        margin-top: 20px;
+    }
+
+    .sidebar {
+        left: 900px;
+        position: absolute;
+        top: 105px;
+    }
+</style>
+<body>
+    <div class="content">
+        <div>
+            <p id="text">This release comes with many new features, including:</p>
+            <ul>
+                <li>Terminal tabs</li>
+                <li>A manpage viewer</li>
+            </ul>
+        </div>
+    </div>
+    <div class="sidebar">About Me</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        const textNode = text.firstChild;
+        const wordStart = textNode.data.indexOf("release");
+        const range = document.createRange();
+        range.setStart(textNode, wordStart);
+        range.setEnd(textNode, wordStart + "release".length);
+
+        const wordRect = range.getBoundingClientRect();
+        const paragraphRect = text.getBoundingClientRect();
+        const startX = wordRect.x + wordRect.width / 2;
+        const startY = wordRect.y + wordRect.height / 2;
+        const endY = Math.ceil(paragraphRect.bottom) + 1;
+
+        internals.mouseDown(startX, startY);
+        for (let y = Math.floor(startY) + 1; y <= endY; ++y)
+            internals.mouseMove(startX, y);
+        internals.mouseUp(startX, endY);
+
+        const selectedText = getSelection().toString();
+        println(`selected previous text: ${selectedText.includes("This")}`);
+        println(`selected rest of line: ${selectedText.includes("comes with many new features") && selectedText.endsWith("including:")}`);
+        println(`selected sidebar text: ${selectedText.includes("About Me")}`);
+    });
+</script>

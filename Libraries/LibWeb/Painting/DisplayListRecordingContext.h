@@ -19,6 +19,7 @@
 
 namespace Web::Painting {
 
+class HitTestDisplayList;
 class ScrollState;
 
 }
@@ -27,9 +28,10 @@ namespace Web {
 
 class WEB_API DisplayListRecordingContext {
 public:
-    DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics);
+    DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Painting::HitTestDisplayList* = nullptr);
 
     Painting::DisplayListRecorder& display_list_recorder() const { return m_display_list_recorder; }
+    Painting::HitTestDisplayList* hit_test_display_list() const { return m_hit_test_display_list; }
     Palette const& palette() const { return m_palette; }
 
     bool should_show_line_box_borders() const { return m_should_show_line_box_borders; }
@@ -106,6 +108,7 @@ public:
 
 private:
     Painting::DisplayListRecorder& m_display_list_recorder;
+    Painting::HitTestDisplayList* m_hit_test_display_list { nullptr };
     Palette m_palette;
     Painting::DevicePixelConverter m_device_pixel_converter;
     ChromeMetrics m_chrome_metrics;

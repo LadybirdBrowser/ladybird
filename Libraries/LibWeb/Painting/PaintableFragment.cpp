@@ -37,10 +37,11 @@ static void for_each_cluster_in_glyph_run(Gfx::GlyphRun const& glyph_run, size_t
     }
 }
 
-PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
+PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment, LineBoxData line_box_data)
     : m_layout_node(fragment.layout_node())
     , m_offset(fragment.offset())
     , m_size(fragment.size())
+    , m_line_box_data(line_box_data)
     , m_start_offset(fragment.start())
     , m_length_in_code_units(fragment.length_in_code_units())
     , m_glyph_run(fragment.glyph_run())
@@ -57,6 +58,14 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
 CSSPixelRect const PaintableFragment::absolute_rect() const
 {
     CSSPixelRect rect { offset(), size() };
+    if (auto containing_block = paintable().containing_block())
+        rect.translate_by(containing_block->absolute_position());
+    return rect;
+}
+
+CSSPixelRect const PaintableFragment::absolute_line_box_rect() const
+{
+    auto rect = m_line_box_data.rect;
     if (auto containing_block = paintable().containing_block())
         rect.translate_by(containing_block->absolute_position());
     return rect;

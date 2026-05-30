@@ -14,6 +14,12 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
+namespace Web {
+
+struct ChromeMetrics;
+
+}
+
 namespace Web::Painting {
 
 enum class MouseAction : u8 {
@@ -30,6 +36,7 @@ class ChromeWidget
 public:
     virtual ~ChromeWidget() = default;
 
+    virtual bool contains(CSSPixelPoint, ChromeMetrics const&) const = 0;
     virtual MouseAction handle_pointer_event(FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) = 0;
     virtual void mouse_enter() = 0;
     virtual void mouse_leave() = 0;

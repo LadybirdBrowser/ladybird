@@ -47,8 +47,6 @@ public:
     static void paint_svg(DisplayListRecordingContext&, PaintableBox const&, PaintPhase);
     void paint(DisplayListRecordingContext&) const;
 
-    [[nodiscard]] TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const;
-
     void dump(StringBuilder&, int indent = 0) const;
 
     void sort();
