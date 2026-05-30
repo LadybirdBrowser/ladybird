@@ -506,9 +506,9 @@ void BrowserWindow::on_devtools_disabled()
     setStatusBar(nullptr);
 }
 
-Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
+Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab, Optional<int> tab_index)
 {
-    auto& tab = create_new_tab(activate_tab);
+    auto& tab = create_new_tab(activate_tab, tab_index.map([](auto index) { return index + 1; }));
     tab.navigate(url);
     return tab;
 }
@@ -543,7 +543,7 @@ FullscreenMode& BrowserWindow::fullscreen_mode()
     return *m_fullscreen_mode;
 }
 
-Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
+Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<int> tab_index)
 {
     auto* tab = new Tab(this);
 
@@ -551,7 +551,11 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
         set_current_tab(tab);
     }
 
-    m_tabs_container->add_tab(tab, "New Tab");
+    if (tab_index.has_value()) {
+        m_tabs_container->insert_tab(*tab_index, tab, "New Tab");
+    } else {
+        m_tabs_container->add_tab(tab, "New Tab");
+    }
     if (activate_tab == Web::HTML::ActivateTab::Yes)
         m_tabs_container->set_current_tab(tab);
 

@@ -97,7 +97,7 @@ public:
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
 
-    Tab& create_new_tab(Web::HTML::ActivateTab activate_tab);
+    Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<int> tab_index = {});
     Tab* current_tab() const { return m_current_tab; }
     FullscreenMode& fullscreen_mode();
 
@@ -129,7 +129,7 @@ public slots:
     void tab_title_changed(int index, QString const&);
     void tab_favicon_changed(int index, QIcon const& icon);
     void tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState);
-    Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab);
+    Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab, Optional<int> tab_index = {});
     Tab& new_child_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void activate_tab(int index);
     void definitely_close_tab(int index);
