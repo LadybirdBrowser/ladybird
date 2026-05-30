@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	serialization test X25519
+Pass	serialization test {name: X25519}

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	serialization test ChaCha20-Poly1305
+Pass	serialization test {name: ChaCha20-Poly1305}

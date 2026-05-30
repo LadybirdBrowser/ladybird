@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	serialization test Ed448
+Pass	serialization test {name: Ed448}

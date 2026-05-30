@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	serialization test {hash: SHA-1, modulusLength: 2048, name: RSASSA-PKCS1-v1_5, publicExponent: {0: 1, 1: 0, 2: 1}}
+Pass	serialization test {hash: SHA-256, modulusLength: 2048, name: RSASSA-PKCS1-v1_5, publicExponent: {0: 1, 1: 0, 2: 1}}
