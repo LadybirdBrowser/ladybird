@@ -8,19 +8,273 @@
 #include <AK/Vector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
+#include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
+
+static JS::ThrowCompletionOr<GC::RootVector<GC::Ref<JS::Object>>> convert_transfer_argument(JS::VM& vm, JS::Value value)
+{
+    GC::RootVector<GC::Ref<JS::Object>> transfer;
+    if (value.is_undefined())
+        return transfer;
+
+    if (!value.is_object())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, value);
+
+    auto iterator_method = TRY(value.get_method(vm, vm.well_known_symbol_iterator()));
+    if (!iterator_method)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, value);
+
+    auto iterator = TRY(JS::get_iterator_from_method(vm, value, *iterator_method));
+    for (;;) {
+        auto next = TRY(JS::iterator_step_value(vm, iterator));
+        if (!next.has_value())
+            break;
+
+        auto next_value = next.release_value();
+        if (!next_value.is_object())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, next_value);
+
+        transfer.append(next_value.as_object());
+    }
+
+    return transfer;
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_window_method(JS::Realm& realm, GC::Ref<Window> window, String const& property)
+{
+    if (property == "close"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) {
+                window->close();
+                return JS::js_undefined();
+            },
+            0, "close"_utf16_fly_string);
+    }
+
+    if (property == "focus"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) {
+                window->focus();
+                return JS::js_undefined();
+            },
+            0, "focus"_utf16_fly_string);
+    }
+
+    if (property == "blur"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) {
+                window->blur();
+                return JS::js_undefined();
+            },
+            0, "blur"_utf16_fly_string);
+    }
+
+    if (property == "postMessage"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                auto message = vm.argument(0);
+
+                if (vm.argument_count() >= 3) {
+                    auto target_origin = TRY(WebIDL::to_usv_string(vm, vm.argument(1)));
+                    auto transfer = TRY(convert_transfer_argument(vm, vm.argument(2)));
+                    TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return window->post_message(message, target_origin, transfer); }));
+                    return JS::js_undefined();
+                }
+
+                auto second_argument = vm.argument(1);
+                if (vm.argument_count() == 2 && !second_argument.is_undefined() && !second_argument.is_object()) {
+                    auto target_origin = TRY(WebIDL::to_usv_string(vm, second_argument));
+                    GC::RootVector<GC::Ref<JS::Object>> transfer;
+                    TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return window->post_message(message, target_origin, transfer); }));
+                    return JS::js_undefined();
+                }
+
+                Bindings::WindowPostMessageOptions options {};
+                if (vm.argument_count() >= 2 && !second_argument.is_undefined())
+                    options = TRY(Bindings::convert_to_idl_value_for_window_post_message_options(vm, second_argument));
+                TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return window->post_message(message, options); }));
+                return JS::js_undefined();
+            },
+            1, "postMessage"_utf16_fly_string);
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_location_method(JS::Realm& realm, GC::Ref<Location> location, String const& property)
+{
+    if (property == "replace"sv) {
+        return JS::NativeFunction::create(
+            realm, [location](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                if (vm.argument_count() < 1)
+                    return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "replace");
+
+                auto url = TRY(WebIDL::to_usv_string(vm, vm.argument(0)));
+                TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return location->replace(url); }));
+                return JS::js_undefined();
+            },
+            1, "replace"_utf16_fly_string);
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_window_getter(JS::Realm& realm, GC::Ref<Window> window, String const& property)
+{
+    if (property == "window"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                return window->window().ptr();
+            },
+            0, "window"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "self"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                return window->self().ptr();
+            },
+            0, "self"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "location"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                return window->location().ptr();
+            },
+            0, "location"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "closed"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                return JS::Value(window->closed());
+            },
+            0, "closed"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "frames"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                return window->frames().ptr();
+            },
+            0, "frames"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "length"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                return JS::Value(window->length());
+            },
+            0, "length"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "top"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                auto value = window->top();
+                if (!value)
+                    return JS::js_null();
+                return value;
+            },
+            0, "top"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "opener"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                auto value = window->opener();
+                if (!value)
+                    return JS::js_null();
+                return value;
+            },
+            0, "opener"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    if (property == "parent"sv) {
+        return JS::NativeFunction::create(
+            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
+                auto value = window->parent();
+                if (!value)
+                    return JS::js_null();
+                return value;
+            },
+            0, "parent"_utf16_fly_string, &realm, "get"sv);
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_window_setter(JS::Realm& realm, Window& window, String const& property)
+{
+    if (property == "location"sv) {
+        return JS::NativeFunction::create(
+            realm, [window = GC::Ref { window }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                auto value = vm.argument(0);
+                auto href = TRY(WebIDL::to_usv_string(vm, value));
+                auto location = window->location();
+                TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return location->set_href(href); }));
+                return JS::js_undefined();
+            },
+            1, "location"_utf16_fly_string, &realm, "set"sv);
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_location_setter(JS::Realm& realm, Location& location, String const& property)
+{
+    if (property == "href"sv) {
+        return JS::NativeFunction::create(
+            realm, [location = GC::Ref { location }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                auto href = TRY(WebIDL::to_usv_string(vm, vm.argument(0)));
+                TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return location->set_href(href); }));
+                return JS::js_undefined();
+            },
+            1, "href"_utf16_fly_string, &realm, "set"sv);
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_method(JS::Realm& realm, Variant<HTML::Location*, HTML::Window*> const& object, String const& property)
+{
+    return object.visit(
+        [&](HTML::Location* location) { return create_cross_origin_location_method(realm, *location, property); },
+        [&](HTML::Window* window) { return create_cross_origin_window_method(realm, *window, property); });
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_getter(JS::Realm& realm, Variant<HTML::Location*, HTML::Window*> const& object, String const& property)
+{
+    return object.visit(
+        [&](HTML::Location*) -> GC::Ref<JS::NativeFunction> { VERIFY_NOT_REACHED(); },
+        [&](HTML::Window* window) { return create_cross_origin_window_getter(realm, *window, property); });
+}
+
+static GC::Ref<JS::NativeFunction> create_cross_origin_setter(JS::Realm& realm, Variant<HTML::Location*, HTML::Window*> const& object, String const& property)
+{
+    return object.visit(
+        [&](HTML::Location* location) { return create_cross_origin_location_setter(realm, *location, property); },
+        [&](HTML::Window* window) { return create_cross_origin_window_setter(realm, *window, property); });
+}
 
 // 7.2.3.1 CrossOriginProperties ( O ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginproperties-(-o-)
 Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> const& object)
@@ -122,7 +376,8 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
             return it->value;
 
         // 2. Let originalDesc be OrdinaryGetOwnProperty(O, P).
-        auto original_descriptor = MUST((object_ptr->JS::Object::internal_get_own_property)(property_key));
+        // NOTE: The current same-origin property descriptor might have been replaced by page script, for example via
+        // [Replaceable]. Cross-origin access still needs to expose wrappers for the original IDL member on O.
 
         // 3. Let crossOriginDesc be undefined.
         auto cross_origin_descriptor = JS::PropertyDescriptor {};
@@ -130,19 +385,8 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
         // 4. If e.[[NeedsGet]] and e.[[NeedsSet]] are absent, then:
         if (!entry.needs_get.has_value() && !entry.needs_set.has_value()) {
             // 1. Let value be originalDesc.[[Value]].
-            auto value = original_descriptor->value;
-
             // 2. If IsCallable(value) is true, then set value to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the IDL operation P on object O.
-            if (auto function = value->as_if<JS::FunctionObject>()) {
-                auto name = function->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
-                auto length_property = function->get_without_side_effects(vm.names.length);
-                auto length = length_property.is_int32() ? length_property.as_i32() : 0;
-                value = JS::NativeFunction::create(
-                    realm, [function](auto& vm) {
-                        return JS::call(vm, function, JS::js_undefined(), vm.running_execution_context().arguments_span());
-                    },
-                    length, name);
-            }
+            auto value = JS::Value(create_cross_origin_method(realm, object, entry.property).ptr());
 
             // 3. Set crossOriginDesc to PropertyDescriptor { [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
             cross_origin_descriptor = JS::PropertyDescriptor { .value = value, .writable = false, .enumerable = false, .configurable = true };
@@ -154,12 +398,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
 
             // 2. If e.[[NeedsGet]] is true, then set crossOriginGet to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the getter of the IDL attribute P on object O.
             if (*entry.needs_get) {
-                auto name = original_descriptor->get.value()->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
-                cross_origin_get = JS::NativeFunction::create(
-                    realm, [object_ptr, getter = *original_descriptor->get](auto& vm) {
-                        return JS::call(vm, getter, object_ptr, vm.running_execution_context().arguments_span());
-                    },
-                    0, name);
+                cross_origin_get = create_cross_origin_getter(realm, object, entry.property).ptr();
             }
 
             // 3. Let crossOriginSet be undefined.
@@ -167,12 +406,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
 
             // If e.[[NeedsSet]] is true, then set crossOriginSet to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the setter of the IDL attribute P on object O.
             if (*entry.needs_set) {
-                auto name = original_descriptor->set.value()->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
-                cross_origin_set = JS::NativeFunction::create(
-                    realm, [object_ptr, setter = *original_descriptor->set](auto& vm) {
-                        return JS::call(vm, setter, object_ptr, vm.running_execution_context().arguments_span());
-                    },
-                    1, name);
+                cross_origin_set = create_cross_origin_setter(realm, object, entry.property).ptr();
             }
 
             // 5. Set crossOriginDesc to PropertyDescriptor { [[Get]]: crossOriginGet, [[Set]]: crossOriginSet, [[Enumerable]]: false, [[Configurable]]: true }.

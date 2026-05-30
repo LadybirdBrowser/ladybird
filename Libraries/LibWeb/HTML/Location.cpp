@@ -63,7 +63,12 @@ void Location::initialize(JS::Realm& realm)
         .enumerable = false,
         .configurable = false,
     };
-    MUST(internal_define_own_property(vm.names.valueOf, value_of_property_descriptor));
+
+    // NB: The spec initializes Location non-lazily, so this creation-time define always observes a same-origin Location.
+    //     Pass the known-absent current descriptor explicitly because our lazy initialization may otherwise make
+    //     OrdinaryDefineOwnProperty ask Location's custom [[GetOwnProperty]], which can take the cross-origin path.
+    Optional<JS::PropertyDescriptor> no_current_property;
+    MUST(JS::Object::internal_define_own_property(vm.names.valueOf, value_of_property_descriptor, &no_current_property));
 
     // 4. Perform ! location.[[DefineOwnProperty]](%Symbol.toPrimitive%, { [[Value]]: undefined, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
     auto to_primitive_property_descriptor = JS::PropertyDescriptor {
@@ -72,10 +77,9 @@ void Location::initialize(JS::Realm& realm)
         .enumerable = false,
         .configurable = false,
     };
-    MUST(internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor));
+    MUST(JS::Object::internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
-    // NOTE: In LibWeb this happens before the ESO is set up, so we must avoid location's custom [[OwnPropertyKeys]].
     m_default_properties.extend(MUST(Object::internal_own_property_keys()));
 }
 
