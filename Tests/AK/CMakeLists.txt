@@ -38,7 +38,6 @@ set(AK_TEST_SOURCES
     TestIPv4Address.cpp
     TestIPv6Address.cpp
     TestIndexSequence.cpp
-    TestInsertionSort.cpp
     TestIntegerMath.cpp
     TestIntrusiveList.cpp
     TestJSON.cpp
@@ -51,10 +50,10 @@ set(AK_TEST_SOURCES
     TestOptionParser.cpp
     TestPointers.cpp
     TestQueue.cpp
-    TestQuickSort.cpp
     TestRandom.cpp
     TestRedBlackTree.cpp
     TestSinglyLinkedList.cpp
+    TestSorting.cpp
     TestSourceGenerator.cpp
     TestSourceLocation.cpp
     TestSpan.cpp
