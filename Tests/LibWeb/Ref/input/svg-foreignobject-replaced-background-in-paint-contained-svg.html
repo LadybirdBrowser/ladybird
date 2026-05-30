@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-foreignobject-replaced-background-in-paint-contained-svg-ref.html" />
+<style>
+    body {
+        margin: 0;
+        background: red;
+    }
+
+    .host {
+        position: relative;
+        width: 100px;
+        height: 100px;
+    }
+
+    svg {
+        contain: paint;
+        position: absolute;
+        left: 10px;
+        top: 10px;
+    }
+
+    .stack {
+        display: grid;
+        width: 80px;
+        height: 80px;
+    }
+
+    img {
+        grid-area: 1 / 1;
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, green, blue);
+    }
+</style>
+<div class="host">
+    <svg width="80" height="80" viewBox="0 0 80 80">
+        <foreignObject x="0" y="0" width="80" height="80">
+            <div class="stack">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3C/svg%3E">
+            </div>
+        </foreignObject>
+    </svg>
+</div>
