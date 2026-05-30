@@ -140,7 +140,7 @@ void TableFormattingContext::compute_constrainedness()
     }
 }
 
-void TableFormattingContext::compute_cell_measures()
+void TableFormattingContext::compute_cell_measures(RowMeasurement row_measurement)
 {
     // Implements https://www.w3.org/TR/css-tables-3/#computing-cell-measures.
     auto containing_block_width = table_wrapper_containing_block_width();
@@ -165,13 +165,7 @@ void TableFormattingContext::compute_cell_measures()
 
         auto min_content_width = calculate_min_content_width(cell.box);
         auto max_content_width = calculate_max_content_width(cell.box);
-        auto min_content_height = calculate_min_content_height(cell.box, max_content_width);
-        auto max_content_height = calculate_max_content_height(cell.box, min_content_width);
 
-        // The outer min-content height of a table-cell is max(min-height, min-content height) adjusted by the cell intrinsic offsets.
-        auto min_height = computed_values.min_height().to_px(cell.box, containing_block_height);
-        auto cell_intrinsic_height_offsets = padding_top + padding_bottom + border_top + border_bottom;
-        cell.outer_min_height = max(min_height, min_content_height) + cell_intrinsic_height_offsets;
         // The outer min-content width of a table-cell is max(min-width, min-content width) adjusted by the cell intrinsic offsets.
         auto min_width = computed_values.min_width().to_px(cell.box, containing_block_width);
         auto cell_intrinsic_width_offsets = padding_left + padding_right + border_left + border_right;
@@ -183,20 +177,30 @@ void TableFormattingContext::compute_cell_measures()
             cell.outer_min_width = max(min_width, min_content_width) + cell_intrinsic_width_offsets;
         }
 
-        // The tables specification isn't explicit on how to use the height and max-height CSS properties in the outer max-content formulas.
-        // However, during this early phase we don't have enough information to resolve percentage sizes yet and the formulas for outer sizes
-        // in the specification give enough clues to pick defaults in a way that makes sense.
-        auto height = computed_values.height().is_length() ? computed_values.height().to_px(cell.box, containing_block_height) : 0;
-        auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(cell.box, containing_block_height) : CSSPixels::max();
-        if (m_rows[cell.row_index].is_constrained) {
-            // The outer max-content height of a table-cell in a constrained row is
-            // max(min-height, height, min-content height, min(max-height, height)) adjusted by the cell intrinsic offsets.
-            // NB: min(max-height, height) doesn't have any effect here, we can simplify the expression to max(min-height, height, min-content height).
-            cell.outer_max_height = max(min_height, max(height, min_content_height)) + cell_intrinsic_height_offsets;
-        } else {
-            // The outer max-content height of a table-cell in a non-constrained row is
-            // max(min-height, height, min-content height, min(max-height, max-content height)) adjusted by the cell intrinsic offsets.
-            cell.outer_max_height = max(min_height, max(height, max(min_content_height, min(max_height, max_content_height)))) + cell_intrinsic_height_offsets;
+        if (row_measurement == RowMeasurement::Include) {
+            auto min_content_height = calculate_min_content_height(cell.box, max_content_width);
+            auto max_content_height = calculate_max_content_height(cell.box, min_content_width);
+
+            // The outer min-content height of a table-cell is max(min-height, min-content height) adjusted by the cell intrinsic offsets.
+            auto min_height = computed_values.min_height().to_px(cell.box, containing_block_height);
+            auto cell_intrinsic_height_offsets = padding_top + padding_bottom + border_top + border_bottom;
+            cell.outer_min_height = max(min_height, min_content_height) + cell_intrinsic_height_offsets;
+
+            // The tables specification isn't explicit on how to use the height and max-height CSS properties in the outer max-content formulas.
+            // However, during this early phase we don't have enough information to resolve percentage sizes yet and the formulas for outer sizes
+            // in the specification give enough clues to pick defaults in a way that makes sense.
+            auto height = computed_values.height().is_length() ? computed_values.height().to_px(cell.box, containing_block_height) : 0;
+            auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(cell.box, containing_block_height) : CSSPixels::max();
+            if (m_rows[cell.row_index].is_constrained) {
+                // The outer max-content height of a table-cell in a constrained row is
+                // max(min-height, height, min-content height, min(max-height, height)) adjusted by the cell intrinsic offsets.
+                // NB: min(max-height, height) doesn't have any effect here, we can simplify the expression to max(min-height, height, min-content height).
+                cell.outer_max_height = max(min_height, max(height, min_content_height)) + cell_intrinsic_height_offsets;
+            } else {
+                // The outer max-content height of a table-cell in a non-constrained row is
+                // max(min-height, height, min-content height, min(max-height, max-content height)) adjusted by the cell intrinsic offsets.
+                cell.outer_max_height = max(min_height, max(height, max(min_content_height, min(max_height, max_content_height)))) + cell_intrinsic_height_offsets;
+            }
         }
 
         // See the explanation for height and max_height above.
@@ -940,6 +944,35 @@ void TableFormattingContext::distribute_excess_width_to_columns_fixed_mode(CSSPi
     }
     // otherwise, the excess width is distributed equally to the zero-sized columns
     distribute_excess_width_equally(excess_width, [](auto const& column) { return column.used_width == 0; });
+}
+
+bool TableFormattingContext::can_skip_row_intrinsic_measurement() const
+{
+    for (auto const& row : m_rows) {
+        if (row.is_collapsed)
+            return false;
+
+        auto const& computed_values = row.box->computed_values();
+        if (!computed_values.height().is_auto()
+            || !computed_values.min_height().is_auto()
+            || !computed_values.max_height().is_none()) {
+            return false;
+        }
+    }
+
+    for (auto const& cell : m_cells) {
+        if (cell.row_span != 1)
+            return false;
+
+        auto const& computed_values = cell.box->computed_values();
+        if (!computed_values.height().is_auto()
+            || !computed_values.min_height().is_auto()
+            || !computed_values.max_height().is_none()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void TableFormattingContext::compute_table_height()
@@ -1739,7 +1772,7 @@ void TableFormattingContext::finish_grid_initialization(TableGrid const& table_g
     }
 }
 
-void TableFormattingContext::run_until_width_calculation(AvailableSpace const& available_space)
+void TableFormattingContext::run_until_width_calculation(AvailableSpace const& available_space, RowMeasurement row_measurement)
 {
     m_available_space = available_space;
 
@@ -1748,18 +1781,26 @@ void TableFormattingContext::run_until_width_calculation(AvailableSpace const& a
 
     border_conflict_resolution();
 
+    auto effective_row_measurement = row_measurement;
+    // OPTIMIZATION: Row intrinsic measurements are only needed when row height constraints or rowspans can affect
+    //               the later row height distribution. Simple tables get their actual row heights from cell layout.
+    if (effective_row_measurement == RowMeasurement::Include && can_skip_row_intrinsic_measurement())
+        effective_row_measurement = RowMeasurement::Skip;
+
     // Compute the minimum width of each column.
-    compute_cell_measures();
+    compute_cell_measures(effective_row_measurement);
     compute_outer_content_sizes();
     compute_table_measures<Column>();
 
-    // https://www.w3.org/TR/css-tables-3/#row-layout
-    // Since during row layout the specified heights of cells in the row were ignored and cells that were spanning more than one rows
-    // have not been sized correctly, their height will need to be eventually distributed to the set of rows they spanned. This is done
-    // by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with the largest
-    // of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and the largest
-    // height specified on cells that span this row only (the algorithm starts by considering cells of span 2 on top of that assignment).
-    compute_table_measures<Row>();
+    if (effective_row_measurement == RowMeasurement::Include) {
+        // https://www.w3.org/TR/css-tables-3/#row-layout
+        // Since during row layout the specified heights of cells in the row were ignored and cells that were spanning more than one rows
+        // have not been sized correctly, their height will need to be eventually distributed to the set of rows they spanned. This is done
+        // by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with the largest
+        // of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and the largest
+        // height specified on cells that span this row only (the algorithm starts by considering cells of span 2 on top of that assignment).
+        compute_table_measures<Row>();
+    }
 
     // Compute the width of the table.
     compute_table_width();
