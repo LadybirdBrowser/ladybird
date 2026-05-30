@@ -122,6 +122,11 @@ static ErrorOr<void> add_config_paths(StringView test_root_path, Vector<ByteStri
     return {};
 }
 
+static ByteString unique_localhost_hostname(StringView prefix)
+{
+    return ByteString::formatted("{}-{}.localhost", prefix, generate_random_uuid().to_byte_string());
+}
+
 static ErrorOr<void> load_test_config(StringView test_root_path)
 {
     auto config_path = LexicalPath::join(test_root_path, "TestConfig.ini"sv);
@@ -1090,7 +1095,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
             VERIFY(echo_server_port.has_value());
             auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
             VERIFY(relative_path.has_value());
-            url = URL::Parser::basic_parse(ByteString::formatted("http://localhost:{}/static/{}", echo_server_port.value(), relative_path.value())).release_value();
+            url = URL::Parser::basic_parse(ByteString::formatted("http://{}:{}/static/{}", unique_localhost_hostname("test-web"sv), echo_server_port.value(), relative_path.value())).release_value();
         } else {
             url = URL::create_with_file_scheme(real_path).release_value();
         }
