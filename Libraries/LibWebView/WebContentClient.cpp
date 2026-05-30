@@ -46,16 +46,11 @@ static Optional<String> history_title(Utf16String const& title, URL::URL const& 
     return title_utf8;
 }
 
-WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, ViewImplementation& view)
+WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, u64 initial_page_id)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
+    , m_initial_page_id(initial_page_id)
 {
-    s_clients.set(this);
-    m_views.set(0, view);
-}
-
-WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport)
-    : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
-{
+    VERIFY(m_initial_page_id > 0);
     s_clients.set(this);
 }
 
@@ -143,7 +138,8 @@ void WebContentClient::remember_compositor_context(Web::Compositor::CompositorCo
 void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
 {
     VERIFY(m_views.is_empty());
-    m_views.set(0, view);
+    view.m_client_state.page_index = m_initial_page_id;
+    m_views.set(m_initial_page_id, view);
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -157,6 +153,7 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
     if (m_detached_page_close_timer)
         m_detached_page_close_timer->stop();
     Application::process_manager().cancel_forced_exit(pid());
+    view.m_client_state.page_index = page_id;
     m_views.set(page_id, view);
     m_history_recorded_urls_for_current_load.remove(page_id);
 }
@@ -405,7 +402,7 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redi
 void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 {
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
-        if (auto web_ui = WebUI::create(*this, url.paths().first()); web_ui.is_error())
+        if (auto web_ui = WebUI::create(*this, page_id, url.paths().first()); web_ui.is_error())
             warnln("Could not create WebUI for {}: {}", url, web_ui.error());
         else
             m_web_ui = web_ui.release_value();
@@ -1016,14 +1013,16 @@ void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::Broadc
     WorkerProcessManager::the().broadcast_channel_message_from_web_content(message);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)
 {
+    auto new_page_id = Application::the().allocate_page_id();
+    String handle;
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_new_web_view)
-            return view->on_new_web_view(activate_tab, hints, page_index);
+            handle = view->on_new_web_view(activate_tab, hints, new_page_id);
     }
 
-    return String {};
+    return { new_page_id, move(handle) };
 }
 
 void WebContentClient::did_request_activate_tab(u64 page_id)

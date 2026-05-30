@@ -12,6 +12,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
+#include <AK/Types.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
 #include <LibWebView/Forward.h>
@@ -24,7 +25,7 @@ class WEBVIEW_API WebUI
     : public IPC::ConnectionToServer<WebUIClientEndpoint, WebUIServerEndpoint>
     , public WebUIClientEndpoint {
 public:
-    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, String host);
+    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, u64 page_id, String host);
     virtual ~WebUI();
 
     String const& host() const { return m_host; }

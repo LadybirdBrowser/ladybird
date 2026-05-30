@@ -112,6 +112,11 @@ Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_tra
     VERIFY_NOT_REACHED();
 }
 
+void ConnectionFromClient::initialize(u64 initial_page_id)
+{
+    m_page_host->initialize(initial_page_id);
+}
+
 Optional<PageClient&> ConnectionFromClient::page(u64 index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())

@@ -82,8 +82,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     VERIFY_NOT_REACHED();
 }
 
-template<typename... ClientArguments>
-static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process_impl(ClientArguments&&... client_arguments)
+ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(u64 initial_page_id)
 {
     auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -142,17 +141,7 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
     }
-    return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), forward<ClientArguments>(client_arguments)...);
-}
-
-ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(WebView::ViewImplementation& view)
-{
-    return launch_web_content_process_impl(view);
-}
-
-ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process()
-{
-    return launch_web_content_process_impl();
+    return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), initial_page_id);
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()
