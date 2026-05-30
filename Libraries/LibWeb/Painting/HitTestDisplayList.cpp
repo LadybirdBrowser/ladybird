@@ -206,21 +206,24 @@ void HitTestDisplayList::append_box(PaintableBox const& paintable_box, Paintable
 
 void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment, VisualContextIndex visual_context_index)
 {
-    auto& fragment_paintable = const_cast<Paintable&>(fragment.paintable());
-    if (!fragment_paintable.is_text_paintable() || !fragment_paintable.is_visible() || !fragment_paintable.visible_for_hit_testing())
+    auto fragment_paintable = fragment.layout_node().first_paintable();
+    if (!fragment_paintable)
+        return;
+
+    if (!fragment_paintable->is_text_paintable() || !fragment_paintable->is_visible() || !fragment_paintable->visible_for_hit_testing())
         return;
 
     auto item_index = m_items.size();
     m_items.append({
         .kind = ItemKind::TextFragment,
-        .paintable = fragment_paintable,
+        .paintable = const_cast<Paintable&>(*fragment_paintable),
         .chrome_widget = {},
         .text_fragment = &fragment,
         .rect = fragment.absolute_rect(),
         .caret_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, fragment.dom_start_offset_in_node(), fragment.dom_end_offset_in_node()),
         .caret_line_index = fragment.line_box_data().index,
         .caret_line_rect = fragment.absolute_line_box_rect(),
-        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(fragment_paintable),
+        .block_container_margin_rect = absolute_margin_box_rect_for_containing_block(*fragment_paintable),
         .visual_context_index = visual_context_index,
         .border_radii = {},
     });
