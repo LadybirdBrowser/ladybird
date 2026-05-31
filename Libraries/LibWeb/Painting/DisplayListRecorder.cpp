@@ -32,10 +32,10 @@ DisplayListRecorder::CommandCapture::~CommandCapture()
         m_recorder->end_capture();
 }
 
-DisplayListCommandSequence DisplayListRecorder::CommandCapture::take()
+ByteBuffer DisplayListRecorder::CommandCapture::take()
 {
     VERIFY(m_recorder);
-    auto commands = m_recorder->m_display_list.copy_command_sequence_from(
+    auto commands = m_recorder->m_display_list.copy_command_bytes_from(
         m_recorder->m_capture_start_command_offset);
     m_recorder->m_is_capturing = false;
     m_recorder = nullptr;
@@ -62,7 +62,7 @@ public:
         : m_payload_start_offset(display_list.command_byte_size() + sizeof(DisplayListCommandHeader))
         , m_payload_size(sizeof(Command))
     {
-        VERIFY(display_list.command_byte_size() % DisplayListCommandSequence::command_alignment == 0);
+        VERIFY(display_list.command_byte_size() % DisplayList::command_alignment == 0);
     }
 
     DisplayListDataSpan append_data(ReadonlyBytes bytes, size_t alignment)
@@ -277,7 +277,7 @@ static DisplayListDataSpan append_filter_data(
 
 void DisplayListRecorder::replay_cached_commands(ReadonlyBytes command_bytes)
 {
-    DisplayListCommandSequence::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes) {
+    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes) {
         m_save_nesting_level += display_list_command_nesting_level_change(header.type);
     });
     m_display_list.append_command_sequence(command_bytes, m_visual_context_tree, m_accumulated_visual_context_index);

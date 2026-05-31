@@ -103,7 +103,7 @@ public:
         {
         }
         ~CommandCapture();
-        DisplayListCommandSequence take();
+        ByteBuffer take();
 
     private:
         friend class DisplayListRecorder;

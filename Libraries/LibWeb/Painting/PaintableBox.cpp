@@ -499,7 +499,7 @@ void PaintableBox::invalidate_paint_cache() const
     m_cached_paint_data = nullptr;
 }
 
-void PaintableBox::set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const
+void PaintableBox::set_cached_commands(PaintPhase phase, ByteBuffer const& commands) const
 {
     if (!m_cached_paint_data)
         m_cached_paint_data = make<CachedPaintData>();
@@ -507,7 +507,7 @@ void PaintableBox::set_cached_commands(PaintPhase phase, DisplayListCommandSeque
     if (m_cached_paint_data->has(phase))
         release_cache_references_for_cached_commands(m_cached_paint_data->bytes_for(phase));
 
-    auto command_bytes = commands.command_bytes();
+    auto command_bytes = commands.span();
     acquire_cache_references_for_cached_commands(command_bytes);
     m_cached_paint_data->set(phase, command_bytes);
 }

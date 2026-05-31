@@ -29,8 +29,6 @@ static void set_command_sequence_visual_context(Bytes command_bytes, VisualConte
     }
 }
 
-DisplayListCommandSequence::DisplayListCommandSequence() = default;
-
 DisplayList::DisplayList(u64 compatible_visual_context_tree_version)
     : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
     , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
@@ -57,12 +55,12 @@ bool DisplayList::append_bytes(
     VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
     if (context_index.value() && visual_context_tree.has_empty_effective_clip(context_index))
         return false;
-    VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
+    VERIFY(m_command_bytes.size() % DisplayList::command_alignment == 0);
     VERIFY(payload.size() <= NumericLimits<u32>::max());
     VERIFY(inline_data.size() <= NumericLimits<u32>::max() - payload.size());
     auto payload_size = payload.size() + inline_data.size();
     auto record_size = sizeof(DisplayListCommandHeader) + payload_size;
-    constexpr auto command_alignment = DisplayListCommandSequence::command_alignment;
+    constexpr auto command_alignment = DisplayList::command_alignment;
     auto trailing_padding = align_up_to(record_size, command_alignment) - record_size;
     VERIFY(trailing_padding <= NumericLimits<u32>::max() - payload_size);
     DisplayListCommandHeader header {
@@ -92,21 +90,19 @@ void DisplayList::append_command_sequence(
     auto command_bytes = MUST(ByteBuffer::copy(command_sequence));
 
     set_command_sequence_visual_context(command_bytes.span(), context_index);
-    VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
-    VERIFY(command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);
+    VERIFY(m_command_bytes.size() % DisplayList::command_alignment == 0);
+    VERIFY(command_bytes.size() % DisplayList::command_alignment == 0);
 
     if (!command_bytes.is_empty())
         m_command_bytes.append(command_bytes.data(), command_bytes.size());
 }
 
-DisplayListCommandSequence DisplayList::copy_command_sequence_from(size_t command_start_offset) const
+ByteBuffer DisplayList::copy_command_bytes_from(size_t command_start_offset) const
 {
     VERIFY(command_start_offset <= m_command_bytes.size());
-    DisplayListCommandSequence sequence;
-    sequence.m_command_bytes = MUST(m_command_bytes.slice(
+    return MUST(m_command_bytes.slice(
         command_start_offset,
         m_command_bytes.size() - command_start_offset));
-    return sequence;
 }
 
 void DisplayListPlayer::execute(

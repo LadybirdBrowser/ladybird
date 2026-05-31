@@ -307,7 +307,7 @@ public:
 
     bool has_cached_commands(PaintPhase) const;
     ReadonlyBytes cached_commands(PaintPhase) const;
-    void set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const;
+    void set_cached_commands(PaintPhase phase, ByteBuffer const& commands) const;
 
     void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
     [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const { return m_fixed_background_visual_context; }
