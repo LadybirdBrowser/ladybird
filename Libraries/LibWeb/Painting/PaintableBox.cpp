@@ -295,11 +295,22 @@ static void record_wheel_hit_test_target(PaintableBox const& paintable_box, Disp
     if (rect.is_empty())
         return;
 
+    auto target_scroll_frame_index = wheel_hit_test_target_scroll_frame_index_for(paintable_box).value_or({});
+    auto corner_radii = paintable_box.border_radii_data().as_corners(context.device_pixel_converter());
+    if (corner_radii.has_any_radius()) {
+        context.display_list_recorder().compositor_wheel_hit_test_target_with_corner_radii({
+            .document_id = paintable_box.document().unique_id(),
+            .target_scroll_frame_index = target_scroll_frame_index,
+            .rect = rect,
+            .corner_radii = corner_radii,
+        });
+        return;
+    }
+
     context.display_list_recorder().compositor_wheel_hit_test_target({
         .document_id = paintable_box.document().unique_id(),
-        .target_scroll_frame_index = wheel_hit_test_target_scroll_frame_index_for(paintable_box).value_or({}),
+        .target_scroll_frame_index = target_scroll_frame_index,
         .rect = rect,
-        .corner_radii = paintable_box.border_radii_data().as_corners(context.device_pixel_converter()),
     });
 }
 

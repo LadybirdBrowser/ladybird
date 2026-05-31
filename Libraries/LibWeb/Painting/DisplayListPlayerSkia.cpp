@@ -877,6 +877,10 @@ void DisplayListPlayerSkia::compositor_wheel_hit_test_target(CompositorWheelHitT
 {
 }
 
+void DisplayListPlayerSkia::compositor_wheel_hit_test_target_with_corner_radii(CompositorWheelHitTestTargetWithCornerRadii const&)
+{
+}
+
 void DisplayListPlayerSkia::compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&)
 {
 }
