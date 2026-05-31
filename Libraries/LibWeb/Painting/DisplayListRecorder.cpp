@@ -275,12 +275,12 @@ static DisplayListDataSpan append_filter_data(
     return payload_builder.append_data(filter_data, alignof(u32));
 }
 
-void DisplayListRecorder::replay_cached_commands(DisplayListCommandSequence const& commands)
+void DisplayListRecorder::replay_cached_commands(ReadonlyBytes command_bytes)
 {
-    commands.for_each_command_header([&](DisplayListCommandHeader const& header, ReadonlyBytes) {
+    DisplayListCommandSequence::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes) {
         m_save_nesting_level += display_list_command_nesting_level_change(header.type);
     });
-    m_display_list.append_command_sequence(commands, m_visual_context_tree, m_accumulated_visual_context_index);
+    m_display_list.append_command_sequence(command_bytes, m_visual_context_tree, m_accumulated_visual_context_index);
 }
 
 void DisplayListRecorder::paint_nested_display_list(DisplayListResource const& display_list, Gfx::IntRect rect)

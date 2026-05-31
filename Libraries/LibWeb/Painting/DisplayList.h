@@ -187,7 +187,7 @@ public:
         DisplayListCommandSequence::for_each_command_header(command_bytes(), move(callback));
     }
 
-    void append_command_sequence(DisplayListCommandSequence const&, AccumulatedVisualContextTree const&, VisualContextIndex);
+    void append_command_sequence(ReadonlyBytes, AccumulatedVisualContextTree const&, VisualContextIndex);
     DisplayListCommandSequence copy_command_sequence_from(size_t command_start_offset) const;
     size_t command_byte_size() const { return m_command_bytes.size(); }
 
