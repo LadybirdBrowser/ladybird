@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host">
+    <svg id="slotted" slot="icon" width="28" height="28" viewBox="0 0 10 10"></svg>
+</div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                .container {
+                    display: flex;
+                    width: 200px;
+                }
+                .icon-wrapper {
+                    display: flex;
+                    margin-right: 8px;
+                }
+                .field {
+                    flex: 1;
+                    height: 28px;
+                }
+                slot {
+                    display: contents;
+                }
+                ::slotted([slot=icon]) {
+                    display: inline-flex;
+                    align-items: center;
+                    margin-left: -12px;
+                }
+            </style>
+            <div class="container">
+                <span id="icon-wrapper" class="icon-wrapper">
+                    <slot name="icon"><svg width="16" height="10" viewBox="0 0 10 10"></svg></slot>
+                </span>
+                <span id="field" class="field"></span>
+            </div>
+        `;
+
+        const wrapper = shadowRoot.getElementById("icon-wrapper");
+        const field = shadowRoot.getElementById("field");
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const slottedRect = slotted.getBoundingClientRect();
+        const fieldRect = field.getBoundingClientRect();
+
+        println(`wrapper width: ${wrapperRect.width}`);
+        println(`slotted offset: ${slottedRect.left - wrapperRect.left}`);
+        println(`field offset: ${fieldRect.left - wrapperRect.left}`);
+    });
+</script>
