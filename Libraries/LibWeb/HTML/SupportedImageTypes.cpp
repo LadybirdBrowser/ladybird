@@ -27,7 +27,6 @@ bool is_supported_image_type(StringView type)
         || type.equals_ignoring_ascii_case("image/apng"sv)
         || type.equals_ignoring_ascii_case("image/x-png"sv)
         || type.equals_ignoring_ascii_case("image/tiff"sv)
-        || type.equals_ignoring_ascii_case("image/tinyvg"sv)
         || type.equals_ignoring_ascii_case("image/webp"sv)
         || type.equals_ignoring_ascii_case("image/svg+xml"sv);
 }

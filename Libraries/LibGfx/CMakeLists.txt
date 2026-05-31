@@ -35,7 +35,6 @@ set(SOURCES
     ImageFormats/PNGLoader.cpp
     ImageFormats/PNGWriter.cpp
     ImageFormats/TIFFLoader.cpp
-    ImageFormats/TinyVGLoader.cpp
     ImageFormats/WebPLoader.cpp
     ImageFormats/WebPSharedLossless.cpp
     ImageFormats/WebPWriter.cpp
