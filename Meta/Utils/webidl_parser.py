@@ -9,6 +9,7 @@ from typing import Dict
 from typing import List
 from typing import NoReturn
 from typing import Optional
+from typing import Set
 
 from Utils.lexer import Lexer
 
@@ -65,10 +66,19 @@ class Dictionary:
 
 
 @dataclass
+class Enumeration:
+    name: str
+    path: Path
+    values: List[str]
+    extended_attributes: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class Module:
     path: Path
     interface: Optional[Interface] = None
     dictionaries: List[Dictionary] = field(default_factory=list)
+    enumerations: List[Enumeration] = field(default_factory=list)
 
 
 @dataclass
@@ -128,7 +138,7 @@ class Parser:
                 if dictionary is not None:
                     module.dictionaries.append(dictionary)
             elif self.next_is_keyword("enum"):
-                self.skip_braced_declaration()
+                module.enumerations.append(self.parse_enumeration(extended_attributes))
             elif self.next_is_keyword("typedef"):
                 self.consume_keyword("typedef")
                 self.consume_statement_text()
@@ -258,6 +268,47 @@ class Parser:
             return None
 
         return Dictionary(name=dictionary_name, path=self.path)
+
+    def parse_enumeration(self, extended_attributes: Dict[str, str]) -> Enumeration:
+        self.consume_keyword("enum")
+        self.consume_whitespace()
+
+        name = self.parse_identifier_ending_with_space_or("{")
+        self.consume_whitespace()
+        self.assert_specific("{")
+
+        values: List[str] = []
+        seen_values: Set[str] = set()
+
+        while not self.lexer.is_eof():
+            self.consume_whitespace()
+            if self.lexer.consume_specific("}"):
+                break
+
+            self.assert_specific('"')
+            value = self.lexer.consume_until(lambda character: character == '"')
+            self.assert_specific('"')
+            self.consume_whitespace()
+
+            if value in seen_values:
+                self.raise_parse_error(f"Enumeration {name} contains duplicate member '{value}'")
+            seen_values.add(value)
+            values.append(value)
+
+            self.consume_whitespace()
+            if self.lexer.next_is("}"):
+                continue
+            self.assert_specific(",")
+
+        self.consume_whitespace()
+        self.assert_specific(";")
+
+        return Enumeration(
+            name=name,
+            path=self.path,
+            values=values,
+            extended_attributes=extended_attributes,
+        )
 
     def parse_interface_body(self, interface: Interface, body_text: str) -> None:
         for statement in split_top_level_statements(remove_line_comments(body_text)):
