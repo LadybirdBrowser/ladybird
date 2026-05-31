@@ -3,7 +3,7 @@
 <script>
     asyncTest((done) => {
         {
-            const ws = new WebSocket('wss://websocket-echo.app.ladybird.org');
+            const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
 
             ws.onopen = () => {
             };

@@ -2,6 +2,7 @@
 
 import argparse
 import base64
+import hashlib
 import http.server
 import json
 import os
@@ -17,11 +18,13 @@ from typing import Optional
 
 """
 Description:
-    This script starts a simple HTTP echo server on localhost for use in our in-tree tests.
+    This script starts a simple HTTP and WebSocket echo server on localhost for use in our in-tree tests.
     The port is assigned by the OS on startup and printed to stdout.
 
 Endpoints:
     - POST /echo <json body>, Creates an echo response for later use. See "Echo" class below for body properties.
+    - GET <any path> with an "Upgrade: websocket" header: Performs a WebSocket handshake and then echoes
+      every text/binary frame back to the client verbatim.
 """
 
 
@@ -65,6 +68,9 @@ recorded_request_headers: Dict[str, Dict[str, list]] = {}
 
 # Named events used by tests that need deterministic delayed responses.
 unblock_events: Dict[str, threading.Event] = {}
+
+# Per RFC 6455: appended to Sec-WebSocket-Key before hashing to compute the Sec-WebSocket-Accept value.
+WEBSOCKET_ACCEPT_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -121,6 +127,9 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_GET(self):
+        if self.headers.get("Upgrade", "").lower() == "websocket":
+            self._serve_websocket_echo()
+            return
         if self.path.startswith("/unblock/"):
             self._serve_unblock()
         elif self.path.startswith("/echo"):
@@ -379,6 +388,111 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_echo()
         else:
             self.send_error(405, "Method Not Allowed")
+
+    # --- Minimal RFC 6455 WebSocket echo --------------------------------------------------------------
+    # Reached when a request carries an "Upgrade: websocket" header. The tests use this in place of an
+    # externally-hosted echo server, so they have no network dependency. The client sends first; every
+    # text/binary frame it sends is echoed back verbatim.
+
+    def _serve_websocket_echo(self):
+        key = self.headers.get("Sec-WebSocket-Key")
+        if not key:
+            self.send_error(400, "Missing Sec-WebSocket-Key")
+            return
+
+        accept = base64.b64encode(hashlib.sha1((key + WEBSOCKET_ACCEPT_GUID).encode("utf-8")).digest()).decode("ascii")
+        handshake = (
+            "HTTP/1.1 101 Switching Protocols\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            f"Sec-WebSocket-Accept: {accept}\r\n"
+            "\r\n"
+        )
+        # We now own the raw socket; stop the HTTP handler from parsing another request on it.
+        self.close_connection = True
+        self.connection.sendall(handshake.encode("ascii"))
+
+        while True:
+            frame = self._read_websocket_frame()
+            if frame is None:
+                break
+            opcode, payload = frame
+            if opcode == 0x8:  # Close
+                self._send_websocket_close()
+                break
+            if opcode == 0x9:  # Ping -> Pong
+                self._send_websocket_frame(payload, opcode=0xA)
+                continue
+            if opcode in (0x1, 0x2):  # Text / Binary -> echo verbatim
+                self._send_websocket_frame(payload, opcode=opcode)
+
+    def _recv_exact(self, count):
+        data = bytearray()
+        while len(data) < count:
+            chunk = self.rfile.read(count - len(data))
+            if not chunk:
+                return None
+            data += chunk
+        return bytes(data)
+
+    def _read_websocket_frame(self):
+        header = self._recv_exact(2)
+        if header is None:
+            return None
+
+        opcode = header[0] & 0x0F
+        is_masked = (header[1] & 0x80) != 0
+        length = header[1] & 0x7F
+        if length == 126:
+            extended = self._recv_exact(2)
+            if extended is None:
+                return None
+            length = int.from_bytes(extended, "big")
+        elif length == 127:
+            extended = self._recv_exact(8)
+            if extended is None:
+                return None
+            length = int.from_bytes(extended, "big")
+
+        mask = b""
+        if is_masked:
+            mask = self._recv_exact(4)
+            if mask is None:
+                return None
+
+        payload = self._recv_exact(length) if length else b""
+        if payload is None:
+            return None
+        if is_masked:
+            payload = bytes(payload[i] ^ mask[i % 4] for i in range(length))
+        return opcode, payload
+
+    def _build_ws_frame(self, data, opcode=0x1):
+        header = bytearray([0x80 | opcode])
+        length = len(data)
+        if length < 126:
+            header.append(length)
+        elif length < 65536:
+            header.append(126)
+            header += length.to_bytes(2, "big")
+        else:
+            header.append(127)
+            header += length.to_bytes(8, "big")
+        return bytes(header) + data
+
+    def _send_websocket_frame(self, data, opcode=0x1):
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        try:
+            self.connection.sendall(self._build_ws_frame(data, opcode))
+        except OSError:
+            pass
+
+    def _send_websocket_close(self):
+        try:
+            self.connection.sendall(bytes([0x88, 0x00]))  # FIN + Close opcode, empty payload.
+        except OSError:
+            pass
 
 
 def start_server(port, static_directory):
