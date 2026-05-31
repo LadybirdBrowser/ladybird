@@ -270,6 +270,9 @@ public:
     // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
     WebIDL::ExceptionOr<SerializationRecord> serialize(JS::Value value)
     {
+        if (m_vm.did_reach_stack_space_limit())
+            return m_vm.throw_completion<JS::InternalError>(JS::ErrorType::CallStackSizeExceeded);
+
         TransferDataEncoder serialized;
 
         // 2. If memory[value] exists, then return memory[value].
@@ -593,6 +596,9 @@ public:
     // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
     WebIDL::ExceptionOr<JS::Value> deserialize()
     {
+        if (m_vm.did_reach_stack_space_limit())
+            return m_vm.throw_completion<JS::InternalError>(JS::ErrorType::CallStackSizeExceeded);
+
         auto& realm = *m_vm.current_realm();
 
         auto tag = m_serialized.decode<ValueTag>();
