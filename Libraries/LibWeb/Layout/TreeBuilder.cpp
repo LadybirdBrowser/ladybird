@@ -1005,8 +1005,14 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         });
     }
 
+    auto should_layout_dom_children = [&]() {
+        if (auto const* slot_element = as_if<HTML::HTMLSlotElement>(dom_node))
+            return slot_element->assigned_nodes_internal().is_empty() && dom_node.has_children();
+        return dom_node.has_children();
+    }();
+
     if (should_create_layout_node || dom_node.child_needs_layout_tree_update()) {
-        if ((dom_node.has_children() || shadow_root) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
+        if ((should_layout_dom_children || shadow_root) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
             push_parent(as<NodeWithStyle>(*layout_node));
             if (shadow_root) {
                 // For replaced elements with shadow DOM children, wrap the children in an
@@ -1025,7 +1031,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                     pop_parent();
                 shadow_root->set_child_needs_layout_tree_update(false);
                 shadow_root->set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
-            } else {
+            } else if (should_layout_dom_children) {
                 // This is the same as as<DOM::ParentNode>(dom_node).for_each_child
                 for (auto* node = as<DOM::ParentNode>(dom_node).first_child(); node; node = node->next_sibling())
                     update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
