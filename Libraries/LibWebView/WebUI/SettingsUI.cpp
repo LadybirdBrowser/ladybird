@@ -44,6 +44,9 @@ void SettingsUI::register_interfaces()
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
+    register_interface("setTabSettings"sv, [this](auto const& data) {
+        set_tab_settings(data);
+    });
     register_interface("setDefaultZoomLevelFactor"sv, [this](auto const& data) {
         set_default_zoom_level_factor(data);
     });
@@ -109,8 +112,11 @@ void SettingsUI::register_interfaces()
 
 void SettingsUI::load_features()
 {
+    auto& application = Application::the();
+
     JsonObject features;
-    features.set("primaryPaste"_string, Application::the().supports_clipboard_type(Application::ClipboardType::Selection));
+    features.set("primaryPaste"_string, application.supports_clipboard_type(Application::ClipboardType::Selection));
+    features.set("verticalTabs"_string, application.supports_vertical_tabs());
 
     async_send_message("loadFeatures"sv, move(features));
 }
@@ -148,6 +154,14 @@ void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)
         return;
 
     WebView::Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
+}
+
+void SettingsUI::set_tab_settings(JsonValue const& tab_settings)
+{
+    auto parsed_tab_settings = Settings::parse_tab_settings(tab_settings);
+    WebView::Application::settings().set_tab_settings(parsed_tab_settings);
+
+    load_current_settings();
 }
 
 void SettingsUI::set_default_zoom_level_factor(JsonValue const& default_zoom_level_factor)

@@ -50,6 +50,7 @@ set(ABOUT_SETTINGS_RESOURCES
     permissions.js
     privacy.js
     search.js
+    tabs.js
 )
 list(TRANSFORM ABOUT_SETTINGS_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/settings/")
 

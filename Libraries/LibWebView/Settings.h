@@ -22,6 +22,11 @@
 
 namespace WebView {
 
+struct TabSettings {
+    bool vertical_tabs_enabled { false };
+    bool vertical_tabs_expanded { true };
+};
+
 struct BrowsingBehavior {
     bool enable_autoscroll { true };
     bool enable_primary_paste { true };
@@ -69,6 +74,7 @@ public:
     virtual ~SettingsObserver();
 
     virtual void new_tab_page_url_changed() { }
+    virtual void tab_settings_changed() { }
     virtual void show_bookmarks_bar_changed() { }
     virtual void default_zoom_level_factor_changed() { }
     virtual void zoom_per_host_changed(StringView host) { (void)host; }
@@ -91,6 +97,10 @@ public:
 
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
+
+    static TabSettings parse_tab_settings(JsonValue const&);
+    TabSettings const& tab_settings() const { return m_tab_settings; }
+    void set_tab_settings(TabSettings);
 
     bool show_bookmarks_bar() const { return m_show_bookmarks_bar; }
     void set_show_bookmarks_bar(bool);
@@ -155,6 +165,7 @@ private:
     ByteString m_settings_path;
 
     URL::URL m_new_tab_page_url;
+    TabSettings m_tab_settings;
     bool m_show_bookmarks_bar { true };
     double m_default_zoom_level_factor { 0 };
     HashMap<String, double> m_zoom_per_host;
