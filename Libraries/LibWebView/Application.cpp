@@ -654,6 +654,17 @@ void Application::notify_compositor_presented_bitmap_ready_to_paint(Web::Composi
     m_compositor_client->async_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
+void Application::crash_compositor_process()
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client)) {
+        warnln("Unable to crash Compositor process: process is not available");
+        return;
+    }
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_crash();
+}
+
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
 {
     if (m_spare_web_content_process) {
@@ -1539,6 +1550,7 @@ void Application::initialize_actions()
 
     m_debug_menu->add_action(Action::create("Collect Garbage"sv, ActionID::CollectGarbage, debug_request("collect-garbage"sv)));
     m_debug_menu->add_action(Action::create("Crash Current Page"sv, ActionID::CrashCurrentPage, debug_request("crash-current-page"sv)));
+    m_debug_menu->add_action(Action::create("Crash Compositor Process"sv, ActionID::CrashCompositorProcess, [this]() { crash_compositor_process(); }));
     m_debug_menu->add_separator();
 
     auto spoof_user_agent_menu = Menu::create_group("Spoof User Agent"sv);
