@@ -149,13 +149,19 @@ static bool should_suppress_inline_autocomplete_for_key(QKeyEvent const* event)
     return key == Qt::Key_Backspace || key == Qt::Key_Delete;
 }
 
+static constexpr int LOCATION_TRAILING_EDGE_MARGIN = 12;
+static constexpr int LOCATION_TRAILING_TEXT_GAP = 4;
+static constexpr int LOCATION_TRAILING_ITEM_GAP = 6;
+static constexpr int LOCATION_TRAILING_ACTION_SIZE = 24;
+static constexpr int LOCATION_PILL_HEIGHT = 22;
+static constexpr int LOCATION_PILL_HORIZONTAL_PADDING = 18;
+
 LocationEdit::LocationEdit(QWidget* parent)
     : QLineEdit(parent)
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");
     setMinimumHeight(32);
-    setTextMargins(0, 0, 40, 0);
     update_chrome_style();
 
     m_focus_glow_effect = new QGraphicsDropShadowEffect(this);
@@ -182,6 +188,7 @@ LocationEdit::LocationEdit(QWidget* parent)
 
     m_trailing_action_button = new QToolButton(this);
     m_trailing_action_button->setObjectName("LadybirdLocationAction");
+    m_trailing_action_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
     m_trailing_action_button->setIconSize({ 18, 18 });
     m_trailing_action_button->setFixedSize(24, 24);
     m_trailing_action_button->setAutoRaise(true);
@@ -189,6 +196,20 @@ LocationEdit::LocationEdit(QWidget* parent)
     m_trailing_action_button->setCursor(Qt::ArrowCursor);
     m_trailing_action_button->hide();
 
+    m_zoom_indicator_button = new QToolButton(this);
+    m_zoom_indicator_button->setObjectName("LadybirdLocationZoomIndicator");
+    m_zoom_indicator_button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_zoom_indicator_button->setFixedHeight(LOCATION_PILL_HEIGHT);
+    m_zoom_indicator_button->setAutoRaise(true);
+    m_zoom_indicator_button->setFocusPolicy(Qt::NoFocus);
+    m_zoom_indicator_button->setCursor(Qt::ArrowCursor);
+    m_zoom_indicator_button->hide();
+    connect(m_zoom_indicator_button, &QToolButton::clicked, this, [this] {
+        if (m_zoom_action)
+            m_zoom_action->trigger();
+    });
+
+    update_text_margins();
     update_placeholder();
     update_location_icon();
 
@@ -285,11 +306,29 @@ void LocationEdit::set_trailing_action(QAction* action)
 {
     m_trailing_action_button->setDefaultAction(action);
     m_trailing_action_button->setVisible(action != nullptr);
+    update_text_margins();
+    update_trailing_item_positions();
 }
 
 QAction* LocationEdit::trailing_action() const
 {
     return m_trailing_action_button->defaultAction();
+}
+
+void LocationEdit::set_zoom_action(QAction* action)
+{
+    if (m_zoom_action == action)
+        return;
+
+    if (m_zoom_action)
+        QObject::disconnect(m_zoom_action, nullptr, this, nullptr);
+
+    m_zoom_action = action;
+
+    if (m_zoom_action)
+        connect(m_zoom_action, &QAction::changed, this, &LocationEdit::update_zoom_indicator);
+
+    update_zoom_indicator();
 }
 
 void LocationEdit::set_url_is_hidden(bool url_is_hidden)
@@ -424,19 +463,46 @@ void LocationEdit::resizeEvent(QResizeEvent* event)
 {
     QLineEdit::resizeEvent(event);
 
+    update_trailing_item_positions();
+}
+
+void LocationEdit::update_trailing_item_positions()
+{
     auto button_size = m_leading_icon_button->size();
     auto y = (height() - button_size.height()) / 2 + (m_leading_icon_button->property("notSecure").toBool() ? 0 : 1);
     m_leading_icon_button->move(12, y);
 
-    auto trailing_button_size = m_trailing_action_button->sizeHint();
+    auto trailing_button_size = m_trailing_action_button->size();
+    auto trailing_x = width() - trailing_button_size.width() - LOCATION_TRAILING_EDGE_MARGIN;
     auto trailing_y = (height() - trailing_button_size.height()) / 2 + 1;
-    m_trailing_action_button->move(width() - trailing_button_size.width() - 12, trailing_y);
+    m_trailing_action_button->move(trailing_x, trailing_y);
+
+    auto zoom_button_size = m_zoom_indicator_button->size();
+    auto zoom_y = (height() - zoom_button_size.height()) / 2;
+    m_zoom_indicator_button->move(trailing_x - LOCATION_TRAILING_ITEM_GAP - zoom_button_size.width(), zoom_y);
+    m_zoom_indicator_button->raise();
+    m_trailing_action_button->raise();
 }
 
 void LocationEdit::search_engine_changed()
 {
     update_placeholder();
     update_location_icon();
+}
+
+void LocationEdit::update_text_margins()
+{
+    setTextMargins(m_text_leading_margin, 0, trailing_text_margin(), 0);
+}
+
+int LocationEdit::trailing_text_margin() const
+{
+    auto margin = LOCATION_TRAILING_EDGE_MARGIN + LOCATION_TRAILING_ACTION_SIZE + LOCATION_TRAILING_TEXT_GAP;
+
+    if (m_zoom_indicator_button && !m_zoom_indicator_button->isHidden())
+        margin += m_zoom_indicator_button->width() + LOCATION_TRAILING_ITEM_GAP;
+
+    return margin;
 }
 
 void LocationEdit::update_chrome_style()
@@ -447,6 +513,7 @@ void LocationEdit::update_chrome_style()
     m_is_updating_chrome_style = true;
     setStyleSheet(ChromeStyle::location_edit_style_sheet(palette()));
     m_is_updating_chrome_style = false;
+    update_zoom_indicator();
 }
 
 void LocationEdit::schedule_chrome_style_update()
@@ -460,6 +527,7 @@ void LocationEdit::schedule_chrome_style_update()
         m_autocomplete->schedule_chrome_style_update();
         update_focus_glow(m_focus_glow_alpha);
         update_location_icon();
+        update_zoom_indicator();
         highlight_location();
         update();
         m_has_pending_chrome_style_update = false;
@@ -502,7 +570,8 @@ void LocationEdit::update_location_icon()
         m_leading_icon_button->setText({});
         m_leading_icon_button->setIcon({});
         m_leading_icon_button->setToolTip({});
-        setTextMargins(0, 0, 40, 0);
+        m_text_leading_margin = 0;
+        update_text_margins();
     };
 
     auto show_icon = [&](ChromeIcon icon, QString const& tooltip) {
@@ -515,7 +584,8 @@ void LocationEdit::update_location_icon()
         m_leading_icon_button->setToolTip(tooltip);
         m_leading_icon_button->show();
         position_indicator(1);
-        setTextMargins(22, 0, 40, 0);
+        m_text_leading_margin = 22;
+        update_text_margins();
     };
 
     auto show_not_secure_indicator = [&] {
@@ -529,7 +599,8 @@ void LocationEdit::update_location_icon()
         m_leading_icon_button->setToolTip("Not secure");
         m_leading_icon_button->show();
         position_indicator(0);
-        setTextMargins(width, 0, 40, 0);
+        m_text_leading_margin = width;
+        update_text_margins();
     };
 
     if (text_matches_current_url()) {
@@ -552,6 +623,30 @@ void LocationEdit::update_location_icon()
     } else {
         hide_indicator();
     }
+}
+
+void LocationEdit::update_zoom_indicator()
+{
+    if (!m_zoom_indicator_button)
+        return;
+
+    auto visible = m_zoom_action && m_zoom_action->isVisible() && !m_zoom_action->text().isEmpty();
+    if (!visible) {
+        m_zoom_indicator_button->hide();
+        update_text_margins();
+        update_trailing_item_positions();
+        return;
+    }
+
+    m_zoom_indicator_button->setText(m_zoom_action->text());
+    m_zoom_indicator_button->setToolTip(m_zoom_action->toolTip());
+
+    auto width = m_zoom_indicator_button->fontMetrics().horizontalAdvance(m_zoom_indicator_button->text()) + LOCATION_PILL_HORIZONTAL_PADDING;
+    m_zoom_indicator_button->setFixedSize(width, LOCATION_PILL_HEIGHT);
+    m_zoom_indicator_button->show();
+
+    update_text_margins();
+    update_trailing_item_positions();
 }
 
 void LocationEdit::highlight_location()

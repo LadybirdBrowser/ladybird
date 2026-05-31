@@ -175,6 +175,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignTop);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
+    m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     toolbar_layout->addWidget(m_location_edit, 1);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
 
