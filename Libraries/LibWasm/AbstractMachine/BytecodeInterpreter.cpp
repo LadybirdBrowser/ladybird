@@ -246,7 +246,7 @@ private:
 // Disable direct threading when tail calls are not supported at all (gcc < 15);
 // as without guaranteed tailcall optimization we cannot ensure that the stack
 // will not grow uncontrollably.
-#if !defined(HAS_TAILCALL)
+#if !defined(HAS_TAILCALL) || defined(HAS_ADDRESS_SANITIZER)
 constexpr static auto should_try_to_use_direct_threading = false;
 #else
 constexpr static auto should_try_to_use_direct_threading = true;
