@@ -175,6 +175,48 @@ Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls)
     return sanitized_urls;
 }
 
+String url_for_display(URL::URL const& url)
+{
+    if (!url.scheme().is_one_of("http"sv, "https"sv))
+        return url.serialize();
+
+    StringBuilder builder;
+
+    if (!url.username().is_empty() || !url.password().is_empty()) {
+        builder.append(url.username());
+        if (!url.password().is_empty()) {
+            builder.append(':');
+            builder.append(url.password());
+        }
+        builder.append('@');
+    }
+
+    auto host = url.serialized_host();
+    auto host_view = host.bytes_as_string_view();
+    if (host_view.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
+        host_view = host_view.substring_view(4);
+    builder.append(host_view);
+
+    if (url.port().has_value())
+        builder.appendff(":{}", *url.port());
+
+    auto path = url.serialize_path();
+    if (path != "/"sv || url.query().has_value() || url.fragment().has_value())
+        builder.append(path);
+
+    if (url.query().has_value()) {
+        builder.append('?');
+        builder.append(*url.query());
+    }
+
+    if (url.fragment().has_value()) {
+        builder.append('#');
+        builder.append(*url.fragment());
+    }
+
+    return MUST(builder.to_string());
+}
+
 static URLParts break_internal_url_into_parts(URL::URL const& url, StringView url_string)
 {
     auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + ":"sv.length());

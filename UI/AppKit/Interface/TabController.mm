@@ -33,6 +33,11 @@ static NSString* const TOOLBAR_BOOKMARK_IDENTIFIER = @"ToolbarBookmarkIdentifier
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
 
+enum class LocationFieldDisplay {
+    Editing,
+    NotEditing,
+};
+
 static NSString* candidate_by_trimming_root_trailing_slash(NSString* candidate);
 
 static bool query_matches_candidate_exactly(NSString* query, NSString* candidate)
@@ -182,6 +187,8 @@ static NSImage* location_field_globe_icon()
 - (void)setFavicon:(NSImage*)favicon;
 - (void)setShowsPageIcon:(BOOL)showsPageIcon;
 
+@property (nonatomic, copy) void (^willBeginEditing)(void);
+
 @end
 
 @implementation LocationSearchField
@@ -205,9 +212,20 @@ static NSImage* location_field_globe_icon()
 - (BOOL)becomeFirstResponder
 {
     BOOL result = [super becomeFirstResponder];
-    if (result)
+    if (result) {
+        if (self.willBeginEditing)
+            self.willBeginEditing();
         [self performSelector:@selector(selectText:) withObject:self afterDelay:0];
+    }
     return result;
+}
+
+- (void)mouseDown:(NSEvent*)event
+{
+    [super mouseDown:event];
+
+    if (self.willBeginEditing)
+        self.willBeginEditing();
 }
 
 - (void)layout
@@ -465,6 +483,7 @@ static NSImage* location_field_globe_icon()
 
 - (void)focusLocationToolbarItem
 {
+    [self restoreLocationFieldForEditing];
     [self tab].preferred_first_responder = self.location_toolbar_item.view;
     [self.window makeFirstResponder:self.location_toolbar_item.view];
 }
@@ -500,9 +519,14 @@ static NSImage* location_field_globe_icon()
     self.tab.titlebarAppearsTransparent = YES;
 }
 
-- (void)setLocationFieldText:(StringView)url
+- (void)setLocationFieldText:(StringView)url display:(LocationFieldDisplay)display
 {
     NSMutableAttributedString* attributed_url;
+    auto maybe_url = URL::create_with_url_or_path(url);
+    auto display_url = MUST(String::from_utf8(url));
+    if (display == LocationFieldDisplay::NotEditing && maybe_url.has_value())
+        display_url = WebView::url_for_display(*maybe_url);
+
     auto url_parts = WebView::break_url_into_parts(url);
 
     auto* dark_attributes = @{
@@ -515,8 +539,19 @@ static NSImage* location_field_globe_icon()
     if (url_parts.has_value()) {
         attributed_url = [[NSMutableAttributedString alloc] init];
 
+        auto scheme_and_subdomain = url_parts->scheme_and_subdomain;
+        auto remainder = url_parts->remainder;
+        if (display == LocationFieldDisplay::NotEditing && maybe_url.has_value() && maybe_url->scheme().is_one_of("http"sv, "https"sv)) {
+            auto scheme_prefix_length = maybe_url->scheme().bytes_as_string_view().length() + "://"sv.length();
+            scheme_and_subdomain = scheme_and_subdomain.substring_view(scheme_prefix_length);
+            if (scheme_and_subdomain.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
+                scheme_and_subdomain = scheme_and_subdomain.substring_view(4);
+            if (remainder == "/"sv)
+                remainder = {};
+        }
+
         auto* attributed_scheme_and_subdomain = [[NSAttributedString alloc]
-            initWithString:Ladybird::string_to_ns_string(url_parts->scheme_and_subdomain)
+            initWithString:Ladybird::string_to_ns_string(scheme_and_subdomain)
                 attributes:dark_attributes];
 
         auto* attributed_effective_tld_plus_one = [[NSAttributedString alloc]
@@ -524,7 +559,7 @@ static NSImage* location_field_globe_icon()
                 attributes:highlight_attributes];
 
         auto* attributed_remainder = [[NSAttributedString alloc]
-            initWithString:Ladybird::string_to_ns_string(url_parts->remainder)
+            initWithString:Ladybird::string_to_ns_string(remainder)
                 attributes:dark_attributes];
 
         [attributed_url appendAttributedString:attributed_scheme_and_subdomain];
@@ -532,13 +567,43 @@ static NSImage* location_field_globe_icon()
         [attributed_url appendAttributedString:attributed_remainder];
     } else {
         attributed_url = [[NSMutableAttributedString alloc]
-            initWithString:Ladybird::string_to_ns_string(url)
+            initWithString:Ladybird::string_to_ns_string(display_url)
+                attributes:highlight_attributes];
+    }
+
+    if (display == LocationFieldDisplay::NotEditing && maybe_url.has_value() && ![[attributed_url string] isEqualToString:Ladybird::string_to_ns_string(display_url)]) {
+        attributed_url = [[NSMutableAttributedString alloc]
+            initWithString:Ladybird::string_to_ns_string(display_url)
                 attributes:highlight_attributes];
     }
 
     auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
     [location_search_field setAttributedStringValue:attributed_url];
     [location_search_field setShowsPageIcon:url_parts.has_value()];
+}
+
+- (void)setLocationFieldText:(StringView)url
+{
+    [self setLocationFieldText:url display:LocationFieldDisplay::NotEditing];
+}
+
+- (void)restoreLocationFieldForEditing
+{
+    auto const& url = [[[self tab] web_view] view].url();
+    auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    if (![[location_search_field stringValue] isEqualToString:Ladybird::string_to_ns_string(WebView::url_for_display(url))])
+        return;
+
+    m_is_applying_inline_autocomplete = true;
+    [self setLocationFieldText:url.serialize() display:LocationFieldDisplay::Editing];
+
+    auto* editor = (NSTextView*)[location_search_field currentEditor];
+    if (editor != nil && [self.window firstResponder] == editor && ![editor hasMarkedText]) {
+        auto* serialized_url = Ladybird::string_to_ns_string(url.serialize());
+        [editor setString:serialized_url];
+        [editor setSelectedRange:NSMakeRange(0, serialized_url.length)];
+    }
+    m_is_applying_inline_autocomplete = false;
 }
 
 - (NSString*)currentLocationFieldQuery
@@ -805,6 +870,10 @@ static NSImage* location_field_globe_icon()
         [location_search_field setPlaceholderString:@"Enter web address"];
         [location_search_field setTextColor:[NSColor textColor]];
         [location_search_field setDelegate:self];
+        __weak TabController* weak_self = self;
+        [location_search_field setWillBeginEditing:^{
+            [weak_self restoreLocationFieldForEditing];
+        }];
 
         if (@available(macOS 26, *)) {
             [location_search_field setBordered:YES];
@@ -1092,6 +1161,11 @@ static NSImage* location_field_globe_icon()
 
 #pragma mark - NSSearchFieldDelegate
 
+- (void)controlTextDidBeginEditing:(NSNotification*)notification
+{
+    [self restoreLocationFieldForEditing];
+}
+
 - (BOOL)control:(NSControl*)control
                textView:(NSTextView*)text_view
     doCommandBySelector:(SEL)selector
@@ -1135,14 +1209,24 @@ static NSImage* location_field_globe_icon()
 - (void)controlTextDidEndEditing:(NSNotification*)notification
 {
     auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+    NSString* url_string = [[location_search_field stringValue] copy];
 
-    auto url_string = Ladybird::ns_string_to_string([location_search_field stringValue]);
-    m_autocomplete->cancel_pending_query();
-    self.current_inline_autocomplete_suggestion = nil;
-    self.suppressed_inline_autocomplete_query = nil;
-    m_should_suppress_inline_autocomplete_on_next_change = false;
-    [self.autocomplete close];
-    [self setLocationFieldText:url_string];
+    // AppKit can send this while focus is still settling into the field
+    // editor. Wait until the next turn so transient notifications do not
+    // format the live editor contents as a non-editing URL.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
+        auto* editor = (NSTextView*)[location_search_field currentEditor];
+        if (editor != nil && [self.window firstResponder] == editor)
+            return;
+
+        m_autocomplete->cancel_pending_query();
+        self.current_inline_autocomplete_suggestion = nil;
+        self.suppressed_inline_autocomplete_query = nil;
+        m_should_suppress_inline_autocomplete_on_next_change = false;
+        [self.autocomplete close];
+        [self setLocationFieldText:Ladybird::ns_string_to_string(url_string)];
+    });
 }
 
 - (void)controlTextDidChange:(NSNotification*)notification

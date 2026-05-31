@@ -18,6 +18,7 @@
 class QAction;
 class QEvent;
 class QGraphicsDropShadowEffect;
+class QMouseEvent;
 class QResizeEvent;
 class QToolButton;
 class QVariantAnimation;
@@ -47,10 +48,13 @@ private:
     virtual void focusInEvent(QFocusEvent* event) override;
     virtual void focusOutEvent(QFocusEvent* event) override;
     virtual void keyPressEvent(QKeyEvent* event) override;
+    virtual void mouseReleaseEvent(QMouseEvent* event) override;
     virtual void resizeEvent(QResizeEvent* event) override;
 
     virtual void search_engine_changed() override;
 
+    void show_full_url_preserving_display_selection();
+    int serialized_url_position_for_display_position(int) const;
     void update_placeholder();
     void update_chrome_style();
     void update_location_icon();
@@ -59,6 +63,8 @@ private:
     void animate_focus_glow(int target_alpha);
     void highlight_location();
     bool text_matches_current_url() const;
+    QString serialized_url() const;
+    QString display_url() const;
 
     int apply_inline_autocomplete(Vector<WebView::AutocompleteSuggestion> const&);
     bool apply_inline_autocomplete_suggestion_text(QString const& suggestion_text, QString const& query);
@@ -78,6 +84,7 @@ private:
     bool m_has_user_edited_hidden_url { false };
     bool m_is_updating_chrome_style { false };
     bool m_has_pending_chrome_style_update { false };
+    bool m_should_show_full_url_on_mouse_release { false };
     int m_focus_glow_alpha { 0 };
 
     bool m_is_applying_inline_autocomplete { false };

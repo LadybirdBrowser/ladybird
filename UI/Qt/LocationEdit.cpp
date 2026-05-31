@@ -24,6 +24,7 @@
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QLatin1String>
+#include <QMouseEvent>
 #include <QPalette>
 #include <QResizeEvent>
 #include <QStyle>
@@ -230,10 +231,10 @@ LocationEdit::LocationEdit(QWidget* parent)
         if (text().isEmpty())
             return;
 
+        auto query = ak_string_from_qstring(text());
+
         reset_autocomplete_state();
         clearFocus();
-
-        auto query = ak_string_from_qstring(text());
 
         auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
@@ -313,11 +314,21 @@ void LocationEdit::changeEvent(QEvent* event)
 
 void LocationEdit::focusInEvent(QFocusEvent* event)
 {
+    auto should_defer_full_url = event->reason() == Qt::MouseFocusReason
+        && m_url.has_value()
+        && text() == display_url();
+
     QLineEdit::focusInEvent(event);
+
+    m_should_show_full_url_on_mouse_release = should_defer_full_url;
+
+    if (!should_defer_full_url && m_url.has_value() && text() == display_url())
+        setText(serialized_url());
+
     highlight_location();
     animate_focus_glow(58);
 
-    if (event->reason() != Qt::PopupFocusReason)
+    if (event->reason() != Qt::PopupFocusReason && !should_defer_full_url)
         QTimer::singleShot(0, this, &QLineEdit::selectAll);
 }
 
@@ -329,12 +340,15 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
     reset_autocomplete_state();
     m_autocomplete->cancel_pending_query();
     m_autocomplete->close();
+    m_should_show_full_url_on_mouse_release = false;
 
     if (m_url_is_hidden) {
         m_url_is_hidden = false;
         m_has_user_edited_hidden_url = false;
         if (text().isEmpty() && m_url.has_value())
-            setText(qstring_from_ak_string(m_url->serialize()));
+            setText(display_url());
+    } else if (m_url.has_value() && text() == serialized_url()) {
+        setText(display_url());
     }
 
     if (event->reason() != Qt::PopupFocusReason) {
@@ -368,7 +382,7 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
             return;
         reset_autocomplete_state();
         if (m_url.has_value())
-            setText(qstring_from_ak_string(m_url->serialize()));
+            setText(serialized_url());
         clearFocus();
         return;
     }
@@ -396,6 +410,14 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
         m_should_suppress_inline_autocomplete_on_next_change = true;
 
     QLineEdit::keyPressEvent(event);
+}
+
+void LocationEdit::mouseReleaseEvent(QMouseEvent* event)
+{
+    QLineEdit::mouseReleaseEvent(event);
+
+    if (event->button() == Qt::LeftButton && m_should_show_full_url_on_mouse_release)
+        show_full_url_preserving_display_selection();
 }
 
 void LocationEdit::resizeEvent(QResizeEvent* event)
@@ -537,36 +559,56 @@ void LocationEdit::highlight_location()
     auto url = ak_string_from_qstring(text());
     QList<QInputMethodEvent::Attribute> attributes;
 
-    if (auto url_parts = WebView::break_url_into_parts(url); url_parts.has_value()) {
-        auto darkened_text_color = ChromeStyle::chrome_text(palette());
-        darkened_text_color.setAlpha(127);
+    auto darkened_text_color = ChromeStyle::chrome_text(palette());
+    darkened_text_color.setAlpha(127);
 
-        QTextCharFormat dark_attributes;
-        dark_attributes.setForeground(darkened_text_color);
+    QTextCharFormat dark_attributes;
+    dark_attributes.setForeground(darkened_text_color);
 
-        QTextCharFormat highlight_attributes;
-        highlight_attributes.setForeground(ChromeStyle::chrome_text(palette()));
+    QTextCharFormat highlight_attributes;
+    highlight_attributes.setForeground(ChromeStyle::chrome_text(palette()));
 
+    auto append_attributes = [&](StringView scheme_and_subdomain, StringView effective_tld_plus_one, StringView remainder) {
         attributes.append({
             QInputMethodEvent::TextFormat,
             -cursorPosition(),
-            static_cast<int>(url_parts->scheme_and_subdomain.length()),
+            static_cast<int>(scheme_and_subdomain.length()),
             dark_attributes,
         });
 
         attributes.append({
             QInputMethodEvent::TextFormat,
-            static_cast<int>(url_parts->scheme_and_subdomain.length() - cursorPosition()),
-            static_cast<int>(url_parts->effective_tld_plus_one.length()),
+            static_cast<int>(scheme_and_subdomain.length() - cursorPosition()),
+            static_cast<int>(effective_tld_plus_one.length()),
             highlight_attributes,
         });
 
         attributes.append({
             QInputMethodEvent::TextFormat,
-            static_cast<int>(url_parts->scheme_and_subdomain.length() + url_parts->effective_tld_plus_one.length() - cursorPosition()),
-            static_cast<int>(url_parts->remainder.length()),
+            static_cast<int>(scheme_and_subdomain.length() + effective_tld_plus_one.length() - cursorPosition()),
+            static_cast<int>(remainder.length()),
             dark_attributes,
         });
+    };
+
+    if (m_url.has_value() && text() == display_url() && m_url->scheme().is_one_of("http"sv, "https"sv)) {
+        auto serialized_url = m_url->serialize();
+        if (auto url_parts = WebView::break_url_into_parts(serialized_url); url_parts.has_value()) {
+            auto scheme_and_subdomain = url_parts->scheme_and_subdomain;
+            auto remainder = url_parts->remainder;
+
+            auto scheme_prefix_length = m_url->scheme().bytes_as_string_view().length() + "://"sv.length();
+            if (scheme_and_subdomain.length() >= scheme_prefix_length)
+                scheme_and_subdomain = scheme_and_subdomain.substring_view(scheme_prefix_length);
+            if (scheme_and_subdomain.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
+                scheme_and_subdomain = scheme_and_subdomain.substring_view(4);
+            if (remainder == "/"sv)
+                remainder = {};
+
+            append_attributes(scheme_and_subdomain, url_parts->effective_tld_plus_one, remainder);
+        }
+    } else if (auto url_parts = WebView::break_url_into_parts(url); url_parts.has_value()) {
+        append_attributes(url_parts->scheme_and_subdomain, url_parts->effective_tld_plus_one, url_parts->remainder);
     }
 
     QInputMethodEvent event(QString(), attributes);
@@ -581,18 +623,133 @@ void LocationEdit::set_url(Optional<URL::URL> url)
         if (!m_has_user_edited_hidden_url)
             clear();
     } else if (m_url.has_value()) {
-        setText(qstring_from_ak_string(m_url->serialize()));
+        setText(hasFocus() ? serialized_url() : display_url());
         setCursorPosition(0);
     }
 
     update_location_icon();
 }
 
+void LocationEdit::show_full_url_preserving_display_selection()
+{
+    if (!m_should_show_full_url_on_mouse_release)
+        return;
+
+    m_should_show_full_url_on_mouse_release = false;
+
+    if (!m_url.has_value() || text() != display_url())
+        return;
+
+    auto selection_start = selectionStart();
+    auto selection_length = selectedText().length();
+    auto cursor_position = cursorPosition();
+
+    setText(serialized_url());
+
+    if (selection_start != -1) {
+        auto serialized_selection_start = serialized_url_position_for_display_position(selection_start);
+        auto serialized_selection_end = serialized_url_position_for_display_position(selection_start + selection_length);
+        setSelection(serialized_selection_start, serialized_selection_end - serialized_selection_start);
+    } else {
+        setCursorPosition(serialized_url_position_for_display_position(cursor_position));
+    }
+
+    highlight_location();
+}
+
+int LocationEdit::serialized_url_position_for_display_position(int display_position) const
+{
+    VERIFY(m_url.has_value());
+
+    auto display = display_url();
+    auto serialized = serialized_url();
+    display_position = qBound(0, display_position, display.length());
+
+    if (display == serialized || !m_url->scheme().is_one_of("http"sv, "https"sv))
+        return min(display_position, serialized.length());
+
+    int display_index = 0;
+    int last_serialized_position = 0;
+    auto map_visible_range = [&](int serialized_start, int length) -> Optional<int> {
+        if (length <= 0)
+            return {};
+
+        if (display_position < display_index + length)
+            return serialized_start + display_position - display_index;
+
+        display_index += length;
+        last_serialized_position = serialized_start + length;
+        return {};
+    };
+
+    auto serialized_index = qstring_from_ak_string(m_url->scheme()).length() + "://"sv.length();
+
+    if (!m_url->username().is_empty() || !m_url->password().is_empty()) {
+        auto username = qstring_from_ak_string(m_url->username());
+        auto password = qstring_from_ak_string(m_url->password());
+        auto userinfo_length = username.length() + 1;
+        if (!password.isEmpty())
+            userinfo_length += 1 + password.length();
+
+        if (auto position = map_visible_range(serialized_index, userinfo_length); position.has_value())
+            return *position;
+        serialized_index += userinfo_length;
+    }
+
+    auto host = qstring_from_ak_string(m_url->serialized_host());
+    auto host_offset = host.startsWith("www.", Qt::CaseInsensitive) ? 4 : 0;
+    if (auto position = map_visible_range(serialized_index + host_offset, host.length() - host_offset); position.has_value())
+        return *position;
+    serialized_index += host.length();
+
+    if (auto port = m_url->port(); port.has_value()) {
+        auto port_text = QString::number(*port);
+        auto port_length = 1 + port_text.length();
+        if (auto position = map_visible_range(serialized_index, port_length); position.has_value())
+            return *position;
+        serialized_index += port_length;
+    }
+
+    auto path = qstring_from_ak_string(m_url->serialize_path());
+    if (path != "/" || m_url->query().has_value() || m_url->fragment().has_value()) {
+        if (auto position = map_visible_range(serialized_index, path.length()); position.has_value())
+            return *position;
+    }
+    serialized_index += path.length();
+
+    if (m_url->query().has_value()) {
+        auto query_length = 1 + qstring_from_ak_string(*m_url->query()).length();
+        if (auto position = map_visible_range(serialized_index, query_length); position.has_value())
+            return *position;
+        serialized_index += query_length;
+    }
+
+    if (m_url->fragment().has_value()) {
+        auto fragment_length = 1 + qstring_from_ak_string(*m_url->fragment()).length();
+        if (auto position = map_visible_range(serialized_index, fragment_length); position.has_value())
+            return *position;
+    }
+
+    return last_serialized_position;
+}
+
 bool LocationEdit::text_matches_current_url() const
 {
     return m_url.has_value()
         && !m_url_is_hidden
-        && text() == qstring_from_ak_string(m_url->serialize());
+        && (text() == serialized_url() || text() == display_url());
+}
+
+QString LocationEdit::serialized_url() const
+{
+    VERIFY(m_url.has_value());
+    return qstring_from_ak_string(m_url->serialize());
+}
+
+QString LocationEdit::display_url() const
+{
+    VERIFY(m_url.has_value());
+    return qstring_from_ak_string(WebView::url_for_display(*m_url));
 }
 
 QString LocationEdit::current_query() const
