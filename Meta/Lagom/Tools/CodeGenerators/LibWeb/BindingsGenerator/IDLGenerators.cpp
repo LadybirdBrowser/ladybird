@@ -1421,47 +1421,10 @@ static void generate_any_to_cpp(SourceGenerator& scoped_generator)
 )~~~");
 }
 
-enum class ThrowOnInvalidEnumValue {
-    Yes,
-    No,
-};
-
-static void generate_enum_to_cpp(SourceGenerator& scoped_generator, Enumeration const& enumeration, ThrowOnInvalidEnumValue throw_on_invalid)
+static void generate_enum_to_cpp(SourceGenerator& scoped_generator)
 {
-    auto enum_generator = scoped_generator.fork();
-    auto default_value_cpp_name = enumeration.translated_cpp_names.get(enumeration.first_member);
-    VERIFY(default_value_cpp_name.has_value());
-    enum_generator.set("enum.default.cpp_value", *default_value_cpp_name);
-
-    if (throw_on_invalid == ThrowOnInvalidEnumValue::Yes) {
-        enum_generator.append(R"~~~(
+    scoped_generator.append(R"~~~(
     auto @cpp_name@ = TRY(@parameter.type.idl_value_conversion_function@(vm, @js_name@@js_suffix@));
-)~~~");
-        return;
-    }
-
-    enum_generator.set("js_name.as_string", ByteString::formatted("{}{}_string", enum_generator.get("js_name"sv), enum_generator.get("js_suffix"sv)));
-    enum_generator.append(R"~~~(
-    @parameter.type.name.normalized@ @cpp_name@ { @parameter.type.name.normalized@::@enum.default.cpp_value@ };
-    auto @js_name.as_string@ = TRY(@js_name@@js_suffix@.to_string(vm));
-)~~~");
-    auto first = true;
-    VERIFY(enumeration.translated_cpp_names.size() >= 1);
-    for (auto& it : enumeration.translated_cpp_names) {
-        enum_generator.set("enum.alt.name", it.key);
-        enum_generator.set("enum.alt.value", it.value);
-        enum_generator.set("else", first ? "" : "else ");
-        first = false;
-
-        enum_generator.append(R"~~~(
-    @else@if (@js_name.as_string@ == "@enum.alt.name@"sv)
-        @cpp_name@ = @parameter.type.name.normalized@::@enum.alt.value@;
-)~~~");
-    }
-
-    enum_generator.append(R"~~~(
-    else
-        return JS::js_undefined();
 )~~~");
 }
 
@@ -2151,12 +2114,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "any") {
         generate_any_to_cpp(scoped_generator);
     } else if (context.enumerations.contains(parameter.type->name())) {
-        // NOTE: Attribute setters return undefined instead of throwing when the string doesn't match an enum value.
-        ThrowOnInvalidEnumValue throw_on_invalid = ThrowOnInvalidEnumValue::No;
-        if constexpr (!IsSame<Attribute, RemoveConst<ParameterType>>)
-            throw_on_invalid = ThrowOnInvalidEnumValue::Yes;
         scoped_generator.set("parameter.type.idl_value_conversion_function", idl_value_conversion_function_name(normalized_parameter_type_name));
-        generate_enum_to_cpp(scoped_generator, context.enumerations.find(parameter.type->name())->value, throw_on_invalid);
+        generate_enum_to_cpp(scoped_generator);
     } else if (context.dictionaries.contains(parameter.type->name())) {
         scoped_generator.set("parameter.type.idl_value_conversion_function", idl_value_conversion_function_name(normalized_parameter_type_name));
         scoped_generator.append(R"~~~(
@@ -5013,7 +4972,34 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         return;
     }
 
-    generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface.context, includes, false, {}, false, 0, TypeOptionality::OptionalArgument);
+    // 6. Let idlValue be determined as follows:
+    // -> attribute’s type is an enumeration
+    if (interface.context.enumerations.contains(attribute.type->name())) {
+        // 1. Let S be ? ToString(V).
+        auto cpp_type = cpp_type_for_idl_type(interface.context, *attribute.type, TypeOptionality::Required, attribute.extended_attributes);
+        attribute_generator.set("attribute.cpp_type", cpp_type.name);
+        attribute_generator.append(R"~~~(
+    auto maybe_cpp_value = [&]() -> JS::ThrowCompletionOr<@attribute.cpp_type@> {
+)~~~");
+        generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface.context, includes, false, {}, false, 0, TypeOptionality::OptionalArgument);
+        attribute_generator.append(R"~~~(
+        return cpp_value;
+    }();
+
+    // 2. If S is not one of the enumeration’s values, then return undefined.
+    if (maybe_cpp_value.is_error())
+        return JS::js_undefined();
+
+    // 3. Otherwise, idlValue is the enumeration value equal to S.
+    auto cpp_value = maybe_cpp_value.release_value();
+)~~~");
+    }
+    // -> Otherwise
+    else {
+        // idlValue is the result of converting V to an IDL value of attribute’s type.
+        generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface.context, includes, false, {}, false, 0, TypeOptionality::OptionalArgument);
+    }
+
     if (attribute.extended_attributes.contains("Reflect")) {
         if (attribute.type->name() == "boolean") {
             attribute_generator.append(R"~~~(
