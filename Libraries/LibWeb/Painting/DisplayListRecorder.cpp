@@ -191,6 +191,22 @@ static DisplayListGradientColorStops append_color_stops(
 }
 
 template<DisplayListCommand Command>
+static DisplayListDataSpan append_glyphs(
+    CommandPayloadBuilder<Command>& payload_builder,
+    Gfx::GlyphRun const& glyph_run)
+{
+    Vector<DisplayListGlyph> display_list_glyphs;
+    display_list_glyphs.ensure_capacity(glyph_run.glyphs().size());
+    for (auto const& glyph : glyph_run.glyphs()) {
+        display_list_glyphs.unchecked_append({
+            .position = glyph.position,
+            .glyph_id = glyph.glyph_id,
+        });
+    }
+    return payload_builder.append_objects(display_list_glyphs.span());
+}
+
+template<DisplayListCommand Command>
 static DisplayListGradientColorStops append_color_stops(
     CommandPayloadBuilder<Command>& payload_builder,
     ColorStopData const& color_stops)
@@ -585,7 +601,7 @@ void DisplayListRecorder::draw_glyph_run(Gfx::FloatPoint baseline_start, Gfx::Gl
         return;
     glyph_run.ensure_text_blob(scale);
     CommandPayloadBuilder<DrawGlyphRun> payload_builder(m_display_list);
-    auto glyphs = payload_builder.append_objects(glyph_run.glyphs().span());
+    auto glyphs = append_glyphs(payload_builder, glyph_run);
     auto glyph_bounding_rect = glyph_run.cached_blob_bounds().translated(baseline_start).to_rounded<int>();
     append_command(
         DrawGlyphRun {
@@ -656,7 +672,7 @@ void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect boundi
 {
     glyph_run.ensure_text_blob(glyph_run_scale);
     CommandPayloadBuilder<PaintTextShadow> payload_builder(m_display_list);
-    auto glyphs = payload_builder.append_objects(glyph_run.glyphs().span());
+    auto glyphs = append_glyphs(payload_builder, glyph_run);
     append_command(
         PaintTextShadow {
             .font_id = resource_storage().add_font(glyph_run.font()),
