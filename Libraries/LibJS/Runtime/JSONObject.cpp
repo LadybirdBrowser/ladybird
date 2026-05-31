@@ -261,6 +261,9 @@ static void write_indent(StringBuilder& builder, StringView gap, size_t depth)
 // 25.5.2.4 SerializeJSONObject ( state, value ), https://tc39.es/ecma262/#sec-serializejsonobject
 ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState& state, Object& object)
 {
+    if (vm.did_reach_stack_space_limit())
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+
     if (state.seen_objects.contains(&object))
         return vm.throw_completion<TypeError>(ErrorType::JsonCircular);
 
@@ -334,6 +337,9 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
 // 25.5.2.5 SerializeJSONArray ( state, value ), https://tc39.es/ecma262/#sec-serializejsonarray
 ThrowCompletionOr<void> JSONObject::serialize_json_array(VM& vm, StringifyState& state, Object& object)
 {
+    if (vm.did_reach_stack_space_limit())
+        return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+
     if (state.seen_objects.contains(&object))
         return vm.throw_completion<TypeError>(ErrorType::JsonCircular);
 

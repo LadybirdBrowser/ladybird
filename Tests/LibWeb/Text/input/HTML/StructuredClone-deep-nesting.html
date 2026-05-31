@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const deep = [];
+        let current = deep;
+        for (let i = 0; i < 100_000; i++) {
+            current[0] = [];
+            current = current[0];
+        }
+
+        try {
+            structuredClone(deep);
+            println("FAILED");
+        } catch (e) {
+            println(`ERROR: ${e.name}: ${e.message}`);
+        }
+    });
+</script>

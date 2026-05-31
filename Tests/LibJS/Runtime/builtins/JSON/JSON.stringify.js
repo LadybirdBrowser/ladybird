@@ -148,4 +148,28 @@ describe("errors", () => {
             }).toThrow(TypeError, "Cannot stringify circular object");
         });
     });
+
+    test("should not crash when serializing deeply nested structures", () => {
+        const deepArray = [];
+        let current = deepArray;
+        for (let i = 0; i < 100_000; i++) {
+            current[0] = [];
+            current = current[0];
+        }
+
+        expect(() => {
+            JSON.stringify(deepArray);
+        }).toThrow(InternalError, "Call stack size limit exceeded");
+
+        const deepObject = {};
+        current = deepObject;
+        for (let i = 0; i < 100_000; i++) {
+            current.x = {};
+            current = current.x;
+        }
+
+        expect(() => {
+            JSON.stringify(deepObject);
+        }).toThrow(InternalError, "Call stack size limit exceeded");
+    });
 });
