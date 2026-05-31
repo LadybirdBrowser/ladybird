@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+#target {
+    opacity: 0;
+    transition: opacity 20ms linear;
+}
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let eventCount = 0;
+        let eventType = "";
+        let propertyName = "";
+
+        target.addEventListener("webkitTransitionEnd", event => {
+            ++eventCount;
+            eventType = event.type;
+            propertyName = event.propertyName;
+        });
+
+        getComputedStyle(target).opacity;
+        target.style.opacity = "1";
+
+        await timeout(200);
+        println(`legacy transitionend event count: ${eventCount}`);
+        println(`legacy transitionend event type: ${eventType}`);
+        println(`legacy transitionend property name: ${propertyName}`);
+        done();
+    });
+</script>

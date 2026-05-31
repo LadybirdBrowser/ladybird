@@ -6,6 +6,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/Optional.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -30,6 +31,20 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::DOM {
+
+// https://dom.spec.whatwg.org/#concept-event-listener-invoke
+static Optional<FlyString> legacy_event_type_for_event_type(FlyString const& event_type)
+{
+    if (event_type == HTML::EventNames::animationend)
+        return HTML::EventNames::webkitAnimationEnd;
+    if (event_type == HTML::EventNames::animationiteration)
+        return HTML::EventNames::webkitAnimationIteration;
+    if (event_type == HTML::EventNames::animationstart)
+        return HTML::EventNames::webkitAnimationStart;
+    if (event_type == HTML::EventNames::transitionend)
+        return HTML::EventNames::webkitTransitionEnd;
+    return {};
+}
 
 // https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke
 bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventListener>>& listeners, Event::Phase phase, bool invocation_target_in_shadow_tree, bool& legacy_output_did_listeners_throw)
@@ -164,16 +179,10 @@ void EventDispatcher::invoke(Event::PathEntry& struct_, Event& event, Event::Pha
 
         // 2. If event’s type attribute value is a match for any of the strings in the first column in the following table,
         //    set event’s type attribute value to the string in the second column on the same row as the matching string, and return otherwise.
-        if (event.type() == HTML::EventNames::animationend)
-            event.set_type(HTML::EventNames::webkitAnimationEnd);
-        else if (event.type() == HTML::EventNames::animationiteration)
-            event.set_type(HTML::EventNames::webkitAnimationIteration);
-        else if (event.type() == HTML::EventNames::animationstart)
-            event.set_type(HTML::EventNames::webkitAnimationStart);
-        else if (event.type() == HTML::EventNames::transitionend)
-            event.set_type(HTML::EventNames::webkitTransitionEnd);
-        else
+        auto legacy_event_type = legacy_event_type_for_event_type(event.type());
+        if (!legacy_event_type.has_value())
             return;
+        event.set_type(legacy_event_type.release_value());
 
         // 3. Inner invoke with event, listeners, phase, invocationTargetInShadowTree, and legacyOutputDidListenersThrowFlag if given.
         inner_invoke(event, listeners, phase, invocation_target_in_shadow_tree, legacy_output_did_listeners_throw);
@@ -222,6 +231,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     if (!should_dispatch) {
         auto const* node = as_if<Node>(*target);
         should_dispatch = !node || node->has_inclusive_ancestor_with_event_listener(event.type());
+        if (!should_dispatch && event.is_trusted()) {
+            if (auto legacy_event_type = legacy_event_type_for_event_type(event.type()); legacy_event_type.has_value())
+                should_dispatch = node->has_inclusive_ancestor_with_event_listener(*legacy_event_type);
+        }
     }
 
     // 6. If target is not relatedTarget or target is event’s relatedTarget, then:
