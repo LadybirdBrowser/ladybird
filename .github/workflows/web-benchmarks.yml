@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: 'Checkout ladybird'
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v4.2.2
         with:
           ref: ${{ github.sha }}
 
@@ -47,7 +47,7 @@ jobs:
           echo "sha=${{ github.sha }}" >> "${GITHUB_OUTPUT}"
 
       - name: 'Checkout LadybirdBrowser/web-benchmarks'
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v4.2.2
         with:
           repository: LadybirdBrowser/web-benchmarks
           path: web-benchmarks
@@ -132,7 +132,7 @@ jobs:
           ./run.py --iterations=5 --executable="${executable}"
 
       - name: 'Save results as an artifact'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
           path: web-benchmarks/results.json

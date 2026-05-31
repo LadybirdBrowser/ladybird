@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v4.2.2
         with:
           ref: ${{ inputs.reference_to_build }}
 
@@ -166,14 +166,14 @@ jobs:
           fi
 
       - name: Upload js package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: ladybird-js-${{ matrix.package_type }}
           path: Build/distribution/ladybird-js-*.tar.gz
           retention-days: 7
 
       - name: Upload wasm package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: ladybird-wasm-${{ matrix.package_type }}
           path: Build/distribution/ladybird-wasm-*.tar.gz

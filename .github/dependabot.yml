@@ -9,6 +9,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "CI:"
+    ignore:
+      # These major versions require the Node 24 action runtime, which is not
+      # available in the container jobs on our current CI runners.
+      - dependency-name: "actions/checkout"
+        versions: [">=5.0.0"]
+      - dependency-name: "actions/upload-artifact"
+        versions: [">=5.0.0"]
 
   - package-ecosystem: "rust-toolchain"
     directory: "/"
