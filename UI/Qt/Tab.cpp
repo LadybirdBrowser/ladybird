@@ -18,6 +18,7 @@
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/WindowControlButton.h>
 
 #include <QColorDialog>
 #include <QFileDialog>
@@ -34,6 +35,8 @@
 #include <QTimer>
 
 namespace Ladybird {
+
+static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 
 class HamburgerButton final : public QToolButton {
 public:
@@ -161,10 +164,40 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
     connect_hamburger_menu();
 
-    m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
     m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
     m_reload_action = create_application_action(*this, application.reload_action());
+
+    m_toolbar_window_controls_separator = new QWidget(m_toolbar);
+    m_toolbar_window_controls_separator->setObjectName("LadybirdToolbarWindowControlsSeparator");
+    m_toolbar_window_controls_separator->setFixedSize(1, 22);
+
+    m_toolbar_window_controls = new QWidget(m_toolbar);
+    m_toolbar_window_controls->setObjectName("LadybirdToolbarWindowControls");
+    auto* window_controls_layout = new QHBoxLayout(m_toolbar_window_controls);
+    window_controls_layout->setSpacing(0);
+    window_controls_layout->setContentsMargins(0, 0, 0, 0);
+
+    m_minimize_window_button = new WindowControlButton("LadybirdWindowButton", "Minimize", { 16, 16 }, { 38, 38 }, m_toolbar_window_controls);
+    m_maximize_window_button = new WindowControlButton("LadybirdWindowButton", "Maximize", { 16, 16 }, { 38, 38 }, m_toolbar_window_controls);
+    m_close_window_button = new WindowControlButton("LadybirdCloseWindowButton", "Close", { 16, 16 }, { 38, 38 }, m_toolbar_window_controls);
+
+    window_controls_layout->addWidget(m_minimize_window_button);
+    window_controls_layout->addWidget(m_maximize_window_button);
+    window_controls_layout->addWidget(m_close_window_button);
+
+    QObject::connect(m_minimize_window_button, &QToolButton::clicked, this, [this] {
+        m_window->showMinimized();
+    });
+    QObject::connect(m_maximize_window_button, &QToolButton::clicked, this, [this] {
+        if (m_window->isMaximized())
+            m_window->showNormal();
+        else
+            m_window->showMaximized();
+    });
+    QObject::connect(m_close_window_button, &QToolButton::clicked, this, [this] {
+        m_window->close();
+    });
 
     recreate_toolbar_icons();
 
@@ -181,14 +214,17 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
 
-    toolbar_layout->addWidget(create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action), 0, Qt::AlignTop);
     toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignTop);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     toolbar_layout->addWidget(m_location_edit, 1);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
+    toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
+    toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
 
     update_chrome_style();
+    set_toolbar_window_controls_visible(!Settings::the()->show_menubar() && WebView::Application::settings().tab_settings().vertical_tabs_enabled);
+    set_toolbar_window_drag_enabled(WebView::Application::settings().tab_settings().vertical_tabs_enabled);
 
     m_hamburger_button->setVisible(!Settings::the()->show_menubar());
 
@@ -535,6 +571,26 @@ void Tab::set_window(BrowserWindow& window)
     recreate_toolbar_icons();
 }
 
+void Tab::set_toolbar_window_controls_visible(bool visible)
+{
+    m_toolbar_window_controls_separator->setVisible(visible);
+    m_toolbar_window_controls->setVisible(visible);
+}
+
+void Tab::set_toolbar_window_drag_enabled(bool enabled)
+{
+    m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, enabled);
+}
+
+void Tab::update_window_control_icons()
+{
+    auto is_maximized = m_window->isMaximized();
+    m_minimize_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowMinimize, palette()));
+    m_maximize_window_button->setIcon(create_chrome_icon(is_maximized ? ChromeIcon::WindowRestore : ChromeIcon::WindowMaximize, palette()));
+    m_maximize_window_button->setToolTip(is_maximized ? "Restore" : "Maximize");
+    m_close_window_button->setIcon(create_chrome_icon(ChromeIcon::WindowClose, palette()));
+}
+
 void Tab::connect_hamburger_menu()
 {
     QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToShow, m_hamburger_button, [this]() {
@@ -685,15 +741,11 @@ void Tab::update_chrome_style()
 
 void Tab::recreate_toolbar_icons()
 {
-    m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(
-        WebView::Application::the().toggle_vertical_tabs_expanded_action().engaged()
-            ? ChromeIcon::VerticalTabBarCollapse
-            : ChromeIcon::VerticalTabBarExpand,
-        palette()));
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
+    update_window_control_icons();
     if (auto* action = m_location_edit->trailing_action()) {
         auto icon = view().toggle_bookmark_action().engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star;
         action->setIcon(create_chrome_icon(icon, palette()));

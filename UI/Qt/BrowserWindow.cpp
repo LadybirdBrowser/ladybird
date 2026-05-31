@@ -54,6 +54,7 @@ namespace Ladybird {
 
 static constexpr auto AUDIO_STATE_BUTTON_POSITION = QTabBar::LeftSide;
 static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
+static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 
 static bool should_use_screen_signal_for_dpi_changes()
 {
@@ -1135,6 +1136,18 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
             return true;
     }
 
+    auto is_empty_window_drag_region = widget->property(WINDOW_DRAG_REGION_PROPERTY).toBool()
+        && widget->childAt(mouse_event->position().toPoint()) == nullptr;
+    if (is_empty_window_drag_region && !isFullScreen()) {
+        if (event->type() == QEvent::MouseButtonDblClick) {
+            toggle_window_maximized();
+            return true;
+        }
+
+        if (start_window_move())
+            return true;
+    }
+
     if (isFullScreen() || widget != menuBar() || menuBar()->actionAt(mouse_event->position().toPoint()) != nullptr)
         return QMainWindow::eventFilter(object, event);
 
@@ -1230,6 +1243,7 @@ void BrowserWindow::changeEvent(QEvent* event)
         update_tab_close_button_icons();
     } else if (event->type() == QEvent::WindowStateChange) {
         update_menu_bar_window_control_icons();
+        m_tabs_container->update_window_button_icons();
 
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
         bool was_fullscreen = stateChangeEvent->oldState() & Qt::WindowFullScreen;

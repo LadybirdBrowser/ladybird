@@ -141,6 +141,7 @@ public:
     void set_tab_bar_visible(bool visible);
     void set_new_tab_action(QAction* action);
     void set_window_controls_visible(bool);
+    void update_window_button_icons();
     void set_vertical_tabs_enabled(bool);
     void set_vertical_tabs_expanded(bool);
     void update_tab_button_visibility();
@@ -168,7 +169,6 @@ private:
     void update_tab_chrome_visibility();
     void recreate_icons();
     void update_chrome_style();
-    void update_window_button_icons();
     void toggle_window_maximized();
     bool start_window_move();
     void accept_tab_drag(QDragMoveEvent*);
@@ -177,6 +177,7 @@ private:
     TabBar* m_tab_bar { nullptr };
     QStackedWidget* m_stacked_widget { nullptr };
     QToolButton* m_new_tab_button { nullptr };
+    QToolButton* m_toggle_vertical_tabs_expanded_button { nullptr };
     QToolButton* m_minimize_window_button { nullptr };
     QToolButton* m_maximize_window_button { nullptr };
     QToolButton* m_close_window_button { nullptr };
@@ -187,6 +188,7 @@ private:
     QBoxLayout* m_tab_bar_row_layout { nullptr };
     QBoxLayout* m_vertical_tab_bar_column_layout { nullptr };
     QBoxLayout* m_vertical_tabs_content_layout { nullptr };
+    QAction* m_toggle_vertical_tabs_expanded_action { nullptr };
     bool m_tab_bar_visible { true };
     bool m_window_controls_visible { true };
     bool m_vertical_tabs_enabled { false };
