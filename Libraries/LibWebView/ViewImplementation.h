@@ -95,6 +95,7 @@ public:
     void reset_zoom();
     double zoom_level() const { return m_zoom_level; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
+    Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
 
     void enqueue_input_event(Web::InputEvent);
@@ -378,6 +379,7 @@ protected:
 
     double m_zoom_level { 1.0 };
     double m_device_pixel_ratio { 1.0 };
+    Optional<u64> m_display_id;
     double m_maximum_frames_per_second { 60.0 };
 
     RefPtr<Menu> m_page_context_menu;

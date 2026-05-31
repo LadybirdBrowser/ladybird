@@ -60,7 +60,6 @@ private:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
 
     Vector<Web::DevicePixelRect> m_screen_rects;
-    Optional<u64> m_display_id;
     Gfx::IntSize m_viewport_size;
 };
 
