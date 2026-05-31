@@ -77,6 +77,11 @@ static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
     button->setFocusPolicy(Qt::NoFocus);
     button->setIconSize({ 20, 20 });
     button->setFixedSize(36, 36);
+
+    // FIXME: In Menu.cpp, we set the initial visibility of the action before we've associated it with this QToolButton.
+    //        It would be nicer if we didn't have to do this here.
+    button->setVisible(action.isVisible());
+
     return button;
 }
 
@@ -84,6 +89,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     : QWidget(window)
     , m_window(window)
 {
+    auto& application = WebView::Application::the();
+
     auto* tab_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom, this);
     tab_layout->setSpacing(0);
     tab_layout->setContentsMargins(0, 0, 0, 0);
@@ -154,9 +161,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
     connect_hamburger_menu();
 
+    m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
     m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
-    m_reload_action = create_application_action(*this, WebView::Application::the().reload_action());
+    m_reload_action = create_application_action(*this, application.reload_action());
 
     recreate_toolbar_icons();
 
@@ -173,6 +181,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
 
+    toolbar_layout->addWidget(create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action), 0, Qt::AlignTop);
     toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignTop);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
@@ -490,7 +499,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     });
 
     m_context_menu = new QMenu("Context menu", this);
-    m_context_menu->addAction(create_application_action(*this, WebView::Application::the().reload_action(), IncludeActionIcon::No));
+    m_context_menu->addAction(create_application_action(*this, application.reload_action(), IncludeActionIcon::No));
     m_context_menu->addAction(duplicate_tab_action);
     m_context_menu->addSeparator();
     auto* move_tab_menu = m_context_menu->addMenu("Mo&ve Tab");
@@ -676,6 +685,11 @@ void Tab::update_chrome_style()
 
 void Tab::recreate_toolbar_icons()
 {
+    m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(
+        WebView::Application::the().toggle_vertical_tabs_expanded_action().engaged()
+            ? ChromeIcon::VerticalTabBarCollapse
+            : ChromeIcon::VerticalTabBarExpand,
+        palette()));
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));

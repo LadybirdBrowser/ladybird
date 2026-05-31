@@ -23,7 +23,7 @@ struct WindowConfiguration {
     Optional<bool> maximized {};
 };
 
-class Application : public WebView::Application {
+class Application final : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
 public:
@@ -58,6 +58,9 @@ private:
 
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) override;
+
+    virtual bool supports_vertical_tabs() const override { return true; }
+    virtual void update_tabs_display() const override;
 
     virtual void rebuild_bookmarks_menu() const override;
     virtual void update_bookmarks_bar_display(bool) const override;
