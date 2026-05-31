@@ -392,7 +392,7 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
 
 static bool is_browser_reserved_shortcut(QKeyEvent const& event)
 {
-    // Browser chrome shortcuts that manage tabs or windows should not wait for
+    // Browser chrome shortcuts that manage tabs, windows, or focus should not wait for
     // WebContent to decide whether the page wants to suppress them.
     if (event.matches(QKeySequence::StandardKey::AddTab)
         || event.matches(QKeySequence::StandardKey::Close)
@@ -406,7 +406,7 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && key == Qt::Key_T)
         return true;
 
-    if (modifiers == Qt::ControlModifier && (key == Qt::Key_Tab || key == Qt::Key_PageDown))
+    if (modifiers == Qt::ControlModifier && (key == Qt::Key_L || key == Qt::Key_Tab || key == Qt::Key_PageDown))
         return true;
 
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && (key == Qt::Key_Tab || key == Qt::Key_Backtab))
