@@ -20,7 +20,6 @@ target_sources(ladybird PRIVATE
     StringUtils.cpp
     Tab.cpp
     TabBar.cpp
-    TVGIconEngine.cpp
     WebContentView.cpp
     WindowControlButton.cpp
     ladybird.qrc

@@ -42,7 +42,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
 
     m_previous_button = new QPushButton(this);
     m_previous_button->setFixedWidth(30);
-    m_previous_button->setIcon(create_tvg_icon_with_theme_colors("up", palette()));
+    m_previous_button->setIcon(create_chrome_icon(ChromeIcon::ChevronUp, palette()));
     m_previous_button->setToolTip("Find Previous Match");
     m_previous_button->setFlat(true);
     connect(m_previous_button, &QPushButton::clicked, this, [this] {
@@ -51,7 +51,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
 
     m_next_button = new QPushButton(this);
     m_next_button->setFixedWidth(30);
-    m_next_button->setIcon(create_tvg_icon_with_theme_colors("down", palette()));
+    m_next_button->setIcon(create_chrome_icon(ChromeIcon::ChevronDown, palette()));
     m_next_button->setToolTip("Find Next Match");
     m_next_button->setFlat(true);
     connect(m_next_button, &QPushButton::clicked, this, [this] {
@@ -60,7 +60,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
 
     m_exit_button = new QPushButton(this);
     m_exit_button->setFixedWidth(30);
-    m_exit_button->setIcon(create_tvg_icon_with_theme_colors("close", palette()));
+    m_exit_button->setIcon(create_chrome_icon(ChromeIcon::Close, palette()));
     m_exit_button->setToolTip("Close Search Bar");
     m_exit_button->setFlat(true);
     connect(m_exit_button, &QPushButton::clicked, this, [this] {
@@ -97,9 +97,9 @@ bool FindInPageWidget::event(QEvent* event)
 {
     if (event->type() == QEvent::PaletteChange) {
         update_chrome_style();
-        m_previous_button->setIcon(create_tvg_icon_with_theme_colors("up", palette()));
-        m_next_button->setIcon(create_tvg_icon_with_theme_colors("down", palette()));
-        m_exit_button->setIcon(create_tvg_icon_with_theme_colors("close", palette()));
+        m_previous_button->setIcon(create_chrome_icon(ChromeIcon::ChevronUp, palette()));
+        m_next_button->setIcon(create_chrome_icon(ChromeIcon::ChevronDown, palette()));
+        m_exit_button->setIcon(create_chrome_icon(ChromeIcon::Close, palette()));
     }
 
     return QWidget::event(event);

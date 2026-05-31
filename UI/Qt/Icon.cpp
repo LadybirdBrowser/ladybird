@@ -8,7 +8,6 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/StringUtils.h>
-#include <UI/Qt/TVGIconEngine.h>
 
 #include <QPainter>
 #include <QPainterPath>
@@ -27,32 +26,6 @@ QIcon load_icon_from_uri(StringView uri)
     auto path = qstring_from_ak_string(resource->filesystem_path());
 
     return QIcon { path };
-}
-
-static QIcon create_tvg_icon_with_theme_colors(QString const& name, QPalette const& palette, int normal_alpha, int disabled_alpha, int active_alpha, int selected_alpha)
-{
-    auto path = QString(":/Icons/%1.tvg").arg(name);
-
-    auto* icon_engine = TVGIconEngine::from_file(path);
-    VERIFY(icon_engine);
-
-    auto icon_filter = [](QColor color, int alpha) {
-        color.setAlpha((color.alpha() * alpha) / 255);
-        return [color = Color::from_bgra(color.rgba64().toArgb32())](Gfx::Color icon_color) {
-            return color.with_alpha((icon_color.alpha() * color.alpha()) / 255);
-        };
-    };
-    icon_engine->add_filter(QIcon::Mode::Normal, icon_filter(palette.color(QPalette::ColorGroup::Normal, QPalette::ColorRole::ButtonText), normal_alpha));
-    icon_engine->add_filter(QIcon::Mode::Disabled, icon_filter(palette.color(QPalette::ColorGroup::Disabled, QPalette::ColorRole::ButtonText), disabled_alpha));
-    icon_engine->add_filter(QIcon::Mode::Active, icon_filter(palette.color(QPalette::ColorGroup::Active, QPalette::ColorRole::ButtonText), active_alpha));
-    icon_engine->add_filter(QIcon::Mode::Selected, icon_filter(palette.color(QPalette::ColorGroup::Normal, QPalette::ColorRole::ButtonText), selected_alpha));
-
-    return QIcon(icon_engine);
-}
-
-QIcon create_tvg_icon_with_theme_colors(QString const& name, QPalette const& palette)
-{
-    return create_tvg_icon_with_theme_colors(name, palette, 255, 255, 255, 255);
 }
 
 static QPen chrome_icon_pen(QColor const& color, qreal width)
@@ -187,6 +160,35 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         painter.drawEllipse(QRectF(4.4, 4.4, 11.2, 11.2));
         painter.drawLine(QPointF(5.5, 10.0), QPointF(14.5, 10.0));
         painter.drawArc(QRectF(7.1, 4.4, 5.8, 11.2), 90 * 16, 180 * 16);
+        painter.drawArc(QRectF(7.1, 4.4, 5.8, 11.2), 270 * 16, 180 * 16);
+        break;
+    case ChromeIcon::Folder: {
+        painter.setPen(chrome_icon_pen(color, 1.6));
+        QPainterPath path;
+        path.moveTo(2.8, 6.1);
+        path.lineTo(7.6, 6.1);
+        path.lineTo(9.2, 8.0);
+        path.lineTo(17.2, 8.0);
+        path.quadTo(18.0, 8.0, 18.0, 8.8);
+        path.lineTo(18.0, 15.1);
+        path.quadTo(18.0, 15.9, 17.2, 15.9);
+        path.lineTo(2.8, 15.9);
+        path.quadTo(2.0, 15.9, 2.0, 15.1);
+        path.lineTo(2.0, 6.9);
+        path.quadTo(2.0, 6.1, 2.8, 6.1);
+        path.closeSubpath();
+        painter.drawPath(path);
+        break;
+    }
+    case ChromeIcon::ChevronUp:
+        painter.setPen(chrome_icon_pen(color, 1.85));
+        painter.drawLine(QPointF(5.0, 12.4), QPointF(10.0, 7.4));
+        painter.drawLine(QPointF(10.0, 7.4), QPointF(15.0, 12.4));
+        break;
+    case ChromeIcon::ChevronDown:
+        painter.setPen(chrome_icon_pen(color, 1.85));
+        painter.drawLine(QPointF(5.0, 7.6), QPointF(10.0, 12.6));
+        painter.drawLine(QPointF(10.0, 12.6), QPointF(15.0, 7.6));
         break;
     case ChromeIcon::WindowMinimize:
         painter.setPen(chrome_icon_pen(color, 1.65));
@@ -238,22 +240,14 @@ static QIcon create_y_offset_icon(QIcon const& source, int y_offset)
 
 QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
 {
-    auto chrome_palette = palette;
-    chrome_palette.setColor(QPalette::Normal, QPalette::ButtonText, ChromeStyle::chrome_button_text(palette));
-    chrome_palette.setColor(QPalette::Active, QPalette::ButtonText, ChromeStyle::chrome_button_text(palette));
-    chrome_palette.setColor(QPalette::Disabled, QPalette::ButtonText, ChromeStyle::chrome_muted_text(palette));
-
-    if (icon == ChromeIcon::Reload)
-        return create_y_offset_icon(create_tvg_icon_with_theme_colors("reload", chrome_palette), 1);
-    if (icon == ChromeIcon::Globe)
-        return create_y_offset_icon(create_tvg_icon_with_theme_colors("globe", chrome_palette, 202, 96, 236, 236), 1);
-
     auto normal = ChromeStyle::chrome_button_text(palette);
     auto normal_alpha = 216;
     if (icon == ChromeIcon::Close)
         normal_alpha = 172;
     else if (icon == ChromeIcon::Star)
         normal_alpha = 204;
+    else if (icon == ChromeIcon::Globe || icon == ChromeIcon::Search || icon == ChromeIcon::Menu)
+        normal_alpha = 196;
     normal.setAlpha(normal_alpha);
 
     auto active = ChromeStyle::chrome_button_text(palette);

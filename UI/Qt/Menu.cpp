@@ -196,7 +196,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         if (auto icon = action.base64_png_icon(); icon.has_value())
             qaction.setIcon(icon_from_base64_png(*icon));
         else
-            qaction.setIcon(create_tvg_icon_with_theme_colors("globe", palette));
+            qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
         break;
 
     case WebView::ActionID::OpenProcessesPage:
@@ -260,7 +260,7 @@ static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu
                 add_items_to_menu(*qsubmenu, parent, submenu);
 
                 if (submenu->render_group_icon())
-                    qsubmenu->setIcon(create_tvg_icon_with_theme_colors("folder", parent.palette()));
+                    qsubmenu->setIcon(create_chrome_icon(ChromeIcon::Folder, parent.palette()));
 
                 add_properties(*qsubmenu, *submenu);
                 qmenu.addMenu(qsubmenu);
