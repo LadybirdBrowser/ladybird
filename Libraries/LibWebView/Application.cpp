@@ -63,6 +63,11 @@ static double sanitized_display_refresh_rate(double refresh_rate)
 }
 
 struct ApplicationSettingsObserver final : public SettingsObserver {
+    virtual void tab_settings_changed() override
+    {
+        Application::the().tab_settings_changed({});
+    }
+
     virtual void show_bookmarks_bar_changed() override
     {
         Application::the().show_bookmarks_bar_changed({});
@@ -1365,6 +1370,13 @@ void Application::initialize_actions()
     m_motion_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::NoPreference)));
     m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
 
+    m_toggle_vertical_tabs_expanded_action = Action::create("Toggle Vertical Tabs Expanded"sv, ActionID::ToggleVerticalTabsExpanded, [this]() {
+        auto tab_settings = m_settings.tab_settings();
+        tab_settings.vertical_tabs_expanded = !tab_settings.vertical_tabs_expanded;
+        m_settings.set_tab_settings(tab_settings);
+    });
+    update_vertical_tabs_action();
+
     m_bookmarks_menu = Menu::create("Bookmarks"sv);
     m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {
         open_url_in_new_tab(URL::about_bookmarks(), Web::HTML::ActivateTab::Yes);
@@ -1589,6 +1601,20 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     view.debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     view.debug_request("spoof-user-agent"sv, m_user_agent_string);
     view.debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
+}
+
+void Application::update_vertical_tabs_action()
+{
+    auto const& settings = m_settings.tab_settings();
+    m_toggle_vertical_tabs_expanded_action->set_visible(settings.vertical_tabs_enabled);
+    m_toggle_vertical_tabs_expanded_action->set_engaged(settings.vertical_tabs_expanded);
+    m_toggle_vertical_tabs_expanded_action->set_tooltip(settings.vertical_tabs_expanded ? "Minimize Tabs"sv : "Expand Tabs"sv);
+}
+
+void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
+{
+    update_vertical_tabs_action();
+    update_tabs_display();
 }
 
 void Application::update_bookmark_action_for_current_web_view()

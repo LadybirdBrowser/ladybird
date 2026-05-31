@@ -72,6 +72,9 @@ public:
     static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
+    virtual bool supports_vertical_tabs() const { return false; }
+    void tab_settings_changed(Badge<ApplicationSettingsObserver>);
+
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
     static HistoryStore& history_store() { return *the().m_history_store; }
     void update_bookmark_action_for_current_web_view();
@@ -177,6 +180,8 @@ public:
     Menu& contrast_menu() { return *m_contrast_menu; }
     Menu& motion_menu() { return *m_motion_menu; }
 
+    Action& toggle_vertical_tabs_expanded_action() { return *m_toggle_vertical_tabs_expanded_action; }
+
     Menu& bookmarks_menu() { return *m_bookmarks_menu; }
     Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
     Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
@@ -208,6 +213,8 @@ protected:
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] StringView file) const { return {}; }
+
+    virtual void update_tabs_display() const { }
 
     virtual void rebuild_bookmarks_menu() const { }
     virtual void update_bookmarks_bar_display([[maybe_unused]] bool show_bookmarks_bar) const { }
@@ -246,6 +253,7 @@ private:
 
     void initialize_actions();
 
+    void update_vertical_tabs_action();
     void update_bookmarks_bar_action();
 
     struct MenuData {
@@ -363,6 +371,8 @@ private:
 
     RefPtr<Menu> m_motion_menu;
     Web::CSS::PreferredMotion m_motion { Web::CSS::PreferredMotion::Auto };
+
+    RefPtr<Action> m_toggle_vertical_tabs_expanded_action;
 
     RefPtr<Menu> m_bookmarks_menu;
     RefPtr<Action> m_toggle_bookmark_action;
