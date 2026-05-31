@@ -53,6 +53,17 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
     }
 
     display_list.for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        auto append_wheel_hit_test_target = [&](auto const& command, Gfx::CornerRadii corner_radii) {
+            async_scrolling_state.wheel_hit_test_targets.append({
+                .visual_context_index = header.context_index,
+                .rect = command.rect,
+                .corner_radii = corner_radii,
+                .target_node_id = {},
+            });
+            wheel_hit_test_target_scroll_frame_indices.append(command.target_scroll_frame_index);
+            wheel_hit_test_target_document_ids.append(command.document_id);
+        };
+
         switch (header.type) {
         case Painting::DisplayListCommandType::CompositorBlockingWheelEventRegion: {
             auto command = Painting::read_display_list_command_payload<Painting::CompositorBlockingWheelEventRegion>(payload);
@@ -100,14 +111,12 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         }
         case Painting::DisplayListCommandType::CompositorWheelHitTestTarget: {
             auto command = Painting::read_display_list_command_payload<Painting::CompositorWheelHitTestTarget>(payload);
-            async_scrolling_state.wheel_hit_test_targets.append({
-                .visual_context_index = header.context_index,
-                .rect = command.rect,
-                .corner_radii = command.corner_radii,
-                .target_node_id = {},
-            });
-            wheel_hit_test_target_scroll_frame_indices.append(command.target_scroll_frame_index);
-            wheel_hit_test_target_document_ids.append(command.document_id);
+            append_wheel_hit_test_target(command, {});
+            break;
+        }
+        case Painting::DisplayListCommandType::CompositorWheelHitTestTargetWithCornerRadii: {
+            auto command = Painting::read_display_list_command_payload<Painting::CompositorWheelHitTestTargetWithCornerRadii>(payload);
+            append_wheel_hit_test_target(command, command.corner_radii);
             break;
         }
         case Painting::DisplayListCommandType::CompositorMainThreadWheelEventRegion: {

@@ -729,6 +729,11 @@ void DisplayListRecorder::compositor_wheel_hit_test_target(CompositorWheelHitTes
     append_command(target);
 }
 
+void DisplayListRecorder::compositor_wheel_hit_test_target_with_corner_radii(CompositorWheelHitTestTargetWithCornerRadii const& target)
+{
+    append_command(target);
+}
+
 void DisplayListRecorder::set_async_scrolling_metadata(DisplayList::AsyncScrollingMetadata metadata)
 {
     m_display_list.set_async_scrolling_metadata(metadata);

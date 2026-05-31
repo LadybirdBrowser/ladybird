@@ -186,6 +186,11 @@ void CompositorBlockingWheelEventRegion::dump(StringBuilder& builder) const
 void CompositorWheelHitTestTarget::dump(StringBuilder& builder) const
 {
     builder.appendff(" target_scroll_frame_index={} rect={}", target_scroll_frame_index, rect);
+}
+
+void CompositorWheelHitTestTargetWithCornerRadii::dump(StringBuilder& builder) const
+{
+    builder.appendff(" target_scroll_frame_index={} rect={}", target_scroll_frame_index, rect);
     if (corner_radii.has_any_radius()) {
         builder.appendff(" corner_radii=[{}x{},{}x{},{}x{},{}x{}]",
             corner_radii.top_left.horizontal_radius, corner_radii.top_left.vertical_radius,
