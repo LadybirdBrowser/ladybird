@@ -151,7 +151,7 @@ LocationEdit::LocationEdit(QWidget* parent)
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");
-    setMinimumHeight(34);
+    setMinimumHeight(32);
     setTextMargins(38, 0, 40, 0);
     update_chrome_style();
 
@@ -170,7 +170,7 @@ LocationEdit::LocationEdit(QWidget* parent)
 
     m_leading_icon_button = new QToolButton(this);
     m_leading_icon_button->setObjectName("LadybirdLocationIcon");
-    m_leading_icon_button->setIconSize({ 20, 20 });
+    m_leading_icon_button->setIconSize({ 18, 18 });
     m_leading_icon_button->setFixedSize(22, 22);
     m_leading_icon_button->setAutoRaise(true);
     m_leading_icon_button->setFocusPolicy(Qt::NoFocus);
@@ -179,7 +179,7 @@ LocationEdit::LocationEdit(QWidget* parent)
 
     m_trailing_action_button = new QToolButton(this);
     m_trailing_action_button->setObjectName("LadybirdLocationAction");
-    m_trailing_action_button->setIconSize({ 20, 20 });
+    m_trailing_action_button->setIconSize({ 18, 18 });
     m_trailing_action_button->setFixedSize(24, 24);
     m_trailing_action_button->setAutoRaise(true);
     m_trailing_action_button->setFocusPolicy(Qt::NoFocus);

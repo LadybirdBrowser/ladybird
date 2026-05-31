@@ -48,23 +48,42 @@ static void draw_stroked_icon_path(QPainter& painter, QPainterPath const& path, 
 static void draw_back_icon(QPainter& painter, QColor const& color)
 {
     QPainterPath path;
-    path.moveTo(18.8, 10.8);
-    path.lineTo(4.7, 10.8);
-    path.moveTo(10.8, 5.4);
-    path.lineTo(4.7, 10.8);
-    path.lineTo(10.8, 16.2);
-    draw_stroked_icon_path(painter, path, color, 2.15);
+    path.moveTo(18.2, 10.3);
+    path.lineTo(4.8, 10.3);
+    path.moveTo(10.7, 5.0);
+    path.lineTo(4.8, 10.3);
+    path.lineTo(10.7, 15.6);
+    draw_stroked_icon_path(painter, path, color, 2.0);
 }
 
 static void draw_forward_icon(QPainter& painter, QColor const& color)
 {
     QPainterPath path;
-    path.moveTo(1.2, 10.8);
-    path.lineTo(15.3, 10.8);
-    path.moveTo(9.2, 5.4);
-    path.lineTo(15.3, 10.8);
-    path.lineTo(9.2, 16.2);
-    draw_stroked_icon_path(painter, path, color, 2.15);
+    path.moveTo(1.8, 10.3);
+    path.lineTo(15.2, 10.3);
+    path.moveTo(9.3, 5.0);
+    path.lineTo(15.2, 10.3);
+    path.lineTo(9.3, 15.6);
+    draw_stroked_icon_path(painter, path, color, 2.0);
+}
+
+static void draw_reload_icon(QPainter& painter, QColor const& color)
+{
+    QPainterPath shape;
+    shape.setFillRule(Qt::WindingFill);
+    shape.arcMoveTo(QRectF(3.0, 2.5, 14.0, 14.0), 58.0);
+    shape.arcTo(QRectF(3.0, 2.5, 14.0, 14.0), 58.0, 272.0);
+    shape.arcTo(QRectF(4.9, 4.4, 10.2, 10.2), 330.0, -272.0);
+    shape.closeSubpath();
+
+    QPainterPath arrow_head;
+    arrow_head.moveTo(17.1, 7.05);
+    arrow_head.lineTo(14.65, 1.55);
+    arrow_head.lineTo(11.35, 7.05);
+    arrow_head.closeSubpath();
+    shape.addPath(arrow_head);
+
+    painter.fillPath(shape, color);
 }
 
 static void draw_star_icon(QPainter& painter, QColor const& color, bool filled)
@@ -82,7 +101,7 @@ static void draw_star_icon(QPainter& painter, QColor const& color, bool filled)
     path.lineTo(7.5, 7.5);
     path.closeSubpath();
 
-    painter.setPen(chrome_icon_pen(color, filled ? 1.2 : 1.8));
+    painter.setPen(chrome_icon_pen(color, filled ? 1.2 : 1.65));
     if (filled)
         painter.setBrush(color);
     else
@@ -113,16 +132,9 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
     case ChromeIcon::Forward:
         draw_forward_icon(painter, color);
         break;
-    case ChromeIcon::Reload: {
-        painter.setPen(chrome_icon_pen(color, 1.9));
-        QPainterPath path;
-        path.arcMoveTo(QRectF(4.0, 4.0, 12.2, 12.2), 34.0);
-        path.arcTo(QRectF(4.0, 4.0, 12.2, 12.2), 34.0, 288.0);
-        painter.drawPath(path);
-        painter.drawLine(QPointF(15.4, 3.7), QPointF(16.0, 7.5));
-        painter.drawLine(QPointF(15.4, 3.7), QPointF(11.8, 4.4));
+    case ChromeIcon::Reload:
+        draw_reload_icon(painter, color);
         break;
-    }
     case ChromeIcon::Stop:
         painter.setPen(chrome_icon_pen(color, 1.75));
         painter.drawLine(QPointF(6.0, 6.0), QPointF(14.0, 14.0));
@@ -135,14 +147,14 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         break;
     case ChromeIcon::Close:
         painter.setPen(chrome_icon_pen(color, 1.9));
-        painter.drawLine(QPointF(5.5, 5.9), QPointF(14.5, 14.9));
-        painter.drawLine(QPointF(14.5, 5.9), QPointF(5.5, 14.9));
+        painter.drawLine(QPointF(5.5, 7.15), QPointF(14.5, 16.65));
+        painter.drawLine(QPointF(14.5, 7.15), QPointF(5.5, 16.65));
         break;
     case ChromeIcon::Menu:
-        painter.setPen(chrome_icon_pen(color, 2.0));
-        painter.drawLine(QPointF(3.0, 5.9), QPointF(17.0, 5.9));
-        painter.drawLine(QPointF(3.0, 10.9), QPointF(17.0, 10.9));
-        painter.drawLine(QPointF(3.0, 15.9), QPointF(17.0, 15.9));
+        painter.setPen(chrome_icon_pen(color, 1.75));
+        painter.drawLine(QPointF(4.1, 6.2), QPointF(15.9, 6.2));
+        painter.drawLine(QPointF(4.1, 10.0), QPointF(15.9, 10.0));
+        painter.drawLine(QPointF(4.1, 13.8), QPointF(15.9, 13.8));
         break;
     case ChromeIcon::Star:
         draw_star_icon(painter, color, false);
@@ -151,12 +163,12 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         draw_star_icon(painter, color, true);
         break;
     case ChromeIcon::Search:
-        painter.setPen(chrome_icon_pen(color, 1.65));
+        painter.setPen(chrome_icon_pen(color, 1.55));
         painter.drawEllipse(QRectF(4.2, 4.0, 9.7, 9.7));
         painter.drawLine(QPointF(12.1, 12.1), QPointF(16.0, 16.0));
         break;
     case ChromeIcon::Globe:
-        painter.setPen(chrome_icon_pen(color, 1.75));
+        painter.setPen(chrome_icon_pen(color, 1.55));
         painter.drawEllipse(QRectF(4.4, 4.4, 11.2, 11.2));
         painter.drawLine(QPointF(5.5, 10.0), QPointF(14.5, 10.0));
         painter.drawArc(QRectF(7.1, 4.4, 5.8, 11.2), 90 * 16, 180 * 16);
@@ -247,7 +259,7 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
     else if (icon == ChromeIcon::Star)
         normal_alpha = 204;
     else if (icon == ChromeIcon::Globe || icon == ChromeIcon::Search || icon == ChromeIcon::Menu)
-        normal_alpha = 196;
+        normal_alpha = 188;
     normal.setAlpha(normal_alpha);
 
     auto active = ChromeStyle::chrome_button_text(palette);
@@ -265,7 +277,7 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
         qicon.addPixmap(create_chrome_icon_pixmap(icon, active, device_pixel_ratio), QIcon::Selected);
     }
 
-    if (icon == ChromeIcon::NewTab)
+    if (icon == ChromeIcon::Back || icon == ChromeIcon::Forward || icon == ChromeIcon::NewTab)
         return create_y_offset_icon(qicon, -1);
     return qicon;
 }

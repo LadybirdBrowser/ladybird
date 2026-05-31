@@ -124,7 +124,7 @@ void TabBar::paintEvent(QPaintEvent* event)
     auto border = ChromeStyle::chrome_border(palette());
     auto dark = ChromeStyle::is_dark(palette());
 
-    auto text_color = palette().color(QPalette::Text);
+    auto text_color = ChromeStyle::chrome_text(palette());
 
     for (int index = 0; index < count(); ++index) {
         auto tab_rect = tabRect(index);
@@ -144,7 +144,7 @@ void TabBar::paintEvent(QPaintEvent* event)
             selected_gradient.setColorAt(0.0, ChromeStyle::chrome_active_tab_surface_top(palette()));
             selected_gradient.setColorAt(1.0, ChromeStyle::chrome_active_tab_surface_bottom(palette()));
             auto active_border = border;
-            active_border.setAlpha(38);
+            active_border.setAlpha(dark ? 62 : 72);
             painter.setBrush(selected_gradient);
             painter.setPen(QPen(active_border, 1));
             painter.drawPath(tab_path);
@@ -152,15 +152,15 @@ void TabBar::paintEvent(QPaintEvent* event)
             auto hover = dark ? ChromeStyle::chrome_surface_hover(palette()) : ChromeStyle::mix(surface, ChromeStyle::chrome_surface_hover(palette()), 0.28);
             hover.setAlpha(static_cast<int>((dark ? 120 : 136) * hover_progress));
             auto hover_border = border;
-            hover_border.setAlpha(static_cast<int>(44 * hover_progress));
+            hover_border.setAlpha(static_cast<int>((dark ? 58 : 64) * hover_progress));
             painter.setBrush(hover);
             painter.setPen(QPen(hover_border, 1));
             painter.drawPath(tab_path);
         } else {
             auto inactive = ChromeStyle::chrome_surface_recessed(palette());
-            inactive.setAlpha(dark ? 48 : 118);
+            inactive.setAlpha(dark ? 104 : 150);
             auto inactive_border = border;
-            inactive_border.setAlpha(14);
+            inactive_border.setAlpha(dark ? 38 : 26);
             painter.setBrush(inactive);
             painter.setPen(QPen(inactive_border, 1));
             painter.drawPath(tab_path);
@@ -168,7 +168,7 @@ void TabBar::paintEvent(QPaintEvent* event)
 
         if (!is_selected && !is_hovered && index > 0 && index != currentIndex() + 1) {
             auto separator = border;
-            separator.setAlpha(32);
+            separator.setAlpha(dark ? 42 : 36);
             painter.setPen(separator);
             painter.drawLine(QPoint(tab_rect.left(), 15), QPoint(tab_rect.left(), height() - 15));
         }
@@ -501,7 +501,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_new_tab_button = new QToolButton(this);
     m_new_tab_button->setObjectName("LadybirdNewTabButton");
-    m_new_tab_button->setIconSize(QSize(20, 20));
+    m_new_tab_button->setIconSize(QSize(18, 18));
     m_new_tab_button->setFixedSize(32, 32);
     m_new_tab_button->setFocusPolicy(Qt::NoFocus);
     m_new_tab_button->setToolTip("New Tab");
