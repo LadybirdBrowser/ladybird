@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
@@ -68,6 +72,43 @@ static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
     }
 }
 
+static void build_nested_svg_visual_context_tree_for_subtree(AccumulatedVisualContextTree& visual_context_tree, PaintableBox& paintable_box, VisualContextIndex inherited_state, float pixel_ratio)
+{
+    auto const& computed_values = paintable_box.computed_values();
+    if (computed_values.filter().has_filters())
+        paintable_box.set_filter(resolve_css_filter(computed_values.filter(), paintable_box));
+    else
+        paintable_box.set_filter({});
+
+    auto gfx_filter = to_gfx_filter(paintable_box.filter(), pixel_ratio);
+    EffectsData effects {
+        computed_values.opacity(),
+        mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
+        move(gfx_filter)
+    };
+
+    auto own_state = inherited_state;
+    if (effects.needs_layer())
+        own_state = visual_context_tree.append(move(effects), inherited_state);
+
+    paintable_box.set_accumulated_visual_context(own_state);
+    paintable_box.set_accumulated_visual_context_for_descendants(own_state);
+
+    paintable_box.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+        build_nested_svg_visual_context_tree_for_subtree(visual_context_tree, child, own_state, pixel_ratio);
+        return IterationDecision::Continue;
+    });
+}
+
+static AccumulatedVisualContextTree build_nested_svg_visual_context_tree(PaintableBox& root_paintable)
+{
+    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto pixel_ratio = root_paintable.document().page().client().device_pixels_per_css_pixel();
+    build_nested_svg_visual_context_tree_for_subtree(visual_context_tree, root_paintable, {}, pixel_ratio);
+
+    return visual_context_tree;
+}
+
 Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
@@ -84,7 +125,7 @@ static Optional<DisplayListResource> paint_mask_or_clip_to_display_list(
     bool is_clip_path)
 {
     auto mask_rect = context.enclosing_device_rect(area);
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    auto visual_context_tree = build_nested_svg_visual_context_tree(const_cast<PaintableBox&>(paintable));
     auto display_list = DisplayList::create(visual_context_tree);
     DisplayListRecorder display_list_recorder(*display_list, visual_context_tree, context.display_list_recorder().resource_storage());
     display_list_recorder.translate(-mask_rect.location().to_type<int>());

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/mask-filter-alpha-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+    <defs>
+        <filter id="invert-alpha">
+            <feComponentTransfer>
+                <feFuncA type="table" tableValues="1 0"></feFuncA>
+            </feComponentTransfer>
+        </filter>
+        <mask id="mask" mask-type="alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+            <g filter="url(#invert-alpha)">
+                <rect width="100" height="100" fill="white" opacity="0"></rect>
+                <rect x="25" y="25" width="50" height="50" fill="white"></rect>
+            </g>
+        </mask>
+    </defs>
+    <rect width="100" height="100" fill="rgb(88, 101, 242)" mask="url(#mask)"></rect>
+</svg>
