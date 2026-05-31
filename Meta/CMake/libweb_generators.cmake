@@ -295,7 +295,7 @@ function (generate_js_bindings target)
         endif()
     endfunction()
 
-    set(bindings_generator "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_window_or_worker_interfaces.py")
+    set(bindings_generator "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_libweb_bindings.py")
     set(bindings_generator_dependencies
         "${bindings_generator}"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/lexer.py"
