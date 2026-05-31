@@ -319,8 +319,11 @@ QString toolbar_container_style_sheet(QPalette const& palette)
     auto separator = dark
         ? background_bottom
         : style_sheet_color(mix(chrome_background(palette), chrome_border(palette), 0.56));
+    auto window_controls_separator = style_sheet_color(mix(chrome_active_tab_surface_bottom(palette), chrome_border(palette), dark ? 0.36 : 0.46));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
+    auto close_hover = style_sheet_color(chrome_destructive_hover());
+    auto close_text = style_sheet_color(chrome_destructive_text());
 
     return qformatted(R"(
 QWidget#LadybirdToolbarContainer {{
@@ -360,8 +363,50 @@ QWidget#LadybirdNavigationToolbar QToolButton:disabled {{
 QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
     image: none;
 }}
+
+QWidget#LadybirdToolbarWindowControlsSeparator {{
+    background: {10};
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton,
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton {{
+    color: {6};
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    min-width: 38px;
+    min-height: 38px;
+    max-width: 38px;
+    max-height: 38px;
+    margin: 0;
+    padding: 0;
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton:hover {{
+    background: {2};
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton:pressed {{
+    background: {3};
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton:hover {{
+    color: {9};
+    background: {8};
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton:pressed {{
+    color: {9};
+    background: {8};
+}}
+
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton[pressedOutside="true"],
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
+    color: {6};
+    background: transparent;
+}}
 )",
-        background, background_bottom, surface_hover, surface_pressed, control_border, separator, text, disabled_text);
+        background, background_bottom, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator);
 }
 
 QString menu_bar_style_sheet(QPalette const& palette)
@@ -728,6 +773,7 @@ QWidget#LadybirdVerticalTabBar {{
 }}
 
 QToolButton#LadybirdNewTabButton,
+QToolButton#LadybirdVerticalTabsToggleButton,
 QPushButton#LadybirdTabButton {{
     color: {5};
     background: transparent;
@@ -736,13 +782,15 @@ QPushButton#LadybirdTabButton {{
     padding: 0;
 }}
 
-QToolButton#LadybirdNewTabButton {{
+QToolButton#LadybirdNewTabButton,
+QToolButton#LadybirdVerticalTabsToggleButton {{
     min-width: 30px;
     min-height: 30px;
     border-radius: 16px;
 }}
 
-QToolButton#LadybirdNewTabButton[verticalTabsExpanded="true"] {{
+QToolButton#LadybirdNewTabButton[verticalTabsExpanded="true"],
+QToolButton#LadybirdVerticalTabsToggleButton[verticalTabsExpanded="true"] {{
     padding-left: 14px;
     text-align: left;
 }}
@@ -755,12 +803,14 @@ QPushButton#LadybirdTabButton {{
 }}
 
 QToolButton#LadybirdNewTabButton:hover,
+QToolButton#LadybirdVerticalTabsToggleButton:hover,
 QPushButton#LadybirdTabButton:hover {{
     background: {2};
     border-color: {4};
 }}
 
 QToolButton#LadybirdNewTabButton:pressed,
+QToolButton#LadybirdVerticalTabsToggleButton:pressed,
 QPushButton#LadybirdTabButton:pressed,
 QPushButton#LadybirdTabButton:checked {{
     background: {3};
