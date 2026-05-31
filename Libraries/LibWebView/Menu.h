@@ -103,6 +103,7 @@ enum class ActionID {
     ShowCaretHitTestDebugOverlay,
     CollectGarbage,
     CrashCurrentPage,
+    CrashCompositorProcess,
     SpoofUserAgent,
     NavigatorCompatibilityMode,
     EnableScripting,

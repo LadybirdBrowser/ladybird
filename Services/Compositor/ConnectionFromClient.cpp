@@ -99,6 +99,12 @@ void ConnectionFromClient::presented_bitmap_ready_to_paint(Web::Compositor::Comp
     m_compositor_state->presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
+void ConnectionFromClient::crash()
+{
+    warnln("Crashing Compositor process by request from Browser");
+    VERIFY_NOT_REACHED();
+}
+
 ConnectionFromWebContent* ConnectionFromClient::web_content_connection(i32 web_content_connection_id)
 {
     auto it = m_web_content_connections.find(web_content_connection_id);

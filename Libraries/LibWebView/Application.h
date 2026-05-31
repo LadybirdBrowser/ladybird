@@ -239,6 +239,7 @@ private:
     ErrorOr<void> launch_compositor_process();
     void handle_compositor_process_death();
     void recover_compositor_process();
+    void crash_compositor_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
