@@ -167,11 +167,11 @@ void CSSTransition::visit_edges(Cell::Visitor& visitor)
 
 double CSSTransition::timing_function_output_at_time(double t) const
 {
-    auto progress = (t - transition_start_time()) / (transition_end_time() - transition_start_time());
     // AD-HOC: If the transition has an empty duration then we get NaN here,
     // setting progress to 1 because an instant transition may be considered "finished".
+    double progress = 1;
     if (transition_start_time() < transition_end_time())
-        progress = 1;
+        progress = (t - transition_start_time()) / (transition_end_time() - transition_start_time());
 
     // FIXME: Is this before_flag value correct?
     bool before_flag = t < transition_start_time();

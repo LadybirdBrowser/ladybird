@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    #target {
+        transition: opacity 0s 1ms linear(1, 1);
+    }
+</style>
+<div id="target"></div>
+<script>
+    getComputedStyle(target).opacity;
+
+    target.style.opacity = 0;
+    const transition = target.getAnimations()[0];
+
+    transition.effect.updateTiming({ duration: 2 });
+    transition.currentTime = 1;
+
+    target.style.transition = "opacity 150ms";
+    target.style.opacity = 1;
+
+    getComputedStyle(target).opacity;
+</script>
