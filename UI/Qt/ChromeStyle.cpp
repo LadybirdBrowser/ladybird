@@ -475,6 +475,11 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto placeholder = style_sheet_color(chrome_muted_text(palette));
     auto selection = style_sheet_color(chrome_accent(palette));
     auto selection_text = style_sheet_color(palette.color(QPalette::HighlightedText));
+    auto not_secure_text = style_sheet_color(dark ? QColor(224, 142, 136) : QColor(144, 62, 56));
+    auto not_secure_background = style_sheet_color(dark ? mix(surface_color, QColor(102, 52, 48), 0.28) : QColor(246, 235, 233));
+    auto not_secure_hover = style_sheet_color(dark ? mix(surface_color, QColor(104, 55, 51), 0.34) : QColor(242, 226, 223));
+    auto not_secure_pressed = style_sheet_color(dark ? mix(surface_color, QColor(112, 60, 55), 0.40) : QColor(236, 215, 211));
+    auto not_secure_border = style_sheet_color(dark ? mix(QColor(92, 48, 45), chrome_border(palette), 0.52) : QColor(224, 203, 199));
 
     return qformatted(R"(
 QLineEdit#LadybirdLocationEdit {{
@@ -509,6 +514,23 @@ QToolButton#LadybirdLocationIcon {{
     padding: 0;
 }}
 
+QToolButton#LadybirdLocationIcon[notSecure="true"] {{
+    color: {11};
+    background: {12};
+    border: 1px solid {15};
+    border-radius: 10px;
+    padding: 0 7px;
+    font-weight: 500;
+}}
+
+QToolButton#LadybirdLocationIcon[notSecure="true"]:hover {{
+    background: {13};
+}}
+
+QToolButton#LadybirdLocationIcon[notSecure="true"]:pressed {{
+    background: {14};
+}}
+
 QToolButton#LadybirdLocationAction {{
     background: transparent;
     border: 0;
@@ -524,7 +546,8 @@ QToolButton#LadybirdLocationAction:pressed {{
     background: {9};
 }}
 )",
-        surface, hover, border, focus_border, text, placeholder, selection, selection_text, control_hover, control_pressed, hover_border);
+        surface, hover, border, focus_border, text, placeholder, selection, selection_text, control_hover, control_pressed, hover_border,
+        not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border);
 }
 
 QString bookmarks_bar_style_sheet(QPalette const& palette)
