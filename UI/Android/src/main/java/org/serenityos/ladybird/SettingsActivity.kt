@@ -1,15 +1,24 @@
 package org.serenityos.ladybird
 
 import android.os.Bundle
+import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
+/**
+ * Settings apply instantly as the user changes them, matching the behaviour of
+ * Chromium-based browsers (Vanadium/Chrome) which have no explicit Save action.
+ */
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var settings: AppSettings
     private lateinit var binding: org.serenityos.ladybird.databinding.ActivitySettingsBinding
+
+    // Guards spinner/radio listeners from firing while we apply the initial state.
+    private var bindingInitialState = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,6 +29,13 @@ class SettingsActivity : AppCompatActivity() {
         setSupportActionBar(binding.settingsToolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         binding.settingsToolbar.setNavigationOnClickListener { finish() }
+
+        bindState()
+        wireListeners()
+    }
+
+    private fun bindState() {
+        bindingInitialState = true
 
         val engines = SearchEngine.entries
         binding.searchEngineSpinner.adapter = ArrayAdapter(
@@ -63,6 +79,55 @@ class SettingsActivity : AppCompatActivity() {
         } catch (_: Exception) { "dev" }
         binding.aboutVersion.text = getString(R.string.settings_about_version, version)
 
+        bindingInitialState = false
+    }
+
+    private fun wireListeners() {
+        val engines = SearchEngine.entries
+        binding.searchEngineSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (!bindingInitialState) settings.searchEngine = engines[position]
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        val agents = UserAgentPreset.entries
+        binding.userAgentSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (!bindingInitialState) settings.userAgent = agents[position]
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        val compats = NavigatorCompatibility.entries
+        binding.navCompatSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (!bindingInitialState) settings.navigatorCompatibility = compats[position]
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // Persist the home page when the field loses focus (instant apply).
+        binding.homePageEdit.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) persistHomePage()
+        }
+
+        binding.colorSchemeGroup.setOnCheckedChangeListener { _, checkedId ->
+            if (bindingInitialState) return@setOnCheckedChangeListener
+            settings.colorScheme = when (checkedId) {
+                R.id.colorSchemeLight -> ColorSchemePreference.Light
+                R.id.colorSchemeDark -> ColorSchemePreference.Dark
+                else -> ColorSchemePreference.Auto
+            }
+        }
+
+        binding.jsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (!bindingInitialState) settings.javascriptHelpersEnabled = isChecked
+        }
+        binding.pinchSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (!bindingInitialState) settings.pinchZoomEnabled = isChecked
+        }
+
         binding.clearDataRow.setOnClickListener {
             MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.settings_clear_data)
@@ -76,24 +141,27 @@ class SettingsActivity : AppCompatActivity() {
                 .show()
         }
 
-        binding.saveButton.setOnClickListener {
-            settings.homePage = binding.homePageEdit.text.toString().trim()
-            settings.searchEngine = engines[binding.searchEngineSpinner.selectedItemPosition]
-            settings.userAgent = agents[binding.userAgentSpinner.selectedItemPosition]
-            settings.navigatorCompatibility = compats[binding.navCompatSpinner.selectedItemPosition]
-            settings.colorScheme = when (binding.colorSchemeGroup.checkedRadioButtonId) {
-                R.id.colorSchemeLight -> ColorSchemePreference.Light
-                R.id.colorSchemeDark -> ColorSchemePreference.Dark
-                else -> ColorSchemePreference.Auto
-            }
-            settings.javascriptHelpersEnabled = binding.jsSwitch.isChecked
-            settings.pinchZoomEnabled = binding.pinchSwitch.isChecked
-            finish()
+        binding.resetRow.setOnClickListener {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.settings_reset)
+                .setMessage(R.string.settings_reset_summary)
+                .setPositiveButton(R.string.dialog_reset) { _, _ ->
+                    settings.resetToDefaults()
+                    bindState()
+                }
+                .setNegativeButton(R.string.dialog_cancel, null)
+                .show()
         }
+    }
 
-        binding.resetButton.setOnClickListener {
-            settings.resetToDefaults()
-            recreate()
-        }
+    private fun persistHomePage() {
+        val value = binding.homePageEdit.text.toString().trim()
+        if (value != settings.homePage) settings.homePage = value
+    }
+
+    override fun onPause() {
+        // Make sure an in-progress edit is committed even without losing focus.
+        persistHomePage()
+        super.onPause()
     }
 }

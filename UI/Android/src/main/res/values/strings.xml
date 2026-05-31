@@ -77,6 +77,7 @@
     <string name="settings_javascript">Enable JavaScript hooks</string>
     <string name="settings_javascript_summary">Allow injected JS helpers (zoom, scroll)</string>
     <string name="settings_reset">Reset to defaults</string>
+    <string name="settings_reset_summary">Restore all settings to their original values</string>
     <string name="settings_save">Save</string>
 
     <string name="search_engine_google">Google</string>
@@ -89,6 +90,7 @@
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_clear">Clear</string>
+    <string name="dialog_reset">Reset</string>
     <string name="dialog_done">Done</string>
 
     <string name="menu_section_places">Places</string>

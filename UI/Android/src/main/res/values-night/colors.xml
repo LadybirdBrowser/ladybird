@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Chromium-style palette (dark). Neutral charcoal surfaces with a restrained blue accent. -->
-    <color name="ladybird_accent">#FF8AB4F8</color>
-    <color name="ladybird_accent_pressed">#FFAECBFA</color>
-    <color name="ladybird_accent_container">#FF2B2F36</color>
-    <color name="ladybird_secondary">#FFBDC1C6</color>
+    <!-- Vanadium / Chrome palette (dark). Chrome's charcoal surfaces with GM3 blue accent. -->
+    <color name="ladybird_accent">#FFA8C7FA</color>
+    <color name="ladybird_accent_pressed">#FFC2E7FF</color>
+    <color name="ladybird_accent_container">#FF0842A0</color>
+    <color name="ladybird_secondary">#FFC4C7C5</color>
 
-    <color name="ladybird_background">#FF15171A</color>
-    <color name="ladybird_surface">#FF1E2024</color>
-    <color name="ladybird_surface_variant">#FF272A30</color>
-    <color name="ladybird_control_surface">#FF272A30</color>
-    <color name="ladybird_field_surface">#FF272A30</color>
+    <color name="ladybird_background">#FF202124</color>
+    <color name="ladybird_surface">#FF292A2D</color>
+    <color name="ladybird_surface_variant">#FF35363A</color>
+    <color name="ladybird_control_surface">#FF35363A</color>
+    <color name="ladybird_field_surface">#FF35363A</color>
 
-    <color name="ladybird_on_surface">#FFF0F2F5</color>
-    <color name="ladybird_on_surface_muted">#FF9CA3AF</color>
-    <color name="ladybird_outline_soft">#FF2E3138</color>
-    <color name="ladybird_divider">#FF2E3138</color>
+    <color name="ladybird_on_surface">#FFE8EAED</color>
+    <color name="ladybird_on_surface_muted">#FF9AA0A6</color>
+    <color name="ladybird_outline_soft">#FF3C4043</color>
+    <color name="ladybird_divider">#FF3C4043</color>
 
-    <color name="ladybird_progress">#FF8AB4F8</color>
-    <color name="ladybird_chip">#FF272A30</color>
+    <color name="ladybird_progress">#FFA8C7FA</color>
+    <color name="ladybird_chip">#FF35363A</color>
 </resources>

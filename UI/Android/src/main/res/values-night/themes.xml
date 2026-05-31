@@ -13,6 +13,10 @@
         <item name="android:windowBackground">@color/ladybird_background</item>
         <item name="android:statusBarColor">@color/ladybird_surface</item>
         <item name="android:navigationBarColor">@color/ladybird_surface</item>
+        <item name="android:statusBarColor">@color/ladybird_surface</item>
+        <item name="android:navigationBarColor">@color/ladybird_surface</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:editTextBackground">@android:color/transparent</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>

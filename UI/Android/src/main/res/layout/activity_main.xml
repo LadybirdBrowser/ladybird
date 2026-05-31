@@ -45,8 +45,8 @@
                         app:cardBackgroundColor="@color/ladybird_field_surface"
                         app:cardCornerRadius="20dp"
                         app:cardElevation="0dp"
-                        app:strokeColor="@color/ladybird_outline_soft"
-                        app:strokeWidth="1dp">
+                        app:strokeColor="@color/ladybird_field_surface"
+                        app:strokeWidth="0dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"

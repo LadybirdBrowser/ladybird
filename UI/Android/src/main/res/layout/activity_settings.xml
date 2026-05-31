@@ -456,29 +456,31 @@
                 android:background="@color/ladybird_divider" />
 
             <LinearLayout
+                android:id="@+id/resetRow"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:gravity="center_vertical|end"
-                android:orientation="horizontal"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp">
+                android:layout_height="64dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/resetButton"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="@string/settings_reset"
-                    android:textColor="@color/ladybird_on_surface_muted" />
+                    android:textColor="@color/ladybird_on_surface"
+                    android:textSize="16sp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/saveButton"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/settings_save"
-                    android:textColor="@color/ladybird_progress" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/settings_reset_summary"
+                    android:textColor="@color/ladybird_on_surface_muted"
+                    android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
