@@ -37,6 +37,7 @@ public:
 
     void set_trailing_action(QAction*);
     QAction* trailing_action() const;
+    void set_zoom_action(QAction*);
 
     Optional<URL::URL const&> url() const { return m_url; }
     void set_url(Optional<URL::URL>);
@@ -55,9 +56,13 @@ private:
 
     void show_full_url_preserving_display_selection();
     int serialized_url_position_for_display_position(int) const;
+    void update_text_margins();
+    int trailing_text_margin() const;
+    void update_trailing_item_positions();
     void update_placeholder();
     void update_chrome_style();
     void update_location_icon();
+    void update_zoom_indicator();
     void update_focus_glow(int alpha);
     void schedule_chrome_style_update();
     void animate_focus_glow(int target_alpha);
@@ -76,8 +81,10 @@ private:
     Autocomplete* m_autocomplete { nullptr };
     QToolButton* m_leading_icon_button { nullptr };
     QToolButton* m_trailing_action_button { nullptr };
+    QToolButton* m_zoom_indicator_button { nullptr };
     QVariantAnimation* m_focus_glow_animation { nullptr };
     QGraphicsDropShadowEffect* m_focus_glow_effect { nullptr };
+    QAction* m_zoom_action { nullptr };
 
     Optional<URL::URL> m_url;
     bool m_url_is_hidden { false };
@@ -85,6 +92,7 @@ private:
     bool m_is_updating_chrome_style { false };
     bool m_has_pending_chrome_style_update { false };
     bool m_should_show_full_url_on_mouse_release { false };
+    int m_text_leading_margin { 0 };
     int m_focus_glow_alpha { 0 };
 
     bool m_is_applying_inline_autocomplete { false };

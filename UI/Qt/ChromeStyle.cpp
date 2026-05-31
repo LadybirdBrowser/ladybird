@@ -480,6 +480,11 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto not_secure_hover = style_sheet_color(dark ? mix(surface_color, QColor(104, 55, 51), 0.34) : QColor(242, 226, 223));
     auto not_secure_pressed = style_sheet_color(dark ? mix(surface_color, QColor(112, 60, 55), 0.40) : QColor(236, 215, 211));
     auto not_secure_border = style_sheet_color(dark ? mix(QColor(92, 48, 45), chrome_border(palette), 0.52) : QColor(224, 203, 199));
+    auto zoom_text = style_sheet_color(chrome_muted_text(palette));
+    auto zoom_background = style_sheet_color(dark ? mix(surface_color, chrome_surface_recessed(palette), 0.28) : mix(surface_color, chrome_surface_recessed(palette), 0.14));
+    auto zoom_hover = style_sheet_color(dark ? mix(surface_color, chrome_surface_recessed(palette), 0.36) : mix(surface_color, chrome_surface_recessed(palette), 0.20));
+    auto zoom_pressed = style_sheet_color(dark ? mix(surface_color, chrome_surface_recessed(palette), 0.44) : mix(surface_color, chrome_surface_recessed(palette), 0.28));
+    auto zoom_border = style_sheet_color(dark ? mix(chrome_border(palette), surface_color, 0.38) : mix(chrome_border(palette), surface_color, 0.54));
 
     return qformatted(R"(
 QLineEdit#LadybirdLocationEdit {{
@@ -531,6 +536,23 @@ QToolButton#LadybirdLocationIcon[notSecure="true"]:pressed {{
     background: {14};
 }}
 
+QToolButton#LadybirdLocationZoomIndicator {{
+    color: {16};
+    background: {17};
+    border: 1px solid {20};
+    border-radius: 10px;
+    padding: 0 7px;
+    font-weight: 500;
+}}
+
+QToolButton#LadybirdLocationZoomIndicator:hover {{
+    background: {18};
+}}
+
+QToolButton#LadybirdLocationZoomIndicator:pressed {{
+    background: {19};
+}}
+
 QToolButton#LadybirdLocationAction {{
     background: transparent;
     border: 0;
@@ -547,7 +569,7 @@ QToolButton#LadybirdLocationAction:pressed {{
 }}
 )",
         surface, hover, border, focus_border, text, placeholder, selection, selection_text, control_hover, control_pressed, hover_border,
-        not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border);
+        not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border);
 }
 
 QString bookmarks_bar_style_sheet(QPalette const& palette)
