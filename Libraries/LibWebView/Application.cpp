@@ -852,7 +852,7 @@ void Application::recover_compositor_process()
         }
     }
     for (auto& client : clients)
-        client->update_compositor_viewports_after_reconnect({});
+        client->replay_compositor_view_state_after_reconnect({});
     for (auto& client : clients)
         client->notify_compositor_process_reconnected({});
 }

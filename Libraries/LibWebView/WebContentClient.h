@@ -72,7 +72,7 @@ public:
     void notify_all_views_of_crash();
     ErrorOr<void> reconnect_to_compositor_process(Badge<Application>);
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
-    void update_compositor_viewports_after_reconnect(Badge<Application>);
+    void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::Compositor::CompositorContextId compositor_context_id_for_page(u64 page_id);
     Optional<u64> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;

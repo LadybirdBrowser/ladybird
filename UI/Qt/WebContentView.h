@@ -120,7 +120,6 @@ private:
     int m_click_count { 0 };
 
     QMenu* m_select_dropdown { nullptr };
-    Optional<u64> m_display_id;
 };
 
 }

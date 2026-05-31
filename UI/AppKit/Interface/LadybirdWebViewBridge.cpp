@@ -27,9 +27,9 @@ ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePi
 
 WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id)
     : m_screen_rects(move(screen_rects))
-    , m_display_id(display_id)
 {
     m_device_pixel_ratio = device_pixel_ratio;
+    m_display_id = display_id;
     m_maximum_frames_per_second = static_cast<double>(maximum_frames_per_second);
     set_page_background_color_to_system_canvas(is_using_dark_system_theme());
 }
