@@ -285,16 +285,17 @@ void TabBar::paintEvent(QPaintEvent*)
         }
 
         auto icon = tabIcon(index);
+        if (icon.isNull())
+            icon = create_chrome_icon(ChromeIcon::Globe, palette());
+
         if (is_collapsed_vertical) {
-            if (!icon.isNull()) {
-                QRect icon_rect {
-                    tab_rect.center().x() - (TAB_ICON_SIZE / 2),
-                    tab_rect.center().y() - (TAB_ICON_SIZE / 2),
-                    TAB_ICON_SIZE,
-                    TAB_ICON_SIZE,
-                };
-                icon.paint(&painter, icon_rect);
-            }
+            QRect icon_rect {
+                tab_rect.center().x() - (TAB_ICON_SIZE / 2),
+                tab_rect.center().y() - (TAB_ICON_SIZE / 2),
+                TAB_ICON_SIZE,
+                TAB_ICON_SIZE,
+            };
+            icon.paint(&painter, icon_rect);
             continue;
         }
 
@@ -304,7 +305,7 @@ void TabBar::paintEvent(QPaintEvent*)
         if (auto* right_button = tabButton(index, QTabBar::RightSide); right_button && right_button->isVisible())
             contents_rect.setRight(min(contents_rect.right(), right_button->geometry().left() - 6));
 
-        if (!icon.isNull() && contents_rect.width() > 26) {
+        if (contents_rect.width() > 26) {
             QRect icon_rect {
                 contents_rect.left(),
                 contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
