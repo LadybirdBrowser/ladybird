@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <defs>
+        <rect id="source" width="100" height="100" fill="white"></rect>
+    </defs>
+    <mask id="mask">
+        <use id="resolvedUse" href="#source"></use>
+        <use id="forwardUse" href="#lateSource"></use>
+    </mask>
+    <rect id="lateSource" width="100" height="100" fill="white"></rect>
+</svg>
+<script>
+    const resolvedUseElement = document.getElementById("resolvedUse");
+    const forwardUseElement = document.getElementById("forwardUse");
+    const initialResolvedInstanceRoot = resolvedUseElement.instanceRoot;
+    const initialForwardInstanceRoot = forwardUseElement.instanceRoot;
+
+    asyncTest((done) => {
+        window.addEventListener("load", () => {
+            setTimeout(() => {
+                println(`Had resolved instance root before load: ${!!initialResolvedInstanceRoot}`);
+                println(`Had forward instance root before load: ${!!initialForwardInstanceRoot}`);
+                println(`Kept resolved instance root after load: ${resolvedUseElement.instanceRoot === initialResolvedInstanceRoot}`);
+                println(`Has forward instance root after load: ${!!forwardUseElement.instanceRoot}`);
+                done();
+            }, 0);
+        }, { once: true });
+    });
+</script>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/use-in-mask-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="100" height="100" viewBox="0 0 100 100">
+    <defs>
+        <rect id="source" width="100" height="100" fill="white"></rect>
+    </defs>
+    <mask id="mask" mask-type="alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+        <use href="#source"></use>
+    </mask>
+    <rect width="100" height="100" fill="rgb(88, 101, 242)" mask="url(#mask)"></rect>
+</svg>

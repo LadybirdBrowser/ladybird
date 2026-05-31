@@ -239,16 +239,16 @@ void SVGElement::update_use_elements_that_reference_this()
         || !id().has_value()
         // An unconnected node cannot have valid references.
         // This also prevents searches for elements that are in the process of being constructed - as clones.
-        || !this->is_connected()
-        // Each use element already listens for the completely_loaded event and then clones its reference,
-        // we do not have to also clone it in the process of initial DOM building.
-        || !document().is_completely_loaded()) {
+        || !this->is_connected()) {
 
         return;
     }
 
     document().for_each_in_subtree_of_type<SVGUseElement>([this](SVGUseElement& use_element) {
-        use_element.svg_element_changed(*this);
+        if (document().is_completely_loaded())
+            use_element.svg_element_changed(*this);
+        else
+            use_element.svg_element_changed_before_document_complete(*this);
         return TraversalDecision::Continue;
     });
 }
