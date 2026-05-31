@@ -41,9 +41,6 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
             context.display_list_recorder().set_accumulated_visual_context(paintable_box->accumulated_visual_context_index());
     }
 
-    if (paintable_box && phase == PaintPhase::Background)
-        paintable_box->record_async_scrolling_metadata(context);
-
     if (paintable_box)
         paintable_box->record_hit_test_items(context, phase);
 
@@ -52,9 +49,13 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
         context.display_list_recorder().replay_cached_commands(paintable_box->cached_commands(phase));
     } else if (!skip_cache) {
         auto capture = context.display_list_recorder().begin_command_capture();
+        if (phase == PaintPhase::Background)
+            paintable_box->record_async_scrolling_metadata(context);
         paintable.paint(context, phase);
         paintable_box->set_cached_commands(phase, capture.take());
     } else {
+        if (paintable_box && phase == PaintPhase::Background)
+            paintable_box->record_async_scrolling_metadata(context);
         paintable.paint(context, phase);
     }
 
