@@ -14,6 +14,7 @@ set(TEST_SOURCES
     TestMimeSniff.cpp
     TestNumbers.cpp
     TestRefCountedTreeNode.cpp
+    TestSecureContexts.cpp
     TestSourceHighlighter.cpp
     TestStrings.cpp
 )
@@ -27,6 +28,7 @@ ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibM
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
+target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 
 if (NOT WIN32)

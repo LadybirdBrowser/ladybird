@@ -33,7 +33,7 @@ Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
 
     // 4. If origin’s host matches one of the CIDR notations 127.0.0.0/8 or ::1/128 [RFC4632], return "Potentially Trustworthy".
     if (origin.host().has<IPv4Address>()) {
-        if ((origin.host().get<IPv4Address>().to_u32() & 0xff000000) != 0)
+        if ((origin.host().get<IPv4Address>().to_u32() & 0xff000000) == 0x7f000000)
             return Trustworthiness::PotentiallyTrustworthy;
     } else if (origin.host().has<IPv6Address>()) {
         auto ipv6_address = origin.host().get<IPv6Address>();
