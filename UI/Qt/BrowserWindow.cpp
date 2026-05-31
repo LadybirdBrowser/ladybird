@@ -840,7 +840,7 @@ void BrowserWindow::initialize_tab_buttons(Tab* tab)
     auto index = m_tabs_container->index_of(tab);
     m_tabs_container->set_tab_icon(index, tab->tab_icon());
 
-    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::Close, palette()));
+    auto* close_button = new TabBarButton(create_chrome_icon(ChromeIcon::TabClose, palette()));
     close_button->setToolTip("Close Tab");
 
     connect(close_button, &QPushButton::clicked, this, [this, tab]() {
@@ -861,7 +861,7 @@ void BrowserWindow::update_tab_close_button_icons()
             return;
 
         if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
-            tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::Close, palette()));
+            tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::TabClose, palette()));
     }
 }
 

@@ -23,6 +23,7 @@ enum class ChromeIcon {
     Stop,
     NewTab,
     Close,
+    TabClose,
     Menu,
     Star,
     StarFilled,

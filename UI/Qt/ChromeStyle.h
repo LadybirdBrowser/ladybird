@@ -21,6 +21,7 @@ QColor chrome_surface(QPalette const&);
 QColor chrome_surface_recessed(QPalette const&);
 QColor chrome_surface_hover(QPalette const&);
 QColor chrome_surface_pressed(QPalette const&);
+QColor chrome_control_border(QPalette const&);
 QColor chrome_active_tab_surface_top(QPalette const&);
 QColor chrome_active_tab_surface_bottom(QPalette const&);
 QColor chrome_border(QPalette const&);

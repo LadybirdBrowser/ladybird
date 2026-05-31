@@ -65,4 +65,16 @@ void Settings::set_show_menubar(bool show_menubar)
     emit show_menubar_changed(show_menubar);
 }
 
+Optional<int> Settings::vertical_tabs_expanded_width()
+{
+    if (m_qsettings->contains("vertical_tabs_expanded_width"))
+        return m_qsettings->value("vertical_tabs_expanded_width").toInt();
+    return {};
+}
+
+void Settings::set_vertical_tabs_expanded_width(int width)
+{
+    m_qsettings->setValue("vertical_tabs_expanded_width", width);
+}
+
 }
