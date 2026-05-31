@@ -151,7 +151,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button = new HamburgerButton(m_toolbar);
     m_hamburger_button->setText("Show &Menu");
     m_hamburger_button->setToolTip("Show Menu");
-    m_hamburger_button->setIcon(create_tvg_icon_with_theme_colors("hamburger", palette()));
+    m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
     m_hamburger_button->setIconSize({ 20, 20 });
     m_hamburger_button->setFixedSize(36, 36);
     m_hamburger_button->setAutoRaise(true);

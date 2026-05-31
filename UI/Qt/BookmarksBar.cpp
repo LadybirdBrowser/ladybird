@@ -255,7 +255,7 @@ void BookmarksBar::rebuild()
                 install_menu_event_filter(this, submenu);
 
                 auto* action = new QAction(title, this);
-                action->setIcon(create_tvg_icon_with_theme_colors("folder", palette()));
+                action->setIcon(create_chrome_icon(ChromeIcon::Folder, palette()));
                 action->setProperty("id", submenu->property("id"));
                 action->setProperty("type", submenu->property("type"));
                 action->setProperty("target_folder_id", submenu->property("target_folder_id"));
