@@ -34,7 +34,7 @@ public:
     void set_property(PropertyID, NonnullRefPtr<StyleValue const>, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
 
     void revert_property(PropertyID, Important, CascadeOrigin);
-    void revert_layer_property(PropertyID, Important, Optional<FlyString> layer_name);
+    void revert_layer_property(PropertyID, Important, CascadeOrigin, Optional<FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
 
 private:
     CascadedProperties();
