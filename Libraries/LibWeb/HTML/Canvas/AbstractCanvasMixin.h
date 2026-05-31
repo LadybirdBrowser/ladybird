@@ -22,6 +22,7 @@ protected:
     virtual Gfx::Path& mutable_path() = 0;
     virtual Gfx::Painter* painter() = 0;
     virtual CSS::ComputationContext computation_context_for_drawing_state() const = 0;
+    Optional<Color> parse_a_css_color_value(StringView const& value) const;
 };
 
 }
