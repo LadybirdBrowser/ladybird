@@ -69,12 +69,6 @@ private:
     }
 };
 
-static QIcon default_favicon()
-{
-    static QIcon icon = load_icon_from_uri("resource://icons/48x48/app-browser.png"sv);
-    return icon;
-}
-
 static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
 {
     auto* button = new QToolButton(&parent);
@@ -166,8 +160,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     recreate_toolbar_icons();
 
-    m_favicon = default_favicon();
-
     m_page_context_menu = create_context_menu(*this, view(), view().page_context_menu());
     m_link_context_menu = create_context_menu(*this, view(), view().link_context_menu());
     m_image_context_menu = create_context_menu(*this, view(), view().image_context_menu());
@@ -218,7 +210,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_title = url_serialized;
         update_tab_title();
 
-        m_favicon = default_favicon();
+        m_favicon = {};
         set_loading(true);
 
         m_location_edit->set_url(url);
