@@ -27,6 +27,7 @@ public:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     void svg_element_changed(SVGElement&);
+    void svg_element_changed_before_document_complete(SVGElement&);
     void svg_element_removed(SVGElement&);
 
     GC::Ref<SVGAnimatedLength> x() const;
@@ -65,6 +66,7 @@ private:
 
     Optional<float> m_x;
     Optional<float> m_y;
+    bool m_needs_document_complete_reclone { false };
 
     Optional<URL::URL> m_href;
 

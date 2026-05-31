@@ -49,6 +49,11 @@ void SVGUseElement::initialize(JS::Realm& realm)
 
     m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
     m_document_observer->set_document_completely_loaded([this]() {
+        // The href processing path already populated the shadow tree for resolved references,
+        // unless the referenced subtree changed while the document was still loading.
+        if (instance_root() && !m_needs_document_complete_reclone)
+            return;
+        m_needs_document_complete_reclone = false;
         clone_element_tree_as_our_shadow_tree(referenced_element());
     });
 }
@@ -118,6 +123,17 @@ void SVGUseElement::svg_element_changed(SVGElement& svg_element)
     if (to_clone == &svg_element || to_clone->is_ancestor_of(svg_element)) {
         clone_element_tree_as_our_shadow_tree(to_clone);
     }
+}
+
+void SVGUseElement::svg_element_changed_before_document_complete(SVGElement& svg_element)
+{
+    auto to_clone = referenced_element();
+    if (!to_clone)
+        return;
+
+    // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
+    if (to_clone == &svg_element || to_clone->is_ancestor_of(svg_element))
+        m_needs_document_complete_reclone = true;
 }
 
 void SVGUseElement::svg_element_removed(SVGElement& svg_element)
