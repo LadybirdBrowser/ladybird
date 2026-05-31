@@ -75,7 +75,7 @@ TabBar::TabBar(TabWidget* tab_widget)
     setAcceptDrops(true);
     setFocusPolicy(Qt::NoFocus);
     setIconSize({ 16, 16 });
-    setMinimumHeight(42);
+    setMinimumHeight(39);
 
     m_hover_animation = new QVariantAnimation(this);
     m_hover_animation->setDuration(120);
@@ -110,7 +110,7 @@ QSize TabBar::tabSizeHint(int index) const
         hint.setWidth(width);
     }
 
-    hint.setHeight(39);
+    hint.setHeight(36);
     return hint;
 }
 
@@ -135,8 +135,8 @@ void TabBar::paintEvent(QPaintEvent* event)
         auto hover_progress = index == m_hover_animation_tab_index ? m_hover_progress : (index == m_hovered_tab_index ? 1.0 : 0.0);
         bool is_hovered = hover_progress > 0.0;
 
-        auto shape_rect = QRectF(tab_rect).adjusted(3.0, 1.5, -3.0, 0.5);
-        auto tab_path = tab_shape_path(shape_rect, 10.0, 9.0);
+        auto shape_rect = QRectF(tab_rect).adjusted(3.0, 2.0, -3.0, 1.0);
+        auto tab_path = tab_shape_path(shape_rect, 9.0, 8.0);
         auto surface = ChromeStyle::chrome_surface(palette());
 
         if (is_selected) {
@@ -170,7 +170,7 @@ void TabBar::paintEvent(QPaintEvent* event)
             auto separator = border;
             separator.setAlpha(32);
             painter.setPen(separator);
-            painter.drawLine(QPoint(tab_rect.left(), 17), QPoint(tab_rect.left(), height() - 17));
+            painter.drawLine(QPoint(tab_rect.left(), 15), QPoint(tab_rect.left(), height() - 15));
         }
 
         auto contents_rect = shape_rect.toAlignedRect().adjusted(16, 0, -14, 0);
@@ -212,7 +212,7 @@ void TabBar::paintEvent(QPaintEvent* event)
         indicator_color.setAlpha(220);
 
         painter.setPen(QPen(indicator_color, 3, Qt::SolidLine, Qt::RoundCap));
-        painter.drawLine(QPointF(indicator_x, 9), QPointF(indicator_x, height() - 7));
+        painter.drawLine(QPointF(indicator_x, 8), QPointF(indicator_x, height() - 6));
     }
 }
 
@@ -514,7 +514,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     auto* tab_bar_row_layout = new QHBoxLayout();
     tab_bar_row_layout->setSpacing(4);
-    tab_bar_row_layout->setContentsMargins(12, 3, 4, 1);
+    tab_bar_row_layout->setContentsMargins(12, 2, 4, 1);
     tab_bar_row_layout->addWidget(m_tab_bar);
     tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignVCenter);
     tab_bar_row_layout->addStretch(1);
@@ -524,7 +524,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_tab_bar_row = new QWidget(this);
     m_tab_bar_row->setObjectName("LadybirdTabStrip");
-    m_tab_bar_row->setMinimumHeight(46);
+    m_tab_bar_row->setMinimumHeight(43);
     m_tab_bar_row->setLayout(tab_bar_row_layout);
     m_tab_bar_row->installEventFilter(this);
 

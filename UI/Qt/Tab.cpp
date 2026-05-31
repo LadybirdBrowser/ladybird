@@ -82,7 +82,7 @@ static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
     button->setAutoRaise(true);
     button->setFocusPolicy(Qt::NoFocus);
     button->setIconSize({ 20, 20 });
-    button->setFixedSize(38, 38);
+    button->setFixedSize(36, 36);
     return button;
 }
 
@@ -109,7 +109,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     m_toolbar = new QWidget(this);
     m_toolbar->setObjectName("LadybirdNavigationToolbar");
-    m_toolbar->setFixedHeight(47);
+    m_toolbar->setFixedHeight(42);
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
 
     auto* toolbar_container_layout = new QVBoxLayout(m_toolbar_container);
@@ -118,7 +118,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     auto* toolbar_layout = new QHBoxLayout(m_toolbar);
     toolbar_layout->setSpacing(6);
-    toolbar_layout->setContentsMargins(12, 3, 12, 3);
+    toolbar_layout->setContentsMargins(12, 2, 12, 2);
 
     m_location_edit = new LocationEdit(this);
     m_bookmarks_bar = new BookmarksBar(this);
@@ -153,7 +153,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_hamburger_button->setToolTip("Show Menu");
     m_hamburger_button->setIcon(create_tvg_icon_with_theme_colors("hamburger", palette()));
     m_hamburger_button->setIconSize({ 20, 20 });
-    m_hamburger_button->setFixedSize(38, 38);
+    m_hamburger_button->setFixedSize(36, 36);
     m_hamburger_button->setAutoRaise(true);
     m_hamburger_button->setFocusPolicy(Qt::NoFocus);
     m_hamburger_button->setPopupMode(QToolButton::InstantPopup);

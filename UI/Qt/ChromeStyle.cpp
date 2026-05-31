@@ -315,9 +315,10 @@ QWidget#LadybirdNavigationToolbar QToolButton {{
     color: {6};
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 18px;
-    min-width: 36px;
-    min-height: 36px;
+    border-radius: 17px;
+    min-width: 34px;
+    min-height: 34px;
+    margin: 1px 0;
     padding: 0;
 }}
 
@@ -453,8 +454,8 @@ QLineEdit#LadybirdLocationEdit {{
     color: {4};
     background: {0};
     border: 1px solid {2};
-    border-radius: 19px;
-    min-height: 36px;
+    border-radius: 17px;
+    min-height: 34px;
     padding: 0 16px;
     selection-background-color: {6};
     selection-color: {7};
