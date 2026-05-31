@@ -298,6 +298,8 @@ function (generate_js_bindings target)
     set(bindings_generator "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_libweb_bindings.py")
     set(bindings_generator_dependencies
         "${bindings_generator}"
+        "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/__init__.py"
+        "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/intrinsics.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/lexer.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/webidl_parser.py")
