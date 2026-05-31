@@ -158,7 +158,7 @@ void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, Paint
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
     auto const& font = resource_storage().font(command.font_id);
-    auto glyphs = inline_objects<Gfx::DrawGlyph>(command.glyphs);
+    auto glyphs = inline_objects<DisplayListGlyph>(command.glyphs);
     if (glyphs.is_empty())
         return;
 

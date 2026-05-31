@@ -107,6 +107,11 @@ struct DisplayListCommandHeader {
     Gfx::IntRect bounding_rect {};
 };
 
+struct DisplayListGlyph {
+    Gfx::FloatPoint position;
+    u32 glyph_id { 0 };
+};
+
 struct DrawGlyphRun {
     static constexpr StringView command_name = "DrawGlyphRun"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawGlyphRun;
@@ -722,6 +727,7 @@ inline int display_list_command_nesting_level_change(DisplayListCommandType comm
 }
 
 static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
+static_assert(IsTriviallyCopyable<DisplayListGlyph>);
 
 #define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) static_assert(IsTriviallyCopyable<command>);
 ENUMERATE_DISPLAY_LIST_COMMANDS(VERIFY_DISPLAY_LIST_COMMAND)
