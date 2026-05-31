@@ -26,7 +26,7 @@ CSSPixelSize run_default_sizing_algorithm(
         // the missing dimension of the concrete object size is calculated using that aspect ratio and the present dimension.
         if (natural.has_aspect_ratio() && !natural.aspect_ratio->might_be_saturated()) {
             if (specified_width.has_value())
-                return CSSPixelSize { specified_width.value(), (CSSPixels(1) / natural.aspect_ratio.value()) * specified_width.value() };
+                return CSSPixelSize { specified_width.value(), specified_width.value() / natural.aspect_ratio.value() };
             if (specified_height.has_value())
                 return CSSPixelSize { specified_height.value() * natural.aspect_ratio.value(), specified_height.value() };
         }
