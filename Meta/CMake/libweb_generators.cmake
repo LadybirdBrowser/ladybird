@@ -302,6 +302,7 @@ function (generate_js_bindings target)
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/idl.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/includes.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/intrinsics.py"
+        "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/type_conversion.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/lexer.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Utils/webidl_parser.py")
