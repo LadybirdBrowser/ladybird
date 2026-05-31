@@ -21,6 +21,7 @@ from typing import TextIO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
 from Utils.webidl_parser import parse_module
@@ -68,18 +69,6 @@ class InterfaceSets:
 class LegacyConstructor:
     name: str
     constructor_class: str
-
-
-def title_case_to_snake_case(value: str) -> str:
-    parts = []
-    for index, character in enumerate(value):
-        if character.isupper() and index > 0:
-            previous_character = value[index - 1]
-            next_character = value[index + 1] if index + 1 < len(value) else ""
-            if previous_character.islower() or (previous_character.isupper() and next_character.islower()):
-                parts.append("_")
-        parts.append(character.lower())
-    return "".join(parts)
 
 
 def parse_arguments() -> argparse.Namespace:

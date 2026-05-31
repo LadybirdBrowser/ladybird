@@ -80,6 +80,18 @@ def snake_casify(dashy_name: str, trim_leading_underscores: bool = False) -> str
     return snake_case
 
 
+def title_case_to_snake_case(value: str) -> str:
+    parts = []
+    for index, character in enumerate(value):
+        if character.isupper() and index > 0:
+            previous_character = value[index - 1]
+            next_character = value[index + 1] if index + 1 < len(value) else ""
+            if previous_character.islower() or (previous_character.isupper() and next_character.islower()):
+                parts.append("_")
+        parts.append(character.lower())
+    return "".join(parts)
+
+
 def underlying_type_for_enum(member_count: int) -> str:
     if member_count <= 0xFF:
         return "u8"
