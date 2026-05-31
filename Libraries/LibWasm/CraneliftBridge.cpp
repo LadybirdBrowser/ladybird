@@ -252,10 +252,6 @@ static bool install_compiled_function(CompiledInstructions& target, ReadonlyByte
 
 }
 
-// C helpers called by cranelift-generated code (need C linkage but not external visibility).
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-declarations"
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 extern "C" {
 
 static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, Configuration& config, FunctionAddress address, Vector<Value, ArgumentsStaticSize>& args)
@@ -359,6 +355,7 @@ static ALWAYS_INLINE i32 wasm_cl_finish_call(BytecodeInterpreter& interpreter, C
     return 0;
 }
 
+i32 wasm_cl_call_function(void* interp_ptr, void* config_ptr, i32 func_index);
 i32 wasm_cl_call_function(void* interp_ptr, void* config_ptr, i32 func_index)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -384,6 +381,7 @@ i32 wasm_cl_call_function(void* interp_ptr, void* config_ptr, i32 func_index)
     return outcome == Outcome::Return && interpreter.did_trap() ? 1 : 0;
 }
 
+void wasm_cl_set_trap(void* interp_ptr, u8 const* msg, i32 len);
 void wasm_cl_set_trap(void* interp_ptr, u8 const* msg, i32 len)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -409,6 +407,7 @@ static inline u8 const* wasm_cl_memory_data_if_in_bounds(MemoryInstance* memory,
     return memory->data().offset_pointer(instance_addr);
 }
 
+i64 wasm_cl_memory_load8_s(void* config_ptr, i32 mem_idx, i64 addr);
 i64 wasm_cl_memory_load8_s(void* config_ptr, i32 mem_idx, i64 addr)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
@@ -418,6 +417,7 @@ i64 wasm_cl_memory_load8_s(void* config_ptr, i32 mem_idx, i64 addr)
     return static_cast<i64>(static_cast<i8>(data[0]));
 }
 
+i64 wasm_cl_memory_load8_u(void* config_ptr, i32 mem_idx, i64 addr);
 i64 wasm_cl_memory_load8_u(void* config_ptr, i32 mem_idx, i64 addr)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
@@ -427,6 +427,7 @@ i64 wasm_cl_memory_load8_u(void* config_ptr, i32 mem_idx, i64 addr)
     return static_cast<i64>(data[0]);
 }
 
+i64 wasm_cl_memory_load16_s(void* config_ptr, i32 mem_idx, i64 addr);
 i64 wasm_cl_memory_load16_s(void* config_ptr, i32 mem_idx, i64 addr)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
@@ -438,6 +439,7 @@ i64 wasm_cl_memory_load16_s(void* config_ptr, i32 mem_idx, i64 addr)
     return static_cast<i64>(static_cast<i16>(val));
 }
 
+i64 wasm_cl_memory_load16_u(void* config_ptr, i32 mem_idx, i64 addr);
 i64 wasm_cl_memory_load16_u(void* config_ptr, i32 mem_idx, i64 addr)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
@@ -449,6 +451,7 @@ i64 wasm_cl_memory_load16_u(void* config_ptr, i32 mem_idx, i64 addr)
     return static_cast<i64>(val);
 }
 
+i64 wasm_cl_memory_load32_s(void* config_ptr, i32 mem_idx, i64 addr);
 i64 wasm_cl_memory_load32_s(void* config_ptr, i32 mem_idx, i64 addr)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
@@ -460,6 +463,7 @@ i64 wasm_cl_memory_load32_s(void* config_ptr, i32 mem_idx, i64 addr)
     return static_cast<i64>(static_cast<i32>(val));
 }
 
+i64 wasm_cl_memory_load32_u(void* config_ptr, i32 mem_idx, i64 addr);
 i64 wasm_cl_memory_load32_u(void* config_ptr, i32 mem_idx, i64 addr)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
@@ -471,6 +475,7 @@ i64 wasm_cl_memory_load32_u(void* config_ptr, i32 mem_idx, i64 addr)
     return static_cast<i64>(val);
 }
 
+i64 wasm_cl_memory_load64(void* config_ptr, i32 mem_idx, i64 addr);
 i64 wasm_cl_memory_load64(void* config_ptr, i32 mem_idx, i64 addr)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
@@ -492,6 +497,7 @@ static inline bool wasm_cl_memory_store_in_bounds(void* config_ptr, i32 mem_idx,
     return true;
 }
 
+i32 wasm_cl_memory_store8(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
 i32 wasm_cl_memory_store8(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
@@ -501,6 +507,7 @@ i32 wasm_cl_memory_store8(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
     return 0;
 }
 
+i32 wasm_cl_memory_store16(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
 i32 wasm_cl_memory_store16(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
@@ -511,6 +518,7 @@ i32 wasm_cl_memory_store16(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
     return 0;
 }
 
+i32 wasm_cl_memory_store32(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
 i32 wasm_cl_memory_store32(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
@@ -521,6 +529,7 @@ i32 wasm_cl_memory_store32(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
     return 0;
 }
 
+i32 wasm_cl_memory_store64(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
 i32 wasm_cl_memory_store64(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
@@ -531,6 +540,7 @@ i32 wasm_cl_memory_store64(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
     return 0;
 }
 
+i64 wasm_cl_memory_size(void* config_ptr, i32 mem_idx);
 i64 wasm_cl_memory_size(void* config_ptr, i32 mem_idx)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -540,6 +550,7 @@ i64 wasm_cl_memory_size(void* config_ptr, i32 mem_idx)
     return static_cast<i64>(memory->size() / Constants::page_size);
 }
 
+i32 wasm_cl_memory_grow(void* config_ptr, i32 mem_idx, i32 pages);
 i32 wasm_cl_memory_grow(void* config_ptr, i32 mem_idx, i32 pages)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -554,6 +565,7 @@ i32 wasm_cl_memory_grow(void* config_ptr, i32 mem_idx, i32 pages)
     return static_cast<i32>(old_pages);
 }
 
+i64 wasm_cl_read_global(void* config_ptr, i32 index);
 i64 wasm_cl_read_global(void* config_ptr, i32 index)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -563,6 +575,7 @@ i64 wasm_cl_read_global(void* config_ptr, i32 index)
     return global->value().to<i64>();
 }
 
+void wasm_cl_write_global(void* config_ptr, i32 index, i64 value);
 void wasm_cl_write_global(void* config_ptr, i32 index, i64 value)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -572,6 +585,7 @@ void wasm_cl_write_global(void* config_ptr, i32 index, i64 value)
     global->set_value(Value(value));
 }
 
+i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32 type_idx, i32 element_index);
 i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32 type_idx, i32 element_index)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -607,6 +621,7 @@ i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32
     return outcome == Outcome::Return && interpreter.did_trap() ? 1 : 0;
 }
 
+i32 wasm_cl_memory_copy(void* interp_ptr, void* config_ptr, i32 dst_mem, i32 src_mem, i32 dst_offset, i32 src_offset, i32 count);
 i32 wasm_cl_memory_copy(void* interp_ptr, void* config_ptr, i32 dst_mem, i32 src_mem, i32 dst_offset, i32 src_offset, i32 count)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -627,6 +642,7 @@ i32 wasm_cl_memory_copy(void* interp_ptr, void* config_ptr, i32 dst_mem, i32 src
     return 0;
 }
 
+i32 wasm_cl_memory_fill(void* interp_ptr, void* config_ptr, i32 mem_idx, i32 offset, i32 value, i32 count);
 i32 wasm_cl_memory_fill(void* interp_ptr, void* config_ptr, i32 mem_idx, i32 offset, i32 value, i32 count)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -645,24 +661,28 @@ i32 wasm_cl_memory_fill(void* interp_ptr, void* config_ptr, i32 mem_idx, i32 off
     return 0;
 }
 
+void wasm_cl_stack_push(void* config_ptr, i64 value);
 void wasm_cl_stack_push(void* config_ptr, i64 value)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
     config.value_stack().append(Value(value));
 }
 
+i64 wasm_cl_stack_pop(void* config_ptr);
 i64 wasm_cl_stack_pop(void* config_ptr)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
     return config.value_stack().unsafe_take_last().to<i64>();
 }
 
+i64 wasm_cl_stack_size(void* config_ptr);
 i64 wasm_cl_stack_size(void* config_ptr)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
     return static_cast<i64>(config.value_stack().size());
 }
 
+void wasm_cl_stack_cleanup(void* config_ptr, i64 initial_size, i32 result_arity);
 void wasm_cl_stack_cleanup(void* config_ptr, i64 initial_size, i32 result_arity)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -690,12 +710,14 @@ void wasm_cl_stack_cleanup(void* config_ptr, i64 initial_size, i32 result_arity)
         stack.append(saved[i - 1]);
 }
 
+i64 wasm_cl_callrec_read(void* config_ptr, i32 index);
 i64 wasm_cl_callrec_read(void* config_ptr, i32 index)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
     return config.call_record_entry(index).to<i64>();
 }
 
+void wasm_cl_callrec_write(void* config_ptr, i32 index, i64 value);
 void wasm_cl_callrec_write(void* config_ptr, i32 index, i64 value)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -709,6 +731,7 @@ void wasm_cl_callrec_write(void* config_ptr, i32 index, i64 value)
     config.call_record_entry(index) = Value(value);
 }
 
+i32 wasm_cl_call_with_record(void* interp_ptr, void* config_ptr, i32 func_index);
 i32 wasm_cl_call_with_record(void* interp_ptr, void* config_ptr, i32 func_index)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -793,6 +816,7 @@ static ALWAYS_INLINE i32 wasm_cl_direct_call_impl(BytecodeInterpreter& interpret
     return 0;
 }
 
+i32 wasm_cl_direct_call_0(void* interp_ptr, void* config_ptr, i32 func_index);
 i32 wasm_cl_direct_call_0(void* interp_ptr, void* config_ptr, i32 func_index)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -800,6 +824,7 @@ i32 wasm_cl_direct_call_0(void* interp_ptr, void* config_ptr, i32 func_index)
     return wasm_cl_direct_call_impl(interpreter, config, func_index, nullptr, 0);
 }
 
+i32 wasm_cl_direct_call_1(void* interp_ptr, void* config_ptr, i32 func_index, i64 arg0);
 i32 wasm_cl_direct_call_1(void* interp_ptr, void* config_ptr, i32 func_index, i64 arg0)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -808,6 +833,7 @@ i32 wasm_cl_direct_call_1(void* interp_ptr, void* config_ptr, i32 func_index, i6
     return wasm_cl_direct_call_impl(interpreter, config, func_index, args, 1);
 }
 
+i32 wasm_cl_direct_call_2(void* interp_ptr, void* config_ptr, i32 func_index, i64 arg0, i64 arg1);
 i32 wasm_cl_direct_call_2(void* interp_ptr, void* config_ptr, i32 func_index, i64 arg0, i64 arg1)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -816,6 +842,7 @@ i32 wasm_cl_direct_call_2(void* interp_ptr, void* config_ptr, i32 func_index, i6
     return wasm_cl_direct_call_impl(interpreter, config, func_index, args, 2);
 }
 
+i32 wasm_cl_direct_call_3(void* interp_ptr, void* config_ptr, i32 func_index, i64 arg0, i64 arg1, i64 arg2);
 i32 wasm_cl_direct_call_3(void* interp_ptr, void* config_ptr, i32 func_index, i64 arg0, i64 arg1, i64 arg2)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
@@ -825,8 +852,8 @@ i32 wasm_cl_direct_call_3(void* interp_ptr, void* config_ptr, i32 func_index, i6
 }
 
 // Thin frame push for direct compiled-to-compiled calls. Returns 1 on trap, 0 on success.
-i32 wasm_cl_push_frame(void* interp_ptr, void* config_ptr, Value* locals_ptr, u32 /* total_locals */,
-    void const* module_ptr, void const* expression_ptr, u32 arity, u32 max_call_rec_size)
+i32 wasm_cl_push_frame(void* interp_ptr, void* config_ptr, Value* locals_ptr, u32, void const* module_ptr, void const* expression_ptr, u32 arity, u32 max_call_rec_size);
+i32 wasm_cl_push_frame(void* interp_ptr, void* config_ptr, Value* locals_ptr, u32 /* total_locals */, void const* module_ptr, void const* expression_ptr, u32 arity, u32 max_call_rec_size)
 {
     auto& interpreter = *static_cast<BytecodeInterpreter*>(interp_ptr);
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -848,6 +875,7 @@ i32 wasm_cl_push_frame(void* interp_ptr, void* config_ptr, Value* locals_ptr, u3
 }
 
 // Thin frame pop for direct compiled-to-compiled calls.
+void wasm_cl_pop_frame(void* config_ptr, u32 arity);
 void wasm_cl_pop_frame(void* config_ptr, u32 arity)
 {
     auto& config = *static_cast<Configuration*>(config_ptr);
@@ -858,7 +886,6 @@ void wasm_cl_pop_frame(void* config_ptr, u32 arity)
     config.unwind_impl();
 }
 }
-#pragma GCC diagnostic pop
 
 namespace Wasm {
 
