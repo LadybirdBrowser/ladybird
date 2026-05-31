@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/GenericShorthands.h>
 #include <AK/StdLibExtras.h>
 #include <LibGfx/Font/Font.h>
@@ -49,6 +50,76 @@
 namespace Web::Painting {
 
 static bool g_paint_viewport_scrollbars = true;
+
+struct PaintableBox::CachedPaintData {
+    bool has(PaintPhase phase) const
+    {
+        return m_present_phases[to_underlying(phase)];
+    }
+
+    ReadonlyBytes bytes_for(PaintPhase phase) const
+    {
+        auto const& span = m_phase_spans[to_underlying(phase)];
+        return m_command_bytes.span().slice(span.offset, span.size);
+    }
+
+    void set(PaintPhase phase, ReadonlyBytes command_bytes)
+    {
+        auto const phase_index = to_underlying(phase);
+        if (m_present_phases[phase_index]) {
+            replace(phase, command_bytes);
+            return;
+        }
+
+        m_phase_spans[phase_index] = append_to(m_command_bytes, command_bytes);
+        m_present_phases[phase_index] = true;
+    }
+
+    template<typename Callback>
+    void for_each_present_phase(Callback callback) const
+    {
+        for (size_t phase_index = 0; phase_index < paint_phase_count; ++phase_index) {
+            if (!m_present_phases[phase_index])
+                continue;
+            auto phase = static_cast<PaintPhase>(phase_index);
+            callback(phase, bytes_for(phase));
+        }
+    }
+
+private:
+    struct Span {
+        u32 offset { 0 };
+        u32 size { 0 };
+    };
+
+    static Span append_to(ByteBuffer& command_buffer, ReadonlyBytes command_bytes)
+    {
+        auto const offset = command_buffer.size();
+        command_buffer.append(command_bytes);
+        return { static_cast<u32>(offset), static_cast<u32>(command_bytes.size()) };
+    }
+
+    void replace(PaintPhase phase, ReadonlyBytes replacement_bytes)
+    {
+        ByteBuffer command_buffer;
+        Array<Span, paint_phase_count> phase_spans {};
+
+        for (size_t phase_index = 0; phase_index < paint_phase_count; ++phase_index) {
+            if (!m_present_phases[phase_index])
+                continue;
+            auto present_phase = static_cast<PaintPhase>(phase_index);
+            auto command_bytes = present_phase == phase ? replacement_bytes : bytes_for(present_phase);
+            phase_spans[phase_index] = append_to(command_buffer, command_bytes);
+        }
+
+        m_command_bytes = move(command_buffer);
+        m_phase_spans = phase_spans;
+    }
+
+    ByteBuffer m_command_bytes;
+    Array<bool, paint_phase_count> m_present_phases {};
+    Array<Span, paint_phase_count> m_phase_spans {};
+};
 
 static bool content_size_change_affects_container_queries(PaintableBox const& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
 {
@@ -389,40 +460,56 @@ PaintableBox::~PaintableBox()
         invalidate_paint_cache();
 }
 
-void PaintableBox::acquire_cache_references_for_cached_commands(DisplayListCommandSequence const& commands) const
+void PaintableBox::acquire_cache_references_for_cached_commands(ReadonlyBytes command_bytes) const
 {
     auto& resource_storage = navigable()->display_list_resource_storage();
-    auto referenced_resources = resource_storage.collect_referenced_resources(commands.command_bytes());
+    auto referenced_resources = resource_storage.collect_referenced_resources(command_bytes);
     if (referenced_resources.is_empty())
         return;
     resource_storage.acquire_cache_references(referenced_resources);
 }
 
-void PaintableBox::release_cache_references_for_cached_commands(DisplayListCommandSequence const& commands) const
+void PaintableBox::release_cache_references_for_cached_commands(ReadonlyBytes command_bytes) const
 {
     auto& resource_storage = navigable()->display_list_resource_storage();
-    auto referenced_resources = resource_storage.collect_referenced_resources(commands.command_bytes());
+    auto referenced_resources = resource_storage.collect_referenced_resources(command_bytes);
     if (referenced_resources.is_empty())
         return;
     resource_storage.release_cache_references(referenced_resources);
 }
 
+bool PaintableBox::has_cached_commands(PaintPhase phase) const
+{
+    return m_cached_paint_data && m_cached_paint_data->has(phase);
+}
+
+ReadonlyBytes PaintableBox::cached_commands(PaintPhase phase) const
+{
+    return m_cached_paint_data->bytes_for(phase);
+}
+
 void PaintableBox::invalidate_paint_cache() const
 {
-    for (auto const& commands : m_cached_phase_commands) {
-        if (commands.has_value())
-            release_cache_references_for_cached_commands(commands.value());
-    }
-    m_cached_phase_commands = {};
+    if (!m_cached_paint_data)
+        return;
+
+    m_cached_paint_data->for_each_present_phase([&](PaintPhase, ReadonlyBytes command_bytes) {
+        release_cache_references_for_cached_commands(command_bytes);
+    });
+    m_cached_paint_data = nullptr;
 }
 
 void PaintableBox::set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const
 {
-    auto& cached_commands = m_cached_phase_commands[to_underlying(phase)];
-    if (cached_commands.has_value())
-        release_cache_references_for_cached_commands(cached_commands.value());
-    acquire_cache_references_for_cached_commands(commands);
-    cached_commands = move(commands);
+    if (!m_cached_paint_data)
+        m_cached_paint_data = make<CachedPaintData>();
+
+    if (m_cached_paint_data->has(phase))
+        release_cache_references_for_cached_commands(m_cached_paint_data->bytes_for(phase));
+
+    auto command_bytes = commands.command_bytes();
+    acquire_cache_references_for_cached_commands(command_bytes);
+    m_cached_paint_data->set(phase, command_bytes);
 }
 
 void PaintableBox::reset_for_relayout()

@@ -83,13 +83,13 @@ bool DisplayList::append_bytes(
 }
 
 void DisplayList::append_command_sequence(
-    DisplayListCommandSequence const& sequence,
+    ReadonlyBytes command_sequence,
     AccumulatedVisualContextTree const& visual_context_tree,
     VisualContextIndex context_index)
 {
     VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
 
-    auto command_bytes = MUST(ByteBuffer::copy(sequence.m_command_bytes.span()));
+    auto command_bytes = MUST(ByteBuffer::copy(command_sequence));
 
     set_command_sequence_visual_context(command_bytes.span(), context_index);
     VERIFY(m_command_bytes.size() % DisplayListCommandSequence::command_alignment == 0);

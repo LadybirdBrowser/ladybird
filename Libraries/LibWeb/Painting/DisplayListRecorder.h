@@ -92,7 +92,7 @@ public:
     void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
     VisualContextIndex accumulated_visual_context() const { return m_accumulated_visual_context_index; }
 
-    void replay_cached_commands(DisplayListCommandSequence const& commands);
+    void replay_cached_commands(ReadonlyBytes commands);
 
     class CommandCapture {
         AK_MAKE_NONCOPYABLE(CommandCapture);

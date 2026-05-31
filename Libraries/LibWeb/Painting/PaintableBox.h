@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/Array.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
@@ -306,16 +305,8 @@ public:
 
     void invalidate_paint_cache() const;
 
-    bool has_cached_commands(PaintPhase phase) const
-    {
-        return m_cached_phase_commands[to_underlying(phase)].has_value();
-    }
-
-    DisplayListCommandSequence const& cached_commands(PaintPhase phase) const
-    {
-        return m_cached_phase_commands[to_underlying(phase)].value();
-    }
-
+    bool has_cached_commands(PaintPhase) const;
+    ReadonlyBytes cached_commands(PaintPhase) const;
     void set_cached_commands(PaintPhase phase, DisplayListCommandSequence commands) const;
 
     void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
@@ -342,11 +333,13 @@ protected:
     Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
 
 private:
+    struct CachedPaintData;
+
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
-    void acquire_cache_references_for_cached_commands(DisplayListCommandSequence const&) const;
-    void release_cache_references_for_cached_commands(DisplayListCommandSequence const&) const;
+    void acquire_cache_references_for_cached_commands(ReadonlyBytes) const;
+    void release_cache_references_for_cached_commands(ReadonlyBytes) const;
 
     RefPtr<StackingContext> m_stacking_context;
 
@@ -391,7 +384,7 @@ private:
     bool m_fragment_right_edge_away { false };
     bool m_fragment_bottom_edge_away { false };
 
-    mutable Array<Optional<DisplayListCommandSequence>, paint_phase_count> m_cached_phase_commands;
+    mutable OwnPtr<CachedPaintData> m_cached_paint_data;
 };
 
 }
