@@ -13,7 +13,6 @@
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
-#include <LibGfx/ImageFormats/TinyVGLoader.h>
 #include <LibGfx/ImageFormats/WebPLoader.h>
 
 namespace Gfx {
@@ -33,7 +32,6 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
         { JPEGXLImageDecoderPlugin::sniff, JPEGXLImageDecoderPlugin::create },
         { PNGImageDecoderPlugin::sniff, PNGImageDecoderPlugin::create },
         { TIFFImageDecoderPlugin::sniff, TIFFImageDecoderPlugin::create },
-        { TinyVGImageDecoderPlugin::sniff, TinyVGImageDecoderPlugin::create },
         { WebPImageDecoderPlugin::sniff, WebPImageDecoderPlugin::create },
         { AVIFImageDecoderPlugin::sniff, AVIFImageDecoderPlugin::create }
     };

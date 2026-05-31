@@ -17,7 +17,6 @@
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
-#include <LibGfx/ImageFormats/TinyVGLoader.h>
 #include <LibGfx/ImageFormats/WebPLoader.h>
 #include <LibTest/TestCase.h>
 #include <stdio.h>
@@ -1122,56 +1121,6 @@ TEST_CASE(test_webp_unpremultiplied_alpha)
     // Webp decodes with unpremultiplied color data, so {R,G,B} can be >A (unlike with premultiplied colors).
     EXPECT_EQ(frame.image->alpha_type(), Gfx::AlphaType::Unpremultiplied);
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(255, 255, 255, 128));
-}
-
-TEST_CASE(test_tvg)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tvg/yak.tvg"sv)));
-    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
-
-    TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1024, 1024 }));
-}
-
-TEST_CASE(test_everything_tvg)
-{
-    Array file_names {
-        TEST_INPUT("tvg/everything.tvg"sv),
-        TEST_INPUT("tvg/everything-32.tvg"sv)
-    };
-
-    for (auto file_name : file_names) {
-        auto file = TRY_OR_FAIL(Core::MappedFile::map(file_name));
-        EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
-
-        TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 768 }));
-    }
-}
-
-TEST_CASE(test_tvg_malformed)
-{
-    Array test_inputs = {
-        TEST_INPUT("tvg/bogus-color-table-size.tvg"sv)
-    };
-
-    for (auto test_input : test_inputs) {
-        auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
-        auto frame_or_error = plugin_decoder->frame(0);
-        EXPECT(frame_or_error.is_error());
-    }
-}
-
-TEST_CASE(test_tvg_rgb565)
-{
-    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tvg/green-rgb565.tvg"sv)));
-    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
-    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 100, 100 }));
-
-    // Should be a solid dark green:
-    EXPECT_EQ(frame.image->get_pixel(50, 50), Gfx::Color(0, 130, 0));
 }
 
 TEST_CASE(test_jxl_modular_simple_tree_upsample2_10bits)
