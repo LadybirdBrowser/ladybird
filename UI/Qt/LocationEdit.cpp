@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/StringView.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
@@ -25,6 +26,7 @@
 #include <QLatin1String>
 #include <QPalette>
 #include <QResizeEvent>
+#include <QStyle>
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
 #endif
@@ -152,7 +154,7 @@ LocationEdit::LocationEdit(QWidget* parent)
 {
     setObjectName("LadybirdLocationEdit");
     setMinimumHeight(32);
-    setTextMargins(38, 0, 40, 0);
+    setTextMargins(0, 0, 40, 0);
     update_chrome_style();
 
     m_focus_glow_effect = new QGraphicsDropShadowEffect(this);
@@ -175,7 +177,7 @@ LocationEdit::LocationEdit(QWidget* parent)
     m_leading_icon_button->setAutoRaise(true);
     m_leading_icon_button->setFocusPolicy(Qt::NoFocus);
     m_leading_icon_button->setCursor(Qt::ArrowCursor);
-    m_leading_icon_button->setToolTip("Search");
+    m_leading_icon_button->hide();
 
     m_trailing_action_button = new QToolButton(this);
     m_trailing_action_button->setObjectName("LadybirdLocationAction");
@@ -185,13 +187,6 @@ LocationEdit::LocationEdit(QWidget* parent)
     m_trailing_action_button->setFocusPolicy(Qt::NoFocus);
     m_trailing_action_button->setCursor(Qt::ArrowCursor);
     m_trailing_action_button->hide();
-
-    m_loading_animation_timer = new QTimer(this);
-    m_loading_animation_timer->setInterval(80);
-    connect(m_loading_animation_timer, &QTimer::timeout, this, [this] {
-        m_loading_animation_frame = (m_loading_animation_frame + 1) % 12;
-        update_loading_icon();
-    });
 
     update_placeholder();
     update_location_icon();
@@ -407,8 +402,8 @@ void LocationEdit::resizeEvent(QResizeEvent* event)
 {
     QLineEdit::resizeEvent(event);
 
-    auto button_size = m_leading_icon_button->sizeHint();
-    auto y = (height() - button_size.height()) / 2 + 1;
+    auto button_size = m_leading_icon_button->size();
+    auto y = (height() - button_size.height()) / 2 + (m_leading_icon_button->property("notSecure").toBool() ? 0 : 1);
     m_leading_icon_button->move(12, y);
 
     auto trailing_button_size = m_trailing_action_button->sizeHint();
@@ -419,6 +414,7 @@ void LocationEdit::resizeEvent(QResizeEvent* event)
 void LocationEdit::search_engine_changed()
 {
     update_placeholder();
+    update_location_icon();
 }
 
 void LocationEdit::update_chrome_style()
@@ -463,28 +459,77 @@ void LocationEdit::update_location_icon()
     if (!m_leading_icon_button)
         return;
 
-    if (m_is_loading) {
-        update_loading_icon();
-        return;
-    }
+    auto update_indicator_style = [this](bool not_secure) {
+        if (m_leading_icon_button->property("notSecure").toBool() == not_secure)
+            return;
+
+        m_leading_icon_button->setProperty("notSecure", not_secure);
+        m_leading_icon_button->style()->unpolish(m_leading_icon_button);
+        m_leading_icon_button->style()->polish(m_leading_icon_button);
+    };
+
+    auto position_indicator = [this](int y_offset) {
+        auto button_size = m_leading_icon_button->size();
+        auto y = (height() - button_size.height()) / 2 + y_offset;
+        m_leading_icon_button->move(12, y);
+    };
+
+    auto hide_indicator = [&] {
+        update_indicator_style(false);
+        m_leading_icon_button->hide();
+        m_leading_icon_button->setText({});
+        m_leading_icon_button->setIcon({});
+        m_leading_icon_button->setToolTip({});
+        setTextMargins(0, 0, 40, 0);
+    };
+
+    auto show_icon = [&](ChromeIcon icon, QString const& tooltip) {
+        update_indicator_style(false);
+        m_leading_icon_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        m_leading_icon_button->setText({});
+        m_leading_icon_button->setIcon(create_chrome_icon(icon, palette()));
+        m_leading_icon_button->setIconSize({ 18, 18 });
+        m_leading_icon_button->setFixedSize(22, 22);
+        m_leading_icon_button->setToolTip(tooltip);
+        m_leading_icon_button->show();
+        position_indicator(1);
+        setTextMargins(22, 0, 40, 0);
+    };
+
+    auto show_not_secure_indicator = [&] {
+        update_indicator_style(true);
+        m_leading_icon_button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        m_leading_icon_button->setIcon({});
+        m_leading_icon_button->setText("Not secure");
+
+        auto width = m_leading_icon_button->fontMetrics().horizontalAdvance("Not secure") + 18;
+        m_leading_icon_button->setFixedSize(width, 22);
+        m_leading_icon_button->setToolTip("Not secure");
+        m_leading_icon_button->show();
+        position_indicator(0);
+        setTextMargins(width, 0, 40, 0);
+    };
 
     if (text_matches_current_url()) {
-        m_leading_icon_button->setIcon(m_favicon.isNull() ? create_chrome_icon(ChromeIcon::Globe, palette()) : m_favicon);
-        m_leading_icon_button->setToolTip("Page icon");
+        auto const& scheme = m_url->scheme();
+        if (scheme == "http"sv)
+            show_not_secure_indicator();
+        else
+            hide_indicator();
         return;
     }
 
-    m_leading_icon_button->setIcon(create_chrome_icon(ChromeIcon::Search, palette()));
-    m_leading_icon_button->setToolTip("Search");
-}
-
-void LocationEdit::update_loading_icon()
-{
-    if (!m_leading_icon_button)
-        return;
-
-    m_leading_icon_button->setIcon(loading_spinner_icon(palette(), m_loading_animation_frame));
-    m_leading_icon_button->setToolTip("Loading");
+    auto query = ak_string_from_qstring(current_query());
+    auto query_view = query.bytes_as_string_view().trim_whitespace();
+    if (query_view.is_empty()) {
+        hide_indicator();
+    } else if (WebView::location_looks_like_url(query_view)) {
+        show_icon(ChromeIcon::Globe, "Go to address");
+    } else if (WebView::Application::settings().search_engine().has_value()) {
+        show_icon(ChromeIcon::Search, "Search");
+    } else {
+        hide_indicator();
+    }
 }
 
 void LocationEdit::highlight_location()
@@ -540,28 +585,6 @@ void LocationEdit::set_url(Optional<URL::URL> url)
         setCursorPosition(0);
     }
 
-    update_location_icon();
-}
-
-void LocationEdit::set_loading(bool is_loading)
-{
-    if (m_is_loading == is_loading)
-        return;
-
-    m_is_loading = is_loading;
-    m_loading_animation_frame = 0;
-
-    if (m_is_loading)
-        m_loading_animation_timer->start();
-    else
-        m_loading_animation_timer->stop();
-
-    update_location_icon();
-}
-
-void LocationEdit::set_favicon(QIcon const& favicon)
-{
-    m_favicon = favicon;
     update_location_icon();
 }
 
