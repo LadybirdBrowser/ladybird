@@ -51,7 +51,7 @@ void CascadedProperties::revert_property(PropertyID property_id, Important impor
     }
 }
 
-void CascadedProperties::revert_layer_property(PropertyID property_id, Important important, Optional<FlyString> layer_name)
+void CascadedProperties::revert_layer_property(PropertyID property_id, Important important, CascadeOrigin cascade_origin, Optional<FlyString> layer_name, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
 {
     auto it = m_properties.find(property_id);
     if (it == m_properties.end())
@@ -60,6 +60,8 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
     entries.remove_all_matching([&](auto& entry) {
         return entry.property.property_id == property_id
             && entry.property.important == important
+            && entry.origin == cascade_origin
+            && entry.source_shadow_root == source_shadow_root
             && layer_name == entry.layer_name;
     });
     if (entries.is_empty()) {
@@ -75,7 +77,7 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
     auto& entries = m_properties.ensure(property_id);
 
     for (auto& entry : entries.in_reverse()) {
-        if (entry.origin == origin && entry.layer_name == layer_name) {
+        if (entry.origin == origin && entry.layer_name == layer_name && entry.source_shadow_root == source_shadow_root) {
             if (entry.property.important == Important::Yes && important == Important::No)
                 return;
             entry.property = StyleProperty {

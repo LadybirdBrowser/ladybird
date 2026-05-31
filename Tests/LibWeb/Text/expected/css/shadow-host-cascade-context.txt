@@ -1,0 +1,12 @@
+normal margin-top: 0px
+normal margin-right: 0px
+important padding-left: 13px
+normal custom property color: rgb(0, 128, 0)
+normal slotted vs host: 1px
+important slotted vs host: 2px
+normal nested slotted vs host: 1px
+important nested slotted vs host: 3px
+normal inline vs host: 1px
+important inline vs host: 2px
+revert-layer preserves shadow host context: rgb(255, 0, 0)
+revert-layer preserves slotted host context: 7px

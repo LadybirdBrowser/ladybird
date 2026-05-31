@@ -115,8 +115,6 @@ public:
         void visit_edges(GC::Cell::Visitor& visitor);
     };
 
-    [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules(DOM::AbstractElement, CascadeOrigin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
-
     NonnullRefPtr<InvalidationPlan> invalidation_plan_for_properties(Vector<InvalidationSet::Property> const&, StyleScope const&) const;
     Vector<HasInvalidationMetadata> const* has_invalidation_metadata_for_property(InvalidationSet::Property const&, StyleScope const&) const;
 
@@ -169,13 +167,18 @@ private:
         Vector<ScopedMatchingRule> rules;
     };
 
-    struct MatchingRuleSet {
-        Vector<ScopedMatchingRule> user_agent_rules;
-        Vector<ScopedMatchingRule> user_rules;
+    struct ContextMatchingRules {
+        GC::Ptr<DOM::ShadowRoot const> shadow_root;
         Vector<LayerMatchingRules> author_rules;
     };
 
-    [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::AbstractElement, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode, StyleScope const&) const;
+    struct MatchingRuleSet {
+        Vector<ScopedMatchingRule> user_agent_rules;
+        Vector<ScopedMatchingRule> user_rules;
+        Vector<ContextMatchingRules> author_contexts;
+    };
+
+    [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::AbstractElement, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
 
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&) const;
     [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&) const;
@@ -188,13 +191,16 @@ private:
 
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedProperties const&) const;
 
+    [[nodiscard]] Vector<ScopedMatchingRule> collect_matching_rules_from_context(DOM::AbstractElement, CascadeOrigin, GC::Ptr<DOM::ShadowRoot const>, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
+
     void cascade_declarations(
         CascadedProperties&,
         DOM::AbstractElement,
         Vector<ScopedMatchingRule> const&,
         CascadeOrigin,
         Important,
-        Optional<FlyString> layer_name) const;
+        Optional<FlyString> layer_name,
+        bool include_inline_style) const;
 
     void apply_property_list_to_cascade(
         CascadedProperties&,

@@ -361,7 +361,7 @@ static Optional<ResolvedScope> resolve_scope(DOM::AbstractElement abstract_eleme
     return resolve_scope_chain(abstract_element, rule, shadow_host, rule_root, *rule.scope_rule);
 }
 
-Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
+Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_from_context(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, GC::Ptr<DOM::ShadowRoot const> context_shadow_root, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const
 {
     auto const& root_node = abstract_element.element().root();
     auto shadow_root = as_if<DOM::ShadowRoot>(root_node);
@@ -449,18 +449,8 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
         });
     };
 
-    if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr))
-        add_rules_from_cache(*rule_cache, nullptr);
-
-    if (shadow_root) {
-        if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root))
-            add_rules_from_cache(*rule_cache, shadow_root);
-    }
-
-    if (element_shadow_root) {
-        if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, element_shadow_root))
-            add_rules_from_cache(*rule_cache, element_shadow_root);
-    }
+    if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, context_shadow_root))
+        add_rules_from_cache(*rule_cache, context_shadow_root);
 
     // Per "find flattened slotables" (https://dom.spec.whatwg.org/#find-flattened-slotables),
     // a <slot> element whose root is a shadow root recurses into its own slottables instead of
@@ -475,6 +465,8 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
     if (!subject_is_reslotted_slot) {
         for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
             if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root())) {
+                if (slot_shadow_root != context_shadow_root)
+                    continue;
                 if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
                     add_rules_to_run(rule_cache->slotted_rules, slot_shadow_root);
                 }
@@ -486,19 +478,22 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules(
     // Rules from any ancestor style scope can apply, including from the element's own shadow root
     // (for :host::part() within the shadow DOM's own stylesheet).
     if (shadow_root && (abstract_element.pseudo_element().has_value() || !abstract_element.element().part_names().is_empty())) {
-        if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root)) {
-            add_rules_to_run(rule_cache->part_rules, shadow_root);
+        if (context_shadow_root == shadow_root) {
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root))
+                add_rules_to_run(rule_cache->part_rules, shadow_root);
         }
         for (auto* part_shadow_root = abstract_element.element().first_flat_tree_ancestor_of_type<DOM::ShadowRoot>();
             part_shadow_root;
             part_shadow_root = part_shadow_root->first_flat_tree_ancestor_of_type<DOM::ShadowRoot>()) {
 
-            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root)) {
+            if (context_shadow_root != part_shadow_root)
+                continue;
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root))
                 add_rules_to_run(rule_cache->part_rules, part_shadow_root);
-            }
         }
-        if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr)) {
-            add_rules_to_run(rule_cache->part_rules, nullptr);
+        if (!context_shadow_root) {
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr))
+                add_rules_to_run(rule_cache->part_rules, nullptr);
         }
     }
 
@@ -677,7 +672,7 @@ void StyleComputer::apply_property_list_to_cascade(
             if (longhand_value.is_revert()) {
                 cascaded_properties.revert_property(longhand_id, important, cascade_origin);
             } else if (longhand_value.is_revert_layer()) {
-                cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
+                cascaded_properties.revert_layer_property(longhand_id, important, cascade_origin, layer_name, source_shadow_root);
             } else {
                 // Track the exact shadow-root scope that supplied this winning declaration. A constructable
                 // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
@@ -694,55 +689,51 @@ void StyleComputer::cascade_declarations(
     Vector<ScopedMatchingRule> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
-    Optional<FlyString> layer_name) const
+    Optional<FlyString> layer_name,
+    bool include_inline_style) const
 {
     for (auto const& match : matching_rules) {
         auto const& declaration = match.rule->declaration();
         apply_property_list_to_cascade(cascaded_properties, abstract_element, declaration.properties(), cascade_origin, important, layer_name, &declaration, match.shadow_root, BypassPseudoElementPropertyWhitelist::No);
     }
 
-    if (cascade_origin == CascadeOrigin::Author) {
+    if (include_inline_style && cascade_origin == CascadeOrigin::Author) {
         if (auto const inline_style = abstract_element.inline_style())
             apply_property_list_to_cascade(cascaded_properties, abstract_element, inline_style->properties(), cascade_origin, important, layer_name, inline_style, nullptr, BypassPseudoElementPropertyWhitelist::Yes);
     }
 }
 
-static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<StyleComputer::ScopedMatchingRule> const& matching_rules, OrderedHashMap<FlyString, StyleProperty>& custom_properties)
+static void cascade_custom_properties(DOM::AbstractElement abstract_element, Vector<StyleComputer::ScopedMatchingRule> const& matching_rules, OrderedHashMap<FlyString, StyleProperty>& custom_properties, Important important, bool include_inline_style)
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
         needed_capacity += matching_rule.rule->declaration().custom_properties().size();
 
     auto const inline_style = abstract_element.inline_style();
-    if (inline_style)
+    if (include_inline_style && inline_style)
         needed_capacity += inline_style->custom_properties().size();
 
     custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
 
-    OrderedHashMap<FlyString, StyleProperty> important_custom_properties;
     for (auto const& matching_rule : matching_rules) {
         for (auto const& it : matching_rule.rule->declaration().custom_properties()) {
+            if (it.value.important != important)
+                continue;
             auto style_value = it.value.value;
             if (style_value->is_revert_layer())
                 continue;
 
-            if (it.value.important == Important::Yes) {
-                important_custom_properties.set(it.key, it.value);
-            }
             custom_properties.set(it.key, it.value);
         }
     }
 
-    if (inline_style) {
+    if (include_inline_style && inline_style) {
         for (auto const& it : inline_style->custom_properties()) {
-            if (it.value.important == Important::Yes) {
-                important_custom_properties.set(it.key, it.value);
-            }
+            if (it.value.important != important)
+                continue;
             custom_properties.set(it.key, it.value);
         }
     }
-
-    custom_properties.update(important_custom_properties);
 }
 
 static RefPtr<CustomPropertyData const> inheritable_custom_property_data(DOM::AbstractElement abstract_element)
@@ -1407,30 +1398,87 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
     }
 }
 
-StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode, StyleScope const& style_scope) const
+StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
 {
+    auto collect_author_contexts = [&] {
+        Vector<GC::Ptr<DOM::ShadowRoot const>, 4> context_shadow_roots;
+        auto append_context = [&](GC::Ptr<DOM::ShadowRoot const> shadow_root) {
+            if (context_shadow_roots.contains_slow(shadow_root))
+                return;
+            context_shadow_roots.append(shadow_root);
+        };
+
+        append_context(nullptr);
+
+        // https://drafts.csswg.org/css-cascade-5/#cascade-context
+        // Keep contexts in outer-to-inner order so the cascade can apply them in the spec order without re-sorting
+        // individual declarations. Most elements only have the document context, and the small vector avoids heap
+        // storage for the common shadow-depth cases.
+        if (auto const* shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root())) {
+            Vector<GC::Ref<DOM::ShadowRoot const>, 4> ancestor_shadow_roots;
+            for (auto const* current_shadow_root = shadow_root; current_shadow_root;) {
+                ancestor_shadow_roots.append(*current_shadow_root);
+                auto const* host = current_shadow_root->host();
+                if (!host)
+                    break;
+                current_shadow_root = as_if<DOM::ShadowRoot>(host->root());
+            }
+            for (auto& ancestor_shadow_root : ancestor_shadow_roots.in_reverse())
+                append_context(ancestor_shadow_root);
+        }
+
+        if (!is<HTML::HTMLSlotElement>(abstract_element.element()) || !abstract_element.element().root().is_shadow_root()) {
+            for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
+                if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root()))
+                    append_context(slot_shadow_root);
+            }
+        }
+
+        if (auto element_shadow_root = abstract_element.element().shadow_root())
+            append_context(element_shadow_root);
+
+        Vector<ContextMatchingRules> author_contexts;
+        author_contexts.ensure_capacity(context_shadow_roots.size());
+
+        for (auto shadow_root : context_shadow_roots) {
+            auto& context_style_scope = shadow_root ? shadow_root->style_scope() : document().style_scope();
+            context_style_scope.build_rule_cache_if_needed();
+
+            ContextMatchingRules context {
+                .shadow_root = shadow_root,
+                .author_rules = {},
+            };
+
+            for (auto const& layer_name : context_style_scope.m_rule_cache->qualified_layer_names_in_order) {
+                auto layer_rules = collect_matching_rules_from_context(abstract_element, CascadeOrigin::Author, shadow_root, attempted_pseudo_class_matches, layer_name);
+                sort_matching_rules(layer_rules);
+                context.author_rules.append({ layer_name, layer_rules });
+            }
+
+            auto unlayered_author_rules = collect_matching_rules_from_context(abstract_element, CascadeOrigin::Author, shadow_root, attempted_pseudo_class_matches);
+            sort_matching_rules(unlayered_author_rules);
+            context.author_rules.append({ {}, unlayered_author_rules });
+
+            author_contexts.append(move(context));
+        }
+
+        return author_contexts;
+    };
+
     // First, we collect all the CSS rules whose selectors match `element`:
     MatchingRuleSet matching_rule_set;
-    matching_rule_set.user_agent_rules = collect_matching_rules(abstract_element, CascadeOrigin::UserAgent, attempted_pseudo_class_matches);
+    matching_rule_set.user_agent_rules = collect_matching_rules_from_context(abstract_element, CascadeOrigin::UserAgent, nullptr, attempted_pseudo_class_matches);
     sort_matching_rules(matching_rule_set.user_agent_rules);
-    matching_rule_set.user_rules = collect_matching_rules(abstract_element, CascadeOrigin::User, attempted_pseudo_class_matches);
+    matching_rule_set.user_rules = collect_matching_rules_from_context(abstract_element, CascadeOrigin::User, nullptr, attempted_pseudo_class_matches);
     sort_matching_rules(matching_rule_set.user_rules);
-
-    // @layer-ed author rules
-    for (auto const& layer_name : style_scope.m_rule_cache->qualified_layer_names_in_order) {
-        auto layer_rules = collect_matching_rules(abstract_element, CascadeOrigin::Author, attempted_pseudo_class_matches, layer_name);
-        sort_matching_rules(layer_rules);
-        matching_rule_set.author_rules.append({ layer_name, layer_rules });
-    }
-    // Un-@layer-ed author rules
-    auto unlayered_author_rules = collect_matching_rules(abstract_element, CascadeOrigin::Author, attempted_pseudo_class_matches);
-    sort_matching_rules(unlayered_author_rules);
-    matching_rule_set.author_rules.append({ {}, unlayered_author_rules });
+    matching_rule_set.author_contexts = collect_author_contexts();
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         VERIFY(abstract_element.pseudo_element().has_value());
-        auto author_rules_has_any_rules = any_of(matching_rule_set.author_rules, [](auto const& layer) {
-            return !layer.rules.is_empty();
+        auto author_rules_has_any_rules = any_of(matching_rule_set.author_contexts, [](auto const& context) {
+            return any_of(context.author_rules, [](auto const& layer) {
+                return !layer.rules.is_empty();
+            });
         });
         did_match_any_pseudo_element_rules = author_rules_has_any_rules
             || !matching_rule_set.user_rules.is_empty()
@@ -1450,10 +1498,10 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
     }
 
     // Normal user agent declarations
-    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {});
+    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, false);
 
     // Normal user declarations
-    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {});
+    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, false);
 
     // Author presentational hints
     // The spec calls this a special "Author presentational hint origin":
@@ -1478,21 +1526,32 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
         }
     }
 
-    // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
-    for (auto const& layer : matching_rule_set.author_rules) {
-        cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name);
+    auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
+    auto cascade_inline_style = [&](Important important) {
+        cascade_declarations(cascaded_properties, abstract_element, {}, CascadeOrigin::Author, important, {}, true);
+    };
+
+    // Normal author declarations, with inner contexts first so outer contexts win.
+    for (auto const& context : matching_rule_set.author_contexts.in_reverse()) {
+        for (auto const& layer : context.author_rules)
+            cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, false);
+        if (context.shadow_root == element_context_shadow_root)
+            cascade_inline_style(Important::No);
     }
 
-    // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
-    for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::Yes, {});
+    // Important author declarations, with outer contexts first so inner contexts win.
+    for (auto const& context : matching_rule_set.author_contexts) {
+        for (auto const& layer : context.author_rules.in_reverse())
+            cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, false);
+        if (context.shadow_root == element_context_shadow_root)
+            cascade_inline_style(Important::Yes);
     }
 
     // Important user declarations
-    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {});
+    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, false);
 
     // Important user agent declarations
-    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {});
+    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, false);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
@@ -2017,7 +2076,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     PseudoClassBitmap attempted_pseudo_class_matches;
-    auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode, style_scope);
+    auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
@@ -2043,8 +2102,24 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     // Resolve all the CSS custom properties ("variables") for this element:
     if (!abstract_element.pseudo_element().has_value() || pseudo_element_supports_property(*abstract_element.pseudo_element(), PropertyID::Custom)) {
         OrderedHashMap<FlyString, StyleProperty> cascaded_all;
-        for (auto& layer : matching_rule_set.author_rules) {
-            cascade_custom_properties(abstract_element, layer.rules, cascaded_all);
+
+        auto element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
+        auto cascade_inline_style = [&](Important important) {
+            cascade_custom_properties(abstract_element, {}, cascaded_all, important, true);
+        };
+
+        for (auto const& context : matching_rule_set.author_contexts.in_reverse()) {
+            for (auto const& layer : context.author_rules)
+                cascade_custom_properties(abstract_element, layer.rules, cascaded_all, Important::No, false);
+            if (context.shadow_root == element_context_shadow_root)
+                cascade_inline_style(Important::No);
+        }
+
+        for (auto const& context : matching_rule_set.author_contexts) {
+            for (auto const& layer : context.author_rules.in_reverse())
+                cascade_custom_properties(abstract_element, layer.rules, cascaded_all, Important::Yes, false);
+            if (context.shadow_root == element_context_shadow_root)
+                cascade_inline_style(Important::Yes);
         }
 
         RefPtr<CustomPropertyData const> parent_data;

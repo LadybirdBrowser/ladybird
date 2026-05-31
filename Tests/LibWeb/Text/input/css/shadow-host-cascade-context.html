@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .outer {
+        margin: 0;
+        padding-left: 0 !important;
+        --normal-color: green;
+        color: var(--normal-color);
+    }
+
+    .revert-layer-outer {
+        color: revert-layer;
+    }
+</style>
+<script>
+    test(() => {
+        class ShadowHostCascadeContextElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const style = document.createElement("style");
+                style.textContent = `
+                    :host(.outer) {
+                        margin: 4px 16px;
+                    }
+
+                    :host {
+                        padding-left: 13px !important;
+                        --normal-color: red;
+                    }
+                `;
+                shadowRoot.appendChild(style);
+            }
+        }
+        customElements.define("shadow-host-cascade-context", ShadowHostCascadeContextElement);
+
+        const outerElement = document.createElement("shadow-host-cascade-context");
+        outerElement.className = "outer";
+        document.body.appendChild(outerElement);
+
+        const outerStyle = getComputedStyle(outerElement);
+        println(`normal margin-top: ${outerStyle.marginTop}`);
+        println(`normal margin-right: ${outerStyle.marginRight}`);
+        println(`important padding-left: ${outerStyle.paddingLeft}`);
+        println(`normal custom property color: ${outerStyle.color}`);
+
+        class ShadowCascadeSlotElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                shadowRoot.innerHTML = `
+                    <style>
+                        ::slotted(shadow-cascade-host) {
+                            margin-left: 1px;
+                            margin-right: 1px !important;
+                        }
+                    </style>
+                    <slot></slot>
+                `;
+            }
+        }
+        customElements.define("shadow-cascade-slot", ShadowCascadeSlotElement);
+
+        class ShadowCascadeHostElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const style = document.createElement("style");
+                style.textContent = `
+                    :host {
+                        margin-left: 2px;
+                        margin-right: 2px !important;
+                    }
+                `;
+                shadowRoot.appendChild(style);
+            }
+        }
+        customElements.define("shadow-cascade-host", ShadowCascadeHostElement);
+
+        const slotHost = document.createElement("shadow-cascade-slot");
+        const slottedElement = document.createElement("shadow-cascade-host");
+        slotHost.appendChild(slottedElement);
+        document.body.appendChild(slotHost);
+
+        const slottedStyle = getComputedStyle(slottedElement);
+        println(`normal slotted vs host: ${slottedStyle.marginLeft}`);
+        println(`important slotted vs host: ${slottedStyle.marginRight}`);
+
+        class ShadowCascadeNestedSlotElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                shadowRoot.innerHTML = `
+                    <style>
+                        ::slotted(shadow-cascade-nested-host) {
+                            margin-left: 1px;
+                            margin-right: 1px !important;
+                        }
+                    </style>
+                    <div><slot></slot></div>
+                `;
+
+                const inner = shadowRoot.querySelector("div");
+                const innerShadowRoot = inner.attachShadow({ mode: "open" });
+                innerShadowRoot.innerHTML = `
+                    <style>
+                        ::slotted(shadow-cascade-nested-host) {
+                            margin-left: 2px;
+                            margin-right: 2px !important;
+                        }
+                    </style>
+                    <slot></slot>
+                `;
+            }
+        }
+        customElements.define("shadow-cascade-nested-slot", ShadowCascadeNestedSlotElement);
+
+        class ShadowCascadeNestedHostElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const style = document.createElement("style");
+                style.textContent = `
+                    :host {
+                        margin-left: 3px;
+                        margin-right: 3px !important;
+                    }
+                `;
+                shadowRoot.appendChild(style);
+            }
+        }
+        customElements.define("shadow-cascade-nested-host", ShadowCascadeNestedHostElement);
+
+        const nestedSlotHost = document.createElement("shadow-cascade-nested-slot");
+        const nestedSlottedElement = document.createElement("shadow-cascade-nested-host");
+        nestedSlotHost.appendChild(nestedSlottedElement);
+        document.body.appendChild(nestedSlotHost);
+
+        const nestedSlottedStyle = getComputedStyle(nestedSlottedElement);
+        println(`normal nested slotted vs host: ${nestedSlottedStyle.marginLeft}`);
+        println(`important nested slotted vs host: ${nestedSlottedStyle.marginRight}`);
+
+        class ShadowInlineCascadeContextElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                const style = document.createElement("style");
+                style.textContent = `
+                    :host {
+                        margin-top: 2px;
+                        margin-bottom: 2px !important;
+                    }
+                `;
+                shadowRoot.appendChild(style);
+            }
+        }
+        customElements.define("shadow-inline-cascade-context", ShadowInlineCascadeContextElement);
+
+        const inlineElement = document.createElement("shadow-inline-cascade-context");
+        inlineElement.setAttribute("style", "margin-top: 1px; margin-bottom: 1px !important;");
+        document.body.appendChild(inlineElement);
+
+        const inlineStyle = getComputedStyle(inlineElement);
+        println(`normal inline vs host: ${inlineStyle.marginTop}`);
+        println(`important inline vs host: ${inlineStyle.marginBottom}`);
+
+        class ShadowRevertLayerHostElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            color: red;
+                        }
+                    </style>
+                `;
+            }
+        }
+        customElements.define("shadow-revert-layer-host", ShadowRevertLayerHostElement);
+
+        const revertLayerHost = document.createElement("shadow-revert-layer-host");
+        revertLayerHost.className = "revert-layer-outer";
+        document.body.appendChild(revertLayerHost);
+
+        const revertLayerHostStyle = getComputedStyle(revertLayerHost);
+        println(`revert-layer preserves shadow host context: ${revertLayerHostStyle.color}`);
+
+        class ShadowRevertLayerSlotElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                shadowRoot.innerHTML = `
+                    <style>
+                        ::slotted(shadow-revert-layer-slotted) {
+                            margin-left: revert-layer;
+                        }
+                    </style>
+                    <slot></slot>
+                `;
+            }
+        }
+        customElements.define("shadow-revert-layer-slot", ShadowRevertLayerSlotElement);
+
+        class ShadowRevertLayerSlottedElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadowRoot = this.attachShadow({ mode: "open" });
+                shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            margin-left: 7px;
+                        }
+                    </style>
+                `;
+            }
+        }
+        customElements.define("shadow-revert-layer-slotted", ShadowRevertLayerSlottedElement);
+
+        const revertLayerSlotHost = document.createElement("shadow-revert-layer-slot");
+        const revertLayerSlottedElement = document.createElement("shadow-revert-layer-slotted");
+        revertLayerSlotHost.appendChild(revertLayerSlottedElement);
+        document.body.appendChild(revertLayerSlotHost);
+
+        const revertLayerSlottedStyle = getComputedStyle(revertLayerSlottedElement);
+        println(`revert-layer preserves slotted host context: ${revertLayerSlottedStyle.marginLeft}`);
+    });
+</script>
