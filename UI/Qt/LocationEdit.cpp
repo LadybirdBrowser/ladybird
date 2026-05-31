@@ -151,7 +151,7 @@ LocationEdit::LocationEdit(QWidget* parent)
     , m_autocomplete(new Autocomplete(this))
 {
     setObjectName("LadybirdLocationEdit");
-    setMinimumHeight(37);
+    setMinimumHeight(34);
     setTextMargins(38, 0, 40, 0);
     update_chrome_style();
 
