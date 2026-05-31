@@ -1138,26 +1138,16 @@ String CanvasRenderingContext2D::shadow_color() const
 void CanvasRenderingContext2D::set_shadow_color(String color)
 {
     // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-    auto& context = *m_element;
 
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
-    auto style_value = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, color, CSS::PropertyID::Color);
-    if (style_value && style_value->has_color()) {
-        DOM::AbstractElement abstract_element { context };
-        context.document().update_style_if_needed_for_element(abstract_element);
+    auto parsed_value = parse_a_css_color_value(color);
 
-        CSS::ColorResolutionContext color_resolution_context {};
-        if (context.computed_properties())
-            color_resolution_context = CSS::ColorResolutionContext::for_element(abstract_element);
-
-        auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
-
-        // 4. Set this's shadow color to parsedValue.
-        drawing_state().shadow_color = parsedValue;
-    } else {
-        // 3. If parsedValue is failure, then return.
+    // 3. If parsedValue is failure, then return.
+    if (!parsed_value.has_value())
         return;
-    }
+
+    // 4. Set this's shadow color to parsedValue.
+    drawing_state().shadow_color = parsed_value.value();
 }
 void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
 {

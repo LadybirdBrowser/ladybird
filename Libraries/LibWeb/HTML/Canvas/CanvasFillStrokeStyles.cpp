@@ -28,36 +28,17 @@ void CanvasFillStrokeStyles::set_fill_style(FillOrStrokeStyleVariant style)
         // 1. If the given value is a string, then:
         [&](String const& string) {
             // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-            HTMLCanvasElement* context = canvas_element().visit(
-                [&](HTMLCanvasElement* canvas_element) -> HTMLCanvasElement* {
-                    return canvas_element;
-                },
-                [&](OffscreenCanvas*) -> HTMLCanvasElement* {
-                    return nullptr;
-                });
 
             // 2. Let parsedValue be the result of parsing the given value with context if non-null.
-            // FIXME: Parse a color value
-            // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-            auto style_value = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, string, CSS::PropertyID::Color);
-            if (style_value && style_value->has_color()) {
-                CSS::ColorResolutionContext color_resolution_context {};
+            auto parsed_value = parse_a_css_color_value(string);
 
-                if (context) {
-                    DOM::AbstractElement abstract_element { *context };
-                    context->document().update_style_if_needed_for_element(abstract_element);
-                    if (context->computed_properties())
-                        color_resolution_context = CSS::ColorResolutionContext::for_element(abstract_element);
-                }
+            // 3. If parsedValue is failure, then return.
 
-                auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
-
-                // 4. Set this's fill style to parsedValue.
-                drawing_state().fill_style = parsedValue;
-            } else {
-                // 3. If parsedValue is failure, then return.
+            if (!parsed_value.has_value())
                 return;
-            }
+
+            // 4. Set this's fill style to parsedValue.
+            drawing_state().fill_style = parsed_value.value();
 
             // 5. Return.
             return;
@@ -83,36 +64,16 @@ void CanvasFillStrokeStyles::set_stroke_style(FillOrStrokeStyleVariant style)
         // 1. If the given value is a string, then:
         [&](String const& string) {
             // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-            HTMLCanvasElement* context = canvas_element().visit(
-                [&](HTMLCanvasElement* canvas_element) -> HTMLCanvasElement* {
-                    return canvas_element;
-                },
-                [&](OffscreenCanvas*) -> HTMLCanvasElement* {
-                    return nullptr;
-                });
 
             // 2. Let parsedValue be the result of parsing the given value with context if non-null.
-            // FIXME: Parse a color value
-            // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-            auto style_value = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, string, CSS::PropertyID::Color);
-            if (style_value && style_value->has_color()) {
-                CSS::ColorResolutionContext color_resolution_context {};
+            auto parsed_value = parse_a_css_color_value(string);
 
-                if (context) {
-                    DOM::AbstractElement abstract_element { *context };
-                    context->document().update_style_if_needed_for_element(abstract_element);
-                    if (context->computed_properties())
-                        color_resolution_context = CSS::ColorResolutionContext::for_element(abstract_element);
-                }
-
-                auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
-
-                // 4. Set this's stroke style to parsedValue.
-                drawing_state().stroke_style = parsedValue;
-            } else {
-                // 3. If parsedValue is failure, then return.
+            // 3. If parsedValue is failure, then return.
+            if (!parsed_value.has_value())
                 return;
-            }
+
+            // 4. Set this's stroke style to parsedValue.
+            drawing_state().stroke_style = parsed_value.value();
 
             // 5. Return.
             return;
