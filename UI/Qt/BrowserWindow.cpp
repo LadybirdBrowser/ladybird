@@ -227,6 +227,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setWindowIcon(app_icon());
     qApp->installEventFilter(this);
 
+    update_tabs_display();
+
     // Listen for DPI changes
     m_device_pixel_ratio = devicePixelRatio();
     m_current_screen = screen();
@@ -457,6 +459,13 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 BrowserWindow::~BrowserWindow()
 {
     qApp->removeEventFilter(this);
+}
+
+void BrowserWindow::update_tabs_display()
+{
+    auto const& settings = Application::settings().tab_settings();
+    m_tabs_container->set_vertical_tabs_enabled(settings.vertical_tabs_enabled);
+    m_tabs_container->set_vertical_tabs_expanded(settings.vertical_tabs_expanded);
 }
 
 void BrowserWindow::rebuild_bookmarks_menu()
@@ -840,6 +849,7 @@ void BrowserWindow::initialize_tab_buttons(Tab* tab)
 
     m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
     m_tabs_container->tab_bar()->setTabButton(index, TAB_CLOSE_BUTTON_POSITION, close_button);
+    m_tabs_container->update_tab_button_visibility();
 }
 
 void BrowserWindow::update_tab_close_button_icons()
@@ -934,8 +944,10 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
 
     switch (play_state) {
     case Web::HTML::AudioPlayState::Paused:
-        if (tab->view().page_mute_state() == Web::HTML::MuteState::Unmuted)
+        if (tab->view().page_mute_state() == Web::HTML::MuteState::Unmuted) {
             m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
+            m_tabs_container->update_tab_button_visibility();
+        }
         break;
 
     case Web::HTML::AudioPlayState::Playing:
@@ -950,6 +962,7 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
             switch (tab->view().audio_play_state()) {
             case Web::HTML::AudioPlayState::Paused:
                 m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, nullptr);
+                m_tabs_container->update_tab_button_visibility();
                 break;
             case Web::HTML::AudioPlayState::Playing:
                 auto* button = m_tabs_container->tab_bar()->tabButton(index, AUDIO_STATE_BUTTON_POSITION);
@@ -960,6 +973,7 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
         });
 
         m_tabs_container->tab_bar()->setTabButton(index, AUDIO_STATE_BUTTON_POSITION, button);
+        m_tabs_container->update_tab_button_visibility();
         break;
     }
 }

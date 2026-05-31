@@ -109,6 +109,26 @@ static void draw_star_icon(QPainter& painter, QColor const& color, bool filled)
     painter.drawPath(path);
 }
 
+static void draw_vertical_tab_bar_icon(QPainter& painter, QColor const& color, bool expanded)
+{
+    painter.setPen(chrome_icon_pen(color, 1.55));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRoundedRect(QRectF(3.8, 4.2, 12.4, 11.6), 1.6, 1.6);
+    painter.drawLine(QPointF(7.8, 4.6), QPointF(7.8, 15.4));
+
+    QPainterPath arrow;
+    if (expanded) {
+        arrow.moveTo(12.6, 7.2);
+        arrow.lineTo(9.8, 10.0);
+        arrow.lineTo(12.6, 12.8);
+    } else {
+        arrow.moveTo(10.2, 7.2);
+        arrow.lineTo(13.0, 10.0);
+        arrow.lineTo(10.2, 12.8);
+    }
+    draw_stroked_icon_path(painter, arrow, color, 1.85);
+}
+
 static QPixmap create_transparent_icon_pixmap(QSize logical_size, qreal device_pixel_ratio)
 {
     QPixmap pixmap(physical_size_for_device_pixel_ratio(logical_size, device_pixel_ratio));
@@ -201,6 +221,12 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         painter.setPen(chrome_icon_pen(color, 1.85));
         painter.drawLine(QPointF(5.0, 7.6), QPointF(10.0, 12.6));
         painter.drawLine(QPointF(10.0, 12.6), QPointF(15.0, 7.6));
+        break;
+    case ChromeIcon::VerticalTabBarCollapse:
+        draw_vertical_tab_bar_icon(painter, color, true);
+        break;
+    case ChromeIcon::VerticalTabBarExpand:
+        draw_vertical_tab_bar_icon(painter, color, false);
         break;
     case ChromeIcon::WindowMinimize:
         painter.setPen(chrome_icon_pen(color, 1.65));

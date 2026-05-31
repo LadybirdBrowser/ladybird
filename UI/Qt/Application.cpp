@@ -297,6 +297,14 @@ void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresen
     clipboard->setMimeData(mime_data);
 }
 
+void Application::update_tabs_display() const
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->update_tabs_display();
+    }
+}
+
 void Application::rebuild_bookmarks_menu() const
 {
     for (auto* widget : QApplication::topLevelWidgets()) {

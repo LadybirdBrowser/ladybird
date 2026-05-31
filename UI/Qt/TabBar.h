@@ -17,6 +17,7 @@
 #include <QWidget>
 
 class QAction;
+class QBoxLayout;
 class QContextMenuEvent;
 class QDragEnterEvent;
 class QDragLeaveEvent;
@@ -27,13 +28,21 @@ class QIcon;
 class QMouseEvent;
 class QPaintEvent;
 class QPixmap;
+class QResizeEvent;
 class QToolButton;
 class QVariantAnimation;
+class QWheelEvent;
 
 namespace Ladybird {
 
 class Tab;
 class TabWidget;
+
+enum class TabLayout : u8 {
+    Horizontal,
+    VerticalCollapsed,
+    VerticalExpanded,
+};
 
 class TabBar final : public QTabBar {
     Q_OBJECT
@@ -43,20 +52,30 @@ public:
 
     void set_available_width(int width);
 
-    virtual QSize tabSizeHint(int index) const override;
-    virtual void contextMenuEvent(QContextMenuEvent* event) override;
+    TabLayout tab_layout() const { return m_tab_layout; }
+    void set_tab_layout(TabLayout);
+    void refresh_tab_layout();
 
 private:
+    virtual QSize sizeHint() const override;
+    virtual QSize minimumSizeHint() const override;
+    virtual QSize tabSizeHint(int index) const override;
+
+    virtual void resizeEvent(QResizeEvent*) override;
+    virtual void tabLayoutChange() override;
+
+    virtual void paintEvent(QPaintEvent*) override;
+    virtual void contextMenuEvent(QContextMenuEvent* event) override;
     virtual void dragEnterEvent(QDragEnterEvent*) override;
     virtual void dragLeaveEvent(QDragLeaveEvent*) override;
     virtual void dragMoveEvent(QDragMoveEvent*) override;
     virtual void dropEvent(QDropEvent*) override;
-    virtual void paintEvent(QPaintEvent*) override;
     virtual void leaveEvent(QEvent*) override;
     virtual void mouseDoubleClickEvent(QMouseEvent*) override;
     virtual void mousePressEvent(QMouseEvent*) override;
     virtual void mouseMoveEvent(QMouseEvent*) override;
     virtual void mouseReleaseEvent(QMouseEvent*) override;
+    virtual void wheelEvent(QWheelEvent*) override;
 
     int insertion_index_at(QPoint const&) const;
     int drop_indicator_index_for_insertion_index(int insertion_index) const;
@@ -65,11 +84,23 @@ private:
     void start_tab_drag(int index);
     void start_hover_animation(int tab_index, qreal target_progress);
 
+    QRect visual_tab_rect(int index) const;
+    int tab_index_at(QPoint const&) const;
+    QSize vertical_size_hint(int tab_count) const;
+
+    int max_vertical_scroll_offset() const;
+    void set_vertical_scroll_offset(int);
+
+    void ensure_tab_visible(int index);
+    void update_tab_button_geometry();
+
     QPointer<TabWidget> m_tab_widget;
 
+    TabLayout m_tab_layout { TabLayout::Horizontal };
     int m_available_width { 0 };
     int m_hovered_tab_index { -1 };
     int m_hover_animation_tab_index { -1 };
+    int m_vertical_scroll_offset { 0 };
     qreal m_hover_progress { 0.0 };
     int m_drop_indicator_index { -1 };
     QVariantAnimation* m_hover_animation { nullptr };
@@ -86,6 +117,7 @@ public:
 
     TabBar* tab_bar() const { return m_tab_bar; }
     QWidget* tab_bar_row() const { return m_tab_bar_row; }
+    QRect tab_strip_global_rect() const;
 
     void add_tab(Tab* widget, QString const& label);
     void insert_tab(int index, Tab* widget, QString const& label);
@@ -106,9 +138,12 @@ public:
     void set_tab_tooltip(int index, QString const& tip) { m_tab_bar->setTabToolTip(index, tip); }
     void set_tab_icon(int index, QIcon const& icon) { m_tab_bar->setTabIcon(index, icon); }
 
-    void set_tab_bar_visible(bool visible) { m_tab_bar_row->setVisible(visible); }
+    void set_tab_bar_visible(bool visible);
     void set_new_tab_action(QAction* action);
     void set_window_controls_visible(bool);
+    void set_vertical_tabs_enabled(bool);
+    void set_vertical_tabs_expanded(bool);
+    void update_tab_button_visibility();
 
 signals:
     void current_tab_changed(int index);
@@ -123,7 +158,14 @@ protected:
     virtual void resizeEvent(QResizeEvent*) override;
 
 private:
+    TabLayout current_tab_layout() const;
+    QWidget* tab_drag_area_widget() const;
+
+    void rebuild_layout();
+    void rebuild_layout_for_horizontal_tabs();
+    void rebuild_layout_for_vertical_tabs();
     void update_tab_layout();
+    void update_tab_chrome_visibility();
     void recreate_icons();
     void update_chrome_style();
     void update_window_button_icons();
@@ -139,6 +181,16 @@ private:
     QToolButton* m_maximize_window_button { nullptr };
     QToolButton* m_close_window_button { nullptr };
     QWidget* m_tab_bar_row { nullptr };
+    QWidget* m_vertical_tab_bar_column { nullptr };
+    QWidget* m_vertical_tabs_content { nullptr };
+    QBoxLayout* m_main_layout { nullptr };
+    QBoxLayout* m_tab_bar_row_layout { nullptr };
+    QBoxLayout* m_vertical_tab_bar_column_layout { nullptr };
+    QBoxLayout* m_vertical_tabs_content_layout { nullptr };
+    bool m_tab_bar_visible { true };
+    bool m_window_controls_visible { true };
+    bool m_vertical_tabs_enabled { false };
+    bool m_vertical_tabs_expanded { true };
     bool m_is_updating_chrome_style { false };
 };
 

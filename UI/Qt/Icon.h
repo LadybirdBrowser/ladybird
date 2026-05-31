@@ -31,6 +31,8 @@ enum class ChromeIcon {
     Folder,
     ChevronUp,
     ChevronDown,
+    VerticalTabBarCollapse,
+    VerticalTabBarExpand,
     WindowMinimize,
     WindowMaximize,
     WindowRestore,

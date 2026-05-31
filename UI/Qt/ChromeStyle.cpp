@@ -721,6 +721,12 @@ QWidget#LadybirdTabStrip {{
     border-bottom: 1px solid {8};
 }}
 
+QWidget#LadybirdVerticalTabBar {{
+    color: {5};
+    background: {1};
+    border-right: 1px solid {8};
+}}
+
 QToolButton#LadybirdNewTabButton,
 QPushButton#LadybirdTabButton {{
     color: {5};
@@ -734,6 +740,11 @@ QToolButton#LadybirdNewTabButton {{
     min-width: 30px;
     min-height: 30px;
     border-radius: 16px;
+}}
+
+QToolButton#LadybirdNewTabButton[verticalTabsExpanded="true"] {{
+    padding-left: 14px;
+    text-align: left;
 }}
 
 QPushButton#LadybirdTabButton {{

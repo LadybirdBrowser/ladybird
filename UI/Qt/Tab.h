@@ -130,6 +130,7 @@ private:
     QMenu* m_media_context_menu { nullptr };
     QMenu* m_select_dropdown { nullptr };
 
+    QAction* m_toggle_vertical_tabs_expanded_action { nullptr };
     QAction* m_navigate_back_action { nullptr };
     QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };

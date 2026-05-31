@@ -106,6 +106,8 @@ public:
     QAction& new_window_action() const { return *m_new_window_action; }
     QAction& find_action() const { return *m_find_in_page_action; }
 
+    void update_tabs_display();
+
     void rebuild_bookmarks_menu();
     void update_bookmarks_bar_display(bool show_bookmarks_bar);
     void update_reopen_recently_closed_action();

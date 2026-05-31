@@ -13,6 +13,7 @@
 #include <QAction>
 #include <QMenu>
 #include <QPointer>
+#include <QToolButton>
 #include <QWidget>
 
 namespace Ladybird {
@@ -44,8 +45,14 @@ public:
 
     virtual void on_visible_state_changed(WebView::Action& action) override
     {
-        if (m_action)
+        if (m_action) {
             m_action->setVisible(action.visible());
+
+            for (auto* object : m_action->associatedObjects()) {
+                if (auto* tool_button = as_if<QToolButton>(object))
+                    tool_button->setVisible(action.visible());
+            }
+        }
     }
 
     virtual void on_engaged_state_changed(WebView::Action& action) override
@@ -57,6 +64,13 @@ public:
             return;
 
         switch (action.id()) {
+        case WebView::ActionID::ToggleVerticalTabsExpanded:
+            if (auto* parent = as_if<QWidget>(m_action->parent())) {
+                auto icon = action.engaged() ? ChromeIcon::VerticalTabBarCollapse : ChromeIcon::VerticalTabBarExpand;
+                m_action->setIcon(create_chrome_icon(icon, parent->palette()));
+            }
+            break;
+
         case WebView::ActionID::ToggleBookmark:
         case WebView::ActionID::ToggleBookmarkViaToolbar:
             if (auto* parent = as_if<QWidget>(m_action->parent())) {
@@ -64,6 +78,7 @@ public:
                 m_action->setIcon(create_chrome_icon(icon, parent->palette()));
             }
             break;
+
         default:
             break;
         }
