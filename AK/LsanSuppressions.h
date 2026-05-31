@@ -16,7 +16,8 @@ char const* __lsan_default_suppressions()
     // Both Skia and Chromium suppress false positive FontConfig leaks
     // https://github.com/google/skia/blob/main/tools/LsanSuppressions.cpp#L20
     // https://chromium.googlesource.com/chromium/src/build/+/master/sanitizers/lsan_suppressions.cc#25
-    return "leak:FcPatternObjectInsertElt";
+    return "leak:FcPatternObjectInsertElt\n"
+           "leak:rust_compile_regex";
 }
 }
 #endif
