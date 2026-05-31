@@ -63,6 +63,15 @@ class Interface:
 class Dictionary:
     name: str
     path: Path
+    members: List["DictionaryMember"] = field(default_factory=list)
+
+
+@dataclass
+class DictionaryMember:
+    name: str
+    type: str
+    required: bool = False
+    default_value: Optional[str] = None
 
 
 @dataclass
@@ -260,14 +269,122 @@ class Parser:
             self.parse_identifier_ending_with_space_or("{")
             self.consume_whitespace()
 
-        self.consume_braced_block()
-        self.consume_whitespace()
-        self.assert_specific(";")
+        self.assert_specific("{")
+        members: List[DictionaryMember] = []
+
+        while True:
+            self.consume_whitespace()
+
+            if self.lexer.consume_specific("}"):
+                self.consume_whitespace()
+                self.assert_specific(";")
+                break
+
+            if self.lexer.consume_specific("["):
+                self.parse_extended_attributes()
+                self.consume_whitespace()
+
+            required = False
+            if self.next_is_keyword("required"):
+                required = True
+                self.consume_keyword("required")
+                self.consume_whitespace()
+
+            if self.lexer.consume_specific("["):
+                self.parse_extended_attributes()
+                self.consume_whitespace()
+
+            member_type = self.parse_type()
+            self.consume_whitespace()
+            member_name = self.parse_identifier_ending_with_space_or("=", ";")
+            self.consume_whitespace()
+
+            default_value: Optional[str] = None
+            if self.lexer.consume_specific("="):
+                if required:
+                    self.raise_parse_error("required dictionary member must not have a default value")
+                self.consume_whitespace()
+                default_value = self.lexer.consume_until(lambda character: character.isspace() or character == ";")
+                self.consume_whitespace()
+
+            self.assert_specific(";")
+
+            members.append(
+                DictionaryMember(
+                    name=member_name,
+                    type=member_type,
+                    required=required,
+                    default_value=default_value,
+                )
+            )
+
+        members.sort(key=lambda member: member.name)
 
         if is_partial:
             return None
 
-        return Dictionary(name=dictionary_name, path=self.path)
+        return Dictionary(name=dictionary_name, path=self.path, members=members)
+
+    def parse_type(self) -> str:
+        if self.lexer.consume_specific("("):
+            member_types = [self.parse_type()]
+            self.consume_whitespace()
+            self.consume_keyword("or")
+            self.consume_whitespace()
+            member_types.append(self.parse_type())
+            self.consume_whitespace()
+
+            while self.lexer.consume_specific("or"):
+                self.consume_whitespace()
+                member_types.append(self.parse_type())
+                self.consume_whitespace()
+
+            self.assert_specific(")")
+            return f"({' or '.join(member_types)}){self.parse_nullable_suffix()}"
+
+        unsigned = self.lexer.consume_specific("unsigned")
+        if unsigned:
+            self.consume_whitespace()
+
+        unrestricted = self.lexer.consume_specific("unrestricted")
+        if unrestricted:
+            self.consume_whitespace()
+
+        name = self.lexer.consume_while(lambda character: character.isalnum() or character == "_")
+        if not name:
+            self.raise_parse_error("type can't be an empty string")
+
+        if name.lower() == "long":
+            position_before_whitespace = self.lexer.tell()
+            self.consume_whitespace()
+            if self.lexer.consume_specific("long"):
+                name = "long long"
+            else:
+                self.lexer.position = position_before_whitespace
+
+        if self.lexer.consume_specific("<"):
+            parameters = [self.parse_type()]
+            self.consume_whitespace()
+            while self.lexer.consume_specific(","):
+                self.consume_whitespace()
+                parameters.append(self.parse_type())
+                self.consume_whitespace()
+            self.assert_specific(">")
+            name = f"{name}<{', '.join(parameters)}>"
+
+        nullable_suffix = self.parse_nullable_suffix()
+        prefixes = []
+        if unsigned:
+            prefixes.append("unsigned")
+        if unrestricted:
+            prefixes.append("unrestricted")
+        prefixes.append(name)
+        return f"{' '.join(prefixes)}{nullable_suffix}"
+
+    def parse_nullable_suffix(self) -> str:
+        if self.lexer.consume_specific("?"):
+            return "?"
+        return ""
 
     def parse_enumeration(self, extended_attributes: Dict[str, str]) -> Enumeration:
         self.consume_keyword("enum")
