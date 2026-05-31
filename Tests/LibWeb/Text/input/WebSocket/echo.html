@@ -2,12 +2,13 @@
 <script src="../include.js"></script>
 <script>
     asyncTest((done) => {
-        const ws = new WebSocket('wss://websocket-echo.app.ladybird.org');
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
 
         let messageCount = 0;
 
         ws.onopen = function (ev) {
             println(ev.type);
+            ws.send(`WellHelloFriends${messageCount}`);
 
             ws.onclose = function (ev) {
                 println(ev.type);
@@ -19,14 +20,12 @@
             }
         };
         ws.onmessage = function (ev) {
-            if (ev.data.startsWith('WellHelloFriends')) {
-                println(`${ev.type} ${ev.data}`)
-            }
-
-            ws.send(`WellHelloFriends${messageCount}`);
-            if (messageCount++ === 5) {
+            println(`${ev.type} ${ev.data}`);
+            if (++messageCount === 5) {
                 ws.close();
+                return;
             }
+            ws.send(`WellHelloFriends${messageCount}`);
         }
         ws.onerror = function (ev) {
             println(ev.type);
