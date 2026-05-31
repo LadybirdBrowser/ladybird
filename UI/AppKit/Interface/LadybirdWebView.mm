@@ -51,6 +51,24 @@ static Optional<u64> display_id_for_screen(NSScreen* screen)
     return static_cast<u64>([screen_number unsignedLongLongValue]);
 }
 
+static bool is_browser_reserved_key_equivalent(NSEvent* event)
+{
+    auto modifiers = event.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagControl | NSEventModifierFlagOption | NSEventModifierFlagShift);
+    if (modifiers != NSEventModifierFlagCommand)
+        return false;
+
+    auto* characters = [[event charactersIgnoringModifiers] lowercaseString];
+    if ([characters length] != 1)
+        return false;
+
+    unichar character = [characters characterAtIndex:0];
+    return character == 'l'
+        || character == 'n'
+        || character == 'q'
+        || character == 't'
+        || character == 'w';
+}
+
 static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge const& web_view_bridge, Web::DevicePixelPoint widget_position)
 {
     return {
@@ -1280,6 +1298,9 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         return NO;
     }
     if (self.event_being_redispatched == event) {
+        return NO;
+    }
+    if (is_browser_reserved_key_equivalent(event)) {
         return NO;
     }
 
