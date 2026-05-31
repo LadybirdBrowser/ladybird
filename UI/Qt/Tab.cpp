@@ -173,12 +173,18 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_image_context_menu = create_context_menu(*this, view(), view().image_context_menu());
     m_media_context_menu = create_context_menu(*this, view(), view().media_context_menu());
 
-    toolbar_layout->addWidget(create_toolbar_button(*m_toolbar, *m_navigate_back_action));
-    toolbar_layout->addWidget(create_toolbar_button(*m_toolbar, *m_navigate_forward_action));
-    toolbar_layout->addWidget(create_toolbar_button(*m_toolbar, *m_reload_action));
+    auto* navigation_button_cluster = new QWidget(m_toolbar);
+    auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
+    navigation_button_layout->setSpacing(2);
+    navigation_button_layout->setContentsMargins(0, 0, 0, 0);
+    navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_back_action));
+    navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action));
+    navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
+
+    toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignTop);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
     toolbar_layout->addWidget(m_location_edit, 1);
-    toolbar_layout->addWidget(m_hamburger_button);
+    toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
 
     update_chrome_style();
 
