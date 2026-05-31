@@ -81,6 +81,7 @@ private:
     int drop_indicator_index_for_insertion_index(int insertion_index) const;
     QPixmap render_tab_drag_pixmap(int index) const;
     void toggle_window_maximized();
+    bool start_window_move();
     void start_tab_drag(int index);
     void start_hover_animation(int tab_index, qreal target_progress);
 
@@ -165,6 +166,12 @@ private:
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
     void rebuild_layout_for_vertical_tabs();
+    int current_vertical_tabs_width() const;
+    void apply_vertical_tabs_expanded_width(int width);
+    void persist_vertical_tabs_expanded_width();
+    void update_vertical_tabs_resize_handle();
+    void set_resize_handle_property(char const* property, bool enabled);
+    void update_vertical_tabs_action_labels();
     void update_tab_layout();
     void update_tab_chrome_visibility();
     void recreate_icons();
@@ -177,23 +184,27 @@ private:
     TabBar* m_tab_bar { nullptr };
     QStackedWidget* m_stacked_widget { nullptr };
     QToolButton* m_new_tab_button { nullptr };
-    QToolButton* m_toggle_vertical_tabs_expanded_button { nullptr };
     QToolButton* m_minimize_window_button { nullptr };
     QToolButton* m_maximize_window_button { nullptr };
     QToolButton* m_close_window_button { nullptr };
     QWidget* m_tab_bar_row { nullptr };
+    QWidget* m_vertical_tabs_new_tab_separator { nullptr };
     QWidget* m_vertical_tab_bar_column { nullptr };
+    QWidget* m_vertical_tabs_resize_handle { nullptr };
     QWidget* m_vertical_tabs_content { nullptr };
     QBoxLayout* m_main_layout { nullptr };
     QBoxLayout* m_tab_bar_row_layout { nullptr };
     QBoxLayout* m_vertical_tab_bar_column_layout { nullptr };
     QBoxLayout* m_vertical_tabs_content_layout { nullptr };
-    QAction* m_toggle_vertical_tabs_expanded_action { nullptr };
     bool m_tab_bar_visible { true };
     bool m_window_controls_visible { true };
     bool m_vertical_tabs_enabled { false };
     bool m_vertical_tabs_expanded { true };
+    bool m_is_resizing_vertical_tabs { false };
     bool m_is_updating_chrome_style { false };
+    int m_vertical_tabs_expanded_width { 0 };
+    int m_vertical_tabs_resize_start_global_x { 0 };
+    int m_vertical_tabs_resize_start_width { 0 };
 };
 
 class TabBarButton final : public QPushButton {

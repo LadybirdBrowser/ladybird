@@ -113,34 +113,37 @@ static void draw_vertical_tab_bar_icon(QPainter& painter, QColor const& color, b
 {
     painter.setPen(chrome_icon_pen(color, 1.55));
     painter.setBrush(Qt::NoBrush);
-    painter.drawRoundedRect(QRectF(3.8, 4.2, 12.4, 11.6), 1.6, 1.6);
-    painter.drawLine(QPointF(7.8, 4.6), QPointF(7.8, 15.4));
+    painter.drawRoundedRect(QRectF(3.8, 3.2, 12.4, 11.6), 1.6, 1.6);
+    painter.drawLine(QPointF(7.8, 3.6), QPointF(7.8, 14.4));
 
     QPainterPath arrow;
     if (expanded) {
-        arrow.moveTo(12.6, 7.2);
-        arrow.lineTo(9.8, 10.0);
-        arrow.lineTo(12.6, 12.8);
+        arrow.moveTo(13.1, 6.8);
+        arrow.lineTo(10.3, 9.0);
+        arrow.lineTo(13.1, 11.2);
     } else {
-        arrow.moveTo(10.2, 7.2);
-        arrow.lineTo(13.0, 10.0);
-        arrow.lineTo(10.2, 12.8);
+        arrow.moveTo(10.7, 6.8);
+        arrow.lineTo(13.5, 9.0);
+        arrow.lineTo(10.7, 11.2);
     }
     draw_stroked_icon_path(painter, arrow, color, 1.85);
 }
 
 static void draw_globe_icon(QPainter& painter, QColor const& color)
 {
-    painter.setPen(chrome_icon_pen(color, 1.55));
-    painter.setBrush(Qt::NoBrush);
-
     auto outline_rect = QRectF(3.5, 3.5, 13, 13);
-    painter.drawEllipse(outline_rect);
-    painter.drawLine(QPointF(outline_rect.left() + 1.3, 10), QPointF(outline_rect.right() - 1.3, 10));
+    QRectF meridian_rect(7.5, outline_rect.top() + 0.25, 5.0, outline_rect.height() - 0.5);
 
-    QRectF meridian_rect(6.5, outline_rect.top(), 7.0, outline_rect.height());
-    painter.drawArc(meridian_rect, 90 * 16, 180 * 16);
-    painter.drawArc(meridian_rect, 270 * 16, 180 * 16);
+    QPainterPath path;
+    path.addEllipse(outline_rect);
+    path.moveTo(QPointF(outline_rect.left() + 1.3, 10));
+    path.lineTo(QPointF(outline_rect.right() - 1.3, 10));
+    path.arcMoveTo(meridian_rect, 90);
+    path.arcTo(meridian_rect, 90, 180);
+    path.arcMoveTo(meridian_rect, 270);
+    path.arcTo(meridian_rect, 270, 180);
+
+    draw_stroked_icon_path(painter, path, color, 1.55);
 }
 
 static QPixmap create_transparent_icon_pixmap(QSize logical_size, qreal device_pixel_ratio)
@@ -183,6 +186,11 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         painter.setPen(chrome_icon_pen(color, 1.9));
         painter.drawLine(QPointF(5.5, 7.15), QPointF(14.5, 16.65));
         painter.drawLine(QPointF(14.5, 7.15), QPointF(5.5, 16.65));
+        break;
+    case ChromeIcon::TabClose:
+        painter.setPen(chrome_icon_pen(color, 1.9));
+        painter.drawLine(QPointF(5.5, 5.65), QPointF(14.5, 15.15));
+        painter.drawLine(QPointF(14.5, 5.65), QPointF(5.5, 15.15));
         break;
     case ChromeIcon::Menu:
         painter.setPen(chrome_icon_pen(color, 1.75));
@@ -290,7 +298,7 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
 {
     auto normal = ChromeStyle::chrome_button_text(palette);
     auto normal_alpha = 216;
-    if (icon == ChromeIcon::Close)
+    if (icon == ChromeIcon::Close || icon == ChromeIcon::TabClose)
         normal_alpha = 172;
     else if (icon == ChromeIcon::Star)
         normal_alpha = 204;
@@ -299,10 +307,10 @@ QIcon create_chrome_icon(ChromeIcon icon, QPalette const& palette)
     normal.setAlpha(normal_alpha);
 
     auto active = ChromeStyle::chrome_button_text(palette);
-    active.setAlpha(icon == ChromeIcon::Close ? 220 : 236);
+    active.setAlpha(icon == ChromeIcon::Close || icon == ChromeIcon::TabClose ? 220 : 236);
 
     auto disabled = ChromeStyle::chrome_muted_text(palette);
-    disabled.setAlpha(icon == ChromeIcon::Close ? 78 : 96);
+    disabled.setAlpha(icon == ChromeIcon::Close || icon == ChromeIcon::TabClose ? 78 : 96);
 
     QIcon qicon;
 

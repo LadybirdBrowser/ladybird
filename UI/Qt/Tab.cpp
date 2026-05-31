@@ -88,6 +88,10 @@ static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
     return button;
 }
 
+static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
+static constexpr int TOOLBAR_VERTICAL_MARGIN = 2;
+static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
+
 Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
     : QWidget(window)
     , m_window(window)
@@ -122,7 +126,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     auto* toolbar_layout = new QHBoxLayout(m_toolbar);
     toolbar_layout->setSpacing(6);
-    toolbar_layout->setContentsMargins(12, 2, 12, 2);
+    toolbar_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
 
     m_location_edit = new LocationEdit(this);
     m_bookmarks_bar = new BookmarksBar(this);
@@ -167,6 +171,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
     m_reload_action = create_application_action(*this, application.reload_action());
+    m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
 
     m_toolbar_window_controls_separator = new QWidget(m_toolbar);
     m_toolbar_window_controls_separator->setObjectName("LadybirdToolbarWindowControlsSeparator");
@@ -210,6 +215,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
     navigation_button_layout->setSpacing(2);
     navigation_button_layout->setContentsMargins(0, 0, 0, 0);
+    m_toggle_vertical_tabs_expanded_button = create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action);
+    m_toggle_vertical_tabs_expanded_button->setVisible(WebView::Application::settings().tab_settings().vertical_tabs_enabled);
+    navigation_button_layout->addWidget(m_toggle_vertical_tabs_expanded_button);
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_back_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
@@ -224,7 +232,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     update_chrome_style();
     set_toolbar_window_controls_visible(!Settings::the()->show_menubar() && WebView::Application::settings().tab_settings().vertical_tabs_enabled);
-    set_toolbar_window_drag_enabled(WebView::Application::settings().tab_settings().vertical_tabs_enabled);
+    set_vertical_tabs_enabled(WebView::Application::settings().tab_settings().vertical_tabs_enabled);
+    set_vertical_tabs_expanded(WebView::Application::settings().tab_settings().vertical_tabs_expanded);
 
     m_hamburger_button->setVisible(!Settings::the()->show_menubar());
 
@@ -571,10 +580,23 @@ void Tab::set_window(BrowserWindow& window)
     recreate_toolbar_icons();
 }
 
+void Tab::set_vertical_tabs_enabled(bool enabled)
+{
+    m_toggle_vertical_tabs_expanded_button->setVisible(enabled);
+    recreate_toolbar_icons();
+    set_toolbar_window_drag_enabled(enabled);
+}
+
+void Tab::set_vertical_tabs_expanded(bool)
+{
+    recreate_toolbar_icons();
+}
+
 void Tab::set_toolbar_window_controls_visible(bool visible)
 {
     m_toolbar_window_controls_separator->setVisible(visible);
     m_toolbar_window_controls->setVisible(visible);
+    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, visible ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
 }
 
 void Tab::set_toolbar_window_drag_enabled(bool enabled)
@@ -744,6 +766,11 @@ void Tab::recreate_toolbar_icons()
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
+    m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(
+        WebView::Application::settings().tab_settings().vertical_tabs_expanded
+            ? ChromeIcon::VerticalTabBarCollapse
+            : ChromeIcon::VerticalTabBarExpand,
+        palette()));
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
     update_window_control_icons();
     if (auto* action = m_location_edit->trailing_action()) {

@@ -12,6 +12,7 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
+#include <UI/Qt/Settings.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WindowControlButton.h>
@@ -50,10 +51,15 @@ static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 43;
 static constexpr int HORIZONTAL_TAB_HEIGHT = 36;
 static constexpr int VERTICAL_TAB_HEIGHT = 38;
 static constexpr int VERTICAL_TABS_COLLAPSED_WIDTH = 52;
-static constexpr int VERTICAL_TABS_EXPANDED_WIDTH = 248;
+static constexpr int VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH = 232;
+static constexpr int VERTICAL_TABS_MIN_EXPANDED_WIDTH = 190;
+static constexpr int VERTICAL_TABS_MAX_EXPANDED_WIDTH = 400;
+static constexpr int VERTICAL_TABS_RESIZE_HIT_AREA_WIDTH = 5;
 static constexpr int VERTICAL_TABS_SIDE_MARGIN = 6;
 static constexpr int TAB_ICON_SIZE = 16;
 static constexpr auto VERTICAL_TABS_EXPANDED_PROPERTY = "verticalTabsExpanded";
+static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY = "hovered";
+static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY = "active";
 
 static QPointer<TabWidget> s_active_tab_drag_source;
 static QPointer<Tab> s_active_tab_dragged_tab;
@@ -89,8 +95,72 @@ static constexpr int vertical_tab_width(int available_width, TabLayout tab_layou
 {
     if (available_width > 0)
         return available_width;
-    return (tab_layout == TabLayout::VerticalCollapsed ? VERTICAL_TABS_COLLAPSED_WIDTH : VERTICAL_TABS_EXPANDED_WIDTH) - (VERTICAL_TABS_SIDE_MARGIN * 2);
+    auto width = tab_layout == TabLayout::VerticalCollapsed ? VERTICAL_TABS_COLLAPSED_WIDTH : VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH;
+    return width - (VERTICAL_TABS_SIDE_MARGIN * 2);
 }
+
+static constexpr int clamp_vertical_tabs_expanded_width(int width)
+{
+    return clamp(width, VERTICAL_TABS_MIN_EXPANDED_WIDTH, VERTICAL_TABS_MAX_EXPANDED_WIDTH);
+}
+
+class NewTabButton final : public QToolButton {
+public:
+    using QToolButton::QToolButton;
+
+private:
+    virtual void paintEvent(QPaintEvent* event) override
+    {
+        if (!property(VERTICAL_TABS_EXPANDED_PROPERTY).toBool()) {
+            QToolButton::paintEvent(event);
+            return;
+        }
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        auto dark = ChromeStyle::is_dark(palette());
+        auto surface = ChromeStyle::chrome_surface(palette());
+        auto shape_rect = QRectF(rect()).adjusted(7.0, 3.0, -7.0, -3.0);
+        auto tab_path = tab_shape_path(shape_rect, 9.0, 9.0);
+
+        if (isDown()) {
+            painter.setBrush(ChromeStyle::chrome_surface_pressed(palette()));
+            painter.setPen(QPen(ChromeStyle::chrome_control_border(palette()), 1));
+            painter.drawPath(tab_path);
+        } else if (underMouse()) {
+            auto hover = dark ? ChromeStyle::chrome_surface_hover(palette()) : ChromeStyle::mix(surface, ChromeStyle::chrome_surface_hover(palette()), 0.28);
+            hover.setAlpha(dark ? 120 : 136);
+            painter.setBrush(hover);
+            painter.setPen(QPen(ChromeStyle::chrome_control_border(palette()), 1));
+            painter.drawPath(tab_path);
+        }
+
+        auto contents_rect = shape_rect.toAlignedRect().adjusted(12, 0, -12, 0);
+        QRect icon_rect {
+            contents_rect.left(),
+            contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
+            TAB_ICON_SIZE,
+            TAB_ICON_SIZE,
+        };
+        if (!underMouse() && !isDown())
+            painter.setOpacity(dark ? 0.90 : 0.84);
+        icon().paint(&painter, icon_rect);
+        painter.setOpacity(1.0);
+        contents_rect.setLeft(icon_rect.right() + 8);
+
+        auto text_color = ChromeStyle::mix(ChromeStyle::chrome_button_text(palette()), ChromeStyle::chrome_muted_text(palette()), dark ? 0.26 : 0.40);
+        if (underMouse() || isDown())
+            text_color = ChromeStyle::chrome_button_text(palette());
+        painter.setPen(text_color);
+        painter.setFont(font());
+
+        QFontMetrics font_metrics(font());
+        auto title = font_metrics.elidedText(text(), Qt::ElideRight, max(0, contents_rect.width()));
+        contents_rect.translate(0, -1);
+        painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter, title);
+    }
+};
 
 TabBar::TabBar(TabWidget* tab_widget)
     : QTabBar(tab_widget)
@@ -264,6 +334,9 @@ void TabBar::paintEvent(QPaintEvent*)
             painter.setBrush(hover);
             painter.setPen(QPen(hover_border, 1));
             painter.drawPath(tab_path);
+        } else if (is_vertical) {
+            // Let background vertical tabs sit directly on the sidebar so they
+            // do not read as disabled cards.
         } else {
             auto inactive = ChromeStyle::chrome_surface_recessed(palette());
             inactive.setAlpha(dark ? 104 : 150);
@@ -274,7 +347,7 @@ void TabBar::paintEvent(QPaintEvent*)
             painter.drawPath(tab_path);
         }
 
-        if (!is_selected && !is_hovered && index > 0 && index != currentIndex() + 1) {
+        if (!is_selected && !is_hovered && index > 0 && index != currentIndex() + 1 && !is_collapsed_vertical) {
             auto separator = border;
             separator.setAlpha(dark ? 42 : 36);
             painter.setPen(separator);
@@ -290,8 +363,8 @@ void TabBar::paintEvent(QPaintEvent*)
 
         if (is_collapsed_vertical) {
             QRect icon_rect {
-                tab_rect.center().x() - (TAB_ICON_SIZE / 2),
-                tab_rect.center().y() - (TAB_ICON_SIZE / 2),
+                tab_rect.center().x() - (TAB_ICON_SIZE / 2) + 1,
+                tab_rect.center().y() - (TAB_ICON_SIZE / 2) + 1,
                 TAB_ICON_SIZE,
                 TAB_ICON_SIZE,
             };
@@ -313,7 +386,7 @@ void TabBar::paintEvent(QPaintEvent*)
                 TAB_ICON_SIZE,
             };
             icon.paint(&painter, icon_rect);
-            contents_rect.setLeft(icon_rect.right() + 7);
+            contents_rect.setLeft(icon_rect.right() + (is_vertical ? 8 : 7));
         }
 
         QFont tab_font = font();
@@ -425,8 +498,12 @@ void TabBar::mousePressEvent(QMouseEvent* event)
     }
 
     if (tab_layout() != TabLayout::Horizontal) {
-        if (pressed_tab >= 0)
+        if (pressed_tab >= 0) {
             setCurrentIndex(pressed_tab);
+        } else if (event->button() == Qt::LeftButton && start_window_move()) {
+            event->accept();
+            return;
+        }
     } else {
         QTabBar::mousePressEvent(event);
     }
@@ -730,7 +807,7 @@ void TabBar::update_tab_button_geometry()
         auto* button = tabButton(index, position);
         if (!button)
             return;
-        button->setVisible(true);
+        button->setVisible(position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index);
 
         auto button_size = button->size();
         if (button_size.isEmpty())
@@ -764,9 +841,20 @@ void TabBar::toggle_window_maximized()
         top_level_window->showMaximized();
 }
 
+bool TabBar::start_window_move()
+{
+    auto* handle = window()->windowHandle();
+    if (!handle)
+        return false;
+    return handle->startSystemMove();
+}
+
 TabWidget::TabWidget(QWidget* parent)
     : QWidget(parent)
 {
+    m_vertical_tabs_expanded_width = Settings::the()->vertical_tabs_expanded_width().value_or(VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH);
+    m_vertical_tabs_expanded_width = clamp_vertical_tabs_expanded_width(m_vertical_tabs_expanded_width);
+
     m_tab_bar = new TabBar(this);
     setAcceptDrops(true);
 
@@ -780,24 +868,21 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_stacked_widget = new QStackedWidget(this);
 
-    m_new_tab_button = new QToolButton(this);
+    m_new_tab_button = new NewTabButton(this);
     m_new_tab_button->setObjectName("LadybirdNewTabButton");
     m_new_tab_button->setIconSize(QSize(18, 18));
     m_new_tab_button->setFixedSize(32, 32);
     m_new_tab_button->setFocusPolicy(Qt::NoFocus);
     m_new_tab_button->setToolTip("New Tab");
 
-    m_toggle_vertical_tabs_expanded_action = create_application_action(*this, WebView::Application::the().toggle_vertical_tabs_expanded_action());
-    m_toggle_vertical_tabs_expanded_button = new QToolButton(this);
-    m_toggle_vertical_tabs_expanded_button->setObjectName("LadybirdVerticalTabsToggleButton");
-    m_toggle_vertical_tabs_expanded_button->setDefaultAction(m_toggle_vertical_tabs_expanded_action);
-    m_toggle_vertical_tabs_expanded_button->setIconSize(QSize(18, 18));
-    m_toggle_vertical_tabs_expanded_button->setFixedSize(32, 32);
-    m_toggle_vertical_tabs_expanded_button->setFocusPolicy(Qt::NoFocus);
-
     m_minimize_window_button = new WindowControlButton("LadybirdWindowButton", "Minimize", { 18, 18 }, { 40, 40 }, this);
     m_maximize_window_button = new WindowControlButton("LadybirdWindowButton", "Maximize", { 18, 18 }, { 40, 40 }, this);
     m_close_window_button = new WindowControlButton("LadybirdCloseWindowButton", "Close", { 18, 18 }, { 40, 40 }, this);
+
+    m_vertical_tabs_new_tab_separator = new QWidget(this);
+    m_vertical_tabs_new_tab_separator->setObjectName("LadybirdVerticalTabsSeparator");
+    m_vertical_tabs_new_tab_separator->setFixedHeight(1);
+    m_vertical_tabs_new_tab_separator->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     recreate_icons();
 
@@ -809,11 +894,20 @@ TabWidget::TabWidget(QWidget* parent)
     m_vertical_tab_bar_column = new QWidget(this);
     m_vertical_tab_bar_column->setObjectName("LadybirdVerticalTabBar");
     m_vertical_tab_bar_column_layout = new QVBoxLayout(m_vertical_tab_bar_column);
+    m_vertical_tab_bar_column->setProperty(VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY, false);
+    m_vertical_tab_bar_column->setProperty(VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY, false);
+    m_vertical_tab_bar_column->installEventFilter(this);
 
     m_vertical_tabs_content = new QWidget(this);
     m_vertical_tabs_content_layout = new QHBoxLayout(m_vertical_tabs_content);
     m_vertical_tabs_content_layout->setSpacing(0);
     m_vertical_tabs_content_layout->setContentsMargins(0, 0, 0, 0);
+
+    m_vertical_tabs_resize_handle = new QWidget(m_vertical_tabs_content);
+    m_vertical_tabs_resize_handle->setObjectName("LadybirdVerticalTabsResizeHandle");
+    m_vertical_tabs_resize_handle->setCursor(Qt::SizeHorCursor);
+    m_vertical_tabs_resize_handle->installEventFilter(this);
+    m_vertical_tabs_resize_handle->hide();
 
     m_main_layout = new QVBoxLayout(this);
     m_main_layout->setSpacing(0);
@@ -862,7 +956,8 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
     m_tab_bar->insertTab(index, label);
 
     widget->set_toolbar_window_controls_visible(m_window_controls_visible && m_vertical_tabs_enabled);
-    widget->set_toolbar_window_drag_enabled(m_vertical_tabs_enabled);
+    widget->set_vertical_tabs_enabled(m_vertical_tabs_enabled);
+    widget->set_vertical_tabs_expanded(m_vertical_tabs_expanded);
 
     update_tab_layout();
     update_tab_button_visibility();
@@ -942,7 +1037,7 @@ void TabWidget::set_vertical_tabs_enabled(bool enabled)
     m_vertical_tabs_enabled = enabled;
     for (int index = 0; index < m_stacked_widget->count(); ++index) {
         tab(index)->set_toolbar_window_controls_visible(m_window_controls_visible && enabled);
-        tab(index)->set_toolbar_window_drag_enabled(enabled);
+        tab(index)->set_vertical_tabs_enabled(enabled);
     }
     rebuild_layout();
 }
@@ -953,6 +1048,8 @@ void TabWidget::set_vertical_tabs_expanded(bool expanded)
         return;
 
     m_vertical_tabs_expanded = expanded;
+    for (int index = 0; index < m_stacked_widget->count(); ++index)
+        tab(index)->set_vertical_tabs_expanded(expanded);
     rebuild_layout();
 }
 
@@ -985,14 +1082,70 @@ void TabWidget::dropEvent(QDropEvent* event)
 
 bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 {
-    if (watched == m_tab_bar_row) {
-        auto is_empty_tab_strip_area = [this](QMouseEvent const& mouse_event) {
+    if (watched == m_vertical_tabs_resize_handle) {
+        auto reset_resize_handle = [this] {
+            m_is_resizing_vertical_tabs = false;
+            set_resize_handle_property(VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY, false);
+        };
+
+        if (event->type() == QEvent::Enter) {
+            set_resize_handle_property(VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY, true);
+        } else if (event->type() == QEvent::Leave) {
+            if (!m_is_resizing_vertical_tabs)
+                set_resize_handle_property(VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY, false);
+        } else if (event->type() == QEvent::MouseButtonDblClick) {
+            auto* mouse_event = static_cast<QMouseEvent*>(event);
+            if (mouse_event->button() == Qt::LeftButton && m_vertical_tabs_expanded) {
+                apply_vertical_tabs_expanded_width(VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH);
+                persist_vertical_tabs_expanded_width();
+                return true;
+            }
+        } else if (event->type() == QEvent::MouseButtonPress) {
+            auto* mouse_event = static_cast<QMouseEvent*>(event);
+            if (mouse_event->button() != Qt::LeftButton)
+                return QWidget::eventFilter(watched, event);
+
+            m_is_resizing_vertical_tabs = true;
+            m_vertical_tabs_resize_start_global_x = mouse_event->globalPosition().toPoint().x();
+            m_vertical_tabs_resize_start_width = m_vertical_tabs_expanded_width;
+            set_resize_handle_property(VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY, true);
+            return true;
+        } else if (event->type() == QEvent::MouseMove) {
+            if (!m_is_resizing_vertical_tabs)
+                return QWidget::eventFilter(watched, event);
+
+            auto* mouse_event = static_cast<QMouseEvent*>(event);
+            auto delta = mouse_event->globalPosition().toPoint().x() - m_vertical_tabs_resize_start_global_x;
+            apply_vertical_tabs_expanded_width(m_vertical_tabs_resize_start_width + delta);
+            return true;
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            if (!m_is_resizing_vertical_tabs)
+                return QWidget::eventFilter(watched, event);
+
+            auto* mouse_event = static_cast<QMouseEvent*>(event);
+            if (mouse_event->button() != Qt::LeftButton)
+                return QWidget::eventFilter(watched, event);
+
+            persist_vertical_tabs_expanded_width();
+            reset_resize_handle();
+            set_resize_handle_property(VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY, m_vertical_tabs_resize_handle->underMouse());
+            return true;
+        }
+    }
+
+    if (watched == m_tab_bar_row || watched == m_vertical_tab_bar_column) {
+        auto is_empty_chrome_area = [this, watched](QMouseEvent const& mouse_event) {
+            if (watched == m_vertical_tab_bar_column) {
+                auto* child = m_vertical_tab_bar_column->childAt(mouse_event.pos());
+                return child == nullptr || child == m_vertical_tabs_new_tab_separator;
+            }
+
             return m_tab_bar_row->childAt(mouse_event.pos()) == nullptr;
         };
 
         if (event->type() == QEvent::MouseButtonDblClick) {
             auto* mouse_event = static_cast<QMouseEvent*>(event);
-            if (mouse_event->button() == Qt::LeftButton && is_empty_tab_strip_area(*mouse_event)) {
+            if (mouse_event->button() == Qt::LeftButton && is_empty_chrome_area(*mouse_event)) {
                 toggle_window_maximized();
                 return true;
             }
@@ -1000,7 +1153,7 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
 
         if (event->type() == QEvent::MouseButtonPress) {
             auto* mouse_event = static_cast<QMouseEvent*>(event);
-            if (mouse_event->button() == Qt::LeftButton && is_empty_tab_strip_area(*mouse_event) && start_window_move())
+            if (mouse_event->button() == Qt::LeftButton && is_empty_chrome_area(*mouse_event) && start_window_move())
                 return true;
         }
     }
@@ -1123,62 +1276,102 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     clear_layout(*m_tab_bar_row_layout);
     clear_layout(*m_vertical_tab_bar_column_layout);
 
-    auto side_bar_width = m_vertical_tabs_expanded ? VERTICAL_TABS_EXPANDED_WIDTH : VERTICAL_TABS_COLLAPSED_WIDTH;
+    auto side_bar_width = current_vertical_tabs_width();
     m_vertical_tab_bar_column->setFixedWidth(side_bar_width);
 
-    m_vertical_tab_bar_column_layout->setSpacing(4);
+    m_vertical_tab_bar_column_layout->setSpacing(m_vertical_tabs_expanded ? 0 : 4);
     m_vertical_tab_bar_column_layout->setContentsMargins(VERTICAL_TABS_SIDE_MARGIN, 8, VERTICAL_TABS_SIDE_MARGIN, 8);
 
     m_new_tab_button->setToolButtonStyle(m_vertical_tabs_expanded ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
-    m_new_tab_button->setText(m_vertical_tabs_expanded ? "New Tab" : QString {});
+    update_vertical_tabs_action_labels();
     m_new_tab_button->setProperty(VERTICAL_TABS_EXPANDED_PROPERTY, m_vertical_tabs_expanded);
     m_new_tab_button->style()->unpolish(m_new_tab_button);
     m_new_tab_button->style()->polish(m_new_tab_button);
-    m_toggle_vertical_tabs_expanded_button->setProperty(VERTICAL_TABS_EXPANDED_PROPERTY, m_vertical_tabs_expanded);
-    m_toggle_vertical_tabs_expanded_button->style()->unpolish(m_toggle_vertical_tabs_expanded_button);
-    m_toggle_vertical_tabs_expanded_button->style()->polish(m_toggle_vertical_tabs_expanded_button);
+    m_vertical_tabs_new_tab_separator->setVisible(!m_vertical_tabs_expanded);
     if (m_vertical_tabs_expanded) {
-        m_new_tab_button->setFixedHeight(32);
+        m_new_tab_button->setFixedHeight(VERTICAL_TAB_HEIGHT);
         m_new_tab_button->setMinimumWidth(32);
         m_new_tab_button->setMaximumWidth(QWIDGETSIZE_MAX);
         m_new_tab_button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-
-        m_toggle_vertical_tabs_expanded_button->setText("Collapse Tabs");
-        m_toggle_vertical_tabs_expanded_button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        m_toggle_vertical_tabs_expanded_button->setFixedHeight(32);
-        m_toggle_vertical_tabs_expanded_button->setMinimumWidth(32);
-        m_toggle_vertical_tabs_expanded_button->setMaximumWidth(QWIDGETSIZE_MAX);
-        m_toggle_vertical_tabs_expanded_button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     } else {
         m_new_tab_button->setFixedSize(32, 32);
         m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-        m_toggle_vertical_tabs_expanded_button->setText({});
-        m_toggle_vertical_tabs_expanded_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
-        m_toggle_vertical_tabs_expanded_button->setFixedSize(32, 32);
-        m_toggle_vertical_tabs_expanded_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     }
 
     Qt::Alignment new_tab_button_alignment {};
-    Qt::Alignment toggle_button_alignment {};
-    if (!m_vertical_tabs_expanded) {
+    if (!m_vertical_tabs_expanded)
         new_tab_button_alignment = Qt::AlignHCenter;
-        toggle_button_alignment = Qt::AlignHCenter;
-    }
     m_vertical_tab_bar_column_layout->addWidget(m_tab_bar);
+    m_vertical_tab_bar_column_layout->addWidget(m_vertical_tabs_new_tab_separator);
     m_vertical_tab_bar_column_layout->addWidget(m_new_tab_button, 0, new_tab_button_alignment);
     m_vertical_tab_bar_column_layout->addStretch(1);
-    m_vertical_tab_bar_column_layout->addWidget(m_toggle_vertical_tabs_expanded_button, 0, toggle_button_alignment);
+}
+
+int TabWidget::current_vertical_tabs_width() const
+{
+    return m_vertical_tabs_expanded ? m_vertical_tabs_expanded_width : VERTICAL_TABS_COLLAPSED_WIDTH;
+}
+
+void TabWidget::apply_vertical_tabs_expanded_width(int width)
+{
+    auto clamped_width = clamp_vertical_tabs_expanded_width(width);
+    if (m_vertical_tabs_expanded_width == clamped_width)
+        return;
+
+    m_vertical_tabs_expanded_width = clamped_width;
+    update_tab_layout();
+}
+
+void TabWidget::persist_vertical_tabs_expanded_width()
+{
+    Settings::the()->set_vertical_tabs_expanded_width(m_vertical_tabs_expanded_width);
+}
+
+void TabWidget::set_resize_handle_property(char const* property, bool enabled)
+{
+    if (m_vertical_tab_bar_column->property(property).toBool() == enabled)
+        return;
+
+    m_vertical_tab_bar_column->setProperty(property, enabled);
+    m_vertical_tab_bar_column->style()->unpolish(m_vertical_tab_bar_column);
+    m_vertical_tab_bar_column->style()->polish(m_vertical_tab_bar_column);
+    m_vertical_tab_bar_column->update();
+}
+
+void TabWidget::update_vertical_tabs_resize_handle()
+{
+    auto is_vertical = m_tab_bar->tab_layout() != TabLayout::Horizontal;
+    auto show_resize_handle = is_vertical && m_vertical_tabs_expanded;
+    m_vertical_tabs_resize_handle->setVisible(show_resize_handle);
+    if (!show_resize_handle) {
+        m_is_resizing_vertical_tabs = false;
+        set_resize_handle_property(VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY, false);
+        set_resize_handle_property(VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY, false);
+        return;
+    }
+
+    auto handle_width = VERTICAL_TABS_RESIZE_HIT_AREA_WIDTH;
+    auto divider_x = m_vertical_tab_bar_column->geometry().right();
+    m_vertical_tabs_resize_handle->setGeometry(divider_x - (handle_width / 2), 0, handle_width, m_vertical_tabs_content->height());
+    m_vertical_tabs_resize_handle->raise();
+}
+
+void TabWidget::update_vertical_tabs_action_labels()
+{
+    m_new_tab_button->setText(m_vertical_tabs_expanded ? "New Tab" : QString {});
 }
 
 void TabWidget::update_tab_layout()
 {
     if (m_tab_bar->tab_layout() != TabLayout::Horizontal) {
-        auto side_bar_width = m_vertical_tabs_expanded ? VERTICAL_TABS_EXPANDED_WIDTH : VERTICAL_TABS_COLLAPSED_WIDTH;
+        auto side_bar_width = current_vertical_tabs_width();
         m_vertical_tab_bar_column->setFixedWidth(side_bar_width);
         m_tab_bar->set_available_width(side_bar_width - (VERTICAL_TABS_SIDE_MARGIN * 2));
+        update_vertical_tabs_resize_handle();
         return;
     }
+
+    update_vertical_tabs_resize_handle();
 
     auto controls_width = m_new_tab_button->width();
     if (m_minimize_window_button->isVisible())
@@ -1221,11 +1414,7 @@ void TabWidget::update_tab_chrome_visibility()
 void TabWidget::recreate_icons()
 {
     m_new_tab_button->setIcon(create_chrome_icon(ChromeIcon::NewTab, palette()));
-    m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(
-        WebView::Application::the().toggle_vertical_tabs_expanded_action().engaged()
-            ? ChromeIcon::VerticalTabBarCollapse
-            : ChromeIcon::VerticalTabBarExpand,
-        palette()));
+    update_vertical_tabs_action_labels();
     update_window_button_icons();
 }
 
@@ -1238,6 +1427,7 @@ void TabWidget::update_chrome_style()
     auto style_sheet = ChromeStyle::tab_widget_style_sheet(palette());
     m_tab_bar_row->setStyleSheet(style_sheet);
     m_vertical_tab_bar_column->setStyleSheet(style_sheet);
+    m_vertical_tabs_resize_handle->setStyleSheet(style_sheet);
     m_is_updating_chrome_style = false;
 }
 
