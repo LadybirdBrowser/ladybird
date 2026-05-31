@@ -18,6 +18,8 @@ from typing import TextIO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Generators.libweb_bindings.idl import write_header as write_idl_header
+from Generators.libweb_bindings.idl import write_implementation as write_idl_implementation
 from Generators.libweb_bindings.intrinsics import collect_interface_sets
 from Generators.libweb_bindings.intrinsics import write_exposed_interface_header
 from Generators.libweb_bindings.intrinsics import write_exposed_interface_implementation
@@ -150,18 +152,6 @@ def run_cxx_generator(arguments: argparse.Namespace) -> int:
     if arguments.cxx_generator is None:
         return 0
 
-    python_generated_idl_files: List[str] = []
-    if arguments.python_generated_idl_list is not None:
-        python_generated_idl_files = read_path_list(arguments.python_generated_idl_list)
-
-    if python_generated_idl_files:
-        sys.stderr.write(
-            "The Python LibWeb bindings generator is not implemented yet, but these IDL files were opted in:\n"
-        )
-        for idl_file in python_generated_idl_files:
-            sys.stderr.write(f"  {idl_file}\n")
-        return 1
-
     command = [
         str(arguments.cxx_generator),
         "-o",
@@ -181,6 +171,10 @@ def main() -> int:
     output_directory = arguments.output_path
     output_directory.mkdir(parents=True, exist_ok=True)
 
+    python_generated_idl_files: Set[str] = set()
+    if arguments.python_generated_idl_list is not None:
+        python_generated_idl_files = set(read_path_list(arguments.python_generated_idl_list))
+
     result = run_cxx_generator(arguments)
     if result != 0:
         return result
@@ -190,6 +184,10 @@ def main() -> int:
     for path in read_input_paths(arguments.paths):
         module = parse_module(path, path.read_text(encoding="utf-8"))
         modules.append(module)
+
+        if str(path) in python_generated_idl_files:
+            write_generated_file(output_directory / f"{path.stem}.h", write_idl_header, module)
+            write_generated_file(output_directory / f"{path.stem}.cpp", write_idl_implementation, module)
 
     interface_sets = collect_interface_sets(modules)
 
