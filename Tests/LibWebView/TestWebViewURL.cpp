@@ -80,6 +80,13 @@ static void expect_autocomplete_url_cannot_complete(StringView query, StringView
     EXPECT(!WebView::autocomplete_url_can_complete(query, suggestion));
 }
 
+static void expect_url_for_display(StringView expected, StringView url)
+{
+    auto parsed_url = URL::create_with_url_or_path(url);
+    VERIFY(parsed_url.has_value());
+    EXPECT_EQ(WebView::url_for_display(*parsed_url), expected);
+}
+
 TEST_CASE(invalid_url)
 {
     EXPECT(!WebView::break_url_into_parts(""sv).has_value());
@@ -182,6 +189,19 @@ TEST_CASE(data_url)
 
     EXPECT(!is_sanitized_url_the_same("data text/html"sv));
     EXPECT(!is_sanitized_url_the_same("text/html data:"sv));
+}
+
+TEST_CASE(url_for_display)
+{
+    expect_url_for_display("example.com"sv, "https://example.com/"sv);
+    expect_url_for_display("example.com/path?query#fragment"sv, "http://www.example.com/path?query#fragment"sv);
+    expect_url_for_display("example.com/path/"sv, "https://www.example.com/path/"sv);
+    expect_url_for_display("example.com/?query#fragment"sv, "http://www.example.com/?query#fragment"sv);
+    expect_url_for_display("user:password@example.com/path"sv, "https://user:password@www.example.com/path"sv);
+
+    expect_url_for_display("about:version"sv, "about:version"sv);
+    expect_url_for_display("data:text/html,Hello"sv, "data:text/html,Hello"sv);
+    expect_url_for_display("file:///tmp/index.html"sv, "file:///tmp/index.html"sv);
 }
 
 TEST_CASE(location_to_search_or_url)
