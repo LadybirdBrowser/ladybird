@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+    <input id="fileInput" />
+    <input id="colorInput" />
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            await animationFrame();
+            await animationFrame();
+
+            // Rebuild the shadow tree so
+            fileInput.setAttribute("type", "file");
+
+            println(internals.getShadowRoot(fileInput).firstChild.isConnected);
+
+            colorInput.setAttribute("type", "color");
+            println(internals.getShadowRoot(colorInput).firstChild.isConnected);
+        });
+    </script>
+</html>

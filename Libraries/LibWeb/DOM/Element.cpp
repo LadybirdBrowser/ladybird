@@ -1494,6 +1494,10 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     }
     m_shadow_root = move(shadow_root);
     if (m_shadow_root) {
+        // NB: Children shouldn't be set on shadow roots until the shadow root is attached to a host so that they
+        //     correctly inherit connectedness.
+        VERIFY(!m_shadow_root->has_children());
+
         m_shadow_root->set_host(this);
         m_shadow_root->set_is_connected(is_connected());
     }
