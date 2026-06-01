@@ -322,7 +322,7 @@ private:
     void resolve_grid_item_sizes(GridDimension dimension);
 
     void resolve_track_spacing(GridDimension dimension);
-    void save_grid_layout_data(CSS::GridTrackSizeList&& columns, CSS::GridTrackSizeList&& rows);
+    void save_grid_layout_data();
     CSSPixels grid_container_size_for_track_alignment(GridDimension dimension) const;
 
     AvailableSize get_free_space(AvailableSpace const&, GridDimension) const;

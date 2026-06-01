@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Enums.h>
@@ -66,8 +65,6 @@ struct GridLayoutData {
     CSS::Direction direction { CSS::Direction::Ltr };
     CSS::WritingMode writing_mode { CSS::WritingMode::HorizontalTb };
     bool is_subgrid { false };
-    RefPtr<CSS::GridTrackSizeListStyleValue const> resolved_grid_template_columns;
-    RefPtr<CSS::GridTrackSizeListStyleValue const> resolved_grid_template_rows;
     Vector<GridLayoutFragment> fragments;
 };
 

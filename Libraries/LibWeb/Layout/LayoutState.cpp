@@ -591,6 +591,8 @@ void LayoutState::commit(Box& root)
             }
 
             if (node.display().is_grid_inside()) {
+                paintable_box->set_used_values_for_grid_template_columns(used_values.grid_template_columns());
+                paintable_box->set_used_values_for_grid_template_rows(used_values.grid_template_rows());
                 paintable_box->set_grid_layout_data(used_values.take_grid_layout_data());
             }
 
