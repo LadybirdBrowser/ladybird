@@ -25,6 +25,12 @@ target_sources(ladybird PRIVATE
     ladybird.qrc
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
+
+if (APPLE)
+    target_sources(ladybird PRIVATE MacWindow.mm)
+    target_link_libraries(ladybird PRIVATE "-framework Cocoa" "-framework QuartzCore")
+endif()
+
 create_ladybird_bundle(ladybird)
 
 if (WIN32)

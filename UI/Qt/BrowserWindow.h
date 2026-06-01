@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/Settings.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 
@@ -80,7 +81,9 @@ private:
     bool m_debounce { false };
 };
 
-class BrowserWindow : public QMainWindow {
+class BrowserWindow
+    : public QMainWindow
+    , public WebView::SettingsObserver {
     Q_OBJECT
 
 public:
@@ -151,6 +154,7 @@ private:
     virtual void moveEvent(QMoveEvent*) override;
     virtual void wheelEvent(QWheelEvent*) override;
     virtual void closeEvent(QCloseEvent*) override;
+    virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void initialize_tab(Tab*);
@@ -161,6 +165,7 @@ private:
     Optional<Qt::CursorShape> resize_cursor_for_edges(Qt::Edges) const;
     void update_resize_cursor(QPoint const&);
     void clear_resize_cursor();
+    void update_window_corners();
 
     template<typename Callback>
     void for_each_tab(Callback&& callback)

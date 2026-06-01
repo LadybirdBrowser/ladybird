@@ -89,6 +89,14 @@ static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Cou
         .default_value = JsonArray {},
         .array_element_type = JsonValue::Type::String,
     },
+    {
+        .id = ConfigVariableID::UseRoundedWindowCorners,
+        .name = "ui.window.use_rounded_corners"sv,
+        .title = "Use rounded window corners"sv,
+        .description = "Clip browser windows to rounded corners."sv,
+        .default_value = true,
+        .array_element_type = {},
+    },
 } };
 
 ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions()
