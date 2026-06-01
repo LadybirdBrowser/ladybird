@@ -25,12 +25,12 @@ class Table : public Bindings::PlatformObject {
 public:
     static WebIDL::ExceptionOr<GC::Ref<Table>> construct_impl(JS::Realm&, Bindings::TableDescriptor& descriptor, Optional<JS::Value> value);
 
-    WebIDL::ExceptionOr<u32> grow(u32 delta, Optional<JS::Value> value);
+    WebIDL::ExceptionOr<JS::Value> grow(JS::Value delta, Optional<JS::Value> value);
 
-    WebIDL::ExceptionOr<JS::Value> get(u32 index) const;
-    WebIDL::ExceptionOr<void> set(u32 index, Optional<JS::Value> value);
+    WebIDL::ExceptionOr<JS::Value> get(JS::Value index) const;
+    WebIDL::ExceptionOr<void> set(JS::Value index, Optional<JS::Value> value);
 
-    WebIDL::ExceptionOr<u32> length() const;
+    WebIDL::ExceptionOr<JS::Value> length() const;
 
     Wasm::TableAddress address() const { return m_address; }
 
