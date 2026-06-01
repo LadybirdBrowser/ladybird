@@ -868,6 +868,13 @@ private:
 
 void free_cranelift_code(void* handle);
 
+struct CraneliftTrap {
+    u32 offset { 0 };
+    u8 code { 0 };
+    u8 _padding[3] { 0, 0, 0 };
+};
+static_assert(sizeof(CraneliftTrap) == 8);
+
 struct CompiledInstructions {
     Vector<Dispatch> dispatches;
     Vector<SourcesAndDestination> src_dst_mappings;
@@ -876,6 +883,8 @@ struct CompiledInstructions {
     bool cranelift_compiled = false;
     void* cranelift_code_handle = nullptr; // Owned; freed when the owning Module is destroyed.
     size_t cranelift_code_size = 0;
+    CraneliftTrap const* cranelift_traps = nullptr; // Owned by cranelift_code_handle.
+    size_t cranelift_trap_count = 0;
     size_t max_call_arg_count = 0;
     size_t max_call_rec_size = 0;
 };

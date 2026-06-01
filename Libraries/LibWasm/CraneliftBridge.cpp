@@ -60,12 +60,15 @@ struct OutputFunctionEntry {
     // with the live address of helper N for the current process.
     u64 reloc_offset;
     u32 reloc_count;
+    u64 trap_offset;
+    u32 trap_count;
     u32 _pad;
 };
 
 struct CodeMapping {
     void* mapping;
     size_t size;
+    Vector<CraneliftTrap> traps;
 };
 
 static constexpr size_t oop_code_region_min_size = 256 * KiB;
@@ -91,7 +94,7 @@ struct BatchInput {
 // any rebuild that changes those will simply miss the cache rather than try to
 // execute incompatible bytes.
 constexpr u64 cache_blob_magic = 0x4354494A4D534157ULL; // "WASMJITC" little-endian
-constexpr u32 cache_blob_format_version = 1;
+constexpr u32 cache_blob_format_version = 3;
 
 struct CacheBlobHeader {
     u64 magic;
@@ -108,7 +111,7 @@ struct CacheBlobFunctionEntry {
     u32 function_index;
     u32 code_size;
     u32 reloc_count;
-    u32 _pad;
+    u32 trap_count;
 };
 static_assert(sizeof(CacheBlobFunctionEntry) == 16);
 
@@ -116,6 +119,7 @@ struct CacheRecord {
     u32 function_index;
     ByteBuffer unpatched_code;
     Vector<HelperReloc> relocs;
+    Vector<CraneliftTrap> traps;
 };
 
 // On a cache miss we capture every successful compile so we can hand the blob to a
@@ -183,7 +187,7 @@ static bool apply_helper_relocs(u8* code_bytes, size_t code_size, HelperReloc co
 // helper-address patches, and install the resulting function pointer into `target`.
 // Used by both the fresh-compile path (bytes come from the subprocess shm) and the
 // cache-install path (bytes come from a `.wasmjit` blob).
-static bool install_compiled_function(CompiledInstructions& target, ReadonlyBytes code_bytes, HelperReloc const* relocs, size_t reloc_count, RuntimeHelpers const& helpers)
+static bool install_compiled_function(CompiledInstructions& target, ReadonlyBytes code_bytes, HelperReloc const* relocs, size_t reloc_count, ReadonlySpan<CraneliftTrap> traps, RuntimeHelpers const& helpers)
 {
     if (target.dispatches.is_empty())
         return false;
@@ -209,7 +213,7 @@ static bool install_compiled_function(CompiledInstructions& target, ReadonlyByte
     VirtualProtect(jit_mem, rx_aligned_size, PAGE_EXECUTE_READ, &old_protect);
     FlushInstructionCache(GetCurrentProcess(), jit_mem, code_size);
     auto* func_ptr = static_cast<u8 const*>(jit_mem);
-    auto* handle = new CodeMapping { jit_mem, rx_aligned_size };
+    auto* handle = new CodeMapping { jit_mem, rx_aligned_size, {} };
 #elif defined(AK_OS_MACOS)
     auto const page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
     auto const rx_aligned_size = (code_size + page_size - 1) & ~(page_size - 1);
@@ -226,7 +230,7 @@ static bool install_compiled_function(CompiledInstructions& target, ReadonlyByte
     pthread_jit_write_protect_np(1);
     sys_icache_invalidate(jit_mapping, code_size);
     auto* func_ptr = static_cast<u8 const*>(jit_mapping);
-    auto* handle = new CodeMapping { jit_mapping, rx_aligned_size };
+    auto* handle = new CodeMapping { jit_mapping, rx_aligned_size, {} };
 #else
     auto const page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
     auto const rx_aligned_size = (code_size + page_size - 1) & ~(page_size - 1);
@@ -240,12 +244,18 @@ static bool install_compiled_function(CompiledInstructions& target, ReadonlyByte
     }
     __builtin___clear_cache(static_cast<char*>(rw_mapping), static_cast<char*>(rw_mapping) + code_size);
     auto* func_ptr = static_cast<u8 const*>(rw_mapping);
-    auto* handle = new CodeMapping { rw_mapping, rx_aligned_size };
+    auto* handle = new CodeMapping { rw_mapping, rx_aligned_size, {} };
 #endif
+
+    handle->traps.ensure_capacity(traps.size());
+    for (auto const& trap : traps)
+        handle->traps.unchecked_append(trap);
 
     target.dispatches[0].handler_ptr = bit_cast<FlatPtr>(func_ptr);
     target.cranelift_code_handle = handle;
     target.cranelift_code_size = code_size;
+    target.cranelift_traps = handle->traps.data();
+    target.cranelift_trap_count = handle->traps.size();
     target.cranelift_compiled = true;
     return true;
 }
@@ -402,138 +412,161 @@ static inline MemoryInstance* wasm_cl_get_memory(void* config_ptr, i32 mem_idx)
 
 static inline u8 const* wasm_cl_memory_data_if_in_bounds(MemoryInstance* memory, u64 instance_addr, size_t size)
 {
-    if (instance_addr + size > memory->size())
+    if (instance_addr > memory->size() || size > memory->size() - instance_addr)
         return nullptr;
     return memory->data().offset_pointer(instance_addr);
 }
 
-i64 wasm_cl_memory_load8_s(void* config_ptr, i32 mem_idx, i64 addr);
-i64 wasm_cl_memory_load8_s(void* config_ptr, i32 mem_idx, i64 addr)
+i32 wasm_cl_memory_load8_s(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out);
+i32 wasm_cl_memory_load8_s(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto const* data = wasm_cl_memory_data_if_in_bounds(memory, static_cast<u64>(addr), 1);
-    if (!data)
-        return 0;
-    return static_cast<i64>(static_cast<i8>(data[0]));
+    if (!data) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
+        return 1;
+    }
+    *out = static_cast<i64>(static_cast<i8>(data[0]));
+    return 0;
 }
 
-i64 wasm_cl_memory_load8_u(void* config_ptr, i32 mem_idx, i64 addr);
-i64 wasm_cl_memory_load8_u(void* config_ptr, i32 mem_idx, i64 addr)
+i32 wasm_cl_memory_load8_u(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out);
+i32 wasm_cl_memory_load8_u(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto const* data = wasm_cl_memory_data_if_in_bounds(memory, static_cast<u64>(addr), 1);
-    if (!data)
-        return 0;
-    return static_cast<i64>(data[0]);
+    if (!data) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
+        return 1;
+    }
+    *out = static_cast<i64>(data[0]);
+    return 0;
 }
 
-i64 wasm_cl_memory_load16_s(void* config_ptr, i32 mem_idx, i64 addr);
-i64 wasm_cl_memory_load16_s(void* config_ptr, i32 mem_idx, i64 addr)
+i32 wasm_cl_memory_load16_s(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out);
+i32 wasm_cl_memory_load16_s(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto const* data = wasm_cl_memory_data_if_in_bounds(memory, static_cast<u64>(addr), 2);
-    if (!data)
-        return 0;
+    if (!data) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
+        return 1;
+    }
     u16 val;
     __builtin_memcpy(&val, data, sizeof(val));
-    return static_cast<i64>(static_cast<i16>(val));
+    *out = static_cast<i64>(static_cast<i16>(val));
+    return 0;
 }
 
-i64 wasm_cl_memory_load16_u(void* config_ptr, i32 mem_idx, i64 addr);
-i64 wasm_cl_memory_load16_u(void* config_ptr, i32 mem_idx, i64 addr)
+i32 wasm_cl_memory_load16_u(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out);
+i32 wasm_cl_memory_load16_u(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto const* data = wasm_cl_memory_data_if_in_bounds(memory, static_cast<u64>(addr), 2);
-    if (!data)
-        return 0;
+    if (!data) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
+        return 1;
+    }
     u16 val;
     __builtin_memcpy(&val, data, sizeof(val));
-    return static_cast<i64>(val);
+    *out = static_cast<i64>(val);
+    return 0;
 }
 
-i64 wasm_cl_memory_load32_s(void* config_ptr, i32 mem_idx, i64 addr);
-i64 wasm_cl_memory_load32_s(void* config_ptr, i32 mem_idx, i64 addr)
+i32 wasm_cl_memory_load32_s(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out);
+i32 wasm_cl_memory_load32_s(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto const* data = wasm_cl_memory_data_if_in_bounds(memory, static_cast<u64>(addr), 4);
-    if (!data)
-        return 0;
+    if (!data) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
+        return 1;
+    }
     u32 val;
     __builtin_memcpy(&val, data, sizeof(val));
-    return static_cast<i64>(static_cast<i32>(val));
+    *out = static_cast<i64>(static_cast<i32>(val));
+    return 0;
 }
 
-i64 wasm_cl_memory_load32_u(void* config_ptr, i32 mem_idx, i64 addr);
-i64 wasm_cl_memory_load32_u(void* config_ptr, i32 mem_idx, i64 addr)
+i32 wasm_cl_memory_load32_u(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out);
+i32 wasm_cl_memory_load32_u(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto const* data = wasm_cl_memory_data_if_in_bounds(memory, static_cast<u64>(addr), 4);
-    if (!data)
-        return 0;
+    if (!data) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
+        return 1;
+    }
     u32 val;
     __builtin_memcpy(&val, data, sizeof(val));
-    return static_cast<i64>(val);
+    *out = static_cast<i64>(val);
+    return 0;
 }
 
-i64 wasm_cl_memory_load64(void* config_ptr, i32 mem_idx, i64 addr);
-i64 wasm_cl_memory_load64(void* config_ptr, i32 mem_idx, i64 addr)
+i32 wasm_cl_memory_load64(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out);
+i32 wasm_cl_memory_load64(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64* out)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto const* data = wasm_cl_memory_data_if_in_bounds(memory, static_cast<u64>(addr), 8);
-    if (!data)
-        return 0;
+    if (!data) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
+        return 1;
+    }
     u64 val;
     __builtin_memcpy(&val, data, sizeof(val));
-    return static_cast<i64>(val);
+    *out = static_cast<i64>(val);
+    return 0;
 }
 
-static inline bool wasm_cl_memory_store_in_bounds(void* config_ptr, i32 mem_idx, i64 addr, size_t size, u8*& data)
+static inline bool wasm_cl_memory_store_in_bounds(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, size_t size, u8*& data)
 {
     auto* memory = wasm_cl_get_memory(config_ptr, mem_idx);
     auto instance_addr = static_cast<u64>(addr);
-    if (instance_addr + size > memory->size())
+    if (instance_addr > memory->size() || size > memory->size() - instance_addr) {
+        static_cast<BytecodeInterpreter*>(interp_ptr)->set_trap("Memory access out of bounds"sv);
         return false;
+    }
     data = memory->data().offset_pointer(instance_addr);
     return true;
 }
 
-i32 wasm_cl_memory_store8(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
-i32 wasm_cl_memory_store8(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
+i32 wasm_cl_memory_store8(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value);
+i32 wasm_cl_memory_store8(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
-    if (!wasm_cl_memory_store_in_bounds(config_ptr, mem_idx, addr, 1, data))
+    if (!wasm_cl_memory_store_in_bounds(interp_ptr, config_ptr, mem_idx, addr, 1, data))
         return 1; // OOB trap
     data[0] = static_cast<u8>(value);
     return 0;
 }
 
-i32 wasm_cl_memory_store16(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
-i32 wasm_cl_memory_store16(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
+i32 wasm_cl_memory_store16(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value);
+i32 wasm_cl_memory_store16(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
-    if (!wasm_cl_memory_store_in_bounds(config_ptr, mem_idx, addr, 2, data))
+    if (!wasm_cl_memory_store_in_bounds(interp_ptr, config_ptr, mem_idx, addr, 2, data))
         return 1;
     u16 val = static_cast<u16>(value);
     __builtin_memcpy(data, &val, sizeof(val));
     return 0;
 }
 
-i32 wasm_cl_memory_store32(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
-i32 wasm_cl_memory_store32(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
+i32 wasm_cl_memory_store32(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value);
+i32 wasm_cl_memory_store32(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
-    if (!wasm_cl_memory_store_in_bounds(config_ptr, mem_idx, addr, 4, data))
+    if (!wasm_cl_memory_store_in_bounds(interp_ptr, config_ptr, mem_idx, addr, 4, data))
         return 1;
     u32 val = static_cast<u32>(value);
     __builtin_memcpy(data, &val, sizeof(val));
     return 0;
 }
 
-i32 wasm_cl_memory_store64(void* config_ptr, i32 mem_idx, i64 addr, i64 value);
-i32 wasm_cl_memory_store64(void* config_ptr, i32 mem_idx, i64 addr, i64 value)
+i32 wasm_cl_memory_store64(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value);
+i32 wasm_cl_memory_store64(void* interp_ptr, void* config_ptr, i32 mem_idx, i64 addr, i64 value)
 {
     u8* data;
-    if (!wasm_cl_memory_store_in_bounds(config_ptr, mem_idx, addr, 8, data))
+    if (!wasm_cl_memory_store_in_bounds(interp_ptr, config_ptr, mem_idx, addr, 8, data))
         return 1;
     u64 val = static_cast<u64>(value);
     __builtin_memcpy(data, &val, sizeof(val));
@@ -1211,10 +1244,23 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
         if (reloc_region_start + reloc_offset + reloc_bytes > total_size)
             continue;
 
+        auto const trap_offset = static_cast<size_t>(output->trap_offset);
+        auto const trap_count = static_cast<size_t>(output->trap_count);
+        auto const trap_bytes = trap_count * sizeof(CraneliftTrap);
+        if (trap_count != 0 && trap_bytes / sizeof(CraneliftTrap) != trap_count)
+            continue;
+        if (trap_offset > reloc_region_size || trap_bytes > reloc_region_size - trap_offset)
+            continue;
+        if (reloc_region_start + trap_offset + trap_bytes > total_size)
+            continue;
+
         auto code_bytes = ReadonlyBytes { base + code_start, code_size };
         auto const* relocs = reloc_count == 0
             ? nullptr
             : reinterpret_cast<HelperReloc const*>(base + reloc_region_start + reloc_offset);
+        auto traps = trap_count == 0
+            ? ReadonlySpan<CraneliftTrap> {}
+            : ReadonlySpan<CraneliftTrap> { reinterpret_cast<CraneliftTrap const*>(base + reloc_region_start + trap_offset), trap_count };
 
         auto& capture = s_cranelift_cache_state.cache_capture;
         if (capture.capturing && batch[i].function_index != NumericLimits<u32>::max()) {
@@ -1225,11 +1271,14 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
                 rec.relocs.ensure_capacity(reloc_count);
                 for (size_t j = 0; j < reloc_count; ++j)
                     rec.relocs.unchecked_append(relocs[j]);
+                rec.traps.ensure_capacity(trap_count);
+                for (size_t j = 0; j < trap_count; ++j)
+                    rec.traps.unchecked_append(traps[j]);
                 capture.records.append(move(rec));
             }
         }
 
-        install_compiled_function(*batch[i].target, code_bytes, relocs, reloc_count, helpers);
+        install_compiled_function(*batch[i].target, code_bytes, relocs, reloc_count, traps, helpers);
     }
 }
 
@@ -1264,7 +1313,9 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
                     compiled,
                     record->unpatched_code.bytes(),
                     record->relocs.is_empty() ? nullptr : record->relocs.data(),
-                    record->relocs.size(), cache_install_helpers)) {
+                    record->relocs.size(),
+                    record->traps.span(),
+                    cache_install_helpers)) {
                 return true;
             }
             // Put it back so we can try later.
@@ -1459,6 +1510,7 @@ Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes wasm_hash)
         total_size += sizeof(CacheBlobFunctionEntry);
         total_size += align_up(r.unpatched_code.size(), 16);
         total_size += r.relocs.size() * sizeof(HelperReloc);
+        total_size += r.traps.size() * sizeof(CraneliftTrap);
     }
 
     auto blob_or_error = ByteBuffer::create_zeroed(total_size);
@@ -1481,6 +1533,7 @@ Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes wasm_hash)
         entry->function_index = r.function_index;
         entry->code_size = static_cast<u32>(r.unpatched_code.size());
         entry->reloc_count = static_cast<u32>(r.relocs.size());
+        entry->trap_count = static_cast<u32>(r.traps.size());
         offset += sizeof(CacheBlobFunctionEntry);
 
         __builtin_memcpy(out + offset, r.unpatched_code.data(), r.unpatched_code.size());
@@ -1490,6 +1543,11 @@ Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes wasm_hash)
         if (reloc_bytes > 0)
             __builtin_memcpy(out + offset, r.relocs.data(), reloc_bytes);
         offset += reloc_bytes;
+
+        auto trap_bytes = r.traps.size() * sizeof(CraneliftTrap);
+        if (trap_bytes > 0)
+            __builtin_memcpy(out + offset, r.traps.data(), trap_bytes);
+        offset += trap_bytes;
     }
 
     return blob;
@@ -1535,6 +1593,12 @@ bool try_install_cranelift_cache_blob(ReadonlyBytes expected_wasm_hash, Readonly
             return false;
         offset += reloc_bytes;
 
+        auto trap_off = offset;
+        auto trap_bytes = static_cast<size_t>(entry->trap_count) * sizeof(CraneliftTrap);
+        if (trap_off + trap_bytes > blob.size())
+            return false;
+        offset += trap_bytes;
+
         auto code_copy = ByteBuffer::copy(blob.data() + code_off, entry->code_size);
         if (code_copy.is_error())
             return false;
@@ -1547,6 +1611,12 @@ bool try_install_cranelift_cache_blob(ReadonlyBytes expected_wasm_hash, Readonly
             HelperReloc reloc;
             __builtin_memcpy(&reloc, blob.data() + reloc_off + j * sizeof(HelperReloc), sizeof(HelperReloc));
             rec.relocs.unchecked_append(reloc);
+        }
+        rec.traps.ensure_capacity(entry->trap_count);
+        for (u32 j = 0; j < entry->trap_count; ++j) {
+            CraneliftTrap trap;
+            __builtin_memcpy(&trap, blob.data() + trap_off + j * sizeof(CraneliftTrap), sizeof(CraneliftTrap));
+            rec.traps.unchecked_append(trap);
         }
         s_cranelift_cache_state.pending_install.records.set(entry->function_index, move(rec));
     }
