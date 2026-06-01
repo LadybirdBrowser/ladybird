@@ -349,6 +349,7 @@ ErrorOr<Vector<float>> AttributeParser::parse_coordinate_sequence()
         if (coordinate_or_error.is_error()) {
             if (is_first)
                 return Error::from_string_literal("Expected coordinate sequence");
+            break;
         }
         is_first = false;
         sequence.append(coordinate_or_error.release_value());
