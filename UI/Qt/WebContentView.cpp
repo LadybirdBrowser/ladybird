@@ -53,10 +53,25 @@ namespace Ladybird {
 
 bool is_using_dark_system_theme(QWidget&);
 
-WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index, WebContentViewInitialState initial_state)
-    : WebContentViewBase(window)
+static QWidget* initial_web_content_view_parent([[maybe_unused]] QWidget* window)
 {
 #ifdef AK_OS_MACOS
+    return nullptr;
+#else
+    return window;
+#endif
+}
+
+WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index, WebContentViewInitialState initial_state)
+    : WebContentViewBase(initial_web_content_view_parent(window))
+{
+#ifdef AK_OS_MACOS
+    // Keep the QRhiWidget out of the top-level QWidget backing store. If it is
+    // parented before becoming native, Qt propagates its RHI config to the whole
+    // browser window and uploads the full backing store texture on chrome repaints.
+    setAttribute(Qt::WA_DontCreateNativeAncestors);
+    setAttribute(Qt::WA_NativeWindow);
+    setParent(window);
     setApi(QRhiWidget::Api::Metal);
 #endif
 
