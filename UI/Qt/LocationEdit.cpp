@@ -737,7 +737,6 @@ void LocationEdit::show_full_url_preserving_display_selection()
 
     auto selection_start = selectionStart();
     auto selection_length = selectedText().length();
-    auto cursor_position = cursorPosition();
 
     setText(serialized_url());
 
@@ -746,7 +745,7 @@ void LocationEdit::show_full_url_preserving_display_selection()
         auto serialized_selection_end = serialized_url_position_for_display_position(selection_start + selection_length);
         setSelection(serialized_selection_start, serialized_selection_end - serialized_selection_start);
     } else {
-        setCursorPosition(serialized_url_position_for_display_position(cursor_position));
+        selectAll();
     }
 
     highlight_location();
