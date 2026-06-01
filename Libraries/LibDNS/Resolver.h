@@ -666,7 +666,10 @@ public:
         });
 
         ByteBuffer query_bytes;
-        MUST(query.to_raw(query_bytes));
+        if (auto result = query.to_raw(query_bytes); result.is_error()) {
+            promise->reject(result.release_error());
+            return promise;
+        }
 
         if (m_mode == ConnectionMode::TCP) {
             auto original_query_bytes = query_bytes;

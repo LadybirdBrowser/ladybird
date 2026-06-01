@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestDNSMessage.cpp
     TestDNSResolver.cpp
 )
 
