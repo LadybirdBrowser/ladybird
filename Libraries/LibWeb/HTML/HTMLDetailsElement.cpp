@@ -235,6 +235,7 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     shadow_root->set_slot_assignment(Bindings::SlotAssignmentMode::Manual);
+    set_shadow_root(shadow_root);
 
     // The first child element is a slot that is expected to take the details element's first summary element child, if any.
     auto summary_slot = TRY(DOM::create_element(document(), HTML::TagNames::slot, Namespace::HTML));
@@ -262,7 +263,6 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 
     m_summary_slot = static_cast<HTML::HTMLSlotElement&>(*summary_slot);
     m_descendants_slot = static_cast<HTML::HTMLSlotElement&>(*descendants_slot);
-    set_shadow_root(shadow_root);
 
     return {};
 }

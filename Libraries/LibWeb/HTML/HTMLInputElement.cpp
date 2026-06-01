@@ -1256,6 +1256,7 @@ void HTMLInputElement::create_color_input_shadow_tree()
 {
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
+    set_shadow_root(shadow_root);
 
     auto color = value_sanitization_algorithm(m_value);
 
@@ -1279,7 +1280,6 @@ void HTMLInputElement::create_color_input_shadow_tree()
 
     MUST(border->append_child(*m_color_well_element));
     MUST(shadow_root->append_child(border));
-    set_shadow_root(shadow_root);
 }
 
 void HTMLInputElement::update_color_well_element()
@@ -1296,6 +1296,7 @@ void HTMLInputElement::create_file_input_shadow_tree()
 
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
+    set_shadow_root(shadow_root);
 
     m_file_button = DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(shadow_root->append_child(*m_file_button));
@@ -1316,8 +1317,6 @@ void HTMLInputElement::create_file_input_shadow_tree()
     update_file_input_shadow_tree();
 
     MUST(shadow_root->append_child(*m_file_label));
-
-    set_shadow_root(shadow_root);
 }
 
 void HTMLInputElement::update_file_input_shadow_tree()
