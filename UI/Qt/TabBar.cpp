@@ -49,6 +49,8 @@ namespace Ladybird {
 static constexpr auto LADYBIRD_TAB_MIME_TYPE = "application/x-ladybird-tab";
 static constexpr int HORIZONTAL_TAB_STRIP_HEIGHT = 43;
 static constexpr int HORIZONTAL_TAB_HEIGHT = 36;
+static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 128;
+static constexpr int HORIZONTAL_TAB_MAX_WIDTH = 240;
 static constexpr int VERTICAL_TAB_HEIGHT = 38;
 static constexpr int VERTICAL_TABS_COLLAPSED_WIDTH = 52;
 static constexpr int VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH = 232;
@@ -288,8 +290,8 @@ QSize TabBar::tabSizeHint(int index) const
 
     if (auto count = this->count(); count > 0) {
         auto width = (m_available_width > 0 ? m_available_width : this->width()) / count;
-        width = min(240, width);
-        width = max(128, width);
+        width = min(HORIZONTAL_TAB_MAX_WIDTH, width);
+        width = max(HORIZONTAL_TAB_MIN_WIDTH, width);
 
         hint.setWidth(width);
     }
@@ -1418,6 +1420,9 @@ void TabWidget::update_tab_layout()
     auto available_for_tabs = width() - controls_width - 36;
 
     m_tab_bar->set_available_width(available_for_tabs);
+
+    auto tab_bar_width = min(available_for_tabs, m_tab_bar->count() * HORIZONTAL_TAB_MAX_WIDTH);
+    m_tab_bar->setFixedWidth(max(0, tab_bar_width));
 }
 
 void TabWidget::update_tab_button_visibility()
