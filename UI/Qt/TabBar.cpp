@@ -1068,10 +1068,6 @@ void TabWidget::set_tab_bar_visible(bool visible)
 void TabWidget::set_window_controls_visible(bool visible)
 {
     m_window_controls_visible = visible;
-    auto show_tab_strip_window_controls = visible && m_tab_bar->tab_layout() == TabLayout::Horizontal;
-    m_minimize_window_button->setVisible(show_tab_strip_window_controls);
-    m_maximize_window_button->setVisible(show_tab_strip_window_controls);
-    m_close_window_button->setVisible(show_tab_strip_window_controls);
     for (int index = 0; index < m_stacked_widget->count(); ++index)
         tab(index)->set_toolbar_window_controls_visible(visible && m_vertical_tabs_enabled);
     update_tab_chrome_visibility();
@@ -1286,7 +1282,6 @@ void TabWidget::rebuild_layout()
         m_main_layout->addWidget(m_tab_bar_row);
         m_main_layout->addWidget(m_stacked_widget, 1);
         m_vertical_tabs_content->hide();
-        m_vertical_tab_bar_column->hide();
     }
 
     update_tab_button_visibility();
