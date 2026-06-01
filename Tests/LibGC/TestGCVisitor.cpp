@@ -18,6 +18,8 @@
 #include <LibGC/Ptr.h>
 #include <LibTest/TestCase.h>
 
+namespace {
+
 class TestCell : public GC::Cell {
     GC_CELL(TestCell, GC::Cell);
     GC_DECLARE_ALLOCATOR(TestCell);
@@ -26,6 +28,8 @@ class TestCell : public GC::Cell {
 };
 
 GC_DEFINE_ALLOCATOR(TestCell);
+
+}
 
 static GC::Heap& test_heap()
 {
@@ -38,6 +42,8 @@ TEST_SETUP
     GC::Heap::set_default_heap_for_testing(test_heap());
 }
 
+namespace {
+
 class TestVisitor : public GC::Cell::Visitor {
     virtual void visit_impl(GC::Cell& cell) override { visited_cells.set(&cell); }
     virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue> span) override { last_nan_span_size = span.size(); }
@@ -47,6 +53,8 @@ public:
     HashTable<GC::Cell*> visited_cells;
     Optional<size_t> last_nan_span_size;
 };
+
+}
 
 class TestNanBox : public GC::NanBoxedValue {
 public:

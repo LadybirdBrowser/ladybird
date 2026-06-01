@@ -3,6 +3,4 @@ set(TEST_SOURCES
     TestTextEncoders.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibTextCodec LIBS LibTextCodec)
-endforeach()
+ladybird_test_suite(TestTextCodec LibTextCodec SOURCES ${TEST_SOURCES} LIBS LibTextCodec)

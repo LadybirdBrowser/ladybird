@@ -3,6 +3,4 @@ set(TEST_SOURCES
     TestGenerator.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" Test)
-endforeach()
+ladybird_test_suite(TestLibTest Test SOURCES ${TEST_SOURCES})

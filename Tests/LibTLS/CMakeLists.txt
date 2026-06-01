@@ -3,6 +3,4 @@ set(TEST_SOURCES
     TestTLSHandshake.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibTLS LIBS LibTLS LibCrypto)
-endforeach()
+ladybird_test_suite(TestTLS LibTLS SOURCES ${TEST_SOURCES} LIBS LibTLS LibCrypto)

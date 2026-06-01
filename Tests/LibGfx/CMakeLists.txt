@@ -10,8 +10,4 @@ set(TEST_SOURCES
     TestWOFF2.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibGfx LIBS LibGfx)
-endforeach()
-
-ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)
+ladybird_test_suite(TestGfx LibGfx SOURCES ${TEST_SOURCES} TestYUVData.cpp LIBS LibGfx skia)

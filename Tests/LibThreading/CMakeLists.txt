@@ -3,8 +3,4 @@ set(TEST_SOURCES
     TestThread.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibThreading LIBS LibThreading)
-endforeach()
-
-target_link_libraries(TestBackgroundAction PRIVATE LibSync)
+ladybird_test_suite(TestThreading LibThreading SOURCES ${TEST_SOURCES} LIBS LibThreading LibSync)

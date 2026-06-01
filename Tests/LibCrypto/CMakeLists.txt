@@ -17,6 +17,4 @@ set(TEST_SOURCES
     TestRSA.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibCrypto LIBS LibCrypto)
-endforeach()
+ladybird_test_suite(TestCrypto LibCrypto SOURCES ${TEST_SOURCES} LIBS LibCrypto)

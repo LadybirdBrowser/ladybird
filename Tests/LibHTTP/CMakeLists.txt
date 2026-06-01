@@ -5,9 +5,4 @@ set(TEST_SOURCES
     TestHTTPUtils.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibWeb LIBS LibHTTP)
-endforeach()
-
-ladybird_test("TestCacheIndex.cpp" LibWeb LIBS LibHTTP LibDatabase)
-ladybird_test("TestDiskCache.cpp" LibWeb LIBS LibHTTP LibURL)
+ladybird_test_suite(TestHTTP LibHTTP SOURCES ${TEST_SOURCES} TestCacheIndex.cpp TestDiskCache.cpp LIBS LibHTTP LibDatabase LibURL)

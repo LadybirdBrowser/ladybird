@@ -4,6 +4,4 @@ set(TEST_SOURCES
     TestWebViewURL.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibWebView LIBS LibDatabase LibWebView LibURL)
-endforeach()
+ladybird_test_suite(TestWebView LibWebView SOURCES ${TEST_SOURCES} LIBS LibDatabase LibWebView LibURL)

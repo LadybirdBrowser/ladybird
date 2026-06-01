@@ -4,6 +4,4 @@ set(URL_TEST_SOURCES
     TestPublicSuffix.cpp
 )
 
-foreach(source IN LISTS URL_TEST_SOURCES)
-    ladybird_test("${source}" LibURL LIBS LibURL LibRegex)
-endforeach()
+ladybird_test_suite(TestURL LibURL SOURCES ${URL_TEST_SOURCES} LIBS LibURL LibRegex)

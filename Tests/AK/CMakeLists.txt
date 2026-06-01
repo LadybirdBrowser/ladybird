@@ -89,14 +89,13 @@ else()
     list(APPEND AK_TEST_SOURCES TestDelayLoadWindows.cpp)
 endif()
 
-foreach(source IN LISTS AK_TEST_SOURCES)
-    ladybird_test("${source}" AK)
-endforeach()
+ladybird_test_suite(TestAK AK SOURCES ${AK_TEST_SOURCES} LIBS LibUnicode)
 
 if (WIN32)
     # FIXME: Windows on ARM
-    target_link_libraries(TestUFixedBigInt PRIVATE clang_rt.builtins-x86_64.lib)
+    target_link_libraries(TestAK PRIVATE clang_rt.builtins-x86_64.lib)
 endif()
+
 
 if (APPLE)
     ladybird_test(TestFunctionObjC.mm AK NAME TestFunctionObjC)
@@ -104,6 +103,3 @@ if (APPLE)
     ladybird_test(TestFunctionObjC.mm AK NAME TestFunctionObjCArc)
     target_compile_options(TestFunctionObjCArc PRIVATE -fobjc-arc)
 endif()
-
-target_link_libraries(TestString PRIVATE LibUnicode)
-target_link_libraries(TestUtf16String PRIVATE LibUnicode)

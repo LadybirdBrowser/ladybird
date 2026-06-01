@@ -8,6 +8,4 @@ set(TEST_SOURCES
     TestUnicodeNormalization.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibUnicode LIBS LibUnicode)
-endforeach()
+ladybird_test_suite(TestUnicode LibUnicode SOURCES ${TEST_SOURCES} LIBS LibUnicode)

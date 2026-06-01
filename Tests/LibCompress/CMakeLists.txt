@@ -6,6 +6,4 @@ set(TEST_SOURCES
     TestZlib.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibCompress LIBS LibCompress)
-endforeach()
+ladybird_test_suite(TestCompress LibCompress SOURCES ${TEST_SOURCES} LIBS LibCompress)

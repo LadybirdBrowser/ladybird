@@ -19,17 +19,9 @@ set(TEST_SOURCES
     TestStrings.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibWeb LIBS LibWeb)
-endforeach()
+ladybird_test_suite(TestWeb LibWeb SOURCES ${TEST_SOURCES} LIBS LibWeb LibURL LibSync LibWebView)
 
 ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
-
-target_link_libraries(TestContentBlocker PRIVATE LibURL)
-target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
-target_link_libraries(TestFetchURL PRIVATE LibURL)
-target_link_libraries(TestSecureContexts PRIVATE LibURL)
-target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 
 if (NOT WIN32)
     add_custom_target(test-css-tokenizer ALL DEPENDS css-tokenizer "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer")

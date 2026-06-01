@@ -177,6 +177,29 @@ function(ladybird_utility name)
     ladybird_generate_dsym(${name})
 endfunction()
 
+function(ladybird_test_suite name sub_dir)
+    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST_SUITE "" "" "SOURCES;LIBS")
+
+    add_executable(${name} ${LADYBIRD_TEST_SUITE_SOURCES})
+    target_link_libraries(${name} PRIVATE AK LibCore LibFileSystem LibTest $<TARGET_OBJECTS:LibTestMain> ${LADYBIRD_TEST_SUITE_LIBS})
+    ladybird_windows_bin(${name} CONSOLE)
+    ladybird_generate_dsym(${name})
+
+    if (WIN32)
+        target_include_directories(${name} PRIVATE ${PTHREAD_INCLUDE_DIR})
+        target_link_libraries(${name} PRIVATE ${PTHREAD_LIBRARY})
+
+        target_include_directories(${name} PRIVATE ${MMAN_INCLUDE_DIR})
+        target_link_libraries(${name} PRIVATE ${MMAN_LIBRARY})
+    endif()
+
+    add_test(
+            NAME ${name}
+            COMMAND ${name}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+endfunction()
+
 if (NOT TARGET ladybird_codegen_accumulator)
     # Meta target to run all code-gen steps in the build.
     add_custom_target(ladybird_codegen_accumulator)

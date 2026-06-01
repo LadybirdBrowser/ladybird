@@ -18,14 +18,9 @@ set(TEST_SOURCES
     TestWav.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem LibSync)
-endforeach()
-
-target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
-target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
+ladybird_test_suite(TestMedia LibMedia SOURCES ${TEST_SOURCES} LIBS LibMedia LibFileSystem LibSync LibThreading)
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
-    target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
-    target_link_libraries(TestPlaybackStream PRIVATE PkgConfig::PULSEAUDIO)
+    target_compile_definitions(TestMedia PRIVATE HAVE_PULSEAUDIO=1)
+    target_link_libraries(TestMedia PRIVATE PkgConfig::PULSEAUDIO)
 endif()

@@ -20,6 +20,8 @@
 #include <LibGC/WeakHashMap.h>
 #include <LibTest/TestCase.h>
 
+namespace {
+
 class TestCell : public GC::Cell {
     GC_CELL(TestCell, GC::Cell);
     GC_DECLARE_ALLOCATOR(TestCell);
@@ -29,6 +31,8 @@ class TestCell : public GC::Cell {
 };
 
 GC_DEFINE_ALLOCATOR(TestCell);
+
+}
 
 static GC::Heap& test_heap()
 {
@@ -41,6 +45,8 @@ TEST_SETUP
     GC::Heap::set_default_heap_for_testing(test_heap());
 }
 
+namespace {
+
 class TestVisitor : public GC::Cell::Visitor {
     virtual void visit_impl(GC::Cell& cell) override { visited_cells.set(&cell); }
     virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue>) override { }
@@ -49,6 +55,8 @@ class TestVisitor : public GC::Cell::Visitor {
 public:
     HashTable<GC::Cell*> visited_cells;
 };
+
+}
 
 static bool possible_values_contain(GC::ConservativeVectorBase const& container, GC::Cell* cell)
 {

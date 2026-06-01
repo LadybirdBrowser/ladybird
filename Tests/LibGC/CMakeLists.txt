@@ -4,6 +4,4 @@ set(TEST_SOURCES
     TestGCVisitor.cpp
 )
 
-foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibGC LIBS LibGC)
-endforeach()
+ladybird_test_suite(TestGC LibGC SOURCES ${TEST_SOURCES} LIBS LibGC)
