@@ -423,6 +423,17 @@ static bool is_browser_reserved_shortcut(QKeyEvent const& event)
     if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && (key == Qt::Key_Tab || key == Qt::Key_Backtab))
         return true;
 
+#if defined(AK_OS_MACOS)
+    if (modifiers == Qt::MetaModifier && key == Qt::Key_Tab)
+        return true;
+
+    if (modifiers == (Qt::MetaModifier | Qt::ShiftModifier) && (key == Qt::Key_Tab || key == Qt::Key_Backtab))
+        return true;
+
+    if (modifiers == (Qt::ControlModifier | Qt::ShiftModifier) && (key == Qt::Key_BracketLeft || key == Qt::Key_BracketRight))
+        return true;
+#endif
+
     if (modifiers == Qt::ControlModifier && key == Qt::Key_PageUp)
         return true;
 
