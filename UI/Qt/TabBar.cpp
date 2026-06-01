@@ -1297,8 +1297,6 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
 
     m_new_tab_button->setText({});
     m_new_tab_button->setProperty(VERTICAL_TABS_EXPANDED_PROPERTY, false);
-    m_new_tab_button->style()->unpolish(m_new_tab_button);
-    m_new_tab_button->style()->polish(m_new_tab_button);
     m_new_tab_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
     m_new_tab_button->setFixedSize(32, 32);
     m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -1323,8 +1321,6 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     m_new_tab_button->setToolButtonStyle(m_vertical_tabs_expanded ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
     update_vertical_tabs_action_labels();
     m_new_tab_button->setProperty(VERTICAL_TABS_EXPANDED_PROPERTY, m_vertical_tabs_expanded);
-    m_new_tab_button->style()->unpolish(m_new_tab_button);
-    m_new_tab_button->style()->polish(m_new_tab_button);
     m_vertical_tabs_new_tab_separator->setVisible(!m_vertical_tabs_expanded);
     if (m_vertical_tabs_expanded) {
         m_new_tab_button->setFixedHeight(VERTICAL_TAB_HEIGHT);
