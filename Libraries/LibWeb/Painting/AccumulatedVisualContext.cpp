@@ -231,6 +231,29 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         return effects;
     };
 
+    // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
+    auto make_clip_path_data = [&](PaintableBox const& box) -> Optional<ClipPathData> {
+        auto const& computed_values = box.computed_values();
+        auto const& clip_path = computed_values.clip_path();
+
+        if (!clip_path.has_value() || !clip_path->is_basic_shape())
+            return {};
+
+        auto masking_area = box.absolute_border_box_rect();
+        auto reference_box = CSSPixelRect { {}, masking_area.size() };
+        auto const& basic_shape = clip_path->basic_shape();
+        auto path = basic_shape.to_path(reference_box, box.layout_node());
+        path.offset(masking_area.top_left().template to_type<float>());
+        auto fill_rule = basic_shape.basic_shape().visit(
+            [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
+            [](CSS::Path const& path) { return path.fill_rule; },
+            [](auto const&) { return Gfx::WindingRule::Nonzero; });
+        auto device_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(scale, scale));
+        auto device_bounding_rect = converter.rounded_device_rect(masking_area);
+
+        return ClipPathData { move(device_path), device_bounding_rect, fill_rule };
+    };
+
     auto visual_viewport_context_index = VISUAL_VIEWPORT_NODE_INDEX;
 
     VisualContextIndex viewport_state_for_descendants = visual_viewport_context_index;
@@ -256,6 +279,20 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
         if (paintable_box.is_fixed_position()) {
             inherited_state = visual_viewport_context_index;
+
+            Vector<VisualContextData, 4> intermediate_constraints;
+            for (RefPtr<Paintable> paintable = visual_parent; paintable; paintable = paintable->parent()) {
+                auto* ancestor_box = as_if<PaintableBox>(paintable.ptr());
+                if (!ancestor_box)
+                    continue;
+                if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
+                    intermediate_constraints.append(effects.release_value());
+                if (auto clip_path_data = make_clip_path_data(*ancestor_box); clip_path_data.has_value())
+                    intermediate_constraints.append(clip_path_data.release_value());
+            }
+
+            for (auto& constraint : intermediate_constraints.in_reverse())
+                inherited_state = append_node(inherited_state, move(constraint));
         } else if (paintable_box.is_absolutely_positioned()) {
             // For position: absolute, use containing block's state to correctly escape scroll containers.
             auto containing = paintable_box.containing_block();
@@ -267,17 +304,19 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             // block and collect these intermediate effects.
             // NOTE: transforms/perspectives/filters establish containing blocks for abspos,
             //       so they cannot appear as intermediates.
-            Vector<VisualContextData, 4> intermediate_effects;
+            Vector<VisualContextData, 4> intermediate_constraints;
             RefPtr<Paintable> containing_paintable = containing;
             for (RefPtr<Paintable> paintable = visual_parent; paintable && paintable != containing_paintable; paintable = paintable->parent()) {
                 auto* ancestor_box = as_if<PaintableBox>(paintable.ptr());
                 if (!ancestor_box)
                     continue;
                 if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
-                    intermediate_effects.append(effects.release_value());
+                    intermediate_constraints.append(effects.release_value());
+                if (auto clip_path_data = make_clip_path_data(*ancestor_box); clip_path_data.has_value())
+                    intermediate_constraints.append(clip_path_data.release_value());
             }
-            for (auto& effects : intermediate_effects.in_reverse())
-                inherited_state = append_node(inherited_state, move(effects));
+            for (auto& constraint : intermediate_constraints.in_reverse())
+                inherited_state = append_node(inherited_state, move(constraint));
         } else {
             // For position: relative/static, use visual parent's state directly.
             // This avoids duplicate transform/perspective allocations that would occur with
@@ -312,21 +351,8 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             own_state = append_node(own_state, ClipData { converter.rounded_device_rect(effective_rect), {} });
         }
 
-        // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-        if (auto const& clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
-            auto masking_area = paintable_box.absolute_border_box_rect();
-            auto reference_box = CSSPixelRect { {}, masking_area.size() };
-            auto const& basic_shape = clip_path->basic_shape();
-            auto path = basic_shape.to_path(reference_box, paintable_box.layout_node());
-            path.offset(masking_area.top_left().template to_type<float>());
-            auto fill_rule = basic_shape.basic_shape().visit(
-                [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
-                [](CSS::Path const& path) { return path.fill_rule; },
-                [](auto const&) { return Gfx::WindingRule::Nonzero; });
-            auto device_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(scale, scale));
-            auto device_bounding_rect = converter.rounded_device_rect(masking_area);
-            own_state = append_node(own_state, ClipPathData { move(device_path), device_bounding_rect, fill_rule });
-        }
+        if (auto clip_path_data = make_clip_path_data(paintable_box); clip_path_data.has_value())
+            own_state = append_node(own_state, clip_path_data.release_value());
 
         paintable_box.set_accumulated_visual_context(own_state);
 

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-path-inset-abspos-child.html" />
+<style>
+    .clipped {
+        clip-path: inset(50px);
+        height: 200px;
+        width: 200px;
+    }
+
+    .clipped::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-color: red;
+    }
+</style>
+<div class="clipped"></div>
