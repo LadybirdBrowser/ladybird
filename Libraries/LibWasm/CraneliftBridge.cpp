@@ -137,7 +137,7 @@ struct CacheState {
     Vector<BatchInput> pending_batch;
 };
 
-static CacheState s_cranelift_cache_state;
+static thread_local CacheState s_cranelift_cache_state;
 static thread_local u32 s_active_function_index = NumericLimits<u32>::max();
 
 static u64 compute_layout_hash(RuntimeHelpers const& h)
@@ -775,7 +775,7 @@ static ALWAYS_INLINE i32 wasm_cl_direct_call_impl(BytecodeInterpreter& interpret
     auto const& entry = (*table)[index];
 
     if (config.depth() > 500) [[unlikely]] {
-        interpreter.set_trap("call stack exhausted"sv);
+        interpreter.set_trap(Constants::stack_exhaustion_message);
         return 1;
     }
 
@@ -1195,6 +1195,8 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
 
         auto code_offset = static_cast<size_t>(output->code_offset);
         auto code_size = static_cast<size_t>(output->code_size);
+        if (code_offset > code_region_size || code_size > code_region_size - code_offset)
+            continue;
         auto code_start = code_base_offset + code_offset;
         if (code_start + code_size > total_size)
             continue;
@@ -1202,6 +1204,10 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
         auto const reloc_offset = static_cast<size_t>(output->reloc_offset);
         auto const reloc_count = static_cast<size_t>(output->reloc_count);
         auto const reloc_bytes = reloc_count * sizeof(HelperReloc);
+        if (reloc_count != 0 && reloc_bytes / sizeof(HelperReloc) != reloc_count)
+            continue;
+        if (reloc_offset > reloc_region_size || reloc_bytes > reloc_region_size - reloc_offset)
+            continue;
         if (reloc_region_start + reloc_offset + reloc_bytes > total_size)
             continue;
 
@@ -1244,6 +1250,9 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
     // same validation pass) -- nothing to do.
     if (compiled.cranelift_compiled)
         return true;
+
+    if (s_active_function_index == NumericLimits<u32>::max())
+        return false;
 
     // Cache hit: install from the parsed blob instead of going through cranelift.
     //            dispatches[] has just been populated by try_compile_instructions, so handler_ptr is ready to be set.
@@ -1385,6 +1394,11 @@ void flush_cranelift_batch()
     if (s_cranelift_cache_state.pending_batch.is_empty())
         return;
     try_cranelift_compile_batch(s_cranelift_cache_state.pending_batch);
+    s_cranelift_cache_state.pending_batch.clear();
+}
+
+void discard_cranelift_batch()
+{
     s_cranelift_cache_state.pending_batch.clear();
 }
 

@@ -190,43 +190,6 @@ static void install_compiled_fault_handlers() { }
 
 #endif
 
-class ScopedCompiledFaultRecovery {
-public:
-    ScopedCompiledFaultRecovery(Wasm::BytecodeInterpreter& interpreter, Wasm::Configuration& configuration)
-    {
-        m_context.interpreter = &interpreter;
-        m_context.configuration = &configuration;
-        m_context.previous = s_compiled_fault_recovery;
-    }
-
-    ~ScopedCompiledFaultRecovery()
-    {
-        if (m_armed)
-            s_compiled_fault_recovery = m_context.previous;
-    }
-
-    bool arm()
-    {
-        install_compiled_fault_handlers();
-        s_compiled_fault_recovery = &m_context;
-        m_armed = true;
-        if (setjmp(m_context.jump_buffer) != 0) {
-            // Disarm immediately after longjmp return; the compiled code may
-            // have corrupted our stack frame, so the destructor must be a no-op.
-            s_compiled_fault_recovery = m_context.previous;
-            m_armed = false;
-            return false;
-        }
-        return true;
-    }
-
-    bool faulted() const { return m_context.faulted; }
-
-private:
-    CompiledFaultRecoveryContext m_context;
-    bool m_armed { false };
-};
-
 }
 
 #ifdef AK_COMPILER_CLANG
@@ -354,10 +317,17 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
 {
     m_trap = Empty {};
     auto& expression = configuration.frame().expression();
-    Optional<ScopedCompiledFaultRecovery> compiled_fault_recovery;
+    CompiledFaultRecoveryContext compiled_fault_recovery;
+    bool did_install_compiled_fault_recovery = false;
     if (expression.compiled_instructions.cranelift_compiled && !s_compiled_fault_recovery) {
-        compiled_fault_recovery.emplace(*this, configuration);
-        if (!compiled_fault_recovery->arm()) {
+        install_compiled_fault_handlers();
+        compiled_fault_recovery.interpreter = this;
+        compiled_fault_recovery.configuration = &configuration;
+        compiled_fault_recovery.previous = s_compiled_fault_recovery;
+        s_compiled_fault_recovery = &compiled_fault_recovery;
+        did_install_compiled_fault_recovery = true;
+        if (setjmp(compiled_fault_recovery.jump_buffer) != 0) {
+            s_compiled_fault_recovery = compiled_fault_recovery.previous;
             m_trap = Trap::from_string("Memory access out of bounds");
             return;
         }
@@ -365,15 +335,25 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
     auto const should_limit_instruction_count = configuration.should_limit_instruction_count();
     if (!expression.compiled_instructions.dispatches.is_empty()) {
         if (expression.compiled_instructions.direct) {
-            if (should_limit_instruction_count)
-                return interpret_impl<true, true, true>(configuration, expression);
-            return interpret_impl<true, false, true>(configuration, expression);
+            if (should_limit_instruction_count) {
+                interpret_impl<true, true, true>(configuration, expression);
+                goto done;
+            }
+            interpret_impl<true, false, true>(configuration, expression);
+            goto done;
         }
-        return interpret_impl<true, false, false>(configuration, expression);
+        interpret_impl<true, false, false>(configuration, expression);
+        goto done;
     }
-    if (should_limit_instruction_count)
-        return interpret_impl<false, true, false>(configuration, expression);
-    return interpret_impl<false, false, false>(configuration, expression);
+    if (should_limit_instruction_count) {
+        interpret_impl<false, true, false>(configuration, expression);
+        goto done;
+    }
+    interpret_impl<false, false, false>(configuration, expression);
+
+done:
+    if (did_install_compiled_fault_recovery)
+        s_compiled_fault_recovery = compiled_fault_recovery.previous;
 }
 
 constexpr static u32 default_sources_and_destination = (to_underlying(Dispatch::RegisterOrStack::Stack) | (to_underlying(Dispatch::RegisterOrStack::Stack) << 2) | (to_underlying(Dispatch::RegisterOrStack::Stack) << 4));

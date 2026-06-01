@@ -287,7 +287,10 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 
     ScopeGuard cleanup = [&] {
         auto cranelift_start = MonotonicTime::now();
-        flush_cranelift_batch();
+        if (validation_succeeded)
+            flush_cranelift_batch();
+        else
+            discard_cranelift_batch();
         auto cranelift_duration = MonotonicTime::now() - cranelift_start;
 
         if (installing)

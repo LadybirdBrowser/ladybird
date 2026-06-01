@@ -1548,6 +1548,7 @@ private:
 CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);
 bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity = 0);
 void flush_cranelift_batch();
+void discard_cranelift_batch();
 
 // Caller-supplied hooks for the Cranelift on-disk cache.
 //   - `wasm_hash` is a 32-byte digest of the wasm bytes; embedded in produced blobs
