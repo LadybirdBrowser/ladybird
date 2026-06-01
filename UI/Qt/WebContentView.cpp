@@ -240,24 +240,25 @@ static Web::UIEvents::KeyModifier get_modifiers_from_qt_keyboard_modifiers(Qt::K
     auto result = Web::UIEvents::KeyModifier::Mod_None;
     if (modifiers.testFlag(Qt::AltModifier))
         result |= Web::UIEvents::KeyModifier::Mod_Alt;
-    if (modifiers.testFlag(Qt::ControlModifier))
-        result |= Web::UIEvents::KeyModifier::Mod_Ctrl;
     if (modifiers.testFlag(Qt::ShiftModifier))
         result |= Web::UIEvents::KeyModifier::Mod_Shift;
+#if defined(AK_OS_MACOS)
+    if (modifiers.testFlag(Qt::ControlModifier))
+        result |= Web::UIEvents::KeyModifier::Mod_Super;
+    if (modifiers.testFlag(Qt::MetaModifier))
+        result |= Web::UIEvents::KeyModifier::Mod_Ctrl;
+#else
+    if (modifiers.testFlag(Qt::ControlModifier))
+        result |= Web::UIEvents::KeyModifier::Mod_Ctrl;
+    if (modifiers.testFlag(Qt::MetaModifier))
+        result |= Web::UIEvents::KeyModifier::Mod_Super;
+#endif
     return result;
 }
 
 static Web::UIEvents::KeyModifier get_modifiers_from_qt_key_event(QKeyEvent const& event)
 {
-    auto modifiers = Web::UIEvents::KeyModifier::Mod_None;
-    if (event.modifiers().testFlag(Qt::AltModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Alt;
-    if (event.modifiers().testFlag(Qt::ControlModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Ctrl;
-    if (event.modifiers().testFlag(Qt::MetaModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Super;
-    if (event.modifiers().testFlag(Qt::ShiftModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Shift;
+    auto modifiers = get_modifiers_from_qt_keyboard_modifiers(event.modifiers());
     if (event.modifiers().testFlag(Qt::KeypadModifier))
         modifiers |= Web::UIEvents::KeyModifier::Mod_Keypad;
     return modifiers;
