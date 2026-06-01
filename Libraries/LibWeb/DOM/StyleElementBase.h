@@ -24,6 +24,7 @@ public:
     };
     void update_a_style_block(UpdateSource = UpdateSource::Dynamic);
     void update_a_style_block_for_dynamic_change();
+    void associated_style_sheet_media_attribute_changed();
     void set_parser_document(Badge<HTML::HTMLParser>, GC::Ref<Document>);
     void did_pop_off_parser_stack_of_open_elements();
     void style_element_attribute_changed(FlyString const&, Optional<String> const& value);
@@ -49,6 +50,7 @@ protected:
     bool style_element_contributes_a_script_blocking_style_sheet() const;
 
 private:
+    void evaluate_associated_style_sheet_media_queries();
     void remove_from_script_blocking_style_sheet_set_if_needed();
     void clear_associated_css_style_sheet_parser_blocking_state();
 
@@ -65,6 +67,7 @@ private:
 
     bool m_associated_css_style_sheet_was_created_by_parser : 1 { false };
     bool m_associated_css_style_sheet_was_enabled_when_created_by_parser : 1 { false };
+    bool m_associated_css_style_sheet_media_matches_environment : 1 { false };
     bool m_associated_css_style_sheet_load_is_pending_for_script_blocking : 1 { false };
     bool m_associated_css_style_sheet_is_blocking_scripts : 1 { false };
     bool m_is_on_parser_stack_of_open_elements : 1 { false };
