@@ -1007,7 +1007,6 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
 
     widget->set_toolbar_window_controls_visible(m_window_controls_visible && m_vertical_tabs_enabled);
     widget->set_vertical_tabs_enabled(m_vertical_tabs_enabled);
-    widget->set_vertical_tabs_expanded(m_vertical_tabs_expanded);
 
     update_tab_layout();
     update_tab_button_visibility();
@@ -1098,8 +1097,6 @@ void TabWidget::set_vertical_tabs_expanded(bool expanded)
         return;
 
     m_vertical_tabs_expanded = expanded;
-    for (int index = 0; index < m_stacked_widget->count(); ++index)
-        tab(index)->set_vertical_tabs_expanded(expanded);
     rebuild_layout();
 }
 

@@ -215,9 +215,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
     navigation_button_layout->setSpacing(2);
     navigation_button_layout->setContentsMargins(0, 0, 0, 0);
-    m_toggle_vertical_tabs_expanded_button = create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action);
-    m_toggle_vertical_tabs_expanded_button->setVisible(WebView::Application::settings().tab_settings().vertical_tabs_enabled);
-    navigation_button_layout->addWidget(m_toggle_vertical_tabs_expanded_button);
+    navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_back_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
@@ -232,8 +230,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     update_chrome_style();
     set_toolbar_window_controls_visible(!Settings::the()->show_menubar() && WebView::Application::settings().tab_settings().vertical_tabs_enabled);
-    set_vertical_tabs_enabled(WebView::Application::settings().tab_settings().vertical_tabs_enabled);
-    set_vertical_tabs_expanded(WebView::Application::settings().tab_settings().vertical_tabs_expanded);
 
     m_hamburger_button->setVisible(!Settings::the()->show_menubar());
 
@@ -582,14 +578,7 @@ void Tab::set_window(BrowserWindow& window)
 
 void Tab::set_vertical_tabs_enabled(bool enabled)
 {
-    m_toggle_vertical_tabs_expanded_button->setVisible(enabled);
-    recreate_toolbar_icons();
-    set_toolbar_window_drag_enabled(enabled);
-}
-
-void Tab::set_vertical_tabs_expanded(bool)
-{
-    recreate_toolbar_icons();
+    m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, enabled);
 }
 
 void Tab::set_toolbar_window_controls_visible(bool visible)
@@ -597,11 +586,6 @@ void Tab::set_toolbar_window_controls_visible(bool visible)
     m_toolbar_window_controls_separator->setVisible(visible);
     m_toolbar_window_controls->setVisible(visible);
     m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, visible ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
-}
-
-void Tab::set_toolbar_window_drag_enabled(bool enabled)
-{
-    m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, enabled);
 }
 
 void Tab::update_window_control_icons()
@@ -763,16 +747,17 @@ void Tab::update_chrome_style()
 
 void Tab::recreate_toolbar_icons()
 {
-    m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
-    m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
-    m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
     m_toggle_vertical_tabs_expanded_action->setIcon(create_chrome_icon(
         WebView::Application::settings().tab_settings().vertical_tabs_expanded
             ? ChromeIcon::VerticalTabBarCollapse
             : ChromeIcon::VerticalTabBarExpand,
         palette()));
+    m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
+    m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
+    m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
     update_window_control_icons();
+
     if (auto* action = m_location_edit->trailing_action()) {
         auto icon = view().toggle_bookmark_action().engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star;
         action->setIcon(create_chrome_icon(icon, palette()));
