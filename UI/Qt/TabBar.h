@@ -93,6 +93,7 @@ private:
     int max_vertical_scroll_offset() const;
     void set_vertical_scroll_offset(int);
 
+    void set_hovered_tab_index(int);
     void ensure_tab_visible(int index);
     void update_tab_button_geometry();
 

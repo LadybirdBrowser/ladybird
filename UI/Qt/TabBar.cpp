@@ -193,6 +193,7 @@ TabBar::TabBar(TabWidget* tab_widget)
     });
     connect(this, &QTabBar::currentChanged, this, [this](int index) {
         ensure_tab_visible(index);
+        update_tab_button_geometry();
     });
 }
 
@@ -296,8 +297,6 @@ void TabBar::tabLayoutChange()
 
 void TabBar::paintEvent(QPaintEvent*)
 {
-    update_tab_button_geometry();
-
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
@@ -530,11 +529,7 @@ void TabBar::mousePressEvent(QMouseEvent* event)
 
 void TabBar::mouseMoveEvent(QMouseEvent* event)
 {
-    if (auto hovered_tab = tab_index_at(event->pos()); hovered_tab != m_hovered_tab_index) {
-        m_hovered_tab_index = hovered_tab;
-        start_hover_animation(hovered_tab, hovered_tab >= 0 ? 1.0 : 0.0);
-        update();
-    }
+    set_hovered_tab_index(tab_index_at(event->pos()));
 
     if (count() == 0) {
         if (tab_layout() == TabLayout::Horizontal)
@@ -561,10 +556,7 @@ void TabBar::mouseMoveEvent(QMouseEvent* event)
 
 void TabBar::leaveEvent(QEvent* event)
 {
-    auto previous_hovered_tab = m_hovered_tab_index;
-    m_hovered_tab_index = -1;
-    start_hover_animation(previous_hovered_tab, 0.0);
-    update();
+    set_hovered_tab_index(-1);
     QTabBar::leaveEvent(event);
 }
 
@@ -812,16 +804,36 @@ void TabBar::ensure_tab_visible(int index)
         set_vertical_scroll_offset(tab_bottom - height());
 }
 
+void TabBar::set_hovered_tab_index(int index)
+{
+    if (m_hovered_tab_index == index)
+        return;
+
+    auto previous_hovered_tab = m_hovered_tab_index;
+    m_hovered_tab_index = index;
+    update_tab_button_geometry();
+    start_hover_animation(index >= 0 ? index : previous_hovered_tab, index >= 0 ? 1.0 : 0.0);
+    update();
+}
+
 void TabBar::update_tab_button_geometry()
 {
     if (tab_layout() == TabLayout::Horizontal || tab_layout() == TabLayout::VerticalCollapsed)
         return;
 
+    // Keep this out of paintEvent(): setVisible(), setGeometry(), and raise()
+    // dirty child widgets, and doing that while painting can schedule another
+    // tab bar repaint before the current one has finished flushing.
     auto place_button = [&](int index, QTabBar::ButtonPosition position, QRect shape_rect) {
         auto* button = tabButton(index, position);
         if (!button)
             return;
-        button->setVisible(position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index);
+        auto should_be_visible = position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index;
+        bool did_update_button = false;
+        if (button->isVisible() != should_be_visible) {
+            button->setVisible(should_be_visible);
+            did_update_button = true;
+        }
 
         auto button_size = button->size();
         if (button_size.isEmpty())
@@ -831,8 +843,14 @@ void TabBar::update_tab_button_geometry()
 
         auto x = position == QTabBar::RightSide ? shape_rect.right() - button_size.width() - 6 : shape_rect.left() + 6;
         auto y = shape_rect.top() + ((shape_rect.height() - button_size.height()) / 2);
-        button->setGeometry({ { x, y }, button_size });
-        button->raise();
+        QRect button_geometry { { x, y }, button_size };
+        if (button->geometry() != button_geometry) {
+            button->setGeometry(button_geometry);
+            did_update_button = true;
+        }
+
+        if (did_update_button)
+            button->raise();
     };
 
     for (int index = 0; index < count(); ++index) {
