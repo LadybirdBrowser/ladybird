@@ -281,6 +281,12 @@ public:
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
+    void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
+    RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
+
+    void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
+    RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
+
     void set_grid_layout_data(OwnPtr<Layout::GridLayoutData> grid_layout_data) { m_grid_layout_data = move(grid_layout_data); }
     Layout::GridLayoutData const* grid_layout_data() const { return m_grid_layout_data.ptr(); }
     void set_flex_layout_data(OwnPtr<Layout::FlexLayoutData> flex_layout_data) { m_flex_layout_data = move(flex_layout_data); }
@@ -371,6 +377,8 @@ private:
 
     OwnPtr<StickyInsets> m_sticky_insets;
 
+    RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_columns;
+    RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_rows;
     OwnPtr<Layout::GridLayoutData> m_grid_layout_data;
     OwnPtr<Layout::FlexLayoutData> m_flex_layout_data;
 

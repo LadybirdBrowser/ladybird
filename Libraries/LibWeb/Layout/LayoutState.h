@@ -276,6 +276,20 @@ struct LayoutState {
             return move(m_rare->grid_layout_data);
         }
 
+        void set_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> used_values_for_grid_template_columns) { ensure_rare_data().grid_template_columns = move(used_values_for_grid_template_columns); }
+        RefPtr<CSS::GridTrackSizeListStyleValue const> const& grid_template_columns() const
+        {
+            static RefPtr<CSS::GridTrackSizeListStyleValue const> const empty;
+            return m_rare ? m_rare->grid_template_columns : empty;
+        }
+
+        void set_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> used_values_for_grid_template_rows) { ensure_rare_data().grid_template_rows = move(used_values_for_grid_template_rows); }
+        RefPtr<CSS::GridTrackSizeListStyleValue const> const& grid_template_rows() const
+        {
+            static RefPtr<CSS::GridTrackSizeListStyleValue const> const empty;
+            return m_rare ? m_rare->grid_template_rows : empty;
+        }
+
         void set_flex_layout_data(OwnPtr<FlexLayoutData> flex_layout_data) { ensure_rare_data().flex_layout_data = move(flex_layout_data); }
         FlexLayoutData const* flex_layout_data() const
         {
@@ -322,6 +336,8 @@ struct LayoutState {
                 : floating_descendants(other.floating_descendants)
                 , table_cell_coordinates(other.table_cell_coordinates)
                 , computed_svg_path(other.computed_svg_path)
+                , grid_template_columns(other.grid_template_columns)
+                , grid_template_rows(other.grid_template_rows)
                 , grid_area_size(other.grid_area_size)
                 , override_borders_data(other.override_borders_data)
                 , computed_svg_transforms(other.computed_svg_transforms)
@@ -338,6 +354,8 @@ struct LayoutState {
             Optional<Gfx::Path> computed_svg_path;
             OwnPtr<GridLayoutData> grid_layout_data;
             OwnPtr<FlexLayoutData> flex_layout_data;
+            RefPtr<CSS::GridTrackSizeListStyleValue const> grid_template_columns;
+            RefPtr<CSS::GridTrackSizeListStyleValue const> grid_template_rows;
             Optional<CSSPixelSize> grid_area_size;
             Optional<Painting::PaintableBox::BordersDataWithElementKind> override_borders_data;
             Optional<Painting::SVGGraphicsPaintable::ComputedTransforms> computed_svg_transforms;

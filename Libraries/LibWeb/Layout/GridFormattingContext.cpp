@@ -2418,14 +2418,12 @@ void GridFormattingContext::resolve_track_spacing(GridDimension dimension)
     }
 }
 
-void GridFormattingContext::save_grid_layout_data(CSS::GridTrackSizeList&& columns, CSS::GridTrackSizeList&& rows)
+void GridFormattingContext::save_grid_layout_data()
 {
     auto data = make<GridLayoutData>();
     data->direction = grid_container().computed_values().direction();
     data->is_subgrid = is_subgridded_axis(GridDimension::Column) || is_subgridded_axis(GridDimension::Row);
     data->writing_mode = grid_container().computed_values().writing_mode();
-    data->resolved_grid_template_columns = CSS::GridTrackSizeListStyleValue::create(move(columns));
-    data->resolved_grid_template_rows = CSS::GridTrackSizeListStyleValue::create(move(rows));
 
     auto track_type_for_index = [](size_t index, size_t explicit_start_line_index, size_t explicit_line_count) {
         if (explicit_line_count == 0)
@@ -2911,7 +2909,9 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
     // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
     // so they need to be saved in the state, and then assigned to paintables in LayoutState::commit()
-    save_grid_layout_data(move(grid_track_columns), move(grid_track_rows));
+    m_grid_container_used_values.set_grid_template_columns(CSS::GridTrackSizeListStyleValue::create(move(grid_track_columns)));
+    m_grid_container_used_values.set_grid_template_rows(CSS::GridTrackSizeListStyleValue::create(move(grid_track_rows)));
+    save_grid_layout_data();
 }
 
 // https://www.w3.org/TR/css-grid-2/#abspos-items
