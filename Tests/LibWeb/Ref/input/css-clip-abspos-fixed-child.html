@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-clip-abspos-fixed-child.html" />
+<style>
+    .a {
+        position: relative;
+        z-index: 1;
+    }
+
+    .b {
+        position: absolute;
+        inset: 0;
+        clip: rect(0px, 100px, 100px, 0px);
+    }
+
+    .b div {
+        position: fixed;
+        inset: 0;
+        background-color: red;
+    }
+</style>
+<div class="a">
+    <div class="b">
+        <div></div>
+    </div>
+</div>

@@ -231,6 +231,13 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         return effects;
     };
 
+    auto make_css_clip_data = [&](PaintableBox const& box) -> Optional<ClipData> {
+        auto css_clip = box.get_clip_rect();
+        if (!css_clip.has_value())
+            return {};
+        return ClipData { converter.rounded_device_rect(effective_css_clip_rect(*css_clip)), {} };
+    };
+
     // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
     auto make_clip_path_data = [&](PaintableBox const& box) -> Optional<ClipPathData> {
         auto const& computed_values = box.computed_values();
@@ -277,21 +284,27 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
         VisualContextIndex inherited_state;
 
-        if (paintable_box.is_fixed_position()) {
-            inherited_state = visual_viewport_context_index;
-
-            Vector<VisualContextData, 4> intermediate_constraints;
-            for (RefPtr<Paintable> paintable = visual_parent; paintable; paintable = paintable->parent()) {
+        auto collect_intermediate_constraints = [&](RefPtr<Paintable> const& from, RefPtr<Paintable> const& to) {
+            Vector<VisualContextData, 4> constraints;
+            for (RefPtr<Paintable> paintable = from; paintable && paintable != to; paintable = paintable->parent()) {
                 auto* ancestor_box = as_if<PaintableBox>(paintable.ptr());
                 if (!ancestor_box)
                     continue;
                 if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
-                    intermediate_constraints.append(effects.release_value());
+                    constraints.append(effects.release_value());
+                if (auto css_clip_data = make_css_clip_data(*ancestor_box); css_clip_data.has_value())
+                    constraints.append(css_clip_data.release_value());
                 if (auto clip_path_data = make_clip_path_data(*ancestor_box); clip_path_data.has_value())
-                    intermediate_constraints.append(clip_path_data.release_value());
+                    constraints.append(clip_path_data.release_value());
             }
+            return constraints;
+        };
 
-            for (auto& constraint : intermediate_constraints.in_reverse())
+        if (paintable_box.is_fixed_position()) {
+            inherited_state = visual_viewport_context_index;
+
+            auto constraints = collect_intermediate_constraints(visual_parent, nullptr);
+            for (auto& constraint : constraints.in_reverse())
                 inherited_state = append_node(inherited_state, move(constraint));
         } else if (paintable_box.is_absolutely_positioned()) {
             // For position: absolute, use containing block's state to correctly escape scroll containers.
@@ -304,18 +317,8 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             // block and collect these intermediate effects.
             // NOTE: transforms/perspectives/filters establish containing blocks for abspos,
             //       so they cannot appear as intermediates.
-            Vector<VisualContextData, 4> intermediate_constraints;
-            RefPtr<Paintable> containing_paintable = containing;
-            for (RefPtr<Paintable> paintable = visual_parent; paintable && paintable != containing_paintable; paintable = paintable->parent()) {
-                auto* ancestor_box = as_if<PaintableBox>(paintable.ptr());
-                if (!ancestor_box)
-                    continue;
-                if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
-                    intermediate_constraints.append(effects.release_value());
-                if (auto clip_path_data = make_clip_path_data(*ancestor_box); clip_path_data.has_value())
-                    intermediate_constraints.append(clip_path_data.release_value());
-            }
-            for (auto& constraint : intermediate_constraints.in_reverse())
+            auto constraints = collect_intermediate_constraints(visual_parent, containing);
+            for (auto& constraint : constraints.in_reverse())
                 inherited_state = append_node(inherited_state, move(constraint));
         } else {
             // For position: relative/static, use visual parent's state directly.
@@ -346,10 +349,8 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             paintable_box.set_has_non_invertible_css_transform(false);
         }
 
-        if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
-            auto effective_rect = effective_css_clip_rect(*css_clip);
-            own_state = append_node(own_state, ClipData { converter.rounded_device_rect(effective_rect), {} });
-        }
+        if (auto css_clip_data = make_css_clip_data(paintable_box); css_clip_data.has_value())
+            own_state = append_node(own_state, css_clip_data.release_value());
 
         if (auto clip_path_data = make_clip_path_data(paintable_box); clip_path_data.has_value())
             own_state = append_node(own_state, clip_path_data.release_value());
