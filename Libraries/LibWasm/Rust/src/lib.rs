@@ -141,10 +141,19 @@ pub struct HelperReloc {
     pub addend: i64,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct CraneliftTrap {
+    pub offset: u32,
+    pub code: u8,
+    pub _padding: [u8; 3],
+}
+
 /// Output of `compile_to_bytes`: the machine code plus the patch table.
 pub struct CompiledFunction {
     pub code: Vec<u8>,
     pub relocs: Vec<HelperReloc>,
+    pub traps: Vec<CraneliftTrap>,
 }
 
 pub fn compile_to_bytes(

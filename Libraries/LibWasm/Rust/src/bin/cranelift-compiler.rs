@@ -8,6 +8,7 @@
 
 use libwasm_cranelift::CompiledFunction;
 use libwasm_cranelift::CraneliftInsn;
+use libwasm_cranelift::CraneliftTrap;
 use libwasm_cranelift::HelperReloc;
 use libwasm_cranelift::RuntimeHelpers;
 use libwasm_cranelift::compile_to_bytes;
@@ -51,6 +52,8 @@ struct OutputFunctionEntry {
     compiled: u32,
     reloc_offset: u64,
     reloc_count: u32,
+    trap_offset: u64,
+    trap_count: u32,
     _pad: u32,
 }
 
@@ -307,12 +310,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (i, compiled) in chunk {
             let code = compiled.code;
             let relocs = compiled.relocs;
+            let traps = compiled.traps;
             let aligned = (code.len() + 15) & !15;
             let reloc_bytes_len = relocs.len() * size_of::<HelperReloc>();
+            let trap_bytes_len = traps.len() * size_of::<CraneliftTrap>();
             if code_cursor + aligned > code_capacity {
                 continue;
             }
-            if reloc_cursor + reloc_bytes_len > reloc_capacity {
+            if reloc_cursor + reloc_bytes_len + trap_bytes_len > reloc_capacity {
                 continue;
             }
             let code_offset = code_cursor;
@@ -325,12 +330,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 mapped[reloc_dst..reloc_dst + reloc_bytes_len].copy_from_slice(as_bytes_slice(&relocs));
             }
 
+            let trap_offset = reloc_cursor + reloc_bytes_len;
+            if !traps.is_empty() {
+                let trap_dst = reloc_region_start + trap_offset;
+                mapped[trap_dst..trap_dst + trap_bytes_len].copy_from_slice(as_bytes_slice(&traps));
+            }
+
             let entry = OutputFunctionEntry {
                 code_offset: u64::try_from(code_offset).map_err(|_| "code offset overflow")?,
                 code_size: u32::try_from(code.len()).map_err(|_| "code size overflow")?,
                 compiled: 1,
                 reloc_offset: u64::try_from(reloc_offset).map_err(|_| "reloc offset overflow")?,
                 reloc_count: u32::try_from(relocs.len()).map_err(|_| "reloc count overflow")?,
+                trap_offset: u64::try_from(trap_offset).map_err(|_| "trap offset overflow")?,
+                trap_count: u32::try_from(traps.len()).map_err(|_| "trap count overflow")?,
                 _pad: 0,
             };
             let entry_dst = out_entries_offset + i * size_of::<OutputFunctionEntry>();
@@ -338,7 +351,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mapped[entry_dst..entry_dst + size_of::<OutputFunctionEntry>()].copy_from_slice(entry_bytes);
 
             code_cursor += aligned;
-            reloc_cursor += reloc_bytes_len;
+            reloc_cursor += reloc_bytes_len + trap_bytes_len;
         }
     }
 

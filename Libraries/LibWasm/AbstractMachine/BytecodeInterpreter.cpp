@@ -44,17 +44,44 @@ using namespace AK::SIMD;
 
 namespace {
 
+enum class CompiledFaultKind : u8 {
+    None,
+    Memory,
+    CraneliftTrap,
+};
+
 struct CompiledFaultRecoveryContext {
     Wasm::BytecodeInterpreter* interpreter { nullptr };
     Wasm::Configuration* configuration { nullptr };
     CompiledFaultRecoveryContext* previous { nullptr };
     jmp_buf jump_buffer;
     bool faulted { false };
+    CompiledFaultKind fault_kind { CompiledFaultKind::None };
+    u8 cranelift_trap_code { 0 };
 };
 
 thread_local CompiledFaultRecoveryContext* s_compiled_fault_recovery = nullptr;
 
 #if WASM_COMPILED_FAULT_RECOVERY_SUPPORTED
+
+static StringView cranelift_trap_message(u8 trap_code)
+{
+    // Cranelift reserves trap codes at the high end of u8:
+    // stack_overflow=251, int_overflow=252, heap_oob=253, int_divz=254, bad_toint=255.
+    switch (trap_code) {
+    case 251:
+        return Wasm::Constants::stack_exhaustion_message;
+    case 252:
+    case 254:
+        return "Integer division overflow"sv;
+    case 253:
+        return "Memory access out of bounds"sv;
+    case 255:
+        return "Truncation out of range"sv;
+    default:
+        return "unreachable executed"sv;
+    }
+}
 
 static bool is_wasm_memory_fault(Wasm::Configuration& configuration, void* address)
 {
@@ -111,6 +138,7 @@ static void install_compiled_fault_handlers()
 
 static struct sigaction s_old_sigsegv;
 static struct sigaction s_old_sigbus;
+static struct sigaction s_old_sigill;
 
 [[noreturn]] static void chain_fault_signal(int signal, siginfo_t* info, void* context, struct sigaction const& previous_action)
 {
@@ -141,12 +169,10 @@ no_handler:
 
 static void compiled_fault_signal_handler(int signal, siginfo_t* info, void* context)
 {
-    if (auto* recovery = s_compiled_fault_recovery; recovery && info && is_wasm_memory_fault(*recovery->configuration, info->si_addr)) {
-        recovery->faulted = true;
-        // Redirect the resumed PC to our trampoline and return.
-        // sigreturn (or the platform equivalent) will take the flow to the trampoline on the faulting thread's "normal" stack,
-        // from where we can then longjmp to the recovery code.
-        auto* uc = static_cast<ucontext_t*>(context);
+    auto* recovery = s_compiled_fault_recovery;
+    auto* uc = static_cast<ucontext_t*>(context);
+
+    auto redirect_to_trampoline = [&] {
 #        if defined(AK_OS_MACOS)
 #            if ARCH(AARCH64)
         uc->uc_mcontext->__ss.__pc = reinterpret_cast<uintptr_t>(&wasm_compiled_fault_trampoline);
@@ -160,11 +186,60 @@ static void compiled_fault_signal_handler(int signal, siginfo_t* info, void* con
         uc->uc_mcontext.gregs[REG_RIP] = reinterpret_cast<greg_t>(&wasm_compiled_fault_trampoline);
 #            endif
 #        endif
+    };
+
+    if (recovery && info && (signal == SIGSEGV || signal == SIGBUS) && is_wasm_memory_fault(*recovery->configuration, info->si_addr)) {
+        recovery->faulted = true;
+        recovery->fault_kind = CompiledFaultKind::Memory;
+        // Redirect the resumed PC to our trampoline and return.
+        // sigreturn (or the platform equivalent) will take the flow to the trampoline on the faulting thread's "normal" stack,
+        // from where we can then longjmp to the recovery code.
+        redirect_to_trampoline();
         return;
+    }
+
+    if (recovery && signal == SIGILL) {
+#        if defined(AK_OS_MACOS)
+#            if ARCH(AARCH64)
+        auto pc = static_cast<FlatPtr>(uc->uc_mcontext->__ss.__pc);
+#            elif ARCH(X86_64)
+        auto pc = static_cast<FlatPtr>(uc->uc_mcontext->__ss.__rip);
+#            else
+        auto pc = static_cast<FlatPtr>(0);
+#            endif
+#        else
+#            if ARCH(AARCH64)
+        auto pc = static_cast<FlatPtr>(uc->uc_mcontext.pc);
+#            elif ARCH(X86_64)
+        auto pc = static_cast<FlatPtr>(uc->uc_mcontext.gregs[REG_RIP]);
+#            else
+        auto pc = static_cast<FlatPtr>(0);
+#            endif
+#        endif
+
+        auto const& compiled = recovery->configuration->frame().expression().compiled_instructions;
+        auto const code_start = compiled.dispatches.is_empty() ? 0 : compiled.dispatches[0].handler_ptr;
+        auto const code_size = compiled.cranelift_code_size;
+        if (compiled.cranelift_compiled && code_start != 0 && pc >= code_start && pc < code_start + code_size) {
+            auto const offset = static_cast<u32>(pc - code_start);
+            for (size_t i = 0; i < compiled.cranelift_trap_count; ++i) {
+                auto const& trap = compiled.cranelift_traps[i];
+                if (trap.offset != offset)
+                    continue;
+
+                recovery->faulted = true;
+                recovery->fault_kind = CompiledFaultKind::CraneliftTrap;
+                recovery->cranelift_trap_code = trap.code;
+                redirect_to_trampoline();
+                return;
+            }
+        }
     }
 
     if (signal == SIGSEGV)
         chain_fault_signal(signal, info, context, s_old_sigsegv);
+    if (signal == SIGILL)
+        chain_fault_signal(signal, info, context, s_old_sigill);
     chain_fault_signal(signal, info, context, s_old_sigbus);
 }
 
@@ -180,6 +255,7 @@ static void install_compiled_fault_handlers()
     sigemptyset(&action.sa_mask);
     sigaction(SIGSEGV, &action, &s_old_sigsegv);
     sigaction(SIGBUS, &action, &s_old_sigbus);
+    sigaction(SIGILL, &action, &s_old_sigill);
 }
 
 #    endif
@@ -328,7 +404,10 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
         did_install_compiled_fault_recovery = true;
         if (setjmp(compiled_fault_recovery.jump_buffer) != 0) {
             s_compiled_fault_recovery = compiled_fault_recovery.previous;
-            m_trap = Trap::from_string("Memory access out of bounds");
+            if (compiled_fault_recovery.fault_kind == CompiledFaultKind::CraneliftTrap)
+                m_trap = Trap::from_string(cranelift_trap_message(compiled_fault_recovery.cranelift_trap_code));
+            else
+                m_trap = Trap::from_string("Memory access out of bounds");
             return;
         }
     }
