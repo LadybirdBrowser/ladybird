@@ -902,7 +902,7 @@ static void append_grid_layouts_for_node_and_frame_descendants(Web::DOM::Node& r
         if (!content_document->origin().is_same_origin_domain(navigable_container->document().origin()))
             return Web::TraversalDecision::Continue;
 
-        content_document->update_layout(Web::DOM::UpdateLayoutReason::InspectGridLayout);
+        content_document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
         append_grid_layouts_for_node_and_frame_descendants(*content_document, grid_layouts);
         return Web::TraversalDecision::Continue;
     });
@@ -920,7 +920,7 @@ void ConnectionFromClient::inspect_grid_layouts(u64 page_id, Web::UniqueNodeID r
         return;
     }
 
-    root_node->document().update_layout(Web::DOM::UpdateLayoutReason::InspectGridLayout);
+    root_node->document().update_layout(Web::DOM::UpdateLayoutReason::Debugging);
 
     JsonArray grid_layouts;
     append_grid_layouts_for_node_and_frame_descendants(*root_node, grid_layouts);
@@ -940,7 +940,7 @@ void ConnectionFromClient::inspect_current_grid(u64 page_id, Web::UniqueNodeID n
         return;
     }
 
-    node->document().update_layout(Web::DOM::UpdateLayoutReason::InspectGridLayout);
+    node->document().update_layout(Web::DOM::UpdateLayoutReason::Debugging);
 
     for (auto const* current = node; current; current = current->parent_or_shadow_host_node()) {
         if (auto grid_layout = grid_layout_for_node(*current); grid_layout.has_value()) {
@@ -964,7 +964,7 @@ void ConnectionFromClient::inspect_current_flexbox(u64 page_id, Web::UniqueNodeI
         return;
     }
 
-    node->document().update_layout(Web::DOM::UpdateLayoutReason::InspectFlexboxLayout);
+    node->document().update_layout(Web::DOM::UpdateLayoutReason::Debugging);
 
     for (auto const* current = only_look_at_parents ? node->parent_or_shadow_host_node() : node; current; current = current->parent_or_shadow_host_node()) {
         if (auto flex_layout = flex_layout_for_node(*current); flex_layout.has_value()) {
@@ -1053,10 +1053,15 @@ void ConnectionFromClient::highlight_flexbox(u64 page_id, Web::UniqueNodeID node
         return;
 
     auto* node = Web::DOM::Node::from_unique_id(node_id);
-    if (!node || !node->layout_node())
+    if (!node)
         return;
 
-    node->document().set_flexbox_highlighted_node(node, flexbox_inspector_overlay_options_from_json(options));
+    auto& document = node->document();
+    document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
+    if (!node->layout_node())
+        return;
+
+    document.set_flexbox_highlighted_node(node, flexbox_inspector_overlay_options_from_json(options));
 }
 
 void ConnectionFromClient::clear_flexbox_highlight(u64 page_id, Web::UniqueNodeID node_id)
@@ -1085,10 +1090,15 @@ void ConnectionFromClient::highlight_grid(u64 page_id, Web::UniqueNodeID node_id
         return;
 
     auto* node = Web::DOM::Node::from_unique_id(node_id);
-    if (!node || !node->layout_node())
+    if (!node)
         return;
 
-    node->document().set_grid_highlighted_node(node, grid_inspector_overlay_options_from_json(options));
+    auto& document = node->document();
+    document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
+    if (!node->layout_node())
+        return;
+
+    document.set_grid_highlighted_node(node, grid_inspector_overlay_options_from_json(options));
 }
 
 void ConnectionFromClient::clear_grid_highlight(u64 page_id, Web::UniqueNodeID node_id)

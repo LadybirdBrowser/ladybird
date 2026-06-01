@@ -247,7 +247,8 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
         resolve_baseline_aligned_items();
     }
 
-    save_flex_layout_data();
+    if (m_state.should_collect_devtools_layout_data())
+        save_flex_layout_data();
 }
 
 void FlexFormattingContext::parent_context_did_dimension_child_root_box()

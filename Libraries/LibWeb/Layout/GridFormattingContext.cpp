@@ -2420,6 +2420,9 @@ void GridFormattingContext::resolve_track_spacing(GridDimension dimension)
 
 void GridFormattingContext::save_grid_layout_data()
 {
+    if (!m_state.should_collect_devtools_layout_data())
+        return;
+
     auto data = make<GridLayoutData>();
     data->direction = grid_container().computed_values().direction();
     data->is_subgrid = is_subgridded_axis(GridDimension::Column) || is_subgridded_axis(GridDimension::Row);

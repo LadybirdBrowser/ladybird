@@ -392,6 +392,9 @@ struct LayoutState {
 
     void ensure_capacity(u32 node_count);
 
+    void set_should_collect_devtools_layout_data(bool should_collect) { m_should_collect_devtools_layout_data = should_collect; }
+    bool should_collect_devtools_layout_data() const { return m_should_collect_devtools_layout_data; }
+
     UsedValues& get_mutable(NodeWithStyle const&);
     UsedValues const& get(NodeWithStyle const&) const;
 
@@ -408,6 +411,7 @@ private:
 
     PagedStore<UsedValues> m_used_values_store;
     GC::Ptr<Layout::NodeWithStyle const> m_subtree_root;
+    bool m_should_collect_devtools_layout_data { false };
 };
 
 inline CSSPixels clamp_to_max_dimension_value(CSSPixels value)
