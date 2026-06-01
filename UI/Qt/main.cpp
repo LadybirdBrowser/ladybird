@@ -13,6 +13,8 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Settings.h>
 
+#include <QtGlobal>
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
 #endif
@@ -42,6 +44,13 @@ bool is_using_dark_system_theme(QWidget& widget)
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
+
+#ifdef AK_OS_MACOS
+    if (!qEnvironmentVariableIsSet("QT_WIDGETS_RHI"))
+        qputenv("QT_WIDGETS_RHI", "1");
+    if (!qEnvironmentVariableIsSet("QT_WIDGETS_RHI_BACKEND"))
+        qputenv("QT_WIDGETS_RHI_BACKEND", "metal");
+#endif
 
     auto app = TRY(Ladybird::Application::create(arguments));
     WebView::BrowserProcess browser_process;

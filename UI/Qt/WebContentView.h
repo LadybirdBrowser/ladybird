@@ -21,12 +21,23 @@
 #include <QMenu>
 #include <QTimer>
 #include <QUrl>
-#include <QWidget>
+
+#ifdef AK_OS_MACOS
+#    include <QRhiWidget>
+#else
+#    include <QWidget>
+#endif
 
 class QKeyEvent;
 class QSinglePointEvent;
 
 namespace Ladybird {
+
+#ifdef AK_OS_MACOS
+using WebContentViewBase = QRhiWidget;
+#else
+using WebContentViewBase = QWidget;
+#endif
 
 struct WebContentViewInitialState {
     double maximum_frames_per_second { 60.0 };
@@ -34,14 +45,16 @@ struct WebContentViewInitialState {
 };
 
 class WebContentView final
-    : public QWidget
+    : public WebContentViewBase
     , public WebView::ViewImplementation {
     Q_OBJECT
 public:
     WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
+#ifndef AK_OS_MACOS
     virtual void paintEvent(QPaintEvent*) override;
+#endif
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void leaveEvent(QEvent* event) override;
     virtual void mouseMoveEvent(QMouseEvent*) override;
@@ -93,6 +106,20 @@ private:
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
 
+#ifdef AK_OS_MACOS
+    // ^QRhiWidget
+    virtual void initialize(QRhiCommandBuffer*) override;
+    virtual void render(QRhiCommandBuffer*) override;
+    virtual void releaseResources() override;
+#endif
+
+    struct Paintable {
+        Gfx::SharedImageBuffer const* shared_image_buffer { nullptr };
+        Gfx::IntSize bitmap_size;
+    };
+
+    Optional<Paintable> current_paintable() const;
+
     void update_viewport_size();
     void update_cursor(Gfx::Cursor cursor);
     void update_compositor_display_metadata();
@@ -120,6 +147,21 @@ private:
     int m_click_count { 0 };
 
     QMenu* m_select_dropdown { nullptr };
+
+#ifdef AK_OS_MACOS
+    bool prepare_metal_renderer(unsigned long render_target_pixel_format);
+    bool update_imported_iosurface_texture(Gfx::SharedImageBuffer const&);
+    void release_metal_resources();
+    void release_imported_iosurface_texture();
+
+    void* m_metal_device { nullptr };
+    void* m_metal_library { nullptr };
+    void* m_metal_pipeline_state { nullptr };
+    void* m_metal_sampler_state { nullptr };
+    void* m_imported_iosurface_texture { nullptr };
+    Gfx::SharedImageBuffer const* m_imported_shared_image_buffer { nullptr };
+    unsigned long m_render_target_pixel_format { 0 };
+#endif
 };
 
 }
