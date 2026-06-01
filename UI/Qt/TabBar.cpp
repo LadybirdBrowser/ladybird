@@ -106,7 +106,11 @@ static constexpr int clamp_vertical_tabs_expanded_width(int width)
 
 class NewTabButton final : public QToolButton {
 public:
-    using QToolButton::QToolButton;
+    explicit NewTabButton(QTabBar& tab_bar, QWidget* parent)
+        : QToolButton(parent)
+        , m_tab_bar(tab_bar)
+    {
+    }
 
 private:
     virtual void paintEvent(QPaintEvent* event) override
@@ -153,13 +157,16 @@ private:
         if (underMouse() || isDown())
             text_color = ChromeStyle::chrome_button_text(palette());
         painter.setPen(text_color);
-        painter.setFont(font());
+        auto text_font = m_tab_bar.font();
+        painter.setFont(text_font);
 
-        QFontMetrics font_metrics(font());
+        QFontMetrics font_metrics(text_font);
         auto title = font_metrics.elidedText(text(), Qt::ElideRight, max(0, contents_rect.width()));
         contents_rect.translate(0, -1);
         painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter, title);
     }
+
+    QTabBar& m_tab_bar;
 };
 
 TabBar::TabBar(TabWidget* tab_widget)
@@ -875,7 +882,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_stacked_widget = new QStackedWidget(this);
 
-    m_new_tab_button = new NewTabButton(this);
+    m_new_tab_button = new NewTabButton(*m_tab_bar, this);
     m_new_tab_button->setObjectName("LadybirdNewTabButton");
     m_new_tab_button->setIconSize(QSize(18, 18));
     m_new_tab_button->setFixedSize(32, 32);
