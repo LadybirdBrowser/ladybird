@@ -220,8 +220,12 @@ private:
 
     void restart_fetch_at_offset(u64 offset);
 
-    void set_up_playback_manager_for_remote();
-    void set_up_playback_manager_for_local();
+    void set_up_playback_manager_for_remote(u32 resource_generation);
+    void set_up_playback_manager_for_local(u32 resource_generation);
+    bool is_current_resource_generation(u32 resource_generation) const
+    {
+        return resource_generation == m_current_resource_generation;
+    }
     enum class FetchingStatus : u8 {
         Ongoing,
         Complete,
@@ -235,8 +239,8 @@ private:
 
     void on_audio_track_added(Media::Track const&);
     void on_video_track_added(Media::Track const&);
-    void on_metadata_parsed();
-    void on_playback_manager_state_change();
+    void on_metadata_parsed(u32 resource_generation);
+    void on_playback_manager_state_change(u32 resource_generation);
     void play_element();
     void pause_element();
     void seek_element(double playback_position, MediaSeekMode = MediaSeekMode::Accurate);
@@ -377,6 +381,8 @@ private:
 
     OwnPtr<RemoteFetchData> m_remote_fetch_data;
     u32 m_current_fetch_generation { 0 };
+    // Unlike fetch generation, this remains stable across byte-range fetches for the same media resource.
+    u32 m_current_resource_generation { 0 };
 
     OwnPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;

@@ -65,6 +65,7 @@ struct HTMLMediaElement::RemoteFetchData {
     Function<void(String)> failure_callback;
     bool accepts_byte_ranges { false };
     u64 offset { 0 };
+    u32 resource_generation { 0 };
 
     ~RemoteFetchData()
     {
@@ -256,6 +257,7 @@ void HTMLMediaElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
 void HTMLMediaElement::cancel_the_fetching_process()
 {
     m_current_fetch_generation++;
+    m_current_resource_generation++;
     if (m_remote_fetch_data && m_remote_fetch_data->stream)
         m_remote_fetch_data->stream->close();
     m_remote_fetch_data.clear();
@@ -1174,8 +1176,9 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
         self.restart_fetch_at_offset(offset);
     }));
     m_remote_fetch_data->failure_callback = move(failure_callback);
+    m_remote_fetch_data->resource_generation = ++m_current_resource_generation;
 
-    set_up_playback_manager_for_remote();
+    set_up_playback_manager_for_remote(m_remote_fetch_data->resource_generation);
 
     load_remote_resource(EntireResource {});
 }
@@ -1346,6 +1349,8 @@ void HTMLMediaElement::load_remote_resource(ByteRange const& byte_range)
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-resource
 void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_provider, Function<void(String)> failure_callback)
 {
+    auto resource_generation = ++m_current_resource_generation;
+
     // 1. Let mode be remote.
     // 2. If the algorithm was invoked with media provider object, then set mode to local.
     // 3. If mode is remote, then let the current media resource be the resource given by the URL record passed to this
@@ -1420,7 +1425,7 @@ void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_prov
             //        3. Set [[port to main]] null.
 
             media_source->set_assigned_to_media_element({}, *this);
-            set_up_playback_manager_for_local();
+            set_up_playback_manager_for_local(resource_generation);
 
             // 4. Set the readyState attribute to "open".
             // 5. Queue a task to fire an event named sourceopen at the MediaSource.
@@ -1698,8 +1703,11 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
     set_needs_repaint();
 }
 
-void HTMLMediaElement::on_metadata_parsed()
+void HTMLMediaElement::on_metadata_parsed(u32 resource_generation)
 {
+    if (!is_current_resource_generation(resource_generation))
+        return;
+
     // FIXME: Move this to setup_playback_manager()
     update_volume();
 
@@ -1722,7 +1730,9 @@ void HTMLMediaElement::on_metadata_parsed()
 
     // NB: Register the duration change handler here so that we don't set the duration when the
     //     playback manager updates the duration after parsing.
-    m_playback_manager->on_duration_change = GC::weak_callback(*this, [](auto& self, AK::Duration duration) {
+    m_playback_manager->on_duration_change = GC::weak_callback(*this, [resource_generation](auto& self, AK::Duration duration) {
+        if (!self.is_current_resource_generation(resource_generation))
+            return;
         self.set_duration(duration.to_seconds_f64());
     });
 
@@ -1776,7 +1786,7 @@ void HTMLMediaElement::on_metadata_parsed()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-void HTMLMediaElement::set_up_playback_manager_for_remote()
+void HTMLMediaElement::set_up_playback_manager_for_remote(u32 resource_generation)
 {
     m_playback_manager = Media::PlaybackManager::create();
     m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
@@ -1792,7 +1802,9 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
     // -> If the media resource is found to have an audio track
     // -> If the media resource is found to have a video track
-    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto& track) {
+    m_playback_manager->on_track_added = GC::weak_callback(*this, [resource_generation](auto& self, auto& track) {
+        if (!self.is_current_resource_generation(resource_generation))
+            return;
         if (track.type() == Media::TrackType::Audio)
             self.on_audio_track_added(track);
         else
@@ -1800,22 +1812,25 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     });
 
     // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
-    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [](auto& self) {
-        self.on_metadata_parsed();
+    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [resource_generation](auto& self) {
+        self.on_metadata_parsed(resource_generation);
     });
 
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) mutable {
+    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [resource_generation](auto& self, Media::DecoderError&& error) mutable {
         // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
         //     call forget_media_resource_specific_tracks().
-        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
+        self.queue_a_media_element_task([self = GC::Weak(self), resource_generation, error = move(error)] {
             if (!self)
+                return;
+            if (!self->is_current_resource_generation(resource_generation))
                 return;
             if (self->m_error)
                 return;
 
             // 1. The user agent should cancel the fetching process.
-            VERIFY(self->m_remote_fetch_data);
+            if (!self->m_remote_fetch_data || self->m_remote_fetch_data->resource_generation != resource_generation)
+                return;
             auto failure_callback = move(self->m_remote_fetch_data->failure_callback);
             self->cancel_the_fetching_process();
 
@@ -1825,9 +1840,11 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     });
 
     // -> If the media data is corrupted
-    m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
-        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
+    m_playback_manager->on_error = GC::weak_callback(*this, [resource_generation](auto& self, Media::DecoderError&& error) {
+        self.queue_a_media_element_task([self = GC::Weak(self), resource_generation, error = move(error)] {
             if (!self)
+                return;
+            if (!self->is_current_resource_generation(resource_generation))
                 return;
             self->set_decoder_error(MUST(String::from_utf8(error.description())));
         });
@@ -1835,13 +1852,13 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
     m_playback_manager->add_media_source(*m_remote_fetch_data->stream);
 
-    m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
-        self.on_playback_manager_state_change();
+    m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [resource_generation](auto& self) {
+        self.on_playback_manager_state_change(resource_generation);
     });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-void HTMLMediaElement::set_up_playback_manager_for_local()
+void HTMLMediaElement::set_up_playback_manager_for_local(u32 resource_generation)
 {
     m_playback_manager = Media::PlaybackManager::create();
     m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
@@ -1858,7 +1875,9 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
     // AD-HOC: Enable the tracks in PlaybackManager if MediaSource already enabled them in the DOM.
     //         Note that we do not want to call on_(audio/video)_track_added() here, since the MSE spec takes care
     //         of setting up the tracks.
-    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto& track) {
+    m_playback_manager->on_track_added = GC::weak_callback(*this, [resource_generation](auto& self, auto& track) {
+        if (!self.is_current_resource_generation(resource_generation))
+            return;
         if (track.type() == Media::TrackType::Audio) {
             self.m_audio_tracks->for_each_track([&](auto& element_track) {
                 if (!element_track.enabled())
@@ -1884,21 +1903,23 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
     });
 
     // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
-    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [](auto& self) {
-        self.on_metadata_parsed();
+    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [resource_generation](auto& self) {
+        self.on_metadata_parsed(resource_generation);
     });
 
     // -> If the media data is corrupted
-    m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
-        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
+    m_playback_manager->on_error = GC::weak_callback(*this, [resource_generation](auto& self, Media::DecoderError&& error) {
+        self.queue_a_media_element_task([self = GC::Weak(self), resource_generation, error = move(error)] {
             if (!self)
+                return;
+            if (!self->is_current_resource_generation(resource_generation))
                 return;
             self->set_decoder_error(MUST(String::from_utf8(error.description())));
         });
     });
 
-    m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
-        self.on_playback_manager_state_change();
+    m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [resource_generation](auto& self) {
+        self.on_playback_manager_state_change(resource_generation);
     });
 }
 
@@ -2234,8 +2255,11 @@ void HTMLMediaElement::update_ready_state()
     }
 }
 
-void HTMLMediaElement::on_playback_manager_state_change()
+void HTMLMediaElement::on_playback_manager_state_change(u32 resource_generation)
 {
+    if (!is_current_resource_generation(resource_generation))
+        return;
+
     VERIFY(m_playback_manager);
     auto state = m_playback_manager->state();
     if (seeking() && state != Media::PlaybackState::Seeking)
@@ -2243,7 +2267,9 @@ void HTMLMediaElement::on_playback_manager_state_change()
 
     // NB: Queue the readyState update as a task so that it will never run before the durationchange and loadedmetadata
     //     events are fired. This ensures that readyState has a deterministic value in those events.
-    queue_a_media_element_task(GC::weak_callback(*this, [](auto& self) {
+    queue_a_media_element_task(GC::weak_callback(*this, [resource_generation](auto& self) {
+        if (!self.is_current_resource_generation(resource_generation))
+            return;
         if (self.m_ready_state >= ReadyState::HaveMetadata)
             self.update_ready_state();
     }));
