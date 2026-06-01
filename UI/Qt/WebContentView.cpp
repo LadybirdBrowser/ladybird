@@ -37,6 +37,7 @@
 #include <QKeySequence>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPalette>
@@ -945,6 +946,18 @@ bool WebContentView::event(QEvent* event)
     if (event->type() == QEvent::KeyRelease) {
         keyReleaseEvent(static_cast<QKeyEvent*>(event));
         return true;
+    }
+    if (event->type() == QEvent::NativeGesture) {
+        auto const& native_gesture_event = *static_cast<QNativeGestureEvent const*>(event);
+        if (native_gesture_event.gestureType() == Qt::ZoomNativeGesture) {
+            Web::PinchEvent pinch_event;
+            auto const local_position = mapFromGlobal(native_gesture_event.globalPosition());
+            pinch_event.position = { local_position.x() * m_device_pixel_ratio, local_position.y() * m_device_pixel_ratio };
+            pinch_event.modifiers = get_modifiers_from_qt_keyboard_modifiers(native_gesture_event.modifiers());
+            pinch_event.scale_delta = native_gesture_event.value();
+            enqueue_input_event(AK::move(pinch_event));
+            return true;
+        }
     }
 
     if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange) {
