@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/modify-nodeValue-of-first-letter-styled-text-ref.html" />
+<style>
+#text:first-letter {
+  text-transform: capitalize;
+}
+</style>
+<p id="text">this is some very long text. Well, actually not all that long, but long enough for our purposes.</p>
+<script>
+window.requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
+    setTimeout(() => {
+      document.getElementById("text").firstChild.nodeValue = "short text";
+      document.documentElement.classList.remove("reftest-wait");
+    }, 0);
+  });
+});
+</script>
+</html>

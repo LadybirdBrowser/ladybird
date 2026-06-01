@@ -140,17 +140,21 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         return {};
 
     // NB: Called during DOM text mutation, layout is stale.
-    if (auto* text = as_if<Text>(*this)) {
-        Layout::TextOffsetMapping mapping { *text };
-        mapping.for_each_fragment([](Layout::TextNode& slice) {
+    if (is<Text>(*this)) {
+        if (is<Layout::TextSliceNode>(unsafe_layout_node())) {
+            // NB: Slice nodes cache data that is calculated at layout tree construction time.
+            // So for them, we need to invalidate the layout tree, not just layout.
+            if (parent())
+                parent()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
+        } else if (auto* text_layout_node = as_if<Layout::TextNode>(unsafe_layout_node())) {
             // NB: Since the text node's data has changed, we need to invalidate the text for rendering.
             //     This ensures that the new text is reflected in layout, even if we don't end up doing a full layout
             //     tree rebuild.
-            slice.invalidate_text_for_rendering();
+            text_layout_node->invalidate_text_for_rendering();
 
             // We also need to relayout.
-            slice.set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
-        });
+            text_layout_node->set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
+        }
     }
 
     document().bump_character_data_version();

@@ -82,6 +82,7 @@ enum class SetNeedsLayoutReason {
 [[nodiscard]] StringView to_string(SetNeedsLayoutReason);
 
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(X) \
+    X(CharacterDataReplaceData)                           \
     X(ElementSetInnerHTML)                                \
     X(ElementSetShadowRoot)                               \
     X(DetailsElementOpenedOrClosed)                       \
