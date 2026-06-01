@@ -87,6 +87,7 @@ public:
     void did_connect_devtools_client();
     void did_disconnect_devtools_client();
     bool has_devtools_client() const { return m_devtools_client_count > 0; }
+    virtual bool has_active_devtools_client() const override { return has_devtools_client(); }
 
     void initialize_js_console(Web::DOM::Document& document);
     void js_console_input(StringView js_source);
