@@ -1012,8 +1012,8 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
             double delta_y = static_cast<double>(angle_delta.y()) / 120.0;
 
             static constexpr double scroll_step_size = 40;
-            auto step_x = delta_x * static_cast<double>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
-            auto step_y = delta_y * static_cast<double>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
+            auto step_x = delta_x * static_cast<double>(QApplication::wheelScrollLines());
+            auto step_y = delta_y * static_cast<double>(QApplication::wheelScrollLines());
 
             wheel_delta_x = step_x * scroll_step_size;
             wheel_delta_y = step_y * scroll_step_size;

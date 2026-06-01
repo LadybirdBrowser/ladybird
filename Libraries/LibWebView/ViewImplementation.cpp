@@ -278,8 +278,13 @@ void ViewImplementation::reset_zoom()
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
-    if (auto* mouse_event = event.get_pointer<Web::MouseEvent>();
-        Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
+    auto* mouse_event = event.get_pointer<Web::MouseEvent>();
+    if (mouse_event && mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
+        mouse_event->wheel_delta_x /= zoom_level();
+        mouse_event->wheel_delta_y /= zoom_level();
+    }
+
+    if (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
         && m_client_state.has_usable_bitmap
         && mouse_event) {
         if (mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
