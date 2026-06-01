@@ -79,10 +79,9 @@ void Instance::initialize(JS::Realm& realm)
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
             },
             [&](Wasm::TableAddress const& address) {
-                Optional<GC::Ptr<Table>> object = m_table_instances.get(address);
+                Optional<GC::Ptr<Table>> object = cache.get_table_instance(address);
                 if (!object.has_value()) {
                     object = realm.create<Table>(realm, address);
-                    m_table_instances.set(address, *object);
                 }
 
                 m_exports->define_direct_property(name, *object, JS::default_attributes);
@@ -98,7 +97,6 @@ void Instance::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_exports);
     visitor.visit(m_function_instances);
-    visitor.visit(m_table_instances);
 }
 
 }

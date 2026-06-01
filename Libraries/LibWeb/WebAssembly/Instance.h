@@ -37,7 +37,6 @@ private:
     GC::Ref<Object> m_exports;
     NonnullRefPtr<Wasm::ModuleInstance> m_module_instance;
     HashMap<Wasm::FunctionAddress, GC::Ptr<JS::FunctionObject>> m_function_instances;
-    HashMap<Wasm::TableAddress, GC::Ptr<WebAssembly::Table>> m_table_instances;
 };
 
 }
