@@ -52,6 +52,7 @@ enum class ConfigVariableID : u8 {
     ShowWebContentProcessIDInTabTitle,
     ShowAdvancedDebugMenu,
     ContentBlockerListPaths,
+    UseRoundedWindowCorners,
 
     Count,
 };

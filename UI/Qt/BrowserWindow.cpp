@@ -10,6 +10,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/Platform.h>
 #include <AK/RefPtr.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
@@ -19,6 +20,9 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
+#if defined(AK_OS_MACOS)
+#    include <UI/Qt/MacWindow.h>
+#endif
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
@@ -55,6 +59,9 @@ namespace Ladybird {
 static constexpr auto AUDIO_STATE_BUTTON_POSITION = QTabBar::LeftSide;
 static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
+#if defined(AK_OS_MACOS)
+static constexpr qreal WINDOW_CORNER_RADIUS = 12.0;
+#endif
 
 static bool should_use_screen_signal_for_dpi_changes()
 {
@@ -227,6 +234,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setAttribute(Qt::WA_OpaquePaintEvent);
     setWindowIcon(app_icon());
     qApp->installEventFilter(this);
+    update_window_corners();
 
     update_tabs_display();
 
@@ -1229,6 +1237,7 @@ void BrowserWindow::clear_resize_cursor()
 void BrowserWindow::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    update_window_corners();
 
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ width(), height() });
@@ -1244,6 +1253,7 @@ void BrowserWindow::changeEvent(QEvent* event)
     } else if (event->type() == QEvent::WindowStateChange) {
         update_menu_bar_window_control_icons();
         m_tabs_container->update_window_button_icons();
+        update_window_corners();
 
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
         bool was_fullscreen = stateChangeEvent->oldState() & Qt::WindowFullScreen;
@@ -1258,6 +1268,26 @@ void BrowserWindow::changeEvent(QEvent* event)
         }
     }
     QWidget::changeEvent(event);
+}
+
+void BrowserWindow::config_variable_changed(WebView::ConfigVariableID variable)
+{
+    if (variable == WebView::ConfigVariableID::UseRoundedWindowCorners)
+        update_window_corners();
+}
+
+void BrowserWindow::update_window_corners()
+{
+    auto should_use_rounded_corners = WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseRoundedWindowCorners);
+    auto should_round_window = should_use_rounded_corners && !isMaximized() && !isFullScreen();
+
+#if defined(AK_OS_MACOS)
+    clearMask();
+    set_rounded_window_corners(*this, should_round_window, WINDOW_CORNER_RADIUS);
+#else
+    clearMask();
+    (void)should_round_window;
+#endif
 }
 
 void BrowserWindow::moveEvent(QMoveEvent* event)
