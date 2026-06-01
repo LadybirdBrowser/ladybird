@@ -60,6 +60,7 @@ static constexpr int VERTICAL_TABS_MAX_EXPANDED_WIDTH = 400;
 static constexpr int VERTICAL_TABS_RESIZE_HIT_AREA_WIDTH = 5;
 static constexpr int VERTICAL_TABS_COLLAPSED_SIDE_MARGIN = 6;
 static constexpr int VERTICAL_TABS_EXPANDED_SIDE_MARGIN = 5;
+static constexpr int VERTICAL_TABS_NEW_TAB_SEPARATOR_SPACING = 4;
 static constexpr int VERTICAL_TAB_SHAPE_HORIZONTAL_INSET = 5;
 static constexpr int VERTICAL_TAB_CONTENT_HORIZONTAL_INSET = 8;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
@@ -163,16 +164,14 @@ private:
         }
 
         auto contents_rect = shape_rect.toAlignedRect().adjusted(VERTICAL_TAB_CONTENT_HORIZONTAL_INSET, 0, -VERTICAL_TAB_CONTENT_HORIZONTAL_INSET, 0);
+        auto icon_size = iconSize();
         QRect icon_rect {
-            contents_rect.left(),
-            contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
-            TAB_ICON_SIZE,
-            TAB_ICON_SIZE,
+            contents_rect.left() - ((icon_size.width() - TAB_ICON_SIZE) / 2),
+            contents_rect.top() + ((contents_rect.height() - icon_size.height()) / 2),
+            icon_size.width(),
+            icon_size.height(),
         };
-        if (!underMouse() && !isDown())
-            painter.setOpacity(dark ? 0.90 : 0.84);
         icon().paint(&painter, icon_rect);
-        painter.setOpacity(1.0);
         contents_rect.setLeft(icon_rect.right() + 8);
 
         auto text_color = ChromeStyle::mix(ChromeStyle::chrome_button_text(palette()), ChromeStyle::chrome_muted_text(palette()), dark ? 0.26 : 0.40);
@@ -1402,21 +1401,21 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     m_vertical_tabs_reserved_space->setFixedWidth(reserved_width);
     m_vertical_tab_bar_column->setFixedWidth(side_bar_width);
 
-    m_vertical_tab_bar_column_layout->setSpacing(expanded ? 0 : 4);
+    m_vertical_tab_bar_column_layout->setSpacing(expanded ? 0 : VERTICAL_TABS_NEW_TAB_SEPARATOR_SPACING);
     auto side_margin = vertical_tabs_side_margin(expanded);
     m_vertical_tab_bar_column_layout->setContentsMargins(side_margin, 8, side_margin, 8);
 
     m_new_tab_button->setToolButtonStyle(expanded ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
     update_vertical_tabs_action_labels();
     m_new_tab_button->setProperty(VERTICAL_TABS_EXPANDED_PROPERTY, expanded);
-    m_vertical_tabs_new_tab_separator->setVisible(!expanded);
+    m_vertical_tabs_new_tab_separator->setVisible(true);
     if (expanded) {
         m_new_tab_button->setFixedHeight(VERTICAL_TAB_HEIGHT);
         m_new_tab_button->setMinimumWidth(32);
         m_new_tab_button->setMaximumWidth(QWIDGETSIZE_MAX);
         m_new_tab_button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     } else {
-        m_new_tab_button->setFixedSize(32, 32);
+        m_new_tab_button->setFixedSize(32, VERTICAL_TAB_HEIGHT);
         m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     }
 
@@ -1424,7 +1423,11 @@ void TabWidget::rebuild_layout_for_vertical_tabs()
     if (!expanded)
         new_tab_button_alignment = Qt::AlignHCenter;
     m_vertical_tab_bar_column_layout->addWidget(m_tab_bar);
+    if (expanded)
+        m_vertical_tab_bar_column_layout->addSpacing(VERTICAL_TABS_NEW_TAB_SEPARATOR_SPACING);
     m_vertical_tab_bar_column_layout->addWidget(m_vertical_tabs_new_tab_separator);
+    if (expanded)
+        m_vertical_tab_bar_column_layout->addSpacing(VERTICAL_TABS_NEW_TAB_SEPARATOR_SPACING);
     m_vertical_tab_bar_column_layout->addWidget(m_new_tab_button, 0, new_tab_button_alignment);
     m_vertical_tab_bar_column_layout->addStretch(1);
 }
