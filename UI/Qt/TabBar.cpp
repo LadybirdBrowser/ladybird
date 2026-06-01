@@ -1291,8 +1291,6 @@ void TabWidget::rebuild_layout()
 
 void TabWidget::rebuild_layout_for_horizontal_tabs()
 {
-    clear_layout(*m_tab_bar_row_layout);
-
     m_tab_bar_row->setMinimumHeight(HORIZONTAL_TAB_STRIP_HEIGHT);
     m_tab_bar_row_layout->setSpacing(4);
     m_tab_bar_row_layout->setContentsMargins(12, 2, 4, 1);
@@ -1315,9 +1313,6 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
 
 void TabWidget::rebuild_layout_for_vertical_tabs()
 {
-    clear_layout(*m_tab_bar_row_layout);
-    clear_layout(*m_vertical_tab_bar_column_layout);
-
     auto side_bar_width = current_vertical_tabs_width();
     m_vertical_tab_bar_column->setFixedWidth(side_bar_width);
 
