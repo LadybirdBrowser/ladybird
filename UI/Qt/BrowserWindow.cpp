@@ -329,12 +329,26 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     menuBar()->addMenu(view_menu);
 
     auto* open_next_tab_action = new QAction("Open &Next Tab", this);
-    open_next_tab_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_PageDown), QKeySequence(Qt::CTRL | Qt::Key_Tab) });
+    open_next_tab_action->setShortcuts({
+        QKeySequence(Qt::CTRL | Qt::Key_PageDown),
+        QKeySequence(Qt::CTRL | Qt::Key_Tab),
+#if defined(AK_OS_MACOS)
+        QKeySequence(Qt::META | Qt::Key_Tab),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketRight),
+#endif
+    });
     view_menu->addAction(open_next_tab_action);
     QObject::connect(open_next_tab_action, &QAction::triggered, this, &BrowserWindow::open_next_tab);
 
     auto* open_previous_tab_action = new QAction("Open &Previous Tab", this);
-    open_previous_tab_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_PageUp), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab) });
+    open_previous_tab_action->setShortcuts({
+        QKeySequence(Qt::CTRL | Qt::Key_PageUp),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab),
+#if defined(AK_OS_MACOS)
+        QKeySequence(Qt::META | Qt::SHIFT | Qt::Key_Tab),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketLeft),
+#endif
+    });
     view_menu->addAction(open_previous_tab_action);
     QObject::connect(open_previous_tab_action, &QAction::triggered, this, &BrowserWindow::open_previous_tab);
 
