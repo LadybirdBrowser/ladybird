@@ -1099,10 +1099,16 @@ bool BrowserWindow::event(QEvent* event)
         connect_window_screen_changed_signal();
     if (event->type() == QEvent::PlatformSurface) {
         auto* platform_surface_event = static_cast<QPlatformSurfaceEvent*>(event);
-        if (platform_surface_event->surfaceEventType() == QPlatformSurfaceEvent::SurfaceCreated)
+        if (platform_surface_event->surfaceEventType() == QPlatformSurfaceEvent::SurfaceCreated) {
             connect_window_screen_changed_signal();
-        else if (platform_surface_event->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed)
+#if defined(AK_OS_MACOS)
+            QTimer::singleShot(0, this, [this] {
+                update_window_corners();
+            });
+#endif
+        } else if (platform_surface_event->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
             disconnect_window_screen_changed_signal();
+        }
     }
     if (event->type() == QEvent::ScreenChangeInternal)
         screen_changed(screen());
