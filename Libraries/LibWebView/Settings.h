@@ -25,6 +25,7 @@ namespace WebView {
 struct TabSettings {
     bool vertical_tabs_enabled { false };
     bool vertical_tabs_expanded { true };
+    bool vertical_tabs_expand_on_hover { false };
 };
 
 struct BrowsingBehavior {
