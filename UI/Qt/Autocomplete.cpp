@@ -355,16 +355,20 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
     , m_anchor(anchor)
     , m_autocomplete(make<WebView::Autocomplete>())
 {
-    // The popup is parented to the anchor's top-level window in
-    // position_popup() rather than made its own window, so that showing
-    // it never causes the address bar to lose keyboard focus.
-    m_popup = new QFrame();
+    // Use a non-activating top-level window so it can stack above native web
+    // content windows without moving keyboard focus away from the address bar.
+    m_popup = new QFrame(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+    connect(m_popup, &QObject::destroyed, this, [this] {
+        m_popup = nullptr;
+    });
     m_popup->setObjectName("LadybirdAutocompletePopup");
 #if defined(AK_OS_MACOS)
     // The web content view is a native QRhiWidget on macOS, so the popup must
     // also be native to receive mouse events while overlapping it.
     m_popup->setAttribute(Qt::WA_NativeWindow);
 #endif
+    m_popup->setAttribute(Qt::WA_ShowWithoutActivating);
+    m_popup->setAttribute(Qt::WA_X11DoNotAcceptFocus);
     m_popup->setFocusPolicy(Qt::NoFocus);
     m_popup->setFrameShape(QFrame::StyledPanel);
     m_popup->setFrameShadow(QFrame::Raised);
@@ -416,7 +420,8 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
 Autocomplete::~Autocomplete()
 {
     qApp->removeEventFilter(this);
-    delete m_popup;
+    if (m_popup)
+        delete m_popup;
 }
 
 void Autocomplete::query_autocomplete_engine(String query)
@@ -598,8 +603,11 @@ void Autocomplete::position_popup()
     auto* top_window = m_anchor->window();
     if (!top_window)
         return;
-    if (m_popup->parentWidget() != top_window)
-        m_popup->setParent(top_window);
+    if (m_popup->parentWidget() != top_window) {
+        m_popup->setParent(top_window, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+        m_popup->setAttribute(Qt::WA_ShowWithoutActivating);
+        m_popup->setAttribute(Qt::WA_X11DoNotAcceptFocus);
+    }
 
     int width = std::max(m_anchor->width(), MINIMUM_POPUP_WIDTH);
     int frame_overhead = m_popup->frameWidth() * 2;
@@ -608,8 +616,8 @@ void Autocomplete::position_popup()
     m_list_view->setFixedHeight(total_height);
     m_popup->setFixedSize(width, popup_height);
 
-    auto pos_in_window = m_anchor->mapTo(top_window, QPoint(0, m_anchor->height()));
-    m_popup->move(pos_in_window);
+    auto popup_position = m_anchor->mapToGlobal(QPoint(0, m_anchor->height()));
+    m_popup->move(popup_position);
     m_popup->raise();
 }
 
