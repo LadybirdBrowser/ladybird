@@ -550,6 +550,42 @@ ThrowCompletionOr<void> Object::copy_data_properties(VM& vm, Value source, HashT
     // 2. Let from be ! ToObject(source).
     auto from = MUST(source.to_object(vm));
 
+    // OPTIMIZATION: For ordinary objects we can iterate the shape directly and read values by storage
+    //               offset, avoiding repeated property lookups through DescriptorArray::find.
+    if (from->eligible_for_own_property_enumeration_fast_path()
+        && !from->has_intrinsic_accessors()
+        && !from->may_interfere_with_indexed_property_access()
+        && excluded_values.is_empty()
+        && from->indexed_storage_kind() <= IndexedStorageKind::Packed) {
+
+        bool has_accessors = false;
+        from->shape().for_each_property_in_insertion_order([&](auto const&, auto const& metadata) {
+            if (metadata.attributes.is_enumerable() && from->get_direct(metadata.offset).is_accessor()) {
+                has_accessors = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+
+        if (!has_accessors) {
+            for (u32 i = 0; i < from->indexed_array_like_size(); ++i) {
+                if (!excluded_keys.is_empty() && excluded_keys.contains(PropertyKey(i)))
+                    continue;
+                MUST(create_data_property_or_throw(PropertyKey(i), from->m_indexed_elements[i]));
+            }
+
+            from->shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
+                if (!metadata.attributes.is_enumerable())
+                    return;
+                if (!excluded_keys.is_empty() && excluded_keys.contains(property_key))
+                    return;
+                MUST(create_data_property_or_throw(property_key, from->get_direct(metadata.offset)));
+            });
+
+            return {};
+        }
+    }
+
     // 3. Let keys be ? from.[[OwnPropertyKeys]]().
     auto keys = TRY(from->internal_own_property_keys());
 
