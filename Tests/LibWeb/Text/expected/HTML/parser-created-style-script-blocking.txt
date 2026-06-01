@@ -1,3 +1,5 @@
 Parser-created style import available to following script: rgb(1, 2, 3)
 Dynamic style update blocked following parser script: false
 Removed parser-created style blocked until import finished: false
+Non-matching media style blocked following parser script: false
+Media change blocked until import finished: false

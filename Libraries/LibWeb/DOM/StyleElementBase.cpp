@@ -42,8 +42,10 @@ void StyleElementBase::update_a_style_block_for_dynamic_change()
 void StyleElementBase::style_element_attribute_changed(FlyString const& name, Optional<String> const& value)
 {
     if (name == HTML::AttributeNames::media) {
-        if (auto* sheet = this->sheet())
+        if (auto* sheet = this->sheet()) {
             sheet->set_media(value.value_or({}));
+            associated_style_sheet_media_attribute_changed();
+        }
     } else if (name == HTML::AttributeNames::type) {
         update_a_style_block_for_dynamic_change();
     }
@@ -134,10 +136,12 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
         nullptr,
         nullptr);
 
+    evaluate_associated_style_sheet_media_queries();
     if (update_source == UpdateSource::ParserPop) {
         m_associated_css_style_sheet_was_created_by_parser = true;
         m_associated_css_style_sheet_was_enabled_when_created_by_parser = !m_associated_css_style_sheet->disabled();
         m_associated_css_style_sheet_load_is_pending_for_script_blocking = m_associated_css_style_sheet_was_enabled_when_created_by_parser
+            && m_associated_css_style_sheet_media_matches_environment
             && m_associated_css_style_sheet->loading_state() == CSS::CSSStyleSheet::LoadingState::Loading;
     }
 
@@ -205,6 +209,15 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
     m_document_load_event_delayer.clear();
 }
 
+void StyleElementBase::associated_style_sheet_media_attribute_changed()
+{
+    evaluate_associated_style_sheet_media_queries();
+    if (!as_element().contributes_a_script_blocking_style_sheet()) {
+        remove_from_script_blocking_style_sheet_set_if_needed();
+        m_associated_css_style_sheet_load_is_pending_for_script_blocking = false;
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet
 bool StyleElementBase::style_element_contributes_a_script_blocking_style_sheet() const
 {
@@ -223,7 +236,9 @@ bool StyleElementBase::style_element_contributes_a_script_blocking_style_sheet()
     // styling processing model when the el was created by the parser.
     // NB: This is a style element, so all good!
 
-    // FIXME: el's media attribute's value matches the environment.
+    // el's media attribute's value matches the environment.
+    if (!m_associated_css_style_sheet_media_matches_environment)
+        return false;
 
     // el's style sheet was enabled when the element was created by the parser.
     if (!m_associated_css_style_sheet_was_enabled_when_created_by_parser)
@@ -241,6 +256,17 @@ bool StyleElementBase::style_element_contributes_a_script_blocking_style_sheet()
         return false;
 
     return true;
+}
+
+void StyleElementBase::evaluate_associated_style_sheet_media_queries()
+{
+    if (!m_associated_css_style_sheet) {
+        m_associated_css_style_sheet_media_matches_environment = false;
+        return;
+    }
+
+    m_associated_css_style_sheet->evaluate_media_queries(as_element().document());
+    m_associated_css_style_sheet_media_matches_environment = m_associated_css_style_sheet->media()->matches();
 }
 
 void StyleElementBase::remove_from_script_blocking_style_sheet_set_if_needed()
@@ -263,6 +289,7 @@ void StyleElementBase::clear_associated_css_style_sheet_parser_blocking_state()
 {
     m_associated_css_style_sheet_was_created_by_parser = false;
     m_associated_css_style_sheet_was_enabled_when_created_by_parser = false;
+    m_associated_css_style_sheet_media_matches_environment = false;
     m_associated_css_style_sheet_load_is_pending_for_script_blocking = false;
     m_associated_css_style_sheet_is_blocking_scripts = false;
 }

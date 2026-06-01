@@ -80,6 +80,33 @@
         `);
         println(`Removed parser-created style blocked until import finished: ${removedStyleBlocked}`);
 
+        const nonMatchingMedia = await slowStyleSheet("/non-matching-media-style-should-not-block.css");
+        const nonMatchingMediaBlocked = await runFrame("/non-matching-media-style-should-not-block-page", `
+            <!DOCTYPE html>
+            ${scriptStart}
+                window.mediaStart = performance.now();
+            ${scriptEnd}
+            <style media="not all">@import url("${nonMatchingMedia}");</style>
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.mediaStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Non-matching media style blocked following parser script: ${nonMatchingMediaBlocked}`);
+
+        const changedMedia = await slowStyleSheet("/changed-media-style-should-unblock.css");
+        const changedMediaBlocked = await runFrame("/changed-media-style-should-unblock-page", `
+            <!DOCTYPE html>
+            ${scriptStart}
+                window.mediaChangeStart = performance.now();
+                setTimeout(() => document.getElementById("style").media = "not all", 0);
+            ${scriptEnd}
+            <style id="style">@import url("${changedMedia}");</style>
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.mediaChangeStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Media change blocked until import finished: ${changedMediaBlocked}`);
+
         done();
     });
 </script>
