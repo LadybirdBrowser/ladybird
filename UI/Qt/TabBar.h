@@ -30,6 +30,7 @@ class QPaintEvent;
 class QPixmap;
 class QResizeEvent;
 class QToolButton;
+class QTimer;
 class QVariantAnimation;
 class QWheelEvent;
 
@@ -148,6 +149,7 @@ public:
     void update_window_button_icons();
     void set_vertical_tabs_enabled(bool);
     void set_vertical_tabs_expanded(bool);
+    void set_vertical_tabs_expand_on_hover(bool);
     void update_tab_button_visibility();
 
 signals:
@@ -165,6 +167,10 @@ protected:
 private:
     TabLayout current_tab_layout() const;
     QWidget* tab_drag_area_widget() const;
+    bool vertical_tabs_effectively_expanded() const;
+    bool can_expand_vertical_tabs_on_hover() const;
+    bool cursor_is_over_vertical_tabs() const;
+    int vertical_tabs_layout_width() const;
 
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
@@ -179,6 +185,10 @@ private:
     void update_tab_chrome_visibility();
     void recreate_icons();
     void update_chrome_style();
+    void update_vertical_tabs_overlay_geometry();
+    void set_vertical_tabs_hover_expanded(bool);
+    void defer_update_vertical_tabs_hover_expanded();
+    void update_vertical_tabs_hover_expanded();
     void toggle_window_maximized();
     bool start_window_move();
     void accept_tab_drag(QDragMoveEvent*);
@@ -192,9 +202,11 @@ private:
     QToolButton* m_close_window_button { nullptr };
     QWidget* m_tab_bar_row { nullptr };
     QWidget* m_vertical_tabs_new_tab_separator { nullptr };
+    QWidget* m_vertical_tabs_reserved_space { nullptr };
     QWidget* m_vertical_tab_bar_column { nullptr };
     QWidget* m_vertical_tabs_resize_handle { nullptr };
     QWidget* m_vertical_tabs_content { nullptr };
+    QTimer* m_vertical_tabs_hover_collapse_timer { nullptr };
     QBoxLayout* m_main_layout { nullptr };
     QBoxLayout* m_tab_bar_row_layout { nullptr };
     QBoxLayout* m_vertical_tab_bar_column_layout { nullptr };
@@ -203,6 +215,8 @@ private:
     bool m_window_controls_visible { true };
     bool m_vertical_tabs_enabled { false };
     bool m_vertical_tabs_expanded { true };
+    bool m_vertical_tabs_expand_on_hover { false };
+    bool m_vertical_tabs_hover_expanded { false };
     bool m_is_resizing_vertical_tabs { false };
     bool m_is_updating_chrome_style { false };
     int m_vertical_tabs_expanded_width { 0 };

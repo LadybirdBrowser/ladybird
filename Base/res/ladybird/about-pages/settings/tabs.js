@@ -1,4 +1,5 @@
 const enableVerticalTabs = document.querySelector("#enable-vertical-tabs");
+const verticalTabsExpandOnHover = document.querySelector("#vertical-tabs-expand-on-hover");
 
 let TAB_SETTINGS = {};
 
@@ -9,10 +10,16 @@ const loadFeatures = features => {
     tabSettingsCard.classList.toggle("hidden", !features?.verticalTabs);
 };
 
+const updateVerticalTabsDependentSettings = () => {
+    verticalTabsExpandOnHover.parentElement.classList.toggle("hidden", !enableVerticalTabs.checked);
+};
+
 const loadSettings = settings => {
     TAB_SETTINGS = settings.tabs || {};
 
     enableVerticalTabs.checked = !!TAB_SETTINGS.verticalTabsEnabled;
+    verticalTabsExpandOnHover.checked = !!TAB_SETTINGS.verticalTabsExpandOnHover;
+    updateVerticalTabsDependentSettings();
 };
 
 function addChangeHandler(input, name) {
@@ -23,6 +30,7 @@ function addChangeHandler(input, name) {
 }
 
 addChangeHandler(enableVerticalTabs, "verticalTabsEnabled");
+addChangeHandler(verticalTabsExpandOnHover, "verticalTabsExpandOnHover");
 
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadFeatures") {
