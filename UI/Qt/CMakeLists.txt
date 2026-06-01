@@ -3,6 +3,13 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
+if (APPLE)
+    # The macOS QRhiWidget presentation path uses QRhi's private Metal native
+    # handle types to import IOSurfaces without CPU readback.
+    set(QT_NO_PRIVATE_MODULE_WARNING ON)
+    find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
+endif()
+
 qt_add_executable(ladybird main.cpp)
 target_sources(ladybird PRIVATE
     Application.cpp
@@ -27,8 +34,11 @@ target_sources(ladybird PRIVATE
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 
 if (APPLE)
-    target_sources(ladybird PRIVATE MacWindow.mm)
-    target_link_libraries(ladybird PRIVATE "-framework Cocoa" "-framework QuartzCore")
+    target_sources(ladybird PRIVATE
+        MacWindow.mm
+        WebContentViewMac.mm
+    )
+    target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework Cocoa" "-framework IOSurface" "-framework Metal" "-framework QuartzCore")
 endif()
 
 create_ladybird_bundle(ladybird)
