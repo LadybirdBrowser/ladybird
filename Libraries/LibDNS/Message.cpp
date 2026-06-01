@@ -831,14 +831,15 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
     ParseContext rdata_ctx { rdata_stream, move(ctx.pointers) };
     ScopeGuard guard([&] { ctx.pointers = move(rdata_ctx.pointers); });
 
-#define PARSE_AS_RR(TYPE)                                                                                                                                   \
-    do {                                                                                                                                                    \
-        auto rr = TRY(Records::TYPE::from_raw(rdata_ctx));                                                                                                  \
-        if (!rdata_stream.is_eof()) {                                                                                                                       \
-            dbgln("Extra data ({}) left in stream: {:hex-dump}", rdata.size() - rdata_stream.read_bytes(), rdata.bytes().slice(rdata_stream.read_bytes())); \
-            return Error::from_string_literal("Extra data in " #TYPE " record content");                                                                    \
-        }                                                                                                                                                   \
-        return ResourceRecord { move(name), type, class_, ttl, rr, move(rr_raw_data) };                                                                     \
+#define PARSE_AS_RR(TYPE)                                                                                                 \
+    do {                                                                                                                  \
+        auto rr = TRY(Records::TYPE::from_raw(rdata_ctx));                                                                \
+        if (!rdata_stream.is_eof()) {                                                                                     \
+            auto consumed = rdata_stream.read_bytes() - original_offset;                                                  \
+            dbgln("Extra data ({}) left in stream: {:hex-dump}", rdata.size() - consumed, rdata.bytes().slice(consumed)); \
+            return Error::from_string_literal("Extra data in " #TYPE " record content");                                  \
+        }                                                                                                                 \
+        return ResourceRecord { move(name), type, class_, ttl, rr, move(rr_raw_data) };                                   \
     } while (0)
 
     switch (type) {

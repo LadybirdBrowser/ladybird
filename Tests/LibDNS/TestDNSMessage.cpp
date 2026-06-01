@@ -41,3 +41,29 @@ TEST_CASE(parsing_a_reserved_label_length_fails)
     auto result = DNS::Messages::Message::from_raw(stream);
     EXPECT(result.is_error());
 }
+
+// A resource record whose RDLENGTH is larger than the type-specific parser
+// consumes used to abort the process: the "extra data" diagnostic computed an
+// rdata offset relative to the whole packet instead of relative to the rdata
+// buffer, slicing out of bounds. Parsing must fail gracefully instead.
+TEST_CASE(rdata_with_trailing_bytes_does_not_crash)
+{
+    Array<u8, 28> const message {
+        0x00, 0x00,                   // ID
+        0x00, 0x00,                   // Flags
+        0x00, 0x00,                   // QDCOUNT
+        0x00, 0x01,                   // ANCOUNT
+        0x00, 0x00,                   // NSCOUNT
+        0x00, 0x00,                   // ARCOUNT
+        0x00,                         // NAME: root
+        0x00, 0x01,                   // TYPE: A
+        0x00, 0x01,                   // CLASS: IN
+        0x00, 0x00, 0x00, 0x00,       // TTL
+        0x00, 0x05,                   // RDLENGTH: 5 (one byte more than an A record needs)
+        0x01, 0x02, 0x03, 0x04, 0xff, // RDATA
+    };
+
+    FixedMemoryStream stream { ReadonlyBytes { message } };
+    auto result = DNS::Messages::Message::from_raw(stream);
+    EXPECT(result.is_error());
+}
