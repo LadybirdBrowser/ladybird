@@ -134,8 +134,10 @@ void CSSImportRule::fetch()
     auto& parent_style_sheet = *this->parent_style_sheet();
 
     // 2. If rule has a <supports-condition>, and that condition is not true, return.
-    if (m_supports && !m_supports->matches())
+    if (m_supports && !m_supports->matches()) {
+        set_loading_state(CSSStyleSheet::LoadingState::Loaded);
         return;
+    }
 
     // AD-HOC: Track pending import rules to block rendering until they are done.
     m_document->add_pending_css_import_rule({}, *this);
