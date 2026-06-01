@@ -13,6 +13,7 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Settings.h>
 
+#include <QCoreApplication>
 #include <QtGlobal>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
@@ -46,10 +47,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     AK::set_rich_debug_enabled(true);
 
 #ifdef AK_OS_MACOS
-    if (!qEnvironmentVariableIsSet("QT_WIDGETS_RHI"))
-        qputenv("QT_WIDGETS_RHI", "1");
-    if (!qEnvironmentVariableIsSet("QT_WIDGETS_RHI_BACKEND"))
-        qputenv("QT_WIDGETS_RHI_BACKEND", "metal");
+    // The web content view is a native QRhiWidget child. Keep it from forcing
+    // every sibling in the tab UI to become native as well.
+    QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
 #endif
 
     auto app = TRY(Ladybird::Application::create(arguments));
