@@ -171,6 +171,7 @@ TabBar::TabBar(TabWidget* tab_widget)
     setFocusPolicy(Qt::NoFocus);
     setIconSize({ 16, 16 });
     setMinimumHeight(39);
+    recreate_icons();
 
     m_hover_animation = new QVariantAnimation(this);
     m_hover_animation->setDuration(120);
@@ -226,6 +227,12 @@ void TabBar::refresh_tab_layout()
     set_vertical_scroll_offset(m_vertical_scroll_offset);
     updateGeometry();
     update_tab_button_geometry();
+    update();
+}
+
+void TabBar::recreate_icons()
+{
+    m_fallback_tab_icon = create_chrome_icon(ChromeIcon::Globe, palette());
     update();
 }
 
@@ -359,7 +366,7 @@ void TabBar::paintEvent(QPaintEvent*)
 
         auto icon = tabIcon(index);
         if (icon.isNull())
-            icon = create_chrome_icon(ChromeIcon::Globe, palette());
+            icon = m_fallback_tab_icon;
 
         if (is_collapsed_vertical) {
             QRect icon_rect {
@@ -1413,6 +1420,7 @@ void TabWidget::update_tab_chrome_visibility()
 
 void TabWidget::recreate_icons()
 {
+    m_tab_bar->recreate_icons();
     m_new_tab_button->setIcon(create_chrome_icon(ChromeIcon::NewTab, palette()));
     update_vertical_tabs_action_labels();
     update_window_button_icons();
