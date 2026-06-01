@@ -678,6 +678,11 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
             return Error::from_string_literal("Invalid domain name pointer in label");
         }
 
+        // A normal label is at most 63 octets. Lengths whose top two bits are 0b01 or 0b10 are reserved (RFC 1035,
+        // 4.1.4) and would produce a label that can no longer be re-encoded, so reject them here.
+        if (length > 63)
+            return Error::from_string_literal("Domain name label exceeds 63 octets");
+
         ByteBuffer content;
         TRY(ctx.stream.read_until_filled(TRY(content.get_bytes_for_writing(length))));
         name.labels.append(ByteString::copy(content));
@@ -691,7 +696,8 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
 ErrorOr<void> DomainName::to_raw(ByteBuffer& out) const
 {
     for (auto& label : labels) {
-        VERIFY(label.length() <= 63);
+        if (label.length() > 63)
+            return Error::from_string_literal("Domain name label exceeds 63 octets");
         auto size_bytes = TRY(out.get_bytes_for_writing(1));
         u8 size = static_cast<u8>(label.length());
         memcpy(size_bytes.data(), &size, 1);
