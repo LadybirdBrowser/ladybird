@@ -962,12 +962,6 @@ static Optional<FloatMatrix4x4> interpolate_matrices(FloatMatrix4x4 const& from,
         if (row[1][0] > row[0][1])
             values.rotation[2] = -values.rotation[2];
 
-        // FIXME: This accounts for the fact that the browser coordinate system is left-handed instead of right-handed.
-        //        The reason for this is that the positive Y-axis direction points down instead of up. To fix this, we
-        //        invert the Y axis. However, it feels like the spec pseudo-code above should have taken something like
-        //        this into account, so we're probably doing something else wrong.
-        values.rotation[2] *= -1;
-
         return values;
     };
 
@@ -993,15 +987,17 @@ static Optional<FloatMatrix4x4> interpolate_matrices(FloatMatrix4x4 const& from,
 
         // Construct a composite rotation matrix from the quaternion values
         // rotationMatrix is a identity 4x4 matrix initially
+        // NB: Using the spec's col, row order would result in a wrongly inversed orthogonal matrix.
+        // https://github.com/w3c/csswg-drafts/issues/3230
         auto rotation_matrix = FloatMatrix4x4::identity();
         rotation_matrix[0, 0] = 1.f - 2.f * (y * y + z * z);
-        rotation_matrix[1, 0] = 2.f * (x * y - z * w);
-        rotation_matrix[2, 0] = 2.f * (x * z + y * w);
-        rotation_matrix[0, 1] = 2.f * (x * y + z * w);
+        rotation_matrix[0, 1] = 2.f * (x * y - z * w);
+        rotation_matrix[0, 2] = 2.f * (x * z + y * w);
+        rotation_matrix[1, 0] = 2.f * (x * y + z * w);
         rotation_matrix[1, 1] = 1.f - 2.f * (x * x + z * z);
-        rotation_matrix[2, 1] = 2.f * (y * z - x * w);
-        rotation_matrix[0, 2] = 2.f * (x * z - y * w);
-        rotation_matrix[1, 2] = 2.f * (y * z + x * w);
+        rotation_matrix[1, 2] = 2.f * (y * z - x * w);
+        rotation_matrix[2, 0] = 2.f * (x * z - y * w);
+        rotation_matrix[2, 1] = 2.f * (y * z + x * w);
         rotation_matrix[2, 2] = 1.f - 2.f * (x * x + y * y);
 
         matrix = matrix * rotation_matrix;

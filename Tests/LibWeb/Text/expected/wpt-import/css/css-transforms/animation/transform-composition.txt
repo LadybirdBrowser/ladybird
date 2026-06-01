@@ -2,20 +2,21 @@ Harness status: OK
 
 Found 56 tests
 
-56 Fail
+2 Pass
+54 Fail
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (-0.5) should be [rotateX(50deg) rotateY(50deg) translate(-40px, -80px)]
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0) should be [rotateX(100deg) rotateY(100deg) translate(10px, 20px)]
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0.25) should be [rotateX(125deg) rotateY(125deg) translate(35px, 70px)]
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0.5) should be [rotateX(150deg) rotateY(150deg) translate(60px, 120px)]
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0.75) should be [rotateX(175deg) rotateY(175deg) translate(85px, 170px)]
-Fail	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (1) should be [rotateX(200deg) rotateY(200deg) translate(110px, 220px)]
+Pass	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (1) should be [rotateX(200deg) rotateY(200deg) translate(110px, 220px)]
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (1.5) should be [rotateX(250deg) rotateY(250deg) translate(160px, 320px)]
 Fail	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (-0.5) should be [rotateX(50deg) rotateY(50deg) translate(-40px, -80px)]
 Fail	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0) should be [rotateX(100deg) rotateY(100deg) translate(10px, 20px)]
 Fail	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0.25) should be [rotateX(125deg) rotateY(125deg) translate(35px, 70px)]
 Fail	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0.5) should be [rotateX(150deg) rotateY(150deg) translate(60px, 120px)]
 Fail	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (0.75) should be [rotateX(175deg) rotateY(175deg) translate(85px, 170px)]
-Fail	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (1) should be [rotateX(200deg) rotateY(200deg) translate(110px, 220px)]
+Pass	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (1) should be [rotateX(200deg) rotateY(200deg) translate(110px, 220px)]
 Fail	Compositing Web Animations: property <transform> underlying [rotateX(100deg) rotateY(100deg)] from add [translate(10px, 20px)] to replace [rotateX(200deg) rotateY(200deg) translate(110px, 220px)] at (1.5) should be [rotateX(250deg) rotateY(250deg) translate(160px, 320px)]
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(45deg)] from add [none] to add [rotateY(360deg)] at (-0.5) should be [rotateX(45deg) rotateY(-180deg)]
 Fail	Compositing CSS Animations: property <transform> underlying [rotateX(45deg)] from add [none] to add [rotateY(360deg)] at (0) should be [rotateX(45deg) rotateY(0deg)]

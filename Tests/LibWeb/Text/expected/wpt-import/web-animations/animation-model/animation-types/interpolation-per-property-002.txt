@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 374 tests
 
-354 Pass
-20 Fail
+355 Pass
+19 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testInterpolation function
 Pass	isolation uses discrete animation when animating between "auto" and "isolate" with linear easing
@@ -319,7 +319,7 @@ Pass	transform: extend shorter list (to)
 Pass	transform: mismatch order of translate and rotate
 Pass	transform: matrix
 Pass	transform: rotate3d
-Fail	transform: matrix3d
+Pass	transform: matrix3d
 Pass	transform: mismatched 3D transforms
 Pass	transform: rotateY
 Pass	transform: non-invertible matrices
