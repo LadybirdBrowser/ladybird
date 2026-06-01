@@ -1,0 +1,380 @@
+Harness status: OK
+
+Found 374 tests
+
+354 Pass
+20 Fail
+Pass	Setup
+Pass	isolation (type: discrete) has testInterpolation function
+Pass	isolation uses discrete animation when animating between "auto" and "isolate" with linear easing
+Pass	isolation uses discrete animation when animating between "auto" and "isolate" with effect easing
+Pass	isolation uses discrete animation when animating between "auto" and "isolate" with keyframe easing
+Pass	justify-content (type: discrete) has testInterpolation function
+Pass	justify-content uses discrete animation when animating between "start" and "end" with linear easing
+Pass	justify-content uses discrete animation when animating between "start" and "end" with effect easing
+Pass	justify-content uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	justify-items (type: discrete) has testInterpolation function
+Pass	justify-items uses discrete animation when animating between "start" and "end" with linear easing
+Pass	justify-items uses discrete animation when animating between "start" and "end" with effect easing
+Pass	justify-items uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	justify-self (type: discrete) has testInterpolation function
+Pass	justify-self uses discrete animation when animating between "start" and "end" with linear easing
+Pass	justify-self uses discrete animation when animating between "start" and "end" with effect easing
+Pass	justify-self uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	letter-spacing (type: lengthPercentageOrCalc) has testInterpolation function
+Pass	letter-spacing supports animating as a length
+Pass	letter-spacing supports animating as a length of rem
+Pass	letter-spacing supports animating as a percentage
+Pass	letter-spacing supports animating as combination units "px" and "%"
+Pass	letter-spacing supports animating as combination units "%" and "em"
+Pass	letter-spacing supports animating as combination units "em" and "rem"
+Pass	letter-spacing supports animating as combination units "px" and "calc"
+Pass	letter-spacing supports animating as a calc
+Pass	line-height (type: discrete) has testInterpolation function
+Pass	line-height uses discrete animation when animating between "normal" and "10px" with linear easing
+Pass	line-height uses discrete animation when animating between "normal" and "10px" with effect easing
+Pass	line-height uses discrete animation when animating between "normal" and "10px" with keyframe easing
+Pass	line-height uses discrete animation when animating between "normal" and "10" with linear easing
+Pass	line-height uses discrete animation when animating between "normal" and "10" with effect easing
+Pass	line-height uses discrete animation when animating between "normal" and "10" with keyframe easing
+Pass	list-style (type: discrete) has testInterpolation function
+Fail	list-style uses discrete animation when animating between "inside url("http://localhost/test-1") circle" and "outside url("http://localhost/test-2") square" with linear easing
+Fail	list-style uses discrete animation when animating between "inside url("http://localhost/test-1") circle" and "outside url("http://localhost/test-2") square" with effect easing
+Fail	list-style uses discrete animation when animating between "inside url("http://localhost/test-1") circle" and "outside url("http://localhost/test-2") square" with keyframe easing
+Pass	list-style-image (type: discrete) has testInterpolation function
+Pass	list-style-image uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with linear easing
+Pass	list-style-image uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with effect easing
+Pass	list-style-image uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with keyframe easing
+Pass	list-style-position (type: discrete) has testInterpolation function
+Pass	list-style-position uses discrete animation when animating between "inside" and "outside" with linear easing
+Pass	list-style-position uses discrete animation when animating between "inside" and "outside" with effect easing
+Pass	list-style-position uses discrete animation when animating between "inside" and "outside" with keyframe easing
+Pass	list-style-type (type: discrete) has testInterpolation function
+Pass	list-style-type uses discrete animation when animating between "circle" and "square" with linear easing
+Pass	list-style-type uses discrete animation when animating between "circle" and "square" with effect easing
+Pass	list-style-type uses discrete animation when animating between "circle" and "square" with keyframe easing
+Pass	mask (type: discrete) has testInterpolation function
+Pass	mask uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with linear easing
+Pass	mask uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with effect easing
+Pass	mask uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with keyframe easing
+Pass	mask-clip (type: discrete) has testInterpolation function
+Pass	mask-clip uses discrete animation when animating between "content-box" and "border-box" with linear easing
+Pass	mask-clip uses discrete animation when animating between "content-box" and "border-box" with effect easing
+Pass	mask-clip uses discrete animation when animating between "content-box" and "border-box" with keyframe easing
+Pass	mask-composite (type: discrete) has testInterpolation function
+Pass	mask-composite uses discrete animation when animating between "add" and "subtract" with linear easing
+Pass	mask-composite uses discrete animation when animating between "add" and "subtract" with effect easing
+Pass	mask-composite uses discrete animation when animating between "add" and "subtract" with keyframe easing
+Pass	mask-image (type: discrete) has testInterpolation function
+Pass	mask-image uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with linear easing
+Pass	mask-image uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with effect easing
+Pass	mask-image uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with keyframe easing
+Pass	mask-mode (type: discrete) has testInterpolation function
+Pass	mask-mode uses discrete animation when animating between "alpha" and "luminance" with linear easing
+Pass	mask-mode uses discrete animation when animating between "alpha" and "luminance" with effect easing
+Pass	mask-mode uses discrete animation when animating between "alpha" and "luminance" with keyframe easing
+Pass	mask-origin (type: discrete) has testInterpolation function
+Pass	mask-origin uses discrete animation when animating between "content-box" and "border-box" with linear easing
+Pass	mask-origin uses discrete animation when animating between "content-box" and "border-box" with effect easing
+Pass	mask-origin uses discrete animation when animating between "content-box" and "border-box" with keyframe easing
+Pass	mask-repeat (type: discrete) has testInterpolation function
+Pass	mask-repeat uses discrete animation when animating between "space" and "round" with linear easing
+Pass	mask-repeat uses discrete animation when animating between "space" and "round" with effect easing
+Pass	mask-repeat uses discrete animation when animating between "space" and "round" with keyframe easing
+Pass	mask-type (type: discrete) has testInterpolation function
+Pass	mask-type uses discrete animation when animating between "alpha" and "luminance" with linear easing
+Pass	mask-type uses discrete animation when animating between "alpha" and "luminance" with effect easing
+Pass	mask-type uses discrete animation when animating between "alpha" and "luminance" with keyframe easing
+Pass	mix-blend-mode (type: discrete) has testInterpolation function
+Pass	mix-blend-mode uses discrete animation when animating between "multiply" and "screen" with linear easing
+Pass	mix-blend-mode uses discrete animation when animating between "multiply" and "screen" with effect easing
+Pass	mix-blend-mode uses discrete animation when animating between "multiply" and "screen" with keyframe easing
+Pass	object-fit (type: discrete) has testInterpolation function
+Pass	object-fit uses discrete animation when animating between "fill" and "contain" with linear easing
+Pass	object-fit uses discrete animation when animating between "fill" and "contain" with effect easing
+Pass	object-fit uses discrete animation when animating between "fill" and "contain" with keyframe easing
+Pass	order (type: integer) has testInterpolation function
+Pass	order supports animating as an integer
+Pass	outline-color (type: color) has testInterpolation function
+Pass	outline-color supports animating as color of rgb()
+Pass	outline-color supports animating as color of #RGB
+Pass	outline-color supports animating as color of hsl()
+Pass	outline-color supports animating as color of #RGBa
+Pass	outline-color supports animating as color of rgba()
+Pass	outline-color supports animating as color of hsla()
+Pass	outline-offset (type: length) has testInterpolation function
+Pass	outline-offset supports animating as a length
+Pass	outline-offset supports animating as a length of rem
+Pass	outline-style (type: discrete) has testInterpolation function
+Pass	outline-style uses discrete animation when animating between "none" and "dotted" with linear easing
+Pass	outline-style uses discrete animation when animating between "none" and "dotted" with effect easing
+Pass	outline-style uses discrete animation when animating between "none" and "dotted" with keyframe easing
+Pass	outline-width (type: length) has testInterpolation function
+Pass	outline-width supports animating as a length
+Pass	outline-width supports animating as a length of rem
+Pass	overflow (type: discrete) has testInterpolation function
+Pass	overflow uses discrete animation when animating between "visible" and "hidden" with linear easing
+Pass	overflow uses discrete animation when animating between "visible" and "hidden" with effect easing
+Pass	overflow uses discrete animation when animating between "visible" and "hidden" with keyframe easing
+Pass	overflow-wrap (type: discrete) has testInterpolation function
+Pass	overflow-wrap uses discrete animation when animating between "normal" and "break-word" with linear easing
+Pass	overflow-wrap uses discrete animation when animating between "normal" and "break-word" with effect easing
+Pass	overflow-wrap uses discrete animation when animating between "normal" and "break-word" with keyframe easing
+Pass	overflow-x (type: discrete) has testInterpolation function
+Pass	overflow-x uses discrete animation when animating between "visible" and "hidden" with linear easing
+Pass	overflow-x uses discrete animation when animating between "visible" and "hidden" with effect easing
+Pass	overflow-x uses discrete animation when animating between "visible" and "hidden" with keyframe easing
+Pass	overflow-y (type: discrete) has testInterpolation function
+Pass	overflow-y uses discrete animation when animating between "visible" and "hidden" with linear easing
+Pass	overflow-y uses discrete animation when animating between "visible" and "hidden" with effect easing
+Pass	overflow-y uses discrete animation when animating between "visible" and "hidden" with keyframe easing
+Pass	paint-order (type: discrete) has testInterpolation function
+Pass	paint-order uses discrete animation when animating between "fill" and "stroke" with linear easing
+Pass	paint-order uses discrete animation when animating between "fill" and "stroke" with effect easing
+Pass	paint-order uses discrete animation when animating between "fill" and "stroke" with keyframe easing
+Pass	perspective (type: length) has testInterpolation function
+Pass	perspective supports animating as a length
+Pass	perspective supports animating as a length of rem
+Pass	perspective-origin (type: position) has testInterpolation function
+Pass	perspective-origin supports animating as a length pair
+Pass	perspective-origin supports animating as a length pair of rem
+Pass	perspective-origin supports animating as a position of percent
+Pass	place-content (type: discrete) has testInterpolation function
+Pass	place-content uses discrete animation when animating between "start" and "end" with linear easing
+Pass	place-content uses discrete animation when animating between "start" and "end" with effect easing
+Pass	place-content uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	place-items (type: discrete) has testInterpolation function
+Pass	place-items uses discrete animation when animating between "start" and "end" with linear easing
+Pass	place-items uses discrete animation when animating between "start" and "end" with effect easing
+Pass	place-items uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	place-self (type: discrete) has testInterpolation function
+Pass	place-self uses discrete animation when animating between "start" and "end" with linear easing
+Pass	place-self uses discrete animation when animating between "start" and "end" with effect easing
+Pass	place-self uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	pointer-events (type: discrete) has testInterpolation function
+Fail	pointer-events uses discrete animation when animating between "fill" and "none" with linear easing
+Fail	pointer-events uses discrete animation when animating between "fill" and "none" with effect easing
+Fail	pointer-events uses discrete animation when animating between "fill" and "none" with keyframe easing
+Pass	position (type: discrete) has testInterpolation function
+Pass	position uses discrete animation when animating between "absolute" and "fixed" with linear easing
+Pass	position uses discrete animation when animating between "absolute" and "fixed" with effect easing
+Pass	position uses discrete animation when animating between "absolute" and "fixed" with keyframe easing
+Pass	position-anchor (type: discrete) has testInterpolation function
+Pass	position-anchor uses discrete animation when animating between "auto" and "--anchor" with linear easing
+Pass	position-anchor uses discrete animation when animating between "auto" and "--anchor" with effect easing
+Pass	position-anchor uses discrete animation when animating between "auto" and "--anchor" with keyframe easing
+Pass	position-visibility (type: discrete) has testInterpolation function
+Pass	position-visibility uses discrete animation when animating between "always" and "anchors-valid" with linear easing
+Pass	position-visibility uses discrete animation when animating between "always" and "anchors-valid" with effect easing
+Pass	position-visibility uses discrete animation when animating between "always" and "anchors-valid" with keyframe easing
+Pass	position-try-fallbacks (type: discrete) has testInterpolation function
+Pass	position-try-fallbacks uses discrete animation when animating between "none" and "flip-block" with linear easing
+Pass	position-try-fallbacks uses discrete animation when animating between "none" and "flip-block" with effect easing
+Pass	position-try-fallbacks uses discrete animation when animating between "none" and "flip-block" with keyframe easing
+Pass	position-try-order (type: discrete) has testInterpolation function
+Pass	position-try-order uses discrete animation when animating between "normal" and "most-width" with linear easing
+Pass	position-try-order uses discrete animation when animating between "normal" and "most-width" with effect easing
+Pass	position-try-order uses discrete animation when animating between "normal" and "most-width" with keyframe easing
+Pass	quotes (type: discrete) has testInterpolation function
+Pass	quotes uses discrete animation when animating between ""“" "”" "‘" "’"" and ""‘" "’" "“" "”"" with linear easing
+Pass	quotes uses discrete animation when animating between ""“" "”" "‘" "’"" and ""‘" "’" "“" "”"" with effect easing
+Pass	quotes uses discrete animation when animating between ""“" "”" "‘" "’"" and ""‘" "’" "“" "”"" with keyframe easing
+Pass	scrollbar-color (type: colorPair) has testInterpolation function
+Fail	scrollbar-color supports animating as color pair of rgb()
+Fail	scrollbar-color supports animating as color pair of #RGB
+Fail	scrollbar-color supports animating as color pair of hsl()
+Fail	scrollbar-color supports animating as color pair of #RGBa
+Fail	scrollbar-color supports animating as color pair of rgba()
+Fail	scrollbar-color supports animating as color pair of hsla()
+Pass	scrollbar-gutter (type: discrete) has testInterpolation function
+Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable" with linear easing
+Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable" with effect easing
+Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable" with keyframe easing
+Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable both-edges" with linear easing
+Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable both-edges" with effect easing
+Pass	scrollbar-gutter uses discrete animation when animating between "auto" and "stable both-edges" with keyframe easing
+Pass	scrollbar-gutter uses discrete animation when animating between "stable" and "stable both-edges" with linear easing
+Pass	scrollbar-gutter uses discrete animation when animating between "stable" and "stable both-edges" with effect easing
+Pass	scrollbar-gutter uses discrete animation when animating between "stable" and "stable both-edges" with keyframe easing
+Pass	scrollbar-width (type: discrete) has testInterpolation function
+Pass	scrollbar-width uses discrete animation when animating between "auto" and "thin" with linear easing
+Pass	scrollbar-width uses discrete animation when animating between "auto" and "thin" with effect easing
+Pass	scrollbar-width uses discrete animation when animating between "auto" and "thin" with keyframe easing
+Pass	scrollbar-width uses discrete animation when animating between "auto" and "none" with linear easing
+Pass	scrollbar-width uses discrete animation when animating between "auto" and "none" with effect easing
+Pass	scrollbar-width uses discrete animation when animating between "auto" and "none" with keyframe easing
+Pass	scrollbar-width uses discrete animation when animating between "thin" and "none" with linear easing
+Pass	scrollbar-width uses discrete animation when animating between "thin" and "none" with effect easing
+Pass	scrollbar-width uses discrete animation when animating between "thin" and "none" with keyframe easing
+Pass	shape-outside (type: discrete) has testInterpolation function
+Pass	shape-outside uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with linear easing
+Pass	shape-outside uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with effect easing
+Pass	shape-outside uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with keyframe easing
+Pass	shape-rendering (type: discrete) has testInterpolation function
+Pass	shape-rendering uses discrete animation when animating between "optimizeSpeed" and "crispEdges" with linear easing
+Pass	shape-rendering uses discrete animation when animating between "optimizeSpeed" and "crispEdges" with effect easing
+Pass	shape-rendering uses discrete animation when animating between "optimizeSpeed" and "crispEdges" with keyframe easing
+Pass	stop-color (type: color) has testInterpolation function
+Pass	stop-color supports animating as color of rgb()
+Pass	stop-color supports animating as color of #RGB
+Pass	stop-color supports animating as color of hsl()
+Pass	stop-color supports animating as color of #RGBa
+Pass	stop-color supports animating as color of rgba()
+Pass	stop-color supports animating as color of hsla()
+Pass	stop-opacity (type: opacity) has testInterpolation function
+Pass	stop-opacity supports animating as a [0, 1] number
+Pass	stroke-dasharray (type: dasharray) has testInterpolation function
+Pass	stroke-dasharray supports animating as a percentage
+Fail	stroke-dasharray supports animating as a positive number
+Fail	stroke-dasharray supports animating as a dasharray (mismatched length)
+Fail	stroke-dasharray supports animating as a dasharray (mixed lengths and percentages)
+Pass	stroke-dasharray (type: discrete) has testInterpolation function
+Pass	stroke-dasharray uses discrete animation when animating between "none" and "10px, 20px" with linear easing
+Pass	stroke-dasharray uses discrete animation when animating between "none" and "10px, 20px" with effect easing
+Pass	stroke-dasharray uses discrete animation when animating between "none" and "10px, 20px" with keyframe easing
+Pass	stroke-linecap (type: discrete) has testInterpolation function
+Pass	stroke-linecap uses discrete animation when animating between "round" and "square" with linear easing
+Pass	stroke-linecap uses discrete animation when animating between "round" and "square" with effect easing
+Pass	stroke-linecap uses discrete animation when animating between "round" and "square" with keyframe easing
+Pass	stroke-linejoin (type: discrete) has testInterpolation function
+Pass	stroke-linejoin uses discrete animation when animating between "round" and "miter" with linear easing
+Pass	stroke-linejoin uses discrete animation when animating between "round" and "miter" with effect easing
+Pass	stroke-linejoin uses discrete animation when animating between "round" and "miter" with keyframe easing
+Pass	stroke-miterlimit (type: positiveNumber) has testInterpolation function
+Pass	stroke-miterlimit supports animating as a positive number
+Pass	stroke-opacity (type: opacity) has testInterpolation function
+Pass	stroke-opacity supports animating as a [0, 1] number
+Pass	table-layout (type: discrete) has testInterpolation function
+Pass	table-layout uses discrete animation when animating between "auto" and "fixed" with linear easing
+Pass	table-layout uses discrete animation when animating between "auto" and "fixed" with effect easing
+Pass	table-layout uses discrete animation when animating between "auto" and "fixed" with keyframe easing
+Pass	text-align (type: discrete) has testInterpolation function
+Pass	text-align uses discrete animation when animating between "start" and "end" with linear easing
+Pass	text-align uses discrete animation when animating between "start" and "end" with effect easing
+Pass	text-align uses discrete animation when animating between "start" and "end" with keyframe easing
+Pass	text-anchor (type: discrete) has testInterpolation function
+Pass	text-anchor uses discrete animation when animating between "middle" and "end" with linear easing
+Pass	text-anchor uses discrete animation when animating between "middle" and "end" with effect easing
+Pass	text-anchor uses discrete animation when animating between "middle" and "end" with keyframe easing
+Pass	text-decoration (type: discrete) has testInterpolation function
+Fail	text-decoration uses discrete animation when animating between "underline" and "overline" with linear easing
+Fail	text-decoration uses discrete animation when animating between "underline" and "overline" with effect easing
+Fail	text-decoration uses discrete animation when animating between "underline" and "overline" with keyframe easing
+Pass	text-decoration-color (type: color) has testInterpolation function
+Pass	text-decoration-color supports animating as color of rgb()
+Pass	text-decoration-color supports animating as color of #RGB
+Pass	text-decoration-color supports animating as color of hsl()
+Pass	text-decoration-color supports animating as color of #RGBa
+Pass	text-decoration-color supports animating as color of rgba()
+Pass	text-decoration-color supports animating as color of hsla()
+Pass	text-decoration-line (type: discrete) has testInterpolation function
+Pass	text-decoration-line uses discrete animation when animating between "underline" and "overline" with linear easing
+Pass	text-decoration-line uses discrete animation when animating between "underline" and "overline" with effect easing
+Pass	text-decoration-line uses discrete animation when animating between "underline" and "overline" with keyframe easing
+Pass	text-decoration-skip-ink (type: discrete) has testInterpolation function
+Pass	text-decoration-skip-ink uses discrete animation when animating between "auto" and "none" with linear easing
+Pass	text-decoration-skip-ink uses discrete animation when animating between "auto" and "none" with effect easing
+Pass	text-decoration-skip-ink uses discrete animation when animating between "auto" and "none" with keyframe easing
+Pass	text-decoration-style (type: discrete) has testInterpolation function
+Pass	text-decoration-style uses discrete animation when animating between "solid" and "dotted" with linear easing
+Pass	text-decoration-style uses discrete animation when animating between "solid" and "dotted" with effect easing
+Pass	text-decoration-style uses discrete animation when animating between "solid" and "dotted" with keyframe easing
+Pass	text-overflow (type: discrete) has testInterpolation function
+Pass	text-overflow uses discrete animation when animating between "clip" and "ellipsis" with linear easing
+Pass	text-overflow uses discrete animation when animating between "clip" and "ellipsis" with effect easing
+Pass	text-overflow uses discrete animation when animating between "clip" and "ellipsis" with keyframe easing
+Pass	text-rendering (type: discrete) has testInterpolation function
+Pass	text-rendering uses discrete animation when animating between "optimizeSpeed" and "optimizeLegibility" with linear easing
+Pass	text-rendering uses discrete animation when animating between "optimizeSpeed" and "optimizeLegibility" with effect easing
+Pass	text-rendering uses discrete animation when animating between "optimizeSpeed" and "optimizeLegibility" with keyframe easing
+Pass	text-shadow (type: textShadowList) has testInterpolation function
+Pass	text-shadow: from none to other
+Pass	text-shadow: from other to none
+Pass	text-shadow: single shadow
+Pass	text-shadow: shadow list
+Pass	text-shadow: mismatched list length (from longer to shorter)
+Pass	text-shadow: mismatched list length (from shorter to longer)
+Fail	text-shadow: with currentcolor
+Pass	text-transform (type: discrete) has testInterpolation function
+Pass	text-transform uses discrete animation when animating between "capitalize" and "uppercase" with linear easing
+Pass	text-transform uses discrete animation when animating between "capitalize" and "uppercase" with effect easing
+Pass	text-transform uses discrete animation when animating between "capitalize" and "uppercase" with keyframe easing
+Pass	text-wrap (type: discrete) has testInterpolation function
+Pass	text-wrap uses discrete animation when animating between "wrap" and "nowrap" with linear easing
+Pass	text-wrap uses discrete animation when animating between "wrap" and "nowrap" with effect easing
+Pass	text-wrap uses discrete animation when animating between "wrap" and "nowrap" with keyframe easing
+Pass	touch-action (type: discrete) has testInterpolation function
+Pass	touch-action uses discrete animation when animating between "auto" and "none" with linear easing
+Pass	touch-action uses discrete animation when animating between "auto" and "none" with effect easing
+Pass	touch-action uses discrete animation when animating between "auto" and "none" with keyframe easing
+Pass	transform (type: transformList) has testInterpolation function
+Pass	transform: translate
+Pass	transform: rotate
+Pass	transform: scale
+Pass	transform: skew
+Pass	transform: rotate and translate
+Pass	transform: translate and rotate
+Pass	transform: extend shorter list (from)
+Pass	transform: extend shorter list (to)
+Pass	transform: mismatch order of translate and rotate
+Pass	transform: matrix
+Pass	transform: rotate3d
+Fail	transform: matrix3d
+Pass	transform: mismatched 3D transforms
+Pass	transform: rotateY
+Pass	transform: non-invertible matrices
+Pass	transform: non-invertible matrices in matched transform lists
+Pass	transform: non-invertible matrices in mismatched transform lists
+Pass	transform: perspective
+Pass	transform-box (type: discrete) has testInterpolation function
+Pass	transform-box uses discrete animation when animating between "fill-box" and "border-box" with linear easing
+Pass	transform-box uses discrete animation when animating between "fill-box" and "border-box" with effect easing
+Pass	transform-box uses discrete animation when animating between "fill-box" and "border-box" with keyframe easing
+Pass	transform-style (type: discrete) has testInterpolation function
+Pass	transform-style uses discrete animation when animating between "flat" and "preserve-3d" with linear easing
+Pass	transform-style uses discrete animation when animating between "flat" and "preserve-3d" with effect easing
+Pass	transform-style uses discrete animation when animating between "flat" and "preserve-3d" with keyframe easing
+Pass	rotate (type: rotateList) has testInterpolation function
+Pass	rotate without rotation axes
+Pass	rotate with rotation axes
+Pass	rotate with rotation axes and range over 360 degrees
+Pass	rotate with different rotation axes
+Pass	translate (type: translateList) has testInterpolation function
+Pass	translate with two unspecified values
+Pass	translate with one unspecified value
+Pass	translate with all three values specified
+Pass	translate with combination of percentages and lengths
+Pass	scale (type: scaleList) has testInterpolation function
+Pass	scale with two unspecified values
+Pass	scale with one unspecified value
+Pass	scale
+Pass	view-transition-name (type: discrete) has testInterpolation function
+Pass	view-transition-name uses discrete animation when animating between "none" and "header" with linear easing
+Pass	view-transition-name uses discrete animation when animating between "none" and "header" with effect easing
+Pass	view-transition-name uses discrete animation when animating between "none" and "header" with keyframe easing
+Pass	visibility (type: visibility) has testInterpolation function
+Pass	visibility uses visibility animation when animating from "visible" to "hidden"
+Pass	visibility uses visibility animation when animating from "hidden" to "visible"
+Pass	visibility uses visibility animation when animating from "hidden" to "collapse"
+Pass	visibility uses visibility animation when animating from "visible" to "hidden" with easeInOutBack easing
+Pass	white-space (type: discrete) has testInterpolation function
+Pass	white-space uses discrete animation when animating between "pre" and "nowrap" with linear easing
+Pass	white-space uses discrete animation when animating between "pre" and "nowrap" with effect easing
+Pass	white-space uses discrete animation when animating between "pre" and "nowrap" with keyframe easing
+Pass	white-space-collapse (type: discrete) has testInterpolation function
+Pass	white-space-collapse uses discrete animation when animating between "collapse" and "preserve" with linear easing
+Pass	white-space-collapse uses discrete animation when animating between "collapse" and "preserve" with effect easing
+Pass	white-space-collapse uses discrete animation when animating between "collapse" and "preserve" with keyframe easing
+Pass	word-break (type: discrete) has testInterpolation function
+Pass	word-break uses discrete animation when animating between "keep-all" and "break-all" with linear easing
+Pass	word-break uses discrete animation when animating between "keep-all" and "break-all" with effect easing
+Pass	word-break uses discrete animation when animating between "keep-all" and "break-all" with keyframe easing
+Pass	word-spacing (type: lengthPercentageOrCalc) has testInterpolation function
+Pass	word-spacing supports animating as a length
+Pass	word-spacing supports animating as a length of rem
+Pass	word-spacing supports animating as a percentage
+Pass	word-spacing supports animating as combination units "px" and "%"
+Pass	word-spacing supports animating as combination units "%" and "em"
+Pass	word-spacing supports animating as combination units "em" and "rem"
+Pass	word-spacing supports animating as combination units "px" and "calc"
+Pass	word-spacing supports animating as a calc

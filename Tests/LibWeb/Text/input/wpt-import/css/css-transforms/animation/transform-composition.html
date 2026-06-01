@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-property">
+<meta name="assert" content="transform supports animation as a transform list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+// This file contains tests for the composition behavior of transforms that is
+// unrelated to the individual transform functions. For the transform functions
+// themselves, see the transform-*-composition.html subtests.
+
+// ------------------ Addition -----------------
+test_composition({
+  property: 'transform',
+  underlying: 'rotateX(100deg) rotateY(100deg)',
+  addFrom: 'translate(10px, 20px)',
+  replaceTo: 'rotateX(200deg) rotateY(200deg) translate(110px, 220px)',
+}, [
+  {at: -0.5, expect: 'rotateX(50deg) rotateY(50deg) translate(-40px, -80px)'},
+  {at: 0, expect: 'rotateX(100deg) rotateY(100deg) translate(10px, 20px)'},
+  {at: 0.25, expect: 'rotateX(125deg) rotateY(125deg) translate(35px, 70px)'},
+  {at: 0.5, expect: 'rotateX(150deg) rotateY(150deg) translate(60px, 120px)'},
+  {at: 0.75, expect: 'rotateX(175deg) rotateY(175deg) translate(85px, 170px)'},
+  {at: 1, expect: 'rotateX(200deg) rotateY(200deg) translate(110px, 220px)'},
+  {at: 1.5, expect: 'rotateX(250deg) rotateY(250deg) translate(160px, 320px)'},
+]);
+
+// Shorter list is extended with corresponding identity transforms for pairwise
+// interpolation.
+test_composition({
+  property: 'transform',
+  underlying: 'rotateX(45deg)',
+  addFrom: 'none',
+  addTo: 'rotateY(360deg)',
+}, [
+  {at: -0.5, expect: 'rotateX(45deg) rotateY(-180deg)'},
+  {at: 0, expect: 'rotateX(45deg) rotateY(0deg)'},
+  {at: 0.25, expect: 'rotateX(45deg) rotateY(90deg)'},
+  {at: 0.5, expect: 'rotateX(45deg) rotateY(180deg)'},
+  {at: 0.75, expect: 'rotateX(45deg) rotateY(270deg)'},
+  {at: 1, expect: 'rotateX(45deg) rotateY(360deg)'},
+  {at: 1.5, expect: 'rotateX(45deg) rotateY(540deg)'},
+]);
+
+// Matrix decomposition cases
+test_composition({
+  property: 'transform',
+  underlying: 'rotateX(90deg)',
+  addFrom: 'translate(100px, 100px)',
+  addTo: 'scale(2)',
+}, [
+  {at: -0.5, expect: 'matrix3d(0.5, 0, 0, 0, 0, 1.11022e-16, 0.5, 0, 0, -1, 2.22045e-16, 0, 150, 9.18485e-15, 150, 1)'},
+  {at: 0, expect: 'matrix3d(1, 0, 0, 0, 0, 6.12323e-17, 1, 0, 0, -1, 6.12323e-17, 0, 100, 6.12323e-15, 100, 1)'},
+  {at: 0.25, expect: 'matrix3d(1.25, 0, 0, 0, 0, 2.77556e-16, 1.25, 0, 0, -1, 2.22045e-16, 0, 75, 4.59243e-15, 75, 1)'},
+  {at: 0.5, expect: 'matrix3d(1.5, 0, 0, 0, 0, 3.33067e-16, 1.5, 0, 0, -1, 2.22045e-16, 0, 50, 3.06162e-15, 50, 1)'},
+  {at: 0.75, expect: 'matrix3d(1.75, 0, 0, 0, 0, 3.88578e-16, 1.75, 0, 0, -1, 2.22045e-16, 0, 25, 1.53081e-15, 25, 1)'},
+  {at: 1, expect: 'matrix3d(2, 0, 0, 0, 0, 1.22465e-16, 2, 0, 0, -1, 6.12323e-17, 0, 0, 0, 0, 1)'},
+  {at: 1.5, expect: 'matrix3d(2.5, 0, 0, 0, 0, 5.55112e-16, 2.5, 0, 0, -1, 2.22045e-16, 0, -50, -3.06162e-15, -50, 1)'},
+]);
+
+// Force a fallback to matrix interpolation.
+test_composition({
+  property: 'transform',
+  underlying: 'rotateX(45deg)',
+  addFrom: 'scaleX(1)',
+  addTo: 'rotateY(360deg)',
+}, [
+  {at: -0.5, expect: 'rotateX(45deg)'},
+  {at: 0, expect: 'rotateX(45deg)'},
+  {at: 0.25, expect: 'rotateX(45deg)'},
+  {at: 0.5, expect: 'rotateX(45deg)'},
+  {at: 0.75, expect: 'rotateX(45deg)'},
+  {at: 1, expect: 'rotateX(45deg)'},
+  {at: 1.5, expect: 'rotateX(45deg)'},
+]);
+
+// ------------------ Accumulation -----------------
+
+// TODO(smcgruer): Add tests for accumulation behaviors.
+</script>
+</body>
