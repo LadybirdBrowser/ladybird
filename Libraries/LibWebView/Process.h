@@ -59,7 +59,9 @@ public:
         ByteString pid_path;
     };
     static ErrorOr<ProcessPaths> paths_for_process(StringView process_name);
+#if !defined(AK_OS_WINDOWS)
     static ErrorOr<Optional<pid_t>> get_process_pid(StringView process_name, StringView pid_path);
+#endif
     static ErrorOr<int> create_ipc_socket(ByteString const& socket_path);
 
 private:

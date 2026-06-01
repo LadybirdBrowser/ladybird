@@ -18,6 +18,10 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#endif
+
 namespace WebView {
 
 static HashMap<int, RefPtr<UIProcessConnectionFromClient>> s_connections;
@@ -36,24 +40,44 @@ ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteS
 
     auto [socket_path, pid_path] = TRY(Process::paths_for_process(process_name));
 
-    if (auto pid = TRY(Process::get_process_pid(process_name, pid_path)); pid.has_value()) {
-#if defined(AK_OS_MACOS)
-        TRY(connect_as_client(*pid, raw_urls, new_window));
-#else
+#if defined(AK_OS_WINDOWS)
+    // On Windows, use a named mutex for single-instance detection instead of a PID file.
+    // The "Local\" prefix scopes the mutex to the current user session, so each logged-in
+    // user can independently run their own primary Ladybird instance.
+    static constexpr auto mutex_name = L"Local\\LadybirdBrowser";
+    m_instance_mutex = CreateMutexW(nullptr, FALSE, mutex_name);
+    if (m_instance_mutex == nullptr)
+        return Error::from_windows_error();
+
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        // Another instance already owns the mutex — connect to it as a client.
+        CloseHandle(m_instance_mutex);
+        m_instance_mutex = nullptr;
         TRY(connect_as_client(socket_path, raw_urls, new_window));
-#endif
         return ProcessDisposition::ExitProcess;
     }
 
-#if defined(AK_OS_MACOS)
-    TRY(connect_as_server());
-#else
     TRY(connect_as_server(socket_path));
-#endif
+#else
+    if (auto pid = TRY(Process::get_process_pid(process_name, pid_path)); pid.has_value()) {
+#    if defined(AK_OS_MACOS)
+        TRY(connect_as_client(*pid, raw_urls, new_window));
+#    else
+        TRY(connect_as_client(socket_path, raw_urls, new_window));
+#    endif
+        return ProcessDisposition::ExitProcess;
+    }
+
+#    if defined(AK_OS_MACOS)
+    TRY(connect_as_server());
+#    else
+    TRY(connect_as_server(socket_path));
+#    endif
 
     m_pid_path = pid_path;
     m_pid_file = TRY(Core::File::open(pid_path, Core::File::OpenMode::Write));
     TRY(m_pid_file->write_until_depleted(ByteString::number(Core::System::getpid())));
+#endif
 
     return ProcessDisposition::ContinueMainProcess;
 }
@@ -149,16 +173,17 @@ BrowserProcess::~BrowserProcess()
     Application::the().set_browser_process_transport_handler({});
 #endif
 
+#if defined(AK_OS_WINDOWS)
+    if (m_instance_mutex != nullptr) {
+        CloseHandle(m_instance_mutex);
+        m_instance_mutex = nullptr;
+    }
+#else
     if (m_pid_file) {
         MUST(m_pid_file->truncate(0));
-#if defined(AK_OS_WINDOWS)
-        // NOTE: On Windows, System::open() duplicates the underlying OS file handle,
-        // so we need to explicitly close said handle, otherwise the unlink() call fails due
-        // to permission errors and we crash on shutdown.
-        m_pid_file->close();
-#endif
         MUST(Core::System::unlink(m_pid_path));
     }
+#endif
 
     if (!m_socket_path.is_empty())
         MUST(Core::System::unlink(m_socket_path));

@@ -69,10 +69,16 @@ private:
 #endif
 
     RefPtr<Core::LocalServer> m_local_server;
-    OwnPtr<Core::File> m_pid_file;
-    ByteString m_pid_path;
     ByteString m_socket_path;
     int m_next_client_id { 0 };
+
+#if defined(AK_OS_WINDOWS)
+    // HANDLE is typedef void* on Windows. We use void* here to avoid pulling Windows.h into this header.
+    void* m_instance_mutex { nullptr };
+#else
+    OwnPtr<Core::File> m_pid_file;
+    ByteString m_pid_path;
+#endif
 };
 
 }

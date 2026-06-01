@@ -20,7 +20,6 @@
 #endif
 
 #if defined(AK_OS_WINDOWS)
-#    include <AK/ScopeGuard.h>
 #    include <AK/Windows.h>
 #endif
 
@@ -111,6 +110,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     return ProcessAndIPCTransport { move(process), move(transport), move(output_capture) };
 }
 
+#if !defined(AK_OS_WINDOWS)
 ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, StringView pid_path)
 {
     if (Core::System::stat(pid_path).is_error())
@@ -139,26 +139,7 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
         return OptionalNone {};
     }
 
-    bool const process_not_found = [&pid]() {
-#if defined(AK_OS_WINDOWS)
-        HANDLE process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, *pid);
-        if (process_handle == nullptr)
-            return true;
-
-        // FIXME: We should create an RAII wrapper around HANDLE objects.
-        ScopeGuard handle_guard = [&process_handle] { CloseHandle(process_handle); };
-        DWORD exit_code = 0;
-
-        if (GetExitCodeProcess(process_handle, &exit_code) == 0)
-            return true;
-
-        return exit_code != STILL_ACTIVE;
-#else
-        return kill(*pid, 0) < 0;
-#endif
-    }();
-
-    if (process_not_found) {
+    if (kill(*pid, 0) < 0) {
         warnln("{} PID file '{}' exists with PID {}, but process cannot be found", process_name, pid_path, *pid);
         TRY(Core::System::unlink(pid_path));
         return OptionalNone {};
@@ -166,6 +147,7 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
 
     return pid;
 }
+#endif
 
 // This is heavily based on how SystemServer's Service creates its socket.
 ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
