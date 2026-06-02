@@ -39,6 +39,13 @@ public:
     [[nodiscard]] DisplayingVideoSinkUpdateResult update();
     RefPtr<VideoFrame> current_frame();
 
+    // True if the currently-displayed frame covers the given playback timestamp.
+    [[nodiscard]] bool current_frame_covers(AK::Duration) const;
+
+    // True once the decoder pipeline has signalled end-of-stream (no further frames will be presented).
+    // Lets callers bound a wait for the final frame, so that it can't hang.
+    [[nodiscard]] bool at_end_of_stream() const;
+
 private:
     void consume_moved_position_signals(PipelineStatus&);
 

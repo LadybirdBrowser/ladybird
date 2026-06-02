@@ -449,8 +449,23 @@ void HTMLMediaElement::set_current_playback_position(double playback_position)
 
     // NOTE: Invoking the following steps is not listed in the spec. Rather, the spec just describes the scenario in
     //       which these steps should be invoked, which is when we've reached the end of the media playback.
-    if (m_current_playback_position == m_duration)
-        reached_end_of_media_playback();
+    // AD-HOC: The media clock can reach the end before the decoder has delivered the final video frame, whose
+    //         natural-dimension change queues a 'resize'. Firing 'ended' now would order it before that 'resize'.
+    //         Defer the end-of-playback steps until the final frame has been presented (or the pipeline signals
+    //         end-of-stream — so this can't hang); update_video_frame_and_timeline() runs them once it has.
+    if (m_current_playback_position == m_duration && !m_ended_playback_pending) {
+        auto const end = m_playback_manager ? m_playback_manager->duration() : AK::Duration::from_seconds_f64(m_duration);
+        auto const final_frame_arrives_later = m_selected_video_track_sink
+            && !m_selected_video_track_sink->current_frame_covers(end)
+            && !m_selected_video_track_sink->at_end_of_stream();
+        // Never defer when the loop attribute is present: Looping re-seeks to the start (a separate flow that doesn't
+        // fire 'ended'), and relies on reached_end_of_media_playback() running synchronously here.
+        auto const has_loop_attribute = has_attribute(HTML::AttributeNames::loop);
+        if (final_frame_arrives_later && !has_loop_attribute)
+            m_ended_playback_pending = true;
+        else
+            reached_end_of_media_playback();
+    }
 
     upon_has_ended_playback_possibly_changed();
     update_natural_dimensions();
@@ -1559,6 +1574,16 @@ void HTMLMediaElement::update_current_video_frame()
 
     auto intrinsic_dimensions_changed = update_intrinsic_video_dimensions();
     set_needs_repaint(intrinsic_dimensions_changed ? InvalidateDisplayList::Yes : InvalidateDisplayList::No);
+
+    // Record that a frame was presented during the current seek finish (so finish_seeking_element knows whether to
+    // defer 'seeked'), and fire any deferred 'seeked' now — *after* the 'resize' queued above.
+    m_seek_frame_presented = true;
+    if (m_seeked_event_pending) {
+        m_seeked_event_pending = false;
+        queue_a_media_element_task([this]() {
+            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::seeked));
+        });
+    }
 }
 
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
@@ -1599,6 +1624,19 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         auto sink_update_result = m_selected_video_track_sink->update();
         if (sink_update_result == Media::DisplayingVideoSinkUpdateResult::NewFrameAvailable)
             update_current_video_frame();
+    }
+
+    // AD-HOC: Run any deferred end-of-playback steps now that the final video frame has been presented (its 'resize'
+    //         was queued by update_current_video_frame() above) or the pipeline has reached end-of-stream — so 'ended'
+    //         is observed after the final 'resize'.
+    if (m_ended_playback_pending) {
+        auto const end = m_playback_manager->duration();
+        if (m_selected_video_track_sink == nullptr
+            || m_selected_video_track_sink->current_frame_covers(end)
+            || m_selected_video_track_sink->at_end_of_stream()) {
+            m_ended_playback_pending = false;
+            reached_end_of_media_playback();
+        }
     }
 
     // Wait for the seek to complete before updating the timestamp, otherwise we'll display the timestamp from
@@ -2369,6 +2407,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     // 4. Set the seeking IDL attribute to true.
     set_seeking(true);
 
+    // AD-HOC: A seek supersedes a deferred end-of-playback; we are no longer at the end.
+    m_ended_playback_pending = false;
+
     // 5. If the seek was in response to a DOM method call or setting of an IDL attribute, then continue the script. The
     //    remainder of these steps must be run in parallel. With the exception of the steps marked with ⌛, they could be
     //    aborted at any time by another instance of this algorithm being invoked.
@@ -2456,6 +2497,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
             new_playback_position_as_duration = m_playback_manager->duration();
         else
             new_playback_position_as_duration = AK::Duration::from_seconds_f64(playback_position);
+        // AD-HOC: Capture (against the pre-seek frame) whether this seek will present a different video frame — so
+        //         finish_seeking_element() can order 'resize' before 'seeked'.
+        m_seek_will_present_new_frame = m_selected_video_track_sink && !m_selected_video_track_sink->current_frame_covers(new_playback_position_as_duration);
         m_playback_manager->seek(new_playback_position_as_duration, manager_seek_mode);
     }
 
@@ -2480,6 +2524,9 @@ void HTMLMediaElement::finish_seeking_element()
     // 14. ⌛ Set the seeking IDL attribute to false.
     set_seeking(false);
 
+    // AD-HOC: Track whether the seeked-to frame is presented during the displayed-frame update below.
+    m_seek_frame_presented = false;
+
     // NOTE: We deferred setting the current playback position until the async steps have completed.
     //       This fulfills step 11. This will also update the displayed frame to ensure that the user immediately
     //       sees the frame that we've seeked to.
@@ -2494,9 +2541,19 @@ void HTMLMediaElement::finish_seeking_element()
     });
 
     // 17. ⌛ Queue a media element task given the media element to fire an event named seeked at the element.
-    queue_a_media_element_task([this]() {
-        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::seeked));
-    });
+    // AD-HOC: If this seek presents a different video frame that has *not* yet been presented (it will arrive on a
+    //         later render tick), then defer 'seeked' until update_current_video_frame() presents it — so the 'resize'
+    //         for the natural-dimension change is fired first. Otherwise (the frame was already presented above — after
+    //         which 'resize' and any 'ended' were queued — or no video frame will change), fire 'seeked' now.
+    bool const will_present_new_frame = m_seek_will_present_new_frame;
+    m_seek_will_present_new_frame = false;
+    if (will_present_new_frame && !m_seek_frame_presented) {
+        m_seeked_event_pending = true;
+    } else {
+        queue_a_media_element_task([this]() {
+            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::seeked));
+        });
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#notify-about-playing

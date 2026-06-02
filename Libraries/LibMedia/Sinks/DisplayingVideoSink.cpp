@@ -163,4 +163,17 @@ RefPtr<VideoFrame> DisplayingVideoSink::current_frame()
     return m_current_frame;
 }
 
+bool DisplayingVideoSink::current_frame_covers(AK::Duration timestamp) const
+{
+    if (m_current_frame == nullptr)
+        return false;
+    auto frame_end = m_current_frame->timestamp() + m_current_frame->duration().scaled_by(3, 2);
+    return timestamp >= m_current_frame->timestamp() && timestamp < frame_end;
+}
+
+bool DisplayingVideoSink::at_end_of_stream() const
+{
+    return m_last_dispatched_status == PipelineStatus::EndOfStream;
+}
+
 }

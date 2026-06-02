@@ -311,6 +311,18 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-seeking
     bool m_seeking { false };
+    // Seek/'resize'/'seeked' ordering: A seek that changes the displayed frame must fire its 'resize' (and 'ended', for
+    // seek-to-end) before 'seeked'. m_seek_will_present_new_frame is captured at seek time against the pre-seek frame;
+    // m_seek_frame_presented records whether the seeked-to frame was presented during finish_seeking_element();
+    // m_seeked_event_pending defers 'seeked' to the frame.
+    bool m_seek_will_present_new_frame { false };
+    bool m_seek_frame_presented { false };
+    bool m_seeked_event_pending { false };
+
+    // The media clock can reach the end before the decoder delivers the final video frame, whose natural-dimension
+    // change queues a 'resize'. m_ended_playback_pending defers the end-of-playback steps until that frame is presented
+    // (or the pipeline reaches end-of-stream) – so 'ended' is observed after the final 'resize'.
+    bool m_ended_playback_pending { false };
 
     // https://html.spec.whatwg.org/multipage/media.html#current-playback-position
     double m_current_playback_position { 0 };
