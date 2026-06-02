@@ -379,9 +379,6 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index)
 
 Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(VisualContextIndex visual_context_index, CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel) const
 {
-    if (!visual_context_index.value())
-        return point;
-
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto const& visual_context_tree = viewport_paintable.visual_context_tree();
     auto result = visual_context_tree.transform_point_for_hit_test(visual_context_index, point.to_type<float>() * pixel_ratio, viewport_paintable.scroll_state_snapshot());
@@ -392,9 +389,6 @@ Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Visua
 
 CSSPixelRect HitTestDisplayList::viewport_rect_for_item(Item const& item, CSSPixelRect const& rect, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel) const
 {
-    if (!item.visual_context_index.value())
-        return rect;
-
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto const& visual_context_tree = viewport_paintable.visual_context_tree();
     auto result = visual_context_tree.transform_rect_to_viewport(item.visual_context_index, rect.to_type<float>() * pixel_ratio, viewport_paintable.scroll_state_snapshot());

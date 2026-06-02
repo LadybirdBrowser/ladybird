@@ -2912,8 +2912,7 @@ CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
         if (!paintable)
             return {};
 
-        if (auto const* paintable_box = as_if<Painting::PaintableBox>(*paintable);
-            paintable_box && paintable_box->accumulated_visual_context_index().value()) {
+        if (auto const* paintable_box = as_if<Painting::PaintableBox>(*paintable)) {
             auto point = paintable_box->absolute_position();
             point.translate_by(position);
             position = paintable_box->transform_rect_to_viewport({ point, { 0, 0 } }).location();

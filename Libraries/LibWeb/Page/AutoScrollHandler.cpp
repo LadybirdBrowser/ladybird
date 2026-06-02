@@ -43,8 +43,6 @@ static Optional<CSSPixelRect> scrollport_rect_in_viewport(Painting::PaintableBox
     if (paintable_box.is_viewport_paintable())
         return scrollport;
 
-    if (!paintable_box.accumulated_visual_context_index().value())
-        return {};
     return paintable_box.transform_rect_to_viewport(scrollport);
 }
 

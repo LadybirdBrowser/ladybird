@@ -31,6 +31,7 @@ public:
     void refresh_scroll_state();
 
     void assign_accumulated_visual_contexts();
+    bool has_visual_context_tree() const { return m_visual_context_tree.has_value(); }
 
     GC::Ptr<Selection::Selection> selection() const;
     void recompute_selection_states(DOM::Range&);

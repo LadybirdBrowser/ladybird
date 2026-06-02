@@ -101,7 +101,7 @@ struct DisplayListGradientColorStops {
 struct DisplayListCommandHeader {
     DisplayListCommandType type;
     u32 payload_size { 0 };
-    VisualContextIndex context_index {};
+    VisualContextIndex context_index { VISUAL_VIEWPORT_NODE_INDEX };
     bool has_bounding_rect { false };
     bool is_clip { false };
     Gfx::IntRect bounding_rect {};

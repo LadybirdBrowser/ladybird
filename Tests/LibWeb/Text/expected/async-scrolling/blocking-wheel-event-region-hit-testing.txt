@@ -5,10 +5,11 @@ clipped visible inside: true
 clipped overflow outside clip: false
 display list:
 AccumulatedVisualContext Tree:
-  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
-    [2] transform=[1,0,0,1,100,0] origin=(20,20) (PaintableWithLines(BlockContainer<DIV>#transformed))
-    [3] clip=[20,160 100x100]
-      [4] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] transform=[1,0,0,1,100,0] origin=(20,20) (PaintableWithLines(BlockContainer<DIV>#transformed))
+      [3] clip=[20,160 100x100]
+        [4] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0

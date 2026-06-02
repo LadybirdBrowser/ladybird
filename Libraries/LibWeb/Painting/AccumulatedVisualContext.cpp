@@ -38,11 +38,21 @@ bool ClipData::contains(DevicePixelPoint point) const
 
 static Atomic<u64> s_next_accumulated_visual_context_tree_version { 1 };
 
+static TransformData identity_visual_viewport_transform()
+{
+    return { Gfx::FloatMatrix4x4::identity(), { 0.f, 0.f } };
+}
+
 AccumulatedVisualContextTree AccumulatedVisualContextTree::create()
 {
+    return create(identity_visual_viewport_transform());
+}
+
+AccumulatedVisualContextTree AccumulatedVisualContextTree::create(TransformData visual_viewport_transform)
+{
     Vector<AccumulatedVisualContextNode> nodes;
-    // Sentinel at index 0 (null context). Data type doesn't matter; it's never accessed.
-    nodes.append({ ScrollData { {}, false }, {}, 0, false });
+    // Visual viewport transform root. This is identity for trees that are not attached to a document viewport.
+    nodes.append({ move(visual_viewport_transform), {}, 0, false });
     return AccumulatedVisualContextTree {
         s_next_accumulated_visual_context_tree_version.fetch_add(1, AK::MemoryOrder::memory_order_relaxed),
         move(nodes)
@@ -69,6 +79,13 @@ static FloatMatrix4x4 scale_matrix_for_device_pixels(FloatMatrix4x4 matrix, floa
     matrix[3, 1] /= scale;
     matrix[3, 2] /= scale;
     return matrix;
+}
+
+static TransformData visual_viewport_transform_data(DOM::Document& document)
+{
+    auto scale = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
+    auto matrix = scale_matrix_for_device_pixels(document.visual_viewport()->transform().to_matrix(), scale);
+    return TransformData { matrix, { 0.f, 0.f } };
 }
 
 static Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
@@ -190,9 +207,8 @@ static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, C
 
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable& viewport_paintable)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create();
-
     auto& document = viewport_paintable.document();
+    auto visual_context_tree = AccumulatedVisualContextTree::create(visual_viewport_transform_data(document));
     auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
     DevicePixelConverter converter { pixel_ratio };
     auto scale = static_cast<float>(pixel_ratio);
@@ -214,18 +230,12 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         return effects;
     };
 
-    // Create visual viewport transform as root (if not identity)
-    VisualContextIndex visual_viewport_context_index {};
-    auto transform = document.visual_viewport()->transform();
-    if (!transform.is_identity()) {
-        auto matrix = scale_matrix_for_device_pixels(transform.to_matrix(), scale);
-        visual_viewport_context_index = append_node({}, TransformData { matrix, { 0.f, 0.f } });
-    }
+    auto visual_viewport_context_index = VISUAL_VIEWPORT_NODE_INDEX;
 
     VisualContextIndex viewport_state_for_descendants = visual_viewport_context_index;
     if (viewport_paintable.own_scroll_frame_index().value())
         viewport_state_for_descendants = append_node(visual_viewport_context_index, ScrollData { viewport_paintable.own_scroll_frame_index(), false });
-    viewport_paintable.set_accumulated_visual_context({});
+    viewport_paintable.set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);
     viewport_paintable.set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
 
     viewport_paintable.for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
@@ -393,10 +403,11 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
 VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, VisualContextIndex parent_index)
 {
-    size_t depth = parent_index.value() ? m_nodes[parent_index.value()].depth + 1 : 1;
+    VERIFY(parent_index.value() < m_nodes.size());
+    size_t depth = m_nodes[parent_index.value()].depth + 1;
 
     bool empty_clip = false;
-    if (parent_index.value() && m_nodes[parent_index.value()].has_empty_effective_clip) {
+    if (m_nodes[parent_index.value()].has_empty_effective_clip) {
         empty_clip = true;
     } else if (data.has<ClipData>()) {
         empty_clip = data.get<ClipData>().rect.is_empty();
@@ -411,8 +422,8 @@ VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, 
 
 VisualContextIndex AccumulatedVisualContextTree::find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const
 {
-    if (!a.value() || !b.value())
-        return {};
+    VERIFY(a.value() < m_nodes.size());
+    VERIFY(b.value() < m_nodes.size());
     size_t a_index = a.value();
     size_t b_index = b.value();
     while (m_nodes[a_index].depth > m_nodes[b_index].depth)
@@ -428,19 +439,20 @@ VisualContextIndex AccumulatedVisualContextTree::find_common_ancestor(VisualCont
 
 Vector<size_t, 8> AccumulatedVisualContextTree::build_ancestor_chain(VisualContextIndex index) const
 {
+    VERIFY(index.value() < m_nodes.size());
     auto const& node = m_nodes[index.value()];
     Vector<size_t, 8> chain;
-    chain.ensure_capacity(node.depth);
-    for (size_t i = index.value(); i; i = m_nodes[i].parent_index.value())
+    chain.ensure_capacity(node.depth + 1);
+    for (size_t i = index.value();; i = m_nodes[i].parent_index.value()) {
         chain.append(i);
+        if (i == VISUAL_VIEWPORT_NODE_INDEX.value())
+            break;
+    }
     return chain;
 }
 
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(VisualContextIndex index, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
 {
-    if (!index.value())
-        return screen_point;
-
     auto chain = build_ancestor_chain(index);
 
     auto point = screen_point;
@@ -505,9 +517,6 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
 
 Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(VisualContextIndex index, Gfx::FloatPoint screen_point) const
 {
-    if (!index.value())
-        return screen_point;
-
     auto chain = build_ancestor_chain(index);
 
     auto point = screen_point;
@@ -538,11 +547,8 @@ Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(VisualCont
 
 Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualContextIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
 {
-    if (!index.value())
-        return source_rect;
-
     auto rect = source_rect;
-    for (size_t i = index.value(); i; i = m_nodes[i].parent_index.value()) {
+    for (size_t i = index.value();; i = m_nodes[i].parent_index.value()) {
         auto const& node = m_nodes[i];
         node.data.visit(
             [&](TransformData const& transform) {
@@ -565,6 +571,8 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
             [&](ClipData const&) { /* clips don't affect rect coordinates */ },
             [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
             [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
+        if (i == VISUAL_VIEWPORT_NODE_INDEX.value())
+            break;
     }
 
     return rect;
@@ -572,9 +580,6 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
 
 void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder& builder) const
 {
-    if (!index.value())
-        return;
-
     auto const& node = m_nodes[index.value()];
     node.data.visit(
         [&](PerspectiveData const&) {
@@ -787,7 +792,9 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
     auto version = TRY(decoder.decode<u64>());
     auto nodes = TRY(decoder.decode<Vector<Web::Painting::AccumulatedVisualContextNode>>());
     if (nodes.is_empty())
-        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing sentinel node");
+        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing visual viewport node");
+    if (!nodes[Web::Painting::VISUAL_VIEWPORT_NODE_INDEX.value()].data.has<Web::Painting::TransformData>())
+        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree visual viewport node is not a transform");
     return Web::Painting::AccumulatedVisualContextTree { version, move(nodes) };
 }
 

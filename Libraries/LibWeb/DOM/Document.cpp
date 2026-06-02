@@ -2822,7 +2822,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
 {
     auto inverse_transform_point = [](Painting::PaintableBox const& paintable_box, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
         auto viewport_paintable = paintable_box.document().unsafe_paintable();
-        if (!viewport_paintable)
+        if (!viewport_paintable || !viewport_paintable->has_visual_context_tree())
             return {};
         auto pixel_ratio = static_cast<float>(paintable_box.document().page().client().device_pixels_per_css_pixel());
         auto const& visual_context_tree = viewport_paintable->visual_context_tree();
@@ -2833,15 +2833,11 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
 
     CSSPixelPoint offset_position = position;
     if (auto const* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
-        if (paintable_box->accumulated_visual_context_index().value()) {
-            if (auto transformed_position = inverse_transform_point(*paintable_box, position); transformed_position.has_value())
-                offset_position = *transformed_position;
-        }
+        if (auto transformed_position = inverse_transform_point(*paintable_box, position); transformed_position.has_value())
+            offset_position = *transformed_position;
     } else if (auto containing_block = paintable.containing_block()) {
-        if (containing_block->accumulated_visual_context_index().value()) {
-            if (auto transformed_position = inverse_transform_point(*containing_block, position); transformed_position.has_value())
-                offset_position = *transformed_position;
-        }
+        if (auto transformed_position = inverse_transform_point(*containing_block, position); transformed_position.has_value())
+            offset_position = *transformed_position;
     }
 
     auto const top_left_of_layout_node = paintable.box_type_agnostic_position();
@@ -8921,8 +8917,7 @@ String Document::dump_display_list()
     HashMap<size_t, RefPtr<Painting::PaintableBox const>> context_id_to_paintable;
     viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::PaintableBox>([&](auto const& paintable_box) {
         auto visual_context_index = paintable_box.accumulated_visual_context_index();
-        if (visual_context_index.value())
-            (void)context_id_to_paintable.try_set(visual_context_index.value(), paintable_box);
+        (void)context_id_to_paintable.try_set(visual_context_index.value(), paintable_box);
         return TraversalDecision::Continue;
     });
 
@@ -8935,15 +8930,15 @@ String Document::dump_display_list()
     Vector<size_t> root_contexts;
 
     display_list->for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes) {
-        if (!header.context_index.value())
-            return;
-        for (size_t node_index = header.context_index.value(); node_index && !visited.contains(node_index);) {
+        for (size_t node_index = header.context_index.value(); !visited.contains(node_index);) {
             visited.set(node_index);
+            if (node_index == Painting::VISUAL_VIEWPORT_NODE_INDEX.value()) {
+                if (!root_contexts.contains_slow(node_index))
+                    root_contexts.append(node_index);
+                break;
+            }
             auto parent = visual_context_tree.node_at(Painting::VisualContextIndex(node_index)).parent_index.value();
-            if (parent)
-                children.ensure(parent).append(node_index);
-            else if (!root_contexts.contains_slow(node_index))
-                root_contexts.append(node_index);
+            children.ensure(parent).append(node_index);
             node_index = parent;
         }
     });
