@@ -72,6 +72,7 @@ private:
     virtual void dragLeaveEvent(QDragLeaveEvent*) override;
     virtual void dragMoveEvent(QDragMoveEvent*) override;
     virtual void dropEvent(QDropEvent*) override;
+    virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void leaveEvent(QEvent*) override;
     virtual void mouseDoubleClickEvent(QMouseEvent*) override;
     virtual void mousePressEvent(QMouseEvent*) override;
@@ -229,6 +230,7 @@ class TabBarButton final : public QPushButton {
 
 public:
     explicit TabBarButton(QIcon const& icon, QWidget* parent = nullptr);
+    void set_collapsed_vertical_overlay(bool);
 
 protected:
     virtual bool event(QEvent* event) override;

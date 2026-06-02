@@ -64,8 +64,12 @@ static constexpr int VERTICAL_TABS_NEW_TAB_SEPARATOR_SPACING = 4;
 static constexpr int VERTICAL_TAB_SHAPE_HORIZONTAL_INSET = 5;
 static constexpr int VERTICAL_TAB_CONTENT_HORIZONTAL_INSET = 8;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
+static constexpr int TAB_BUTTON_SIZE = 22;
 static constexpr int TAB_ICON_SIZE = 16;
+static constexpr int COLLAPSED_VERTICAL_TAB_BUTTON_SIZE = 16;
+static constexpr int COLLAPSED_VERTICAL_TAB_ICON_SIZE = 12;
 static constexpr auto VERTICAL_TABS_EXPANDED_PROPERTY = "verticalTabsExpanded";
+static constexpr auto COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY = "collapsedVerticalTabButton";
 static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY = "hovered";
 static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY = "active";
 
@@ -125,6 +129,16 @@ static QRectF expanded_vertical_tab_shape_rect(QRectF const& rect)
 static QRect expanded_vertical_tab_shape_rect(QRect const& rect)
 {
     return rect.adjusted(VERTICAL_TAB_SHAPE_HORIZONTAL_INSET, 3, -VERTICAL_TAB_SHAPE_HORIZONTAL_INSET, -3);
+}
+
+static QRectF collapsed_vertical_tab_shape_rect(QRectF const& rect)
+{
+    return rect.adjusted(4.0, 3.0, -4.0, -3.0);
+}
+
+static QRect collapsed_vertical_tab_shape_rect(QRect const& rect)
+{
+    return rect.adjusted(4, 3, -4, -3);
 }
 
 class NewTabButton final : public QToolButton {
@@ -343,7 +357,7 @@ void TabBar::paintEvent(QPaintEvent*)
 
         QRectF shape_rect;
         if (is_collapsed_vertical)
-            shape_rect = QRectF(tab_rect).adjusted(4.0, 3.0, -4.0, -3.0);
+            shape_rect = collapsed_vertical_tab_shape_rect(QRectF(tab_rect));
         else if (is_vertical)
             shape_rect = expanded_vertical_tab_shape_rect(QRectF(tab_rect));
         else
@@ -518,6 +532,28 @@ void TabBar::dropEvent(QDropEvent* event)
     update();
     event->setDropAction(Qt::MoveAction);
     event->accept();
+}
+
+bool TabBar::eventFilter(QObject* watched, QEvent* event)
+{
+    auto hovered_tab_for_button = [this](QObject* button) {
+        for (int index = 0; index < count(); ++index) {
+            if (tabButton(index, QTabBar::LeftSide) == button || tabButton(index, QTabBar::RightSide) == button)
+                return index;
+        }
+        return -1;
+    };
+
+    if (auto hovered_tab = hovered_tab_for_button(watched); hovered_tab >= 0) {
+        if (event->type() == QEvent::Enter || event->type() == QEvent::MouseMove) {
+            set_hovered_tab_index(hovered_tab);
+        } else if (event->type() == QEvent::Leave) {
+            auto cursor_position = mapFromGlobal(QCursor::pos());
+            set_hovered_tab_index(tab_index_at(cursor_position));
+        }
+    }
+
+    return QTabBar::eventFilter(watched, event);
 }
 
 void TabBar::mousePressEvent(QMouseEvent* event)
@@ -839,16 +875,35 @@ void TabBar::set_hovered_tab_index(int index)
 
 void TabBar::update_tab_button_geometry()
 {
-    if (tab_layout() == TabLayout::Horizontal || tab_layout() == TabLayout::VerticalCollapsed)
+    auto set_button_collapsed_overlay = [](QWidget* button, bool enabled) {
+        if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
+            tab_bar_button->set_collapsed_vertical_overlay(enabled);
+    };
+
+    auto prepare_button = [&](QWidget* button, bool collapsed_overlay) {
+        if (!button)
+            return;
+        button->installEventFilter(this);
+        set_button_collapsed_overlay(button, collapsed_overlay);
+    };
+
+    if (tab_layout() == TabLayout::Horizontal) {
+        for (int index = 0; index < count(); ++index) {
+            prepare_button(tabButton(index, QTabBar::LeftSide), false);
+            prepare_button(tabButton(index, QTabBar::RightSide), false);
+        }
         return;
+    }
 
     // Keep this out of paintEvent(): setVisible(), setGeometry(), and raise()
     // dirty child widgets, and doing that while painting can schedule another
     // tab bar repaint before the current one has finished flushing.
-    auto place_button = [&](int index, QTabBar::ButtonPosition position, QRect shape_rect) {
+    auto place_expanded_button = [&](int index, QTabBar::ButtonPosition position, QRect shape_rect) {
         auto* button = tabButton(index, position);
         if (!button)
             return;
+        prepare_button(button, false);
+
         auto should_be_visible = position != QTabBar::RightSide || index == currentIndex() || index == m_hovered_tab_index;
         bool did_update_button = false;
         if (button->isVisible() != should_be_visible) {
@@ -874,14 +929,61 @@ void TabBar::update_tab_button_geometry()
             button->raise();
     };
 
+    auto place_collapsed_button = [&](int index, QTabBar::ButtonPosition position, QRect tab_rect, QRect shape_rect) {
+        auto* button = tabButton(index, position);
+        if (!button)
+            return;
+        prepare_button(button, true);
+
+        auto should_be_visible = position == QTabBar::LeftSide || index == m_hovered_tab_index;
+        bool did_update_button = false;
+        if (button->isVisible() != should_be_visible) {
+            button->setVisible(should_be_visible);
+            did_update_button = true;
+        }
+
+        auto button_size = button->size();
+        if (button_size.isEmpty())
+            button_size = button->sizeHint();
+        if (button_size.isEmpty())
+            return;
+
+        QPoint button_position;
+        if (position == QTabBar::RightSide) {
+            button_position = {
+                max(tab_rect.left(), shape_rect.left() - 5),
+                max(tab_rect.top(), shape_rect.top() - 5),
+            };
+        } else {
+            auto x = min(tab_rect.right() - button_size.width() + 1, shape_rect.right() - button_size.width() + 5);
+            auto y = min(tab_rect.bottom() - button_size.height() + 1, shape_rect.bottom() - button_size.height() + 5);
+            button_position = { x, y };
+        }
+
+        QRect button_geometry { button_position, button_size };
+        if (button->geometry() != button_geometry) {
+            button->setGeometry(button_geometry);
+            did_update_button = true;
+        }
+
+        if (did_update_button)
+            button->raise();
+    };
+
     for (int index = 0; index < count(); ++index) {
         auto tab_rect = visual_tab_rect(index);
         if (!tab_rect.isValid())
             continue;
 
-        auto shape_rect = expanded_vertical_tab_shape_rect(tab_rect);
-        place_button(index, QTabBar::LeftSide, shape_rect);
-        place_button(index, QTabBar::RightSide, shape_rect);
+        if (tab_layout() == TabLayout::VerticalCollapsed) {
+            auto shape_rect = collapsed_vertical_tab_shape_rect(tab_rect);
+            place_collapsed_button(index, QTabBar::LeftSide, tab_rect, shape_rect);
+            place_collapsed_button(index, QTabBar::RightSide, tab_rect, shape_rect);
+        } else {
+            auto shape_rect = expanded_vertical_tab_shape_rect(tab_rect);
+            place_expanded_button(index, QTabBar::LeftSide, shape_rect);
+            place_expanded_button(index, QTabBar::RightSide, shape_rect);
+        }
     }
 }
 
@@ -1520,13 +1622,21 @@ void TabWidget::update_tab_layout()
 
 void TabWidget::update_tab_button_visibility()
 {
-    auto show_tab_buttons = m_tab_bar->tab_layout() != TabLayout::VerticalCollapsed;
+    if (m_tab_bar->tab_layout() == TabLayout::VerticalCollapsed) {
+        for (int index = 0; index < m_tab_bar->count(); ++index) {
+            if (auto* button = m_tab_bar->tabButton(index, QTabBar::RightSide))
+                button->hide();
+        }
+
+        m_tab_bar->refresh_tab_layout();
+        return;
+    }
 
     for (int index = 0; index < m_tab_bar->count(); ++index) {
         if (auto* button = m_tab_bar->tabButton(index, QTabBar::LeftSide))
-            button->setVisible(show_tab_buttons);
+            button->setVisible(true);
         if (auto* button = m_tab_bar->tabButton(index, QTabBar::RightSide))
-            button->setVisible(show_tab_buttons);
+            button->setVisible(true);
     }
 
     m_tab_bar->refresh_tab_layout();
@@ -1633,14 +1743,36 @@ bool TabWidget::start_window_move()
     return handle->startSystemMove();
 }
 
+void TabBarButton::set_collapsed_vertical_overlay(bool enabled)
+{
+    if (property(COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY).toBool() == enabled)
+        return;
+
+    setProperty(COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY, enabled);
+
+    QSize button_size { TAB_BUTTON_SIZE, TAB_BUTTON_SIZE };
+    QSize icon_size { TAB_ICON_SIZE, TAB_ICON_SIZE };
+    if (enabled) {
+        button_size = { COLLAPSED_VERTICAL_TAB_BUTTON_SIZE, COLLAPSED_VERTICAL_TAB_BUTTON_SIZE };
+        icon_size = { COLLAPSED_VERTICAL_TAB_ICON_SIZE, COLLAPSED_VERTICAL_TAB_ICON_SIZE };
+    }
+
+    setFixedSize(button_size);
+    setIconSize(icon_size);
+    style()->unpolish(this);
+    style()->polish(this);
+    update();
+}
+
 TabBarButton::TabBarButton(QIcon const& icon, QWidget* parent)
     : QPushButton(icon, {}, parent)
 {
     setObjectName("LadybirdTabButton");
-    setFixedSize({ 22, 22 });
-    setIconSize({ 16, 16 });
+    setFixedSize({ TAB_BUTTON_SIZE, TAB_BUTTON_SIZE });
+    setIconSize({ TAB_ICON_SIZE, TAB_ICON_SIZE });
     setFocusPolicy(Qt::NoFocus);
     setFlat(true);
+    hide();
 }
 
 bool TabBarButton::event(QEvent* event)
