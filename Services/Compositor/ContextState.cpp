@@ -162,6 +162,16 @@ void ContextState::install_display_list_update(
     m_has_async_scrolling_state = true;
 }
 
+void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree visual_context_tree)
+{
+    VERIFY(m_display_list);
+    VERIFY(m_display_list->compatible_visual_context_tree_version() == visual_context_tree.version());
+    m_visual_context_tree = move(visual_context_tree);
+
+    if (m_has_async_scrolling_state)
+        rebuild_wheel_hit_test_targets();
+}
+
 void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_scroll_state_snapshot = move(scroll_state_snapshot);

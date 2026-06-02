@@ -31,6 +31,11 @@ void CompositorContextHandle::update_display_list(NonnullRefPtr<Painting::Displa
     m_host.update_display_list(m_context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
+void CompositorContextHandle::update_visual_context_tree(Painting::AccumulatedVisualContextTree visual_context_tree)
+{
+    m_host.update_visual_context_tree(m_context_id, move(visual_context_tree));
+}
+
 void CompositorContextHandle::update_video_frame(Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame)
 {
     m_host.update_video_frame(m_context_id, frame_id, move(frame));

@@ -125,6 +125,14 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
     context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
 }
 
+void CompositorState::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree)
+{
+    auto* context = context_if_present(context_id);
+    VERIFY(context);
+
+    context->update_visual_context_tree(move(visual_context_tree));
+}
+
 void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     auto* context = context_if_present(context_id);

@@ -71,6 +71,12 @@ void ConnectionFromWebContent::update_display_list(Web::Compositor::CompositorCo
     m_compositor_state->update_display_list(context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
+void ConnectionFromWebContent::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree)
+{
+    verify_context_is_owned_by_this_connection(context_id);
+    m_compositor_state->update_visual_context_tree(context_id, move(visual_context_tree));
+}
+
 void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)
 {
     verify_context_is_owned_by_this_connection(context_id);

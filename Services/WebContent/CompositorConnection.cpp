@@ -48,6 +48,13 @@ void CompositorConnection::update_display_list(Web::Compositor::CompositorContex
         did_lose_compositor();
 }
 
+void CompositorConnection::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    async_update_visual_context_tree(context_id, visual_context_tree);
+}
+
 void CompositorConnection::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot)
 {
     if (!can_send_message_to_compositor())
