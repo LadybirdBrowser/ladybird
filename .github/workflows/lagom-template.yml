@@ -181,7 +181,7 @@ jobs:
           cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
 
       - name: Check macOS SIP/TCC state
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' && !contains(inputs.runner_labels, 'self-hosted') }}
         run: |
           csrutil status || true
           SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
@@ -203,7 +203,7 @@ jobs:
           done
 
       - name: Grant Accessibility to Python
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' && !contains(inputs.runner_labels, 'self-hosted') }}
         run: |
           if ! csrutil status | grep -qi "disabled"; then
             echo "::warning::SIP is enabled on this runner. Can't write to TCC.db."
