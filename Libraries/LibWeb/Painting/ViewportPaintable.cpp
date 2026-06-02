@@ -26,6 +26,7 @@
 namespace Web::Painting {
 
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
+void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
 NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
 {
@@ -94,6 +95,7 @@ void ViewportPaintable::reset_for_relayout()
     m_needs_to_refresh_scroll_state = true;
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree.clear();
+    m_visual_context_tree_needs_compositor_update = false;
 }
 
 void ViewportPaintable::build_stacking_context_tree_if_needed()
@@ -214,6 +216,17 @@ void ViewportPaintable::assign_scroll_frames()
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     m_visual_context_tree = build_accumulated_visual_context_tree(*this);
+    m_visual_context_tree_needs_compositor_update = true;
+}
+
+void ViewportPaintable::update_visual_viewport_accumulated_visual_context()
+{
+    if (!m_visual_context_tree.has_value()) {
+        assign_accumulated_visual_contexts();
+        return;
+    }
+    Painting::update_visual_viewport_accumulated_visual_context(*this);
+    m_visual_context_tree_needs_compositor_update = true;
 }
 
 void ViewportPaintable::refresh_scroll_state()

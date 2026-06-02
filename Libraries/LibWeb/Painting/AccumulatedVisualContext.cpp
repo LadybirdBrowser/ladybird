@@ -30,6 +30,7 @@
 namespace Web::Painting {
 
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
+void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
 bool ClipData::contains(DevicePixelPoint point) const
 {
@@ -401,6 +402,11 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
     return visual_context_tree;
 }
 
+void update_visual_viewport_accumulated_visual_context(ViewportPaintable& viewport_paintable)
+{
+    viewport_paintable.visual_context_tree().set_visual_viewport_transform(visual_viewport_transform_data(viewport_paintable.document()));
+}
+
 VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, VisualContextIndex parent_index)
 {
     VERIFY(parent_index.value() < m_nodes.size());
@@ -418,6 +424,13 @@ VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, 
     auto index = VisualContextIndex(m_nodes.size());
     m_nodes.append({ move(data), parent_index, depth, empty_clip });
     return index;
+}
+
+void AccumulatedVisualContextTree::set_visual_viewport_transform(TransformData transform)
+{
+    VERIFY(!m_nodes.is_empty());
+    VERIFY(m_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data.has<TransformData>());
+    m_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data = move(transform);
 }
 
 VisualContextIndex AccumulatedVisualContextTree::find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const

@@ -31,6 +31,9 @@ public:
     void refresh_scroll_state();
 
     void assign_accumulated_visual_contexts();
+    void update_visual_viewport_accumulated_visual_context();
+    bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
+    void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
     bool has_visual_context_tree() const { return m_visual_context_tree.has_value(); }
 
     GC::Ptr<Selection::Selection> selection() const;
@@ -72,6 +75,7 @@ private:
     Vector<WeakPtr<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
 
     Optional<AccumulatedVisualContextTree> m_visual_context_tree;
+    bool m_visual_context_tree_needs_compositor_update { false };
 };
 
 template<>
