@@ -487,6 +487,9 @@ void LocationEdit::keyPressEvent(QKeyEvent* event)
             m_is_applying_inline_autocomplete = false;
         }
         m_autocomplete->close();
+        emit returnPressed();
+        event->accept();
+        return;
     }
 
     if (should_suppress_inline_autocomplete_for_key(event))
