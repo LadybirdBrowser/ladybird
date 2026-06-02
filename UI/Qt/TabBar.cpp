@@ -67,8 +67,9 @@ static constexpr int VERTICAL_TABS_COLLAPSED_SIDE_MARGIN = 6;
 static constexpr int VERTICAL_TABS_EXPANDED_SIDE_MARGIN = 5;
 static constexpr int VERTICAL_TABS_TOP_MARGIN = 8;
 static constexpr int TAB_CARD_SHAPE_HORIZONTAL_INSET = 5;
-static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 4.5;
+static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 4.0;
 static constexpr int TAB_CARD_SHAPE_VERTICAL_INSET = 3;
+static constexpr int HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE = 32;
 static constexpr int TAB_CONTENT_HORIZONTAL_INSET = 8;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 static constexpr int TAB_BUTTON_SIZE = 22;
@@ -156,6 +157,13 @@ static QRectF horizontal_tab_card_shape_rect(QRectF const& rect)
     return rect.adjusted(HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
 }
 
+static QRectF horizontal_new_tab_button_shape_rect(QRectF const& rect)
+{
+    auto x = rect.left() + (rect.width() - HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE) / 2.0;
+    auto y = rect.top() + (rect.height() - HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE) / 2.0;
+    return { x, y, HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE, HORIZONTAL_NEW_TAB_BUTTON_SHAPE_SIZE };
+}
+
 static QRect tab_card_shape_rect(QRect const& rect)
 {
     return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
@@ -200,7 +208,7 @@ static QRect collapsed_vertical_tab_shape_rect(QRect const& rect)
 
 class NewTabButton final : public QToolButton {
 public:
-    explicit NewTabButton(QTabBar& tab_bar, QWidget* parent)
+    explicit NewTabButton(TabBar& tab_bar, QWidget* parent)
         : QToolButton(parent)
         , m_tab_bar(tab_bar)
     {
@@ -237,9 +245,12 @@ private:
         painter.setRenderHint(QPainter::Antialiasing, true);
 
         auto dark = ChromeStyle::is_dark(palette());
+        auto is_horizontal_new_tab_button = m_tab_bar.tab_layout() == TabLayout::Horizontal;
         auto shape_rect = expanded
             ? tab_card_shape_rect(QRectF(rect()))
-            : QRectF(rect()).adjusted(4.0, 3.0, -4.0, -3.0);
+            : (is_horizontal_new_tab_button
+                      ? horizontal_new_tab_button_shape_rect(QRectF(rect()))
+                      : QRectF(rect()).adjusted(4.0, 3.0, -4.0, -3.0));
         auto tab_path = tab_shape_path(shape_rect, 9.0, 9.0);
         auto hovered = is_hovered();
 
@@ -261,8 +272,12 @@ private:
             icon_size.width(),
             icon_size.height(),
         };
-        if (!expanded)
+        if (is_horizontal_new_tab_button) {
+            icon_rect.translate(0, 1);
+            painter.translate(0.5, 0);
+        } else if (!expanded) {
             painter.translate(1.0, 0);
+        }
         icon().paint(&painter, icon_rect);
         if (!expanded)
             return;
@@ -282,7 +297,7 @@ private:
         painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter, title);
     }
 
-    QTabBar& m_tab_bar;
+    TabBar& m_tab_bar;
 };
 
 TabBar::TabBar(TabWidget* tab_widget)
@@ -1621,19 +1636,19 @@ void TabWidget::rebuild_layout()
 void TabWidget::rebuild_layout_for_horizontal_tabs()
 {
     m_tab_bar_row->setMinimumHeight(HORIZONTAL_TAB_STRIP_HEIGHT);
-    m_tab_bar_row_layout->setSpacing(4);
+    m_tab_bar_row_layout->setSpacing(0);
     m_tab_bar_row_layout->setContentsMargins(12, 2, 4, 1);
 
     m_new_tab_button->setText({});
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
     m_new_tab_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    m_new_tab_button->setFixedSize(vertical_tab_width(0, TabLayout::VerticalCollapsed), VERTICAL_TAB_HEIGHT);
+    m_new_tab_button->setFixedSize(HORIZONTAL_TAB_HEIGHT, HORIZONTAL_TAB_HEIGHT);
     m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     if (use_left_traffic_light_window_controls()) {
         m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
-        m_tab_bar_row_layout->addSpacing(8);
+        m_tab_bar_row_layout->addSpacing(16);
         m_tab_bar_row_layout->addWidget(m_tab_bar);
         m_tab_bar_row_layout->addWidget(m_new_tab_button, 0, Qt::AlignVCenter);
         m_tab_bar_row_layout->addStretch(1);
