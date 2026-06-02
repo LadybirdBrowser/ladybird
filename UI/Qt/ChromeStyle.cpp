@@ -7,6 +7,7 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/StringUtils.h>
 
+#include <AK/Platform.h>
 #include <QGuiApplication>
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
@@ -124,19 +125,7 @@ QColor chrome_background(QPalette const& palette)
 {
     auto window = chrome_window(palette);
     auto dark = is_dark(palette);
-    return mix(window, material_color_anchors(dark).background, dark ? 0.72 : 0.68);
-}
-
-static QColor chrome_tab_strip_background(QPalette const& palette)
-{
-    auto background = chrome_background(palette);
-    auto dark = is_dark(palette);
-    return mix(background, dark ? QColor(13, 18, 26) : material_color_anchors(dark).recessed, dark ? 0.18 : 0.24);
-}
-
-static QColor chrome_tab_strip_background_bottom(QPalette const& palette)
-{
-    return mix(chrome_tab_strip_background(palette), QColor(8, 11, 15), is_dark(palette) ? 0.22 : 0.026);
+    return mix(window, material_color_anchors(dark).background, dark ? 0.34 : 0.68);
 }
 
 QColor chrome_surface(QPalette const& palette)
@@ -191,17 +180,21 @@ QColor chrome_control_border(QPalette const& palette)
 QColor chrome_active_tab_surface_top(QPalette const& palette)
 {
     auto dark = is_dark(palette);
-    auto surface = chrome_surface(palette);
-    auto active_surface = chrome_surface_hover(palette);
-    return dark ? active_surface.lighter(108) : mix(surface, active_surface, 0.22);
+    if (!dark)
+        return QColor(255, 255, 255);
+
+    auto background = chrome_background(palette);
+    return mix(background, QColor(255, 255, 255), 0.22);
 }
 
 QColor chrome_active_tab_surface_bottom(QPalette const& palette)
 {
     auto dark = is_dark(palette);
-    auto surface = chrome_surface(palette);
-    auto active_surface = chrome_surface_hover(palette);
-    return dark ? mix(surface, active_surface, 0.66) : mix(chrome_background(palette), active_surface, 0.70);
+    if (!dark)
+        return QColor(251, 251, 251);
+
+    auto background = chrome_background(palette);
+    return mix(background, QColor(255, 255, 255), 0.20);
 }
 
 QColor chrome_border(QPalette const& palette)
@@ -298,7 +291,17 @@ QMenu::item:disabled {{
 QMenu::icon {{
     left: 8px;
 }}
-
+)"
+#if defined(AK_OS_MACOS)
+                      R"(
+QMenu::right-arrow,
+QMenu::left-arrow {{
+    width: 8px;
+    height: 8px;
+}}
+)"
+#endif
+                      R"(
 QMenu::separator {{
     background: {4};
     height: 1px;
@@ -310,16 +313,12 @@ QMenu::separator {{
 
 QString toolbar_container_style_sheet(QPalette const& palette)
 {
-    auto dark = is_dark(palette);
-    auto background = style_sheet_color(chrome_active_tab_surface_top(palette));
-    auto background_bottom = style_sheet_color(chrome_active_tab_surface_bottom(palette));
+    auto background = style_sheet_color(chrome_background(palette));
     auto surface_hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto surface_pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
-    auto separator = dark
-        ? background_bottom
-        : style_sheet_color(mix(chrome_background(palette), chrome_border(palette), 0.56));
-    auto window_controls_separator = style_sheet_color(mix(chrome_active_tab_surface_bottom(palette), chrome_border(palette), dark ? 0.36 : 0.46));
+    auto separator = style_sheet_color(chrome_border(palette));
+    auto window_controls_separator = style_sheet_color(mix(chrome_background(palette), chrome_border(palette), is_dark(palette) ? 0.36 : 0.46));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto disabled_text = style_sheet_color(chrome_muted_text(palette));
     auto close_hover = style_sheet_color(chrome_destructive_hover());
@@ -327,13 +326,17 @@ QString toolbar_container_style_sheet(QPalette const& palette)
 
     return qformatted(R"(
 QWidget#LadybirdToolbarContainer {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {0}, stop:1 {1});
+    background: {0};
     border: 0;
-    border-bottom: 1px solid {5};
+    border-bottom: 1px solid {4};
+}}
+
+QWidget#LadybirdToolbarContainer[fullWidthToolbar="true"] {{
+    border-bottom: 0;
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton {{
-    color: {6};
+    color: {5};
     background: transparent;
     border: 1px solid transparent;
     border-radius: 17px;
@@ -344,18 +347,18 @@ QWidget#LadybirdNavigationToolbar QToolButton {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:hover {{
-    background: {2};
-    border-color: {4};
+    background: {1};
+    border-color: {3};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:pressed,
 QWidget#LadybirdNavigationToolbar QToolButton:checked {{
-    background: {3};
-    border-color: {4};
+    background: {2};
+    border-color: {3};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:disabled {{
-    color: {7};
+    color: {6};
     background: transparent;
     border-color: transparent;
 }}
@@ -365,12 +368,12 @@ QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
 }}
 
 QWidget#LadybirdToolbarWindowControlsSeparator {{
-    background: {10};
+    background: {9};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton,
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton {{
-    color: {6};
+    color: {5};
     background: transparent;
     border: 0;
     border-radius: 0;
@@ -383,36 +386,36 @@ QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton:hover {{
-    background: {2};
+    background: {1};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton:pressed {{
-    background: {3};
+    background: {2};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton:hover {{
-    color: {9};
-    background: {8};
+    color: {8};
+    background: {7};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton:pressed {{
-    color: {9};
-    background: {8};
+    color: {8};
+    background: {7};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton[pressedOutside="true"],
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
-    color: {6};
+    color: {5};
     background: transparent;
 }}
 )",
-        background, background_bottom, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator);
+        background, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator);
 }
 
 QString menu_bar_style_sheet(QPalette const& palette)
 {
-    auto background = style_sheet_color(chrome_tab_strip_background(palette));
-    auto background_bottom = style_sheet_color(chrome_tab_strip_background_bottom(palette));
+    auto background = style_sheet_color(chrome_background(palette));
+    auto background_bottom = background;
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
@@ -500,24 +503,22 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto dark = is_dark(palette);
     auto surface_color = chrome_surface(palette);
     if (dark)
-        surface_color = mix(surface_color, material_color_anchors(true).background, 0.42);
+        surface_color = mix(chrome_background(palette), material_color_anchors(true).background, 0.34);
     auto hover_color = chrome_surface_hover(palette);
     if (dark)
-        hover_color = mix(hover_color, material_color_anchors(true).background, 0.24);
+        hover_color = mix(surface_color, QColor(255, 255, 255), 0.035);
 
-    auto border_color = dark ? mix(surface_color, chrome_background(palette), 0.56) : chrome_border(palette);
-    auto hover_border_color = dark ? mix(surface_color, chrome_border(palette), 0.20) : chrome_control_border(palette);
+    auto border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.36) : chrome_border(palette);
+    auto hover_border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.48) : chrome_control_border(palette);
     auto focus_border_color = mix(chrome_border(palette), chrome_accent(palette), dark ? 0.50 : 0.54);
 
     auto surface = style_sheet_color(surface_color);
     auto hover = style_sheet_color(hover_color);
-    auto control_hover = style_sheet_color(chrome_control_surface_hover(palette));
-    auto control_pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto border = style_sheet_color(border_color);
     auto hover_border = style_sheet_color(hover_border_color);
     auto focus_border = style_sheet_color(focus_border_color);
-    auto text = style_sheet_color(chrome_text(palette));
-    auto placeholder = style_sheet_color(chrome_muted_text(palette));
+    auto text = style_sheet_color(dark ? mix(chrome_text(palette), QColor(255, 255, 255), 0.08) : chrome_text(palette));
+    auto placeholder = style_sheet_color(mix(chrome_muted_text(palette), surface_color, dark ? 0.46 : 0.34));
     auto selection = style_sheet_color(chrome_accent(palette));
     auto selection_text = style_sheet_color(palette.color(QPalette::HighlightedText));
     auto not_secure_text = style_sheet_color(dark ? QColor(224, 142, 136) : QColor(144, 62, 56));
@@ -541,11 +542,12 @@ QLineEdit#LadybirdLocationEdit {{
     padding: 0 16px;
     selection-background-color: {6};
     selection-color: {7};
+    placeholder-text-color: {5};
 }}
 
 QLineEdit#LadybirdLocationEdit:hover {{
     background: {1};
-    border-color: {10};
+    border-color: {8};
 }}
 
 QLineEdit#LadybirdLocationEdit:focus {{
@@ -565,56 +567,47 @@ QToolButton#LadybirdLocationIcon {{
 }}
 
 QToolButton#LadybirdLocationIcon[notSecure="true"] {{
-    color: {11};
-    background: {12};
-    border: 1px solid {15};
+    color: {9};
+    background: {10};
+    border: 1px solid {13};
     border-radius: 10px;
     padding: 0 7px;
     font-weight: 500;
 }}
 
 QToolButton#LadybirdLocationIcon[notSecure="true"]:hover {{
-    background: {13};
+    background: {11};
 }}
 
 QToolButton#LadybirdLocationIcon[notSecure="true"]:pressed {{
-    background: {14};
+    background: {12};
 }}
 
 QToolButton#LadybirdLocationZoomIndicator {{
-    color: {16};
-    background: {17};
-    border: 1px solid {20};
+    color: {14};
+    background: {15};
+    border: 1px solid {18};
     border-radius: 10px;
     padding: 0 7px;
     font-weight: 500;
 }}
 
 QToolButton#LadybirdLocationZoomIndicator:hover {{
-    background: {18};
+    background: {16};
 }}
 
 QToolButton#LadybirdLocationZoomIndicator:pressed {{
-    background: {19};
+    background: {17};
 }}
 
 QToolButton#LadybirdLocationAction {{
     background: transparent;
     border: 0;
-    border-radius: 11px;
     margin: 1px;
     padding: 0;
 }}
-
-QToolButton#LadybirdLocationAction:hover {{
-    background: {8};
-}}
-
-QToolButton#LadybirdLocationAction:pressed {{
-    background: {9};
-}}
 )",
-        surface, hover, border, focus_border, text, placeholder, selection, selection_text, control_hover, control_pressed, hover_border,
+        surface, hover, border, focus_border, text, placeholder, selection, selection_text, hover_border,
         not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border);
 }
 
@@ -749,38 +742,35 @@ QWidget#LadybirdDevToolsBanner QPushButton:pressed {{
 QString tab_widget_style_sheet(QPalette const& palette)
 {
     auto dark = is_dark(palette);
-    auto tab_strip_bottom = chrome_tab_strip_background_bottom(palette);
-    auto background = style_sheet_color(chrome_tab_strip_background(palette));
-    auto background_bottom = style_sheet_color(tab_strip_bottom);
-    auto sidebar_background = style_sheet_color(dark ? tab_strip_bottom : mix(tab_strip_bottom, chrome_active_tab_surface_bottom(palette), 0.34));
+    auto chrome_background_color = chrome_background(palette);
+    auto background = style_sheet_color(chrome_background_color);
     auto hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
     auto control_border = style_sheet_color(chrome_control_border(palette));
     auto text = style_sheet_color(chrome_button_text(palette));
     auto close_hover = style_sheet_color(chrome_destructive_hover());
     auto close_text = style_sheet_color(chrome_destructive_text());
-    auto strip_separator = dark ? background_bottom : control_border;
-    auto sidebar_separator = style_sheet_color(mix(tab_strip_bottom, chrome_border(palette), dark ? 0.44 : 0.58));
-    auto sidebar_separator_hover = style_sheet_color(mix(tab_strip_bottom, chrome_border(palette), dark ? 0.64 : 0.76));
+    auto strip_separator = style_sheet_color(chrome_border(palette));
+    auto sidebar_separator = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.44 : 0.58));
+    auto sidebar_separator_hover = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.64 : 0.76));
     auto vertical_tab_button_background_color = style_sheet_color(chrome_active_tab_surface_top(palette));
-
     return qformatted(R"(
 QWidget#LadybirdTabStrip {{
-    color: {5};
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {0}, stop:1 {1});
+    color: {4};
+    background: {0};
     border: 0;
-    border-bottom: 1px solid {8};
+    border-bottom: 1px solid {7};
 }}
 
 QWidget#LadybirdVerticalTabBar {{
-    color: {5};
-    background: {11};
-    border-right: 1px solid {9};
+    color: {4};
+    background: {0};
+    border-right: 1px solid {8};
 }}
 
 QWidget#LadybirdVerticalTabBar[hovered="true"],
 QWidget#LadybirdVerticalTabBar[active="true"] {{
-    border-right: 1px solid {10};
+    border-right: 1px solid {9};
 }}
 
 QWidget#LadybirdVerticalTabsResizeHandle {{
@@ -788,8 +778,15 @@ QWidget#LadybirdVerticalTabsResizeHandle {{
     border: 0;
 }}
 
+QWidget#LadybirdVerticalTabsContentSeparator {{
+    background: {7};
+    border: 0;
+    min-height: 1px;
+    max-height: 1px;
+}}
+
 QWidget#LadybirdVerticalTabsSeparator {{
-    background: {9};
+    background: {8};
     min-height: 1px;
     max-height: 1px;
 }}
@@ -797,7 +794,7 @@ QWidget#LadybirdVerticalTabsSeparator {{
 QPushButton#LadybirdAudioState,
 QToolButton#LadybirdNewTabButton,
 QPushButton#LadybirdTabButton {{
-    color: {5};
+    color: {4};
     background: transparent;
     border: 1px solid transparent;
     border-radius: 11px;
@@ -831,32 +828,32 @@ QPushButton#LadybirdTabButton[collapsedVerticalTabButton="true"] {{
     min-height: 16px;
     max-width: 16px;
     max-height: 16px;
-    background: {12};
+    background: {10};
     border-color: {4};
     border-radius: 8px;
 }}
 
 QPushButton#LadybirdAudioState:hover,
-QToolButton#LadybirdNewTabButton:hover,
+QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:hover,
 QPushButton#LadybirdTabButton:hover {{
-    color: {5};
-    background: {2};
-    border-color: {4};
+    color: {4};
+    background: {1};
+    border-color: {3};
 }}
 
 QPushButton#LadybirdAudioState:pressed,
 QPushButton#LadybirdAudioState:checked,
-QToolButton#LadybirdNewTabButton:pressed,
+QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:pressed,
 QPushButton#LadybirdTabButton:pressed,
 QPushButton#LadybirdTabButton:checked {{
-    color: {5};
-    background: {3};
-    border-color: {4};
+    color: {4};
+    background: {2};
+    border-color: {3};
 }}
 
 QToolButton#LadybirdWindowButton,
 QToolButton#LadybirdCloseWindowButton {{
-    color: {5};
+    color: {4};
     background: transparent;
     border: 0;
     border-radius: 0;
@@ -866,31 +863,31 @@ QToolButton#LadybirdCloseWindowButton {{
 }}
 
 QToolButton#LadybirdWindowButton:hover {{
-    background: {2};
+    background: {1};
 }}
 
 QToolButton#LadybirdWindowButton:pressed {{
-    background: {3};
+    background: {2};
 }}
 
 QToolButton#LadybirdCloseWindowButton:hover {{
-    color: {7};
-    background: {6};
+    color: {6};
+    background: {5};
 }}
 
 QToolButton#LadybirdCloseWindowButton:pressed {{
-    color: {7};
-    background: {6};
+    color: {6};
+    background: {5};
 }}
 
 QToolButton#LadybirdWindowButton[pressedOutside="true"],
 QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
-    color: {5};
+    color: {4};
     background: transparent;
 }}
 )",
-        background, background_bottom, hover, pressed, control_border, text, close_hover, close_text, strip_separator,
-        sidebar_separator, sidebar_separator_hover, sidebar_background, vertical_tab_button_background_color);
+        background, hover, pressed, control_border, text, close_hover, close_text, strip_separator,
+        sidebar_separator, sidebar_separator_hover, vertical_tab_button_background_color);
 }
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)

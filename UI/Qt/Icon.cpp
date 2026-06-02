@@ -48,22 +48,22 @@ static void draw_stroked_icon_path(QPainter& painter, QPainterPath const& path, 
 static void draw_back_icon(QPainter& painter, QColor const& color)
 {
     QPainterPath path;
-    path.moveTo(18.2, 10.3);
-    path.lineTo(4.8, 10.3);
-    path.moveTo(10.7, 5.0);
-    path.lineTo(4.8, 10.3);
-    path.lineTo(10.7, 15.6);
+    path.moveTo(17.2, 10.3);
+    path.lineTo(3.8, 10.3);
+    path.moveTo(9.7, 5.0);
+    path.lineTo(3.8, 10.3);
+    path.lineTo(9.7, 15.6);
     draw_stroked_icon_path(painter, path, color, 2.0);
 }
 
 static void draw_forward_icon(QPainter& painter, QColor const& color)
 {
     QPainterPath path;
-    path.moveTo(1.8, 10.3);
-    path.lineTo(15.2, 10.3);
-    path.moveTo(9.3, 5.0);
-    path.lineTo(15.2, 10.3);
-    path.lineTo(9.3, 15.6);
+    path.moveTo(2.8, 10.3);
+    path.lineTo(16.2, 10.3);
+    path.moveTo(10.3, 5.0);
+    path.lineTo(16.2, 10.3);
+    path.lineTo(10.3, 15.6);
     draw_stroked_icon_path(painter, path, color, 2.0);
 }
 
@@ -89,16 +89,16 @@ static void draw_reload_icon(QPainter& painter, QColor const& color)
 static void draw_star_icon(QPainter& painter, QColor const& color, bool filled)
 {
     QPainterPath path;
-    path.moveTo(10.0, 2.6);
-    path.lineTo(12.5, 7.5);
-    path.lineTo(18.0, 8.0);
-    path.lineTo(13.9, 11.7);
-    path.lineTo(15.1, 17.2);
-    path.lineTo(10.0, 14.3);
-    path.lineTo(4.9, 17.2);
-    path.lineTo(6.1, 11.7);
-    path.lineTo(2.0, 8.0);
-    path.lineTo(7.5, 7.5);
+    path.moveTo(10.0, 4.1);
+    path.lineTo(12.5, 9.0);
+    path.lineTo(18.0, 9.5);
+    path.lineTo(13.9, 13.2);
+    path.lineTo(15.1, 18.7);
+    path.lineTo(10.0, 15.8);
+    path.lineTo(4.9, 18.7);
+    path.lineTo(6.1, 13.2);
+    path.lineTo(2.0, 9.5);
+    path.lineTo(7.5, 9.0);
     path.closeSubpath();
 
     painter.setPen(chrome_icon_pen(color, filled ? 1.2 : 1.65));

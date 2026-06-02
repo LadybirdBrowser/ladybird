@@ -25,6 +25,7 @@
 #include <QKeyEvent>
 #include <QLatin1String>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPalette>
 #include <QResizeEvent>
 #include <QStyle>
@@ -37,6 +38,43 @@
 #include <QVariantAnimation>
 
 namespace Ladybird {
+
+class LocationActionButton final : public QToolButton {
+public:
+    explicit LocationActionButton(QWidget* parent)
+        : QToolButton(parent)
+    {
+    }
+
+private:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        static constexpr int hover_size = 23;
+        static constexpr int icon_y_offset = -1;
+        static constexpr qreal hover_y_offset = 1.0;
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        if (isDown() || underMouse()) {
+            auto background = isDown()
+                ? ChromeStyle::mix(ChromeStyle::chrome_surface_pressed(palette()), ChromeStyle::chrome_button_text(palette()), 0.04)
+                : ChromeStyle::mix(ChromeStyle::chrome_surface_hover(palette()), ChromeStyle::chrome_button_text(palette()), 0.04);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(background);
+            auto hover_rect = QRectF(0, 0, hover_size, hover_size);
+            hover_rect.moveCenter(QPointF(rect().center().x(), rect().center().y() + hover_y_offset));
+            painter.drawRoundedRect(hover_rect, 10, 10);
+        }
+
+        auto icon_rect = QRect(
+            (width() - iconSize().width()) / 2,
+            (height() - iconSize().height()) / 2 + icon_y_offset,
+            iconSize().width(),
+            iconSize().height());
+        icon().paint(&painter, icon_rect, Qt::AlignCenter, isEnabled() ? QIcon::Normal : QIcon::Disabled, isDown() ? QIcon::On : QIcon::Off);
+    }
+};
 
 static QColor location_focus_glow_color(QPalette const& palette, int alpha)
 {
@@ -152,7 +190,8 @@ static bool should_suppress_inline_autocomplete_for_key(QKeyEvent const* event)
 static constexpr int LOCATION_TRAILING_EDGE_MARGIN = 12;
 static constexpr int LOCATION_TRAILING_TEXT_GAP = 4;
 static constexpr int LOCATION_TRAILING_ITEM_GAP = 6;
-static constexpr int LOCATION_TRAILING_ACTION_SIZE = 24;
+static constexpr int LOCATION_TRAILING_ACTION_WIDTH = 24;
+static constexpr int LOCATION_TRAILING_ACTION_HEIGHT = 23;
 static constexpr int LOCATION_PILL_HEIGHT = 22;
 static constexpr int LOCATION_PILL_HORIZONTAL_PADDING = 18;
 
@@ -186,11 +225,11 @@ LocationEdit::LocationEdit(QWidget* parent)
     m_leading_icon_button->setCursor(Qt::ArrowCursor);
     m_leading_icon_button->hide();
 
-    m_trailing_action_button = new QToolButton(this);
+    m_trailing_action_button = new LocationActionButton(this);
     m_trailing_action_button->setObjectName("LadybirdLocationAction");
     m_trailing_action_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    m_trailing_action_button->setIconSize({ 18, 18 });
-    m_trailing_action_button->setFixedSize(24, 24);
+    m_trailing_action_button->setIconSize({ 17, 17 });
+    m_trailing_action_button->setFixedSize(LOCATION_TRAILING_ACTION_WIDTH, LOCATION_TRAILING_ACTION_HEIGHT);
     m_trailing_action_button->setAutoRaise(true);
     m_trailing_action_button->setFocusPolicy(Qt::NoFocus);
     m_trailing_action_button->setCursor(Qt::ArrowCursor);
@@ -367,8 +406,12 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
     highlight_location();
     animate_focus_glow(58);
 
-    if (event->reason() != Qt::PopupFocusReason && !should_defer_full_url)
-        QTimer::singleShot(0, this, &QLineEdit::selectAll);
+    if (event->reason() != Qt::PopupFocusReason && !should_defer_full_url) {
+        QTimer::singleShot(0, this, [this] {
+            if (hasFocus())
+                selectAll();
+        });
+    }
 }
 
 void LocationEdit::focusOutEvent(QFocusEvent* event)
@@ -390,6 +433,7 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
         setText(display_url());
     }
 
+    deselect();
     if (event->reason() != Qt::PopupFocusReason) {
         setCursorPosition(0);
         highlight_location();
@@ -474,7 +518,7 @@ void LocationEdit::update_trailing_item_positions()
 
     auto trailing_button_size = m_trailing_action_button->size();
     auto trailing_x = width() - trailing_button_size.width() - LOCATION_TRAILING_EDGE_MARGIN;
-    auto trailing_y = (height() - trailing_button_size.height()) / 2 + 1;
+    auto trailing_y = (height() - trailing_button_size.height()) / 2;
     m_trailing_action_button->move(trailing_x, trailing_y);
 
     auto zoom_button_size = m_zoom_indicator_button->size();
@@ -497,7 +541,7 @@ void LocationEdit::update_text_margins()
 
 int LocationEdit::trailing_text_margin() const
 {
-    auto margin = LOCATION_TRAILING_EDGE_MARGIN + LOCATION_TRAILING_ACTION_SIZE + LOCATION_TRAILING_TEXT_GAP;
+    auto margin = LOCATION_TRAILING_EDGE_MARGIN + LOCATION_TRAILING_ACTION_WIDTH + LOCATION_TRAILING_TEXT_GAP;
 
     if (m_zoom_indicator_button && !m_zoom_indicator_button->isHidden())
         margin += m_zoom_indicator_button->width() + LOCATION_TRAILING_ITEM_GAP;
@@ -603,7 +647,11 @@ void LocationEdit::update_location_icon()
         update_text_margins();
     };
 
-    if (text_matches_current_url()) {
+    auto is_showing_current_url_for_display = !hasFocus()
+        && m_url.has_value()
+        && text() == display_url();
+
+    if (text_matches_current_url() || is_showing_current_url_for_display) {
         auto const& scheme = m_url->scheme();
         if (scheme == "http"sv)
             show_not_secure_indicator();

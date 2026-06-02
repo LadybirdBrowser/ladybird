@@ -79,9 +79,11 @@ public:
     QMenu* context_menu() const { return m_context_menu; }
 
     QToolButton* hamburger_button() const { return m_hamburger_button; }
+    QWidget* toolbar_container() const { return m_toolbar_container; }
 
     void set_vertical_tabs_enabled(bool);
     void set_window(BrowserWindow&);
+    void set_toolbar_container_in_tab_layout(bool);
     void set_toolbar_window_controls_visible(bool);
     void update_window_control_icons();
     void update_hover_label();
@@ -115,6 +117,8 @@ private:
     QWidget* m_toolbar { nullptr };
     QWidget* m_toolbar_window_controls_separator { nullptr };
     QWidget* m_toolbar_window_controls { nullptr };
+    QSpacerItem* m_toolbar_window_controls_spacer { nullptr };
+    QSpacerItem* m_sidebar_toggle_navigation_spacer { nullptr };
     WindowControlButton* m_minimize_window_button { nullptr };
     WindowControlButton* m_maximize_window_button { nullptr };
     WindowControlButton* m_close_window_button { nullptr };
