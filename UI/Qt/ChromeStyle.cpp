@@ -507,6 +507,7 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto hover_color = chrome_surface_hover(palette);
     if (dark)
         hover_color = mix(surface_color, QColor(255, 255, 255), 0.035);
+    auto focus_color = dark ? hover_color : surface_color;
 
     auto border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.36) : chrome_border(palette);
     auto hover_border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.48) : chrome_control_border(palette);
@@ -514,6 +515,7 @@ QString location_edit_style_sheet(QPalette const& palette)
 
     auto surface = style_sheet_color(surface_color);
     auto hover = style_sheet_color(hover_color);
+    auto focus = style_sheet_color(focus_color);
     auto border = style_sheet_color(border_color);
     auto hover_border = style_sheet_color(hover_border_color);
     auto focus_border = style_sheet_color(focus_border_color);
@@ -551,7 +553,7 @@ QLineEdit#LadybirdLocationEdit:hover {{
 }}
 
 QLineEdit#LadybirdLocationEdit:focus {{
-    background: {1};
+    background: {19};
     border-color: {3};
 }}
 
@@ -608,7 +610,7 @@ QToolButton#LadybirdLocationAction {{
 }}
 )",
         surface, hover, border, focus_border, text, placeholder, selection, selection_text, hover_border,
-        not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border);
+        not_secure_text, not_secure_background, not_secure_hover, not_secure_pressed, not_secure_border, zoom_text, zoom_background, zoom_hover, zoom_pressed, zoom_border, focus);
 }
 
 QString bookmarks_bar_style_sheet(QPalette const& palette)
