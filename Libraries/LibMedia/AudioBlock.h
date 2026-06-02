@@ -19,10 +19,10 @@ namespace Media {
 class AudioBlock {
 public:
     Audio::SampleSpecification const& sample_specification() const { return m_sample_specification; }
-    AK::Duration timestamp() const { return m_timestamp; }
-    i64 timestamp_in_frames() const { return m_timestamp_in_frames; }
-    i64 end_timestamp_in_frames() const { return saturating_add(m_timestamp_in_frames, AK::clamp_to<i64>(frame_count())); }
-    AK::Duration end_timestamp() const { return AK::Duration::from_time_units(end_timestamp_in_frames(), 1, sample_rate()); }
+    AK::Duration media_time_start() const { return m_media_time_start; }
+    AK::Duration media_time_end() const { return AK::Duration::from_time_units(end_frame_index(), 1, sample_rate()); }
+    i64 first_frame_index() const { return m_first_frame_index; }
+    i64 end_frame_index() const { return saturating_add(m_first_frame_index, AK::clamp_to<i64>(frame_count())); }
     Span<float> channel_data(size_t channel)
     {
         VERIFY(channel < channel_count());
@@ -45,29 +45,29 @@ public:
     void clear()
     {
         m_sample_specification = {};
-        m_timestamp = {};
-        m_timestamp_in_frames = 0;
+        m_media_time_start = {};
+        m_first_frame_index = 0;
         m_frame_count = 0;
     }
-    void initialize(Audio::SampleSpecification sample_specification, AK::Duration timestamp, size_t frame_count)
+    void initialize(Audio::SampleSpecification sample_specification, AK::Duration media_time_start, size_t frame_count)
     {
         VERIFY(sample_specification.is_valid());
         VERIFY(frame_count <= NumericLimits<i64>::max());
         VERIFY(!Checked<size_t>::multiplication_would_overflow(frame_count, sample_specification.channel_count()));
         m_sample_specification = sample_specification;
-        m_timestamp = timestamp;
-        m_timestamp_in_frames = timestamp.to_time_units(1, sample_rate());
+        m_media_time_start = media_time_start;
+        m_first_frame_index = media_time_start.to_time_units(1, sample_rate());
         m_frame_count = frame_count;
         ensure_frame_capacity(frame_count);
     }
-    void initialize(Audio::SampleSpecification sample_specification, i64 timestamp_in_frames, size_t frame_count)
+    void initialize(Audio::SampleSpecification sample_specification, i64 first_frame_index, size_t frame_count)
     {
         VERIFY(sample_specification.is_valid());
         VERIFY(frame_count <= NumericLimits<i64>::max());
         VERIFY(!Checked<size_t>::multiplication_would_overflow(frame_count, sample_specification.channel_count()));
         m_sample_specification = sample_specification;
-        m_timestamp_in_frames = timestamp_in_frames;
-        m_timestamp = AK::Duration::from_time_units(timestamp_in_frames, 1, sample_rate());
+        m_first_frame_index = first_frame_index;
+        m_media_time_start = AK::Duration::from_time_units(first_frame_index, 1, sample_rate());
         m_frame_count = frame_count;
         ensure_frame_capacity(frame_count);
     }
@@ -98,11 +98,11 @@ public:
     {
         return sample_specification().sample_rate();
     }
-    void set_timestamp_in_frames(i64 timestamp_in_frames)
+    void set_first_frame_index(i64 first_frame_index)
     {
         VERIFY(!is_empty());
-        m_timestamp_in_frames = timestamp_in_frames;
-        m_timestamp = AK::Duration::from_time_units(timestamp_in_frames, 1, sample_rate());
+        m_first_frame_index = first_frame_index;
+        m_media_time_start = AK::Duration::from_time_units(first_frame_index, 1, sample_rate());
     }
     bool is_empty() const
     {
@@ -138,8 +138,8 @@ private:
     }
 
     Audio::SampleSpecification m_sample_specification;
-    AK::Duration m_timestamp;
-    i64 m_timestamp_in_frames { 0 };
+    AK::Duration m_media_time_start;
+    i64 m_first_frame_index { 0 };
     size_t m_frame_count { 0 };
     FixedArray<float> m_data;
 };

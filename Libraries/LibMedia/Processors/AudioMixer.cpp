@@ -187,7 +187,7 @@ PipelineStatus AudioMixer::combined_input_status() const
     for (auto& [input, input_data] : m_inputs) {
         if (!input_data.current_block.is_empty()
             && input_data.current_block.sample_specification() == m_sample_specification
-            && input_data.current_block.end_timestamp_in_frames() > m_next_frame_to_write) {
+            && input_data.current_block.end_frame_index() > m_next_frame_to_write) {
             status = select_combined_pipeline_status(status, PipelineStatus::HaveData);
             continue;
         }
@@ -270,7 +270,7 @@ void AudioMixer::pull(AudioBlock& into)
                 return false;
             if (current_block.sample_specification() != m_sample_specification)
                 return false;
-            if (current_block.end_timestamp_in_frames() <= input_data.next_frame)
+            if (current_block.end_frame_index() <= input_data.next_frame)
                 return false;
             return true;
         }();
@@ -288,7 +288,7 @@ void AudioMixer::pull(AudioBlock& into)
             continue;
         }
 
-        auto first_frame_offset = current_block.timestamp_in_frames();
+        auto first_frame_offset = current_block.first_frame_index();
         if (first_frame_offset >= frames_end_cap) {
             input_data.next_frame = frames_end_cap;
             continue;

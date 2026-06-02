@@ -136,7 +136,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                             output_thread_data->m_playback_stream->notify_data_available();
 
                         if (status == PipelineStatus::HaveData)
-                            output_thread_data->m_last_real_data_end_in_frames = output_block.end_timestamp_in_frames();
+                            output_thread_data->m_last_real_data_end_in_frames = output_block.end_frame_index();
                     }
 
                     output_thread_data->m_waiting_for_upstream_data = !can_carry_data(status);
@@ -279,7 +279,7 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
     while (samples_written < buffer.size() && m_block_count > 0) {
         auto const& head_block = m_blocks[m_block_head];
         auto channel_count = head_block.channel_count();
-        auto block_start_frame = head_block.timestamp_in_frames();
+        auto block_start_frame = head_block.first_frame_index();
         auto block_end_frame = block_start_frame + static_cast<i64>(head_block.frame_count());
 
         if (m_next_frame_to_play >= block_end_frame) {
