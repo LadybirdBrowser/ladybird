@@ -105,6 +105,7 @@ public:
     u64 version() const { return m_version; }
 
     VisualContextIndex append(VisualContextData data, VisualContextIndex parent_index);
+    void set_visual_viewport_transform(TransformData);
 
     AccumulatedVisualContextNode const& node_at(VisualContextIndex index) const { return m_nodes[index.value()]; }
     ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }

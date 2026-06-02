@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::CSS {
 
@@ -146,6 +147,15 @@ WebIDL::CallbackType* VisualViewport::onscrollend()
     return event_handler_attribute(HTML::EventNames::scrollend);
 }
 
+void VisualViewport::scroll_by(CSSPixelPoint delta)
+{
+    if (delta.is_zero())
+        return;
+    m_offset += delta;
+    update_accumulated_visual_context();
+    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+}
+
 Gfx::AffineTransform VisualViewport::transform() const
 {
     Gfx::AffineTransform transform;
@@ -174,8 +184,8 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
 
     m_scale = new_scale;
     m_offset = (new_offset / m_scale).to_type<CSSPixels>();
-    m_document->set_needs_accumulated_visual_contexts_update(true);
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::Yes);
+    update_accumulated_visual_context();
+    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
 }
 
 CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
@@ -188,8 +198,18 @@ void VisualViewport::reset()
 {
     m_scale = 1.0;
     m_offset = { 0, 0 };
+    update_accumulated_visual_context();
+    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::No);
+}
+
+void VisualViewport::update_accumulated_visual_context()
+{
+    if (auto paintable = m_document->unsafe_paintable(); paintable && paintable->has_visual_context_tree()) {
+        paintable->update_visual_viewport_accumulated_visual_context();
+        return;
+    }
+
     m_document->set_needs_accumulated_visual_contexts_update(true);
-    m_document->set_needs_repaint(Badge<CSS::VisualViewport> {}, InvalidateDisplayList::Yes);
 }
 
 }

@@ -8493,6 +8493,8 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
 
 Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
 {
+    update_paint_and_hit_testing_properties_if_needed();
+
     auto viewport_paintable = paintable();
     if (!viewport_paintable)
         return nullptr;
