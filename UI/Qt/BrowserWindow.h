@@ -177,7 +177,7 @@ private:
 
     void initialize_tab_buttons(Tab*);
     void create_menu_bar_window_controls();
-    void update_tab_close_button_icons();
+    void update_tab_button_icons();
     void update_menu_bar_style();
     void update_menu_bar_visibility(bool);
     void update_menu_bar_window_control_icons();

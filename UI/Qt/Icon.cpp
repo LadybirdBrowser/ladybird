@@ -146,6 +146,38 @@ static void draw_globe_icon(QPainter& painter, QColor const& color)
     draw_stroked_icon_path(painter, path, color, 1.55);
 }
 
+static void draw_volume_icon(QPainter& painter, QColor const& color, bool muted)
+{
+    QPainterPath speaker;
+    speaker.setFillRule(Qt::WindingFill);
+
+    speaker.moveTo(0, 13);
+    speaker.lineTo(4, 13);
+    speaker.lineTo(10, 18);
+    speaker.lineTo(10, 0);
+    speaker.lineTo(4, 5);
+    speaker.lineTo(0, 5);
+    speaker.closeSubpath();
+    painter.fillPath(speaker, color);
+
+    if (muted) {
+        painter.drawLine(QPoint { 0, 0 }, QPoint { 17, 18 });
+        return;
+    }
+
+    QPainterPath inner_wave;
+    inner_wave.moveTo(12, 5);
+    inner_wave.lineTo(12, 13);
+    inner_wave.cubicTo(13.6, 13, 14.9, 11.21, 14.9, 9);
+    inner_wave.cubicTo(14.9, 6.79, 13.6, 5, 12, 5);
+    inner_wave.closeSubpath();
+    painter.fillPath(inner_wave, color);
+
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(chrome_icon_pen(color, 1.6));
+    painter.drawArc(QRectF(7.3, 1.4, 10.8, 15.2), 90 * 16, -180 * 16);
+}
+
 static QPixmap create_transparent_icon_pixmap(QSize logical_size, qreal device_pixel_ratio)
 {
     QPixmap pixmap(physical_size_for_device_pixel_ratio(logical_size, device_pixel_ratio));
@@ -230,6 +262,12 @@ static QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal de
         painter.drawPath(path);
         break;
     }
+    case ChromeIcon::Volume:
+        draw_volume_icon(painter, color, false);
+        break;
+    case ChromeIcon::VolumeMuted:
+        draw_volume_icon(painter, color, true);
+        break;
     case ChromeIcon::ChevronUp:
         painter.setPen(chrome_icon_pen(color, 1.85));
         painter.drawLine(QPointF(5.0, 12.4), QPointF(10.0, 7.4));

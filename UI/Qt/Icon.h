@@ -30,6 +30,8 @@ enum class ChromeIcon {
     Search,
     Globe,
     Folder,
+    Volume,
+    VolumeMuted,
     ChevronUp,
     ChevronDown,
     VerticalTabBarCollapse,

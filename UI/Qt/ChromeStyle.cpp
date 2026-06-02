@@ -792,6 +792,7 @@ QWidget#LadybirdVerticalTabsSeparator {{
     max-height: 1px;
 }}
 
+QPushButton#LadybirdAudioState,
 QToolButton#LadybirdNewTabButton,
 QPushButton#LadybirdTabButton {{
     color: {5};
@@ -807,6 +808,7 @@ QToolButton#LadybirdNewTabButton {{
     border-radius: 16px;
 }}
 
+QPushButton#LadybirdAudioState,
 QPushButton#LadybirdTabButton {{
     min-width: 22px;
     min-height: 22px;
@@ -814,6 +816,7 @@ QPushButton#LadybirdTabButton {{
     max-height: 22px;
 }}
 
+QPushButton#LadybirdAudioState:hover,
 QToolButton#LadybirdNewTabButton:hover,
 QPushButton#LadybirdTabButton:hover {{
     color: {5};
@@ -821,6 +824,8 @@ QPushButton#LadybirdTabButton:hover {{
     border-color: {4};
 }}
 
+QPushButton#LadybirdAudioState:pressed,
+QPushButton#LadybirdAudioState:checked,
 QToolButton#LadybirdNewTabButton:pressed,
 QPushButton#LadybirdTabButton:pressed,
 QPushButton#LadybirdTabButton:checked {{
