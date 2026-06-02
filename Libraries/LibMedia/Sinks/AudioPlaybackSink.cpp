@@ -298,17 +298,13 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
             continue;
         }
 
-        auto offset_in_head_samples = static_cast<size_t>(m_next_frame_to_play - block_start_frame) * channel_count;
-        auto samples_remaining_in_head = head_block.sample_count() - offset_in_head_samples;
-        auto samples_to_copy = min(samples_remaining_in_head, buffer.size() - samples_written);
-
-        for (size_t i = 0; i < samples_to_copy; i++)
-            buffer[samples_written + i] = head_block.data()[offset_in_head_samples + i];
+        auto offset_in_head_frames = static_cast<size_t>(m_next_frame_to_play - block_start_frame);
+        auto samples_to_copy = head_block.copy_to_interleaved(buffer.slice(samples_written), offset_in_head_frames);
 
         samples_written += samples_to_copy;
         m_next_frame_to_play += static_cast<i64>(samples_to_copy / channel_count);
 
-        if (offset_in_head_samples + samples_to_copy == head_block.sample_count()) {
+        if ((offset_in_head_frames * channel_count) + samples_to_copy == head_block.sample_count()) {
             m_block_head = (m_block_head + 1) % OUTPUT_BLOCK_QUEUE_CAPACITY;
             m_block_count--;
         }
