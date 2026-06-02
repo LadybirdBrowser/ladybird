@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibRequests/RequestClient.h>
+#include <LibThreading/ThreadPool.h>
 #include <LibURL/Parser.h>
 #include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -115,10 +116,18 @@ bool validate(JS::VM& vm, WebIDL::BufferSource bytes)
     }
 
     // 2. Compile stableBytes as a WebAssembly module and store the results as module.
-    auto module_or_error = Detail::compile_a_webassembly_module(vm, stable_bytes.release_value());
+    // NOTE: We inline only the validation here to avoid the full compilation cost for just `validate()`.
+    auto stable_bytes_buffer = stable_bytes.release_value();
+    FixedMemoryStream stream { stable_bytes_buffer.bytes() };
+    auto module_or_error = Wasm::Module::parse(stream);
 
     // 3. If module is error, return false.
     if (module_or_error.is_error())
+        return false;
+
+    auto& cache = Detail::get_cache(*vm.current_realm());
+    auto validation_result = cache.abstract_machine().validate(module_or_error.value(), {}, Wasm::CompileToNative::No);
+    if (validation_result.is_error())
         return false;
 
     // 4. Return true.
@@ -444,65 +453,23 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
         return vm.throw_completion<CompileError>(Wasm::parse_error_to_byte_string(module_result.error()));
     }
 
-    // Content-keyed disk cache: hash the wasm bytes, slot into the HTTP side-data
-    // shelf under a synthetic wasm-cache://<hex> URL (with a stub index entry to
-    // satisfy the shelf's "associated data needs a real entry" invariant). Works
-    // regardless of whether the caller had a URL.
-    // existing_blob view is borrowed below; the AnonymousBuffer must outlive validate().
-    Optional<Core::AnonymousBuffer> existing_buf;
-    Optional<Wasm::CompileCacheConfig> wasm_cache_config;
-    if (ResourceLoader::is_initialized() && ResourceLoader::the().request_client()) {
-        auto digest = ::Crypto::Hash::SHA256::hash(data.data(), data.size());
-        __builtin_memcpy(stats.wasm_hash.data(), digest.bytes().data(), 32);
-
-        StringBuilder hex_builder;
-        for (auto byte : digest.bytes())
-            hex_builder.appendff("{:02x}", byte);
-        auto synthetic_url = URL::Parser::basic_parse(ByteString::formatted("wasm-cache://{}", hex_builder.to_byte_string()));
-        if (synthetic_url.has_value()) {
-            auto method = "GET"_string.to_byte_string();
-            (void)ResourceLoader::the().request_client()->create_synthetic_cache_entry(*synthetic_url, method);
-
-            Wasm::CompileCacheConfig config;
-            __builtin_memcpy(config.wasm_hash.data(), digest.bytes().data(), 32);
-
-            auto retrieve_result = ResourceLoader::the().request_client()->retrieve_cache_associated_data(
-                *synthetic_url, method, OptionalNone {}, 0u,
-                HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode);
-            if (!retrieve_result.is_error()) {
-                if (auto buf = retrieve_result.release_value(); buf.has_value()) {
-                    existing_buf = buf.release_value();
-                    config.existing_blob = existing_buf->bytes();
-                }
-            }
-
-            config.on_compiled = [url = *synthetic_url, method = move(method)](ByteBuffer blob) mutable {
-                if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
-                    return;
-                (void)ResourceLoader::the().request_client()->store_cache_associated_data(
-                    url, method, OptionalNone {}, 0u,
-                    HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode, blob.bytes());
-            };
-
-            config.out_cranelift_time = &stats.cranelift_time;
-            config.out_function_count = &stats.function_count;
-            config.out_cranelift_blob_size_bytes = &stats.cranelift_blob_size_bytes;
-            config.out_cache_hit = &stats.cache_hit;
-            wasm_cache_config = move(config);
-        }
-    }
+    constexpr auto compile_to_native = Wasm::CompileToNative::No;
 
     auto& cache = get_cache(*vm.current_realm());
     auto validate_start = MonotonicTime::now();
-    auto validation_result = cache.abstract_machine().validate(module_result.value(), move(wasm_cache_config));
+    auto validation_result = cache.abstract_machine().validate(module_result.value(), {}, compile_to_native);
     stats.validate_time = MonotonicTime::now() - validate_start;
     Wasm::record_module_stats(stats);
 
     if (validation_result.is_error()) {
         return vm.throw_completion<CompileError>(validation_result.error().error_string);
     }
+
     auto compiled_module = make_ref_counted<CompiledWebAssemblyModule>(module_result.release_value());
     cache.add_compiled_module(compiled_module);
+    Threading::ThreadPool::the().submit([module = NonnullRefPtr { compiled_module->module }] {
+        Wasm::start_cranelift_compilation(*module);
+    });
     return compiled_module;
 }
 
