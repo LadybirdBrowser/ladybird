@@ -155,7 +155,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     toolbar_container_layout->addWidget(m_toolbar);
     toolbar_container_layout->addWidget(m_bookmarks_bar);
-    tab_layout->addWidget(m_toolbar_container);
     tab_layout->addWidget(m_view);
     tab_layout->addWidget(m_find_in_page);
 

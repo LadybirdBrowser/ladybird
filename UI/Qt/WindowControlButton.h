@@ -29,9 +29,6 @@ class WindowControlButton final : public QToolButton {
 public:
     WindowControlButton(WindowControlButtonType, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent = nullptr);
 
-    static QSize default_size(QSize non_macos_size);
-    static int default_spacing();
-
 private:
     virtual void paintEvent(QPaintEvent*) override;
     virtual void enterEvent(QEnterEvent*) override;

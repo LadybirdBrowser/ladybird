@@ -785,12 +785,6 @@ QWidget#LadybirdVerticalTabsContentSeparator {{
     max-height: 1px;
 }}
 
-QWidget#LadybirdVerticalTabsSeparator {{
-    background: {8};
-    min-height: 1px;
-    max-height: 1px;
-}}
-
 QPushButton#LadybirdAudioState,
 QToolButton#LadybirdNewTabButton,
 QPushButton#LadybirdTabButton {{
