@@ -623,6 +623,10 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
         if (tile_size.is_empty())
             return {};
 
+        // Don't try to rasterize a tile the bitmap backend can't represent; PaintingSurface would abort.
+        if (Gfx::Bitmap::size_would_overflow(Gfx::BitmapFormat::BGRA8888, tile_size))
+            return {};
+
         auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
 
         auto const& tile_display_list = resource_storage().display_list_resource(paint_style.pattern_tile_display_list_id);

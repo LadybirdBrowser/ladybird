@@ -95,6 +95,7 @@ public:
     [[nodiscard]] size_t pitch() const { return m_pitch; }
 
     [[nodiscard]] static size_t minimum_pitch(size_t width, BitmapFormat);
+    [[nodiscard]] static bool size_would_overflow(BitmapFormat, IntSize);
 
     [[nodiscard]] bool has_alpha_channel() const { return m_format == BitmapFormat::BGRA8888 || m_format == BitmapFormat::RGBA8888; }
     [[nodiscard]] BitmapFormat format() const { return m_format; }

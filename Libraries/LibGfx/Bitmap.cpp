@@ -60,7 +60,7 @@ size_t Bitmap::minimum_pitch(size_t width, BitmapFormat format)
     return width * element_size;
 }
 
-static bool size_would_overflow(BitmapFormat format, IntSize size)
+bool Bitmap::size_would_overflow(BitmapFormat format, IntSize size)
 {
     if (size.width() < 0 || size.height() < 0)
         return true;
