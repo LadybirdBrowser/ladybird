@@ -1123,7 +1123,9 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_vertical_tab_bar_column = new QWidget(this);
     m_vertical_tab_bar_column->setObjectName("LadybirdVerticalTabBar");
+#if defined(AK_OS_MACOS)
     m_vertical_tab_bar_column->setAttribute(Qt::WA_NativeWindow);
+#endif
     m_vertical_tab_bar_column_layout = new QVBoxLayout(m_vertical_tab_bar_column);
     m_vertical_tab_bar_column->setProperty(VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY, false);
     m_vertical_tab_bar_column->setProperty(VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY, false);
@@ -1139,7 +1141,9 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_vertical_tabs_resize_handle = new QWidget(this);
     m_vertical_tabs_resize_handle->setObjectName("LadybirdVerticalTabsResizeHandle");
+#if defined(AK_OS_MACOS)
     m_vertical_tabs_resize_handle->setAttribute(Qt::WA_NativeWindow);
+#endif
     m_vertical_tabs_resize_handle->setCursor(Qt::SizeHorCursor);
     m_vertical_tabs_resize_handle->installEventFilter(this);
     m_vertical_tabs_resize_handle->hide();
