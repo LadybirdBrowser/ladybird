@@ -67,8 +67,9 @@ static constexpr int VERTICAL_TABS_COLLAPSED_SIDE_MARGIN = 6;
 static constexpr int VERTICAL_TABS_EXPANDED_SIDE_MARGIN = 5;
 static constexpr int VERTICAL_TABS_TOP_MARGIN = 8;
 static constexpr int TAB_CARD_SHAPE_HORIZONTAL_INSET = 5;
+static constexpr qreal HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET = 4.5;
 static constexpr int TAB_CARD_SHAPE_VERTICAL_INSET = 3;
-static constexpr int VERTICAL_TAB_CONTENT_HORIZONTAL_INSET = 8;
+static constexpr int TAB_CONTENT_HORIZONTAL_INSET = 8;
 static constexpr int VERTICAL_TABS_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 static constexpr int TAB_BUTTON_SIZE = 22;
 static constexpr int TAB_ICON_SIZE = 16;
@@ -150,6 +151,11 @@ static QRectF tab_card_shape_rect(QRectF const& rect)
     return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
 }
 
+static QRectF horizontal_tab_card_shape_rect(QRectF const& rect)
+{
+    return rect.adjusted(HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
+}
+
 static QRect tab_card_shape_rect(QRect const& rect)
 {
     return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_VERTICAL_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_VERTICAL_INSET);
@@ -229,7 +235,7 @@ private:
             painter.drawPath(tab_path);
         }
 
-        auto contents_rect = shape_rect.toAlignedRect().adjusted(VERTICAL_TAB_CONTENT_HORIZONTAL_INSET, 0, -VERTICAL_TAB_CONTENT_HORIZONTAL_INSET, 0);
+        auto contents_rect = shape_rect.toAlignedRect().adjusted(TAB_CONTENT_HORIZONTAL_INSET, 0, -TAB_CONTENT_HORIZONTAL_INSET, 0);
         auto icon_size = QSize(TAB_ICON_SIZE, TAB_ICON_SIZE);
         QRect icon_rect {
             expanded ? contents_rect.left() - ((icon_size.width() - TAB_ICON_SIZE) / 2) : rect().center().x() - (icon_size.width() / 2),
@@ -467,7 +473,7 @@ void TabBar::paintEvent(QPaintEvent*)
             continue;
         }
 
-        auto contents_rect = shape_rect.toAlignedRect().adjusted(is_vertical ? VERTICAL_TAB_CONTENT_HORIZONTAL_INSET : 16, 0, is_vertical ? -VERTICAL_TAB_CONTENT_HORIZONTAL_INSET : -14, 0);
+        auto contents_rect = shape_rect.toAlignedRect().adjusted(TAB_CONTENT_HORIZONTAL_INSET, 0, -TAB_CONTENT_HORIZONTAL_INSET, 0);
         if (auto* left_button = tabButton(index, QTabBar::LeftSide); left_button && left_button->isVisible())
             contents_rect.setLeft(max(contents_rect.left(), left_button->geometry().right() + 6));
         if (auto* right_button = tabButton(index, QTabBar::RightSide); right_button && right_button->isVisible())
@@ -484,7 +490,7 @@ void TabBar::paintEvent(QPaintEvent*)
                 painter.setOpacity(is_hovered ? 0.92 : (dark ? 0.88 : 0.84));
             icon.paint(&painter, icon_rect);
             painter.setOpacity(1.0);
-            contents_rect.setLeft(icon_rect.right() + (is_vertical ? 8 : 7));
+            contents_rect.setLeft(icon_rect.right() + 8);
         }
 
         QFont tab_font = font();
