@@ -24,7 +24,7 @@ jobs:
         toolchain: ['Clang']
         clang_plugins: [false]
         runner_labels: ['["blacksmith-8vcpu-ubuntu-2404-arm"]']
-        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.05.25"}']
+        container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.06.02"}']
 
         include:
           - os_name: 'Linux'
