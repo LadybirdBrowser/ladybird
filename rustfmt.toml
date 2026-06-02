@@ -3,4 +3,6 @@ hard_tabs = false
 tab_spaces = 4
 edition = "2024"
 style_edition = "2024"
-imports_granularity = "Item"
+
+# FIXME: Enable this setting once it lands in a stable version.
+# imports_granularity = "Item"
