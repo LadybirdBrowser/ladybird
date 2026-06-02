@@ -762,6 +762,8 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto strip_separator = dark ? background_bottom : control_border;
     auto sidebar_separator = style_sheet_color(mix(tab_strip_bottom, chrome_border(palette), dark ? 0.44 : 0.58));
     auto sidebar_separator_hover = style_sheet_color(mix(tab_strip_bottom, chrome_border(palette), dark ? 0.64 : 0.76));
+    auto vertical_tab_button_background_color = style_sheet_color(chrome_active_tab_surface_top(palette));
+
     return qformatted(R"(
 QWidget#LadybirdTabStrip {{
     color: {5};
@@ -814,6 +816,24 @@ QPushButton#LadybirdTabButton {{
     min-height: 22px;
     max-width: 22px;
     max-height: 22px;
+}}
+
+QPushButton#LadybirdAudioState[collapsedVerticalTabButton="true"] {{
+    min-width: 18px;
+    min-height: 18px;
+    max-width: 18px;
+    max-height: 18px;
+    border-radius: 9px;
+}}
+
+QPushButton#LadybirdTabButton[collapsedVerticalTabButton="true"] {{
+    min-width: 16px;
+    min-height: 16px;
+    max-width: 16px;
+    max-height: 16px;
+    background: {12};
+    border-color: {4};
+    border-radius: 8px;
 }}
 
 QPushButton#LadybirdAudioState:hover,
@@ -870,7 +890,7 @@ QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
 }}
 )",
         background, background_bottom, hover, pressed, control_border, text, close_hover, close_text, strip_separator,
-        sidebar_separator, sidebar_separator_hover, sidebar_background);
+        sidebar_separator, sidebar_separator_hover, sidebar_background, vertical_tab_button_background_color);
 }
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)
