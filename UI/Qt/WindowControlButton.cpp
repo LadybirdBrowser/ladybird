@@ -71,7 +71,7 @@ static bool window_control_group_hovered(QWidget const* widget)
 }
 #endif
 
-QSize WindowControlButton::default_size(QSize non_macos_size)
+static QSize default_window_control_button_size(QSize non_macos_size)
 {
 #if defined(AK_OS_MACOS)
     Q_UNUSED(non_macos_size);
@@ -81,7 +81,7 @@ QSize WindowControlButton::default_size(QSize non_macos_size)
 #endif
 }
 
-int WindowControlButton::default_spacing()
+static int default_window_control_button_spacing()
 {
 #if defined(AK_OS_MACOS)
     return 7;
@@ -142,10 +142,10 @@ WindowControlButtons create_window_control_buttons(QWidget& parent, char const* 
     container->setObjectName(object_name);
 
     auto* layout = new QHBoxLayout(container);
-    layout->setSpacing(WindowControlButton::default_spacing());
+    layout->setSpacing(default_window_control_button_spacing());
     layout->setContentsMargins(0, 0, 0, 0);
 
-    auto const button_size = WindowControlButton::default_size(non_macos_button_size);
+    auto const button_size = default_window_control_button_size(non_macos_button_size);
     auto* minimize = new WindowControlButton(WindowControlButtonType::Minimize, "Minimize", icon_size, button_size, container);
     auto* maximize = new WindowControlButton(WindowControlButtonType::Maximize, "Maximize", icon_size, button_size, container);
     auto* close = new WindowControlButton(WindowControlButtonType::Close, "Close", icon_size, button_size, container);

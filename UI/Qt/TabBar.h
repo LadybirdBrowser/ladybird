@@ -178,6 +178,7 @@ private:
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
     void rebuild_layout_for_vertical_tabs();
+    void rebuild_page_column();
     void update_toolbar_placement();
     void update_tab_toolbar_window_controls_visibility();
     int current_vertical_tabs_width() const;
@@ -188,7 +189,8 @@ private:
     void set_resize_handle_property(char const* property, bool enabled);
     void update_vertical_tabs_action_labels();
     void update_vertical_tabs_hover_layout();
-    void update_vertical_new_tab_button_geometry(int tab_width);
+    int vertical_tabs_tab_width() const;
+    void update_vertical_tabs_button_layout();
     void update_tab_layout();
     void update_tab_chrome_visibility();
     void recreate_icons();
@@ -210,8 +212,8 @@ private:
     QToolButton* m_close_window_button { nullptr };
     QWidget* m_window_controls { nullptr };
     QStackedWidget* m_toolbar_container { nullptr };
+    QWidget* m_page_column { nullptr };
     QWidget* m_tab_bar_row { nullptr };
-    QWidget* m_vertical_tabs_new_tab_separator { nullptr };
     QWidget* m_vertical_tabs_reserved_space { nullptr };
     QWidget* m_vertical_tab_bar_column { nullptr };
     QWidget* m_vertical_tabs_content_separator { nullptr };
@@ -220,6 +222,7 @@ private:
     QTimer* m_vertical_tabs_hover_collapse_timer { nullptr };
     QBoxLayout* m_main_layout { nullptr };
     QBoxLayout* m_tab_bar_row_layout { nullptr };
+    QBoxLayout* m_page_column_layout { nullptr };
     QBoxLayout* m_vertical_tab_bar_column_layout { nullptr };
     QBoxLayout* m_vertical_tabs_content_layout { nullptr };
     bool m_tab_bar_visible { true };
