@@ -207,6 +207,23 @@ public:
     }
 
 private:
+    bool is_hovered() const
+    {
+        return rect().contains(mapFromGlobal(QCursor::pos()));
+    }
+
+    virtual void enterEvent(QEnterEvent* event) override
+    {
+        QToolButton::enterEvent(event);
+        update();
+    }
+
+    virtual void leaveEvent(QEvent* event) override
+    {
+        QToolButton::leaveEvent(event);
+        update();
+    }
+
     virtual void paintEvent(QPaintEvent* event) override
     {
         if (!property(VERTICAL_TABS_BUTTON_PROPERTY).toBool()) {
@@ -224,12 +241,13 @@ private:
             ? tab_card_shape_rect(QRectF(rect()))
             : QRectF(rect()).adjusted(4.0, 3.0, -4.0, -3.0);
         auto tab_path = tab_shape_path(shape_rect, 9.0, 9.0);
+        auto hovered = is_hovered();
 
         if (isDown()) {
             painter.setBrush(ChromeStyle::chrome_surface_pressed(palette()));
             painter.setPen(QPen(ChromeStyle::chrome_control_border(palette()), 1));
             painter.drawPath(tab_path);
-        } else if (underMouse()) {
+        } else if (hovered) {
             painter.setBrush(tab_hover_surface(palette(), 1.0));
             painter.setPen(Qt::NoPen);
             painter.drawPath(tab_path);
@@ -252,7 +270,7 @@ private:
         contents_rect.setLeft(icon_rect.right() + 8);
 
         auto text_color = ChromeStyle::mix(ChromeStyle::chrome_button_text(palette()), ChromeStyle::chrome_muted_text(palette()), dark ? 0.26 : 0.40);
-        if (underMouse() || isDown())
+        if (hovered || isDown())
             text_color = ChromeStyle::chrome_button_text(palette());
         painter.setPen(text_color);
         auto text_font = m_tab_bar.font();
@@ -1608,9 +1626,9 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
 
     m_new_tab_button->setText({});
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
-    set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, false);
+    set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
     m_new_tab_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    m_new_tab_button->setFixedSize(32, 32);
+    m_new_tab_button->setFixedSize(vertical_tab_width(0, TabLayout::VerticalCollapsed), VERTICAL_TAB_HEIGHT);
     m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     if (use_left_traffic_light_window_controls()) {
