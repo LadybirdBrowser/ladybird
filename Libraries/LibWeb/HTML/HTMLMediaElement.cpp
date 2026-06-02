@@ -1806,12 +1806,16 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
     m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) mutable {
+        auto const* playback_manager_ptr = self.m_playback_manager.ptr();
+
         // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
         //     call forget_media_resource_specific_tracks().
-        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
+        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error), playback_manager_ptr = move(playback_manager_ptr)] {
             if (!self)
                 return;
             if (self->m_error)
+                return;
+            if (playback_manager_ptr != self->m_playback_manager.ptr())
                 return;
 
             // 1. The user agent should cancel the fetching process.
@@ -1826,8 +1830,14 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
     // -> If the media data is corrupted
     m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
-        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
+        auto const* playback_manager_ptr = self.m_playback_manager.ptr();
+
+        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error), playback_manager_ptr = move(playback_manager_ptr)] {
             if (!self)
+                return;
+            if (self->m_error)
+                return;
+            if (playback_manager_ptr != self->m_playback_manager.ptr())
                 return;
             self->set_decoder_error(MUST(String::from_utf8(error.description())));
         });
