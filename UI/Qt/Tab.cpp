@@ -93,6 +93,7 @@ static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
 static constexpr int TOOLBAR_VERTICAL_MARGIN = 2;
 static constexpr int TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP = 22;
 static constexpr int TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP = 8;
+static constexpr int TOOLBAR_LOCATION_EDIT_SIDE_GAP = 32;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
 
 Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
@@ -222,10 +223,17 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_toolbar_window_controls_spacer = new QSpacerItem(TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
         toolbar_layout->addItem(m_toolbar_window_controls_spacer);
     }
+    auto* location_edit_container = new QWidget(m_toolbar);
+    location_edit_container->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
+    auto* location_edit_layout = new QHBoxLayout(location_edit_container);
+    location_edit_layout->setSpacing(0);
+    location_edit_layout->setContentsMargins(TOOLBAR_LOCATION_EDIT_SIDE_GAP, 0, TOOLBAR_LOCATION_EDIT_SIDE_GAP, 0);
+
     toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignTop);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
-    toolbar_layout->addWidget(m_location_edit, 1);
+    location_edit_layout->addWidget(m_location_edit);
+    toolbar_layout->addWidget(location_edit_container, 1);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
     if (use_right_custom_window_controls()) {
         toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
