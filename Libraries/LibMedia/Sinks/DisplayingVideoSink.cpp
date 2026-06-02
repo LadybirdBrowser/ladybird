@@ -153,7 +153,11 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }
 
-    dispatch_state_if_changed(last_status);
+    // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
+    // an update is being processed.
+    Core::deferred_invoke([self = NonnullRefPtr(*this), last_status] {
+        self->dispatch_state_if_changed(last_status);
+    });
 
     return result;
 }
