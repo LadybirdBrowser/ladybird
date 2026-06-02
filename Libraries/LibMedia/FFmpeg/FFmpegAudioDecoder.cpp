@@ -169,48 +169,49 @@ DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
         auto channel_map = channel_map_result.release_value();
         auto sample_specification = Audio::SampleSpecification(m_frame->sample_rate, channel_map);
 
-        block.emplace(sample_specification, timestamp, [&](AudioBlock::Data& data) {
-            auto format = static_cast<AVSampleFormat>(m_frame->format);
-            auto is_planar = av_sample_fmt_is_planar(format) != 0;
-            auto planar_format = av_get_planar_sample_fmt(format);
+        auto format = static_cast<AVSampleFormat>(m_frame->format);
+        auto is_planar = av_sample_fmt_is_planar(format) != 0;
+        auto planar_format = av_get_planar_sample_fmt(format);
 
-            VERIFY(m_frame->nb_samples >= 0);
-            auto frame_count = static_cast<size_t>(m_frame->nb_samples);
-            auto channel_count = static_cast<size_t>(m_frame->ch_layout.nb_channels);
-            auto sample_count = frame_count * channel_count;
-            data.resize_and_keep_capacity(sample_count);
+        VERIFY(m_frame->nb_samples >= 0);
+        auto frame_count = static_cast<size_t>(m_frame->nb_samples);
+        auto channel_count = static_cast<size_t>(m_frame->ch_layout.nb_channels);
+        auto sample_count = frame_count * channel_count;
+        block.initialize(sample_specification, timestamp, frame_count);
 
-            auto sample_size = [&] {
-                switch (planar_format) {
-                case AV_SAMPLE_FMT_U8P:
-                    return sizeof(u8);
-                case AV_SAMPLE_FMT_S16P:
-                    return sizeof(i16);
-                case AV_SAMPLE_FMT_S32P:
-                    return sizeof(i32);
-                case AV_SAMPLE_FMT_FLTP:
-                    return sizeof(float);
-                case AV_SAMPLE_FMT_DBLP:
-                    return sizeof(double);
-                case AV_SAMPLE_FMT_S64P:
-                    return sizeof(i64);
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            }();
+        auto sample_size = [&] {
+            switch (planar_format) {
+            case AV_SAMPLE_FMT_U8P:
+                return sizeof(u8);
+            case AV_SAMPLE_FMT_S16P:
+                return sizeof(i16);
+            case AV_SAMPLE_FMT_S32P:
+                return sizeof(i32);
+            case AV_SAMPLE_FMT_FLTP:
+                return sizeof(float);
+            case AV_SAMPLE_FMT_DBLP:
+                return sizeof(double);
+            case AV_SAMPLE_FMT_S64P:
+                return sizeof(i64);
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }();
 
-            VERIFY(m_frame->linesize[0] > 0);
-            if (is_planar)
-                VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= frame_count * sample_size);
-            else
-                VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= sample_count * sample_size);
+        VERIFY(m_frame->linesize[0] > 0);
+        if (is_planar)
+            VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= frame_count * sample_size);
+        else
+            VERIFY(static_cast<size_t>(m_frame->linesize[0]) >= sample_count * sample_size);
 
-            for (size_t i = 0; i < sample_count; i++) {
+        for (size_t channel = 0; channel < channel_count; ++channel) {
+            auto channel_data = block.channel_data(channel);
+            for (size_t frame = 0; frame < frame_count; ++frame) {
                 size_t plane = 0;
-                size_t index_in_plane = i;
+                size_t index_in_plane = (frame * channel_count) + channel;
                 if (is_planar) {
-                    plane = i % channel_count;
-                    index_in_plane = i / channel_count;
+                    plane = channel;
+                    index_in_plane = frame;
                 }
 
                 auto float_sample = [&] {
@@ -231,9 +232,9 @@ DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
                         VERIFY_NOT_REACHED();
                     }
                 }();
-                data[i] = float_sample;
+                channel_data[frame] = float_sample;
             }
-        });
+        }
 
         return {};
     }

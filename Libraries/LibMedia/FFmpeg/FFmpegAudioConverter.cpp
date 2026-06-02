@@ -62,8 +62,8 @@ ErrorOr<void> FFmpegAudioConverter::set_sample_specifications(Audio::SampleSpeci
     auto output_sample_rate = static_cast<int>(output.sample_rate());
 
     auto allocation_result = swr_alloc_set_opts2(&m_context,
-        &output_channel_layout, AVSampleFormat::AV_SAMPLE_FMT_FLT, output_sample_rate,
-        &input_channel_layout, AVSampleFormat::AV_SAMPLE_FMT_FLT, input_sample_rate,
+        &output_channel_layout, AVSampleFormat::AV_SAMPLE_FMT_FLTP, output_sample_rate,
+        &input_channel_layout, AVSampleFormat::AV_SAMPLE_FMT_FLTP, input_sample_rate,
         0, nullptr);
     if (allocation_result < 0)
         return Error::from_string_view(av_error_code_to_string(allocation_result));
@@ -78,12 +78,15 @@ ErrorOr<void> FFmpegAudioConverter::set_sample_specifications(Audio::SampleSpeci
 
 void FFmpegAudioConverter::free_output_buffer()
 {
-    if (m_output_buffer == nullptr) {
+    if (m_output_buffers == nullptr) {
         VERIFY(m_output_buffer_frame_count == 0);
         return;
     }
-    av_freep(static_cast<void*>(&m_output_buffer));
-    VERIFY(m_output_buffer == nullptr);
+    // The output buffers is a pointer to an array of pointers to the same allocation, so we only want to free the
+    // at the first index, then free the array of pointers.
+    av_freep(static_cast<void*>(&m_output_buffers[0]));
+    av_freep(static_cast<void*>(&m_output_buffers));
+    VERIFY(m_output_buffers == nullptr);
     m_output_buffer_frame_count = 0;
 }
 
@@ -114,40 +117,41 @@ ErrorOr<void> FFmpegAudioConverter::convert(AudioBlock& input)
     VERIFY(m_input_sample_specification.is_valid());
     VERIFY(m_output_sample_specification.is_valid());
 
-    auto input_data = input.data();
-
     auto output_channel_count = m_output_sample_specification.channel_count();
-    auto output_frame_count = TRY(get_maximum_output_frames(input_data.size()));
+    auto output_frame_count = TRY(get_maximum_output_frames(input.sample_count()));
 
     if (output_frame_count > m_output_buffer_frame_count) {
         free_output_buffer();
-        auto alloc_samples_result = av_samples_alloc(&m_output_buffer, nullptr, output_channel_count, output_frame_count, AVSampleFormat::AV_SAMPLE_FMT_FLT, 0);
+        auto alloc_samples_result = av_samples_alloc_array_and_samples(&m_output_buffers, nullptr, output_channel_count, output_frame_count, AVSampleFormat::AV_SAMPLE_FMT_FLTP, 0);
         if (alloc_samples_result < 0)
             return Error::from_string_view(av_error_code_to_string(alloc_samples_result));
-        VERIFY(m_output_buffer != nullptr);
+        VERIFY(m_output_buffers != nullptr);
         m_output_buffer_frame_count = output_frame_count;
     }
 
-    auto const* input_buffer = input_data.reinterpret<u8 const>().data();
     // The input buffer size should already be safe to cast to int here.
-    auto input_frame_count = static_cast<int>(input_data.size() / m_input_sample_specification.channel_count());
+    auto input_frame_count = static_cast<int>(input.frame_count());
     VERIFY(input_frame_count >= 0);
 
-    auto converted_frames_result = swr_convert(m_context, &m_output_buffer, m_output_buffer_frame_count, &input_buffer, input_frame_count);
+    Array<u8 const*, Audio::ChannelMap::capacity()> input_buffers;
+    for (size_t channel = 0; channel < input.channel_count(); channel++)
+        input_buffers[channel] = input.channel_data(channel).reinterpret<u8 const>().data();
+
+    auto converted_frames_result = swr_convert(m_context, m_output_buffers, m_output_buffer_frame_count, input_buffers.data(), input_frame_count);
     if (converted_frames_result < 0)
         return Error::from_string_view(av_error_code_to_string(converted_frames_result));
     VERIFY(converted_frames_result <= m_output_buffer_frame_count);
     auto converted_frames = static_cast<size_t>(converted_frames_result);
 
-    input.emplace(m_output_sample_specification, input.timestamp(), [&](AudioBlock::Data& data) {
-        data.resize_and_keep_capacity(converted_frames * output_channel_count);
-        AK::TypedTransfer<float>::copy(data.data(), reinterpret_cast<float*>(m_output_buffer), data.size());
-    });
+    input.initialize(m_output_sample_specification, input.timestamp(), converted_frames);
+    for (size_t channel = 0; channel < output_channel_count; channel++)
+        AK::TypedTransfer<float>::copy(input.channel_data(channel).data(), reinterpret_cast<float*>(m_output_buffers[channel]), converted_frames);
     return {};
 }
 
 FFmpegAudioConverter::~FFmpegAudioConverter()
 {
+    free_output_buffer();
     swr_free(&m_context);
 }
 

@@ -35,7 +35,7 @@ private:
     Audio::SampleSpecification m_input_sample_specification;
     Audio::SampleSpecification m_output_sample_specification;
     SwrContext* m_context { nullptr };
-    u8* m_output_buffer { nullptr };
+    u8** m_output_buffers { nullptr };
     int m_output_buffer_frame_count { 0 };
 };
 
