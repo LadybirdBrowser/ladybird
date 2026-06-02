@@ -74,6 +74,7 @@ constexpr StringView test_result_to_string(TestResult result)
 }
 
 enum class RefTestExpectationType {
+    None, // Test did not specify an expection file
     Match,
     Mismatch,
 };
@@ -100,7 +101,7 @@ struct Test {
     bool did_inject_js { false };
     bool did_check_variants { false };
 
-    Optional<RefTestExpectationType> ref_test_expectation_type {};
+    RefTestExpectationType ref_test_expectation_type {};
     Optional<URL::URL> ref_test_expectation_url {};
     Vector<FuzzyMatch> fuzzy_matches {};
 
