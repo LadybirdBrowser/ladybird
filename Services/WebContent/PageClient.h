@@ -46,6 +46,7 @@ public:
 
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
+    virtual bool has_focus() const override { return m_has_focus; }
 
     ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_endpoint);
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
@@ -234,7 +235,7 @@ private:
     double m_zoom_level { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
     u64 m_id { 0 };
-    bool m_has_focus { false };
+    bool m_has_focus { true };
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::NoPreference };

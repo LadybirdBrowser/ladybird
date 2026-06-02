@@ -964,6 +964,7 @@ public:
 
     InputEventsTarget* active_input_events_target(DOM::Node const* for_node = nullptr);
     GC::Ptr<DOM::Position> cursor_position() const;
+    void set_cursor_position_needs_repaint();
 
     bool cursor_blink_state() const { return m_cursor_blink_state; }
 

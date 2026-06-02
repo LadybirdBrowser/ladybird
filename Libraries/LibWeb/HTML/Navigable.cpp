@@ -3238,6 +3238,8 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
 
 bool Navigable::is_focused() const
 {
+    if (!m_page->client().has_focus())
+        return false;
     return &m_page->focused_navigable() == this;
 }
 

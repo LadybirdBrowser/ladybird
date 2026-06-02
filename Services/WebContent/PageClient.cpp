@@ -125,7 +125,16 @@ ConnectionFromClient& PageClient::client() const
 
 void PageClient::set_has_focus(bool has_focus)
 {
+    if (m_has_focus == has_focus)
+        return;
+
     m_has_focus = has_focus;
+
+    if (auto document = page().top_level_traversable()->active_document()) {
+        if (has_focus)
+            document->reset_cursor_blink_cycle();
+        document->set_cursor_position_needs_repaint();
+    }
 }
 
 void PageClient::setup_palette()
