@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Badge.h>
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
@@ -1476,7 +1477,12 @@ private:
     Vector<TagType> m_tags;
 };
 
-class WASM_API Module : public RefCounted<Module>
+enum class CompileToNative : u8 {
+    No,
+    Yes,
+};
+
+class WASM_API Module : public AtomicRefCounted<Module>
     , public Weakable<Module> {
 public:
     enum class ValidationStatus {
@@ -1523,6 +1529,25 @@ public:
     ValidationStatus validation_status() const { return m_validation_status; }
     StringView validation_error() const LIFETIME_BOUND { return *m_validation_error; }
     void set_validation_error(ByteString error) { m_validation_error = move(error); }
+    bool has_attempted_cranelift_compilation() const { return m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) == 2; }
+    void set_has_attempted_cranelift_compilation(bool value) const
+    {
+        m_cranelift_compilation_state.store(value ? 2 : 0, AK::MemoryOrder::memory_order_release);
+    }
+    bool try_begin_cranelift_compilation() const
+    {
+        u8 not_started = 0;
+        return m_cranelift_compilation_state.compare_exchange_strong(not_started, 1, AK::MemoryOrder::memory_order_acq_rel);
+    }
+    void finish_cranelift_compilation() const
+    {
+        m_cranelift_compilation_state.store(2, AK::MemoryOrder::memory_order_release);
+    }
+    void wait_for_cranelift_compilation() const
+    {
+        while (m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) == 1)
+            AK::atomic_pause();
+    }
 
     static ParseResult<NonnullRefPtr<Module>> parse(Stream& stream);
 
@@ -1550,11 +1575,14 @@ private:
 
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;
+    mutable Atomic<u8> m_cranelift_compilation_state { 0 };
 
     size_t m_minimum_call_record_allocation_size { 0 };
 };
 
 CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);
+ErrorOr<void, ValidationError> ensure_cranelift_compiled(Module&);
+WASM_API void start_cranelift_compilation(Module&);
 bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity = 0);
 void flush_cranelift_batch();
 void discard_cranelift_batch();

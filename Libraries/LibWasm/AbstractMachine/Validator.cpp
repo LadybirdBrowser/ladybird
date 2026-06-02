@@ -18,7 +18,8 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
 {
     // Pre-emptively make invalid. The module will be set to `Valid` at the end
     // of validation.
-    module.set_validation_status(Module::ValidationStatus::Invalid, {});
+    if (m_updates_module_validation_status)
+        module.set_validation_status(Module::ValidationStatus::Invalid, {});
 
     // Note: The spec performs this after populating the context, but there's no real reason to do so,
     //       as this has no dependency.
@@ -152,8 +153,39 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     for (auto& entry : module.code_section().functions())
         module.set_minimum_call_record_allocation_size(max(entry.func().body().compiled_instructions.max_call_rec_size, module.minimum_call_record_allocation_size()));
 
-    module.set_validation_status(Module::ValidationStatus::Valid, {});
+    if (m_updates_module_validation_status)
+        module.set_validation_status(Module::ValidationStatus::Valid, {});
     return {};
+}
+
+ErrorOr<void, ValidationError> ensure_cranelift_compiled(Module& module)
+{
+    if (!module.try_begin_cranelift_compilation()) {
+        module.wait_for_cranelift_compilation();
+        return {};
+    }
+
+    if (module.validation_status() == Module::ValidationStatus::Invalid) {
+        module.finish_cranelift_compilation();
+        return ValidationError { module.validation_error() };
+    }
+
+    Validator validator;
+    validator.set_updates_module_validation_status(false);
+    auto result = validator.validate(module);
+    if (result.is_error()) {
+        module.set_validation_error(result.error().error_string);
+        module.finish_cranelift_compilation();
+        return result.release_error();
+    }
+
+    module.finish_cranelift_compilation();
+    return {};
+}
+
+void start_cranelift_compilation(Module& module)
+{
+    (void)ensure_cranelift_compiled(module);
 }
 
 ErrorOr<void, ValidationError> Validator::validate(ImportSection const& section)
@@ -273,7 +305,7 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
     bool capturing = false;
     bool validation_succeeded = false;
 
-    if (m_cache_config.has_value()) {
+    if (m_compile_to_native == CompileToNative::Yes && m_cache_config.has_value()) {
         auto hash = ReadonlyBytes { m_cache_config->wasm_hash.data(), 32 };
         if (!m_cache_config->existing_blob.is_empty())
             installing = try_install_cranelift_cache_blob(hash, m_cache_config->existing_blob);
@@ -338,6 +370,7 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         auto& function = entry.func();
 
         auto function_validator = fork();
+        function_validator.set_compile_to_native(m_compile_to_native);
         function_validator.m_context.locals = {};
         function_validator.m_context.locals.extend(function_type.parameters());
         function_validator.m_context.current_function_parameter_count = function_type.parameters().size();
@@ -4463,7 +4496,7 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
     expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span());
 
     // Optionally compile with Cranelift (skip constant expressions and unsupported types).
-    if (expression.compiled_instructions.direct && !is_constant_expression) {
+    if (m_compile_to_native == CompileToNative::Yes && expression.compiled_instructions.direct && !is_constant_expression) {
         bool has_unsupported_types = false;
         for (auto& type : m_context.locals) {
             if (type.is_reference() || type.kind() == ValueType::V128) {

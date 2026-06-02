@@ -421,7 +421,7 @@ ExceptionInstance* Store::get(ExceptionAddress address)
     return &m_exceptions[value];
 }
 
-ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module, Optional<CompileCacheConfig> cache_config)
+ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module, Optional<CompileCacheConfig> cache_config, CompileToNative compile_to_native)
 {
     if (module.validation_status() != Module::ValidationStatus::Unchecked) {
         if (module.validation_status() == Module::ValidationStatus::Valid)
@@ -433,11 +433,14 @@ ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module, Optiona
     Validator validator;
     if (cache_config.has_value())
         validator.set_cache_config(cache_config.release_value());
+    validator.set_compile_to_native(compile_to_native);
     auto result = validator.validate(module);
     if (result.is_error()) {
         module.set_validation_error(result.error().error_string);
         return result.release_error();
     }
+    if (compile_to_native == CompileToNative::Yes)
+        module.set_has_attempted_cranelift_compilation(true);
 
     return {};
 }

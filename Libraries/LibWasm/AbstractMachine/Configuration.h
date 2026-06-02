@@ -175,25 +175,7 @@ public:
 
     void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
     ErrorOr<Optional<HostFunction&>, Trap> prepare_call(FunctionAddress, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall = false);
-    ALWAYS_INLINE ErrorOr<void, Trap> prepare_wasm_call(WasmFunction const& wasm_function, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall = false)
-    {
-        if (is_tailcall)
-            unwind_impl();
-
-        arguments.ensure_capacity(arguments.size() + wasm_function.code().func().total_local_count());
-        for (auto const& local : wasm_function.code().func().locals()) {
-            for (size_t i = 0; i < local.n(); ++i)
-                arguments.unchecked_append(Value(local.type()));
-        }
-
-        set_frame(
-            is_tailcall ? IsTailcall::Yes : IsTailcall::No,
-            wasm_function.module(),
-            move(arguments),
-            wasm_function.code().func().body(),
-            wasm_function.type().results().size());
-        return {};
-    }
+    ErrorOr<void, Trap> prepare_wasm_call(WasmFunction const& wasm_function, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall = false);
     Result call(Interpreter&, FunctionAddress, Vector<Value, ArgumentsStaticSize>& arguments);
     Result execute(Interpreter&);
     ErrorOr<void, Trap> execute_for_compiled_call(Interpreter&, Value* single_result = nullptr);

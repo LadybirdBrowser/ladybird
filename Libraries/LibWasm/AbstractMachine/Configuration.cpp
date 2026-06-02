@@ -7,6 +7,7 @@
 #include <AK/MemoryStream.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/AbstractMachine/Interpreter.h>
+#include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/Printer/Printer.h>
 
 namespace Wasm {
@@ -60,6 +61,31 @@ ErrorOr<Optional<HostFunction&>, Trap> Configuration::prepare_call(FunctionAddre
     }
 
     return function->get<HostFunction>();
+}
+
+ErrorOr<void, Trap> Configuration::prepare_wasm_call(WasmFunction const& wasm_function, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall)
+{
+    if (auto module = wasm_function.module_ref()) {
+        if (auto result = ensure_cranelift_compiled(const_cast<Module&>(*module)); result.is_error())
+            return Trap::from_string(ByteString::formatted("Cranelift compilation failed: {}", result.error().error_string));
+    }
+
+    if (is_tailcall)
+        unwind_impl();
+
+    arguments.ensure_capacity(arguments.size() + wasm_function.code().func().total_local_count());
+    for (auto const& local : wasm_function.code().func().locals()) {
+        for (size_t i = 0; i < local.n(); ++i)
+            arguments.unchecked_append(Value(local.type()));
+    }
+
+    set_frame(
+        is_tailcall ? IsTailcall::Yes : IsTailcall::No,
+        wasm_function.module(),
+        move(arguments),
+        wasm_function.code().func().body(),
+        wasm_function.type().results().size());
+    return {};
 }
 
 Result Configuration::execute(Interpreter& interpreter)
