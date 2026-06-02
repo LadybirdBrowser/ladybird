@@ -135,23 +135,8 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     }
     invalidation.repaint = true;
 
-    // Transform, perspective, clip, clip-path, effects, and background-attachment properties require rebuilding AccumulatedVisualContext tree.
-    if (AK::first_is_one_of(property_id,
-            CSS::PropertyID::Transform,
-            CSS::PropertyID::Rotate,
-            CSS::PropertyID::Scale,
-            CSS::PropertyID::Translate,
-            CSS::PropertyID::Perspective,
-            CSS::PropertyID::TransformOrigin,
-            CSS::PropertyID::PerspectiveOrigin,
-            CSS::PropertyID::Clip,
-            CSS::PropertyID::ClipPath,
-            CSS::PropertyID::Opacity,
-            CSS::PropertyID::MixBlendMode,
-            CSS::PropertyID::Filter,
-            CSS::PropertyID::BackgroundAttachment)) {
+    if (CSS::property_affects_accumulated_visual_contexts(property_id))
         invalidation.rebuild_accumulated_visual_contexts = true;
-    }
 
     return invalidation;
 }
