@@ -374,6 +374,10 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
 void LocationEdit::focusOutEvent(QFocusEvent* event)
 {
     QLineEdit::focusOutEvent(event);
+
+    if (event->reason() == Qt::PopupFocusReason)
+        return;
+
     animate_focus_glow(0);
 
     reset_autocomplete_state();
