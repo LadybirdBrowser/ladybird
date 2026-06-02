@@ -1541,6 +1541,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         warnln("Run once with --rebaseline, or drop --rebaseline when repeating.");
         return 1;
     }
+
+    if (app->test_root_path.is_empty()) {
+        warnln("Error: --test-path must be passed to specify the location of the tests.");
+        return 1;
+    }
+
     Core::EventLoop::register_signal(SIGINT, TestWeb::handle_signal);
     Core::EventLoop::register_signal(SIGTERM, TestWeb::handle_signal);
 
@@ -1549,8 +1555,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto const& browser_options = TestWeb::Application::browser_options();
     Web::DevicePixelSize window_size { browser_options.window_width, browser_options.window_height };
-
-    VERIFY(!app->test_root_path.is_empty());
 
     app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
 
