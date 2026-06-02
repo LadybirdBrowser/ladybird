@@ -7,6 +7,7 @@
  */
 
 #include <AK/Base64.h>
+#include <AK/Platform.h>
 #include <LibWebView/Autocomplete.h>
 #include <UI/Qt/Autocomplete.h>
 #include <UI/Qt/ChromeStyle.h>
@@ -359,6 +360,11 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
     // it never causes the address bar to lose keyboard focus.
     m_popup = new QFrame();
     m_popup->setObjectName("LadybirdAutocompletePopup");
+#if defined(AK_OS_MACOS)
+    // The web content view is a native QRhiWidget on macOS, so the popup must
+    // also be native to receive mouse events while overlapping it.
+    m_popup->setAttribute(Qt::WA_NativeWindow);
+#endif
     m_popup->setFocusPolicy(Qt::NoFocus);
     m_popup->setFrameShape(QFrame::StyledPanel);
     m_popup->setFrameShadow(QFrame::Raised);
@@ -462,6 +468,7 @@ void Autocomplete::show_with_suggestions(Vector<WebView::AutocompleteSuggestion>
     position_popup();
     if (!m_popup->isVisible())
         m_popup->show();
+    m_popup->raise();
 
     int table_row = m_model->table_row_for_suggestion_index(selected_suggestion_index);
     if (table_row == -1)
@@ -510,6 +517,7 @@ bool Autocomplete::select_next_suggestion()
     if (!m_popup->isVisible()) {
         position_popup();
         m_popup->show();
+        m_popup->raise();
         int row = step_to_selectable_row(-1, 1);
         if (row != -1)
             select_row(row);
@@ -532,6 +540,7 @@ bool Autocomplete::select_previous_suggestion()
     if (!m_popup->isVisible()) {
         position_popup();
         m_popup->show();
+        m_popup->raise();
         int row = step_to_selectable_row(0, -1);
         if (row != -1)
             select_row(row);
