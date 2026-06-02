@@ -8319,6 +8319,12 @@ void Document::reset_cursor_blink_cycle()
         m_cursor_blink_timer->restart();
 }
 
+void Document::set_cursor_position_needs_repaint()
+{
+    if (auto position = cursor_position())
+        position->node()->set_needs_repaint();
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document
 GC::Ptr<DOM::Document> Document::container_document() const
 {
