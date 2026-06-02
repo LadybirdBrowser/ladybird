@@ -1533,26 +1533,14 @@ int TabWidget::vertical_tabs_layout_width() const
     return m_vertical_tabs_expanded ? m_vertical_tabs_expanded_width : VERTICAL_TABS_COLLAPSED_WIDTH;
 }
 
-bool TabWidget::uses_full_width_toolbar_for_current_layout() const
-{
-    return m_vertical_tabs_enabled
-        && current_tab_layout() != TabLayout::Horizontal;
-}
-
 bool TabWidget::should_show_window_controls_in_tab_toolbar() const
 {
-    if (!m_window_controls_visible)
-        return false;
-
-    if (browser_chrome_layout_policy().controls_placement == WindowControlsPlacement::RightCustomControls)
-        return m_tab_bar->tab_layout() != TabLayout::Horizontal;
-
-    return uses_full_width_toolbar_for_current_layout();
+    return m_window_controls_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal;
 }
 
 void TabWidget::update_toolbar_placement()
 {
-    auto use_full_width_toolbar = uses_full_width_toolbar_for_current_layout();
+    auto use_full_width_toolbar = current_tab_layout() != TabLayout::Horizontal;
 
     for (int index = 0; index < m_stacked_widget->count(); ++index) {
         auto* current_tab = tab(index);
@@ -1584,18 +1572,11 @@ void TabWidget::rebuild_layout()
 
     if (m_tab_bar->tab_layout() != TabLayout::Horizontal) {
         rebuild_layout_for_vertical_tabs();
-        auto use_full_width_toolbar = uses_full_width_toolbar_for_current_layout();
-
-        if (use_full_width_toolbar) {
-            m_main_layout->addWidget(m_toolbar_container);
-            m_page_column->hide();
-        } else {
-            rebuild_page_column();
-            m_page_column->show();
-        }
+        m_main_layout->addWidget(m_toolbar_container);
+        m_page_column->hide();
 
         m_vertical_tabs_content_layout->addWidget(m_vertical_tabs_reserved_space);
-        m_vertical_tabs_content_layout->addWidget(use_full_width_toolbar ? static_cast<QWidget*>(m_stacked_widget) : m_page_column, 1);
+        m_vertical_tabs_content_layout->addWidget(m_stacked_widget, 1);
         m_main_layout->addWidget(m_vertical_tabs_content, 1);
         m_vertical_tabs_content->show();
     } else {
@@ -1720,7 +1701,7 @@ void TabWidget::update_vertical_tabs_resize_handle()
 
 void TabWidget::update_vertical_tabs_content_separator()
 {
-    auto show_content_separator = m_tab_bar_visible && uses_full_width_toolbar_for_current_layout();
+    auto show_content_separator = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal;
     m_vertical_tabs_content_separator->setVisible(show_content_separator);
     if (!show_content_separator)
         return;
@@ -1847,7 +1828,7 @@ void TabWidget::update_tab_chrome_visibility()
 
     auto show_window_controls = m_window_controls_visible
         && m_tab_bar_visible
-        && (is_horizontal || (browser_chrome_layout_policy().controls_placement == WindowControlsPlacement::LeftTrafficLights && m_vertical_tabs_expanded && !uses_full_width_toolbar_for_current_layout()));
+        && is_horizontal;
     m_window_controls->setVisible(show_window_controls);
 }
 

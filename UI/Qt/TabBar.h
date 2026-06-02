@@ -172,7 +172,6 @@ private:
     bool can_expand_vertical_tabs_on_hover() const;
     bool cursor_is_over_vertical_tabs() const;
     int vertical_tabs_layout_width() const;
-    bool uses_full_width_toolbar_for_current_layout() const;
     bool should_show_window_controls_in_tab_toolbar() const;
 
     void rebuild_layout();
