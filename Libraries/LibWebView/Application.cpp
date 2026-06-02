@@ -449,7 +449,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         URL::set_file_scheme_urls_have_tuple_origins();
 
-    TRY(load_content_blocker_lists());
+    if (auto result = load_content_blocker_lists(); result.is_error()) {
+        warnln("\033[31;1mUnable to load all content blocker lists:\033[0m {}", result.error());
+        warnln("    Configured lists: {}", m_browser_options.content_blocker_list_paths);
+    }
 
     initialize_actions();
 
