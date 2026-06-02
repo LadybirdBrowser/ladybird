@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    x-scroller {
+        display: block;
+        overflow: scroll;
+        width: 100px;
+        height: 100px;
+    }
+    x-scroller .content {
+        height: 1000px;
+    }
+</style>
+<div id="outer"></div>
+<script>
+    class XScroller extends HTMLElement {
+        disconnectedCallback() {
+            internals.gc();
+            this.getBoundingClientRect();
+        }
+    }
+    customElements.define("x-scroller", XScroller);
+
+    const scroller = document.createElement("x-scroller");
+    scroller.innerHTML = `<div class="content"></div>`;
+    document.getElementById("outer").appendChild(scroller);
+
+    scroller.getBoundingClientRect();
+
+    scroller.scrollTop = 50;
+
+    scroller.remove();
+</script>

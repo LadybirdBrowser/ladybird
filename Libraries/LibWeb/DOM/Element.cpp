@@ -1613,6 +1613,9 @@ Vector<CSSPixelRect> Element::get_client_rects() const
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<Document&>(document()).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementGetClientRects);
 
+    if (!layout_node())
+        return {};
+
     // NOTE: Make sure CSS transforms are resolved before they are used to calculate the rect position.
     const_cast<Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
