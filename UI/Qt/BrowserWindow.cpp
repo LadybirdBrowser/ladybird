@@ -18,6 +18,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/DevToolsBanner.h>
 #include <UI/Qt/Icon.h>
@@ -362,13 +363,15 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     view_menu->addMenu(create_application_menu(*view_menu, Application::the().motion_menu()));
     view_menu->addSeparator();
 
-    auto* show_menubar = new QAction("Show &Menubar", this);
-    show_menubar->setCheckable(true);
-    show_menubar->setChecked(Settings::the()->show_menubar());
-    view_menu->addAction(show_menubar);
-    QObject::connect(show_menubar, &QAction::triggered, this, [](bool checked) {
-        Settings::the()->set_show_menubar(checked);
-    });
+    if (show_menubar_option_available()) {
+        auto* show_menubar = new QAction("Show &Menubar", this);
+        show_menubar->setCheckable(true);
+        show_menubar->setChecked(Settings::the()->show_menubar());
+        view_menu->addAction(show_menubar);
+        QObject::connect(show_menubar, &QAction::triggered, this, [](bool checked) {
+            Settings::the()->set_show_menubar(checked);
+        });
+    }
 
     m_bookmarks_menu = create_application_menu(*this, Application::the().bookmarks_menu());
     m_hamburger_menu->addMenu(m_bookmarks_menu);
@@ -896,21 +899,14 @@ void BrowserWindow::update_tab_button_icons()
 
 void BrowserWindow::create_menu_bar_window_controls()
 {
-    m_menu_bar_window_controls = new QWidget(menuBar());
-    m_menu_bar_window_controls->setObjectName("LadybirdMenuBarWindowControls");
+    if (use_left_traffic_light_window_controls())
+        return;
 
-    auto* layout = new QHBoxLayout(m_menu_bar_window_controls);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
-
-    m_menu_bar_minimize_window_button = new WindowControlButton("LadybirdWindowButton", "Minimize", { 16, 16 }, { 40, 30 }, m_menu_bar_window_controls);
-    m_menu_bar_maximize_window_button = new WindowControlButton("LadybirdWindowButton", "Maximize", { 16, 16 }, { 40, 30 }, m_menu_bar_window_controls);
-    m_menu_bar_close_window_button = new WindowControlButton("LadybirdCloseWindowButton", "Close", { 16, 16 }, { 40, 30 }, m_menu_bar_window_controls);
-
-    layout->addWidget(m_menu_bar_minimize_window_button);
-    layout->addWidget(m_menu_bar_maximize_window_button);
-    layout->addWidget(m_menu_bar_close_window_button);
-
+    auto window_control_buttons = create_window_control_buttons(*menuBar(), "LadybirdMenuBarWindowControls", { 16, 16 }, { 40, 30 });
+    m_menu_bar_window_controls = window_control_buttons.container;
+    m_menu_bar_minimize_window_button = window_control_buttons.minimize;
+    m_menu_bar_maximize_window_button = window_control_buttons.maximize;
+    m_menu_bar_close_window_button = window_control_buttons.close;
     menuBar()->setCornerWidget(m_menu_bar_window_controls, Qt::TopRightCorner);
 
     connect(m_menu_bar_minimize_window_button, &QToolButton::clicked, this, [this] {
@@ -965,6 +961,10 @@ bool BrowserWindow::start_window_move()
     auto* handle = windowHandle();
     if (!handle)
         return false;
+#if defined(AK_OS_MACOS)
+    if (start_appkit_window_drag(*this))
+        return true;
+#endif
     return handle->startSystemMove();
 }
 
@@ -1306,11 +1306,11 @@ void BrowserWindow::config_variable_changed(WebView::ConfigVariableID variable)
 void BrowserWindow::update_window_corners()
 {
     auto should_use_rounded_corners = WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseRoundedWindowCorners);
-    auto should_round_window = should_use_rounded_corners && !isMaximized() && !isFullScreen();
+    auto should_round_window = should_use_rounded_corners && !isFullScreen();
 
 #if defined(AK_OS_MACOS)
     clearMask();
-    set_rounded_window_corners(*this, should_round_window, WINDOW_CORNER_RADIUS);
+    set_rounded_window_corners(*this, should_round_window, WINDOW_CORNER_RADIUS, ChromeStyle::chrome_background(palette()));
 #else
     clearMask();
     (void)should_round_window;

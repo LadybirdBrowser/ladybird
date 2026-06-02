@@ -13,6 +13,7 @@
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
@@ -90,6 +91,8 @@ static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
 
 static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
 static constexpr int TOOLBAR_VERTICAL_MARGIN = 2;
+static constexpr int TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP = 22;
+static constexpr int TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP = 8;
 static constexpr int TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN = 4;
 
 Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
@@ -117,7 +120,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     m_toolbar = new QWidget(this);
     m_toolbar->setObjectName("LadybirdNavigationToolbar");
-    m_toolbar->setFixedHeight(42);
+    m_toolbar->setFixedHeight(browser_chrome_layout_policy().toolbar_height);
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
 
     auto* toolbar_container_layout = new QVBoxLayout(m_toolbar_container);
@@ -177,19 +180,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar_window_controls_separator->setObjectName("LadybirdToolbarWindowControlsSeparator");
     m_toolbar_window_controls_separator->setFixedSize(1, 22);
 
-    m_toolbar_window_controls = new QWidget(m_toolbar);
-    m_toolbar_window_controls->setObjectName("LadybirdToolbarWindowControls");
-    auto* window_controls_layout = new QHBoxLayout(m_toolbar_window_controls);
-    window_controls_layout->setSpacing(0);
-    window_controls_layout->setContentsMargins(0, 0, 0, 0);
-
-    m_minimize_window_button = new WindowControlButton("LadybirdWindowButton", "Minimize", { 16, 16 }, { 38, 38 }, m_toolbar_window_controls);
-    m_maximize_window_button = new WindowControlButton("LadybirdWindowButton", "Maximize", { 16, 16 }, { 38, 38 }, m_toolbar_window_controls);
-    m_close_window_button = new WindowControlButton("LadybirdCloseWindowButton", "Close", { 16, 16 }, { 38, 38 }, m_toolbar_window_controls);
-
-    window_controls_layout->addWidget(m_minimize_window_button);
-    window_controls_layout->addWidget(m_maximize_window_button);
-    window_controls_layout->addWidget(m_close_window_button);
+    auto window_control_buttons = create_window_control_buttons(*m_toolbar, "LadybirdToolbarWindowControls", { 16, 16 }, { 38, 38 });
+    m_toolbar_window_controls = window_control_buttons.container;
+    m_minimize_window_button = window_control_buttons.minimize;
+    m_maximize_window_button = window_control_buttons.maximize;
+    m_close_window_button = window_control_buttons.close;
 
     QObject::connect(m_minimize_window_button, &QToolButton::clicked, this, [this] {
         m_window->showMinimized();
@@ -212,24 +207,34 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_media_context_menu = create_context_menu(*this, view(), view().media_context_menu());
 
     auto* navigation_button_cluster = new QWidget(m_toolbar);
+    navigation_button_cluster->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
     navigation_button_layout->setSpacing(2);
     navigation_button_layout->setContentsMargins(0, 0, 0, 0);
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_toggle_vertical_tabs_expanded_action));
+    m_sidebar_toggle_navigation_spacer = new QSpacerItem(0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+    navigation_button_layout->addItem(m_sidebar_toggle_navigation_spacer);
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_back_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action));
     navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
 
+    if (use_left_traffic_light_window_controls()) {
+        toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
+        m_toolbar_window_controls_spacer = new QSpacerItem(TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+        toolbar_layout->addItem(m_toolbar_window_controls_spacer);
+    }
     toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignTop);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     toolbar_layout->addWidget(m_location_edit, 1);
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
-    toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
-    toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
+    if (use_right_custom_window_controls()) {
+        toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
+        toolbar_layout->addWidget(m_toolbar_window_controls, 0, Qt::AlignVCenter);
+    }
 
     update_chrome_style();
-    set_toolbar_window_controls_visible(!Settings::the()->show_menubar() && WebView::Application::settings().tab_settings().vertical_tabs_enabled);
+    set_toolbar_window_controls_visible(false);
 
     m_hamburger_button->setVisible(!Settings::the()->show_menubar());
 
@@ -578,14 +583,43 @@ void Tab::set_window(BrowserWindow& window)
 
 void Tab::set_vertical_tabs_enabled(bool enabled)
 {
-    m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, enabled);
+    m_toolbar->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
+    if (m_sidebar_toggle_navigation_spacer)
+        m_sidebar_toggle_navigation_spacer->changeSize(enabled ? TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+    m_toolbar->layout()->invalidate();
+}
+
+void Tab::set_toolbar_container_in_tab_layout(bool in_tab_layout)
+{
+    auto* tab_layout = static_cast<QBoxLayout*>(layout());
+    auto index = tab_layout->indexOf(m_toolbar_container);
+
+    if (in_tab_layout) {
+        if (index == -1) {
+            m_toolbar_container->setParent(this);
+            tab_layout->insertWidget(0, m_toolbar_container);
+        }
+        m_toolbar_container->show();
+        return;
+    }
+
+    if (index != -1) {
+        tab_layout->removeWidget(m_toolbar_container);
+        m_toolbar_container->hide();
+    }
 }
 
 void Tab::set_toolbar_window_controls_visible(bool visible)
 {
-    m_toolbar_window_controls_separator->setVisible(visible);
-    m_toolbar_window_controls->setVisible(visible);
-    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, visible ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
+    auto const has_left_traffic_lights = use_left_traffic_light_window_controls() && visible;
+    auto const has_trailing_window_controls = use_right_custom_window_controls() && visible;
+
+    m_toolbar_window_controls_separator->setVisible(has_trailing_window_controls);
+    m_toolbar_window_controls->setVisible(has_left_traffic_lights || has_trailing_window_controls);
+    if (m_toolbar_window_controls_spacer)
+        m_toolbar_window_controls_spacer->changeSize(has_left_traffic_lights ? TOOLBAR_MACOS_TRAFFIC_LIGHTS_CONTROL_GAP : 0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, has_trailing_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
+    m_toolbar->layout()->invalidate();
 }
 
 void Tab::update_window_control_icons()
