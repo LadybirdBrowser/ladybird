@@ -291,6 +291,7 @@ size_t property_maximum_value_count(PropertyID);
 
 bool property_affects_layout(PropertyID);
 bool property_affects_stacking_context(PropertyID);
+bool property_affects_accumulated_visual_contexts(PropertyID);
 bool property_needs_layout_for_getcomputedstyle(PropertyID);
 bool property_needs_layout_node_for_resolved_value(PropertyID);
 
@@ -540,6 +541,23 @@ bool property_affects_stacking_context(PropertyID property_id)
         if is_legacy_alias(value):
             continue
         if value.get("affects-stacking-context", False):
+            out.write(f"    case PropertyID::{title_casify(name)}:\n")
+    out.write("""
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool property_affects_accumulated_visual_contexts(PropertyID property_id)
+{
+    switch (property_id) {
+""")
+
+    for name, value in properties.items():
+        if is_legacy_alias(value):
+            continue
+        if value.get("affects-accumulated-visual-contexts", False):
             out.write(f"    case PropertyID::{title_casify(name)}:\n")
     out.write("""
         return true;

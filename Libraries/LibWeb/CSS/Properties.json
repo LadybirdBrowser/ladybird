@@ -460,6 +460,7 @@
     "multiplicity": "coordinating-list"
   },
   "background-attachment": {
+    "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -1349,6 +1350,7 @@
     ]
   },
   "clip": {
+    "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1365,6 +1367,7 @@
     ]
   },
   "clip-path": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
     "affects-stacking-context": true,
@@ -1893,6 +1896,7 @@
     ]
   },
   "filter": {
+    "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "custom",
@@ -3170,6 +3174,7 @@
     ]
   },
   "mix-blend-mode": {
+    "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3202,6 +3207,7 @@
     "percentages-resolve-to": "length"
   },
   "opacity": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
     "affects-stacking-context": true,
@@ -3583,6 +3589,7 @@
     ]
   },
   "perspective": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -3595,6 +3602,7 @@
     ]
   },
   "perspective-origin": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
     "inherited": false,
@@ -3768,6 +3776,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "rotate": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -3826,6 +3835,7 @@
     ]
   },
   "scale": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -4510,6 +4520,7 @@
     ]
   },
   "transform": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -4536,6 +4547,7 @@
     ]
   },
   "transform-origin": {
+    "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4637,6 +4649,7 @@
     ]
   },
   "translate": {
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
