@@ -41,6 +41,12 @@ private:
             connection->update_display_list(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot);
     }
 
+    virtual void update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree) override
+    {
+        if (auto* connection = compositor_connection())
+            connection->update_visual_context_tree(context_id, visual_context_tree);
+    }
+
     virtual void update_video_frame(Web::Compositor::CompositorContextId context_id, Web::Painting::VideoFrameResourceId frame_id, NonnullRefPtr<Media::VideoFrame const> frame) override
     {
         if (auto* connection = compositor_connection())

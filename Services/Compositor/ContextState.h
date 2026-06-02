@@ -111,6 +111,7 @@ public:
         NonnullRefPtr<Web::Painting::DisplayList>,
         Web::Painting::AccumulatedVisualContextTree,
         Web::Painting::ScrollStateSnapshot&&);
+    void update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree);
     void update_scroll_state(Web::Painting::ScrollStateSnapshot&&);
     void update_video_frame(Web::Painting::VideoFrameResourceId, NonnullRefPtr<Media::VideoFrame const>);
     void clear_video_frame(Web::Painting::VideoFrameResourceId);
