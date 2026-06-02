@@ -1305,15 +1305,12 @@ void BrowserWindow::config_variable_changed(WebView::ConfigVariableID variable)
 
 void BrowserWindow::update_window_corners()
 {
+#if defined(AK_OS_MACOS)
     auto should_use_rounded_corners = WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::UseRoundedWindowCorners);
     auto should_round_window = should_use_rounded_corners && !isFullScreen();
 
-#if defined(AK_OS_MACOS)
     clearMask();
     set_rounded_window_corners(*this, should_round_window, WINDOW_CORNER_RADIUS, ChromeStyle::chrome_background(palette()));
-#else
-    clearMask();
-    (void)should_round_window;
 #endif
 }
 

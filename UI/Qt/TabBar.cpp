@@ -45,6 +45,7 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QVariant>
 #include <QVariantAnimation>
 #include <QWheelEvent>
 #include <QWindow>
@@ -79,6 +80,17 @@ static constexpr auto VERTICAL_TABS_EXPANDED_PROPERTY = "verticalTabsExpanded";
 static constexpr auto VERTICAL_TABS_BUTTON_PROPERTY = "verticalTabsButton";
 static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_HOVERED_PROPERTY = "hovered";
 static constexpr auto VERTICAL_TABS_RESIZE_HANDLE_ACTIVE_PROPERTY = "active";
+
+static void set_dynamic_property_if_needed(QWidget& widget, char const* property, QVariant const& value)
+{
+    if (widget.property(property) == value)
+        return;
+
+    widget.setProperty(property, value);
+    widget.style()->unpolish(&widget);
+    widget.style()->polish(&widget);
+    widget.update();
+}
 
 static QPointer<TabWidget> s_active_tab_drag_source;
 static QPointer<Tab> s_active_tab_dragged_tab;
@@ -1542,10 +1554,7 @@ void TabWidget::update_toolbar_placement()
     for (int index = 0; index < m_stacked_widget->count(); ++index) {
         auto* current_tab = tab(index);
         auto* toolbar = current_tab->toolbar_container();
-        toolbar->setProperty(FULL_WIDTH_TOOLBAR_PROPERTY, use_full_width_toolbar);
-        toolbar->style()->unpolish(toolbar);
-        toolbar->style()->polish(toolbar);
-        toolbar->update();
+        set_dynamic_property_if_needed(*toolbar, FULL_WIDTH_TOOLBAR_PROPERTY, use_full_width_toolbar);
     }
 
     m_toolbar_container->setCurrentIndex(m_tab_bar->currentIndex());
@@ -1608,10 +1617,8 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     m_tab_bar_row_layout->setContentsMargins(12, 2, 4, 1);
 
     m_new_tab_button->setText({});
-    m_new_tab_button->setProperty(VERTICAL_TABS_EXPANDED_PROPERTY, false);
-    m_new_tab_button->setProperty(VERTICAL_TABS_BUTTON_PROPERTY, false);
-    m_new_tab_button->style()->unpolish(m_new_tab_button);
-    m_new_tab_button->style()->polish(m_new_tab_button);
+    set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
+    set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, false);
     m_new_tab_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
     m_new_tab_button->setFixedSize(32, 32);
     m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -1679,13 +1686,7 @@ void TabWidget::persist_vertical_tabs_expanded_width()
 
 void TabWidget::set_resize_handle_property(char const* property, bool enabled)
 {
-    if (m_vertical_tab_bar_column->property(property).toBool() == enabled)
-        return;
-
-    m_vertical_tab_bar_column->setProperty(property, enabled);
-    m_vertical_tab_bar_column->style()->unpolish(m_vertical_tab_bar_column);
-    m_vertical_tab_bar_column->style()->polish(m_vertical_tab_bar_column);
-    m_vertical_tab_bar_column->update();
+    set_dynamic_property_if_needed(*m_vertical_tab_bar_column, property, enabled);
 }
 
 void TabWidget::update_vertical_tabs_resize_handle()
@@ -1723,7 +1724,9 @@ void TabWidget::update_vertical_tabs_content_separator()
 
 void TabWidget::update_vertical_tabs_action_labels()
 {
-    m_new_tab_button->setText(vertical_tabs_effectively_expanded() ? "New Tab" : QString {});
+    auto text = vertical_tabs_effectively_expanded() ? "New Tab" : QString {};
+    if (m_new_tab_button->text() != text)
+        m_new_tab_button->setText(text);
 }
 
 void TabWidget::update_vertical_tabs_hover_layout()
@@ -1748,14 +1751,16 @@ int TabWidget::vertical_tabs_tab_width() const
 void TabWidget::update_vertical_tabs_button_layout()
 {
     auto expanded = vertical_tabs_effectively_expanded();
-    m_new_tab_button->setToolButtonStyle(expanded ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
+    auto tool_button_style = expanded ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly;
+    if (m_new_tab_button->toolButtonStyle() != tool_button_style)
+        m_new_tab_button->setToolButtonStyle(tool_button_style);
     update_vertical_tabs_action_labels();
-    m_new_tab_button->setProperty(VERTICAL_TABS_BUTTON_PROPERTY, true);
-    m_new_tab_button->setProperty(VERTICAL_TABS_EXPANDED_PROPERTY, expanded);
-    m_new_tab_button->style()->unpolish(m_new_tab_button);
-    m_new_tab_button->style()->polish(m_new_tab_button);
+    set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
+    set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, expanded);
     auto tab_width = vertical_tabs_tab_width();
-    m_new_tab_button->setFixedSize(tab_width, VERTICAL_TAB_HEIGHT);
+    auto button_size = QSize { tab_width, VERTICAL_TAB_HEIGHT };
+    if (m_new_tab_button->minimumSize() != button_size || m_new_tab_button->maximumSize() != button_size)
+        m_new_tab_button->setFixedSize(button_size);
     m_new_tab_button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 }
 
