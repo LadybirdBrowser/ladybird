@@ -20,7 +20,8 @@ class AudioBlock {
 public:
     Audio::SampleSpecification const& sample_specification() const { return m_sample_specification; }
     AK::Duration media_time_start() const { return m_media_time_start; }
-    AK::Duration media_time_end() const { return AK::Duration::from_time_units(end_frame_index(), 1, sample_rate()); }
+    AK::Duration media_time_duration() const { return m_media_time_duration; }
+    AK::Duration media_time_end() const { return m_media_time_start + m_media_time_duration; }
     i64 first_frame_index() const { return m_first_frame_index; }
     i64 end_frame_index() const { return saturating_add(m_first_frame_index, AK::clamp_to<i64>(frame_count())); }
     Span<float> channel_data(size_t channel)
@@ -46,6 +47,7 @@ public:
     {
         m_sample_specification = {};
         m_media_time_start = {};
+        m_media_time_duration = {};
         m_first_frame_index = 0;
         m_frame_count = 0;
     }
@@ -59,6 +61,7 @@ public:
         m_first_frame_index = media_time_start.to_time_units(1, sample_rate());
         m_frame_count = frame_count;
         ensure_frame_capacity(frame_count);
+        recalculate_media_duration_from_frame_count();
     }
     void initialize(Audio::SampleSpecification sample_specification, i64 first_frame_index, size_t frame_count)
     {
@@ -70,11 +73,13 @@ public:
         m_media_time_start = AK::Duration::from_time_units(first_frame_index, 1, sample_rate());
         m_frame_count = frame_count;
         ensure_frame_capacity(frame_count);
+        recalculate_media_duration_from_frame_count();
     }
     void trim(size_t frame_count)
     {
         VERIFY(frame_count <= m_frame_count);
         m_frame_count = frame_count;
+        recalculate_media_duration_from_frame_count();
     }
     size_t copy_to_interleaved(Span<float> destination, size_t source_frame_offset = 0) const
     {
@@ -104,6 +109,17 @@ public:
         m_first_frame_index = first_frame_index;
         m_media_time_start = AK::Duration::from_time_units(first_frame_index, 1, sample_rate());
     }
+    void set_media_time_start(AK::Duration media_time_start)
+    {
+        VERIFY(!is_empty());
+        m_media_time_start = media_time_start;
+    }
+    void set_media_time_duration(AK::Duration media_time_duration)
+    {
+        VERIFY(!is_empty());
+        VERIFY(!media_time_duration.is_negative());
+        m_media_time_duration = media_time_duration;
+    }
     bool is_empty() const
     {
         return !sample_specification().is_valid();
@@ -122,6 +138,11 @@ public:
     }
 
 private:
+    void recalculate_media_duration_from_frame_count()
+    {
+        m_media_time_duration = AK::Duration::from_time_units(AK::clamp_to<i64>(frame_count()), 1, sample_rate());
+    }
+
     size_t frame_capacity() const
     {
         if (!is_empty())
@@ -139,6 +160,7 @@ private:
 
     Audio::SampleSpecification m_sample_specification;
     AK::Duration m_media_time_start;
+    AK::Duration m_media_time_duration;
     i64 m_first_frame_index { 0 };
     size_t m_frame_count { 0 };
     FixedArray<float> m_data;
