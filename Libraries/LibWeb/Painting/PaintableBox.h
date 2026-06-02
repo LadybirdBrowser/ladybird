@@ -360,8 +360,8 @@ private:
 
     ScrollFrameIndex m_enclosing_scroll_frame_index {};
     ScrollFrameIndex m_own_scroll_frame_index {};
-    VisualContextIndex m_accumulated_visual_context_index {};
-    VisualContextIndex m_accumulated_visual_context_for_descendants_index {};
+    VisualContextIndex m_accumulated_visual_context_index { VISUAL_VIEWPORT_NODE_INDEX };
+    VisualContextIndex m_accumulated_visual_context_for_descendants_index { VISUAL_VIEWPORT_NODE_INDEX };
     Optional<VisualContextIndex> m_fixed_background_visual_context;
 
     Optional<BordersDataWithElementKind> m_override_borders_data;

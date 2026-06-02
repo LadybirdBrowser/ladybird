@@ -184,9 +184,9 @@ void Paintable::paint_with_inspector_overlay_context(DisplayListRecordingContext
         auto& visual_context_tree = const_cast<ViewportPaintable&>(*viewport_paintable).visual_context_tree();
         auto visual_context_index = paintable_box->accumulated_visual_context_index();
 
-        if (visual_context_index.value()) {
+        if (visual_context_index != VISUAL_VIEWPORT_NODE_INDEX) {
             Vector<VisualContextIndex> relevant_indices;
-            for (auto i = visual_context_index; i.value(); i = visual_context_tree.node_at(i).parent_index) {
+            for (auto i = visual_context_index; i != VISUAL_VIEWPORT_NODE_INDEX; i = visual_context_tree.node_at(i).parent_index) {
                 auto should_keep = visual_context_tree.node_at(i).data.visit(
                     [](ScrollData const&) { return true; },
                     [](ClipData const&) { return false; },
@@ -199,11 +199,11 @@ void Paintable::paint_with_inspector_overlay_context(DisplayListRecordingContext
                     relevant_indices.append(i);
             }
 
-            VisualContextIndex overlay_visual_context_index {};
+            auto overlay_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
             for (auto const& source_visual_context_index : relevant_indices.in_reverse())
                 overlay_visual_context_index = visual_context_tree.append(visual_context_tree.node_at(source_visual_context_index).data, overlay_visual_context_index);
 
-            if (overlay_visual_context_index.value())
+            if (overlay_visual_context_index != VISUAL_VIEWPORT_NODE_INDEX)
                 display_list_recorder.set_accumulated_visual_context(overlay_visual_context_index);
         }
     }

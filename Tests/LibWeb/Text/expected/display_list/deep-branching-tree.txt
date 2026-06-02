@@ -1,12 +1,13 @@
 AccumulatedVisualContext Tree:
-  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
-    [2] clip=[10,10 400x200] (PaintableWithLines(BlockContainer<DIV>.branch))
-      [3] clip=[11,11 193x198] (PaintableWithLines(BlockContainer(anonymous)))
-        [4] transform=[0.9961947,-0.08715574,0.08715574,0.9961947,0,0] origin=(91,56) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-a))
-        [5] transform=[0.9,0,0,0.9,0,0] origin=(91,141) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-b))
-      [6] clip=[216,11 193x198] (PaintableWithLines(BlockContainer(anonymous)))
-        [7] transform=[1,0,0,1,10,0] origin=(296,56) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-c))
-        [8] transform=[1,0,0,1,0,10] origin=(296,141) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-d))
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] clip=[10,10 400x200] (PaintableWithLines(BlockContainer<DIV>.branch))
+        [3] clip=[11,11 193x198] (PaintableWithLines(BlockContainer(anonymous)))
+          [4] transform=[0.9961947,-0.08715574,0.08715574,0.9961947,0,0] origin=(91,56) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-a))
+          [5] transform=[0.9,0,0,0.9,0,0] origin=(91,141) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-b))
+        [6] clip=[216,11 193x198] (PaintableWithLines(BlockContainer(anonymous)))
+          [7] transform=[1,0,0,1,10,0] origin=(296,56) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-c))
+          [8] transform=[1,0,0,1,0,10] origin=(296,141) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-d))
 
 DisplayList:
 SaveLayer@0

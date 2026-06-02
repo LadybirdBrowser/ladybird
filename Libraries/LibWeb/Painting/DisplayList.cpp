@@ -53,7 +53,7 @@ bool DisplayList::append_bytes(
     bool is_clip)
 {
     VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
-    if (context_index.value() && visual_context_tree.has_empty_effective_clip(context_index))
+    if (visual_context_tree.has_empty_effective_clip(context_index))
         return false;
     VERIFY(m_command_bytes.size() % DisplayList::command_alignment == 0);
     VERIFY(payload.size() <= NumericLimits<u32>::max());
@@ -165,13 +165,14 @@ void DisplayListPlayer::execute_impl(
 
     auto for_each_node_from_common_ancestor_to_target =
         [&](this auto const& self,
-            VisualContextIndex common_ancestor_index,
+            Optional<VisualContextIndex> common_ancestor_index,
             VisualContextIndex target_index,
             auto&& callback) -> IterationDecision {
-        if (!target_index.value() || target_index == common_ancestor_index)
+        if (common_ancestor_index.has_value() && target_index == common_ancestor_index.value())
             return IterationDecision::Continue;
-        if (self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback)
-            == IterationDecision::Break) {
+        if (target_index != VISUAL_VIEWPORT_NODE_INDEX
+            && self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback)
+                == IterationDecision::Break) {
             return IterationDecision::Break;
         }
         return callback(target_index, visual_context_tree.node_at(target_index));
@@ -228,6 +229,7 @@ void DisplayListPlayer::execute_impl(
         };
 
     VisualContextIndex applied_context_index;
+    bool has_applied_context { false };
     size_t applied_depth = 0;
 
     // OPTIMIZATION: When walking down to apply effects (opacity, filters, blend modes), check culling before applying
@@ -238,20 +240,26 @@ void DisplayListPlayer::execute_impl(
         CulledByEffect,
     };
     auto switch_to_context = [&](VisualContextIndex target_index, Optional<Gfx::IntRect> bounding_rect = {}) -> SwitchResult {
-        if (applied_context_index == target_index)
+        if (has_applied_context && applied_context_index == target_index)
             return SwitchResult::Switched;
 
-        auto common_ancestor_index = visual_context_tree.find_common_ancestor(applied_context_index, target_index);
-        size_t const common_ancestor_depth = common_ancestor_index.value() ? visual_context_tree.node_at(common_ancestor_index).depth : 0;
+        Optional<VisualContextIndex> common_ancestor_index;
+        if (has_applied_context)
+            common_ancestor_index = visual_context_tree.find_common_ancestor(applied_context_index, target_index);
+        size_t const common_ancestor_depth = common_ancestor_index.has_value() ? visual_context_tree.node_at(common_ancestor_index.value()).depth + 1 : 0;
 
-        auto has_coordinate_changing_descendant = [&](VisualContextIndex ancestor_index) {
-            for (auto index = target_index; index != ancestor_index; index = visual_context_tree.node_at(index).parent_index) {
+        auto has_coordinate_changing_descendant = [&](Optional<VisualContextIndex> ancestor_index) {
+            for (auto index = target_index;; index = visual_context_tree.node_at(index).parent_index) {
+                if (ancestor_index.has_value() && index == ancestor_index.value())
+                    break;
                 auto const& node = visual_context_tree.node_at(index);
                 if (node.data.has<TransformData>()
                     || node.data.has<PerspectiveData>()
                     || node.data.has<ScrollData>()
                     || node.data.has<ScrollCompensation>())
                     return true;
+                if (index == VISUAL_VIEWPORT_NODE_INDEX)
+                    break;
             }
             return false;
         };
@@ -267,7 +275,7 @@ void DisplayListPlayer::execute_impl(
             target_index,
             [&](VisualContextIndex node_index, AccumulatedVisualContextNode const& node) {
                 if (bounding_rect.has_value() && node.data.has<EffectsData>()) {
-                    auto can_cull_before_effect = !has_coordinate_changing_descendant(node_index);
+                    auto can_cull_before_effect = !has_coordinate_changing_descendant(Optional<VisualContextIndex> { node_index });
                     if (bounding_rect->is_empty() || (can_cull_before_effect && would_be_fully_clipped_by_painter(*bounding_rect))) {
                         result = SwitchResult::CulledByEffect;
                         return IterationDecision::Break;
@@ -278,8 +286,10 @@ void DisplayListPlayer::execute_impl(
                 return IterationDecision::Continue;
             });
 
-        if (result == SwitchResult::Switched)
+        if (result == SwitchResult::Switched) {
             applied_context_index = target_index;
+            has_applied_context = true;
+        }
         return result;
     };
 

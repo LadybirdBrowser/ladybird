@@ -169,7 +169,7 @@ private:
         m_display_list.append(command, m_visual_context_tree, m_accumulated_visual_context_index, inline_data);
     }
 
-    VisualContextIndex m_accumulated_visual_context_index {};
+    VisualContextIndex m_accumulated_visual_context_index { VISUAL_VIEWPORT_NODE_INDEX };
     DisplayList& m_display_list;
     AccumulatedVisualContextTree const& m_visual_context_tree;
     DisplayListResourceStorage& m_resource_storage;

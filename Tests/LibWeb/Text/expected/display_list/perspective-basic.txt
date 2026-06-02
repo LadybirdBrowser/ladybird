@@ -1,7 +1,8 @@
 AccumulatedVisualContext Tree:
-  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
-    [2] perspective (PaintableWithLines(BlockContainer(anonymous)))
-      [3] transform=[0.8660254,0,0,1,0,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>.rotated))
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] perspective (PaintableWithLines(BlockContainer(anonymous)))
+        [3] transform=[0.8660254,0,0,1,0,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>.rotated))
 
 DisplayList:
 SaveLayer@0

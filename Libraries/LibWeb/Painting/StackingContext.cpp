@@ -59,7 +59,7 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
         paintable.paint(context, phase);
     }
 
-    context.display_list_recorder().set_accumulated_visual_context({});
+    context.display_list_recorder().set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);
 
     VERIFY(context.display_list_recorder().m_save_nesting_level == 0);
 }

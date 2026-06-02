@@ -28,6 +28,8 @@ class ScrollStateSnapshot;
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, VisualContextIndex);
 
+static constexpr VisualContextIndex VISUAL_VIEWPORT_NODE_INDEX { 0 };
+
 struct ScrollData {
     ScrollFrameIndex scroll_frame_index;
     bool is_sticky;
@@ -92,6 +94,7 @@ struct AccumulatedVisualContextNode {
 class AccumulatedVisualContextTree {
 public:
     static AccumulatedVisualContextTree create();
+    static AccumulatedVisualContextTree create(TransformData visual_viewport_transform);
 
     AccumulatedVisualContextTree(AccumulatedVisualContextTree const&) = default;
     AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree const&) = default;

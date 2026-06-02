@@ -4,10 +4,11 @@ dangling parent nodes: 0
 child parent is viewport: true
 display list:
 AccumulatedVisualContext Tree:
-  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
-    [2] scroll_frame_id=2 (sticky) (PaintableWithLines(BlockContainer(anonymous)))
-      [3] clip=[0,0 100x100]
-        [4] scroll_frame_id=3 (PaintableWithLines(BlockContainer<DIV>#spacer))
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+      [2] scroll_frame_id=2 (sticky) (PaintableWithLines(BlockContainer(anonymous)))
+        [3] clip=[0,0 100x100]
+          [4] scroll_frame_id=3 (PaintableWithLines(BlockContainer<DIV>#spacer))
 
 DisplayList:
 SaveLayer@0
