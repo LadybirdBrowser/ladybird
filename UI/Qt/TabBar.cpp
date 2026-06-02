@@ -1535,8 +1535,7 @@ int TabWidget::vertical_tabs_layout_width() const
 
 bool TabWidget::uses_full_width_toolbar_for_current_layout() const
 {
-    return browser_chrome_layout_policy().controls_placement == WindowControlsPlacement::LeftTrafficLights
-        && m_vertical_tabs_enabled
+    return m_vertical_tabs_enabled
         && current_tab_layout() != TabLayout::Horizontal;
 }
 
@@ -1710,7 +1709,12 @@ void TabWidget::update_vertical_tabs_resize_handle()
 
     auto handle_width = VERTICAL_TABS_RESIZE_HIT_AREA_WIDTH;
     auto divider_x = vertical_tabs_layout_width() - 1;
-    m_vertical_tabs_resize_handle->setGeometry(divider_x - (handle_width / 2), m_vertical_tabs_content->y(), handle_width, m_vertical_tabs_content->height());
+    auto chrome_rect = vertical_tabs_chrome_rect();
+    m_vertical_tabs_resize_handle->setGeometry(
+        divider_x - (handle_width / 2),
+        chrome_rect.y(),
+        handle_width,
+        chrome_rect.height());
     m_vertical_tabs_resize_handle->raise();
 }
 
@@ -1745,6 +1749,17 @@ void TabWidget::update_vertical_tabs_hover_layout()
 
     update_tab_button_visibility();
     update_tab_layout();
+}
+
+QRect TabWidget::vertical_tabs_chrome_rect() const
+{
+    auto toolbar_height = browser_chrome_layout_policy().toolbar_height;
+    return {
+        0,
+        toolbar_height,
+        current_vertical_tabs_width(),
+        max(0, height() - toolbar_height)
+    };
 }
 
 int TabWidget::vertical_tabs_tab_width() const
@@ -1865,7 +1880,7 @@ void TabWidget::update_vertical_tabs_overlay_geometry()
         return;
     }
 
-    m_vertical_tab_bar_column->setGeometry(0, m_vertical_tabs_content->y(), current_vertical_tabs_width(), m_vertical_tabs_content->height());
+    m_vertical_tab_bar_column->setGeometry(vertical_tabs_chrome_rect());
     m_vertical_tab_bar_column->show();
     m_vertical_tab_bar_column->raise();
 }

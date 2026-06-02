@@ -189,6 +189,7 @@ private:
     void set_resize_handle_property(char const* property, bool enabled);
     void update_vertical_tabs_action_labels();
     void update_vertical_tabs_hover_layout();
+    QRect vertical_tabs_chrome_rect() const;
     int vertical_tabs_tab_width() const;
     void update_vertical_tabs_button_layout();
     void update_tab_layout();
