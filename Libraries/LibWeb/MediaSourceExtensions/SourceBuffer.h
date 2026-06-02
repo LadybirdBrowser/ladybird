@@ -46,7 +46,7 @@ public:
     bool updating() const;
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
-    GC::Ref<HTML::TimeRanges> buffered();
+    WebIDL::ExceptionOr<GC::Ref<HTML::TimeRanges>> buffered();
 
     void set_content_type(String const& type);
 
