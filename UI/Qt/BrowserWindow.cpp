@@ -47,7 +47,6 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QShortcut>
-#include <QStyle>
 #include <QTabBar>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -880,15 +879,18 @@ void BrowserWindow::initialize_tab_buttons(Tab* tab)
     m_tabs_container->update_tab_button_visibility();
 }
 
-void BrowserWindow::update_tab_close_button_icons()
+void BrowserWindow::update_tab_button_icons()
 {
     for (int index = 0; index < m_tabs_container->count(); ++index) {
-        auto* button = m_tabs_container->tab_bar()->tabButton(index, TAB_CLOSE_BUTTON_POSITION);
-        if (!button || button->objectName() != "LadybirdTabButton")
-            return;
+        if (auto* button = m_tabs_container->tab_bar()->tabButton(index, TAB_CLOSE_BUTTON_POSITION)) {
+            if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
+                tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::TabClose, palette()));
+        }
 
-        if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
-            tab_bar_button->setIcon(create_chrome_icon(ChromeIcon::TabClose, palette()));
+        if (auto* button = m_tabs_container->tab_bar()->tabButton(index, AUDIO_STATE_BUTTON_POSITION)) {
+            if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
+                tab_bar_button->setIcon(icon_for_page_mute_state(*m_tabs_container->tab(index)));
+        }
     }
 }
 
@@ -1010,9 +1012,9 @@ QIcon BrowserWindow::icon_for_page_mute_state(Tab& tab) const
 {
     switch (tab.view().page_mute_state()) {
     case Web::HTML::MuteState::Muted:
-        return style()->standardIcon(QStyle::SP_MediaVolumeMuted);
+        return create_chrome_icon(ChromeIcon::VolumeMuted, palette());
     case Web::HTML::MuteState::Unmuted:
-        return style()->standardIcon(QStyle::SP_MediaVolume);
+        return create_chrome_icon(ChromeIcon::Volume, palette());
     }
 
     VERIFY_NOT_REACHED();
@@ -1274,7 +1276,7 @@ void BrowserWindow::changeEvent(QEvent* event)
     if (event->type() == QEvent::PaletteChange) {
         update_menu_bar_style();
         update_menu_bar_window_control_icons();
-        update_tab_close_button_icons();
+        update_tab_button_icons();
     } else if (event->type() == QEvent::WindowStateChange) {
         update_menu_bar_window_control_icons();
         m_tabs_container->update_window_button_icons();
