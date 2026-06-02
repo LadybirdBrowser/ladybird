@@ -504,13 +504,11 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto surface_color = chrome_surface(palette);
     if (dark)
         surface_color = mix(chrome_background(palette), material_color_anchors(true).background, 0.34);
-    auto hover_color = chrome_surface_hover(palette);
-    if (dark)
-        hover_color = mix(surface_color, QColor(255, 255, 255), 0.035);
-    auto focus_color = dark ? hover_color : surface_color;
+    auto hover_color = surface_color;
+    auto focus_color = dark ? mix(surface_color, QColor(255, 255, 255), 0.035) : surface_color;
 
     auto border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.36) : chrome_border(palette);
-    auto hover_border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.48) : chrome_control_border(palette);
+    auto hover_border_color = border_color;
     auto focus_border_color = mix(chrome_border(palette), chrome_accent(palette), dark ? 0.50 : 0.54);
 
     auto surface = style_sheet_color(surface_color);
