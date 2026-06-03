@@ -746,6 +746,12 @@ impl DecodedCacheBlob {
     }
 
     pub(crate) fn validate_for_materialization(&mut self, source_len: usize) -> Result<(), ValidationErrorKind> {
+        if self.source_len != source_len {
+            return Err(ValidationErrorKind::InvalidLength);
+        }
+        if self.has_been_validated_for_materialization {
+            return Ok(());
+        }
         self.metadata.validate_for_materialization(source_len)?;
         self.program.validate_for_materialization(source_len)?;
         self.has_been_validated_for_materialization = true;

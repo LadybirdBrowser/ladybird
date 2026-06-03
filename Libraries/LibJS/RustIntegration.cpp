@@ -11,6 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/kmalloc.h>
+#include <LibCore/EventLoop.h>
 #include <LibGC/DeferGC.h>
 #include <LibJS/Bytecode/ClassBlueprint.h>
 #include <LibJS/Bytecode/Debug.h>
@@ -40,8 +41,8 @@ namespace JS::RustIntegration {
 
 // --- Shared helpers ---
 
-// Bytecode cache materialization validates decoded cache bytecode before rebuilding Executables. Materialization paths
-// flip this flag for the duration of their work so rust_create_executable() does not run the same validator again.
+// Bytecode cache blobs are validated before rebuilding Executables. Materialization paths flip this flag for the
+// duration of their work so rust_create_executable() does not run the same validator again.
 static thread_local bool s_skip_bytecode_validation_for_prevalidated_cache = false;
 
 static Utf16View utf16_view_from_bytes(uint16_t const* data, size_t len)
@@ -423,25 +424,51 @@ ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& 
     return bytes;
 }
 
+struct BytecodeCacheBlobOwner {
+    Core::ImmutableBytes bytes;
+    NonnullRefPtr<Core::WeakEventLoopReference> event_loop;
+};
+
 static void free_bytecode_cache_blob_owner(void* owner)
 {
-    delete static_cast<Core::ImmutableBytes*>(owner);
+    auto owner_ptr = adopt_own_if_nonnull(static_cast<BytecodeCacheBlobOwner*>(owner));
+    if (!owner_ptr)
+        return;
+
+    auto origin = owner_ptr->event_loop->take();
+    if (!origin) {
+        (void)owner_ptr.leak_ptr();
+        return;
+    }
+
+    origin->deferred_invoke([owner = move(owner_ptr)] { (void)owner; });
 }
 
 static void* clone_bytecode_cache_blob_owner(void const* owner)
 {
-    return new Core::ImmutableBytes(*static_cast<Core::ImmutableBytes const*>(owner));
+    auto const& existing_owner = *static_cast<BytecodeCacheBlobOwner const*>(owner);
+    return new Core::ImmutableBytes(existing_owner.bytes);
 }
 
 DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
 {
-    auto* owner = new Core::ImmutableBytes(move(bytes));
-    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes().data(), owner->bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
+    return decode_bytecode_cache_blob(move(bytes), expected_type, source_hash, Core::EventLoop::current_weak());
+}
+
+DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash, NonnullRefPtr<Core::WeakEventLoopReference> event_loop)
+{
+    auto* owner = new BytecodeCacheBlobOwner { move(bytes), move(event_loop) };
+    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes.bytes().data(), owner->bytes.bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
 }
 
 size_t decoded_bytecode_cache_source_length(DecodedBytecodeCacheBlob const* blob)
 {
     return rust_decoded_bytecode_cache_source_len(blob);
+}
+
+bool validate_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob, size_t source_length)
+{
+    return rust_validate_decoded_bytecode_cache_blob(blob, source_length);
 }
 
 void free_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob)

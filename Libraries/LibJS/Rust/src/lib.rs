@@ -934,6 +934,25 @@ pub unsafe extern "C" fn rust_decoded_bytecode_cache_source_len(blob: *const Dec
     }
 }
 
+/// Validate a decoded bytecode cache blob before materializing it.
+///
+/// # Safety
+/// `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_validate_decoded_bytecode_cache_blob(
+    blob: *mut DecodedBytecodeCacheBlob,
+    source_len: usize,
+) -> bool {
+    unsafe {
+        abort_on_panic(|| {
+            if blob.is_null() {
+                return false;
+            }
+            (*blob)._blob.validate_for_materialization(source_len).is_ok()
+        })
+    }
+}
+
 /// Materialize a decoded script bytecode cache blob. Consumes and frees the blob.
 ///
 /// # Safety
