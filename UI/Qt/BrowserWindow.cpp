@@ -180,7 +180,7 @@ bool FullscreenMode::eventFilter(QObject* obj, QEvent* event)
     ASSERT(is_api_fullscreen());
     if (event->type() == QEvent::MouseMove) {
         QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
-        maybe_animate_show_exit_button(mouse_event->pos());
+        maybe_animate_show_exit_button(m_window->mapFromGlobal(mouse_event->globalPosition().toPoint()));
     }
 
     return QObject::eventFilter(obj, event);
@@ -189,10 +189,14 @@ bool FullscreenMode::eventFilter(QObject* obj, QEvent* event)
 ExitFullscreenButton::ExitFullscreenButton(QWidget* parent)
     : QPushButton("Exit fullscreen", parent)
 {
+#if defined(AK_OS_MACOS)
+    // The web content view is a native QRhiWidget on macOS, so this overlay must also be native to remain above it.
+    setAttribute(Qt::WA_NativeWindow);
+#endif
     setStyleSheet("background-color:rgb(55, 99, 129); color: white; padding: 10px; border-radius: 5px;");
     adjustSize();
     hide();
-    m_widget_animation = new QPropertyAnimation(this, "pos");
+    m_widget_animation = new QPropertyAnimation(this, "pos", this);
 }
 
 void ExitFullscreenButton::animate_show()
@@ -201,12 +205,13 @@ void ExitFullscreenButton::animate_show()
         return;
 
     show();
-    QScreen* current_screen = screen();
-    QRect screen_geometry = current_screen->geometry();
+    raise();
 
-    int const destination_x = (screen_geometry.width() - width()) / 2;
-    int const destination_y = static_cast<int>(static_cast<float>(screen_geometry.height()) * 0.05);
+    auto const container_size = screen() ? screen()->geometry().size() : (parentWidget() ? parentWidget()->size() : QSize {});
+    int const destination_x = (container_size.width() - width()) / 2;
+    int const destination_y = static_cast<int>(static_cast<float>(container_size.height()) * 0.05);
 
+    m_widget_animation->stop();
     m_widget_animation->setDuration(FullscreenMode::button_animation_time());
     m_widget_animation->setStartValue(QPoint(destination_x, -height()));
     m_widget_animation->setEndValue(QPoint(destination_x, destination_y));
