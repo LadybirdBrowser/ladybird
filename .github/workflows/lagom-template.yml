@@ -231,6 +231,40 @@ jobs:
             "SELECT service, client, client_type, auth_value FROM access WHERE service = 'kTCCServiceAccessibility';"
           sudo killall tccd 2>&1 || echo "(tccd was not running; will be relaunched on next access)"
 
+      # Fail early if we lack the GUI (Aqua) login session and Accessibility access our macOS AT/VoiceOver tests need.
+      - name: Verify macOS GUI session + Accessibility (AX preflight)
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+        run: |
+          fail=0
+          session=$(launchctl managername 2>/dev/null || echo "unknown")
+          echo "launchctl managername : ${session}"
+          if [ "${session}" != "Aqua" ]; then
+            echo "::error title=AX preflight: no GUI session::The accessibility tests need a GUI (Aqua) login session, but this runner is in the '${session}' session. Fix: Run as a LaunchAgent under an auto-logged-in user (not a root LaunchDaemon), with screen-lock and display-sleep disabled."
+            fail=1
+          fi
+          py=""
+          for candidate in python3 /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c "import ApplicationServices" >/dev/null 2>&1; then
+              py="${candidate}"
+              break
+            fi
+          done
+          if [ -n "${py}" ]; then
+            trusted=$("${py}" -c "from ApplicationServices import AXIsProcessTrusted as t; print('yes' if t() else 'no')" 2>/dev/null || echo "error")
+            echo "AXIsProcessTrusted    : ${trusted}"
+            if [ "${trusted}" != "yes" ]; then
+            echo "::error title=AX preflight: no Accessibility access::AXIsProcessTrusted() returned '${trusted}', so every AX read is denied. Fix: Restore the Accessibility grant for Python on this runner."
+              fail=1
+            fi
+          else
+            echo "::warning title=AX preflight::No python3 with PyObjC found; skipped the AXIsProcessTrusted probe."
+          fi
+          if [ "${fail}" -ne 0 ]; then
+            echo "AX preflight FAILED: this runner isn't set up to run the macOS accessibility tests (see the annotated errors above)."
+            exit 1
+          fi
+          echo "AX preflight OK: GUI (Aqua) session and Accessibility access are both present."
+
       # This (accessibility tests) step can't be run after the "Build with Qt" step — because we need to run the
       # accessibility tests against the AppKit build, which the "Build with Qt" step overwrites with a Qt build.
       - name: Test - macOS AppKit accessibility
