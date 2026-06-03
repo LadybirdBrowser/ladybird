@@ -186,10 +186,12 @@ void AudioMixer::set_wake_handler(PipelineWakeHandler handler)
 
 void AudioMixer::dispatch_wake()
 {
+    {
+        Sync::MutexLocker locker { m_mutex };
+        m_downstream_needs_wake = false;
+    }
     if (m_wake_handler)
         m_wake_handler();
-    Sync::MutexLocker locker { m_mutex };
-    m_downstream_needs_wake = false;
 }
 
 PipelineStatus AudioMixer::combined_input_status() const
