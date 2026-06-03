@@ -17,7 +17,6 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
-#include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WindowControlButton.h>
 
@@ -242,12 +241,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     update_chrome_style();
     set_toolbar_window_controls_visible(false);
-
-    m_hamburger_button->setVisible(!Settings::the()->show_menubar());
-
-    QObject::connect(Settings::the(), &Settings::show_menubar_changed, this, [this](bool show_menubar) {
-        m_hamburger_button->setVisible(!show_menubar);
-    });
 
     view().on_activate_tab = [this] {
         m_window->activate_tab(tab_index());
@@ -582,7 +575,6 @@ void Tab::set_window(BrowserWindow& window)
     m_window = &window;
     m_hamburger_button->setMenu(&m_window->hamburger_menu());
     connect_hamburger_menu();
-    m_hamburger_button->setVisible(!Settings::the()->show_menubar());
     recreate_toolbar_icons();
 }
 
@@ -644,6 +636,14 @@ void Tab::connect_hamburger_menu()
     QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToHide, m_hamburger_button, [this]() {
         m_hamburger_button->setDown(false);
     });
+
+    update_hamburger_menu();
+}
+
+void Tab::update_hamburger_menu()
+{
+    auto show_menu_bar = show_menubar_option_available() && WebView::Application::settings().show_menu_bar();
+    m_hamburger_button->setVisible(!show_menu_bar);
 }
 
 void Tab::navigate(URL::URL const& url)
@@ -688,6 +688,11 @@ QString Tab::title() const
 void Tab::update_tab_title()
 {
     emit title_changed(tab_index(), title());
+}
+
+void Tab::show_menu_bar_changed()
+{
+    update_hamburger_menu();
 }
 
 void Tab::config_variable_changed(WebView::ConfigVariableID variable)
