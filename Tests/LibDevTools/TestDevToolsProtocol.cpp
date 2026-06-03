@@ -189,6 +189,7 @@ static WebView::DOMNodeProperties make_computed_style()
 }
 
 static JsonObject serialized_fixture_style_sheet();
+static JsonObject serialized_fixture_user_agent_style_sheet();
 
 static WebView::DOMNodeProperties make_applied_style_rules()
 {
@@ -268,6 +269,46 @@ static WebView::DOMNodeProperties make_applied_style_rules()
     rule_entry.set("inheritedNodeId"sv, 1u);
     entries.must_append(move(rule_entry));
 
+    JsonArray user_agent_declarations;
+    JsonObject user_agent_display;
+    user_agent_display.set("name"sv, "display"sv);
+    user_agent_display.set("value"sv, "block"sv);
+    user_agent_display.set("priority"sv, ""sv);
+    user_agent_display.set("isCustomProperty"sv, false);
+    user_agent_display.set("isNameValid"sv, true);
+    user_agent_display.set("isValid"sv, true);
+    user_agent_display.set("inherits"sv, false);
+    user_agent_declarations.must_append(move(user_agent_display));
+
+    JsonArray user_agent_selectors;
+    user_agent_selectors.must_append("div"sv);
+
+    JsonArray user_agent_selector_specificities;
+    user_agent_selector_specificities.must_append(0x1u);
+
+    JsonArray user_agent_matched_selector_indexes;
+    user_agent_matched_selector_indexes.must_append(0u);
+
+    JsonObject user_agent_rule;
+    user_agent_rule.set("type"sv, 1);
+    user_agent_rule.set("className"sv, "CSSStyleRule"sv);
+    user_agent_rule.set("selectors"sv, move(user_agent_selectors));
+    user_agent_rule.set("selectorsSpecificity"sv, move(user_agent_selector_specificities));
+    user_agent_rule.set("cssText"sv, "div { display: block; }"sv);
+    user_agent_rule.set("authoredText"sv, "display: block;"sv);
+    user_agent_rule.set("declarations"sv, move(user_agent_declarations));
+    user_agent_rule.set("isSystem"sv, true);
+    user_agent_rule.set("line"sv, 12);
+    user_agent_rule.set("column"sv, 5);
+    user_agent_rule.set("styleSheet"sv, serialized_fixture_user_agent_style_sheet());
+
+    JsonObject user_agent_rule_entry;
+    user_agent_rule_entry.set("rule"sv, move(user_agent_rule));
+    user_agent_rule_entry.set("isSystem"sv, true);
+    user_agent_rule_entry.set("matchedSelectorIndexes"sv, move(user_agent_matched_selector_indexes));
+    user_agent_rule_entry.set("inherited"sv, JsonValue {});
+    entries.must_append(move(user_agent_rule_entry));
+
     return { WebView::DOMNodeProperties::Type::AppliedStyleRules, move(entries) };
 }
 
@@ -322,6 +363,22 @@ static JsonObject serialized_fixture_style_sheet()
     style_sheet.set("domElementUniqueId"sv, 9);
     style_sheet.set("url"sv, "https://example.test/style.css"sv);
     style_sheet.set("ruleCount"sv, 2);
+    return style_sheet;
+}
+
+static Web::CSS::StyleSheetIdentifier fixture_user_agent_style_sheet()
+{
+    return { .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
+        .url = "CSS/Default.css"_string,
+        .rule_count = 4 };
+}
+
+static JsonObject serialized_fixture_user_agent_style_sheet()
+{
+    JsonObject style_sheet;
+    style_sheet.set("type"sv, Web::CSS::style_sheet_identifier_type_to_string(Web::CSS::StyleSheetIdentifier::Type::UserAgent));
+    style_sheet.set("url"sv, "CSS/Default.css"sv);
+    style_sheet.set("ruleCount"sv, 4);
     return style_sheet;
 }
 
@@ -717,6 +774,7 @@ public:
         ++retrieve_style_sheets_call_count;
         Vector<Web::CSS::StyleSheetIdentifier> style_sheets;
         style_sheets.append(fixture_style_sheet());
+        style_sheets.append(fixture_user_agent_style_sheet());
         callback(move(style_sheets));
     }
 
@@ -1975,7 +2033,7 @@ TEST_CASE(styles_and_stylesheets)
     auto applied_entries = get_applied();
     EXPECT(session->delegate.last_inspected_dom_node_options.get_bool("inherited"sv).value());
     EXPECT(session->delegate.last_inspected_dom_node_options.get_bool("matchedSelectors"sv).value());
-    VERIFY(applied_entries.size() == 2u);
+    VERIFY(applied_entries.size() == 3u);
     EXPECT_EQ(style_rule_actor_count(*session->server), applied_entries.size());
 
     auto inline_rule = applied_entries.at(0).as_object().get_object("rule"sv).release_value();
@@ -2002,6 +2060,15 @@ TEST_CASE(styles_and_stylesheets)
     EXPECT_EQ(inherited_rule.get_integer<int>("column"sv).value(), 9);
     EXPECT(!inherited_rule.has("styleSheet"sv));
     EXPECT_EQ(inherited_rule_entry.get_array("matchedSelectorIndexes"sv)->at(0).as_integer<int>(), 0);
+
+    auto user_agent_rule_entry = applied_entries.at(2).as_object();
+    auto user_agent_rule = user_agent_rule_entry.get_object("rule"sv).release_value();
+    EXPECT(user_agent_rule_entry.get_bool("isSystem"sv).value());
+    EXPECT_EQ(user_agent_rule.get_array("selectors"sv)->at(0).as_string(), "div"sv);
+    EXPECT_EQ(user_agent_rule.get_string("parentStyleSheet"sv).value(), MUST(String::formatted("{}-stylesheet:1", style_sheets_actor)));
+    EXPECT_EQ(user_agent_rule.get_integer<int>("line"sv).value(), 12);
+    EXPECT_EQ(user_agent_rule.get_integer<int>("column"sv).value(), 5);
+    EXPECT(!user_agent_rule.has("styleSheet"sv));
     EXPECT(!client.request(page_style_actor, "isPositionEditable"sv).get_bool("value"sv).value());
 
     auto second_applied_entries = get_applied();
@@ -2038,7 +2105,7 @@ TEST_CASE(styles_and_stylesheets)
     while (style_resources.get_string("type"sv).value_or({}) != "resources-available-array"sv)
         style_resources = client.read_message();
     auto sheets = style_resources.get_array("array"sv)->at(0).as_array().at(1).as_array();
-    VERIFY(sheets.size() == 1u);
+    VERIFY(sheets.size() == 2u);
     auto resource_id = sheets.at(0).as_object().get_string("resourceId"sv).release_value();
 
     JsonObject get_text;

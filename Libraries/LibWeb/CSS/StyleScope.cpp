@@ -237,6 +237,33 @@ static CSSStyleSheet& svg_stylesheet()
     return *sheet;
 }
 
+void StyleScope::for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, Function<void(CSS::CSSStyleSheet&, StyleSheetIdentifier const&)> const& callback)
+{
+    auto callback_with_identifier = [&](CSSStyleSheet& sheet, String url) {
+        StyleSheetIdentifier identifier {
+            .type = StyleSheetIdentifier::Type::UserAgent,
+            .url = move(url),
+        };
+        callback(sheet, identifier);
+    };
+
+    callback_with_identifier(default_stylesheet(), "CSS/Default.css"_string);
+    if (include_quirks_mode_stylesheet)
+        callback_with_identifier(quirks_mode_stylesheet(), "CSS/QuirksMode.css"_string);
+    callback_with_identifier(mathml_stylesheet(), "MathML/Default.css"_string);
+    callback_with_identifier(svg_stylesheet(), "SVG/Default.css"_string);
+}
+
+Optional<StyleSheetIdentifier> StyleScope::user_agent_style_sheet_identifier(CSS::CSSStyleSheet const& style_sheet)
+{
+    Optional<StyleSheetIdentifier> identifier;
+    for_each_user_agent_stylesheet(true, [&](auto& user_agent_style_sheet, auto const& user_agent_style_sheet_identifier) {
+        if (&style_sheet == &user_agent_style_sheet)
+            identifier = user_agent_style_sheet_identifier;
+    });
+    return identifier;
+}
+
 static GC::Ptr<CSSContainerRule const> current_container_rule(Vector<GC::Ptr<CSSContainerRule const>> const& container_rule_stack)
 {
     if (container_rule_stack.is_empty())
@@ -355,11 +382,9 @@ static void for_each_style_producing_rule_for_rule_cache(
 void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void(CSS::CSSStyleSheet&)> const& callback) const
 {
     if (cascade_origin == CascadeOrigin::UserAgent) {
-        callback(default_stylesheet());
-        if (document().in_quirks_mode())
-            callback(quirks_mode_stylesheet());
-        callback(mathml_stylesheet());
-        callback(svg_stylesheet());
+        for_each_user_agent_stylesheet(document().in_quirks_mode(), [&](auto& sheet, auto const&) {
+            callback(sheet);
+        });
     }
     if (cascade_origin == CascadeOrigin::User) {
         auto& style_scope = const_cast<StyleScope&>(*this);

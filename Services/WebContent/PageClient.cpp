@@ -20,6 +20,7 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/CharacterData.h>
@@ -1077,24 +1078,8 @@ Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
         });
     }
 
-    // User-agent
-    results.append({
-        .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
-        .url = "CSS/Default.css"_string,
-    });
-    if (document && document->in_quirks_mode()) {
-        results.append({
-            .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
-            .url = "CSS/QuirksMode.css"_string,
-        });
-    }
-    results.append({
-        .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
-        .url = "MathML/Default.css"_string,
-    });
-    results.append({
-        .type = Web::CSS::StyleSheetIdentifier::Type::UserAgent,
-        .url = "SVG/Default.css"_string,
+    Web::CSS::StyleScope::for_each_user_agent_stylesheet(document && document->in_quirks_mode(), [&](auto&, auto const& identifier) {
+        results.append(identifier);
     });
 
     return results;

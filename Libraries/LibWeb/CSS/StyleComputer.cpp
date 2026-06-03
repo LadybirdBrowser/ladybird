@@ -49,6 +49,7 @@
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperty.h>
+#include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -1763,6 +1764,26 @@ static JsonObject serialize_devtools_style_sheet_identifier(StyleSheetIdentifier
     return serialized_identifier;
 }
 
+static Optional<StyleSheetIdentifier> devtools_style_sheet_identifier_for_matching_rule(MatchingRule const& rule)
+{
+    if (rule.cascade_origin == CascadeOrigin::User) {
+        return StyleSheetIdentifier {
+            .type = StyleSheetIdentifier::Type::UserStyle,
+        };
+    }
+
+    if (rule.cascade_origin == CascadeOrigin::UserAgent) {
+        if (!rule.sheet)
+            return {};
+        return StyleScope::user_agent_style_sheet_identifier(*rule.sheet);
+    }
+
+    if (auto const* style_sheet = rule.rule->parent_style_sheet())
+        return style_sheet_identifier_for(*style_sheet);
+
+    return {};
+}
+
 static JsonObject serialize_devtools_matching_rule(DOM::Document const& document, MatchingRule const& rule)
 {
     auto const& declaration = rule.declaration();
@@ -1795,10 +1816,8 @@ static JsonObject serialize_devtools_matching_rule(DOM::Document const& document
         serialized_rule.set("column"sv, source_location->column + 1);
     }
 
-    if (auto const* style_sheet = rule.rule->parent_style_sheet()) {
-        if (auto identifier = style_sheet_identifier_for(*style_sheet); identifier.has_value())
-            serialized_rule.set("styleSheet"sv, serialize_devtools_style_sheet_identifier(identifier.release_value()));
-    }
+    if (auto identifier = devtools_style_sheet_identifier_for_matching_rule(rule); identifier.has_value())
+        serialized_rule.set("styleSheet"sv, serialize_devtools_style_sheet_identifier(identifier.release_value()));
 
     return serialized_rule;
 }
