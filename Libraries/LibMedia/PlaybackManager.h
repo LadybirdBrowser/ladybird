@@ -100,8 +100,6 @@ public:
     void add_media_source(NonnullRefPtr<MediaStream> const&);
     void add_media_source(NonnullRefPtr<Demuxer> const&);
 
-    WeakPlaybackManager weak();
-
 private:
     struct VideoTrackData {
         Track track;
@@ -118,6 +116,8 @@ private:
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 
     PlaybackManager();
+
+    WeakPlaybackManager weak();
 
     void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
     void disable_audio();
