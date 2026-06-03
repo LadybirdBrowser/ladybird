@@ -52,6 +52,19 @@
         `);
         println(`Parser-created style import available to following script: ${parserBlockingColor}`);
 
+        const svgParserBlockingStyle = await slowStyleSheet("/parser-created-svg-style-script-blocking.css");
+        const svgParserBlockingBlocked = await runFrame("/parser-created-svg-style-script-blocking-page", `
+            <!DOCTYPE html>
+            ${scriptStart}
+                window.svgParserBlockingStart = performance.now();
+            ${scriptEnd}
+            <svg><style>@import url("${svgParserBlockingStyle}");</style></svg>
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.svgParserBlockingStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Parser-created SVG style import blocked following parser script: ${svgParserBlockingBlocked}`);
+
         const dynamicUpdateStyle = await slowStyleSheet("/dynamic-style-update-should-not-block.css");
         const dynamicUpdateBlocked = await runFrame("/dynamic-style-update-should-not-block-page", `
             <!DOCTYPE html>
@@ -65,6 +78,34 @@
             ${scriptEnd}
         `);
         println(`Dynamic style update blocked following parser script: ${dynamicUpdateBlocked}`);
+
+        const dynamicSvgUpdateStyle = await slowStyleSheet("/dynamic-svg-style-update-should-not-block.css");
+        const dynamicSvgUpdateBlocked = await runFrame("/dynamic-svg-style-update-should-not-block-page", `
+            <!DOCTYPE html>
+            <svg><style id="style"></style></svg>
+            ${scriptStart}
+                window.dynamicSvgUpdateStart = performance.now();
+                document.getElementById("style").textContent = '@import url("${dynamicSvgUpdateStyle}");';
+            ${scriptEnd}
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.dynamicSvgUpdateStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Dynamic SVG style update blocked following parser script: ${dynamicSvgUpdateBlocked}`);
+
+        const dynamicSvgTypeStyle = await slowStyleSheet("/dynamic-svg-style-type-update-should-not-block.css");
+        const dynamicSvgTypeBlocked = await runFrame("/dynamic-svg-style-type-update-should-not-block-page", `
+            <!DOCTYPE html>
+            <svg><style id="style" type="text/plain">@import url("${dynamicSvgTypeStyle}");</style></svg>
+            ${scriptStart}
+                window.dynamicSvgTypeStart = performance.now();
+                document.getElementById("style").setAttribute("type", "text/css");
+            ${scriptEnd}
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.dynamicSvgTypeStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Dynamic SVG style type change blocked following parser script: ${dynamicSvgTypeBlocked}`);
 
         const removedStyle = await slowStyleSheet("/removed-parser-created-style-should-unblock.css");
         const removedStyleBlocked = await runFrame("/removed-parser-created-style-should-unblock-page", `
@@ -93,6 +134,19 @@
         `);
         println(`Non-matching media style blocked following parser script: ${nonMatchingMediaBlocked}`);
 
+        const nonMatchingSvgMedia = await slowStyleSheet("/non-matching-svg-media-style-should-not-block.css");
+        const nonMatchingSvgMediaBlocked = await runFrame("/non-matching-svg-media-style-should-not-block-page", `
+            <!DOCTYPE html>
+            ${scriptStart}
+                window.svgMediaStart = performance.now();
+            ${scriptEnd}
+            <svg><style media="not all">@import url("${nonMatchingSvgMedia}");</style></svg>
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.svgMediaStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Non-matching SVG media style blocked following parser script: ${nonMatchingSvgMediaBlocked}`);
+
         const changedMedia = await slowStyleSheet("/changed-media-style-should-unblock.css");
         const changedMediaBlocked = await runFrame("/changed-media-style-should-unblock-page", `
             <!DOCTYPE html>
@@ -106,6 +160,20 @@
             ${scriptEnd}
         `);
         println(`Media change blocked until import finished: ${changedMediaBlocked}`);
+
+        const changedSvgMedia = await slowStyleSheet("/changed-svg-media-style-should-unblock.css");
+        const changedSvgMediaBlocked = await runFrame("/changed-svg-media-style-should-unblock-page", `
+            <!DOCTYPE html>
+            ${scriptStart}
+                window.svgMediaChangeStart = performance.now();
+                setTimeout(() => document.getElementById("style").media = "not all", 0);
+            ${scriptEnd}
+            <svg><style id="style">@import url("${changedSvgMedia}");</style></svg>
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.svgMediaChangeStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`SVG media change blocked until import finished: ${changedSvgMediaBlocked}`);
 
         done();
     });
