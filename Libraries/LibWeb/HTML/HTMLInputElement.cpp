@@ -1416,15 +1416,15 @@ void HTMLInputElement::create_range_input_shadow_tree()
         auto client_x = event->client_x();
         if (!isfinite(client_x))
             return;
-        auto rect = get_bounding_client_rect();
-        if (rect.width().to_double() <= 0)
+        auto rect = get_bounding_client_rect().to_type<double>();
+        if (rect.width() <= 0)
             return;
         double minimum = *min();
         double maximum = *max();
         if (minimum > maximum)
             return;
-        // FIXME: Snap new value to input steps
-        MUST(set_value_as_number(clamp(round(((client_x - rect.left().to_double()) / rect.width().to_double()) * (maximum - minimum) + minimum), minimum, maximum)));
+        auto relative_x = client_x - rect.left();
+        MUST(set_value_as_number(mix(minimum, maximum, relative_x / rect.width())));
         user_interaction_did_change_input_value();
     };
 
