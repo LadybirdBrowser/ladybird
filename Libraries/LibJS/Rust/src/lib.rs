@@ -137,6 +137,7 @@ pub struct CompiledProgram {
     parsed: ParsedProgram,
     bytecode: CompiledProgramBytecode,
     declaration_functions: Vec<PendingSharedFunctionData>,
+    source_len: usize,
 }
 
 pub struct CompiledFunction {
@@ -745,6 +746,7 @@ fn compile_parsed_program_off_thread_impl(
                 parsed: *parsed,
                 bytecode,
                 declaration_functions,
+                source_len,
             }))
         })
     }
@@ -915,6 +917,20 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
 pub unsafe extern "C" fn rust_free_decoded_bytecode_cache_blob(blob: *mut DecodedBytecodeCacheBlob) {
     unsafe {
         drop(Box::from_raw(blob));
+    }
+}
+
+/// Return the decoded source length carried by a decoded bytecode cache blob.
+///
+/// # Safety
+/// `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_decoded_bytecode_cache_source_len(blob: *const DecodedBytecodeCacheBlob) -> usize {
+    unsafe {
+        if blob.is_null() {
+            return 0;
+        }
+        (*blob)._blob.source_len()
     }
 }
 

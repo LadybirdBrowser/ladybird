@@ -445,6 +445,11 @@ DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes,
     return rust_decode_bytecode_cache_blob_with_owner(owner->bytes().data(), owner->bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
 }
 
+size_t decoded_bytecode_cache_source_length(DecodedBytecodeCacheBlob const* blob)
+{
+    return rust_decoded_bytecode_cache_source_len(blob);
+}
+
 void free_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob)
 {
     rust_free_decoded_bytecode_cache_blob(blob);
