@@ -25,6 +25,10 @@ LICENSE_HEADER_CHECK_EXCLUDES = {
     "AK/Checked.h",
     "AK/Function.h",
     "Libraries/LibCore/SocketpairWindows.cpp",
+    "Libraries/LibMedia/Audio/WSOLAAlgorithm.cpp",
+    "Libraries/LibMedia/Audio/WSOLAAlgorithm.h",
+    "Libraries/LibMedia/Audio/WSOLAInternals.cpp",
+    "Libraries/LibMedia/Audio/WSOLAInternals.h",
 }
 
 # We check that "#pragma once" is present

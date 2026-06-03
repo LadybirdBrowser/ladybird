@@ -1,7 +1,11 @@
 include(audio)
 
 set(SOURCES
+    Audio/AudioBuffer.cpp
     Audio/AudioDevices.cpp
+    Audio/WSOLAAlgorithm.cpp
+    Audio/WSOLAInternals.cpp
+    Audio/WSOLATimeStretcher.cpp
     Codecs/FLAC.cpp
     Codecs/Opus.cpp
     Codecs/Vorbis.cpp
@@ -22,6 +26,7 @@ set(SOURCES
     PlaybackStates/PlaybackStateHandler.cpp
     PlaybackStates/ResumingStateHandler.cpp
     Processors/AudioMixer.cpp
+    Processors/AudioTimeStretchProcessor.cpp
     Producers/DecodedAudioProducer.cpp
     Producers/DecodedVideoProducer.cpp
     Sinks/AudioPlaybackSink.cpp

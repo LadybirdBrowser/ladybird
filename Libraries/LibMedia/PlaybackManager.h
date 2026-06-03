@@ -171,6 +171,7 @@ private:
     VideoTrackDatas m_video_track_datas;
 
     RefPtr<AudioMixer> m_audio_mixer;
+    RefPtr<AudioTimeStretchProcessor> m_audio_time_stretch_processor;
     RefPtr<AudioPlaybackSink> m_audio_sink;
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
