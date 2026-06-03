@@ -736,6 +736,11 @@ impl DecodedCacheBlob {
             && self.program.indices_are_valid()
     }
 
+    pub(crate) fn validate_cached_bytecode(&self) -> Result<(), ValidationErrorKind> {
+        self.metadata.validate_cached_bytecode()?;
+        self.program.validate_cached_bytecode()
+    }
+
     pub(crate) unsafe fn materialize_script(
         self,
         vm_ptr: *mut c_void,
@@ -1344,10 +1349,6 @@ unsafe fn materialize_function(
     shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
 ) -> *mut c_void {
     unsafe {
-        if function.precompiled.validate_cached_bytecode().is_err() {
-            return std::ptr::null_mut();
-        }
-
         let (_parameter_name_storage, parameter_names): (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) = function
             .parameter_names
             .as_ref()
@@ -1469,10 +1470,6 @@ unsafe fn prepare_function_install(
         }
 
         if crate::bytecode::ffi::rust_sfd_executable(existing_sfd_ptr).is_null() {
-            if function.precompiled.validate_cached_bytecode().is_err() {
-                return std::ptr::null_mut();
-            }
-
             pending_function_installs.push(PendingFunctionInstall {
                 existing_sfd_ptr,
                 replacement: PendingFunctionInstallReplacement::CachedBytecode(function.precompiled),
@@ -1484,9 +1481,6 @@ unsafe fn prepare_function_install(
         let Some(executable) = function.precompiled.decode_executable() else {
             return std::ptr::null_mut();
         };
-        if executable.validate_cached_bytecode().is_err() {
-            return std::ptr::null_mut();
-        }
         let executable_ptr = materialize_executable_for_install(
             executable,
             Some(existing_shared_function_data),
@@ -1523,9 +1517,6 @@ pub(crate) unsafe fn materialize_cached_function(
         let Some(executable) = cached_executable.decode_executable() else {
             return std::ptr::null_mut();
         };
-        if executable.validate_cached_bytecode().is_err() {
-            return std::ptr::null_mut();
-        }
         let shared_function_data_owner = if shared_function_data_list_ptr.is_null() {
             crate::bytecode::ffi::SharedFunctionDataOwner::None
         } else {
@@ -1832,6 +1823,22 @@ impl DecodedDeclarationMetadata {
                             || usize::try_from(binding.function_index)
                                 .is_ok_and(|index| index < declaration_functions.len())
                     })
+            }
+        }
+    }
+
+    fn validate_cached_bytecode(&self) -> Result<(), ValidationErrorKind> {
+        match self {
+            Self::Script {
+                declaration_functions, ..
+            }
+            | Self::Module {
+                declaration_functions, ..
+            } => {
+                for function in declaration_functions {
+                    function.precompiled.validate_cached_bytecode()?;
+                }
+                Ok(())
             }
         }
     }
@@ -2709,6 +2716,10 @@ impl DecodedProgramRecord {
 
     fn indices_are_valid(&self) -> bool {
         self.executable.indices_are_valid()
+    }
+
+    fn validate_cached_bytecode(&self) -> Result<(), ValidationErrorKind> {
+        self.executable.validate_cached_bytecode()
     }
 }
 

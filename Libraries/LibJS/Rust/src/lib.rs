@@ -943,6 +943,9 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_script(
             if !blob._blob.source_ranges_are_valid(source_len) {
                 return std::ptr::null_mut();
             }
+            if blob._blob.validate_cached_bytecode().is_err() {
+                return std::ptr::null_mut();
+            }
             blob._blob
                 .materialize_script(vm_ptr, source_code_ptr, shared_function_data_list_ptr, gdi_context)
         })
@@ -975,6 +978,9 @@ pub unsafe extern "C" fn rust_materialize_bytecode_cache_module(
             }
             let blob = Box::from_raw(blob);
             if !blob._blob.source_ranges_are_valid(source_len) {
+                return std::ptr::null_mut();
+            }
+            if blob._blob.validate_cached_bytecode().is_err() {
                 return std::ptr::null_mut();
             }
             blob._blob.materialize_module(
@@ -1027,6 +1033,9 @@ pub unsafe extern "C" fn rust_install_bytecode_cache_script(
             if !blob._blob.source_ranges_are_valid(source_len) {
                 return std::ptr::null_mut();
             }
+            if blob._blob.validate_cached_bytecode().is_err() {
+                return std::ptr::null_mut();
+            }
             blob._blob.install_script(
                 vm_ptr,
                 source_code_ptr,
@@ -1076,6 +1085,9 @@ pub unsafe extern "C" fn rust_install_bytecode_cache_module(
                 std::slice::from_raw_parts(existing_declaration_function_ptrs, existing_declaration_function_count)
             };
             if !blob._blob.source_ranges_are_valid(source_len) {
+                return std::ptr::null_mut();
+            }
+            if blob._blob.validate_cached_bytecode().is_err() {
                 return std::ptr::null_mut();
             }
             blob._blob.install_module(
