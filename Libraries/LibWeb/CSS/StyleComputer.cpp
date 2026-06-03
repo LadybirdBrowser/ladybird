@@ -1199,8 +1199,11 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
 
     // For each element and property, the implementation must act as follows:
     // NB: We know that a DocumentTimeline's current time is always in milliseconds
-    VERIFY(m_document->timeline()->current_time()->type == Animations::TimeValue::Type::Milliseconds);
-    auto style_change_event_time = m_document->timeline()->current_time()->value;
+    auto current_time = m_document->timeline()->current_time();
+    if (!current_time.has_value())
+        return;
+    VERIFY(current_time->type == Animations::TimeValue::Type::Milliseconds);
+    auto style_change_event_time = current_time->value;
 
     // FIXME: Add some transition helpers to AbstractElement.
     auto& element = abstract_element.element();

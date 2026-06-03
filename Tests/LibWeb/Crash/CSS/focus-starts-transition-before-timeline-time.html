@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    button {
+        opacity: 0;
+        transition: opacity 1s;
+    }
+
+    button:focus {
+        opacity: 1;
+    }
+</style>
+<button>content</button>
+<script>
+    asyncTest(done => {
+        requestAnimationFrame(() => {
+            document.querySelector("button").focus();
+            done();
+        });
+    });
+</script>
