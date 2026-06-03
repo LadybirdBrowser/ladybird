@@ -14,10 +14,26 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StyleElementBase.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::DOM {
+
+void StyleElementBase::update_a_style_block_for_dynamic_change()
+{
+    update_a_style_block();
+}
+
+void StyleElementBase::style_element_attribute_changed(FlyString const& name, Optional<String> const& value)
+{
+    if (name == HTML::AttributeNames::media) {
+        if (auto* sheet = this->sheet())
+            sheet->set_media(value.value_or({}));
+    } else if (name == HTML::AttributeNames::type) {
+        update_a_style_block_for_dynamic_change();
+    }
+}
 
 // The user agent must run the "update a style block" algorithm whenever one of the following conditions occur:
 // FIXME: The element is popped off the stack of open elements of an HTML parser or XML parser.
@@ -150,6 +166,29 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
         element.unblock_rendering();
     });
     m_document_load_event_delayer.clear();
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet
+bool StyleElementBase::style_element_contributes_a_script_blocking_style_sheet() const
+{
+    // An element el in the context of a Document of an HTML parser or XML parser
+    // contributes a script-blocking style sheet if all of the following are true:
+
+    // FIXME: el was created by that Document's parser.
+
+    // el is either a style element or a link element that was an external resource link that contributes to the styling processing model when the el was created by the parser.
+    // NOTE: This is a style element, so all good!
+
+    // FIXME: el's media attribute's value matches the environment.
+
+    // FIXME: el's style sheet was enabled when the element was created by the parser.
+
+    // FIXME: The last time the event loop reached step 1, el's root was that Document.
+
+    // FIXME: The user agent hasn't given up on loading that particular style sheet yet.
+    //        A user agent may give up on loading a style sheet at any time.
+
+    return false;
 }
 
 // https://www.w3.org/TR/cssom/#dom-linkstyle-sheet

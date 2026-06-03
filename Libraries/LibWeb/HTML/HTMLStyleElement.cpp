@@ -7,8 +7,6 @@
  */
 
 #include <LibWeb/Bindings/HTMLStyleElement.h>
-#include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 
 namespace Web::HTML {
@@ -37,31 +35,25 @@ void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
 void HTMLStyleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
-    update_a_style_block();
+    update_a_style_block_for_dynamic_change();
 }
 
 void HTMLStyleElement::inserted()
 {
     Base::inserted();
-    update_a_style_block();
+    update_a_style_block_for_dynamic_change();
 }
 
 void HTMLStyleElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
     Base::removed_from(is_subtree_root, old_ancestor, old_root);
-    update_a_style_block();
+    update_a_style_block_for_dynamic_change();
 }
 
 void HTMLStyleElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
-
-    if (name == HTML::AttributeNames::media) {
-        if (auto* sheet = this->sheet())
-            sheet->set_media(value.value_or({}));
-    } else if (name == HTML::AttributeNames::type) {
-        update_a_style_block();
-    }
+    style_element_attribute_changed(name, value);
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-style-disabled
@@ -94,24 +86,7 @@ void HTMLStyleElement::set_disabled(bool disabled)
 // https://html.spec.whatwg.org/multipage/semantics.html#contributes-a-script-blocking-style-sheet
 bool HTMLStyleElement::contributes_a_script_blocking_style_sheet() const
 {
-    // An element el in the context of a Document of an HTML parser or XML parser
-    // contributes a script-blocking style sheet if all of the following are true:
-
-    // FIXME: el was created by that Document's parser.
-
-    // el is either a style element or a link element that was an external resource link that contributes to the styling processing model when the el was created by the parser.
-    // NOTE: This is a style element, so all good!
-
-    // FIXME: el's media attribute's value matches the environment.
-
-    // FIXME: el's style sheet was enabled when the element was created by the parser.
-
-    // FIXME: The last time the event loop reached step 1, el's root was that Document.
-
-    // FIXME: The user agent hasn't given up on loading that particular style sheet yet.
-    //        A user agent may give up on loading a style sheet at any time.
-
-    return false;
+    return style_element_contributes_a_script_blocking_style_sheet();
 }
 
 }

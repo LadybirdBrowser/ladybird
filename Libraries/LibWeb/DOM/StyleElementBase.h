@@ -18,6 +18,8 @@ public:
     virtual ~StyleElementBase() = default;
 
     void update_a_style_block();
+    void update_a_style_block_for_dynamic_change();
+    void style_element_attribute_changed(FlyString const&, Optional<String> const& value);
 
     CSS::CSSStyleSheet* sheet();
     CSS::CSSStyleSheet const* sheet() const;
@@ -34,6 +36,10 @@ public:
     void visit_style_element_edges(JS::Cell::Visitor&);
 
     virtual Element& as_element() = 0;
+    virtual Element const& as_element() const = 0;
+
+protected:
+    bool style_element_contributes_a_script_blocking_style_sheet() const;
 
 private:
     // https://www.w3.org/TR/cssom/#associated-css-style-sheet
