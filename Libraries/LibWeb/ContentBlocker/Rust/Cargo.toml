@@ -12,6 +12,10 @@ crate-type = ["staticlib"]
 adblock = "0.12.5"
 serde_json = "1.0"
 
+[features]
+default = []
+allocator = []
+
 [build-dependencies]
 cbindgen = "0.29"
 

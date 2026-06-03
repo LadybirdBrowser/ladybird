@@ -1256,7 +1256,12 @@ ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibSync LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADER RustFFI.h)
-import_rust_crate(MANIFEST_PATH ContentBlocker/Rust/Cargo.toml CRATE_NAME libweb_content_blocker_rust FFI_HEADER ContentBlockerRustFFI.h)
+
+set(content_blocker_rust_features "")
+if (NOT BUILD_SHARED_LIBS)
+    set(content_blocker_rust_features FEATURES allocator)
+endif()
+import_rust_crate(MANIFEST_PATH ContentBlocker/Rust/Cargo.toml CRATE_NAME libweb_content_blocker_rust ${content_blocker_rust_features} FFI_HEADER ContentBlockerRustFFI.h)
 target_link_libraries(LibWeb PRIVATE libweb_rust libweb_content_blocker_rust)
 get_target_property(_libweb_rust_lib libweb_rust IMPORTED_LOCATION)
 get_target_property(_libweb_content_blocker_rust_lib libweb_content_blocker_rust IMPORTED_LOCATION)
