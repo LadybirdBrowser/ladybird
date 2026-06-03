@@ -7,13 +7,16 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/ScopeGuard.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/PageStyleActor.h>
 #include <LibDevTools/Actors/StyleRuleActor.h>
+#include <LibDevTools/Actors/StyleSheetsActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 
 namespace DevTools {
 
@@ -112,6 +115,52 @@ static void received_fonts(JsonObject& response, JsonValue const& fonts)
     response.set("fontFaces"sv, move(font_faces));
 }
 
+static Optional<Web::CSS::StyleSheetIdentifier> style_sheet_identifier_from_json(JsonObject const& object)
+{
+    auto type_string = object.get_string("type"sv);
+    if (!type_string.has_value())
+        return {};
+
+    auto type = Web::CSS::style_sheet_identifier_type_from_string(*type_string);
+    if (!type.has_value())
+        return {};
+
+    auto dom_element_unique_id = object.get_integer<Web::UniqueNodeID::Type>("domElementUniqueId"sv);
+    auto rule_count = object.get_integer<size_t>("ruleCount"sv).value_or(0);
+    Optional<String> url;
+    if (auto url_value = object.get_string("url"sv); url_value.has_value())
+        url = *url_value;
+
+    return Web::CSS::StyleSheetIdentifier {
+        .type = *type,
+        .dom_element_unique_id = dom_element_unique_id.map([](auto value) -> Web::UniqueNodeID { return value; }),
+        .url = move(url),
+        .rule_count = rule_count,
+    };
+}
+
+static void link_rule_to_style_sheet_resource(WeakPtr<InspectorActor> const& inspector, JsonObject& rule)
+{
+    auto style_sheet = rule.get_object("styleSheet"sv);
+    if (!style_sheet.has_value())
+        return;
+
+    ScopeGuard remove_internal_style_sheet_data = [&] {
+        rule.remove("styleSheet"sv);
+    };
+
+    auto identifier = style_sheet_identifier_from_json(*style_sheet);
+    if (!identifier.has_value())
+        return;
+
+    auto style_sheets_actor = InspectorActor::style_sheets_for(inspector);
+    if (!style_sheets_actor)
+        return;
+
+    if (auto resource_id = style_sheets_actor->resource_id_for(*identifier); resource_id.has_value())
+        rule.set("parentStyleSheet"sv, resource_id.release_value());
+}
+
 void PageStyleActor::received_applied_style_rules(JsonObject& response, JsonValue const& applied_style_rules)
 {
     JsonArray entries;
@@ -126,6 +175,8 @@ void PageStyleActor::received_applied_style_rules(JsonObject& response, JsonValu
             auto rule = entry.get_object("rule"sv);
             if (!rule.has_value())
                 return;
+
+            link_rule_to_style_sheet_resource(m_inspector, *rule);
 
             auto& style_rule_actor = devtools().register_actor<StyleRuleActor>(*rule);
             m_style_rule_actors.append(style_rule_actor.name());
