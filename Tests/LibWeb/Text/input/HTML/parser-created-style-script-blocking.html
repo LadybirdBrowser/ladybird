@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(10000);
+
+        const httpServer = httpTestServer();
+        const scriptStart = "<scr" + "ipt>";
+        const scriptEnd = "</scr" + "ipt>";
+
+        async function slowStyleSheet(path, body = "body { color: rgb(1, 2, 3); }") {
+            return await httpServer.createEcho("GET", path, {
+                status: 200,
+                headers: {
+                    "Cache-Control": "no-store",
+                    "Content-Type": "text/css",
+                },
+                body,
+                delay_ms: 800,
+            });
+        }
+
+        async function runFrame(path, body) {
+            const url = await httpServer.createEcho("GET", path, {
+                status: 200,
+                headers: {
+                    "Cache-Control": "no-store",
+                    "Content-Type": "text/html",
+                },
+                body,
+            });
+
+            return await new Promise(resolve => {
+                const frame = document.createElement("iframe");
+                window.addEventListener("message", event => {
+                    frame.remove();
+                    resolve(event.data);
+                }, { once: true });
+                frame.src = url;
+                document.body.appendChild(frame);
+            });
+        }
+
+        const parserBlockingStyle = await slowStyleSheet("/parser-created-style-script-blocking.css");
+        const parserBlockingColor = await runFrame("/parser-created-style-script-blocking-page", `
+            <!DOCTYPE html>
+            <style>@import url("${parserBlockingStyle}");</style>
+            <body>
+            ${scriptStart}
+                parent.postMessage(getComputedStyle(document.body).color, "*");
+            ${scriptEnd}
+        `);
+        println(`Parser-created style import available to following script: ${parserBlockingColor}`);
+
+        const dynamicUpdateStyle = await slowStyleSheet("/dynamic-style-update-should-not-block.css");
+        const dynamicUpdateBlocked = await runFrame("/dynamic-style-update-should-not-block-page", `
+            <!DOCTYPE html>
+            <style id="style"></style>
+            ${scriptStart}
+                window.dynamicUpdateStart = performance.now();
+                document.getElementById("style").textContent = '@import url("${dynamicUpdateStyle}");';
+            ${scriptEnd}
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.dynamicUpdateStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Dynamic style update blocked following parser script: ${dynamicUpdateBlocked}`);
+
+        const removedStyle = await slowStyleSheet("/removed-parser-created-style-should-unblock.css");
+        const removedStyleBlocked = await runFrame("/removed-parser-created-style-should-unblock-page", `
+            <!DOCTYPE html>
+            ${scriptStart}
+                window.removeStart = performance.now();
+                setTimeout(() => document.getElementById("style").remove(), 0);
+            ${scriptEnd}
+            <style id="style">@import url("${removedStyle}");</style>
+            ${scriptStart}
+                parent.postMessage(performance.now() - window.removeStart >= 700, "*");
+            ${scriptEnd}
+        `);
+        println(`Removed parser-created style blocked until import finished: ${removedStyleBlocked}`);
+
+        done();
+    });
+</script>

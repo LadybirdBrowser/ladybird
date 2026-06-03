@@ -28,6 +28,7 @@
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/QualifiedName.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
@@ -704,6 +705,11 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         link_element.set_parser_document({}, document);
         link_element.set_was_enabled_when_created_by_parser({}, !token.has_attribute(HTML::AttributeNames::disabled));
     }
+
+    // AD-HOC: Let style elements know which document they were originally parsed for.
+    //         This is used for the render-blocking logic.
+    if (auto* style_element = as_if<DOM::StyleElementBase>(*element))
+        style_element->set_parser_document({}, document);
 
     // 11. Append each attribute in the given token to element.
     token.for_each_attribute([&](auto const& attribute) {
@@ -1936,6 +1942,12 @@ extern "C" void ladybird_html_parser_remove_node(size_t node)
 
 extern "C" void ladybird_html_parser_handle_element_popped(size_t element)
 {
+    // https://html.spec.whatwg.org/multipage/semantics.html#update-a-style-block
+    // When a style element is popped off the stack of open elements of an HTML parser or XML parser,
+    // the user agent must run the update a style block algorithm.
+    if (auto* style_element = as_if<DOM::StyleElementBase>(node_from_html_parser_ffi(element)))
+        style_element->did_pop_off_parser_stack_of_open_elements();
+
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element
     // When an option element is popped off the stack of open elements of an HTML parser or XML parser,
     // the user agent must run maybe clone an option into selectedcontent given the option element.
