@@ -114,7 +114,6 @@ public:
     void update_tabs_display();
 
     void rebuild_bookmarks_menu();
-    void update_bookmarks_bar_display(bool show_bookmarks_bar);
     void update_reopen_recently_closed_action();
     void detach_tab_to_new_window(int index, QPoint global_position);
     void move_tab_to_window(int index, BrowserWindow& target_window, int target_index);
@@ -158,6 +157,7 @@ private:
     virtual void closeEvent(QCloseEvent*) override;
 
     virtual void show_menu_bar_changed() override;
+    virtual void show_bookmarks_bar_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);

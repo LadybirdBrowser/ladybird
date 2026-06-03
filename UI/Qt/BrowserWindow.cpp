@@ -512,11 +512,12 @@ void BrowserWindow::rebuild_bookmarks_menu()
     });
 }
 
-void BrowserWindow::update_bookmarks_bar_display(bool show_bookmarks_bar)
+void BrowserWindow::show_bookmarks_bar_changed()
 {
+    auto show_bookmarks_bar = WebView::Application::settings().show_bookmarks_bar();
+
     for_each_tab([&](Tab& tab) {
-        if (tab.view().is_fullscreen() == Web::ViewportIsFullscreen::No)
-            tab.bookmarks_bar().setVisible(show_bookmarks_bar);
+        tab.bookmarks_bar().setVisible(show_bookmarks_bar);
     });
 }
 

@@ -38,7 +38,6 @@
 - (void)removeTab:(nonnull TabController*)controller;
 
 - (void)rebuildBookmarksMenu;
-- (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar;
 
 - (void)onDevtoolsEnabled;
 - (void)onDevtoolsDisabled;

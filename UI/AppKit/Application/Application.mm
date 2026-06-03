@@ -170,12 +170,6 @@ void Application::rebuild_bookmarks_menu() const
     [delegate rebuildBookmarksMenu];
 }
 
-void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
-{
-    ApplicationDelegate* delegate = [NSApp delegate];
-    [delegate updateBookmarksBarDisplay:show_bookmarks_bar];
-}
-
 void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
 {
     ApplicationDelegate* delegate = [NSApp delegate];
