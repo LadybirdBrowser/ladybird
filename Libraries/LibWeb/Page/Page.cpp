@@ -351,9 +351,9 @@ EventResult Page::handle_pinch_event(DevicePixelPoint position, unsigned modifie
     return top_level_traversable()->event_handler().handle_pinch_event(device_to_css_point(position), modifiers, scale);
 }
 
-EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
+EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text)
 {
-    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat);
+    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text);
 }
 
 EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)

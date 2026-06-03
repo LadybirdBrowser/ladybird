@@ -1,0 +1,16 @@
+keydown key=å keyCodePoints=e5 altKey=true ctrlKey=false
+beforeinput data=å dataCodePoints=e5 inputType=insertText
+value after Alt: å
+keydown key=@ keyCodePoints=40 altKey=true ctrlKey=true
+beforeinput data=@ dataCodePoints=40 inputType=insertText
+value after Ctrl+Alt: å@
+keydown key=  keyCodePoints=a0 altKey=true ctrlKey=false
+beforeinput data=  dataCodePoints=a0 inputType=insertText
+value after Alt+Space: å@ 
+value code points after Alt+Space: e5 40 a0
+keydown key=f keyCodePoints=66 altKey=true ctrlKey=false
+value after Alt+F shortcut: å@ 
+value code points after Alt+F shortcut: e5 40 a0
+keydown key=x keyCodePoints=78 altKey=false ctrlKey=true
+value after Ctrl: å@ 
+value code points after Ctrl: e5 40 a0

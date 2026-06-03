@@ -245,7 +245,7 @@ void EventLoop::process_input_events() const
                 [&](KeyEvent const& key_event) {
                     switch (key_event.type) {
                     case KeyEvent::Type::KeyDown:
-                        return page.handle_keydown(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat);
+                        return page.handle_keydown(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat, key_event.should_insert_text);
                     case KeyEvent::Type::KeyUp:
                         return page.handle_keyup(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat);
                     }

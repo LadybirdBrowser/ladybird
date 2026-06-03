@@ -922,6 +922,7 @@ static bool is_shifted_character(u32 code_point)
 struct KeyEvent {
     u32 code_point { 0 };
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
+    bool should_insert_text { false };
 };
 static KeyEvent key_code_to_page_event(u32 code_point, UIEvents::KeyModifier modifiers, KeyCodeData const& code)
 {
@@ -962,7 +963,11 @@ static KeyEvent key_code_to_page_event(u32 code_point, UIEvents::KeyModifier mod
     if (has_flag(modifiers, UIEvents::KeyModifier::Mod_Shift))
         code_point = code.alternate_key.value_or(code_point);
 
-    return { code_point, modifiers };
+    auto should_insert_text = code_point != 0
+        && code_point < 0xE000
+        && !(modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Super));
+
+    return { code_point, modifiers, should_insert_text };
 }
 
 // https://w3c.github.io/webdriver/#dfn-dispatch-a-keydown-action
@@ -1018,7 +1023,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_key_down_action(ActionObject::Ke
     //     keyboard in accordance with the requirements of [UI-EVENTS], and producing the following events, as appropriate,
     //     with the specified properties. This will always produce events including at least a keyDown event.
     auto event = key_code_to_page_event(raw_key, modifiers, code);
-    browsing_context.page().handle_keydown(code.code, event.modifiers, event.code_point, repeat);
+    browsing_context.page().handle_keydown(code.code, event.modifiers, event.code_point, repeat, event.should_insert_text);
 
     // 13. Return success with data null.
     return {};

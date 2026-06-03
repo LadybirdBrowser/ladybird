@@ -13,7 +13,7 @@ namespace Web {
 
 KeyEvent KeyEvent::clone_without_browser_data() const
 {
-    return { type, key, modifiers, code_point, repeat, nullptr };
+    return { type, key, modifiers, code_point, repeat, should_insert_text, nullptr };
 }
 
 MouseEvent MouseEvent::clone_without_browser_data() const
@@ -36,6 +36,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::KeyEvent const& event)
     TRY(encoder.encode(event.modifiers));
     TRY(encoder.encode(event.code_point));
     TRY(encoder.encode(event.repeat));
+    TRY(encoder.encode(event.should_insert_text));
     return {};
 }
 
@@ -47,8 +48,9 @@ ErrorOr<Web::KeyEvent> IPC::decode(Decoder& decoder)
     auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
     auto code_point = TRY(decoder.decode<u32>());
     auto repeat = TRY(decoder.decode<bool>());
+    auto should_insert_text = TRY(decoder.decode<bool>());
 
-    return Web::KeyEvent { type, key, modifiers, code_point, repeat, nullptr };
+    return Web::KeyEvent { type, key, modifiers, code_point, repeat, should_insert_text, nullptr };
 }
 
 template<>

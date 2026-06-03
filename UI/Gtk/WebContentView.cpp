@@ -106,12 +106,19 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, double x, 
 
 void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, guint keyval, GdkModifierType state)
 {
+    auto modifiers = gdk_modifier_to_web(state);
+    auto code_point = gdk_keyval_to_unicode(keyval);
+    auto should_insert_text = type == Web::KeyEvent::Type::KeyDown
+        && code_point != 0
+        && !(modifiers & (Web::UIEvents::KeyModifier::Mod_Ctrl | Web::UIEvents::KeyModifier::Mod_Alt | Web::UIEvents::KeyModifier::Mod_Super));
+
     Web::KeyEvent event {
         .type = type,
         .key = gdk_keyval_to_web(keyval),
-        .modifiers = gdk_modifier_to_web(state),
-        .code_point = gdk_keyval_to_unicode(keyval),
+        .modifiers = modifiers,
+        .code_point = code_point,
         .repeat = false,
+        .should_insert_text = should_insert_text,
         .browser_data = {},
     };
     enqueue_input_event(move(event));

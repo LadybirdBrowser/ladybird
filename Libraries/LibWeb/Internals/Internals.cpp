@@ -294,9 +294,9 @@ void Internals::send_text(HTML::HTMLElement& target, String const& text, WebIDL:
 
     for (auto code_point : text.code_points()) {
         if (auto data = webdriver_key_to_key_code(code_point); data.has_value())
-            page.handle_keydown(data->key_code, modifiers | data->additional_modifiers, data->code_point_to_send, false);
+            page.handle_keydown(data->key_code, modifiers | data->additional_modifiers, data->code_point_to_send, false, data->code_point_to_send != 0);
         else
-            page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false);
+            page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false, true);
     }
 }
 
@@ -305,7 +305,7 @@ void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebI
     auto key_code = UIEvents::key_code_from_string(key_name);
     target.focus();
 
-    page().handle_keydown(key_code, modifiers, 0, false);
+    page().handle_keydown(key_code, modifiers, 0, false, false);
 }
 
 void Internals::paste(HTML::HTMLElement& target, Utf16String const& text)
@@ -318,7 +318,7 @@ void Internals::paste(HTML::HTMLElement& target, Utf16String const& text)
 
 void Internals::commit_text()
 {
-    page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false);
+    page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false, true);
 }
 
 UIEvents::MouseButton Internals::button_from_unsigned_short(WebIDL::UnsignedShort button)

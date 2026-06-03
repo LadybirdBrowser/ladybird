@@ -36,6 +36,7 @@ struct WEB_API KeyEvent {
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     u32 code_point { 0 };
     bool repeat { false };
+    bool should_insert_text { false };
 
     OwnPtr<BrowserInputData> browser_data;
 };
