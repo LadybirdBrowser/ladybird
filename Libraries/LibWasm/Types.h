@@ -22,6 +22,8 @@
 #include <AK/UFixedBigInt.h>
 #include <AK/Variant.h>
 #include <AK/WeakPtr.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 #include <LibWasm/Constants.h>
 #include <LibWasm/Export.h>
 #include <LibWasm/Forward.h>
@@ -1532,7 +1534,9 @@ public:
     bool has_attempted_cranelift_compilation() const { return m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) == 2; }
     void set_has_attempted_cranelift_compilation(bool value) const
     {
+        Sync::MutexLocker locker(m_cranelift_compilation_mutex);
         m_cranelift_compilation_state.store(value ? 2 : 0, AK::MemoryOrder::memory_order_release);
+        m_cranelift_compilation_state_changed.broadcast();
     }
     bool try_begin_cranelift_compilation() const
     {
@@ -1541,12 +1545,19 @@ public:
     }
     void finish_cranelift_compilation() const
     {
+        Sync::MutexLocker locker(m_cranelift_compilation_mutex);
         m_cranelift_compilation_state.store(2, AK::MemoryOrder::memory_order_release);
+        m_cranelift_compilation_state_changed.broadcast();
     }
     void wait_for_cranelift_compilation() const
     {
-        while (m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) == 1)
-            AK::atomic_pause();
+        if (m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) != 1)
+            return;
+
+        Sync::MutexLocker locker(m_cranelift_compilation_mutex);
+        m_cranelift_compilation_state_changed.wait_while([this] {
+            return m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) == 1;
+        });
     }
 
     static ParseResult<NonnullRefPtr<Module>> parse(Stream& stream);
@@ -1576,6 +1587,8 @@ private:
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;
     mutable Atomic<u8> m_cranelift_compilation_state { 0 };
+    mutable Sync::Mutex m_cranelift_compilation_mutex;
+    mutable Sync::ConditionVariable m_cranelift_compilation_state_changed { m_cranelift_compilation_mutex };
 
     size_t m_minimum_call_record_allocation_size { 0 };
 };
