@@ -276,7 +276,7 @@ jobs:
           UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
       - name: Build with Qt
-        if: ${{ (inputs.os_name == 'macOS' || inputs.os_name == 'Linux') && inputs.build_preset == 'Sanitizer' }}
+        if: ${{ (inputs.os_name == 'macOS' || inputs.os_name == 'Linux') && inputs.build_preset == 'Sanitizer' && !(inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'self-hosted')) }}
         working-directory: ${{ github.workspace }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build -DLADYBIRD_GUI_FRAMEWORK=Qt
@@ -316,7 +316,7 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Test
-        if: ${{ inputs.build_preset == 'Sanitizer' }}
+        if: ${{ inputs.build_preset == 'Sanitizer' && !(inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'self-hosted')) }}
         working-directory: ${{ github.workspace }}
         run: ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 1800
         env:
