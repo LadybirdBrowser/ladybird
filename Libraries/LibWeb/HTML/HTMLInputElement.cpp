@@ -1410,10 +1410,12 @@ void HTMLInputElement::create_range_input_shadow_tree()
     auto update_slider_by_mouse = [this](JS::VM& vm) {
         if (type_state() != TypeAttributeState::Range)
             return;
-        auto client_x_value = MUST(vm.argument(0).get(vm, "clientX"_utf16_fly_string));
-        if (!client_x_value.is_finite_number())
+        auto event = vm.argument(0).as_if<UIEvents::MouseEvent>();
+        if (!event)
             return;
-        auto client_x = client_x_value.as_double();
+        auto client_x = event->client_x();
+        if (!isfinite(client_x))
+            return;
         auto rect = get_bounding_client_rect();
         if (rect.width().to_double() <= 0)
             return;
