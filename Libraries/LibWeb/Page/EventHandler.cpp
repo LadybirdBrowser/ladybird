@@ -869,16 +869,24 @@ static constexpr bool is_enter_key_or_interoperable_enter_key_combo(UIEvents::Ke
     return false;
 }
 
-static constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
+static bool should_ignore_keydown_event(u32 code_point, u32 modifiers, bool should_insert_text)
 {
-    if (modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Super))
+    if (code_point == 0 || code_point == 27)
         return true;
 
-    // FIXME: There are probably also keys with non-zero code points that should be filtered out.
-    return code_point == 0 || code_point == 27;
+    if (modifiers & UIEvents::KeyModifier::Mod_Super)
+        return true;
+
+    if ((modifiers & UIEvents::KeyModifier::Mod_Ctrl) && !(modifiers & UIEvents::KeyModifier::Mod_Alt))
+        return true;
+
+    if ((modifiers & UIEvents::KeyModifier::Mod_Alt) && !should_insert_text)
+        return true;
+
+    return false;
 }
 
-EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
+EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, bool should_insert_text)
 {
     if (!m_navigable->active_document())
         return EventResult::Dropped;
@@ -1047,7 +1055,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
-        if (!should_ignore_keydown_event(code_point, modifiers)) {
+        if (!should_ignore_keydown_event(code_point, modifiers, should_insert_text)) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
             target->handle_insert(UIEvents::InputTypes::insertText, Utf16String::from_code_point(code_point));
             return EventResult::Handled;

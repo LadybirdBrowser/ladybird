@@ -289,7 +289,7 @@ private:
     CFTypeRef m_event { nullptr };
 };
 
-Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
+Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event, bool should_insert_text)
 {
     auto modifiers = ns_modifiers_to_key_modifiers(event.modifierFlags);
     auto key_code = ns_key_code_to_key_code(event.keyCode, modifiers);
@@ -311,7 +311,7 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
     if (code_point >= 0xE000 && code_point <= 0xF8FF)
         code_point = 0;
 
-    return { type, key_code, modifiers, code_point, repeat, make<KeyData>(event) };
+    return { type, key_code, modifiers, code_point, repeat, should_insert_text, make<KeyData>(event) };
 }
 
 NSEvent* key_event_to_ns_event(Web::KeyEvent const& event)

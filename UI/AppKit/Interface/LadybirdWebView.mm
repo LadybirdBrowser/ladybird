@@ -952,7 +952,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
     };
 }
 
-- (void)handleCurrentKeyDownEvent
+- (void)handleCurrentKeyDownEvent:(BOOL)shouldInsertText
 {
     if (!self.current_key_down_event)
         return;
@@ -962,7 +962,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         return;
     }
 
-    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, self.current_key_down_event);
+    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, self.current_key_down_event, shouldInsertText);
     m_web_view_bridge->enqueue_input_event(move(key_event));
 
     self.current_key_down_event = nil;
@@ -1396,12 +1396,12 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
 - (void)insertText:(id)string replacementRange:(NSRange)replacementRange
 {
-    [self handleCurrentKeyDownEvent];
+    [self handleCurrentKeyDownEvent:YES];
 }
 
 - (void)doCommandBySelector:(SEL)selector
 {
-    [self handleCurrentKeyDownEvent];
+    [self handleCurrentKeyDownEvent:NO];
 }
 
 - (BOOL)hasMarkedText
