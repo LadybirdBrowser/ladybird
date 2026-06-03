@@ -26,6 +26,7 @@ static constexpr auto TAB_SETTINGS_KEY = "tabs"sv;
 static constexpr auto VERTICAL_TABS_ENABLED_KEY = "verticalTabsEnabled"sv;
 static constexpr auto VERTICAL_TABS_EXPANDED_KEY = "verticalTabsExpanded"sv;
 static constexpr auto VERTICAL_TABS_EXPAND_ON_HOVER_KEY = "verticalTabsExpandOnHover"sv;
+static constexpr auto VERTICAL_TABS_EXPANDED_WIDTH_KEY = "verticalTabsExpandedWidth"sv;
 
 static constexpr auto SHOW_BOOKMARKS_BAR_KEY = "showBookmarksBar"sv;
 static constexpr auto DEFAULT_SHOW_BOOKMARKS_BAR = true;
@@ -296,6 +297,8 @@ JsonValue Settings::serialize_json() const
     tab_settings.set(VERTICAL_TABS_ENABLED_KEY, m_tab_settings.vertical_tabs_enabled);
     tab_settings.set(VERTICAL_TABS_EXPANDED_KEY, m_tab_settings.vertical_tabs_expanded);
     tab_settings.set(VERTICAL_TABS_EXPAND_ON_HOVER_KEY, m_tab_settings.vertical_tabs_expand_on_hover);
+    if (m_tab_settings.vertical_tabs_expanded_width.has_value())
+        tab_settings.set(VERTICAL_TABS_EXPANDED_WIDTH_KEY, *m_tab_settings.vertical_tabs_expanded_width);
     settings.set(TAB_SETTINGS_KEY, move(tab_settings));
 
     settings.set(SHOW_BOOKMARKS_BAR_KEY, m_show_bookmarks_bar);
@@ -427,6 +430,8 @@ TabSettings Settings::parse_tab_settings(JsonValue const& settings)
         tab_settings.vertical_tabs_expanded = *vertical_tabs_expanded;
     if (auto vertical_tabs_expand_on_hover = settings.as_object().get_bool(VERTICAL_TABS_EXPAND_ON_HOVER_KEY); vertical_tabs_expand_on_hover.has_value())
         tab_settings.vertical_tabs_expand_on_hover = *vertical_tabs_expand_on_hover;
+    if (auto vertical_tabs_expanded_width = settings.as_object().get_integer<u16>(VERTICAL_TABS_EXPANDED_WIDTH_KEY); vertical_tabs_expanded_width.has_value())
+        tab_settings.vertical_tabs_expanded_width = *vertical_tabs_expanded_width;
 
     return tab_settings;
 }

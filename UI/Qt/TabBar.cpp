@@ -16,7 +16,6 @@
 #    include <UI/Qt/MacWindow.h>
 #endif
 #include <UI/Qt/Menu.h>
-#include <UI/Qt/Settings.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WindowControlButton.h>
@@ -1116,7 +1115,7 @@ TabWidget::TabWidget(QWidget* parent)
     if (auto* top_level_window = window(); top_level_window != this)
         top_level_window->installEventFilter(this);
 
-    m_vertical_tabs_expanded_width = Settings::the()->vertical_tabs_expanded_width().value_or(VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH);
+    m_vertical_tabs_expanded_width = Application::settings().tab_settings().vertical_tabs_expanded_width.value_or(VERTICAL_TABS_DEFAULT_EXPANDED_WIDTH);
     m_vertical_tabs_expanded_width = clamp_vertical_tabs_expanded_width(m_vertical_tabs_expanded_width);
 
     m_tab_bar = new TabBar(this);
@@ -1717,7 +1716,12 @@ void TabWidget::apply_vertical_tabs_expanded_width(int width)
 
 void TabWidget::persist_vertical_tabs_expanded_width()
 {
-    Settings::the()->set_vertical_tabs_expanded_width(m_vertical_tabs_expanded_width);
+    auto tab_settings = Application::settings().tab_settings();
+
+    using ValueType = decltype(tab_settings.vertical_tabs_expanded_width)::ValueType;
+    tab_settings.vertical_tabs_expanded_width = clamp(m_vertical_tabs_expanded_width, 0, NumericLimits<ValueType>::max());
+
+    Application::settings().set_tab_settings(tab_settings);
 }
 
 void TabWidget::set_resize_handle_property(char const* property, bool enabled)
