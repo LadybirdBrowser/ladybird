@@ -26,6 +26,11 @@ public:
     virtual void set_wake_handler(PipelineWakeHandler) = 0;
 
     virtual void seek(AK::Duration timestamp) = 0;
+
+    virtual void set_playback_rate(float rate)
+    {
+        VERIFY(rate == 1.0f);
+    }
 };
 
 }

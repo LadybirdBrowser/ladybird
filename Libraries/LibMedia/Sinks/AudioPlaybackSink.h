@@ -40,6 +40,8 @@ public:
     virtual void pause() override;
     virtual void seek(AK::Duration) override;
 
+    virtual void set_playback_rate(float) override;
+
     void set_volume(double);
 
     Function<void(Error&&)> on_audio_output_error;

@@ -301,6 +301,7 @@ void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& 
             continue;
         track_data.display->set_time_provider(provider);
     }
+    provider->set_playback_rate(m_playback_rate);
     if (is_playing())
         provider->resume();
 }
@@ -430,6 +431,12 @@ void PlaybackManager::set_volume(double volume)
 {
     if (m_audio_sink)
         m_audio_sink->set_volume(volume);
+}
+
+void PlaybackManager::set_playback_rate(float rate)
+{
+    m_playback_rate = rate;
+    m_time_provider->set_playback_rate(rate);
 }
 
 }

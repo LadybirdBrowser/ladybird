@@ -33,6 +33,8 @@ public:
 
     virtual void seek(AK::Duration timestamp) override;
 
+    virtual void set_playback_rate(float) override;
+
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
     Audio::SampleSpecification sample_specification() const;
 
@@ -60,6 +62,7 @@ private:
     Audio::SampleSpecification m_sample_specification;
     mutable HashMap<NonnullRefPtr<AudioProducer>, InputMixingData> m_inputs;
     i64 m_next_frame_to_write { 0 };
+    float m_playback_rate { 1.0f };
     bool m_started { false };
     bool m_moved_position_pending { false };
     mutable bool m_downstream_needs_wake { true };
