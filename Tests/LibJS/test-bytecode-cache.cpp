@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/File.h>
 #include <LibCore/ImmutableBytes.h>
@@ -27,6 +28,23 @@ struct BytecodeCacheTestData {
     Core::ImmutableBytes blob;
     Crypto::Hash::SHA256::DigestType source_hash;
 };
+
+static Crypto::Hash::SHA256::DigestType bytecode_cache_source_hash(StringView source, StringView source_encoding)
+{
+    auto hasher = Crypto::Hash::SHA256::create();
+    hasher->update(source.bytes());
+
+    auto encoding_length = static_cast<u32>(source_encoding.length());
+    Array<u8, sizeof(u32)> encoded_length {
+        static_cast<u8>(encoding_length),
+        static_cast<u8>(encoding_length >> 8),
+        static_cast<u8>(encoding_length >> 16),
+        static_cast<u8>(encoding_length >> 24),
+    };
+    hasher->update(encoded_length.span());
+    hasher->update(source_encoding);
+    return hasher->digest();
+}
 
 TEST_CASE(lazy_source_code_decoding_replaces_utf8_surrogates)
 {
@@ -222,6 +240,7 @@ static size_t top_level_bytecode_payload_offset(ReadonlyBytes blob)
     reader.skip(sizeof(u32)); // Format version.
     reader.skip(1);           // Program type.
     reader.skip(32);          // Source hash.
+    reader.skip(sizeof(u32)); // Source length in code units.
     reader.skip(1);           // Has top-level await.
     reader.skip(1);           // Is strict mode.
 
@@ -251,7 +270,7 @@ static void enter_declaration_function_table(BytecodeCacheBlobReader& reader, bo
 static BytecodeCacheTestData create_bytecode_cache_blob(StringView source)
 {
     auto source_code = JS::SourceCode::create("test.js"_string, Utf16String::from_utf8(source));
-    auto source_hash = Crypto::Hash::SHA256::hash(reinterpret_cast<u8 const*>(source_code->utf16_data()), source_code->length_in_code_units() * sizeof(u16));
+    auto source_hash = bytecode_cache_source_hash(source, "UTF-8"sv);
 
     auto* parsed = JS::RustIntegration::parse_program(source_code->utf16_data(), source_code->length_in_code_units(), JS::RustIntegration::ProgramType::Script);
     VERIFY(parsed);
@@ -280,7 +299,7 @@ static BytecodeCacheTestData create_bytecode_cache_blob(StringView source)
 static BytecodeCacheTestData create_module_bytecode_cache_blob(StringView source)
 {
     auto source_code = JS::SourceCode::create("test.mjs"_string, Utf16String::from_utf8(source));
-    auto source_hash = Crypto::Hash::SHA256::hash(reinterpret_cast<u8 const*>(source_code->utf16_data()), source_code->length_in_code_units() * sizeof(u16));
+    auto source_hash = bytecode_cache_source_hash(source, "UTF-8"sv);
 
     auto* parsed = JS::RustIntegration::parse_program(source_code->utf16_data(), source_code->length_in_code_units(), JS::RustIntegration::ProgramType::Module);
     VERIFY(parsed);
@@ -353,6 +372,7 @@ static size_t first_declaration_function_bytecode_payload_offset(ReadonlyBytes b
     reader.skip(sizeof(u32)); // Format version.
     reader.skip(1);           // Program type.
     reader.skip(32);          // Source hash.
+    reader.skip(sizeof(u32)); // Source length in code units.
     reader.skip(1);           // Has top-level await.
     reader.skip(1);           // Is strict mode.
 
@@ -398,6 +418,7 @@ static size_t first_declaration_function_source_text_start_offset(ReadonlyBytes 
     reader.skip(sizeof(u32)); // Format version.
     reader.skip(1);           // Program type.
     reader.skip(32);          // Source hash.
+    reader.skip(sizeof(u32)); // Source length in code units.
     reader.skip(1);           // Has top-level await.
     reader.skip(1);           // Is strict mode.
 

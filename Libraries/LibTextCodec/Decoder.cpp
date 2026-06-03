@@ -325,6 +325,19 @@ ErrorOr<String> convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte
     return output;
 }
 
+ErrorOr<size_t> convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder& fallback_decoder, StringView input)
+{
+    Decoder* actual_decoder = &fallback_decoder;
+
+    if (auto unicode_decoder = bom_sniff_to_decoder(input); unicode_decoder.has_value()) {
+        actual_decoder = &unicode_decoder.value();
+        input = input.substring_view(&unicode_decoder.value() == &s_utf8_decoder ? 3 : 2);
+    }
+
+    VERIFY(actual_decoder);
+    return actual_decoder->length_in_utf16_code_units(input);
+}
+
 // https://encoding.spec.whatwg.org/#get-an-output-encoding
 StringView get_output_encoding(StringView encoding)
 {
@@ -352,6 +365,16 @@ ErrorOr<String> Decoder::to_utf8(StringView input)
     StringBuilder builder(input.length());
     TRY(process(input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
     return builder.to_string_without_validation();
+}
+
+ErrorOr<size_t> Decoder::length_in_utf16_code_units(StringView input)
+{
+    size_t length = 0;
+    TRY(process(input, [&](u32 code_point) -> ErrorOr<void> {
+        length += code_point <= 0xffff ? 1 : 2;
+        return {};
+    }));
+    return length;
 }
 
 ErrorOr<void> Decoder::process_code_points(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
@@ -794,6 +817,83 @@ static ErrorOr<void> process_utf8_with_replacement_character(StringView input, F
     return {};
 }
 
+static size_t utf8_length_in_utf16_code_units_with_replacement_character(StringView input)
+{
+    auto bytes = input.bytes();
+    size_t length = 0;
+
+    for (size_t i = 0; i < bytes.size();) {
+        auto byte = bytes[i];
+        if (byte <= 0x7f) {
+            ++length;
+            ++i;
+            continue;
+        }
+
+        size_t sequence_length = 0;
+        u32 code_point = 0;
+        u32 minimum_code_point = 0;
+
+        if (byte >= 0xc2 && byte <= 0xdf) {
+            sequence_length = 2;
+            code_point = byte & 0x1f;
+            minimum_code_point = 0x80;
+        } else if (byte >= 0xe0 && byte <= 0xef) {
+            sequence_length = 3;
+            code_point = byte & 0x0f;
+            minimum_code_point = 0x800;
+        } else if (byte >= 0xf0 && byte <= 0xf4) {
+            sequence_length = 4;
+            code_point = byte & 0x07;
+            minimum_code_point = 0x10000;
+        } else {
+            ++length;
+            ++i;
+            continue;
+        }
+
+        if (i + 1 < bytes.size() && !is_utf8_second_byte_in_range(byte, bytes[i + 1])) {
+            ++length;
+            ++i;
+            continue;
+        }
+
+        if (i + sequence_length > bytes.size()) {
+            ++length;
+            i = bytes.size();
+            continue;
+        }
+
+        Optional<size_t> invalid_continuation_offset;
+        for (size_t offset = 1; offset < sequence_length; ++offset) {
+            auto continuation_byte = bytes[i + offset];
+            if (!is_utf8_continuation_byte(continuation_byte)) {
+                invalid_continuation_offset = offset;
+                break;
+            }
+            code_point <<= 6;
+            code_point |= continuation_byte & 0x3f;
+        }
+
+        if (invalid_continuation_offset.has_value()) {
+            ++length;
+            i += *invalid_continuation_offset;
+            continue;
+        }
+
+        if (code_point < minimum_code_point || code_point > 0x10ffff || is_unicode_surrogate(code_point)) {
+            ++length;
+            ++i;
+            continue;
+        }
+
+        length += code_point <= 0xffff ? 1 : 2;
+        i += sequence_length;
+    }
+
+    return length;
+}
+
 ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
     return process_utf8_with_replacement_character(input, move(on_code_point));
@@ -816,11 +916,31 @@ ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
     return builder.to_string_without_validation();
 }
 
+ErrorOr<size_t> UTF8Decoder::length_in_utf16_code_units(StringView input)
+{
+    if (auto bytes = input.bytes(); bytes.starts_with({ { 0xEF, 0xBB, 0xBF } }))
+        input = input.substring_view(3);
+
+    return utf8_length_in_utf16_code_units_with_replacement_character(input);
+}
+
 bool UTF16BEDecoder::validate(StringView input)
 {
     if (input.bytes().size() % 2 != 0)
         return false;
     return AK::validate_utf16_be(input.bytes());
+}
+
+static size_t utf16_length_in_utf16_code_units(StringView input, bool big_endian)
+{
+    auto bytes = input.bytes();
+    if (bytes.size() >= 2) {
+        if ((big_endian && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            || (!big_endian && bytes[0] == 0xFF && bytes[1] == 0xFE))
+            bytes = bytes.slice(2);
+    }
+
+    return (bytes.size() + 1) / 2;
 }
 
 static ErrorOr<void> process_utf16(StringView input, bool big_endian, Function<ErrorOr<void>(u32)> on_code_point)
@@ -877,6 +997,11 @@ ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
     return Decoder::to_utf8(input);
 }
 
+ErrorOr<size_t> UTF16BEDecoder::length_in_utf16_code_units(StringView input)
+{
+    return utf16_length_in_utf16_code_units(input, true);
+}
+
 bool UTF16LEDecoder::validate(StringView input)
 {
     if (input.bytes().size() % 2 != 0)
@@ -894,6 +1019,11 @@ ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
     return Decoder::to_utf8(input);
 }
 
+ErrorOr<size_t> UTF16LEDecoder::length_in_utf16_code_units(StringView input)
+{
+    return utf16_length_in_utf16_code_units(input, false);
+}
+
 ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
     for (u8 ch : input) {
@@ -902,6 +1032,11 @@ ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u3
     }
 
     return {};
+}
+
+ErrorOr<size_t> Latin1Decoder::length_in_utf16_code_units(StringView input)
+{
+    return input.length();
 }
 
 ErrorOr<void> PDFDocEncodingDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
@@ -951,6 +1086,11 @@ ErrorOr<void> PDFDocEncodingDecoder::process(StringView input, Function<ErrorOr<
     return {};
 }
 
+ErrorOr<size_t> PDFDocEncodingDecoder::length_in_utf16_code_units(StringView input)
+{
+    return input.length();
+}
+
 // https://encoding.spec.whatwg.org/#x-user-defined-decoder
 ErrorOr<void> XUserDefinedDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
@@ -975,6 +1115,11 @@ ErrorOr<void> XUserDefinedDecoder::process(StringView input, Function<ErrorOr<vo
     return {};
 }
 
+ErrorOr<size_t> XUserDefinedDecoder::length_in_utf16_code_units(StringView input)
+{
+    return input.length();
+}
+
 // https://encoding.spec.whatwg.org/#single-byte-decoder
 template<Integral ArrayType>
 ErrorOr<void> SingleByteDecoder<ArrayType>::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
@@ -996,6 +1141,12 @@ ErrorOr<void> SingleByteDecoder<ArrayType>::process(StringView input, Function<E
     }
     // 1. If byte is end-of-queue, return finished.
     return {};
+}
+
+template<Integral ArrayType>
+ErrorOr<size_t> SingleByteDecoder<ArrayType>::length_in_utf16_code_units(StringView input)
+{
+    return input.length();
 }
 
 // https://encoding.spec.whatwg.org/#index-gb18030-ranges-code-point
@@ -1750,6 +1901,11 @@ ErrorOr<void> ReplacementDecoder::process(StringView input, Function<ErrorOr<voi
     if (!input.is_empty())
         return on_code_point(replacement_code_point);
     return {};
+}
+
+ErrorOr<size_t> ReplacementDecoder::length_in_utf16_code_units(StringView input)
+{
+    return input.is_empty() ? 0 : 1;
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-decode
