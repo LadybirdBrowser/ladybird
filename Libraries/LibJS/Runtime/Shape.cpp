@@ -252,10 +252,10 @@ GC::Ref<Shape> Shape::create_configure_transition(PropertyKey const& property_ke
 
 GC::Ref<Shape> Shape::create_prototype_transition(Object* new_prototype)
 {
-    if (new_prototype)
-        new_prototype->convert_to_prototype_if_needed();
     if (auto existing_shape = get_or_prune_cached_prototype_transition(new_prototype))
         return *existing_shape;
+    if (new_prototype)
+        new_prototype->convert_to_prototype_if_needed();
     auto new_shape = heap().allocate<Shape>(*this, new_prototype);
     if (m_dictionary && m_property_count > DescriptorArray::max_descriptor_count) {
         new_shape->become_dictionary_shape();
@@ -472,8 +472,11 @@ GC::Ref<Shape> Shape::clone_for_prototype()
     if (m_dictionary && m_property_count > DescriptorArray::max_descriptor_count) {
         new_shape->become_dictionary_shape();
         copy_properties_to_dictionary_shape(*new_shape);
-    } else {
+    } else if (m_dictionary) {
         new_shape->set_descriptors(copy_descriptors());
+        new_shape->m_property_count = m_property_count;
+    } else {
+        new_shape->set_descriptors(descriptors());
         new_shape->m_property_count = m_property_count;
     }
     new_shape->m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
