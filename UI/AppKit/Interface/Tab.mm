@@ -33,18 +33,17 @@ static constexpr NSUInteger const TAB_LOADING_SPINNER_SEGMENT_COUNT = 12;
 
 class TabSettingsObserver final : public WebView::SettingsObserver {
 public:
-    explicit TabSettingsObserver(Function<void(WebView::ConfigVariableID)> callback)
-        : m_callback(move(callback))
+    explicit TabSettingsObserver(Tab* tab)
+        : m_tab(tab)
     {
-    }
-
-    virtual void config_variable_changed(WebView::ConfigVariableID variable) override
-    {
-        m_callback(variable);
     }
 
 private:
-    Function<void(WebView::ConfigVariableID)> m_callback;
+    // These are forward-declared so that they may access non-public Tab methods.
+    virtual void show_bookmarks_bar_changed() override;
+    virtual void config_variable_changed(WebView::ConfigVariableID variable) override;
+
+    __weak Tab* m_tab { nil };
 };
 
 static NSImage* tab_loading_spinner_icon(NSUInteger frame)
@@ -141,19 +140,12 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
         self.favicon = [Tab defaultFavicon];
         self.title = @"New Tab";
-        __weak Tab* weak_self = self;
-        m_settings_observer = make<TabSettingsObserver>([weak_self](WebView::ConfigVariableID variable) {
-            if (variable != WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
-                return;
-            Tab* strong_self = weak_self;
-            if (strong_self == nil)
-                return;
-            [strong_self updateTabTitleAndFavicon];
-        });
         [self updateTabTitleAndFavicon];
 
         [self setTitleVisibility:NSWindowTitleHidden];
         [self setIsVisible:YES];
+
+        m_settings_observer = make<TabSettingsObserver>(self);
 
         auto* bookmarks_bar = [[BookmarksBar alloc] init];
         self.bookmarks_bar_controller = [[NSTitlebarAccessoryViewController alloc] init];
@@ -477,3 +469,14 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 }
 
 @end
+
+void TabSettingsObserver::show_bookmarks_bar_changed()
+{
+    [m_tab updateBookmarksBarDisplay:WebView::Application::settings().show_bookmarks_bar()];
+}
+
+void TabSettingsObserver::config_variable_changed(WebView::ConfigVariableID variable)
+{
+    if (variable == WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
+        [m_tab updateTabTitleAndFavicon];
+}

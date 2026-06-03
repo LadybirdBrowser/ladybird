@@ -146,15 +146,6 @@
     }
 }
 
-- (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar
-{
-    for (TabController* controller in self.managed_tabs) {
-        if (auto* tab = (Tab*)[controller window]; ([tab styleMask] & NSWindowStyleMaskFullScreen) == 0) {
-            [tab updateBookmarksBarDisplay:show_bookmarks_bar];
-        }
-    }
-}
-
 - (void)onDevtoolsEnabled
 {
     if (!self.info_bar) {
