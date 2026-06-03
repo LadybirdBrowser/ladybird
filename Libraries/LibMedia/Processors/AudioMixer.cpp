@@ -49,6 +49,7 @@ ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& inpu
             disconnect_input_while_locked(input);
             return result.release_error();
         }
+        input->set_playback_rate(m_playback_rate);
         input->seek(mix_head_timestamp());
         if (m_started)
             input->start();
@@ -116,6 +117,16 @@ void AudioMixer::start()
 Audio::SampleSpecification AudioMixer::sample_specification() const
 {
     return m_sample_specification;
+}
+
+void AudioMixer::set_playback_rate(float rate)
+{
+    Sync::MutexLocker locker { m_mutex };
+    if (m_playback_rate == rate)
+        return;
+    for (auto& [input, input_data] : m_inputs)
+        input->set_playback_rate(rate);
+    m_playback_rate = rate;
 }
 
 AK::Duration AudioMixer::mix_head_timestamp() const

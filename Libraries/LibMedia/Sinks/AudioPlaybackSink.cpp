@@ -49,6 +49,7 @@ public:
     size_t m_block_count { 0 };
     i64 m_next_frame_to_play { 0 };
     AudioBlockTimingRing m_block_timings;
+    float m_playback_rate { 1.0f };
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_pull_status { PipelineStatus::Pending };
@@ -196,6 +197,7 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
             disconnect_input_while_locked(input);
             return result.release_error();
         }
+        input->set_playback_rate(m_output_thread_data->m_playback_rate);
         input->seek(current_time());
         input->start();
     }
@@ -465,6 +467,19 @@ void AudioPlaybackSink::set_volume(double volume)
                 // FIXME: Do we even need this function to return a promise?
             });
     }
+}
+
+void AudioPlaybackSink::set_playback_rate(float rate)
+{
+    VERIFY(rate >= 0);
+    RefPtr<AudioProducer> input;
+    {
+        Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+        input = m_output_thread_data->m_input;
+        m_output_thread_data->m_playback_rate = rate;
+    }
+    if (input != nullptr)
+        input->set_playback_rate(rate);
 }
 
 }
