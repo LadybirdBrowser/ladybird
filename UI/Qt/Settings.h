@@ -42,12 +42,6 @@ public:
     bool is_maximized();
     void set_is_maximized(bool is_maximized);
 
-    bool show_menubar();
-    void set_show_menubar(bool show_menubar);
-
-signals:
-    void show_menubar_changed(bool show_menubar);
-
 protected:
     Settings();
 

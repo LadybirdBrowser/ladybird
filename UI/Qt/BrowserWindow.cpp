@@ -264,11 +264,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     menuBar()->setObjectName("LadybirdMenuBar");
     create_menu_bar_window_controls();
     update_menu_bar_style();
-    update_menu_bar_visibility(Settings::the()->show_menubar());
-
-    QObject::connect(Settings::the(), &Settings::show_menubar_changed, this, [this](bool show_menubar) {
-        update_menu_bar_visibility(show_menubar);
-    });
+    update_menu_bar_visibility();
 
     auto* file_menu = menuBar()->addMenu("&File");
 
@@ -369,15 +365,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     view_menu->addMenu(create_application_menu(*view_menu, application.motion_menu()));
     view_menu->addSeparator();
 
-    if (show_menubar_option_available()) {
-        auto* show_menubar = new QAction("Show &Menubar", this);
-        show_menubar->setCheckable(true);
-        show_menubar->setChecked(Settings::the()->show_menubar());
-        view_menu->addAction(show_menubar);
-        QObject::connect(show_menubar, &QAction::triggered, this, [](bool checked) {
-            Settings::the()->set_show_menubar(checked);
-        });
-    }
+    if (show_menubar_option_available())
+        view_menu->addAction(create_application_action(*view_menu, application.toggle_menu_bar_action(), IncludeActionIcon::No));
 
     m_bookmarks_menu = create_application_menu(*this, application.bookmarks_menu());
     m_hamburger_menu->addMenu(m_bookmarks_menu);
@@ -938,12 +927,14 @@ void BrowserWindow::update_menu_bar_style()
     menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(palette()));
 }
 
-void BrowserWindow::update_menu_bar_visibility(bool show_menubar)
+void BrowserWindow::update_menu_bar_visibility()
 {
-    menuBar()->setVisible(show_menubar);
+    auto show_menu_bar = show_menubar_option_available() && WebView::Application::settings().show_menu_bar();
+    menuBar()->setVisible(show_menu_bar);
+
     if (m_menu_bar_window_controls)
-        m_menu_bar_window_controls->setVisible(show_menubar && uses_client_side_decorations());
-    m_tabs_container->set_window_controls_visible(!show_menubar && uses_client_side_decorations());
+        m_menu_bar_window_controls->setVisible(show_menu_bar && uses_client_side_decorations());
+    m_tabs_container->set_window_controls_visible(!show_menu_bar && uses_client_side_decorations());
 }
 
 void BrowserWindow::update_menu_bar_window_control_icons()
@@ -982,7 +973,7 @@ void BrowserWindow::update_window_decoration_state()
         }
     }
 
-    update_menu_bar_visibility(Settings::the()->show_menubar());
+    update_menu_bar_visibility();
 }
 
 void BrowserWindow::toggle_window_maximized()
@@ -1335,6 +1326,11 @@ void BrowserWindow::changeEvent(QEvent* event)
         }
     }
     QWidget::changeEvent(event);
+}
+
+void BrowserWindow::show_menu_bar_changed()
+{
+    update_menu_bar_visibility();
 }
 
 void BrowserWindow::config_variable_changed(WebView::ConfigVariableID variable)

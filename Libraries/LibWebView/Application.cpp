@@ -1391,6 +1391,11 @@ void Application::initialize_actions()
     });
     update_vertical_tabs_action();
 
+    m_toggle_menu_bar_action = Action::create_checkable("Show Menubar"sv, ActionID::ToggleMenuBar, [this]() {
+        m_settings.set_show_menu_bar(!m_settings.show_menu_bar());
+    });
+    m_toggle_menu_bar_action->set_checked(m_settings.show_menu_bar());
+
     m_bookmarks_menu = Menu::create("Bookmarks"sv);
     m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {
         open_url_in_new_tab(URL::about_bookmarks(), Web::HTML::ActivateTab::Yes);

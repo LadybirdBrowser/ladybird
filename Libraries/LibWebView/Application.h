@@ -183,6 +183,8 @@ public:
 
     Action& toggle_vertical_tabs_expanded_action() { return *m_toggle_vertical_tabs_expanded_action; }
 
+    Action& toggle_menu_bar_action() { return *m_toggle_menu_bar_action; }
+
     Menu& bookmarks_menu() { return *m_bookmarks_menu; }
     Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
     Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
@@ -378,6 +380,8 @@ private:
     Web::CSS::PreferredMotion m_motion { Web::CSS::PreferredMotion::Auto };
 
     RefPtr<Action> m_toggle_vertical_tabs_expanded_action;
+
+    RefPtr<Action> m_toggle_menu_bar_action;
 
     RefPtr<Menu> m_bookmarks_menu;
     RefPtr<Action> m_toggle_bookmark_action;

@@ -103,10 +103,13 @@ signals:
 private:
     virtual void resizeEvent(QResizeEvent*) override;
     virtual bool event(QEvent*) override;
+
+    virtual void show_menu_bar_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     void recreate_toolbar_icons();
     void connect_hamburger_menu();
+    void update_hamburger_menu();
     void update_chrome_style();
     void update_tab_title();
     void set_loading(bool);
