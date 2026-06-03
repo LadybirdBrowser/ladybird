@@ -2657,7 +2657,9 @@ impl TreeBuilder {
                     .eq_ignore_ascii_case(token.tag_name())
                 {
                     self.flush_character_insertions();
-                    self.stack_of_open_elements.truncate(index);
+                    while self.stack_of_open_elements.len() > index {
+                        self.pop_stack_node();
+                    }
                     return;
                 }
 
