@@ -40,10 +40,9 @@ namespace JS::RustIntegration {
 
 // --- Shared helpers ---
 
-// Bytecode cache materialization rebuilds executables from disk, which is untrusted input. Materialization paths flip
-// this flag for the duration of their work so that the in-process bytecode validator runs even in release builds; the
-// normal Rust pipeline path leaves it off and keeps the existing debug/sanitizer-only behavior.
-static thread_local bool s_validate_materialized_bytecode_cache_executables = false;
+// Bytecode cache materialization validates decoded cache bytecode before rebuilding Executables. Materialization paths
+// flip this flag for the duration of their work so rust_create_executable() does not run the same validator again.
+static thread_local bool s_skip_bytecode_validation_for_prevalidated_cache = false;
 
 static Utf16View utf16_view_from_bytes(uint16_t const* data, size_t len)
 {
@@ -506,7 +505,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> materialize_bytecode_cache_s
         return {};
 
     GC::DeferGC defer_gc(realm.vm().heap());
-    TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+    TemporaryChange skip_cache_executable_validation { s_skip_bytecode_validation_for_prevalidated_cache, true };
     ScriptGdiBuilder builder;
 
     void* exec_ptr = rust_materialize_bytecode_cache_script(blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(), &builder.shared_function_data, &builder);
@@ -683,7 +682,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> materialize_bytecode_cache_m
         return {};
 
     GC::DeferGC defer_gc(realm.vm().heap());
-    TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+    TemporaryChange skip_cache_executable_validation { s_skip_bytecode_validation_for_prevalidated_cache, true };
     ModuleBuilder builder;
     ModuleCallbacks callbacks {
         .set_has_top_level_await = module_set_has_top_level_await,
@@ -741,7 +740,7 @@ GC::Ptr<Bytecode::Executable> try_install_bytecode_cache_script(DecodedBytecodeC
     GC::Root<Bytecode::Executable> executable;
     {
         GC::DeferGC defer_gc(realm.vm().heap());
-        TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+        TemporaryChange skip_cache_executable_validation { s_skip_bytecode_validation_for_prevalidated_cache, true };
 
         executable = static_cast<Bytecode::Executable*>(rust_install_bytecode_cache_script(
             blob, &realm.vm(), source_code.ptr(), source_code->length_in_code_units(), &existing_executable,
@@ -771,7 +770,7 @@ Optional<ModuleBytecodeCacheInstallResult> try_install_bytecode_cache_module(Dec
         existing_shared_function_data_ptrs.unchecked_append(function);
 
     GC::DeferGC defer_gc(realm.vm().heap());
-    TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+    TemporaryChange skip_cache_executable_validation { s_skip_bytecode_validation_for_prevalidated_cache, true };
 
     void* top_level_await_executable = nullptr;
     auto* exec = static_cast<Bytecode::Executable*>(rust_install_bytecode_cache_module(
@@ -899,7 +898,7 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
 
     if (shared_data.m_cached_bytecode_executable) {
         GC::DeferGC defer_gc(vm.heap());
-        TemporaryChange validate_cache_executables { s_validate_materialized_bytecode_cache_executables, true };
+        TemporaryChange skip_cache_executable_validation { s_skip_bytecode_validation_for_prevalidated_cache, true };
         auto* exec = static_cast<Bytecode::Executable*>(rust_materialize_bytecode_cache_function(
             shared_data.m_cached_bytecode_executable,
             &vm,
@@ -1258,16 +1257,13 @@ extern "C" void* rust_create_executable(
         delete bp;
     }
 
-    auto const is_materializing_bytecode_cache = JS::RustIntegration::s_validate_materialized_bytecode_cache_executables;
 #if !defined(NDEBUG) || defined(HAS_ADDRESS_SANITIZER)
-    auto const should_validate_bytecode = true;
+    auto const should_validate_bytecode = !JS::RustIntegration::s_skip_bytecode_validation_for_prevalidated_cache;
 #else
-    auto const should_validate_bytecode = is_materializing_bytecode_cache;
+    auto const should_validate_bytecode = false;
 #endif
     if (should_validate_bytecode) {
         if (auto validation = JS::Bytecode::validate_bytecode(*executable, basic_block_offsets.span()); validation.is_error()) {
-            if (is_materializing_bytecode_cache)
-                return nullptr;
 #if !defined(NDEBUG) || defined(HAS_ADDRESS_SANITIZER)
             VERIFY_NOT_REACHED();
 #else
