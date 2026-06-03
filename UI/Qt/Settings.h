@@ -45,9 +45,6 @@ public:
     bool show_menubar();
     void set_show_menubar(bool show_menubar);
 
-    Optional<int> vertical_tabs_expanded_width();
-    void set_vertical_tabs_expanded_width(int);
-
 signals:
     void show_menubar_changed(bool show_menubar);
 
