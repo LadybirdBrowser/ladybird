@@ -216,16 +216,12 @@ LocationEdit::LocationEdit(QWidget* parent)
     m_autocomplete->on_query_complete = [this](auto suggestions, WebView::AutocompleteResultKind result_kind) {
         int selected_row = apply_inline_autocomplete(suggestions);
 
-        if (result_kind == WebView::AutocompleteResultKind::Intermediate && m_autocomplete->is_visible()) {
-            if (auto selected = m_autocomplete->selected_suggestion(); selected.has_value()) {
-                for (auto const& suggestion : suggestions) {
-                    if (suggestion.text == *selected)
-                        return;
-                }
-            }
-            m_autocomplete->clear_selection();
+        // Do not update the popup while results are still changing.
+        // Intermediate updates are triggered on every keystroke and would
+        // cause visible flicker in the suggestion list.
+        // Only final results are used to refresh the UI.
+        if (result_kind == WebView::AutocompleteResultKind::Intermediate && m_autocomplete->is_visible())
             return;
-        }
 
         m_autocomplete->show_with_suggestions(AK::move(suggestions), selected_row);
     };
