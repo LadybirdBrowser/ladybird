@@ -394,18 +394,13 @@ static NSImage* location_field_globe_icon()
             }
 
             auto selected_row = [self applyInlineAutocomplete:suggestions];
-            if (result_kind == WebView::AutocompleteResultKind::Intermediate && [self.autocomplete isVisible]) {
-                if (auto selected_suggestion = [self.autocomplete selectedSuggestion];
-                    selected_suggestion.has_value()) {
-                    for (auto const& suggestion : suggestions) {
-                        if (suggestion.text == *selected_suggestion)
-                            return;
-                    }
-                }
 
-                [self.autocomplete clearSelection];
+            // Do not update the popup while results are still changing.
+            // Intermediate updates are triggered on every keystroke and would
+            // cause visible flicker in the suggestion list.
+            // Only final results are used to refresh the UI.
+            if (result_kind == WebView::AutocompleteResultKind::Intermediate && [self.autocomplete isVisible])
                 return;
-            }
 
             [self.autocomplete showWithSuggestions:move(suggestions)
                                        selectedRow:selected_row];
