@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+</style>
+<input type="range" min="0" max="1" step="0.1">
+<script>
+    test(() => {
+        const input = document.querySelector("input");
+        const rect = input.getBoundingClientRect();
+        const y = rect.top + rect.height / 2;
+        for (const offset of [10, 25, 33, 50, 75]) {
+            internals.click(rect.left + offset, y);
+            println(`click at x=${offset}: value=${input.value}`);
+        }
+    });
+</script>
