@@ -511,11 +511,16 @@ void HTMLMediaElement::set_duration(double duration)
     set_needs_repaint();
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-play
 GC::Ref<WebIDL::Promise> HTMLMediaElement::play()
 {
     auto& realm = this->realm();
 
-    // FIXME: 1. If the media element is not allowed to play, then return a promise rejected with a "NotAllowedError" DOMException.
+    // 1. If the media element is not allowed to play, then return a promise rejected with a "NotAllowedError" DOMException.
+    if (!is_allowed_to_play()) {
+        auto exception = WebIDL::NotAllowedError::create(realm, "play() failed because the user didn't interact with the document first."_utf16);
+        return WebIDL::create_rejected_promise_from_exception(realm, exception);
+    }
 
     // 2. If the media element's error attribute is not null and its code is MEDIA_ERR_SRC_NOT_SUPPORTED, then return a promise
     //    rejected with a "NotSupportedError" DOMException.
@@ -596,7 +601,9 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
         dispatch_event(DOM::Event::create(realm(), HTML::EventNames::volumechange));
     });
 
-    // FIXME: Then, if the media element is not allowed to play, the user agent must run the internal pause steps for the media element.
+    // Then, if the media element is not allowed to play, the user agent must run the internal pause steps for the media element.
+    if (!is_allowed_to_play())
+        pause_element();
 
     update_volume();
 }
@@ -2642,6 +2649,31 @@ bool HTMLMediaElement::potentially_playing() const
     // playback, playback has not stopped due to errors, and the element is not a blocked media element.
     // FIXME: Implement "stopped due to errors".
     return !paused() && !ended() && !blocked();
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#allowed-to-play
+bool HTMLMediaElement::is_allowed_to_play() const
+{
+    // A media element is said to be allowed to play if the user agent and the system allow
+    // media playback in the current context.
+    //
+    // For example, a user agent could allow playback only when the media element's Window object
+    // has transient activation, but an exception could be made to allow playback while muted.
+
+    auto const& global_object = HTML::relevant_global_object(document());
+    if (auto* window = as_if<HTML::Window>(global_object)) {
+        // NB: Allow playback when the relevant window has transient activation (spec example above).
+        if (window->has_transient_activation())
+            return true;
+    }
+
+    // NB: Allow inaudible playback without interaction; matches muted-autoplay behavior in
+    // Chrome/Firefox and the spec's "exception ... while muted" example.
+    if (effective_media_volume() == 0.0)
+        return true;
+
+    // NB: Otherwise use the autoplay permissions allowlist (PolicyControlledFeature::Autoplay).
+    return document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::Autoplay);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#eligible-for-autoplay

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<video id="unmuted-video" src="../../../Assets/test-webm.webm"></video>
+<video id="muted-video" src="../../../Assets/test-webm.webm" muted></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        unmuted_video.play().then(
+            () => {
+                println("FAIL: unmuted play() succeeded without user activation");
+                done();
+            },
+            error => {
+                if (error.name === "NotAllowedError")
+                    println("PASS: unmuted play() rejected with NotAllowedError");
+                else
+                    println("FAIL: unmuted play() rejected with " + error.name);
+                done();
+            },
+        );
+    });
+
+    asyncTest(done => {
+        muted_video.play().then(
+            () => {
+                println("PASS: muted play() allowed without user activation");
+                done();
+            },
+            error => {
+                println("FAIL: muted play() rejected with " + error.name);
+                done();
+            },
+        );
+    });
+</script>

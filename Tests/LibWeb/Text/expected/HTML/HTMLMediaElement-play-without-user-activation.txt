@@ -1,0 +1,2 @@
+PASS: unmuted play() rejected with NotAllowedError
+PASS: muted play() allowed without user activation

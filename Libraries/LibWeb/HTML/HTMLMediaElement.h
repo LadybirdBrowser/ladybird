@@ -253,6 +253,7 @@ private:
     void clear_compositor_video_frame();
     void update_current_video_frame();
 
+    bool is_allowed_to_play() const;
     bool is_eligible_for_autoplay() const;
 
     enum class PlaybackDirection : u8 {
