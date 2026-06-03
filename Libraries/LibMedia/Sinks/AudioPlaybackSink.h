@@ -55,9 +55,10 @@ private:
     bool m_playing { false };
     double m_volume { 1 };
 
-    AK::Duration m_last_stream_time;
-    AK::Duration m_last_media_time;
+    AK::Duration m_anchor_stream_time;
+    i64 m_anchor_output_frame_index { 0 };
     Optional<AK::Duration> m_temporary_time;
+    mutable AK::Duration m_minimum_media_time;
 
     NonnullRefPtr<OutputThreadData> m_output_thread_data;
 };

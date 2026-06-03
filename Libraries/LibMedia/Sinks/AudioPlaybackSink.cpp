@@ -11,6 +11,8 @@
 #include <LibCore/Forward.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/AudioBlock.h>
+#include <LibMedia/AudioBlockTiming.h>
+#include <LibMedia/AudioBlockTimingRing.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/AudioProducer.h>
 #include <LibSync/ConditionVariable.h>
@@ -46,6 +48,7 @@ public:
     size_t m_block_tail { 0 };
     size_t m_block_count { 0 };
     i64 m_next_frame_to_play { 0 };
+    AudioBlockTimingRing m_block_timings;
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_pull_status { PipelineStatus::Pending };
@@ -82,6 +85,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         output_thread_data->m_block_head = 0;
                         output_thread_data->m_block_tail = 0;
                         output_thread_data->m_block_count = 0;
+                        output_thread_data->m_block_timings.clear();
                         output_thread_data->m_last_real_data_end_in_frames = output_thread_data->m_next_frame_to_play;
                         output_thread_data->m_waiting_for_upstream_data = false;
                         output_thread_data->m_output_condition.broadcast();
@@ -131,6 +135,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         VERIFY(can_carry_data(status));
                         output_thread_data->m_block_tail = (output_thread_data->m_block_tail + 1) % OUTPUT_BLOCK_QUEUE_CAPACITY;
                         output_thread_data->m_block_count++;
+                        output_thread_data->m_block_timings.enqueue(output_block.timing());
 
                         if (output_thread_data->m_playback_stream)
                             output_thread_data->m_playback_stream->notify_data_available();
@@ -341,11 +346,22 @@ AK::Duration AudioPlaybackSink::current_time() const
 {
     if (m_temporary_time.has_value())
         return m_temporary_time.value();
-    if (!m_output_thread_data->m_playback_stream)
-        return m_last_media_time;
+    if (!m_output_thread_data->m_playback_stream || !m_sample_specification.is_valid())
+        return m_minimum_media_time;
 
     auto stream_time = m_output_thread_data->m_playback_stream->total_time_played();
-    return m_last_media_time + (stream_time - m_last_stream_time);
+    auto stream_delta = stream_time - m_anchor_stream_time;
+    auto frames_played = stream_delta.to_time_units(1, m_sample_specification.sample_rate());
+    auto current_output_frame_index = m_anchor_output_frame_index + frames_played;
+
+    auto maybe_timing = m_output_thread_data->m_block_timings.find_timing_for_frame_index(current_output_frame_index);
+    if (!maybe_timing.has_value())
+        return m_minimum_media_time;
+
+    auto time = maybe_timing->media_time_at_frame_index(current_output_frame_index);
+    time = max(time, m_minimum_media_time);
+    m_minimum_media_time = time;
+    return time;
 }
 
 void AudioPlaybackSink::resume()
@@ -359,11 +375,9 @@ void AudioPlaybackSink::resume()
     if (!m_output_thread_data->m_playback_stream)
         return;
     m_output_thread_data->m_playback_stream->resume()
-        ->when_resolved([self = NonnullRefPtr(*this)](auto new_stream_time) {
-            self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
-                auto new_media_time = self->m_last_media_time + (new_stream_time - self->m_last_stream_time);
-                self->m_last_stream_time = new_stream_time;
-                self->m_last_media_time = new_media_time;
+        ->when_resolved([self = NonnullRefPtr(*this)](auto new_device_time) {
+            self->m_main_thread_event_loop.deferred_invoke([self, new_device_time]() {
+                self->m_anchor_stream_time = new_device_time;
             });
         })
         .when_rejected([](auto&& error) {
@@ -378,7 +392,15 @@ void AudioPlaybackSink::pause()
     if (!m_output_thread_data->m_playback_stream)
         return;
     m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
-        ->when_resolved([]() {
+        ->when_resolved([self = NonnullRefPtr(*this)]() {
+            auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();
+
+            self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
+                auto stream_delta = new_stream_time - self->m_anchor_stream_time;
+                auto frames_played = stream_delta.to_time_units(1, self->m_sample_specification.sample_rate());
+                self->m_anchor_output_frame_index += frames_played;
+                self->m_anchor_stream_time = new_stream_time;
+            });
         })
         .when_rejected([](auto&& error) {
             warnln("Unexpected error while pausing AudioPlaybackSink: {}", error.string_literal());
@@ -389,6 +411,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
 {
     bool already_draining_for_seek = m_temporary_time.has_value();
     m_temporary_time = time;
+    m_minimum_media_time = time;
 
     if (!m_output_thread_data->m_playback_stream)
         return;
@@ -404,6 +427,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
         m_output_thread_data->m_last_dispatched_status = PipelineStatus::Pending;
 
         m_output_thread_data->m_waiting_for_upstream_data = true;
+        m_output_thread_data->m_block_timings.clear();
     }
 
     if (m_output_thread_data->m_input != nullptr)
@@ -417,8 +441,10 @@ void AudioPlaybackSink::seek(AK::Duration time)
             auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
-                self->m_last_stream_time = new_stream_time;
-                self->m_last_media_time = self->m_temporary_time.release_value();
+                self->m_anchor_stream_time = new_stream_time;
+                auto seek_target = self->m_temporary_time.release_value();
+                self->m_anchor_output_frame_index = seek_target.to_time_units(1, self->m_sample_specification.sample_rate());
+                self->m_minimum_media_time = seek_target;
 
                 if (self->m_playing)
                     self->resume();
