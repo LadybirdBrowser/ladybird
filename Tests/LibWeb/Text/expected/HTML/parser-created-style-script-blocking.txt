@@ -1,5 +1,10 @@
 Parser-created style import available to following script: rgb(1, 2, 3)
+Parser-created SVG style import blocked following parser script: true
 Dynamic style update blocked following parser script: false
+Dynamic SVG style update blocked following parser script: false
+Dynamic SVG style type change blocked following parser script: false
 Removed parser-created style blocked until import finished: false
 Non-matching media style blocked following parser script: false
+Non-matching SVG media style blocked following parser script: false
 Media change blocked until import finished: false
+SVG media change blocked until import finished: false
