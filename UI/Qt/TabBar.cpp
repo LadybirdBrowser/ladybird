@@ -1127,6 +1127,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     m_toolbar_container = new QStackedWidget(this);
     m_toolbar_container->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    m_toolbar_container->installEventFilter(this);
     m_stacked_widget = new QStackedWidget(this);
     m_page_column = new QWidget(this);
     m_page_column_layout = new QVBoxLayout(m_page_column);
@@ -1449,6 +1450,9 @@ bool TabWidget::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_vertical_tabs_content && event->type() == QEvent::Leave)
         defer_update_vertical_tabs_hover_expanded();
 
+    if (watched == m_toolbar_container && event->type() == QEvent::Resize)
+        update_tab_layout();
+
     auto is_vertical_tabs_hover_target = watched == m_vertical_tab_bar_column
         || watched == m_tab_bar
         || watched == m_new_tab_button;
@@ -1746,7 +1750,8 @@ void TabWidget::update_vertical_tabs_content_separator()
         return;
 
     auto separator_x = max(0, current_vertical_tabs_width() - 1);
-    m_vertical_tabs_content_separator->setGeometry(separator_x, browser_chrome_layout_policy().toolbar_height - 1, max(0, width() - separator_x), 1);
+    auto separator_y = max(0, m_toolbar_container->height() - 1);
+    m_vertical_tabs_content_separator->setGeometry(separator_x, separator_y, max(0, width() - separator_x), 1);
     m_vertical_tabs_content_separator->raise();
 }
 
@@ -1773,12 +1778,12 @@ void TabWidget::update_vertical_tabs_hover_layout()
 
 QRect TabWidget::vertical_tabs_chrome_rect() const
 {
-    auto toolbar_height = browser_chrome_layout_policy().toolbar_height;
+    auto chrome_height = m_toolbar_container->height();
     return {
         0,
-        toolbar_height,
+        chrome_height,
         current_vertical_tabs_width(),
-        max(0, height() - toolbar_height)
+        max(0, height() - chrome_height)
     };
 }
 
