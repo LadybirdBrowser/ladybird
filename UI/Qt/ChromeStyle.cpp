@@ -754,6 +754,7 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto sidebar_separator = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.44 : 0.58));
     auto sidebar_separator_hover = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.64 : 0.76));
     auto vertical_tab_button_background_color = style_sheet_color(chrome_active_tab_surface_top(palette));
+
     return qformatted(R"(
 QWidget#LadybirdTabStrip {{
     color: {4};
@@ -823,7 +824,7 @@ QPushButton#LadybirdTabButton[collapsedVerticalTabButton="true"] {{
     max-width: 16px;
     max-height: 16px;
     background: {10};
-    border-color: {4};
+    border-color: {1};
     border-radius: 8px;
 }}
 
