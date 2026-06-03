@@ -37,6 +37,11 @@ StyleSheetsActor::~StyleSheetsActor()
         devtools().delegate().stop_listening_for_style_sheet_sources(tab->description());
 }
 
+String StyleSheetsActor::resource_id_for_index(StringView actor_name, size_t index)
+{
+    return MUST(String::formatted("{}-stylesheet:{}", actor_name, index));
+}
+
 void StyleSheetsActor::handle_message(Message const& message)
 {
     if (message.type == "getText"sv) {
@@ -64,6 +69,14 @@ void StyleSheetsActor::handle_message(Message const& message)
 void StyleSheetsActor::set_style_sheets(Vector<Web::CSS::StyleSheetIdentifier> style_sheets)
 {
     m_style_sheets = move(style_sheets);
+}
+
+Optional<String> StyleSheetsActor::resource_id_for(Web::CSS::StyleSheetIdentifier const& style_sheet) const
+{
+    auto index = m_style_sheets.find_first_index(style_sheet);
+    if (!index.has_value())
+        return {};
+    return resource_id_for_index(name(), *index);
 }
 
 void StyleSheetsActor::style_sheet_source_received(Web::CSS::StyleSheetIdentifier const& style_sheet, String source)

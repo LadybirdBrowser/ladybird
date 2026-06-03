@@ -254,7 +254,7 @@ void FrameActor::style_sheets_available(JsonObject& response, Vector<Web::CSS::S
         return;
 
     for (auto const& [i, style_sheet] : enumerate(style_sheets)) {
-        auto resource_id = MUST(String::formatted("{}-stylesheet:{}", style_sheets_actor->name(), i));
+        auto resource_id = StyleSheetsActor::resource_id_for_index(style_sheets_actor->name(), i);
 
         JsonValue href;
         JsonValue source_map_base_url;

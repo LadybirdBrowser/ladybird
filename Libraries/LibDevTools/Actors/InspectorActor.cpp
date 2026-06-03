@@ -9,6 +9,7 @@
 #include <LibDevTools/Actors/HighlighterActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
 #include <LibDevTools/Actors/PageStyleActor.h>
+#include <LibDevTools/Actors/StyleSheetsActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
@@ -16,14 +17,15 @@
 
 namespace DevTools {
 
-NonnullRefPtr<InspectorActor> InspectorActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
+NonnullRefPtr<InspectorActor> InspectorActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<StyleSheetsActor> style_sheets)
 {
-    return adopt_ref(*new InspectorActor(devtools, move(name), move(tab)));
+    return adopt_ref(*new InspectorActor(devtools, move(name), move(tab), move(style_sheets)));
 }
 
-InspectorActor::InspectorActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
+InspectorActor::InspectorActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<StyleSheetsActor> style_sheets)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
+    , m_style_sheets(move(style_sheets))
 {
 }
 
@@ -134,6 +136,13 @@ RefPtr<WalkerActor> InspectorActor::walker_for(WeakPtr<InspectorActor> const& we
 {
     if (auto inspector = weak_inspector.strong_ref())
         return inspector->m_walker.strong_ref();
+    return {};
+}
+
+RefPtr<StyleSheetsActor> InspectorActor::style_sheets_for(WeakPtr<InspectorActor> const& weak_inspector)
+{
+    if (auto inspector = weak_inspector.strong_ref())
+        return inspector->m_style_sheets.strong_ref();
     return {};
 }
 

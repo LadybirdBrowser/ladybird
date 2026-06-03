@@ -188,6 +188,8 @@ static WebView::DOMNodeProperties make_computed_style()
     return { WebView::DOMNodeProperties::Type::ComputedStyle, move(properties) };
 }
 
+static JsonObject serialized_fixture_style_sheet();
+
 static WebView::DOMNodeProperties make_applied_style_rules()
 {
     JsonArray entries;
@@ -255,6 +257,9 @@ static WebView::DOMNodeProperties make_applied_style_rules()
     rule.set("cssText"sv, "body div.fixture { color: rgb(1, 2, 3); }"sv);
     rule.set("authoredText"sv, "color: rgb(1, 2, 3);"sv);
     rule.set("declarations"sv, move(rule_declarations));
+    rule.set("line"sv, 4);
+    rule.set("column"sv, 9);
+    rule.set("styleSheet"sv, serialized_fixture_style_sheet());
 
     JsonObject rule_entry;
     rule_entry.set("rule"sv, move(rule));
@@ -308,6 +313,16 @@ static Web::CSS::StyleSheetIdentifier fixture_style_sheet()
         .dom_element_unique_id = 9,
         .url = "https://example.test/style.css"_string,
         .rule_count = 2 };
+}
+
+static JsonObject serialized_fixture_style_sheet()
+{
+    JsonObject style_sheet;
+    style_sheet.set("type"sv, Web::CSS::style_sheet_identifier_type_to_string(Web::CSS::StyleSheetIdentifier::Type::StyleElement));
+    style_sheet.set("domElementUniqueId"sv, 9);
+    style_sheet.set("url"sv, "https://example.test/style.css"sv);
+    style_sheet.set("ruleCount"sv, 2);
+    return style_sheet;
 }
 
 static JsonObject make_grid_line(double start, i32 number, i32 negative_number)
@@ -1982,6 +1997,10 @@ TEST_CASE(styles_and_stylesheets)
     EXPECT(inherited_rule.get_array("declarations"sv)->at(0).as_object().get_bool("isValid"sv).value());
     EXPECT(inherited_rule.get_array("declarations"sv)->at(1).as_object().get_bool("isNameValid"sv).value());
     EXPECT(!inherited_rule.get_array("declarations"sv)->at(1).as_object().get_bool("isValid"sv).value());
+    EXPECT_EQ(inherited_rule.get_string("parentStyleSheet"sv).value(), MUST(String::formatted("{}-stylesheet:0", style_sheets_actor)));
+    EXPECT_EQ(inherited_rule.get_integer<int>("line"sv).value(), 4);
+    EXPECT_EQ(inherited_rule.get_integer<int>("column"sv).value(), 9);
+    EXPECT(!inherited_rule.has("styleSheet"sv));
     EXPECT_EQ(inherited_rule_entry.get_array("matchedSelectorIndexes"sv)->at(0).as_integer<int>(), 0);
     EXPECT(!client.request(page_style_actor, "isPositionEditable"sv).get_bool("value"sv).value());
 

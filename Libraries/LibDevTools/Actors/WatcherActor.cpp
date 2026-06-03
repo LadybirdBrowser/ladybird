@@ -170,8 +170,8 @@ FrameActor& WatcherActor::create_frame_target()
 {
     auto& css_properties = devtools().register_actor<CSSPropertiesActor>();
     auto& console = devtools().register_actor<ConsoleActor>(m_tab);
-    auto& inspector = devtools().register_actor<InspectorActor>(m_tab);
     auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
+    auto& inspector = devtools().register_actor<InspectorActor>(m_tab, style_sheets);
     auto& thread = devtools().register_actor<ThreadActor>();
     auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
 
