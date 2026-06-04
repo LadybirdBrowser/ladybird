@@ -9,6 +9,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/CSS/Number.h>
+#include <LibWeb/CSS/Parser/SourcePosition.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -59,11 +60,6 @@ public:
     enum class HashType : u8 {
         Id,
         Unrestricted,
-    };
-
-    struct Position {
-        size_t line { 0 };
-        size_t column { 0 };
     };
 
     // Use this only to create types that don't have their own create_foo() methods below.
@@ -184,10 +180,10 @@ public:
     String to_debug_string() const;
 
     String const& original_source_text() const { return m_original_source_text; }
-    Position const& start_position() const { return m_start_position; }
-    Position const& end_position() const { return m_end_position; }
-    void set_position_range(Badge<Tokenizer>, Position start, Position end);
-    void set_position_range(Badge<RustTokenizer>, Position start, Position end);
+    SourcePosition const& start_position() const { return m_start_position; }
+    SourcePosition const& end_position() const { return m_end_position; }
+    void set_position_range(Badge<Tokenizer>, SourcePosition start, SourcePosition end);
+    void set_position_range(Badge<RustTokenizer>, SourcePosition start, SourcePosition end);
 
     bool operator==(Token const& other) const
     {
@@ -202,8 +198,8 @@ private:
     HashType m_hash_type { HashType::Unrestricted };
 
     String m_original_source_text;
-    Position m_start_position;
-    Position m_end_position;
+    SourcePosition m_start_position;
+    SourcePosition m_end_position;
 };
 
 }

@@ -102,7 +102,7 @@ static Number::Type css_number_type_from_ffi(FFI::CssNumberType number_type)
     VERIFY_NOT_REACHED();
 }
 
-static Token::Position position_from_ffi(size_t line, size_t column)
+static SourcePosition position_from_ffi(size_t line, size_t column)
 {
     return { line, column };
 }
