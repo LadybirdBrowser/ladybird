@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
@@ -255,6 +256,12 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> argume
     }));
 
     return process;
+}
+
+void Process::terminate_immediately(int status)
+{
+    _exit(status);
+    VERIFY_NOT_REACHED();
 }
 
 ErrorOr<String> Process::get_name()

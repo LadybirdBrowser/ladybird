@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
@@ -97,6 +98,14 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> argume
         .executable = path,
         .arguments = backing_strings,
     });
+}
+
+void Process::terminate_immediately(int status)
+{
+    // TerminateProcess() is stronger than the CRT's _exit(), since it skips
+    // DLL detach notifications and the other ExitProcess() teardown paths.
+    TerminateProcess(GetCurrentProcess(), static_cast<UINT>(status));
+    VERIFY_NOT_REACHED();
 }
 
 // Get the full path of the executable file of the current process
