@@ -69,6 +69,9 @@ void SettingsUI::register_interfaces()
     register_interface("setBrowsingBehavior"sv, [this](auto const& data) {
         set_browsing_behavior(data);
     });
+    register_interface("setStartupBehavior"sv, [this](auto const& data) {
+        set_startup_behavior(data);
+    });
     register_interface("setConfigVariable"sv, [this](auto const& data) {
         set_config_variable(data);
     });
@@ -207,6 +210,17 @@ void SettingsUI::set_browsing_behavior(JsonValue const& browsing_behavior)
 {
     auto parsed_browsing_behavior = Settings::parse_browsing_behavior(browsing_behavior);
     WebView::Application::settings().set_browsing_behavior(parsed_browsing_behavior);
+
+    load_current_settings();
+}
+
+void SettingsUI::set_startup_behavior(JsonValue const& startup_behavior)
+{
+    if (!startup_behavior.is_object())
+        return;
+
+    if (auto restore_session = startup_behavior.as_object().get_bool("restoreSessionOnStartup"sv); restore_session.has_value())
+        WebView::Application::settings().set_restore_session_on_startup(*restore_session);
 
     load_current_settings();
 }

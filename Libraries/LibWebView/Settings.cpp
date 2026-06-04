@@ -32,6 +32,7 @@ static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
 static constexpr auto DEFAULT_SHOW_MENU_BAR = false;
 
 static constexpr auto SHOW_BOOKMARKS_BAR_KEY = "showBookmarksBar"sv;
+static constexpr auto RESTORE_SESSION_ON_STARTUP_KEY = "restoreSessionOnStartup"sv;
 static constexpr auto DEFAULT_SHOW_BOOKMARKS_BAR = true;
 
 static constexpr auto DEFAULT_ZOOM_LEVEL_FACTOR_KEY = "defaultZoomLevelFactor"sv;
@@ -203,6 +204,9 @@ Settings Settings::create(Badge<Application>)
     if (auto show_bookmarks_bar = settings_json.value().get_bool(SHOW_BOOKMARKS_BAR_KEY); show_bookmarks_bar.has_value())
         settings.m_show_bookmarks_bar = *show_bookmarks_bar;
 
+    if (auto restore_session_on_startup = settings_json.value().get_bool(RESTORE_SESSION_ON_STARTUP_KEY); restore_session_on_startup.has_value())
+        settings.m_restore_session_on_startup = *restore_session_on_startup;
+
     if (auto factor = settings_json.value().get_double_with_precision_loss(DEFAULT_ZOOM_LEVEL_FACTOR_KEY); factor.has_value())
         settings.m_default_zoom_level_factor = factor.release_value();
 
@@ -310,6 +314,7 @@ JsonValue Settings::serialize_json() const
 
     settings.set(SHOW_MENU_BAR_KEY, m_show_menu_bar);
     settings.set(SHOW_BOOKMARKS_BAR_KEY, m_show_bookmarks_bar);
+    settings.set(RESTORE_SESSION_ON_STARTUP_KEY, m_restore_session_on_startup);
     settings.set(DEFAULT_ZOOM_LEVEL_FACTOR_KEY, m_default_zoom_level_factor);
 
     if (!m_zoom_per_host.is_empty()) {
@@ -469,6 +474,15 @@ void Settings::set_show_bookmarks_bar(bool show_bookmarks_bar)
 
     for (auto& observer : m_observers)
         observer.show_bookmarks_bar_changed();
+}
+
+void Settings::set_restore_session_on_startup(bool restore_session_on_startup)
+{
+    m_restore_session_on_startup = restore_session_on_startup;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.restore_session_on_startup_changed();
 }
 
 void Settings::set_default_zoom_level_factor(double zoom_level)

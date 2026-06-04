@@ -81,6 +81,7 @@ public:
     virtual void tab_settings_changed() { }
     virtual void show_menu_bar_changed() { }
     virtual void show_bookmarks_bar_changed() { }
+    virtual void restore_session_on_startup_changed() { }
     virtual void default_zoom_level_factor_changed() { }
     virtual void zoom_per_host_changed(StringView host) { (void)host; }
     virtual void languages_changed() { }
@@ -112,6 +113,9 @@ public:
 
     bool show_bookmarks_bar() const { return m_show_bookmarks_bar; }
     void set_show_bookmarks_bar(bool);
+
+    bool restore_session_on_startup() const { return m_restore_session_on_startup; }
+    void set_restore_session_on_startup(bool);
 
     double default_zoom_level_factor() const { return m_default_zoom_level_factor; }
     void set_default_zoom_level_factor(double);
@@ -176,6 +180,7 @@ private:
     TabSettings m_tab_settings;
     bool m_show_menu_bar { false };
     bool m_show_bookmarks_bar { true };
+    bool m_restore_session_on_startup { true };
     double m_default_zoom_level_factor { 0 };
     HashMap<String, double> m_zoom_per_host;
     Vector<String> m_languages;

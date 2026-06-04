@@ -106,9 +106,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         Vector<WebView::SessionWindow> session_windows;
-        auto store = WebView::Application::session_store();
-        if (store.has_value())
-            session_windows = store->load_session();
+        if (WebView::Application::settings().restore_session_on_startup()) {
+            auto store = WebView::Application::session_store();
+            if (store.has_value())
+                session_windows = store->load_session();
+        }
 
         if (session_windows.is_empty()) {
             auto& window = app->new_window(browser_options.urls, configuration);
