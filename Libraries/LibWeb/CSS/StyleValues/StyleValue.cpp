@@ -86,7 +86,6 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Node.h>
@@ -102,8 +101,7 @@ ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement 
 
     return {
         .color_scheme = color_scheme,
-        .current_color = element.computed_properties()->color(PropertyID::Color, { color_scheme, CSS::InitialValues::color(), CSS::SystemColor::accent_color(color_scheme), element.document(), calculation_resolution_context }),
-        .accent_color = element.computed_properties()->accent_color({ color_scheme, CSS::InitialValues::color(), CSS::SystemColor::accent_color(color_scheme), element.document(), calculation_resolution_context }),
+        .current_color = element.computed_properties()->color(PropertyID::Color, { color_scheme, CSS::InitialValues::color(), element.document(), calculation_resolution_context }),
         .document = element.document(),
         .calculation_resolution_context = calculation_resolution_context
     };
@@ -114,7 +112,6 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
     return {
         .color_scheme = layout_node.computed_values().color_scheme(),
         .current_color = layout_node.computed_values().color(),
-        .accent_color = layout_node.computed_values().accent_color(),
         .document = layout_node.document(),
         .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) },
     };
