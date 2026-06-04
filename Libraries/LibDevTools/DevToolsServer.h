@@ -12,6 +12,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Weakable.h>
 #include <LibCore/Socket.h>
 #include <LibDevTools/Actors/RootActor.h>
 #include <LibDevTools/Forward.h>
@@ -20,7 +21,7 @@ namespace DevTools {
 
 using ActorRegistry = HashMap<String, NonnullRefPtr<Actor>>;
 
-class DEVTOOLS_API DevToolsServer {
+class DEVTOOLS_API DevToolsServer : public Weakable<DevToolsServer> {
 public:
     static ErrorOr<NonnullOwnPtr<DevToolsServer>> create(DevToolsDelegate&, u16 port);
     ~DevToolsServer();
@@ -69,6 +70,7 @@ private:
 
     u64 m_server_id { 0 };
     u64 m_actor_count { 0 };
+    bool m_is_shutting_down { false };
 };
 
 }

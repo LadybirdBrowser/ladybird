@@ -14,6 +14,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
+#include <LibDevTools/Connection.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibHTTP/Header.h>
@@ -1901,6 +1902,19 @@ TEST_CASE(styles_and_stylesheets)
     bad_get_text.set("type"sv, "getText"sv);
     bad_get_text.set("resourceId"sv, "missing:99"sv);
     EXPECT_EQ(client.request(move(bad_get_text)).get_string("error"sv).value(), "unknownActor"sv);
+}
+
+TEST_CASE(devtools_server_teardown_with_pending_actor_cleanup)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    session->server->unregister_actor(tab_actor);
+    session->server->connection()->on_connection_closed();
+    session->server.clear();
+    pump(session->loop);
 }
 
 TEST_CASE(console_network_navigation_and_accessibility)
