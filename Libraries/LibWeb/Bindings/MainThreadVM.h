@@ -41,4 +41,10 @@ void queue_mutation_observer_microtask();
 WEB_API NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, Function<JS::Object*(JS::Realm&)> create_global_object, Function<JS::Object*(JS::Realm&)> create_global_this_value);
 WEB_API void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_queue);
 
+// Creates a bare Window-backed realm for tests and tools that do not need a full Document.
+WEB_API GC::Ref<JS::Realm> create_a_simple_javascript_realm();
+
+// Creates a principal realm backed by a Page and window environment settings object.
+WEB_API GC::Ref<JS::Realm> create_a_principal_javascript_realm();
+
 }

@@ -9,7 +9,10 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibGC/CellAllocator.h>
 #include <LibGC/DeferGC.h>
+#include <LibGfx/SystemTheme.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -20,9 +23,13 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/SourceTextModule.h>
+#include <LibURL/Origin.h>
+#include <LibURL/URL.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -42,10 +49,12 @@
 #include <LibWeb/HTML/Scripting/Script.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Scripting/WorkerAgent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
@@ -775,6 +784,133 @@ NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Fu
 
     // 7. Return realm execution context.
     return realm_execution_context;
+}
+
+// The VM may already be up via the other helper or normal startup.
+static void ensure_main_thread_vm_initialized()
+{
+    if (main_thread_vm_ptr())
+        return;
+    Platform::EventLoopPlugin::install(*new Platform::EventLoopPlugin);
+    initialize_main_thread_vm(AgentType::SimilarOriginWindow);
+}
+
+GC::Ref<JS::Realm> create_a_simple_javascript_realm()
+{
+    ensure_main_thread_vm_initialized();
+
+    auto& vm = main_thread_vm();
+
+    GC::Ptr<HTML::Window> window;
+    auto execution_context = create_a_new_javascript_realm(
+        vm,
+        [&](JS::Realm& realm) -> JS::Object* {
+            window = HTML::Window::create(realm);
+            return window;
+        },
+        [&](JS::Realm&) -> JS::Object* {
+            return window;
+        });
+
+    auto& realm = *execution_context->realm;
+    auto intrinsics = realm.create<Intrinsics>(realm);
+    realm.set_host_defined(make<HostDefined>(intrinsics));
+
+    // Keep the realm current and alive, matching this VM's process-lifetime leak policy.
+    vm.push_execution_context(*execution_context.leak_ptr());
+
+    return realm;
+}
+
+namespace {
+
+// A do-nothing PageClient for tests and tools that need a Page without a UI, IPC peer, or renderer.
+class HeadlessPageClient final : public PageClient {
+    GC_CELL(HeadlessPageClient, PageClient);
+    GC_DECLARE_ALLOCATOR(HeadlessPageClient);
+
+public:
+    static GC::Ref<HeadlessPageClient> create(JS::VM& vm) { return vm.heap().allocate<HeadlessPageClient>(); }
+
+    virtual u64 id() const override { return 0; }
+    virtual Page& page() override { return *m_page; }
+    virtual Page const& page() const override { return *m_page; }
+    virtual bool is_connection_open() const override { return false; }
+    virtual Gfx::Palette palette() const override { return Gfx::Palette(*m_palette_impl); }
+    virtual DevicePixelRect screen_rect() const override { return {}; }
+    virtual double zoom_level() const override { return 1.0; }
+    virtual double device_pixel_ratio() const override { return 1.0; }
+    virtual double device_pixels_per_css_pixel() const override { return 1.0; }
+    virtual CSS::PreferredColorScheme preferred_color_scheme() const override { return CSS::PreferredColorScheme::Auto; }
+    virtual CSS::PreferredContrast preferred_contrast() const override { return CSS::PreferredContrast::NoPreference; }
+    virtual CSS::PreferredMotion preferred_motion() const override { return CSS::PreferredMotion::NoPreference; }
+    virtual size_t screen_count() const override { return 1; }
+    virtual Queue<QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
+    virtual void report_finished_handling_input_event(u64, EventResult) override { }
+    virtual void request_frame() override { }
+    virtual void request_file(FileRequest) override { }
+    virtual bool is_headless() const override { return true; }
+
+    GC::Ptr<Page> m_page;
+
+private:
+    HeadlessPageClient()
+    {
+        auto buffer = MUST(Core::AnonymousBuffer::create_with_size(sizeof(Gfx::SystemTheme)));
+        m_palette_impl = Gfx::PaletteImpl::create_with_anonymous_buffer(buffer);
+    }
+
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_page);
+    }
+
+    RefPtr<Gfx::PaletteImpl> m_palette_impl;
+    Queue<QueuedInputEvent> m_input_event_queue;
+};
+
+GC_DEFINE_ALLOCATOR(HeadlessPageClient);
+
+}
+
+GC::Ref<JS::Realm> create_a_principal_javascript_realm()
+{
+    ensure_main_thread_vm_initialized();
+
+    auto& vm = main_thread_vm();
+
+    auto page_client = HeadlessPageClient::create(vm);
+    auto page = Page::create(vm, *page_client);
+    page_client->m_page = page;
+
+    GC::Ptr<HTML::Window> window;
+    auto execution_context = create_a_new_javascript_realm(
+        vm,
+        [&](JS::Realm& realm) -> JS::Object* {
+            window = HTML::Window::create(realm);
+            return window;
+        },
+        [&](JS::Realm&) -> JS::Object* {
+            return window;
+        });
+
+    // Grab the realm before setup() takes ownership of the execution context.
+    auto realm = execution_context->realm;
+
+    HTML::WindowEnvironmentSettingsObject::setup(
+        *page,
+        URL::about_blank(),
+        move(execution_context),
+        nullptr,
+        URL::about_blank(),
+        URL::Origin::create_opaque());
+
+    // Keep the principal realm current and alive, matching create_a_simple_javascript_realm().
+    auto& settings = principal_host_defined_environment_settings_object(*realm);
+    vm.push_execution_context(settings.realm_execution_context());
+
+    return *realm;
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
