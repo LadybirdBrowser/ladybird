@@ -21,6 +21,7 @@
 #include <QTabBar>
 
 class QPropertyAnimation;
+class QTimer;
 class QWindow;
 class QToolButton;
 class QWidget;
@@ -93,7 +94,7 @@ public:
         Yes,
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {}, Optional<i64> session_window_id = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
@@ -193,6 +194,10 @@ private:
     void disconnect_screen_signals(QScreen*);
     void screen_changed(QScreen*);
     void display_metadata_changed(Optional<u64> display_id, qreal refresh_rate);
+    void session_did_open_tab(URL::URL const&);
+    void session_did_close_tab(size_t tab_index);
+    void session_did_update_window();
+    void session_schedule_update_window();
 
     QIcon icon_for_page_mute_state(Tab&) const;
     QString tool_tip_for_page_mute_state(Tab&) const;
@@ -220,6 +225,12 @@ private:
     QAction* m_find_in_page_action { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
+    Optional<i64> m_session_window_id;
+    // Will set to true when it's restoring tabs from last close.
+    // So, if this is true, we will skip recording tab operations
+    bool m_is_restoring_session { false };
+    bool m_is_application_quitting { false };
+    QTimer* m_geometry_save_timer { nullptr };
 
     ExitFullscreenButton* m_exit_button { nullptr };
     FullscreenMode* m_fullscreen_mode { nullptr };

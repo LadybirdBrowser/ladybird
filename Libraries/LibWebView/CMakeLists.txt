@@ -20,6 +20,7 @@ set(SOURCES
     ProcessManager.cpp
     ProcessMonitor.cpp
     SearchEngine.cpp
+    SessionStore.cpp
     Settings.cpp
     SiteIsolation.cpp
     SourceHighlighter.cpp

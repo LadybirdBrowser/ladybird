@@ -34,6 +34,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/ProcessType.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
@@ -732,12 +733,15 @@ ErrorOr<void> Application::launch_services()
 
         m_database = TRY(Database::Database::create(database_path, "Ladybird"sv));
         m_history_database = TRY(Database::Database::create(database_path, "History"sv));
+        auto enable_fk = TRY(m_history_database->prepare_statement("PRAGMA foreign_keys = ON;"sv));
+        m_history_database->execute_statement(enable_fk, {});
 
         if (auto history_database_path = m_history_database->database_path(); history_database_path.has_value())
             dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is enabled, using {}", history_database_path->string());
 
         m_cookie_jar = TRY(CookieJar::create(*m_database));
         m_history_store = TRY(HistoryStore::create(*m_history_database));
+        m_session_store = TRY(SessionStore::create(*m_history_database));
         m_hsts_store = TRY(HSTSStore::create(*m_database));
         m_storage_jar = TRY(StorageJar::create(*m_database));
     } else {
@@ -1224,6 +1228,8 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
 
     if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes) {
         m_history_store->remove_entries_accessed_since(options.since);
+        if (m_session_store.has_value())
+            m_session_store.value()->clear();
         did_change_history = true;
     }
 
@@ -1242,6 +1248,8 @@ void Application::clear_history()
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing browsing history");
 
     m_history_store->clear();
+    if (m_session_store.has_value())
+        m_session_store.value()->clear();
     on_recently_closed_entries_changed();
 }
 

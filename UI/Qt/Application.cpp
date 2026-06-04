@@ -141,7 +141,7 @@ NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
 {
-    auto* window = new BrowserWindow(initial_urls, is_popup_window, parent_tab, move(page_index));
+    auto* window = new BrowserWindow(initial_urls, is_popup_window, parent_tab, move(page_index), configuration.session_window_id);
     set_active_window(*window);
 
     if (initial_urls.size() == 1 && initial_urls.first() == URL::about_newtab()) {

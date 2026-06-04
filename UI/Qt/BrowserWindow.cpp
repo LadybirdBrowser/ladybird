@@ -16,6 +16,7 @@
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/SessionStore.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -230,9 +231,11 @@ static QIcon const& app_icon()
     return icon;
 }
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index, Optional<i64> session_window_id)
     : m_tabs_container(new TabWidget(this))
     , m_is_popup_window(is_popup_window)
+    , m_session_window_id(session_window_id)
+    , m_is_restoring_session(session_window_id.has_value())
 {
     auto& application = WebView::Application::the();
     auto const& browser_options = WebView::Application::browser_options();
@@ -242,6 +245,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setWindowIcon(app_icon());
     qApp->installEventFilter(this);
     update_window_corners();
+
+    m_geometry_save_timer = new QTimer(this);
+    m_geometry_save_timer->setSingleShot(true);
+    QObject::connect(m_geometry_save_timer, &QTimer::timeout, this, [this] {
+        session_did_update_window();
+    });
 
     update_tabs_display();
 
@@ -468,6 +477,8 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         }
     }
 
+    m_is_restoring_session = false;
+
     m_tabs_container->set_new_tab_action(m_new_tab_action);
 
     auto* main_widget = new QWidget(this);
@@ -536,6 +547,7 @@ Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab
 {
     auto& tab = create_new_tab(activate_tab);
     tab.navigate(url);
+    session_did_open_tab(url);
     return tab;
 }
 
@@ -621,6 +633,21 @@ void BrowserWindow::initialize_tab(Tab* tab)
     };
 
     initialize_tab_buttons(tab);
+
+    // Wrap view's on_load_start to track navigation in the session.
+    auto original_on_load_start = AK::move(tab->view().on_load_start);
+    tab->view().on_load_start = [this, tab, original = AK::move(original_on_load_start)](auto const& url, bool is_redirect) {
+        if (original)
+            original(url, is_redirect);
+        if (m_session_window_id.has_value() && !m_is_restoring_session) {
+            auto idx = tab_index(tab);
+            if (idx >= 0) {
+                auto store = Application::session_store();
+                if (store.has_value())
+                    store->update_tab_url(m_session_window_id.value(), static_cast<size_t>(idx), url.serialize());
+            }
+        }
+    };
 }
 
 void BrowserWindow::uninitialize_tab(Tab* tab)
@@ -716,6 +743,7 @@ void BrowserWindow::definitely_close_tab(int index)
     m_tabs_container->remove_tab(index);
     Application::history_store().record_closed_tab(url);
     Application::the().update_reopen_recently_closed_actions();
+    session_did_close_tab(static_cast<size_t>(index));
     tab->deleteLater();
 
     if (m_tabs_container->count() == 0) {
@@ -1102,6 +1130,7 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
         height = 600;
 
     setGeometry(x.value().value(), y.value().value(), width.value().value(), height.value().value());
+    session_did_update_window();
 }
 
 void BrowserWindow::enter_fullscreen()
@@ -1160,6 +1189,9 @@ bool BrowserWindow::event(QEvent* event)
 
 bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
 {
+    if (object == qApp && event->type() == QEvent::Quit)
+        m_is_application_quitting = true;
+
     auto* widget = as_if<QWidget>(object);
     if (!widget || widget->window() != this)
         return QMainWindow::eventFilter(object, event);
@@ -1301,6 +1333,8 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ width(), height() });
     });
+
+    session_schedule_update_window();
 }
 
 void BrowserWindow::changeEvent(QEvent* event)
@@ -1360,6 +1394,8 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
     for_each_tab([&](auto& tab) {
         tab.view().set_window_position({ x(), y() });
     });
+
+    session_schedule_update_window();
 }
 
 void BrowserWindow::wheelEvent(QWheelEvent* event)
@@ -1378,6 +1414,7 @@ void BrowserWindow::wheelEvent(QWheelEvent* event)
 void BrowserWindow::closeEvent(QCloseEvent* event)
 {
     clear_resize_cursor();
+    m_geometry_save_timer->stop();
 
     Optional<Vector<URL::URL>> recently_closed_window_urls;
     size_t recently_closed_window_active_tab_index { 0 };
@@ -1399,6 +1436,80 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     if (event->isAccepted() && recently_closed_window_urls.has_value()) {
         Application::history_store().record_closed_window(recently_closed_window_urls.release_value(), recently_closed_window_active_tab_index);
         Application::the().update_reopen_recently_closed_actions();
+    }
+
+    if (event->isAccepted() && m_session_window_id.has_value()) {
+        auto store = Application::session_store();
+        if (store.has_value()) {
+            WebView::SessionWindow sw;
+            sw.x = x();
+            sw.y = y();
+            sw.width = width();
+            sw.height = height();
+            sw.maximized = isMaximized();
+
+            bool is_last_window = true;
+            auto const top_level_widgets = QApplication::topLevelWidgets();
+            for (auto* widget : top_level_widgets) {
+                if (widget != this && qobject_cast<BrowserWindow*>(widget)) {
+                    is_last_window = false;
+                    break;
+                }
+            }
+
+            if (m_is_application_quitting || is_last_window)
+                store->update_window(m_session_window_id.value(), sw);
+            else
+                store->delete_window(m_session_window_id.value());
+        }
+    }
+}
+
+void BrowserWindow::session_did_open_tab(URL::URL const& url)
+{
+    if (m_is_restoring_session || m_is_popup_window == IsPopupWindow::Yes)
+        return;
+
+    auto store = Application::session_store();
+    if (!store.has_value())
+        return;
+
+    if (!m_session_window_id.has_value())
+        m_session_window_id = store->insert_window({});
+
+    store->insert_tab(m_session_window_id.value(), static_cast<size_t>(m_tabs_container->count() - 1), url.serialize());
+}
+
+void BrowserWindow::session_schedule_update_window()
+{
+    // Avoid updating session store too frequently while resizing/moving the window.
+    if (!m_geometry_save_timer->isActive())
+        m_geometry_save_timer->start(500);
+}
+
+void BrowserWindow::session_did_close_tab(size_t tab_index)
+{
+    if (!m_session_window_id.has_value() || m_is_restoring_session)
+        return;
+
+    auto store = Application::session_store();
+    if (store.has_value())
+        store->delete_tab(m_session_window_id.value(), tab_index);
+}
+
+void BrowserWindow::session_did_update_window()
+{
+    if (m_session_window_id.has_value()) {
+        auto store = Application::session_store();
+        if (store.has_value()) {
+            WebView::SessionWindow sw;
+            sw.x = x();
+            sw.y = y();
+            sw.width = width();
+            sw.height = height();
+            sw.maximized = isMaximized();
+            store->update_window(m_session_window_id.value(), sw);
+        }
     }
 }
 

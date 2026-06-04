@@ -21,6 +21,7 @@ struct WindowConfiguration {
     Optional<Web::DevicePixels> width {};
     Optional<Web::DevicePixels> height {};
     Optional<bool> maximized {};
+    Optional<i64> session_window_id {};
 };
 
 class Application final : public WebView::Application {

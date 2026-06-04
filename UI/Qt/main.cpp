@@ -5,8 +5,10 @@
  */
 
 #include <LibMain/Main.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
@@ -102,8 +104,45 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             configuration.x = last_position->x();
             configuration.y = last_position->y();
         }
-        auto& window = app->new_window(browser_options.urls, configuration);
-        window.setWindowTitle("Ladybird");
+
+        Vector<WebView::SessionWindow> session_windows;
+        auto store = WebView::Application::session_store();
+        if (store.has_value())
+            session_windows = store->load_session();
+
+        if (session_windows.is_empty()) {
+            auto& window = app->new_window(browser_options.urls, configuration);
+            window.setWindowTitle("Ladybird");
+        } else {
+            bool any_window_created = false;
+            for (auto& session_window : session_windows) {
+                Vector<URL::URL> urls;
+                for (auto& tab : session_window.tabs) {
+                    if (auto url = URL::Parser::basic_parse(tab.url); url.has_value())
+                        urls.append(url.release_value());
+                }
+                if (urls.is_empty())
+                    continue;
+
+                Ladybird::WindowConfiguration window_config {
+                    .x = session_window.x.has_value() ? Optional<Web::DevicePixels>(*session_window.x) : Optional<Web::DevicePixels>(),
+                    .y = session_window.y.has_value() ? Optional<Web::DevicePixels>(*session_window.y) : Optional<Web::DevicePixels>(),
+                    .width = session_window.width.has_value() ? Optional<Web::DevicePixels>(*session_window.width) : configuration.width,
+                    .height = session_window.height.has_value() ? Optional<Web::DevicePixels>(*session_window.height) : configuration.height,
+                    .maximized = session_window.maximized,
+                    .session_window_id = session_window.id,
+                };
+                auto& window = app->new_window(urls, window_config);
+                window.activate_tab(static_cast<int>(session_window.active_tab_index));
+                window.setWindowTitle("Ladybird");
+                any_window_created = true;
+            }
+
+            if (!any_window_created) {
+                auto& window = app->new_window(browser_options.urls, configuration);
+                window.setWindowTitle("Ladybird");
+            }
+        }
     }
 
     return app->execute();

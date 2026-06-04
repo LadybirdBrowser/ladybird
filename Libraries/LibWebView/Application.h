@@ -35,6 +35,7 @@
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageJar.h>
 
@@ -78,6 +79,12 @@ public:
 
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
     static HistoryStore& history_store() { return *the().m_history_store; }
+    static Optional<SessionStore&> session_store()
+    {
+        if (the().m_session_store.has_value())
+            return **the().m_session_store;
+        return {};
+    }
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
@@ -322,6 +329,7 @@ private:
     BookmarkStore m_bookmark_store;
     OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
     OwnPtr<HistoryStore> m_history_store;
+    Optional<OwnPtr<SessionStore>> m_session_store;
 
     Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
