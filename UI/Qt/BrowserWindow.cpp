@@ -451,6 +451,16 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::UI);
     });
     QObject::connect(m_tabs_container, &TabWidget::tab_close_requested, this, &BrowserWindow::request_to_close_tab);
+    QObject::connect(m_tabs_container, &TabWidget::tab_reordered, this, [this](int from, int to) {
+        if (m_session_window_id.has_value() && !m_is_restoring_session) {
+            auto store = Application::session_store();
+            if (store.has_value()) {
+                auto url = m_tabs_container->tab(to)->view().url().serialize();
+                store->delete_tab(m_session_window_id.value(), static_cast<size_t>(from));
+                store->insert_tab(m_session_window_id.value(), static_cast<size_t>(to), url);
+            }
+        }
+    });
     QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::request_to_close_current_tab);
 
     for (int i = 0; i <= 7; ++i) {

@@ -58,6 +58,11 @@ ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& da
     statements.delete_tab = TRY(database.prepare_statement(R"#(
         DELETE FROM SessionTabs WHERE window_id = ? AND tab_index = ?;
     )#"sv));
+    statements.move_tabs_up = TRY(database.prepare_statement(R"#(
+        UPDATE SessionTabs
+        SET tab_index = tab_index + 1
+        WHERE window_id = ? AND tab_index >= ?;
+    )#"sv));
     statements.move_tabs_down = TRY(database.prepare_statement(R"#(
         UPDATE SessionTabs
         SET tab_index = tab_index - 1
@@ -180,6 +185,8 @@ void SessionStore::delete_window(i64 window_id)
 
 void SessionStore::insert_tab(i64 window_id, size_t tab_index, String const& url)
 {
+    // Shift existing tabs at or after the insertion point up to make room
+    m_database.execute_statement(m_statements.move_tabs_up, {}, window_id, static_cast<i64>(tab_index));
     m_database.execute_statement(m_statements.insert_tab, {}, window_id, static_cast<i64>(tab_index), url);
 }
 

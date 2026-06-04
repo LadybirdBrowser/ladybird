@@ -1231,6 +1231,8 @@ TabWidget::TabWidget(QWidget* parent)
             m_toolbar_container->insertWidget(to, toolbar);
         }
         m_stacked_widget->setCurrentIndex(m_tab_bar->currentIndex());
+
+        emit tab_reordered(from, to);
     });
 
     connect(m_minimize_window_button, &QToolButton::clicked, this, [this] {

@@ -156,6 +156,7 @@ public:
 signals:
     void current_tab_changed(int index);
     void tab_close_requested(int index);
+    void tab_reordered(int from, int to);
 
 protected:
     virtual void dragEnterEvent(QDragEnterEvent*) override;

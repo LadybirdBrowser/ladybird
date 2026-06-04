@@ -79,6 +79,7 @@ private:
         Database::StatementID insert_tab { 0 };
         Database::StatementID update_tab_url { 0 };
         Database::StatementID delete_tab { 0 };
+        Database::StatementID move_tabs_up { 0 };
         Database::StatementID move_tabs_down { 0 };
         Database::StatementID set_active_tab { 0 };
         Database::StatementID get_windows { 0 };
