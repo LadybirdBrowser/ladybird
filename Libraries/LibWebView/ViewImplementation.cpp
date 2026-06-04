@@ -579,9 +579,9 @@ void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Web::U
     });
 }
 
-void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type property_type, Optional<Web::CSS::PseudoElement> pseudo_element)
+void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type property_type, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options)
 {
-    client().async_inspect_dom_node(page_id(), property_type, node_id, pseudo_element);
+    client().async_inspect_dom_node(page_id(), property_type, node_id, pseudo_element, move(options));
 }
 
 void ViewImplementation::inspect_grid_layouts(Web::UniqueNodeID root_node_id)

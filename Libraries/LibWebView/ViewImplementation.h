@@ -131,7 +131,7 @@ public:
     void node_picker_preview(Web::DevicePixelPoint);
     void node_picker_cancel();
 
-    void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element);
+    void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options = {});
     void inspect_grid_layouts(Web::UniqueNodeID root_node_id);
     void inspect_current_grid(Web::UniqueNodeID node_id);
     void inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents);

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/Queue.h>
 #include <AK/RefPtr.h>
@@ -91,7 +92,7 @@ private:
     virtual void debug_request(u64 page_id, ByteString, ByteString) override;
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
-    virtual void inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) override;
+    virtual void inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) override;
     virtual void inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id) override;
     virtual void inspect_current_grid(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void inspect_current_flexbox(u64 page_id, Web::UniqueNodeID node_id, bool only_look_at_parents) override;
