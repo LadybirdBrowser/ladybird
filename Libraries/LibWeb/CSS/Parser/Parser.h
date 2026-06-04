@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/StyleValues/TreeCountingFunctionStyleValue.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/CSS/URL.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
@@ -88,7 +89,7 @@ enum class IsUAStyleSheet {
     No,
 };
 
-struct ParsingParams {
+struct WEB_API ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(ValueParsingContext);
     explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
@@ -104,6 +105,17 @@ struct ParsingParams {
     Vector<RuleContext> rule_context;
     HashTable<FlyString> declared_namespaces;
 };
+
+struct DevToolsStyleDeclaration {
+    FlyString name;
+    String value;
+    Important important { Important::No };
+    bool is_custom_property { false };
+    bool is_name_valid { false };
+    bool is_valid { false };
+};
+
+WEB_API Vector<DevToolsStyleDeclaration> parse_css_declaration_block_for_devtools(ParsingParams const&, StringView);
 
 // The very large CSS Parser implementation code is broken up among several .cpp files:
 // Parser.cpp contains the core parser algorithms, defined in https://drafts.csswg.org/css-syntax
@@ -123,6 +135,7 @@ public:
         OrderedHashMap<FlyString, StyleProperty> custom_properties;
     };
     PropertiesAndCustomProperties parse_as_property_declaration_block();
+    Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block();
     Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
     CSSRule* parse_as_css_rule();
     Optional<StyleProperty> parse_as_supports_condition();

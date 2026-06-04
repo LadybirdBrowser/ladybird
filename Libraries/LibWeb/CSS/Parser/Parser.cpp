@@ -1655,6 +1655,45 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
     return parsed_declarations;
 }
 
+Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_block()
+{
+    auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
+
+    Vector<DevToolsStyleDeclaration> parsed_declarations;
+    for (auto const& rule_or_list : declarations_and_at_rules) {
+        if (auto* rule_declarations = rule_or_list.get_pointer<Vector<Declaration>>()) {
+            for (auto const& declaration : *rule_declarations) {
+                auto property = PropertyNameAndID::from_name(declaration.name);
+
+                StringBuilder value_builder;
+                for (auto const& value : declaration.value)
+                    value_builder.append(value.original_source_text());
+
+                parsed_declarations.append(DevToolsStyleDeclaration {
+                    .name = declaration.name,
+                    .value = value_builder.to_string_without_validation(),
+                    .important = declaration.important,
+                    .is_custom_property = property.has_value() && property->is_custom_property(),
+                    .is_name_valid = property.has_value(),
+                    .is_valid = property.has_value() && convert_to_style_property(declaration).has_value(),
+                });
+            }
+        }
+    }
+
+    return parsed_declarations;
+}
+
+Vector<DevToolsStyleDeclaration> parse_css_declaration_block_for_devtools(ParsingParams const& parsing_params, StringView declaration_block)
+{
+    auto devtools_parsing_params = parsing_params;
+    if (devtools_parsing_params.rule_context.is_empty())
+        devtools_parsing_params.rule_context.append(RuleContext::Style);
+
+    auto parser = Parser::create(devtools_parsing_params, declaration_block);
+    return parser.parse_as_devtools_property_declaration_block();
+}
+
 // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
 Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rule_id)
 {
