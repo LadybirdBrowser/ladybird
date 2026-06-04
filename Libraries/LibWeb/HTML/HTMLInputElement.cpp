@@ -565,18 +565,8 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
 
 void HTMLInputElement::did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data)
 {
-    // An input element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the value.
-    auto old_value = move(m_value);
-    m_value = value_sanitization_algorithm(m_text_node->data());
     m_dirty_value = true;
-
     m_has_uncommitted_changes = true;
-
-    if (m_value != old_value)
-        relevant_value_was_changed();
-
-    update_placeholder_visibility();
-
     user_interaction_did_change_input_value(input_type, data);
 }
 
@@ -711,6 +701,36 @@ Optional<String> HTMLInputElement::optional_value() const
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
+Utf16String HTMLInputElement::relevant_value() const
+{
+    // AD-HOC: If a text node is present, use that as the raw text buffer, so that it can differ from the sanitized
+    //         or canonicalized value.
+    if (m_text_node)
+        return m_text_node->data();
+    return value();
+}
+
+WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16String const& value)
+{
+    if (m_text_node)
+        m_text_node->set_data(value);
+
+    // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number)
+    // If the user agent provides a user interface for selecting a number, then the value must be set to the best
+    // representation of the number representing the user's selection as a floating-point number.
+    if (type_state() == TypeAttributeState::Number) {
+        m_value = {};
+        if (auto parsed = parse_floating_point_number(value); parsed.has_value() && isfinite(*parsed))
+            m_value = convert_number_to_string(*parsed);
+    } else {
+        m_value = value_sanitization_algorithm(value);
+    }
+
+    update_placeholder_visibility();
+    return {};
 }
 
 WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16String const& value)
@@ -933,10 +953,7 @@ void HTMLInputElement::update_button_input_shadow_tree()
 
 void HTMLInputElement::update_text_input_shadow_tree()
 {
-    if (m_text_node) {
-        m_text_node->set_data(m_value);
-        update_placeholder_visibility();
-    }
+    update_placeholder_visibility();
 
     if (m_type == TypeAttributeState::Number) {
         // The `textfield` appearance is used to hide the stepper buttons.
@@ -1557,6 +1574,9 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
 
             if (m_value != old_value)
                 relevant_value_was_changed();
+
+            if (m_text_node)
+                m_text_node->set_data(m_value);
 
             update_shadow_tree();
         }
