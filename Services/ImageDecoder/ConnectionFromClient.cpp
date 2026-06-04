@@ -8,6 +8,7 @@
 #include <AK/IDAllocator.h>
 #include <ImageDecoder/ConnectionFromClient.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
+#include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
@@ -42,7 +43,7 @@ void ConnectionFromClient::die()
 
     if (s_connections.is_empty()) {
         Threading::quit_background_thread();
-        Core::EventLoop::current().quit(0);
+        Core::Process::terminate_immediately(0);
     }
 }
 
