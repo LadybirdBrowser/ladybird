@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -104,10 +104,10 @@ private:
 
     String m_decoded_input;
     Utf8View m_utf8_view;
-    AK::Utf8CodePointIterator m_utf8_iterator;
-    AK::Utf8CodePointIterator m_prev_utf8_iterator;
-    Token::Position m_position;
-    Token::Position m_prev_position;
+    Utf8CodePointIterator m_utf8_iterator;
+    Utf8CodePointIterator m_prev_utf8_iterator;
+    SourcePosition m_position;
+    SourcePosition m_prev_position;
 };
 
 }
