@@ -151,7 +151,7 @@ private:
     }
 
     static DecoderErrorOr<NonnullRefPtr<Demuxer>> create_demuxer_for_stream(NonnullRefPtr<MediaStream> const&);
-    static DecoderErrorOr<void> prepare_playback_from_demuxer(WeakPlaybackManager const&, NonnullRefPtr<Demuxer> const&, NonnullRefPtr<Core::WeakEventLoopReference> const&);
+    static DecoderErrorOr<void> prepare_playback_from_demuxer(WeakPlaybackManager const&, NonnullRefPtr<Demuxer> const&, Core::EventLoop&);
 
     template<typename T, typename... Args>
     void replace_state_handler(Args&&... args);

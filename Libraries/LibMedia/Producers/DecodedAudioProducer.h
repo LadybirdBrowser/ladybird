@@ -38,7 +38,7 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using BlockEndTimeHandler = Function<void(AK::Duration)>;
 
-    static DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track);
+    static DecoderErrorOr<NonnullRefPtr<DecodedAudioProducer>> try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track);
     DecodedAudioProducer(NonnullRefPtr<ThreadData> const&);
     ~DecodedAudioProducer();
 
@@ -59,7 +59,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration, NonnullOwnPtr<Audio::AudioConverter>&&);
+        ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration, NonnullOwnPtr<Audio::AudioConverter>&&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -115,7 +115,7 @@ private:
         void note_consumer_activity_while_locked() const;
         void wait_for_queue_space_or_auto_suspend_while_locked();
 
-        NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
+        Core::EventLoop& m_main_thread_event_loop;
 
         mutable Sync::Mutex m_mutex;
         mutable Sync::ConditionVariable m_wait_condition { m_mutex };

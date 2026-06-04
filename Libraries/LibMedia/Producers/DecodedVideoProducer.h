@@ -38,7 +38,7 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
 
-    static DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&);
+    static DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&);
 
     DecodedVideoProducer(NonnullRefPtr<ThreadData> const&);
     ~DecodedVideoProducer();
@@ -60,7 +60,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration);
+        ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -114,7 +114,7 @@ private:
         void note_consumer_activity_while_locked() const;
         void wait_for_queue_space_or_auto_suspend_while_locked();
 
-        NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
+        Core::EventLoop& m_main_thread_event_loop;
 
         mutable Sync::Mutex m_mutex;
         mutable Sync::ConditionVariable m_wait_condition { m_mutex };
