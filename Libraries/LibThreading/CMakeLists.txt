@@ -1,5 +1,4 @@
 set(SOURCES
-    BackgroundAction.cpp
     Thread.cpp
     ThreadPool.cpp
 )

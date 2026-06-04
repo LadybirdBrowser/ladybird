@@ -17,7 +17,7 @@
 #include <LibCore/Timer.h>
 #include <LibCore/UDPServer.h>
 #include <LibTest/TestCase.h>
-#include <LibThreading/BackgroundAction.h>
+#include <LibThreading/Thread.h>
 #include <fcntl.h>
 
 #include <AK/Windows.h>
@@ -360,8 +360,9 @@ TEST_CASE(local_socket_read)
     //       impasse. LocalSocket::connect blocks because there's nobody to
     //       accept, and LocalServer::accept blocks because there's nobody
     //       connected.
-    auto background_action = Threading::BackgroundAction<int>::construct(
-        [&socket_path](auto&) {
+    auto client_thread = Threading::Thread::construct(
+        "LocalSocketRead"sv,
+        [socket_path] {
             Core::EventLoop event_loop;
 
             auto client_socket = MUST(Core::LocalSocket::connect(socket_path));
@@ -381,10 +382,11 @@ TEST_CASE(local_socket_read)
             EXPECT_EQ(sent_data, received_data);
 
             return 0;
-        },
-        nullptr);
+        });
+    client_thread->start();
 
     event_loop.exec();
+    MUST(client_thread->join());
     ::unlink(socket_path.characters());
 }
 
@@ -421,18 +423,20 @@ TEST_CASE(local_socket_write)
     };
 
     // NOTE: Same reason as in the local_socket_read test.
-    auto background_action = Threading::BackgroundAction<int>::construct(
-        [&socket_path](auto&) {
+    auto client_thread = Threading::Thread::construct(
+        "LocalSocketWrite"sv,
+        [socket_path] {
             auto client_socket = MUST(Core::LocalSocket::connect(socket_path));
 
             MUST(client_socket->write_until_depleted({ sent_data.characters_without_null_termination(), sent_data.length() }));
             client_socket->close();
 
             return 0;
-        },
-        nullptr);
+        });
+    client_thread->start();
 
     event_loop.exec();
+    MUST(client_thread->join());
     ::unlink(socket_path.characters());
 }
 
