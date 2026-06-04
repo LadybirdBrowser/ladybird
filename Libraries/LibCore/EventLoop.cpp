@@ -9,56 +9,20 @@
 #include <AK/Assertions.h>
 #include <AK/Badge.h>
 #include <AK/Platform.h>
-#include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
-#ifndef AK_OS_WINDOWS
-#    include <pthread.h>
-#endif
 
 namespace Core {
 
 namespace {
 
-#ifndef AK_OS_WINDOWS
-static pthread_key_t s_event_loop_stack_key;
-static pthread_once_t s_event_loop_stack_key_once = PTHREAD_ONCE_INIT;
-
-static void destroy_event_loop_stack(void* value)
+EventLoop*& current_event_loop()
 {
-    delete static_cast<Vector<EventLoop&>*>(value);
-}
-
-static void initialize_event_loop_stack_key()
-{
-    VERIFY(pthread_key_create(&s_event_loop_stack_key, destroy_event_loop_stack) == 0);
-}
-
-static void ensure_event_loop_stack_key()
-{
-    VERIFY(pthread_once(&s_event_loop_stack_key_once, initialize_event_loop_stack_key) == 0);
-}
-#endif
-
-Vector<EventLoop&>*& event_loop_stack_uninitialized()
-{
-    thread_local Vector<EventLoop&>* s_event_loop_stack = nullptr;
-    return s_event_loop_stack;
-}
-Vector<EventLoop&>& event_loop_stack()
-{
-    auto& the_stack = event_loop_stack_uninitialized();
-    if (the_stack == nullptr) {
-        the_stack = new Vector<EventLoop&>();
-#ifndef AK_OS_WINDOWS
-        ensure_event_loop_stack_key();
-        VERIFY(pthread_setspecific(s_event_loop_stack_key, the_stack) == 0);
-#endif
-    }
-    return *the_stack;
+    thread_local EventLoop* s_current_event_loop = nullptr;
+    return s_current_event_loop;
 }
 
 }
@@ -66,31 +30,28 @@ Vector<EventLoop&>& event_loop_stack()
 EventLoop::EventLoop()
     : m_impl(EventLoopManager::the().make_implementation())
 {
-    if (event_loop_stack().is_empty()) {
-        event_loop_stack().append(*this);
-    }
+    VERIFY(!current_event_loop());
+    current_event_loop() = this;
 }
 
 EventLoop::~EventLoop()
 {
     if (m_weak)
         m_weak->revoke();
-    if (!event_loop_stack().is_empty() && &event_loop_stack().last() == this) {
-        event_loop_stack().take_last();
-    }
+    if (current_event_loop() == this)
+        current_event_loop() = nullptr;
 }
 
 bool EventLoop::is_running()
 {
-    auto& stack = event_loop_stack_uninitialized();
-    return stack != nullptr && !stack->is_empty();
+    return current_event_loop() != nullptr;
 }
 
 EventLoop& EventLoop::current()
 {
-    if (event_loop_stack().is_empty())
+    if (!current_event_loop())
         dbgln("No EventLoop is present, unable to return current one!");
-    return event_loop_stack().last();
+    return *current_event_loop();
 }
 
 NonnullRefPtr<WeakEventLoopReference> EventLoop::current_weak()
@@ -111,27 +72,15 @@ bool EventLoop::was_exit_requested()
     return m_impl->was_exit_requested();
 }
 
-struct EventLoopPusher {
-public:
-    EventLoopPusher(EventLoop& event_loop)
-    {
-        event_loop_stack().append(event_loop);
-    }
-    ~EventLoopPusher()
-    {
-        event_loop_stack().take_last();
-    }
-};
-
 int EventLoop::exec()
 {
-    EventLoopPusher pusher(*this);
+    VERIFY(current_event_loop() == this);
     return m_impl->exec();
 }
 
 void EventLoop::spin_until(Function<bool()> goal_condition)
 {
-    EventLoopPusher pusher(*this);
+    VERIFY(current_event_loop() == this);
     while (!goal_condition())
         pump();
 }
