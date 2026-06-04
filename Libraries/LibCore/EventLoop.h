@@ -31,10 +31,7 @@ class WeakEventLoopReference;
 // Event loops, through select(), allow programs to "go to sleep" for most of their runtime until some event happens.
 // EventLoop is too expensive to use in realtime scenarios (read: audio) where even the time required by a single select() system call is too large and unpredictable.
 //
-// There is at most one running event loop per thread.
-// Another event loop can be started while another event loop is already running; that new event loop will take over for the other event loop.
-// This is mainly used in LibGUI, where each modal window stacks another event loop until it is closed.
-// However, that means you need to be careful with storing the current event loop, as it might already be gone at the time of use.
+// There is at most one event loop per thread.
 // Event loops currently handle these kinds of events:
 // - Deferred invocations caused by various objects. These are just a generic way of telling the EventLoop to run some function as soon as possible at a later point.
 // - Timers, which repeatedly (or once after a delay) run a function on the EventLoop. Note that timers are not super accurate.
@@ -48,8 +45,6 @@ class CORE_API EventLoop {
     AK_MAKE_NONCOPYABLE(EventLoop);
 
 private:
-    friend struct EventLoopPusher;
-
 public:
     enum class WaitMode {
         WaitForEvents,
