@@ -1570,11 +1570,14 @@ bool TabWidget::cursor_is_over_vertical_tabs() const
     if (!m_vertical_tabs_content->isVisible())
         return false;
 
+    if (m_vertical_tab_bar_column->underMouse() || m_tab_bar->underMouse() || m_new_tab_button->underMouse())
+        return true;
+
     auto vertical_tabs_rect = QRect {
         m_vertical_tabs_content->mapToGlobal(QPoint { 0, 0 }),
         QSize { current_vertical_tabs_width(), m_vertical_tabs_content->height() }
     };
-    return vertical_tabs_rect.contains(QCursor::pos());
+    return window()->underMouse() && vertical_tabs_rect.contains(QCursor::pos());
 }
 
 int TabWidget::vertical_tabs_layout_width() const
