@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<input id="num" type="number" step="any">
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const input = document.getElementById("num");
+        input.focus();
+        internals.sendText(input, "1");
+        println(`After '1': value="${input.value}"`);
+        internals.sendText(input, ".");
+        println(`After '.': value="${input.value}"`);
+        internals.sendText(input, "5");
+        println(`After '5': value="${input.value}"`);
+    });
+</script>
