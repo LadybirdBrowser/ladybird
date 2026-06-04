@@ -23,6 +23,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/Promise.h>
 #include <LibLine/KeyCallbackMachine.h>
 #include <LibLine/Span.h>
 #include <LibLine/StringMetrics.h>
@@ -153,6 +154,7 @@ public:
     ~Editor();
 
     Result<ByteString, Error> get_line(ByteString const& prompt);
+    NonnullRefPtr<Core::Promise<ByteString, Error>> read_line_async(ByteString const& prompt);
 
     void initialize();
 
@@ -270,11 +272,6 @@ private:
 
     void set_default_keybinds();
 
-    enum LoopExitCode {
-        Exit = 0,
-        Retry
-    };
-
     ErrorOr<void> try_update_once();
     void handle_interrupt_event();
     ErrorOr<void> handle_read_event();
@@ -334,7 +331,7 @@ private:
     ErrorOr<void> refresh_display();
     ErrorOr<void> cleanup();
     ErrorOr<void> cleanup_suggestions();
-    ErrorOr<void> really_quit_event_loop();
+    ErrorOr<void> finalize_read();
 
     void restore()
     {
@@ -427,6 +424,8 @@ private:
     Vector<char, 512> m_incomplete_data;
     Optional<Error> m_input_error;
     ByteString m_returned_line;
+    RefPtr<Core::Promise<ByteString, Error>> m_read_promise;
+    bool m_should_retry { false };
 
     size_t m_cursor { 0 };
     size_t m_drawn_cursor { 0 };

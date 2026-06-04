@@ -211,7 +211,7 @@ void Editor::finish_edit()
     if (!m_always_refresh) {
         m_input_error = Error::Eof;
         finish();
-        really_quit_event_loop().release_value_but_fixme_should_propagate_errors();
+        finalize_read().release_value_but_fixme_should_propagate_errors();
     }
 }
 
@@ -343,7 +343,7 @@ void Editor::enter_search()
             search_editor.finish();
             m_reset_buffer_on_search_end = true;
             search_editor.end_search();
-            search_editor.deferred_invoke([&search_editor] { search_editor.really_quit_event_loop().release_value_but_fixme_should_propagate_errors(); });
+            search_editor.deferred_invoke([&search_editor] { search_editor.finalize_read().release_value_but_fixme_should_propagate_errors(); });
             return false;
         });
 
@@ -391,55 +391,60 @@ void Editor::enter_search()
             return false;
         });
 
-        auto search_prompt = "\x1b[32msearch:\x1b[0m "sv;
+        auto search_prompt = ByteString { "\x1b[32msearch:\x1b[0m " };
 
         // While the search editor is active, we do not want editing events.
         m_is_editing = false;
 
-        auto search_string_result = m_search_editor->get_line(search_prompt);
+        auto on_search_finished = [this, search_prompt](Optional<ByteString> search_string_or_error, Optional<Error> error) {
+            auto search_end_row = m_search_editor->m_origin_row;
 
-        // Grab where the search origin last was, anything up to this point will be cleared.
-        auto search_end_row = m_search_editor->m_origin_row;
+            // Defer destruction of the search editor; we may still be inside one of its callbacks.
+            deferred_invoke([editor = move(m_search_editor)] { });
+            m_is_searching = false;
+            m_is_editing = true;
+            m_search_offset = 0;
 
-        m_search_editor = nullptr;
-        m_is_searching = false;
-        m_is_editing = true;
-        m_search_offset = 0;
+            m_notifier->set_enabled(true);
 
-        // Re-enable the notifier after discarding the search editor.
-        m_notifier->set_enabled(true);
+            if (error.has_value()) {
+                m_input_error = *error;
+                finish();
+                finalize_read().release_value_but_fixme_should_propagate_errors();
+                return;
+            }
 
-        if (search_string_result.is_error()) {
-            // Somethine broke, fail
-            m_input_error = search_string_result.error();
+            auto& search_string = *search_string_or_error;
+
+            auto stderr_stream = Core::File::standard_error().release_value_but_fixme_should_propagate_errors();
+            reposition_cursor(*stderr_stream).release_value_but_fixme_should_propagate_errors();
+            auto search_metrics = actual_rendered_string_metrics(search_string, {});
+            auto metrics = actual_rendered_string_metrics(search_prompt, {});
+            VT::clear_lines(0, metrics.lines_with_addition(search_metrics, m_num_columns) + search_end_row - m_origin_row - 1, *stderr_stream).release_value_but_fixme_should_propagate_errors();
+
+            reposition_cursor(*stderr_stream).release_value_but_fixme_should_propagate_errors();
+
+            m_refresh_needed = true;
+            m_cached_prompt_valid = false;
+            m_chars_touched_in_the_middle = 1;
+
+            if (!m_reset_buffer_on_search_end || search_metrics.total_length == 0) {
+                end_search();
+                return;
+            }
+
             finish();
-            return;
-        }
+            finalize_read().release_value_but_fixme_should_propagate_errors();
+        };
 
-        auto& search_string = search_string_result.value();
-
-        // Manually cleanup the search line.
-        auto stderr_stream = Core::File::standard_error().release_value_but_fixme_should_propagate_errors();
-        reposition_cursor(*stderr_stream).release_value_but_fixme_should_propagate_errors();
-        auto search_metrics = actual_rendered_string_metrics(search_string, {});
-        auto metrics = actual_rendered_string_metrics(search_prompt, {});
-        VT::clear_lines(0, metrics.lines_with_addition(search_metrics, m_num_columns) + search_end_row - m_origin_row - 1, *stderr_stream).release_value_but_fixme_should_propagate_errors();
-
-        reposition_cursor(*stderr_stream).release_value_but_fixme_should_propagate_errors();
-
-        m_refresh_needed = true;
-        m_cached_prompt_valid = false;
-        m_chars_touched_in_the_middle = 1;
-
-        if (!m_reset_buffer_on_search_end || search_metrics.total_length == 0) {
-            // If the entry was empty, or we purposely quit without a newline,
-            // do not return anything; instead, just end the search.
-            end_search();
-            return;
-        }
-
-        // Return the string,
-        finish();
+        auto search_promise = m_search_editor->read_line_async(search_prompt);
+        search_promise->when_resolved([on_search_finished](ByteString& search_string) mutable -> ErrorOr<void, Error> {
+            on_search_finished(move(search_string), {});
+            return {};
+        });
+        search_promise->when_rejected([on_search_finished = move(on_search_finished)](Error& error) mutable {
+            on_search_finished({}, error);
+        });
     }
 }
 

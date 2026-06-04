@@ -642,7 +642,9 @@ ErrorOr<void> Editor::interrupted()
     restore();
     m_notifier->set_enabled(false);
     m_notifier = nullptr;
-    Core::EventLoop::current().quit(Retry);
+    m_should_retry = true;
+    if (m_read_promise)
+        m_read_promise->resolve(ByteString::empty());
     return {};
 }
 
@@ -715,8 +717,11 @@ ErrorOr<void> Editor::handle_resize_event(bool reset_origin)
     return {};
 }
 
-ErrorOr<void> Editor::really_quit_event_loop()
+ErrorOr<void> Editor::finalize_read()
 {
+    // Resolving the promise below can run callbacks that drop the last external reference to us (e.g. the parent clears its m_search_editor in response).
+    NonnullRefPtr protector { *this };
+
     m_finish = false;
     {
         auto stderr_stream = TRY(Core::File::standard_error());
@@ -734,40 +739,73 @@ ErrorOr<void> Editor::really_quit_event_loop()
     m_returned_line = string;
     m_notifier->set_enabled(false);
     m_notifier = nullptr;
-    Core::EventLoop::current().quit(Exit);
+    if (m_read_promise) {
+        if (m_input_error.has_value())
+            m_read_promise->reject(m_input_error.release_value());
+        else
+            m_read_promise->resolve(move(string));
+    }
     return {};
 }
 
 auto Editor::get_line(ByteString const& prompt) -> Result<ByteString, Editor::Error>
 {
+    Optional<Core::EventLoop> own_loop;
+    if (!Core::EventLoop::is_running())
+        own_loop.emplace();
+
+    while (true) {
+        Optional<Result<ByteString, Error>> outcome;
+        auto promise = read_line_async(prompt);
+        promise->when_resolved([&](ByteString& result) -> ErrorOr<void, Error> {
+            outcome = move(result);
+            return {};
+        });
+        promise->when_rejected([&](Error& error) { outcome = error; });
+
+        Core::EventLoop::current().spin_until([&] { return outcome.has_value(); });
+
+        if (m_should_retry) {
+            m_should_retry = false;
+            continue;
+        }
+
+        return outcome.release_value();
+    }
+}
+
+NonnullRefPtr<Core::Promise<ByteString, Editor::Error>> Editor::read_line_async(ByteString const& prompt)
+{
+    auto promise = Core::Promise<ByteString, Error>::construct();
+    m_read_promise = promise;
+
     initialize();
     m_is_editing = true;
 
     if (m_configuration.operation_mode == Configuration::NoEscapeSequences || m_configuration.operation_mode == Configuration::NonInteractive) {
-        // Do not use escape sequences, instead, use LibC's getline.
         size_t size = 0;
         char* line = nullptr;
-        // Show the prompt only on interactive mode (NoEscapeSequences in this case).
         if (m_configuration.operation_mode != Configuration::NonInteractive)
             fputs(prompt.characters(), stderr);
         auto line_length = getline(&line, &size, stdin);
-        // getline() returns -1 and sets errno=0 on EOF.
         if (line_length == -1) {
             if (line)
                 free(line);
             if (errno == 0)
-                return Error::Eof;
-
-            return Error::ReadFailure;
+                promise->reject(Error::Eof);
+            else
+                promise->reject(Error::ReadFailure);
+            return promise;
         }
         restore();
         if (line) {
             ByteString result { line, (size_t)line_length, Chomp };
             free(line);
-            return result;
+            promise->resolve(move(result));
+            return promise;
         }
-
-        return Error::ReadFailure;
+        promise->reject(Error::ReadFailure);
+        return promise;
     }
 
     auto old_cols = m_num_columns;
@@ -800,29 +838,30 @@ auto Editor::get_line(ByteString const& prompt) -> Result<ByteString, Editor::Er
     if (auto refresh_result = refresh_display(); refresh_result.is_error())
         m_input_error = Error::ReadFailure;
 
-    Core::EventLoop loop;
-
     m_notifier = Core::Notifier::construct(STDIN_FILENO, Core::Notifier::Type::Read);
 
-    if (m_input_error.has_value())
-        loop.quit(Exit);
+    if (m_input_error.has_value()) {
+        finalize_read().release_value_but_fixme_should_propagate_errors();
+        return promise;
+    }
 
-    m_notifier->on_activation = [&] {
-        if (try_update_once().is_error())
-            loop.quit(Exit);
+    m_notifier->on_activation = [this] {
+        if (try_update_once().is_error()) {
+            m_input_error = Error::ReadFailure;
+            finalize_read().release_value_but_fixme_should_propagate_errors();
+        }
     };
 
     if (!m_incomplete_data.is_empty()) {
-        deferred_invoke([&] {
-            if (try_update_once().is_error())
-                loop.quit(Exit);
+        deferred_invoke([this] {
+            if (try_update_once().is_error()) {
+                m_input_error = Error::ReadFailure;
+                finalize_read().release_value_but_fixme_should_propagate_errors();
+            }
         });
     }
 
-    if (loop.exec() == Retry)
-        return get_line(prompt);
-
-    return m_input_error.has_value() ? Result<ByteString, Editor::Error> { m_input_error.value() } : Result<ByteString, Editor::Error> { m_returned_line };
+    return promise;
 }
 
 ErrorOr<void> Editor::try_update_once()
@@ -839,7 +878,7 @@ ErrorOr<void> Editor::try_update_once()
     TRY(refresh_display());
 
     if (m_finish)
-        TRY(really_quit_event_loop());
+        TRY(finalize_read());
 
     return {};
 }
