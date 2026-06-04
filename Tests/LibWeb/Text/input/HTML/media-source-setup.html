@@ -99,7 +99,8 @@
                     step("endOfStream succeeded");
                     printBuffered("endOfStream");
 
-                    // Step 9: Play
+                    // Step 9: Play (muted so play() is allowed without user activation on non-allowlisted origins)
+                    video.muted = true;
                     video.addEventListener("error", () => {
                         fail("playback", video.error?.message ?? "unknown error");
                     });

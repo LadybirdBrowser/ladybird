@@ -18,6 +18,7 @@
         await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
 
         println("--- play ---");
+        video.muted = true;
         await video.play();
         await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
 
