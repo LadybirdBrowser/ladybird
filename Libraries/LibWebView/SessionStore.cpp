@@ -16,7 +16,6 @@ ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& da
     auto create_windows_table = TRY(database.prepare_statement(R"#(
         CREATE TABLE IF NOT EXISTS SessionWindows (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            window_index INTEGER NOT NULL,
             active_tab_index INTEGER NOT NULL DEFAULT 0,
             x INTEGER,
             y INTEGER,
@@ -40,8 +39,8 @@ ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& da
     statements.clear_windows = TRY(database.prepare_statement("DELETE FROM SessionWindows;"sv));
     statements.clear_tabs = TRY(database.prepare_statement("DELETE FROM SessionTabs;"sv));
     statements.insert_window = TRY(database.prepare_statement(R"#(
-        INSERT INTO SessionWindows (window_index, active_tab_index, x, y, width, height, maximized)
-        VALUES (?, ?, ?, ?, ?, ?, ?);
+        INSERT INTO SessionWindows (active_tab_index, x, y, width, height, maximized)
+        VALUES (?, ?, ?, ?, ?, ?);
     )#"sv));
     statements.update_window = TRY(database.prepare_statement(R"#(
         UPDATE SessionWindows
@@ -68,9 +67,9 @@ ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& da
         UPDATE SessionWindows SET active_tab_index = ? WHERE id = ?;
     )#"sv));
     statements.get_windows = TRY(database.prepare_statement(R"#(
-        SELECT id, window_index, active_tab_index, x, y, width, height, maximized
+        SELECT id, active_tab_index, x, y, width, height, maximized
         FROM SessionWindows
-        ORDER BY window_index ASC;
+        ORDER BY id ASC;
     )#"sv));
     statements.get_tabs_for_window = TRY(database.prepare_statement(R"#(
         SELECT url
@@ -79,7 +78,6 @@ ErrorOr<NonnullOwnPtr<SessionStore>> SessionStore::create(Database::Database& da
         ORDER BY tab_index ASC;
     )#"sv));
     statements.last_insert_rowid = TRY(database.prepare_statement("SELECT last_insert_rowid();"sv));
-    statements.count_windows = TRY(database.prepare_statement("SELECT COUNT(*) FROM SessionWindows;"sv));
 
     return adopt_own(*new SessionStore { database, move(statements) });
 }
@@ -99,13 +97,13 @@ Vector<SessionWindow> SessionStore::load_session()
     m_database.execute_statement(m_statements.get_windows, [&](Database::StatementID) {
         SessionWindow window;
         window.id = m_database.result_column<i64>(m_statements.get_windows, 0);
-        window.active_tab_index = static_cast<size_t>(m_database.result_column<i64>(m_statements.get_windows, 2));
+        window.active_tab_index = static_cast<size_t>(m_database.result_column<i64>(m_statements.get_windows, 1));
 
-        auto x = m_database.result_column<i64>(m_statements.get_windows, 3);
-        auto y = m_database.result_column<i64>(m_statements.get_windows, 4);
-        auto w = m_database.result_column<i64>(m_statements.get_windows, 5);
-        auto h = m_database.result_column<i64>(m_statements.get_windows, 6);
-        auto maximized = m_database.result_column<i64>(m_statements.get_windows, 7);
+        auto x = m_database.result_column<i64>(m_statements.get_windows, 2);
+        auto y = m_database.result_column<i64>(m_statements.get_windows, 3);
+        auto w = m_database.result_column<i64>(m_statements.get_windows, 4);
+        auto h = m_database.result_column<i64>(m_statements.get_windows, 5);
+        auto maximized = m_database.result_column<i64>(m_statements.get_windows, 6);
 
         if (x >= 0)
             window.x = static_cast<int>(x);
@@ -117,15 +115,13 @@ Vector<SessionWindow> SessionStore::load_session()
             window.height = static_cast<int>(h);
         window.maximized = (maximized != 0);
 
-        auto window_id = m_database.result_column<i64>(m_statements.get_windows, 0);
-
         m_database.execute_statement(
             m_statements.get_tabs_for_window,
             [&](Database::StatementID) {
                 auto url = m_database.result_column<String>(m_statements.get_tabs_for_window, 0);
                 window.tabs.append(SessionTab { AK::move(url) });
             },
-            window_id);
+            window.id);
 
         windows.append(AK::move(window));
     });
@@ -141,21 +137,12 @@ i64 SessionStore::insert_window(SessionWindow const& window)
     int height = window.height.has_value() ? *window.height : -1;
     int maximized = window.maximized ? 1 : 0;
 
-    // Count existing windows to determine the next window_index
-    i64 next_index = 0;
-    m_database.execute_statement(
-        m_statements.count_windows,
-        [&](Database::StatementID) {
-            next_index = m_database.result_column<i64>(m_statements.count_windows, 0);
-        });
-    i64 new_id = -1;
-
     m_database.execute_statement(
         m_statements.insert_window,
-        [&](Database::StatementID) { },
-        next_index,
+        {},
         static_cast<i64>(window.active_tab_index),
         x, y, width, height, maximized);
+    i64 new_id = -1;
 
     m_database.execute_statement(
         m_statements.last_insert_rowid,

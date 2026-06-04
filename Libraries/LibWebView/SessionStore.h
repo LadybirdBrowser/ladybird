@@ -83,7 +83,6 @@ private:
         Database::StatementID set_active_tab { 0 };
         Database::StatementID get_windows { 0 };
         Database::StatementID get_tabs_for_window { 0 };
-        Database::StatementID count_windows { 0 };
         Database::StatementID last_insert_rowid { 0 };
     };
 
