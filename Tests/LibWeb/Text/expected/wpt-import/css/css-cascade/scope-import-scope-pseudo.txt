@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	The :scope pseudo-class works in imported stylesheets
+1 Pass
+Pass	The :scope pseudo-class works in imported stylesheets

@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
+#include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -295,6 +296,28 @@ Optional<SelectorList> const& CSSImportRule::scope_end_selectors() const
     return m_scope->end_selectors;
 }
 
+Optional<SelectorList> const& CSSImportRule::scope_start_selectors_for_matching() const
+{
+    VERIFY(m_scope.has_value());
+    if (!m_scope->start_selectors.has_value())
+        return m_scope->start_selectors;
+
+    if (!m_cached_scope_start_selectors_for_matching.has_value())
+        m_cached_scope_start_selectors_for_matching = absolutize_selectors_relative_to(*m_scope->start_selectors, nullptr);
+    return m_cached_scope_start_selectors_for_matching;
+}
+
+Optional<SelectorList> const& CSSImportRule::scope_end_selectors_for_matching() const
+{
+    VERIFY(m_scope.has_value());
+    if (!m_scope->end_selectors.has_value())
+        return m_scope->end_selectors;
+
+    if (!m_cached_scope_end_selectors_for_matching.has_value())
+        m_cached_scope_end_selectors_for_matching = adapt_scope_end_selectors_for_matching(*m_scope->end_selectors);
+    return m_cached_scope_end_selectors_for_matching;
+}
+
 Optional<FlyString> CSSImportRule::internal_qualified_layer_name(Badge<StyleScope>) const
 {
     if (!m_layer.has_value())
@@ -311,6 +334,13 @@ bool CSSImportRule::matches() const
     if (m_supports && !m_supports->matches())
         return false;
     return m_media->matches();
+}
+
+void CSSImportRule::clear_caches()
+{
+    Base::clear_caches();
+    m_cached_scope_start_selectors_for_matching.clear();
+    m_cached_scope_end_selectors_for_matching.clear();
 }
 
 void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const

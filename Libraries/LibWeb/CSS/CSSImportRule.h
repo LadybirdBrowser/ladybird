@@ -48,6 +48,8 @@ public:
     bool has_scope() const { return m_scope.has_value(); }
     Optional<SelectorList> const& scope_start_selectors() const;
     Optional<SelectorList> const& scope_end_selectors() const;
+    Optional<SelectorList> const& scope_start_selectors_for_matching() const;
+    Optional<SelectorList> const& scope_end_selectors_for_matching() const;
 
     Optional<FlyString> internal_layer_name() const { return m_layer_internal; }
     Optional<FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
@@ -57,6 +59,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void clear_caches() override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     virtual void set_parent_style_sheet(CSSStyleSheet*) override;
@@ -73,6 +76,8 @@ private:
     Optional<FlyString> m_layer;
     Optional<FlyString> m_layer_internal;
     Optional<ImportScope> m_scope;
+    mutable Optional<SelectorList> m_cached_scope_start_selectors_for_matching;
+    mutable Optional<SelectorList> m_cached_scope_end_selectors_for_matching;
     RefPtr<Supports> m_supports;
     GC::Ref<MediaList> m_media;
     GC::Ptr<CSSStyleSheet> m_style_sheet;

@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	A stylesheet may be imported multiple times, and scoped differently
-Fail	Scope-imported rule does not apply outside of scope
+Pass	Scope-imported rule does not apply outside of scope

@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	@scope within scope-imported stylesheet matches
-Fail	@scope within scope-imported does not ignore import scope
+Pass	@scope within scope-imported does not ignore import scope

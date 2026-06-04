@@ -252,10 +252,10 @@ Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_
     return nullptr;
 }
 
-static bool scope_selector_matches(Selector const& selector, DOM::Element const& element, DOM::Element const& subject, MatchingRule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, GC::Ptr<DOM::ParentNode const> scope)
+static bool scope_selector_matches(Selector const& selector, DOM::Element const& element, DOM::Element const& subject, CSSStyleSheet const& scope_style_sheet, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, GC::Ptr<DOM::ParentNode const> scope)
 {
     SelectorEngine::MatchContext context {
-        .style_sheet_for_rule = *rule.sheet,
+        .style_sheet_for_rule = scope_style_sheet,
         .subject = subject,
         .rule_shadow_root = rule_root,
         .collect_per_element_selector_involvement_metadata = true,
@@ -268,20 +268,22 @@ struct ResolvedScope {
     size_t proximity { NumericLimits<size_t>::max() };
 };
 
-static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstract_element, MatchingRule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, CSSScopeRule const& scope_rule, GC::Ptr<DOM::Element const> outer_root)
+static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstract_element, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, CSSRule const& scope_rule, GC::Ptr<DOM::Element const> outer_root)
 {
     GC::Ptr<DOM::Element const> root;
     size_t proximity = 0;
+    auto const* owner_style_sheet = scope_rule.parent_style_sheet();
+    VERIFY(owner_style_sheet);
 
     // https://drafts.csswg.org/css-cascade-6/#scope-limits
     // Finding the scoping root(s)
     // For each element matched by <scope-start>, create a scope using that element as the scoping root.
-    if (scope_rule.start_selectors_for_matching().has_value()) {
+    if (scope_start_selectors_for_matching(scope_rule).has_value()) {
         for (auto const* candidate = &abstract_element.element(); candidate; candidate = candidate->parent_element().ptr(), ++proximity) {
             if (outer_root && !outer_root->is_inclusive_ancestor_of(*candidate))
                 break;
-            for (auto const& selector : *scope_rule.start_selectors_for_matching()) {
-                if (scope_selector_matches(selector, *candidate, abstract_element.element(), rule, shadow_host, rule_root, outer_root)) {
+            for (auto const& selector : *scope_start_selectors_for_matching(scope_rule)) {
+                if (scope_selector_matches(selector, *candidate, abstract_element.element(), *owner_style_sheet, shadow_host, rule_root, outer_root)) {
                     root = candidate;
                     break;
                 }
@@ -293,7 +295,7 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
         root = [&] -> GC::Ptr<DOM::Element const> {
             // If no <scope-start> is specified, the scoping root is the parent element of the owner node of the
             // stylesheet where the @scope rule is defined.
-            if (auto* owner_node = const_cast<CSSStyleSheet&>(*rule.sheet).owner_node()) {
+            if (auto* owner_node = const_cast<CSSStyleSheet&>(*owner_style_sheet).owner_node()) {
                 if (auto parent = owner_node->parent_element())
                     return parent;
             }
@@ -304,7 +306,7 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
                 return rule_root->host();
 
             // Otherwise, the scoping root is the root of the containing node tree.
-            if (auto document = rule.sheet->owning_document())
+            if (auto document = owner_style_sheet->owning_document())
                 return document->document_element();
             return nullptr;
         }();
@@ -322,10 +324,10 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
     // Finding any scoping limits
     // For each scope created by a scoping root, its scoping limits are set to all elements that are descendants of
     // the scoping root and that match <scope-end>, interpreting :scope and & exactly as in scoped style rules.
-    if (scope_rule.end_selectors_for_matching().has_value()) {
+    if (scope_end_selectors_for_matching(scope_rule).has_value()) {
         for (auto const* candidate = &abstract_element.element(); candidate; candidate = candidate->parent_element().ptr()) {
-            for (auto const& selector : *scope_rule.end_selectors_for_matching()) {
-                if (scope_selector_matches(selector, *candidate, abstract_element.element(), rule, shadow_host, rule_root, root))
+            for (auto const& selector : *scope_end_selectors_for_matching(scope_rule)) {
+                if (scope_selector_matches(selector, *candidate, abstract_element.element(), *owner_style_sheet, shadow_host, rule_root, root))
                     return {};
             }
             if (candidate == root)
@@ -336,7 +338,7 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
     return ResolvedScope { root, proximity };
 }
 
-static Optional<ResolvedScope> resolve_scope_chain(DOM::AbstractElement abstract_element, MatchingRule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, CSSScopeRule const& scope_rule)
+static Optional<ResolvedScope> resolve_scope_chain(DOM::AbstractElement abstract_element, MatchingRule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root, CSSRule const& scope_rule)
 {
     // https://drafts.csswg.org/css-cascade-6/#cascade-proximity
     // Scope Proximity
@@ -344,7 +346,7 @@ static Optional<ResolvedScope> resolve_scope_chain(DOM::AbstractElement abstract
     // the fewest generational or sibling-element hops between the scoping root and the scoped style rule subject wins.
     // For this purpose, style rules without a scoping root are considered to have infinite proximity hops.
     GC::Ptr<DOM::Element const> outer_root;
-    if (auto ancestor_scope_rule = scope_rule.nearest_ancestor_scope_rule()) {
+    if (auto ancestor_scope_rule = nearest_ancestor_scope_rule_for_matching(scope_rule)) {
         auto resolved_ancestor_scope = resolve_scope_chain(abstract_element, rule, shadow_host, rule_root, *ancestor_scope_rule);
         if (!resolved_ancestor_scope.has_value())
             return {};
@@ -352,7 +354,7 @@ static Optional<ResolvedScope> resolve_scope_chain(DOM::AbstractElement abstract
         outer_root = resolved_ancestor_scope->root;
     }
 
-    return resolve_single_scope(abstract_element, rule, shadow_host, rule_root, scope_rule, outer_root);
+    return resolve_single_scope(abstract_element, shadow_host, rule_root, scope_rule, outer_root);
 }
 
 static Optional<ResolvedScope> resolve_scope(DOM::AbstractElement abstract_element, MatchingRule const& rule, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ShadowRoot const> rule_root)

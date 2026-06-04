@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	The & selector matches the scoping root
-Fail	The & selector behaves like :scope
+2 Pass
+Pass	The & selector matches the scoping root
+Pass	The & selector behaves like :scope
