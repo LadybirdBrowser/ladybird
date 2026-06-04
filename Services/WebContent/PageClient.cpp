@@ -19,6 +19,7 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -27,7 +28,6 @@
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -1042,34 +1042,8 @@ void PageClient::console_peer_did_misbehave(char const* reason)
 
 static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::CSSStyleSheet& sheet)
 {
-    Web::CSS::StyleSheetIdentifier identifier {};
-
-    bool valid = true;
-
-    if (sheet.owner_rule()) {
-        identifier.type = Web::CSS::StyleSheetIdentifier::Type::ImportRule;
-    } else if (auto* node = sheet.owner_node()) {
-        if (node->is_html_style_element() || node->is_svg_style_element()) {
-            identifier.type = Web::CSS::StyleSheetIdentifier::Type::StyleElement;
-        } else if (is<Web::HTML::HTMLLinkElement>(node)) {
-            identifier.type = Web::CSS::StyleSheetIdentifier::Type::LinkElement;
-        } else {
-            dbgln("Can't identify where style sheet came from; owner node is {}", node->debug_description());
-            identifier.type = Web::CSS::StyleSheetIdentifier::Type::StyleElement;
-        }
-        identifier.dom_element_unique_id = node->unique_id();
-    } else {
-        dbgln("Style sheet has no owner rule or owner node; skipping");
-        valid = false;
-    }
-
-    if (valid) {
-        if (auto sheet_url = sheet.href(); sheet_url.has_value())
-            identifier.url = sheet_url.release_value();
-
-        identifier.rule_count = sheet.rules().length();
-        results.append(move(identifier));
-    }
+    if (auto identifier = Web::CSS::style_sheet_identifier_for(sheet); identifier.has_value())
+        results.append(identifier.release_value());
 
     for (auto& import_rule : sheet.import_rules()) {
         if (import_rule->loaded_style_sheet()) {
