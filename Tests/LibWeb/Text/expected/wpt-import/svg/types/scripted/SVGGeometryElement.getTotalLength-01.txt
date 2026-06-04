@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	SVGGeometryElement.prototype.getTotalLength(), getTotalLength - path with pathLength
+Pass	SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect
+Pass	SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect in document
+Fail	SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect in document with percent units
+Pass	SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect in document with display none
+Fail	SVGGeometryElement.prototype.getTotalLength(), getTotalLength - path modified with setPathData
