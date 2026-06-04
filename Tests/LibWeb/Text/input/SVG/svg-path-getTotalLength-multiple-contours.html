@@ -1,0 +1,12 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <path id="path" d="M 0 0 h 5 M 0 10 h 15 M 0 20 h 10" stroke="black" stroke-width="2" fill="none" />
+</svg>
+<script>
+    test(() => {
+        const path = document.getElementById("path");
+        const length = path.getTotalLength();
+        println(`getTotalLength = ${length}`);
+    });
+</script>

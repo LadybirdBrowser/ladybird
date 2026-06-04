@@ -246,7 +246,11 @@ Gfx::FloatRect PathImplSkia::bounding_box() const
 float PathImplSkia::length() const
 {
     SkPathMeasure path_measure(*m_path, false);
-    return path_measure.getLength();
+    float length = 0;
+    do {
+        length += path_measure.getLength();
+    } while (path_measure.nextContour());
+    return length;
 }
 
 bool PathImplSkia::contains(FloatPoint point, Gfx::WindingRule winding_rule) const
