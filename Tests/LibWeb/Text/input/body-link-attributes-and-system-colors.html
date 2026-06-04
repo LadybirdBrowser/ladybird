@@ -1,0 +1,20 @@
+<!doctype html>
+<body link="#ff0000" vlink="#00ff00" alink="#0000ff">
+    <a href="#active" id="link">link</a>
+    <a href="#active" id="active">active</a>
+    <!-- FIXME: Add a vlink case if/when matching :visited is supported. -->
+
+    <div id="link-text" style="color: linktext"></div>
+    <div id="visited-text" style="color: visitedtext"></div>
+    <div id="active-text" style="color: activetext"></div>
+    <script src="include.js"></script>
+    <script>
+        test(() => {
+            const rect = active.getBoundingClientRect();
+            internals.clickAndHold(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+            for (const id of ["link", "active", "link-text", "visited-text", "active-text"])
+                println(`${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+        });
+    </script>
+</body>
