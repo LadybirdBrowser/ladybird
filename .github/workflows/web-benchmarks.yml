@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: 'Checkout ladybird'
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
         with:
           ref: ${{ github.sha }}
 
@@ -47,7 +47,7 @@ jobs:
           echo "sha=${{ github.sha }}" >> "${GITHUB_OUTPUT}"
 
       - name: 'Checkout LadybirdBrowser/web-benchmarks'
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
         with:
           repository: LadybirdBrowser/web-benchmarks
           path: web-benchmarks
