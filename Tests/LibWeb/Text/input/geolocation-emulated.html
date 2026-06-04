@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        navigator.geolocation.getCurrentPosition(
+            position => {
+                println(`latitude: ${position.coords.latitude}`);
+                println(`longitude: ${position.coords.longitude}`);
+                println(`accuracy type: ${typeof position.coords.accuracy}`);
+                println(`timestamp type: ${typeof position.timestamp}`);
+                println(`altitude: ${position.coords.altitude}`);
+                done();
+            },
+            error => {
+                println(`error: ${error.code} ${error.message}`);
+                done();
+            }
+        );
+    });
+</script>

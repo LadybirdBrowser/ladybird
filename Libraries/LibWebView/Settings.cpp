@@ -9,6 +9,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <LibCore/GeolocationProvider.h>
 #include <LibCore/StandardPaths.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -64,6 +65,15 @@ static constexpr auto DISK_CACHE_KEY = "diskCache"sv;
 static constexpr auto DISK_CACHE_MAXIMUM_SIZE_KEY = "maxSize"sv;
 
 static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
+
+static constexpr auto GEOLOCATION_KEY = "geolocation"sv;
+static constexpr auto GEOLOCATION_MODE_KEY = "mode"sv;
+static constexpr auto GEOLOCATION_LATITUDE_KEY = "latitude"sv;
+static constexpr auto GEOLOCATION_LONGITUDE_KEY = "longitude"sv;
+static constexpr auto GEOLOCATION_ALTITUDE_KEY = "altitude"sv;
+static constexpr auto GEOLOCATION_ALTITUDE_ACCURACY_KEY = "altitudeAccuracy"sv;
+static constexpr auto GEOLOCATION_SPEED_KEY = "speed"sv;
+static constexpr auto GEOLOCATION_HEADING_KEY = "heading"sv;
 
 static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
 
@@ -267,6 +277,30 @@ Settings Settings::create(Badge<Application>)
     if (auto global_privacy_control = settings_json.value().get_bool(GLOBAL_PRIVACY_CONTROL_KEY); global_privacy_control.has_value())
         settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
 
+    if (auto geolocation = settings_json.value().get_object(GEOLOCATION_KEY); geolocation.has_value()) {
+        if (auto mode = geolocation->get_string(GEOLOCATION_MODE_KEY); mode.has_value()) {
+            if (*mode == "disabled"sv)
+                settings.m_geolocation_mode = GeolocationMode::Disabled;
+            else if (*mode == "emulated"sv)
+                settings.m_geolocation_mode = GeolocationMode::Emulated;
+            else if (*mode == "actual"sv && Core::GeolocationProvider::is_available())
+                settings.m_geolocation_mode = GeolocationMode::Actual;
+        }
+
+        if (auto latitude = geolocation->get_double_with_precision_loss(GEOLOCATION_LATITUDE_KEY); latitude.has_value())
+            settings.m_emulated_geolocation_coordinates.latitude = *latitude;
+        if (auto longitude = geolocation->get_double_with_precision_loss(GEOLOCATION_LONGITUDE_KEY); longitude.has_value())
+            settings.m_emulated_geolocation_coordinates.longitude = *longitude;
+        if (auto altitude = geolocation->get_double_with_precision_loss(GEOLOCATION_ALTITUDE_KEY); altitude.has_value())
+            settings.m_emulated_geolocation_coordinates.altitude = *altitude;
+        if (auto altitude_accuracy = geolocation->get_double_with_precision_loss(GEOLOCATION_ALTITUDE_ACCURACY_KEY); altitude_accuracy.has_value())
+            settings.m_emulated_geolocation_coordinates.altitude_accuracy = *altitude_accuracy;
+        if (auto speed = geolocation->get_double_with_precision_loss(GEOLOCATION_SPEED_KEY); speed.has_value())
+            settings.m_emulated_geolocation_coordinates.speed = *speed;
+        if (auto heading = geolocation->get_double_with_precision_loss(GEOLOCATION_HEADING_KEY); heading.has_value())
+            settings.m_emulated_geolocation_coordinates.heading = *heading;
+    }
+
     if (auto dns_settings = settings_json.value().get(DNS_SETTINGS_KEY); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
 
@@ -383,6 +417,31 @@ JsonValue Settings::serialize_json() const
     settings.set(BROWSING_DATA_KEY, move(browsing_data));
 
     settings.set(GLOBAL_PRIVACY_CONTROL_KEY, m_global_privacy_control == GlobalPrivacyControl::Yes);
+
+    JsonObject geolocation;
+    switch (m_geolocation_mode) {
+    case GeolocationMode::Disabled:
+        geolocation.set(GEOLOCATION_MODE_KEY, "disabled"sv);
+        break;
+    case GeolocationMode::Emulated:
+        geolocation.set(GEOLOCATION_MODE_KEY, "emulated"sv);
+        break;
+    case GeolocationMode::Actual:
+        geolocation.set(GEOLOCATION_MODE_KEY, "actual"sv);
+        break;
+    }
+
+    geolocation.set(GEOLOCATION_LATITUDE_KEY, m_emulated_geolocation_coordinates.latitude);
+    geolocation.set(GEOLOCATION_LONGITUDE_KEY, m_emulated_geolocation_coordinates.longitude);
+    if (m_emulated_geolocation_coordinates.altitude.has_value())
+        geolocation.set(GEOLOCATION_ALTITUDE_KEY, *m_emulated_geolocation_coordinates.altitude);
+    if (m_emulated_geolocation_coordinates.altitude_accuracy.has_value())
+        geolocation.set(GEOLOCATION_ALTITUDE_ACCURACY_KEY, *m_emulated_geolocation_coordinates.altitude_accuracy);
+    if (m_emulated_geolocation_coordinates.speed.has_value())
+        geolocation.set(GEOLOCATION_SPEED_KEY, *m_emulated_geolocation_coordinates.speed);
+    if (m_emulated_geolocation_coordinates.heading.has_value())
+        geolocation.set(GEOLOCATION_HEADING_KEY, *m_emulated_geolocation_coordinates.heading);
+    settings.set(GEOLOCATION_KEY, move(geolocation));
 
     // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
     JsonObject dns_settings;
@@ -754,6 +813,24 @@ DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)
 
     dbgln("Invalid DNS settings in parse_dns_settings, falling back to system DNS");
     return SystemDNS {};
+}
+
+void Settings::set_geolocation_mode(GeolocationMode mode)
+{
+    m_geolocation_mode = mode;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.geolocation_settings_changed();
+}
+
+void Settings::set_emulated_geolocation_coordinates(GeolocationCoordinates coordinates)
+{
+    m_emulated_geolocation_coordinates = coordinates;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.geolocation_settings_changed();
 }
 
 void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_by_command_line)

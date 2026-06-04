@@ -471,6 +471,49 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <p class="card-group">Geolocation</p>
+                    <p class="card-group description">Choose how to respond to geolocation requests.</p>
+
+                    <div class="card-group inline-container">
+                        <label for="geolocation-mode">Mode</label>
+                        <select id="geolocation-mode">
+                            <option value="disabled" selected>Deny access to location</option>
+                            <option value="emulated">Manual location</option>
+                            <option value="actual" hidden>Actual location</option>
+                        </select>
+                    </div>
+
+                    <div class="card-group" id="geolocation-emulated-settings">
+                        <div class="card-group inline-container">
+                            <label for="geolocation-latitude">Latitude</label>
+                            <input id="geolocation-latitude" type="number" step="0.0000001" min="-90" max="90" />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="geolocation-longitude">Longitude</label>
+                            <input id="geolocation-longitude" type="number" step="0.0000001" min="-180" max="180" />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="geolocation-altitude">Altitude (m)</label>
+                            <input id="geolocation-altitude" type="number" step="0.1" />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="geolocation-altitude-accuracy">Altitude accuracy (m)</label>
+                            <input id="geolocation-altitude-accuracy" type="number" step="0.1" min="0" />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="geolocation-speed">Speed (m/s)</label>
+                            <input id="geolocation-speed" type="number" step="0.1" min="0" />
+                        </div>
+                        <div class="card-group inline-container">
+                            <label for="geolocation-heading">Heading (degrees)</label>
+                            <input id="geolocation-heading" type="number" step="0.1" min="0" max="360" />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="tab-panel" id="tab-privacy">
@@ -716,6 +759,7 @@
         <script src="resource://ladybird/about-pages/settings/advanced.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/browsing-behavior.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/default-zoom-level.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/geolocation.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/network.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/new-tab-page.js" type="module"></script>

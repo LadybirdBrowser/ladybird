@@ -13,6 +13,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
+#include <LibCore/GeolocationProvider.h>
 #include <LibDatabase/Forward.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
@@ -94,6 +95,10 @@ public:
     static IPC::TransportBootstrapMachServer& transport_bootstrap_server() { return the().m_transport_bootstrap_server; }
     void set_browser_process_transport_handler(Function<void(NonnullOwnPtr<IPC::Transport>)> handler);
 #endif
+
+    void request_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error);
+    ErrorOr<Core::GeolocationProvider::WatchId, Core::GeolocationError> start_watching_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error);
+    void stop_watching_geolocation_position(Core::GeolocationProvider::WatchId);
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
     u64 allocate_page_id();
@@ -253,6 +258,7 @@ private:
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
     ErrorOr<void> load_content_blocker_lists();
+    ErrorOr<Core::GeolocationProvider*> ensure_geolocation_provider();
 
     void initialize_actions();
     void update_vertical_tabs_action();
@@ -350,6 +356,7 @@ private:
     OwnPtr<HSTSStore> m_hsts_store;
     OwnPtr<StorageJar> m_storage_jar;
 
+    OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     OwnPtr<Core::EventLoop> m_event_loop;

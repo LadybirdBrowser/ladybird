@@ -1,7 +1,7 @@
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets OPTIONAL_COMPONENTS Positioning)
 
 if (APPLE)
     # The macOS QRhiWidget presentation path uses QRhi's private Metal native
@@ -34,6 +34,12 @@ target_sources(ladybird PRIVATE
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 
+if (TARGET Qt6::Positioning)
+    target_sources(ladybird PRIVATE GeolocationProviderQt.cpp GeolocationProviderQt.h)
+    target_link_libraries(ladybird PRIVATE Qt::Positioning)
+    target_compile_definitions(ladybird PRIVATE LADYBIRD_QT_HAVE_POSITIONING=1)
+endif()
+
 if (APPLE)
     target_sources(ladybird PRIVATE
         MacWindow.mm
@@ -41,7 +47,6 @@ if (APPLE)
     )
     target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework Cocoa" "-framework IOSurface" "-framework Metal" "-framework QuartzCore")
 endif()
-
 create_ladybird_bundle(ladybird)
 
 if (WIN32)

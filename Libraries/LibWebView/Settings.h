@@ -45,6 +45,22 @@ struct BrowsingDataSettings {
     HTTP::DiskCacheSettings disk_cache_settings;
 };
 
+enum class GeolocationMode {
+    Disabled,
+    Emulated,
+    Actual,
+};
+
+struct GeolocationCoordinates {
+    double latitude { 37.7647658 };
+    double longitude { -122.4345892 };
+    double accuracy { 100.0 };
+    Optional<double> altitude { 0.0 };
+    Optional<double> altitude_accuracy { 0.0 };
+    Optional<double> speed { 0.0 };
+    Optional<double> heading { 0.0 };
+};
+
 enum class GlobalPrivacyControl {
     No,
     Yes,
@@ -92,6 +108,7 @@ public:
     virtual void global_privacy_control_changed() { }
     virtual void dns_settings_changed() { }
     virtual void config_variable_changed(ConfigVariableID) { }
+    virtual void geolocation_settings_changed() { }
 };
 
 class WEBVIEW_API Settings {
@@ -150,6 +167,12 @@ public:
     GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
     void set_global_privacy_control(GlobalPrivacyControl);
 
+    GeolocationMode geolocation_mode() const { return m_geolocation_mode; }
+    void set_geolocation_mode(GeolocationMode);
+
+    GeolocationCoordinates const& emulated_geolocation_coordinates() const { return m_emulated_geolocation_coordinates; }
+    void set_emulated_geolocation_coordinates(GeolocationCoordinates);
+
     static DNSSettings parse_dns_settings(JsonValue const&);
     DNSSettings const& dns_settings() const { return m_dns_settings; }
     void set_dns_settings(DNSSettings const&, bool override_by_command_line = false);
@@ -185,6 +208,8 @@ private:
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
     BrowsingDataSettings m_browsing_data_settings;
+    GeolocationMode m_geolocation_mode { GeolocationMode::Disabled };
+    GeolocationCoordinates m_emulated_geolocation_coordinates;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };

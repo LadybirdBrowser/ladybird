@@ -174,6 +174,9 @@ private:
     virtual void did_request_exit_fullscreen(u64 page_id) override;
     virtual void did_request_file(u64 page_id, ByteString path, i32) override;
     virtual void did_request_color_picker(u64 page_id, Color current_color) override;
+    virtual void did_request_geolocation_position(u64 page_id, u64 request_id) override;
+    virtual void did_start_geolocation_position_watch(u64 page_id, u64 request_id) override;
+    virtual void did_stop_geolocation_position_watch(u64 page_id, u64 request_id) override;
     virtual void did_request_file_picker(u64 page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) override;

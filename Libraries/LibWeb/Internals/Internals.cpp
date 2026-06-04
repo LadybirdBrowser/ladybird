@@ -719,6 +719,15 @@ void Internals::set_environments_top_level_url(StringView url)
     HTML::principal_realm_settings_object(realm).top_level_creation_url = URL::Parser::basic_parse(url);
 }
 
+void Internals::set_geolocation_emulated_position(double latitude, double longitude, double accuracy)
+{
+    window().navigable()->top_level_traversable()->set_emulated_position_data(Geolocation::CoordinatesData {
+        .accuracy = accuracy,
+        .latitude = latitude,
+        .longitude = longitude,
+    });
+}
+
 JS::Object* Internals::get_style_invalidation_counters()
 {
     auto const& counters = window().associated_document().style_invalidation_counters();
