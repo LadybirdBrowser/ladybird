@@ -115,7 +115,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto webdriver_socket_path = ByteString::formatted("{}/webdriver", TRY(Core::StandardPaths::runtime_directory()));
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));
 
-    Core::EventLoop loop;
+    auto& loop = Core::EventLoop::initialize_for_current_thread();
     auto server = TRY(Core::TCPServer::try_create());
 
     HashTable<NonnullRefPtr<WebDriver::Client>> clients;

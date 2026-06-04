@@ -451,7 +451,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     initialize_actions();
 
-    m_event_loop = create_platform_event_loop();
+    m_event_loop = &create_platform_event_loop();
     TRY(launch_services());
 
     return {};
@@ -1036,9 +1036,9 @@ ErrorOr<int> Application::execute()
     return m_event_loop->exec();
 }
 
-NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
+Core::EventLoop& Application::create_platform_event_loop()
 {
-    return make<Core::EventLoop>();
+    return Core::EventLoop::initialize_for_current_thread();
 }
 
 void Application::add_child_process(WebView::Process&& process)

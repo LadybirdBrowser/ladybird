@@ -213,7 +213,7 @@ protected:
 
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
-    virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
+    virtual Core::EventLoop& create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] StringView file) const { return {}; }
 
@@ -352,7 +352,7 @@ private:
 
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
-    OwnPtr<Core::EventLoop> m_event_loop;
+    Core::EventLoop* m_event_loop { nullptr };
     OwnPtr<ProcessManager> m_process_manager;
 
     RefPtr<Action> m_reload_action;

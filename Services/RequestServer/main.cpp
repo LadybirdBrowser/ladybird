@@ -71,7 +71,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     MUST(Core::System::signal(SIGPIPE, SIG_IGN));
 #endif
 
-    Core::EventLoop event_loop;
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
     // FIXME: Have another way to signal the event loop to gracefully quit on windows.
 #ifndef AK_OS_WINDOWS
     Core::EventLoop::register_signal(SIGINT, handle_signal);

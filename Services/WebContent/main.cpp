@@ -127,7 +127,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return -1;
     }
 
-    Core::EventLoop event_loop;
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     WebView::platform_init();
 

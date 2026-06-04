@@ -46,7 +46,7 @@ static ErrorOr<void> load_autoplay_allowlist();
 
 ErrorOr<int> service_main(int ipc_socket)
 {
-    Core::EventLoop event_loop;
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
