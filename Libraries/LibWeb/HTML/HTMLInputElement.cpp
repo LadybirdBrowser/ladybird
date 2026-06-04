@@ -161,19 +161,13 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
         return heap().allocate<Layout::CheckBox>(document(), *this, move(style));
     case TypeAttributeState::RadioButton:
         return heap().allocate<Layout::RadioButton>(document(), *this, move(style));
-    case TypeAttributeState::Text:
-    case TypeAttributeState::Search:
-    case TypeAttributeState::URL:
-    case TypeAttributeState::Telephone:
-    case TypeAttributeState::Email:
-    case TypeAttributeState::Password:
-    case TypeAttributeState::Number:
-        // FIXME: text padding issues
-        return heap().allocate<Layout::TextInputBox>(document(), *this, move(style));
     case TypeAttributeState::Range:
         return heap().allocate<Layout::RangeInputBox>(document(), *this, move(style));
-    default:
+    case TypeAttributeState::Color:
+    case TypeAttributeState::FileUpload:
         return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    default:
+        return heap().allocate<Layout::TextInputBox>(document(), *this, move(style));
     }
 }
 
