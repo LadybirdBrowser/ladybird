@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -50,6 +50,8 @@ public:
     String to_string() const;
     String to_debug_string() const;
     String original_source_text() const;
+
+    Optional<SourcePosition> start_position() const;
 
     bool operator==(ComponentValue const&) const = default;
 

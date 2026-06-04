@@ -234,7 +234,9 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
             });
     }
     auto nested_rules = CSSRuleList::create(realm(), child_rules);
-    return CSSStyleRule::create(realm(), move(selectors), *declaration, *nested_rules);
+    auto style_rule = CSSStyleRule::create(realm(), move(selectors), *declaration, *nested_rules);
+    style_rule->set_source_position(qualified_rule.source_position);
+    return style_rule;
 }
 
 GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)

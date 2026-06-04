@@ -47,6 +47,7 @@ struct QualifiedRule {
     Vector<ComponentValue> prelude;
     Vector<Declaration> declarations;
     Vector<RuleOrListOfDeclarations> child_rules;
+    Optional<SourcePosition> source_position = {};
 
     void for_each_as_declaration_list(FlyString const& rule_name, DeclarationVisitor&& visit) const;
 };
@@ -58,6 +59,7 @@ struct Declaration {
     Important important = Important::No;
     Optional<String> original_value_text = {};
     Optional<String> original_full_text = {};
+    Optional<SourcePosition> source_position = {};
 };
 
 struct SubstitutionFunctionsPresence {

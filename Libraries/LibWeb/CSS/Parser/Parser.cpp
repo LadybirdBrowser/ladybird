@@ -755,6 +755,7 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
         .prelude = {},
         .declarations = {},
         .child_rules = {},
+        .source_position = {},
     };
 
     // NOTE: Qualified rules inside @keyframes are a keyframe rule.
@@ -831,7 +832,10 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
         // anything else
         {
             // Consume a component value from input and append the result to rule’s prelude.
-            rule.prelude.append(consume_a_component_value(input));
+            auto component_value = consume_a_component_value(input);
+            if (!rule.source_position.has_value() && !component_value.is(Token::Type::Whitespace))
+                rule.source_position = component_value.start_position();
+            rule.prelude.append(move(component_value));
         }
     }
 }
@@ -1250,12 +1254,18 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
     Declaration declaration {
         .name {},
         .value {},
+        .important = Important::No,
+        .original_value_text = {},
+        .original_full_text = {},
+        .source_position = {},
     };
     auto start_token_index = input.current_index();
 
     // 1. If the next token is an <ident-token>, consume a token from input and set decl’s name to the token’s value.
     if (input.next_token().is(Token::Type::Ident)) {
-        declaration.name = ((Token)input.consume_a_token()).ident();
+        auto token = (Token)input.consume_a_token();
+        declaration.source_position = token.start_position();
+        declaration.name = token.ident();
     }
     //    Otherwise, consume the remnants of a bad declaration from input, with nested, and return nothing.
     else {
