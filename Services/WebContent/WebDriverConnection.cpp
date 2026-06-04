@@ -11,6 +11,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
@@ -2667,11 +2668,11 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_top_lev
 // https://w3c.github.io/webdriver/#dfn-get-the-prompt-handler
 Web::WebDriver::PromptHandlerConfiguration WebDriverConnection::get_the_prompt_handler(Web::WebDriver::PromptType type) const
 {
-    static Web::WebDriver::UserPromptHandler::ValueType empty_user_prompt_handler;
+    static NeverDestroyed<Web::WebDriver::UserPromptHandler::ValueType> empty_user_prompt_handler;
     auto const& user_prompt_handler = Web::WebDriver::user_prompt_handler();
 
     // 1. If the user prompt handler is null, let handlers be an empty map. Otherwise let handlers be user prompt handler.
-    auto const& handlers = user_prompt_handler.has_value() ? *user_prompt_handler : empty_user_prompt_handler;
+    auto const& handlers = user_prompt_handler.has_value() ? *user_prompt_handler : *empty_user_prompt_handler;
 
     // 2. If handlers contains type return handlers[type].
     if (auto handler = handlers.get(type); handler.has_value())

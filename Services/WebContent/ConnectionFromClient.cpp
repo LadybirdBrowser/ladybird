@@ -14,6 +14,7 @@
 #include <AK/JsonObject.h>
 #include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
+#include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
@@ -100,7 +101,7 @@ void ConnectionFromClient::did_destroy_compositor_context(Web::Compositor::Compo
 
 void ConnectionFromClient::die()
 {
-    _exit(0);
+    Core::Process::terminate_immediately(0);
 }
 
 Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
