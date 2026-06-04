@@ -12,21 +12,18 @@
 
 namespace Audio {
 
-#define TRY_OR_REJECT_AND_EXIT(expression)                                                                              \
-    ({                                                                                                                  \
-        auto&& __temporary_result = (expression);                                                                       \
-        if (__temporary_result.is_error()) [[unlikely]] {                                                               \
-            warnln("Failure in PulseAudio control thread: {}", __temporary_result.error().string_literal());            \
-            auto event_loop = main_thread_event_loop->take();                                                           \
-            if (!event_loop)                                                                                            \
-                return 1;                                                                                               \
-            event_loop->deferred_invoke([promise = move(promise), error = __temporary_result.release_error()] mutable { \
-                promise->reject(move(error));                                                                           \
-            });                                                                                                         \
-            internal_state->exit();                                                                                     \
-            return 1;                                                                                                   \
-        }                                                                                                               \
-        __temporary_result.release_value();                                                                             \
+#define TRY_OR_REJECT_AND_EXIT(expression)                                                                                         \
+    ({                                                                                                                             \
+        auto&& __temporary_result = (expression);                                                                                  \
+        if (__temporary_result.is_error()) [[unlikely]] {                                                                          \
+            warnln("Failure in PulseAudio control thread: {}", __temporary_result.error().string_literal());                       \
+            main_thread_event_loop.deferred_invoke([promise = move(promise), error = __temporary_result.release_error()] mutable { \
+                promise->reject(move(error));                                                                                      \
+            });                                                                                                                    \
+            internal_state->exit();                                                                                                \
+            return 1;                                                                                                              \
+        }                                                                                                                          \
+        __temporary_result.release_value();                                                                                        \
     })
 
 NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
@@ -43,9 +40,10 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamPulseAudio::create(Ou
     // Create an internal state for the control thread to hold on to.
     auto internal_state = MUST(adopt_nonnull_ref_or_enomem(new (nothrow) InternalState()));
     auto playback_stream = MUST(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamPulseAudio(internal_state)));
+    auto& main_thread_event_loop = Core::EventLoop::current();
 
     // Create the control thread and start it.
-    auto thread = MUST(Threading::Thread::try_create("Audio Control"sv, [=, main_thread_event_loop = Core::EventLoop::current_weak(), data_request_callback = move(data_request_callback)]() mutable {
+    auto thread = MUST(Threading::Thread::try_create("Audio Control"sv, [=, &main_thread_event_loop, data_request_callback = move(data_request_callback)]() mutable {
         auto context = TRY_OR_REJECT_AND_EXIT(PulseAudioContext::the());
         internal_state->set_stream(TRY_OR_REJECT_AND_EXIT(context->create_stream(initial_state, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer) {
             return data_request_callback(buffer);
@@ -56,10 +54,7 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamPulseAudio::create(Ou
         TRY_OR_REJECT_AND_EXIT(internal_state->stream()->set_volume(1.0));
 
         {
-            auto event_loop = main_thread_event_loop->take();
-            if (!event_loop)
-                return 1;
-            event_loop->deferred_invoke([promise = move(promise), playback_stream = move(playback_stream)] mutable {
+            main_thread_event_loop.deferred_invoke([promise = move(promise), playback_stream = move(playback_stream)] mutable {
                 promise->resolve(move(playback_stream));
             });
         }

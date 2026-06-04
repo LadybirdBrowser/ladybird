@@ -26,7 +26,7 @@ static constexpr size_t OUTPUT_BLOCK_QUEUE_CAPACITY = 4;
 class AudioPlaybackSink::OutputThreadData : public AtomicRefCounted<OutputThreadData> {
 public:
     OutputThreadData(PipelineStateChangeHandler on_state_changed)
-        : m_main_thread_event_loop(Core::EventLoop::current_weak())
+        : m_main_thread_event_loop(Core::EventLoop::current())
         , m_on_state_changed(move(on_state_changed))
     {
     }
@@ -36,7 +36,7 @@ public:
 
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     RefPtr<AudioProducer> m_input;
-    NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
+    Core::EventLoop& m_main_thread_event_loop;
 
     mutable Sync::Mutex m_output_mutex;
     mutable Sync::ConditionVariable m_output_condition { m_output_mutex };
@@ -332,15 +332,13 @@ void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStat
     if (status == m_last_dispatched_status)
         return;
     m_last_dispatched_status = status;
-    if (auto event_loop = m_main_thread_event_loop->take(); event_loop.is_alive()) {
-        event_loop->deferred_invoke([self = NonnullRefPtr(*this), status, seek_id] {
-            Sync::MutexLocker locker { self->m_output_mutex };
-            if (self->m_seek_id != seek_id)
-                return;
-            if (self->m_on_state_changed)
-                self->m_on_state_changed(status);
-        });
-    }
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), status, seek_id] {
+        Sync::MutexLocker locker { self->m_output_mutex };
+        if (self->m_seek_id != seek_id)
+            return;
+        if (self->m_on_state_changed)
+            self->m_on_state_changed(status);
+    });
 }
 
 AK::Duration AudioPlaybackSink::current_time() const

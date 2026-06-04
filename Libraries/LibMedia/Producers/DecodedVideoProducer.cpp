@@ -18,7 +18,7 @@ namespace Media {
 
 static constexpr int AUTO_SUSPEND_IDLE_TIMEOUT_MS = 10000;
 
-DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> DecodedVideoProducer::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track)
+DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> DecodedVideoProducer::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track)
 {
     TRY(demuxer->create_context_for_track(track));
     auto duration = TRY(demuxer->duration_of_track(track));
@@ -169,7 +169,7 @@ void DecodedVideoProducer::seek(AK::Duration timestamp)
     m_thread_data->seek(timestamp);
 }
 
-DecodedVideoProducer::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration)
+DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
@@ -302,10 +302,7 @@ void DecodedVideoProducer::ThreadData::invoke_on_main_thread_while_locked(Invoke
 {
     if (m_requested_state == RequestedState::Exit)
         return;
-    auto event_loop = m_main_thread_event_loop->take();
-    if (!event_loop.is_alive())
-        return;
-    event_loop->deferred_invoke([self = NonnullRefPtr(*this), invokee = move(invokee)] mutable {
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), invokee = move(invokee)] mutable {
         invokee(self);
     });
 }
