@@ -371,7 +371,6 @@ public:
 
     static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, GC::Ref<CSS::ComputedProperties>, Element*);
 
-    [[nodiscard]] bool affected_by_pseudo_class(CSS::PseudoClass) const;
     void clear_removed_attributes_for_style_invalidation() { m_removed_attributes_for_style_invalidation.clear(); }
     bool has_removed_attribute_for_style_invalidation(FlyString const& attribute_name) const
     {

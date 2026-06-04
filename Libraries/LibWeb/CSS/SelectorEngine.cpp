@@ -663,7 +663,6 @@ static bool matches_optimal_value_pseudo_class(DOM::Element const& element, HTML
 
 static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector const& pseudo_class, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind)
 {
-    context.attempted_pseudo_class_matches.set(pseudo_class.type, true);
     auto note_structural_pseudo_class_match_attempt = [&] {
         if (&target.element() != context.subject)
             const_cast<DOM::Element&>(target.element()).set_affected_by_structural_pseudo_class_in_non_subject_position();

@@ -282,16 +282,6 @@ public:
 
     static NonnullRefPtr<Gfx::Font const> font_fallback(bool monospace, bool bold, float point_size);
 
-    bool has_attempted_match_against_pseudo_class(PseudoClass pseudo_class) const
-    {
-        return m_attempted_pseudo_class_matches.get(pseudo_class);
-    }
-
-    void set_attempted_pseudo_class_matches(PseudoClassBitmap const& results)
-    {
-        m_attempted_pseudo_class_matches = results;
-    }
-
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
     void add_inheritance_dependent_specified_value(PropertyID property_id, NonnullRefPtr<StyleValue const> value) { m_inheritance_dependent_specified_values.set(property_id, move(value)); }
 
@@ -328,8 +318,6 @@ private:
     }
 
     Optional<CSSPixels> m_line_height;
-
-    PseudoClassBitmap m_attempted_pseudo_class_matches;
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_inheritance_dependent_specified_values;
     RefPtr<StyleValue const> m_raw_cascaded_font_size;

@@ -54,7 +54,6 @@ struct MatchContext {
     // later terminate once it leaves the scope. Transparent to callers; set
     // by matches_has_pseudo_class with a ScopeGuard.
     bool inside_has_argument_match { false };
-    CSS::PseudoClassBitmap attempted_pseudo_class_matches {};
     HasResultCache* has_result_cache { nullptr };
 };
 
