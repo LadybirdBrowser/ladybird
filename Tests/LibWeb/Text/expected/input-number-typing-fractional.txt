@@ -1,0 +1,3 @@
+After '1': value="1"
+After '.': value=""
+After '5': value="5"

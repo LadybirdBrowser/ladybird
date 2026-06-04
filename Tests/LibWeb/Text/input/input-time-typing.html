@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<input id="time" type="time">
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const input = document.getElementById("time");
+        input.focus();
+        // Each keystroke leaves an invalid partial time until the last; the raw text must persist across them
+        // for the final value to parse as "12:30".
+        for (const ch of "12:30") {
+            internals.sendText(input, ch);
+            println(`after '${ch}': value="${input.value}"`);
+        }
+    });
+</script>
