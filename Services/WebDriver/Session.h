@@ -112,7 +112,7 @@ private:
 
     ByteString m_web_content_endpoint;
     Optional<Core::Process> m_browser_process;
-    NonnullRefPtr<Core::WeakEventLoopReference> m_event_loop;
+    Core::EventLoop& m_event_loop;
 
 #if defined(AK_OS_MACOS)
     OwnPtr<IPC::MachBootstrapListener> m_web_content_mach_port_server;

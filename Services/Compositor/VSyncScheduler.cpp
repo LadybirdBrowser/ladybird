@@ -76,7 +76,7 @@ static CVReturn display_link_callback(CVDisplayLinkRef, CVTimeStamp const*, CVTi
 
 class DisplayLinkState final : public AtomicRefCounted<DisplayLinkState> {
 public:
-    static RefPtr<DisplayLinkState> create(u64 display_id, NonnullRefPtr<Core::WeakEventLoopReference> event_loop, Function<void()>&& tick_callback)
+    static RefPtr<DisplayLinkState> create(u64 display_id, Core::EventLoop& event_loop, Function<void()>&& tick_callback)
     {
         CVDisplayLinkRef display_link = nullptr;
 
@@ -88,7 +88,7 @@ public:
         if (result != kCVReturnSuccess || !display_link)
             return nullptr;
 
-        auto state = adopt_ref(*new DisplayLinkState(move(event_loop), display_link));
+        auto state = adopt_ref(*new DisplayLinkState(event_loop, display_link));
 
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -114,7 +114,7 @@ public:
     bool consume_tick_request();
     bool is_valid() const;
 
-    NonnullRefPtr<Core::WeakEventLoopReference> event_loop;
+    Core::EventLoop& event_loop;
     Function<void()> tick_callback;
     Atomic<bool> invalidated { false };
     Atomic<bool> tick_requested { false };
@@ -122,8 +122,8 @@ public:
     NonnullRefPtr<Core::Timer> idle_stop_timer;
 
 private:
-    DisplayLinkState(NonnullRefPtr<Core::WeakEventLoopReference> event_loop, CVDisplayLinkRef display_link)
-        : event_loop(move(event_loop))
+    DisplayLinkState(Core::EventLoop& event_loop, CVDisplayLinkRef display_link)
+        : event_loop(event_loop)
         , display_link(display_link)
         , idle_stop_timer(Core::Timer::create_single_shot(display_link_idle_stop_delay_ms, [this] {
             stop_display_link_if_idle();
@@ -217,7 +217,7 @@ class CVDisplayLinkVSyncScheduler final : public VSyncScheduler {
 public:
     static OwnPtr<CVDisplayLinkVSyncScheduler> try_create(u64 display_id, Function<void()>&& tick_callback)
     {
-        auto state = DisplayLinkState::create(display_id, Core::EventLoop::current_weak(), move(tick_callback));
+        auto state = DisplayLinkState::create(display_id, Core::EventLoop::current(), move(tick_callback));
         if (!state)
             return nullptr;
         return adopt_own(*new CVDisplayLinkVSyncScheduler(state.release_nonnull()));
@@ -248,11 +248,7 @@ static CVReturn display_link_callback(CVDisplayLinkRef, CVTimeStamp const*, CVTi
     if (!state->consume_tick_request())
         return kCVReturnSuccess;
 
-    auto event_loop = state->event_loop->take();
-    if (!event_loop.is_alive())
-        return kCVReturnSuccess;
-
-    event_loop->deferred_invoke([state = move(state)] {
+    state->event_loop.deferred_invoke([state = move(state)] {
         if (!state->is_valid())
             return;
         state->tick_callback();

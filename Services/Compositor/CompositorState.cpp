@@ -284,13 +284,10 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
     m_pending_async_presents.append(context_id, viewport_rect, prepared_frame->bitmap_id);
     auto* pending_present = &m_pending_async_presents.last();
 
-    auto event_loop_reference = Core::EventLoop::current_weak();
+    auto& event_loop = Core::EventLoop::current();
     auto self = NonnullRefPtr { *this };
-    m_display_list_player->flush_async(*prepared_frame->rendered_surface, [self = move(self), event_loop_reference = move(event_loop_reference), pending_present] {
-        auto event_loop = event_loop_reference->take();
-        if (!event_loop.is_alive())
-            return;
-        event_loop->deferred_invoke([self = move(self), pending_present] {
+    m_display_list_player->flush_async(*prepared_frame->rendered_surface, [self = move(self), &event_loop, pending_present] {
+        event_loop.deferred_invoke([self = move(self), pending_present] {
             self->did_finish_async_present(*pending_present);
         });
     });
