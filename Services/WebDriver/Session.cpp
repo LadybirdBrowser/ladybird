@@ -128,7 +128,7 @@ Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, S
     , m_options(capabilities)
     , m_session_id(move(session_id))
     , m_session_flags(flags)
-    , m_event_loop(Core::EventLoop::current_weak())
+    , m_event_loop(Core::EventLoop::current())
 {
 }
 
@@ -278,9 +278,7 @@ ErrorOr<void> Session::create_server(NonnullRefPtr<ServerPromise> promise)
     m_web_content_mach_port_server->on_bootstrap_request = [this, promise](auto request) {
         auto result = m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port));
         if (result.is_error()) {
-            auto event_loop = m_event_loop->take();
-            VERIFY(event_loop);
-            event_loop->deferred_invoke([promise, error = result.release_error()]() mutable {
+            m_event_loop.deferred_invoke([promise, error = result.release_error()]() mutable {
                 promise->resolve(move(error));
             });
             return;
@@ -291,9 +289,7 @@ ErrorOr<void> Session::create_server(NonnullRefPtr<ServerPromise> promise)
                 VERIFY_NOT_REACHED();
             },
             [this, promise](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
-                auto event_loop = m_event_loop->take();
-                VERIFY(event_loop);
-                event_loop->deferred_invoke([this, promise, transport = move(transport.ports)]() mutable {
+                m_event_loop.deferred_invoke([this, promise, transport = move(transport.ports)]() mutable {
                     if (auto result = accept_web_content_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)), promise); result.is_error())
                         promise->resolve(result.release_error());
                 });
