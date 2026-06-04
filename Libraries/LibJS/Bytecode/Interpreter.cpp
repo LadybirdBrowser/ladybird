@@ -1522,8 +1522,11 @@ static bool shape_has_enumerable_string_property(Shape const& shape)
 {
     bool has_enumerable_string_property = false;
     shape.for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
-        if (property_key.is_string() && metadata.attributes.is_enumerable())
+        if (property_key.is_string() && metadata.attributes.is_enumerable()) {
             has_enumerable_string_property = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
     });
     return has_enumerable_string_property;
 }
