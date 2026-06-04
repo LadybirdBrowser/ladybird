@@ -726,11 +726,12 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
     computed_values.set_color(computed_style.color(CSS::PropertyID::Color, CSS::ColorResolutionContext::for_layout_node_with_style(*this)));
-    // NOTE: Currently there are still discussions about `accentColor` and `currentColor` interactions, so the line below might need changing in the future
-    computed_values.set_accent_color(computed_style.accent_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)));
+
     // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
     // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
     auto color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*this);
+
+    computed_values.set_accent_color(computed_style.accent_color(color_resolution_context));
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
