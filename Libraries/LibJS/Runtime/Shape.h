@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/IterationDecision.h>
 #include <AK/OwnPtr.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -91,7 +92,24 @@ public:
     Object const* prototype() const { return m_prototype; }
 
     Optional<PropertyMetadata> lookup(PropertyKey const&) const;
-    void for_each_property_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const&) const;
+    template<typename Callback>
+    void for_each_property_in_insertion_order(Callback&& callback) const
+    {
+        if (m_dictionary) {
+            for (auto const& [property_key, metadata] : property_table()) {
+                if constexpr (IsSame<IterationDecision, decltype(callback(property_key, metadata))>) {
+                    if (callback(property_key, metadata) == IterationDecision::Break)
+                        return;
+                } else {
+                    callback(property_key, metadata);
+                }
+            }
+            return;
+        }
+        if (!descriptors())
+            return;
+        descriptors()->for_each_in_insertion_order(forward<Callback>(callback), m_property_count);
+    }
     u32 property_count() const { return m_property_count; }
 
     void set_prototype_without_transition(Object* new_prototype);
