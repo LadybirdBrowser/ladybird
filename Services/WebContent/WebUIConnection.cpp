@@ -6,6 +6,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/JsonObject.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -17,9 +18,23 @@
 
 namespace WebContent {
 
-static auto LADYBIRD_PROPERTY = JS::PropertyKey { "ladybird"_utf16_fly_string };
-static auto WEB_UI_LOADED_EVENT = "WebUILoaded"_fly_string;
-static auto WEB_UI_MESSAGE_EVENT = "WebUIMessage"_fly_string;
+static JS::PropertyKey const& ladybird_property()
+{
+    static NeverDestroyed<JS::PropertyKey> property { "ladybird"_utf16_fly_string };
+    return *property;
+}
+
+static FlyString const& web_ui_loaded_event()
+{
+    static NeverDestroyed<FlyString> event { "WebUILoaded"_fly_string };
+    return *event;
+}
+
+static FlyString const& web_ui_message_event()
+{
+    static NeverDestroyed<FlyString> event { "WebUIMessage"_fly_string };
+    return *event;
+}
 
 ErrorOr<NonnullRefPtr<WebUIConnection>> WebUIConnection::connect(IPC::TransportHandle handle, Web::DOM::Document& document)
 {
@@ -32,10 +47,10 @@ WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::D
     , m_document(document)
 {
     auto& realm = m_document->realm();
-    m_document->window()->define_direct_property(LADYBIRD_PROPERTY, realm.create<Web::Internals::WebUI>(realm), JS::default_attributes);
+    m_document->window()->define_direct_property(ladybird_property(), realm.create<Web::Internals::WebUI>(realm), JS::default_attributes);
 
     Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(realm.heap(), [&document = *m_document]() {
-        document.dispatch_event(Web::DOM::Event::create(document.realm(), WEB_UI_LOADED_EVENT));
+        document.dispatch_event(Web::DOM::Event::create(document.realm(), web_ui_loaded_event()));
     }));
 }
 
@@ -44,7 +59,7 @@ WebUIConnection::~WebUIConnection()
     if (!m_document->window())
         return;
 
-    (void)m_document->window()->internal_delete(LADYBIRD_PROPERTY);
+    (void)m_document->window()->internal_delete(ladybird_property());
 }
 
 void WebUIConnection::visit_edges(JS::Cell::Visitor& visitor)
@@ -73,7 +88,7 @@ void WebUIConnection::send_message(String name, JsonValue data)
     Web::Bindings::CustomEventInit event_init {};
     event_init.detail = serialized_detail.value();
 
-    m_document->dispatch_event(Web::DOM::CustomEvent::create(realm, WEB_UI_MESSAGE_EVENT, event_init));
+    m_document->dispatch_event(Web::DOM::CustomEvent::create(realm, web_ui_message_event(), event_init));
 }
 
 void WebUIConnection::received_message_from_web_ui(String const& name, JS::Value data)

@@ -10,6 +10,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
 #include <AK/Math.h>
+#include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
@@ -605,7 +606,7 @@ HTTP::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(m_id, url, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestCookie. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
     return response->take_cookie();
 }
@@ -615,7 +616,7 @@ void PageClient::page_did_set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCo
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(url, cookie, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidSetCookie. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
 }
 
@@ -647,7 +648,7 @@ bool PageClient::page_did_is_known_hsts_host(String const& domain)
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidIsKnownHstsHost>(domain);
     if (!response) {
         dbgln("WebContent client disconnected during DidIsKnownHstsHost. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
     return response->result();
 }
@@ -657,7 +658,7 @@ Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::Stor
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageItem>(storage_endpoint, storage_key, bottle_key);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestStorageItem. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
     return response->take_value();
 }
@@ -667,7 +668,7 @@ WebView::StorageSetResult PageClient::page_did_set_storage_item(Web::StorageAPI:
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetStorageItem>(storage_endpoint, storage_key, bottle_key, value);
     if (!response) {
         dbgln("WebContent client disconnected during DidSetStorageItem. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
     return response->result();
 }
@@ -677,7 +678,7 @@ void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointTy
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveStorageItem>(storage_endpoint, storage_key, bottle_key);
     if (!response) {
         dbgln("WebContent client disconnected during DidRemoveStorageItem. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
 }
 
@@ -686,7 +687,7 @@ Vector<String> PageClient::page_did_request_storage_keys(Web::StorageAPI::Storag
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageKeys>(storage_endpoint, storage_key);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestStorageKeys. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
     return response->take_keys();
 }
@@ -696,7 +697,7 @@ void PageClient::page_did_clear_storage(Web::StorageAPI::StorageEndpointType sto
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidClearStorage>(storage_endpoint, storage_key);
     if (!response) {
         dbgln("WebContent client disconnected during DidClearStorage. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
 }
 
@@ -720,7 +721,7 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
 
     auto& new_client = m_owner.create_page(response->new_page_id());
@@ -819,7 +820,7 @@ Web::HTML::WorkerAgentId PageClient::start_worker_agent(Web::HTML::WorkerAgentSt
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::StartWorkerAgent>(m_id, move(request));
     if (!response) {
         dbgln("WebContent client disconnected during StartWorkerAgent. Exiting peacefully.");
-        exit(0);
+        Core::Process::terminate_immediately(0);
     }
 
     return response->agent_id();

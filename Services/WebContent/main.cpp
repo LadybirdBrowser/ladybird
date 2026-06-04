@@ -84,7 +84,7 @@ static void crash_signal_handler(int signo)
     }
     warnln("\n\033[31;1mCRASH\033[0m: Received signal {} ({})", name, signo);
     dump_backtrace(2, 100);
-    exit(128 + signo);
+    Core::Process::terminate_immediately(128 + signo);
 }
 
 static void install_crash_signal_handlers()
