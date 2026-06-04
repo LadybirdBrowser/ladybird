@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -83,6 +83,21 @@ String ComponentValue::to_debug_string() const
 String ComponentValue::original_source_text() const
 {
     return m_value.visit([](auto const& it) { return it.original_source_text(); });
+}
+
+Optional<SourcePosition> ComponentValue::start_position() const
+{
+    return m_value.visit(
+        [](Token const& token) -> Optional<SourcePosition> {
+            return token.start_position();
+        },
+        [](SimpleBlock const& block) -> Optional<SourcePosition> {
+            return block.token.start_position();
+        },
+        [](Function const& function) -> Optional<SourcePosition> {
+            return function.name_token.start_position();
+        },
+        [](auto const&) -> Optional<SourcePosition> { return {}; });
 }
 
 bool ComponentValue::contains_guaranteed_invalid_value() const

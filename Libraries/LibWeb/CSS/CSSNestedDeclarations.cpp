@@ -19,7 +19,10 @@ GC_DEFINE_ALLOCATOR(CSSNestedDeclarations);
 
 GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
 {
-    return realm.create<CSSNestedDeclarations>(realm, parser.convert_to_style_declaration(declarations));
+    auto rule = realm.create<CSSNestedDeclarations>(realm, parser.convert_to_style_declaration(declarations));
+    if (!declarations.is_empty() && declarations.first().source_position.has_value())
+        rule->set_source_position(declarations.first().source_position);
+    return rule;
 }
 
 GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, CSSStyleProperties& declaration)

@@ -62,6 +62,9 @@ public:
     CSSStyleSheet const* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
     MUST_UPCALL virtual void set_parent_style_sheet(CSSStyleSheet*);
 
+    Optional<SourcePosition> const& source_location() const { return m_source_position; }
+    void set_source_position(Optional<SourcePosition> source_location) { m_source_position = move(source_location); }
+
     template<typename T>
     bool fast_is() const = delete;
 
@@ -88,6 +91,7 @@ protected:
     GC::Ptr<CSSRule> m_parent_rule;
     GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
 
+    Optional<SourcePosition> m_source_position;
     mutable Optional<FlyString> m_cached_layer_name;
 };
 
