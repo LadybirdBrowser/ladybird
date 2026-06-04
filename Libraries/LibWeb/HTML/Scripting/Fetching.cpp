@@ -172,7 +172,7 @@ static void schedule_bytecode_cache_generation(NonnullRefPtr<JS::SourceCode cons
 {
     auto filename = original_source_code->filename();
     auto source_code = original_source_code->code();
-    auto event_loop_weak = Core::EventLoop::current_weak();
+    auto& main_thread_event_loop = Core::EventLoop::current();
     auto* callback = new Function<void(ByteBuffer, ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8>)>(
         [cache_context = move(cache_context), install_target = move(install_target), original_source_code = move(original_source_code), type](ByteBuffer blob, auto source_hash) mutable {
             if (blob.is_empty()) {
@@ -188,7 +188,7 @@ static void schedule_bytecode_cache_generation(NonnullRefPtr<JS::SourceCode cons
             (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, immutable_blob.bytes());
         });
 
-    Threading::ThreadPool::the().submit([filename = move(filename), source_code = move(source_code), type, line_number_offset, callback, event_loop_weak = move(event_loop_weak), source_hash]() mutable {
+    Threading::ThreadPool::the().submit([filename = move(filename), source_code = move(source_code), type, line_number_offset, callback, &main_thread_event_loop, source_hash]() mutable {
         auto source = JS::SourceCode::create(move(filename), move(source_code));
         ByteBuffer blob;
 
@@ -205,11 +205,7 @@ static void schedule_bytecode_cache_generation(NonnullRefPtr<JS::SourceCode cons
             }
         }
 
-        auto origin = event_loop_weak->take();
-        if (!origin)
-            return;
-
-        origin->deferred_invoke([blob = move(blob), source_hash, callback]() mutable {
+        main_thread_event_loop.deferred_invoke([blob = move(blob), source_hash, callback]() mutable {
             (*callback)(move(blob), source_hash);
             delete callback;
         });
@@ -263,20 +259,17 @@ static void compile_remaining_functions_off_thread(JS::Bytecode::Executable& exe
             }
         });
 
-    auto event_loop_weak = Core::EventLoop::current_weak();
+    auto& main_thread_event_loop = Core::EventLoop::current();
 
     Threading::ThreadPool::the().submit([function_asts = move(function_asts), length,
                                             callback,
-                                            event_loop_weak = move(event_loop_weak)]() mutable {
+                                            &main_thread_event_loop]() mutable {
         Vector<JS::FFI::CompiledFunction*> compiled_functions;
         compiled_functions.ensure_capacity(function_asts.size());
         for (auto* function_ast : function_asts)
             compiled_functions.append(JS::RustIntegration::compile_function_off_thread(function_ast, length, false));
 
-        auto origin = event_loop_weak->take();
-        if (!origin)
-            return;
-        origin->deferred_invoke([compiled_functions = move(compiled_functions), callback]() mutable {
+        main_thread_event_loop.deferred_invoke([compiled_functions = move(compiled_functions), callback]() mutable {
             (*callback)(move(compiled_functions));
             delete callback;
         });
@@ -308,7 +301,7 @@ static void compile_remaining_module_functions_off_thread(ModuleScript& module_s
 // report them through the same Script/ModuleScript construction paths; successful programs come back as CompiledProgram
 // artifacts whose GC-backed Executable materialization must still happen on the main thread.
 // NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives raw
-//     UTF-16 data pointers, and the callback intentionally leaks if the event loop is destroyed during compilation.
+//     UTF-16 data pointers.
 static void compile_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
 {
     // Extract the raw data the parser needs while still on the main thread.
@@ -321,11 +314,11 @@ static void compile_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, 
             on_compiled(result, move(source_code));
         });
 
-    auto event_loop_weak = Core::EventLoop::current_weak();
+    auto& main_thread_event_loop = Core::EventLoop::current();
 
     Threading::ThreadPool::the().submit([utf16_data, length, type, line_number_offset,
                                             callback,
-                                            event_loop_weak = move(event_loop_weak)]() {
+                                            &main_thread_event_loop]() {
         auto* parsed = JS::RustIntegration::parse_program(utf16_data, length, type, line_number_offset);
         OffThreadCompiledProgram result { .parsed = parsed };
         if (parsed && !JS::RustIntegration::parsed_program_has_errors(parsed)) {
@@ -333,10 +326,7 @@ static void compile_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, 
             result.parsed = nullptr;
         }
 
-        auto origin = event_loop_weak->take();
-        if (!origin)
-            return;
-        origin->deferred_invoke([result, callback]() {
+        main_thread_event_loop.deferred_invoke([result, callback]() {
             (*callback)(result);
             delete callback;
             // AD-HOC: Perform a microtask checkpoint so that any microtasks queued by the callback (e.g. promise

@@ -61,17 +61,13 @@ void prepare_vector_font_data_off_thread(ByteBuffer data, Function<void(ErrorOr<
     // Keep the callback on the origin thread so any GC roots it captures are
     // also destroyed there.
     auto* callback = new Function<void(ErrorOr<Core::AnonymousBuffer>)>(move(on_complete));
-    auto event_loop_weak = Core::EventLoop::current_weak();
+    auto& origin_event_loop = Core::EventLoop::current();
 
     Threading::ThreadPool::the().submit(
-        [data = move(data), callback, event_loop_weak = move(event_loop_weak)]() mutable {
+        [data = move(data), callback, &origin_event_loop]() mutable {
             auto result = WOFF2::convert_to_ttf(data);
 
-            auto origin = event_loop_weak->take();
-            if (!origin)
-                return;
-
-            origin->deferred_invoke([callback, result = move(result)]() mutable {
+            origin_event_loop.deferred_invoke([callback, result = move(result)]() mutable {
                 (*callback)(move(result));
                 delete callback;
             });

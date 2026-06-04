@@ -479,12 +479,12 @@ public:
 
             lookup_path = "system-resolver-bg"sv;
 
-            auto main_thread_event_loop_reference = Core::EventLoop::current_weak();
+            auto& main_thread_event_loop = Core::EventLoop::current();
 
             auto submit_worker = [&, this](Core::Socket::AddressFamily family) {
                 Threading::ThreadPool::the().submit(
                     [this, name, state = our_state, family,
-                        main_thread_event_loop_reference]() mutable {
+                        &main_thread_event_loop]() mutable {
                         auto worker_started_at = MonotonicTime::now();
                         auto record_or_error = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream, family);
                         auto worker_finished_at = MonotonicTime::now();
@@ -493,11 +493,7 @@ public:
                             .work_ms = (worker_finished_at - worker_started_at).to_milliseconds(),
                         };
 
-                        auto main_thread_event_loop = main_thread_event_loop_reference->take();
-                        if (!main_thread_event_loop)
-                            return;
-
-                        main_thread_event_loop->deferred_invoke(
+                        main_thread_event_loop.deferred_invoke(
                             [this, name, state, family,
                                 record_or_error = move(record_or_error),
                                 timing]() mutable {
