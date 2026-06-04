@@ -54,6 +54,7 @@ function(import_rust_crate)
                 -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/sync_rust_ffi_header.cmake"
         DEPENDS "${manifest_path}"
             "${workspace_dir}/Cargo.lock" "${workspace_dir}/Cargo.toml"
+            "${RUST_RUSTC}" "${CMAKE_SOURCE_DIR}/rust-toolchain.toml"
         DEPFILE "${depfile}"
         COMMENT "Building Rust crate ${ARG_CRATE_NAME}"
         USES_TERMINAL
@@ -108,6 +109,7 @@ function(build_rust_binary)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${cargo_binary}" "${output_binary}"
         DEPENDS "${manifest_path}"
             "${workspace_dir}/Cargo.lock" "${workspace_dir}/Cargo.toml"
+            "${RUST_RUSTC}" "${CMAKE_SOURCE_DIR}/rust-toolchain.toml"
         DEPFILE "${depfile}"
         COMMENT "Building Rust binary ${ARG_BINARY_NAME}"
         USES_TERMINAL
