@@ -50,6 +50,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleSheet.h>
+#include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -1750,6 +1751,18 @@ static JsonArray serialize_devtools_selector_specificities(MatchingRule const& r
     return specificities;
 }
 
+static JsonObject serialize_devtools_style_sheet_identifier(StyleSheetIdentifier const& identifier)
+{
+    JsonObject serialized_identifier;
+    serialized_identifier.set("type"sv, style_sheet_identifier_type_to_string(identifier.type));
+    if (identifier.dom_element_unique_id.has_value())
+        serialized_identifier.set("domElementUniqueId"sv, identifier.dom_element_unique_id->value());
+    if (identifier.url.has_value())
+        serialized_identifier.set("url"sv, *identifier.url);
+    serialized_identifier.set("ruleCount"sv, identifier.rule_count);
+    return serialized_identifier;
+}
+
 static JsonObject serialize_devtools_matching_rule(DOM::Document const& document, MatchingRule const& rule)
 {
     auto const& declaration = rule.declaration();
@@ -1775,6 +1788,17 @@ static JsonObject serialize_devtools_matching_rule(DOM::Document const& document
     serialized_rule.set("styleSheetIndex"sv, rule.style_sheet_index);
     serialized_rule.set("ruleIndex"sv, rule.rule_index);
     serialized_rule.set("isSystem"sv, rule.cascade_origin == CascadeOrigin::UserAgent);
+
+    if (auto const& source_location = rule.rule->source_location(); source_location.has_value()) {
+        // Our positions are 0-based, but DevTools expects them to be 1-based.
+        serialized_rule.set("line"sv, source_location->line + 1);
+        serialized_rule.set("column"sv, source_location->column + 1);
+    }
+
+    if (auto const* style_sheet = rule.rule->parent_style_sheet()) {
+        if (auto identifier = style_sheet_identifier_for(*style_sheet); identifier.has_value())
+            serialized_rule.set("styleSheet"sv, serialize_devtools_style_sheet_identifier(identifier.release_value()));
+    }
 
     return serialized_rule;
 }
