@@ -1837,22 +1837,6 @@ GC::Ptr<Layout::NodeWithStyle> Element::pseudo_element_unsafe_layout_node(CSS::P
     return nullptr;
 }
 
-bool Element::affected_by_pseudo_class(CSS::PseudoClass pseudo_class) const
-{
-    if (m_computed_properties && m_computed_properties->has_attempted_match_against_pseudo_class(pseudo_class)) {
-        return true;
-    }
-    if (m_pseudo_element_data) {
-        for (auto& pseudo_element : *m_pseudo_element_data) {
-            if (!pseudo_element.value->computed_properties())
-                continue;
-            if (pseudo_element.value->computed_properties()->has_attempted_match_against_pseudo_class(pseudo_class))
-                return true;
-        }
-    }
-    return false;
-}
-
 // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-enabled
 bool Element::matches_enabled_pseudo_class() const
 {
