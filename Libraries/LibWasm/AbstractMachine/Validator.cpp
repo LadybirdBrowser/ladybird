@@ -198,11 +198,23 @@ void compile_module_to_native(Module& module)
             stats->cranelift_blob_size_bytes = produced_blob_size;
             stats->cache_hit = installing;
             size_t count = 0;
+            size_t tier_up_functions = 0;
+            size_t tier_up_checkpoints = 0;
             for (auto& entry : module.code_section().functions()) {
-                if (entry.func().body().compiled_instructions.cranelift_compiled)
+                auto const& ci = entry.func().body().compiled_instructions;
+                if (ci.cranelift_compiled)
                     ++count;
+                if (ci.has_tier_up_checkpoints) {
+                    ++tier_up_functions;
+                    for (auto const& dispatch : ci.dispatches) {
+                        if (dispatch.instruction->opcode() == Instructions::synthetic_tier_up)
+                            ++tier_up_checkpoints;
+                    }
+                }
             }
             stats->function_count = count;
+            stats->tier_up_function_count = tier_up_functions;
+            stats->tier_up_checkpoint_count = tier_up_checkpoints;
             record_module_stats(stats.release_value());
         }
 
@@ -2294,6 +2306,7 @@ VALIDATE_INSTRUCTION(block)
     args.meta = Instruction::StructuredInstructionArgs::Meta {
         .arity = static_cast<u32>(block_type.results().size()),
         .parameter_count = static_cast<u32>(parameters.size()),
+        .tier_up_eligible = false,
     };
 
     return {};
@@ -2308,6 +2321,8 @@ VALIDATE_INSTRUCTION(loop)
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
 
+    auto const tier_up_eligible = parameters.is_empty() && stack.size() == 0;
+
     m_frames.empend(block_type, FrameKind::Loop, stack.size());
     m_max_frame_size = max(m_max_frame_size, m_frames.size());
     for (auto& parameter : parameters)
@@ -2316,6 +2331,7 @@ VALIDATE_INSTRUCTION(loop)
     args.meta = Instruction::StructuredInstructionArgs::Meta {
         .arity = static_cast<u32>(block_type.results().size()),
         .parameter_count = static_cast<u32>(parameters.size()),
+        .tier_up_eligible = tier_up_eligible,
     };
 
     return {};
@@ -2342,6 +2358,7 @@ VALIDATE_INSTRUCTION(if_)
     args.meta = Instruction::StructuredInstructionArgs::Meta {
         .arity = static_cast<u32>(block_type.results().size()),
         .parameter_count = static_cast<u32>(parameters.size()),
+        .tier_up_eligible = false,
     };
 
     return {};
@@ -2400,6 +2417,7 @@ VALIDATE_INSTRUCTION(try_table)
     args.meta = Instruction::TryTableArgs::Meta {
         .arity = static_cast<u32>(block_type.results().size()),
         .parameter_count = static_cast<u32>(parameters.size()),
+        .tier_up_eligible = false,
     };
 
     m_frames.empend(block_type, FrameKind::TryTable, stack.size());

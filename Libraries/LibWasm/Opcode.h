@@ -548,7 +548,8 @@ namespace Instructions {
     M(synthetic_local_seti64_const, 0xfe00003bu, 0, 0) \
     /* Continuation data for br_table with >8 labels.  \
      * Only consumed by the Cranelift compiler; */     \
-    M(synthetic_br_table_cont, 0xfe00003cu, 0, 0)
+    M(synthetic_br_table_cont, 0xfe00003cu, 0, 0)      \
+    M(synthetic_tier_up, 0xfe00003du, 0, 0)
 
 #define ENUMERATE_WASM_OPCODES(M)         \
     ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
