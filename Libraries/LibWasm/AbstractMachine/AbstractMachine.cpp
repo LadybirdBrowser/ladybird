@@ -8,6 +8,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/SaturatingMath.h>
 #include <LibCore/System.h>
+#include <LibSync/MutexProtected.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
@@ -19,63 +20,67 @@ namespace Wasm {
 
 static auto& module_stats()
 {
-    static NeverDestroyed<Vector<ModuleStats>> stats;
+    static NeverDestroyed<Sync::MutexProtected<Vector<ModuleStats>>> stats;
     return *stats;
 }
 
 void record_module_stats(ModuleStats stats)
 {
-    module_stats().append(move(stats));
+    module_stats().with_locked([&](auto& v) {
+        v.append(move(stats));
+    });
 }
 
 void dump_module_stats()
 {
-    if (module_stats().is_empty()) {
-        warnln("wasm-stats: no modules compiled yet");
-        return;
-    }
+    module_stats().with_locked([&](auto& v) {
+        if (v.is_empty()) {
+            warnln("wasm-stats: no modules compiled yet");
+            return;
+        }
 
-    warnln("wasm-stats: {} module(s) compiled", module_stats().size());
-    warnln("wasm-stats:   hash      input KiB  parse ms  validate ms  cl ms  cl blob KiB  funcs  cache");
+        warnln("wasm-stats: {} module(s) compiled", v.size());
+        warnln("wasm-stats:   hash      input KiB  parse ms  validate ms  cl ms  cl blob KiB  funcs  cache");
 
-    AK::Duration total_parse;
-    AK::Duration total_validate;
-    AK::Duration total_cranelift;
-    size_t total_input = 0;
-    size_t total_blob = 0;
-    size_t total_hits = 0;
+        AK::Duration total_parse;
+        AK::Duration total_validate;
+        AK::Duration total_cranelift;
+        size_t total_input = 0;
+        size_t total_blob = 0;
+        size_t total_hits = 0;
 
-    for (auto const& s : module_stats()) {
-        StringBuilder hash_prefix;
-        for (size_t i = 0; i < 4; ++i)
-            hash_prefix.appendff("{:02x}", s.wasm_hash[i]);
+        for (auto const& s : v) {
+            StringBuilder hash_prefix;
+            for (size_t i = 0; i < 4; ++i)
+                hash_prefix.appendff("{:02x}", s.wasm_hash[i]);
 
-        warnln("wasm-stats:   {}  {:>9}  {:>8}  {:>11}  {:>5}  {:>11}  {:>5}  {}",
-            hash_prefix.to_byte_string(),
-            s.input_size_bytes / 1024,
-            s.parse_time.to_milliseconds(),
-            s.validate_time.to_milliseconds(),
-            s.cranelift_time.to_milliseconds(),
-            s.cranelift_blob_size_bytes / 1024,
-            s.function_count,
-            s.cache_hit ? "HIT" : "miss");
+            warnln("wasm-stats:   {}  {:>9}  {:>8}  {:>11}  {:>5}  {:>11}  {:>5}  {}",
+                hash_prefix.to_byte_string(),
+                s.input_size_bytes / 1024,
+                s.parse_time.to_milliseconds(),
+                s.validate_time.to_milliseconds(),
+                s.cranelift_time.to_milliseconds(),
+                s.cranelift_blob_size_bytes / 1024,
+                s.function_count,
+                s.cache_hit ? "HIT" : "miss");
 
-        total_parse = total_parse + s.parse_time;
-        total_validate = total_validate + s.validate_time;
-        total_cranelift = total_cranelift + s.cranelift_time;
-        total_input += s.input_size_bytes;
-        total_blob += s.cranelift_blob_size_bytes;
-        if (s.cache_hit)
-            ++total_hits;
-    }
+            total_parse = total_parse + s.parse_time;
+            total_validate = total_validate + s.validate_time;
+            total_cranelift = total_cranelift + s.cranelift_time;
+            total_input += s.input_size_bytes;
+            total_blob += s.cranelift_blob_size_bytes;
+            if (s.cache_hit)
+                ++total_hits;
+        }
 
-    warnln("wasm-stats:   ----      {:>9}  {:>8}  {:>11}  {:>5}  {:>11}         hits={}",
-        total_input / 1024,
-        total_parse.to_milliseconds(),
-        total_validate.to_milliseconds(),
-        total_cranelift.to_milliseconds(),
-        total_blob / 1024,
-        total_hits);
+        warnln("wasm-stats:   ----      {:>9}  {:>8}  {:>11}  {:>5}  {:>11}         hits={}",
+            total_input / 1024,
+            total_parse.to_milliseconds(),
+            total_validate.to_milliseconds(),
+            total_cranelift.to_milliseconds(),
+            total_blob / 1024,
+            total_hits);
+    });
 }
 
 MemoryBuffer::~MemoryBuffer()
@@ -436,16 +441,18 @@ ErrorOr<void, ValidationError> AbstractMachine::validate(Module& module, Optiona
     }
 
     Validator validator;
-    if (cache_config.has_value())
-        validator.set_cache_config(cache_config.release_value());
-    validator.set_compile_to_native(compile_to_native);
     auto result = validator.validate(module);
     if (result.is_error()) {
         module.set_validation_error(result.error().error_string);
         return result.release_error();
     }
-    if (compile_to_native == CompileToNative::Yes)
-        module.set_has_attempted_cranelift_compilation(true);
+
+    if (compile_to_native == CompileToNative::Yes && module.try_begin_cranelift_compilation()) {
+        if (cache_config.has_value())
+            module.set_cranelift_cache_config(cache_config.release_value());
+        compile_module_to_native(module);
+        module.finish_cranelift_compilation();
+    }
 
     return {};
 }

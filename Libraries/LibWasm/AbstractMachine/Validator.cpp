@@ -18,8 +18,7 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
 {
     // Pre-emptively make invalid. The module will be set to `Valid` at the end
     // of validation.
-    if (m_updates_module_validation_status)
-        module.set_validation_status(Module::ValidationStatus::Invalid, {});
+    module.set_validation_status(Module::ValidationStatus::Invalid, {});
 
     // Note: The spec performs this after populating the context, but there's no real reason to do so,
     //       as this has no dependency.
@@ -153,9 +152,82 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     for (auto& entry : module.code_section().functions())
         module.set_minimum_call_record_allocation_size(max(entry.func().body().compiled_instructions.max_call_rec_size, module.minimum_call_record_allocation_size()));
 
-    if (m_updates_module_validation_status)
-        module.set_validation_status(Module::ValidationStatus::Valid, {});
+    module.set_validation_status(Module::ValidationStatus::Valid, {});
     return {};
+}
+
+void compile_module_to_native(Module& module)
+{
+    auto cache_config = module.take_cranelift_cache_config();
+    auto stats = module.take_compile_stats();
+
+    bool installing = false;
+    bool capturing = false;
+
+    if (cache_config.has_value()) {
+        auto hash = ReadonlyBytes { cache_config->wasm_hash.data(), 32 };
+        if (!cache_config->existing_blob.is_empty())
+            installing = try_install_cranelift_cache_blob(hash, cache_config->existing_blob.bytes());
+        if (!installing && cache_config->on_compiled) {
+            begin_cranelift_cache_capture();
+            capturing = true;
+        }
+    }
+
+    ScopeGuard cleanup = [&] {
+        auto cranelift_start = MonotonicTime::now();
+        flush_cranelift_batch();
+        auto cranelift_duration = MonotonicTime::now() - cranelift_start;
+
+        if (installing)
+            abort_cranelift_cache_install();
+
+        size_t produced_blob_size = 0;
+        if (capturing) {
+            auto hash = ReadonlyBytes { cache_config->wasm_hash.data(), 32 };
+            if (auto blob = serialize_cranelift_cache_blob(hash); blob.has_value() && cache_config->on_compiled) {
+                produced_blob_size = blob->size();
+                cache_config->on_compiled(blob.release_value());
+            } else {
+                abort_cranelift_cache_capture();
+            }
+        }
+
+        if (stats.has_value()) {
+            stats->cranelift_time = cranelift_duration;
+            stats->cranelift_blob_size_bytes = produced_blob_size;
+            stats->cache_hit = installing;
+            size_t count = 0;
+            for (auto& entry : module.code_section().functions()) {
+                if (entry.func().body().compiled_instructions.cranelift_compiled)
+                    ++count;
+            }
+            stats->function_count = count;
+            record_module_stats(stats.release_value());
+        }
+
+        set_cranelift_active_function_index(NumericLimits<u32>::max());
+    };
+
+    size_t imported_function_count = 0;
+    for (auto& import_ : module.import_section().imports()) {
+        import_.description().visit(
+            [&](TypeIndex const& type_index) {
+                auto& types = module.type_section().types();
+                if (type_index.value() < types.size() && types[type_index.value()].is_function())
+                    ++imported_function_count;
+            },
+            [&](FunctionType const&) { ++imported_function_count; },
+            [&](auto const&) {});
+    }
+
+    size_t function_index = imported_function_count;
+    for (auto& entry : module.code_section().functions()) {
+        auto& compiled = entry.func().body().compiled_instructions;
+        set_cranelift_active_function_index(static_cast<u32>(function_index++));
+        if (compiled.cranelift_eligible)
+            try_cranelift_compile(compiled, compiled.cranelift_result_arity);
+    }
 }
 
 ErrorOr<void, ValidationError> ensure_cranelift_compiled(Module& module)
@@ -170,15 +242,7 @@ ErrorOr<void, ValidationError> ensure_cranelift_compiled(Module& module)
         return ValidationError { module.validation_error() };
     }
 
-    Validator validator;
-    validator.set_updates_module_validation_status(false);
-    auto result = validator.validate(module);
-    if (result.is_error()) {
-        module.set_validation_error(result.error().error_string);
-        module.finish_cranelift_compilation();
-        return result.release_error();
-    }
-
+    compile_module_to_native(module);
     module.finish_cranelift_compilation();
     return {};
 }
@@ -301,66 +365,6 @@ ErrorOr<void, ValidationError> Validator::validate(TableSection const& section)
 
 ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 {
-    bool installing = false;
-    bool capturing = false;
-    bool validation_succeeded = false;
-
-    if (m_compile_to_native == CompileToNative::Yes && m_cache_config.has_value()) {
-        auto hash = ReadonlyBytes { m_cache_config->wasm_hash.data(), 32 };
-        if (!m_cache_config->existing_blob.is_empty())
-            installing = try_install_cranelift_cache_blob(hash, m_cache_config->existing_blob);
-        if (!installing && m_cache_config->on_compiled) {
-            begin_cranelift_cache_capture();
-            capturing = true;
-        }
-        if (m_cache_config->out_cache_hit)
-            *m_cache_config->out_cache_hit = installing;
-    }
-
-    ScopeGuard cleanup = [&] {
-        auto cranelift_start = MonotonicTime::now();
-        if (validation_succeeded)
-            flush_cranelift_batch();
-        else
-            discard_cranelift_batch();
-        auto cranelift_duration = MonotonicTime::now() - cranelift_start;
-
-        if (installing)
-            abort_cranelift_cache_install();
-
-        size_t produced_blob_size = 0;
-        if (capturing) {
-            if (validation_succeeded) {
-                auto hash = ReadonlyBytes { m_cache_config->wasm_hash.data(), 32 };
-                if (auto blob = serialize_cranelift_cache_blob(hash); blob.has_value() && m_cache_config->on_compiled) {
-                    produced_blob_size = blob->size();
-                    m_cache_config->on_compiled(blob.release_value());
-                } else {
-                    abort_cranelift_cache_capture();
-                }
-            } else {
-                abort_cranelift_cache_capture();
-            }
-        }
-
-        if (m_cache_config.has_value()) {
-            if (m_cache_config->out_cranelift_time)
-                *m_cache_config->out_cranelift_time = cranelift_duration;
-            if (m_cache_config->out_cranelift_blob_size_bytes)
-                *m_cache_config->out_cranelift_blob_size_bytes = produced_blob_size;
-            if (m_cache_config->out_function_count) {
-                size_t count = 0;
-                for (auto& entry : section.functions()) {
-                    if (entry.func().body().compiled_instructions.cranelift_compiled)
-                        ++count;
-                }
-                *m_cache_config->out_function_count = count;
-            }
-        }
-
-        set_cranelift_active_function_index(NumericLimits<u32>::max());
-    };
-
     size_t index = m_context.imported_function_count;
     for (auto& entry : section.functions()) {
         auto function_index = index++;
@@ -370,7 +374,6 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         auto& function = entry.func();
 
         auto function_validator = fork();
-        function_validator.set_compile_to_native(m_compile_to_native);
         function_validator.m_context.locals = {};
         function_validator.m_context.locals.extend(function_type.parameters());
         function_validator.m_context.current_function_parameter_count = function_type.parameters().size();
@@ -381,8 +384,6 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
 
         function_validator.m_frames.empend(function_type, FrameKind::Function, (size_t)0);
         function_validator.m_max_frame_size = max(function_validator.m_max_frame_size, function_validator.m_frames.size());
-
-        set_cranelift_active_function_index(static_cast<u32>(function_index));
 
         auto results = TRY(function_validator.validate(function.body(), function_type.results()));
         if (results.result_types.size() != function_type.results().size())
@@ -402,7 +403,6 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         }
     }
 
-    validation_succeeded = true;
     return {};
 }
 
@@ -4497,8 +4497,7 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
     // Now that we're in happy land, try to compile the expression down to a list of labels to help dispatch.
     expression.compiled_instructions = try_compile_instructions(expression, m_context.functions.span());
 
-    // Optionally compile with Cranelift (skip constant expressions and unsupported types).
-    if (m_compile_to_native == CompileToNative::Yes && expression.compiled_instructions.direct && !is_constant_expression) {
+    if (expression.compiled_instructions.direct && !is_constant_expression) {
         bool has_unsupported_types = false;
         for (auto& type : m_context.locals) {
             if (type.is_reference() || type.kind() == ValueType::V128) {
@@ -4536,8 +4535,10 @@ ErrorOr<Validator::ExpressionTypeResult, ValidationError> Validator::validate(Ex
             }
         }
         // Also skip multi-value return functions.
-        if (!has_unsupported_types && result_types.size() <= 1)
-            try_cranelift_compile(expression.compiled_instructions, static_cast<u32>(result_types.size()));
+        if (!has_unsupported_types && result_types.size() <= 1) {
+            expression.compiled_instructions.cranelift_eligible = true;
+            expression.compiled_instructions.cranelift_result_arity = static_cast<u32>(result_types.size());
+        }
     }
 
     return ExpressionTypeResult { stack.release_vector(), is_constant_expression };
