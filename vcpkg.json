@@ -99,6 +99,10 @@
       "name": "libproxy",
       "platform": "!(android | bsd)"
     },
+    {
+      "name": "libedit",
+      "platform": "!windows & !android"
+    },
     "libtommath",
     {
       "name": "libwebp",
@@ -324,6 +328,10 @@
     {
       "name": "libdwarf",
       "version": "2.3.0#0"
+    },
+    {
+      "name": "libedit",
+      "version": "2024-08-08#0"
     },
     {
       "name": "libjpeg-turbo",

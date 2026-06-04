@@ -516,6 +516,21 @@
       ]
     },
     {
+      "name": "libedit",
+      "buildsystem": "autotools",
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://thrysoee.dk/editline/libedit-20240808-3.1.tar.gz",
+          "sha256": "5f0573349d77c4a48967191cdd6634dd7aa5f6398c6a57fe037cc02696d6099f"
+        }
+      ],
+      "config-opts": [
+        "--prefix=/app",
+        "--libdir=/app/lib"
+      ]
+    },
+    {
       "name": "libtommath",
       "buildsystem": "cmake-ninja",
       "sources": [
