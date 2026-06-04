@@ -615,7 +615,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 #endif
 
-        Core::EventLoop main_loop;
+        Core::EventLoop::initialize_for_current_thread();
         // First, resolve the linked modules
         Vector<NonnullRefPtr<Wasm::ModuleInstance>> linked_instances;
         Vector<NonnullRefPtr<Wasm::Module>> linked_modules;
