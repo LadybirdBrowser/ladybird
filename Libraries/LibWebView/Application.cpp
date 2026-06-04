@@ -1864,13 +1864,13 @@ void Application::stop_listening_for_dom_properties(DevTools::TabDescription con
     view->on_received_dom_node_properties = nullptr;
 }
 
-void Application::inspect_dom_node(DevTools::TabDescription const& description, DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const
+void Application::inspect_dom_node(DevTools::TabDescription const& description, DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonObject options) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value())
         return;
 
-    view->inspect_dom_node(node_id, property_type, pseudo_element);
+    view->inspect_dom_node(node_id, property_type, pseudo_element, JsonValue { move(options) });
 }
 
 void Application::inspect_grid_layouts(DevTools::TabDescription const& description, Web::UniqueNodeID root_node_id, OnGridLayoutsReceived on_grid_layouts_received) const

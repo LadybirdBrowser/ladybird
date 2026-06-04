@@ -418,8 +418,9 @@ public:
         ++stop_listening_for_dom_properties_call_count;
     }
 
-    virtual void inspect_dom_node(DevTools::TabDescription const&, WebView::DOMNodeProperties::Type type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const override
+    virtual void inspect_dom_node(DevTools::TabDescription const&, WebView::DOMNodeProperties::Type type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonObject options = {}) const override
     {
+        (void)options;
         ++inspect_dom_node_call_count;
         last_inspected_dom_node = node_id;
         last_inspected_pseudo_element = pseudo_element;

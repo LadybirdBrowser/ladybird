@@ -58,7 +58,7 @@ endpoint WebContentServer
     debug_request(u64 page_id, ByteString request, ByteString argument) =|
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
-    inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) =|
+    inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) =|
     inspect_grid_layouts(u64 page_id, Web::UniqueNodeID root_node_id) =|
     inspect_current_grid(u64 page_id, Web::UniqueNodeID node_id) =|
     inspect_current_flexbox(u64 page_id, Web::UniqueNodeID node_id, bool only_look_at_parents) =|

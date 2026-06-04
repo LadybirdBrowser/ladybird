@@ -273,7 +273,7 @@ private:
     virtual void inspect_accessibility_tree(DevTools::TabDescription const&, OnAccessibilityTreeInspectionComplete) const override;
     virtual void listen_for_dom_properties(DevTools::TabDescription const&, OnDOMNodePropertiesReceived) const override;
     virtual void stop_listening_for_dom_properties(DevTools::TabDescription const&) const override;
-    virtual void inspect_dom_node(DevTools::TabDescription const&, DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>) const override;
+    virtual void inspect_dom_node(DevTools::TabDescription const&, DOMNodeProperties::Type, Web::UniqueNodeID, Optional<Web::CSS::PseudoElement>, JsonObject options = {}) const override;
     virtual void clear_inspected_dom_node(DevTools::TabDescription const&) const override;
     virtual void start_node_picker(DevTools::TabDescription const&, OnNodePickerEvent) const override;
     virtual void stop_node_picker(DevTools::TabDescription const&) const override;
