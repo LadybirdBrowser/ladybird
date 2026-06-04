@@ -643,16 +643,6 @@ void CSSStyleSheet::recalculate_rule_caches()
     }
 }
 
-void CSSStyleSheet::set_source_text(String source)
-{
-    m_source_text = move(source);
-}
-
-Optional<String> CSSStyleSheet::source_text(Badge<DOM::Document>) const
-{
-    return m_source_text;
-}
-
 void CSSStyleSheet::add_critical_subresource(Subresource& subresource)
 {
     m_critical_subresources.append(subresource);

@@ -188,6 +188,84 @@ static WebView::DOMNodeProperties make_computed_style()
     return { WebView::DOMNodeProperties::Type::ComputedStyle, move(properties) };
 }
 
+static WebView::DOMNodeProperties make_applied_style_rules()
+{
+    JsonArray entries;
+
+    JsonArray inline_declarations;
+    JsonObject inline_display;
+    inline_display.set("name"sv, "display"sv);
+    inline_display.set("value"sv, "grid"sv);
+    inline_display.set("priority"sv, ""sv);
+    inline_display.set("isCustomProperty"sv, false);
+    inline_display.set("isNameValid"sv, true);
+    inline_display.set("isValid"sv, true);
+    inline_display.set("inherits"sv, false);
+    inline_declarations.must_append(move(inline_display));
+
+    JsonObject inline_rule;
+    inline_rule.set("type"sv, 100);
+    inline_rule.set("className"sv, 100);
+    inline_rule.set("cssText"sv, "display: grid;"sv);
+    inline_rule.set("authoredText"sv, "display: grid;"sv);
+    inline_rule.set("declarations"sv, move(inline_declarations));
+
+    JsonObject inline_entry;
+    inline_entry.set("rule"sv, move(inline_rule));
+    inline_entry.set("isSystem"sv, false);
+    inline_entry.set("matchedSelectorIndexes"sv, JsonArray {});
+    inline_entry.set("inherited"sv, JsonValue {});
+    entries.must_append(move(inline_entry));
+
+    JsonArray rule_declarations;
+    JsonObject rule_color;
+    rule_color.set("name"sv, "color"sv);
+    rule_color.set("value"sv, "rgb(1, 2, 3)"sv);
+    rule_color.set("priority"sv, ""sv);
+    rule_color.set("isCustomProperty"sv, false);
+    rule_color.set("isNameValid"sv, true);
+    rule_color.set("isValid"sv, true);
+    rule_color.set("inherits"sv, true);
+    rule_declarations.must_append(move(rule_color));
+
+    JsonObject rule_invalid_color;
+    rule_invalid_color.set("name"sv, "color"sv);
+    rule_invalid_color.set("value"sv, "invalid-value"sv);
+    rule_invalid_color.set("priority"sv, ""sv);
+    rule_invalid_color.set("isCustomProperty"sv, false);
+    rule_invalid_color.set("isNameValid"sv, true);
+    rule_invalid_color.set("isValid"sv, false);
+    rule_invalid_color.set("inherits"sv, true);
+    rule_declarations.must_append(move(rule_invalid_color));
+
+    JsonArray selectors;
+    selectors.must_append("body div.fixture"sv);
+
+    JsonArray selector_specificities;
+    selector_specificities.must_append(0x101u);
+
+    JsonArray matched_selector_indexes;
+    matched_selector_indexes.must_append(0u);
+
+    JsonObject rule;
+    rule.set("type"sv, 1);
+    rule.set("className"sv, "CSSStyleRule"sv);
+    rule.set("selectors"sv, move(selectors));
+    rule.set("selectorsSpecificity"sv, move(selector_specificities));
+    rule.set("cssText"sv, "body div.fixture { color: rgb(1, 2, 3); }"sv);
+    rule.set("authoredText"sv, "color: rgb(1, 2, 3);"sv);
+    rule.set("declarations"sv, move(rule_declarations));
+
+    JsonObject rule_entry;
+    rule_entry.set("rule"sv, move(rule));
+    rule_entry.set("isSystem"sv, false);
+    rule_entry.set("matchedSelectorIndexes"sv, move(matched_selector_indexes));
+    rule_entry.set("inheritedNodeId"sv, 1u);
+    entries.must_append(move(rule_entry));
+
+    return { WebView::DOMNodeProperties::Type::AppliedStyleRules, move(entries) };
+}
+
 static WebView::DOMNodeProperties make_layout()
 {
     JsonObject properties;
@@ -420,14 +498,16 @@ public:
 
     virtual void inspect_dom_node(DevTools::TabDescription const&, WebView::DOMNodeProperties::Type type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonObject options = {}) const override
     {
-        (void)options;
         ++inspect_dom_node_call_count;
         last_inspected_dom_node = node_id;
         last_inspected_pseudo_element = pseudo_element;
+        last_inspected_dom_node_options = move(options);
 
         Core::deferred_invoke([this, type] {
             VERIFY(on_dom_node_properties);
-            if (type == WebView::DOMNodeProperties::Type::ComputedStyle)
+            if (type == WebView::DOMNodeProperties::Type::AppliedStyleRules)
+                on_dom_node_properties(make_applied_style_rules());
+            else if (type == WebView::DOMNodeProperties::Type::ComputedStyle)
                 on_dom_node_properties(make_computed_style());
             else if (type == WebView::DOMNodeProperties::Type::Layout)
                 on_dom_node_properties(make_layout());
@@ -854,6 +934,7 @@ public:
     mutable Optional<Web::CSS::PseudoElement> last_highlighted_pseudo_element;
     mutable Optional<Web::UniqueNodeID> last_inspected_dom_node;
     mutable Optional<Web::CSS::PseudoElement> last_inspected_pseudo_element;
+    mutable JsonObject last_inspected_dom_node_options;
     mutable Optional<Web::UniqueNodeID> last_grid_root_node;
     mutable Optional<Web::UniqueNodeID> last_current_grid_node;
     mutable Optional<Web::UniqueNodeID> last_current_flexbox_node;
@@ -1029,6 +1110,16 @@ static JsonObject get_tab(ProtocolClient& client)
     auto tabs = client.request("root"sv, "listTabs"sv).get_array("tabs"sv).release_value();
     VERIFY(tabs.size() == 1u);
     return tabs.at(0).as_object();
+}
+
+static size_t style_rule_actor_count(DevTools::DevToolsServer const& server)
+{
+    size_t count = 0;
+    for (auto const& actor : server.actor_registry()) {
+        if (actor.key.bytes_as_string_view().contains("-style-rule"sv))
+            ++count;
+    }
+    return count;
 }
 
 static JsonObject get_frame_target(ProtocolClient& client, StringView tab_actor)
@@ -1856,11 +1947,50 @@ TEST_CASE(styles_and_stylesheets)
     auto root_actor = walker.get_object("root"sv)->get_string("actor"sv).release_value();
     auto div_actor = query_selector(client, walker_actor, root_actor, "div"sv);
 
-    JsonObject applied;
-    applied.set("to"sv, page_style_actor);
-    applied.set("type"sv, "getApplied"sv);
-    EXPECT(client.request(move(applied)).get_array("entries"sv)->is_empty());
+    auto get_applied = [&] {
+        JsonObject applied;
+        applied.set("to"sv, page_style_actor);
+        applied.set("type"sv, "getApplied"sv);
+        applied.set("node"sv, div_actor);
+        applied.set("inherited"sv, true);
+        applied.set("matchedSelectors"sv, true);
+        return client.request(move(applied)).get_array("entries"sv).release_value();
+    };
+
+    auto applied_entries = get_applied();
+    EXPECT(session->delegate.last_inspected_dom_node_options.get_bool("inherited"sv).value());
+    EXPECT(session->delegate.last_inspected_dom_node_options.get_bool("matchedSelectors"sv).value());
+    VERIFY(applied_entries.size() == 2u);
+    EXPECT_EQ(style_rule_actor_count(*session->server), applied_entries.size());
+
+    auto inline_rule = applied_entries.at(0).as_object().get_object("rule"sv).release_value();
+    auto inline_rule_actor = actor_from(inline_rule, "actor"sv);
+    EXPECT_EQ(inline_rule.get_integer<int>("type"sv).value(), 100);
+    EXPECT(inline_rule.get_array("ancestorData"sv)->is_empty());
+    EXPECT(!inline_rule.get_object("traits"sv)->get_bool("canSetRuleText"sv).value());
+    EXPECT_EQ(inline_rule.get_array("declarations"sv)->at(0).as_object().get_string("name"sv).value(), "display"sv);
+    EXPECT(inline_rule.get_array("declarations"sv)->at(0).as_object().get_bool("isNameValid"sv).value());
+    EXPECT(inline_rule.get_array("declarations"sv)->at(0).as_object().get_bool("isValid"sv).value());
+    EXPECT_EQ(client.request(inline_rule_actor, "getRuleText"sv).get_string("text"sv).value(), "display: grid;"sv);
+
+    auto inherited_rule_entry = applied_entries.at(1).as_object();
+    auto inherited_rule = inherited_rule_entry.get_object("rule"sv).release_value();
+    EXPECT_EQ(inherited_rule_entry.get_string("inherited"sv).value(), root_actor);
+    EXPECT_EQ(inherited_rule.get_array("selectors"sv)->at(0).as_string(), "body div.fixture"sv);
+    EXPECT_EQ(inherited_rule.get_array("declarations"sv)->at(0).as_object().get_string("name"sv).value(), "color"sv);
+    EXPECT(inherited_rule.get_array("declarations"sv)->at(0).as_object().get_bool("isNameValid"sv).value());
+    EXPECT(inherited_rule.get_array("declarations"sv)->at(0).as_object().get_bool("isValid"sv).value());
+    EXPECT(inherited_rule.get_array("declarations"sv)->at(1).as_object().get_bool("isNameValid"sv).value());
+    EXPECT(!inherited_rule.get_array("declarations"sv)->at(1).as_object().get_bool("isValid"sv).value());
+    EXPECT_EQ(inherited_rule_entry.get_array("matchedSelectorIndexes"sv)->at(0).as_integer<int>(), 0);
     EXPECT(!client.request(page_style_actor, "isPositionEditable"sv).get_bool("value"sv).value());
+
+    auto second_applied_entries = get_applied();
+    VERIFY(second_applied_entries.size() == applied_entries.size());
+    spin_until(session->loop, [&] {
+        return style_rule_actor_count(*session->server) == second_applied_entries.size()
+            && !session->server->actor_registry().contains(inline_rule_actor);
+    });
 
     JsonObject computed_request;
     computed_request.set("to"sv, page_style_actor);

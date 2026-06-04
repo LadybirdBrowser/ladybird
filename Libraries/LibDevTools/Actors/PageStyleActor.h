@@ -28,11 +28,14 @@ private:
     virtual void handle_message(Message const&) override;
 
     void inspect_dom_node(Message const&, WebView::DOMNodeProperties::Type);
+    void clear_style_rule_actors();
+    void received_applied_style_rules(JsonObject&, JsonValue const&);
     void received_dom_node_properties(WebView::DOMNodeProperties const&);
 
     WeakPtr<InspectorActor> m_inspector;
 
     Vector<Message, 1> m_pending_inspect_requests;
+    Vector<String> m_style_rule_actors;
 };
 
 }

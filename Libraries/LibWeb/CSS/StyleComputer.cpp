@@ -15,10 +15,12 @@
 #include <AK/FixedBitmap.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/JsonObject.h>
 #include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
+#include <AK/Utf8View.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
@@ -33,6 +35,7 @@
 #include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -81,6 +84,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -1489,6 +1493,395 @@ StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Abstr
             || !matching_rule_set.user_agent_rules.is_empty();
     }
     return matching_rule_set;
+}
+
+static bool custom_property_inherits(DOM::Document const& document, FlyString const& name)
+{
+    // A custom property inherits unless it has been registered with an explicit `inherits: false`.
+    auto registration = document.get_registered_custom_property(name);
+    return !registration.has_value() || registration->inherit;
+}
+
+enum class IsCustomProperty : u8 {
+    No,
+    Yes,
+};
+
+enum class Inherits : u8 {
+    No,
+    Yes,
+};
+
+enum class NameIsValid : u8 {
+    No,
+    Yes,
+};
+
+enum class IsValid : u8 {
+    No,
+    Yes,
+};
+
+static JsonObject serialize_devtools_style_declaration(
+    String name,
+    String value,
+    Important important,
+    IsCustomProperty is_custom_property,
+    Inherits inherits,
+    NameIsValid is_name_valid,
+    IsValid is_valid)
+{
+    JsonObject serialized_property;
+    serialized_property.set("name"sv, move(name));
+    serialized_property.set("value"sv, move(value));
+    serialized_property.set("priority"sv, important == Important::Yes ? "important"sv : ""sv);
+    serialized_property.set("isCustomProperty"sv, is_custom_property == IsCustomProperty::Yes);
+    serialized_property.set("inherits"sv, inherits == Inherits::Yes);
+    serialized_property.set("isNameValid"sv, is_name_valid == NameIsValid::Yes);
+    serialized_property.set("isValid"sv, is_valid == IsValid::Yes);
+    return serialized_property;
+}
+
+static JsonArray serialize_devtools_style_declarations(DOM::Document const& document, CSSStyleProperties const& declaration)
+{
+    JsonArray declarations;
+
+    auto serialize_property = [&](String name, StyleProperty const& property, IsCustomProperty is_custom_property, Inherits inherits) {
+        declarations.must_append(serialize_devtools_style_declaration(
+            move(name),
+            property.value->to_string(SerializationMode::Normal),
+            property.important,
+            is_custom_property,
+            inherits,
+            NameIsValid::Yes,
+            IsValid::Yes));
+    };
+
+    for (auto const& property : declaration.properties()) {
+        serialize_property(
+            string_from_property_id(property.property_id).to_string(),
+            property,
+            IsCustomProperty::No,
+            is_inherited_property(property.property_id) ? Inherits::Yes : Inherits::No);
+    }
+
+    for (auto const& custom_property : declaration.custom_properties())
+        serialize_property(
+            custom_property.key.to_string(),
+            custom_property.value,
+            IsCustomProperty::Yes,
+            custom_property_inherits(document, custom_property.key) ? Inherits::Yes : Inherits::No);
+
+    return declarations;
+}
+
+static JsonArray serialize_devtools_style_declarations(DOM::Document const& document, Vector<Parser::DevToolsStyleDeclaration> const& declarations)
+{
+    JsonArray serialized_declarations;
+
+    for (auto const& declaration : declarations) {
+        bool inherits = declaration.is_custom_property
+            ? custom_property_inherits(document, declaration.name)
+            : PropertyNameAndID::from_name(declaration.name)
+                  .map([](auto const& property) { return !property.is_custom_property() && is_inherited_property(property.id()); })
+                  .value_or(false);
+
+        serialized_declarations.must_append(serialize_devtools_style_declaration(
+            declaration.name.to_string(),
+            declaration.value,
+            declaration.important,
+            declaration.is_custom_property ? IsCustomProperty::Yes : IsCustomProperty::No,
+            inherits ? Inherits::Yes : Inherits::No,
+            declaration.is_name_valid ? NameIsValid::Yes : NameIsValid::No,
+            declaration.is_valid ? IsValid::Yes : IsValid::No));
+    }
+
+    return serialized_declarations;
+}
+
+static Vector<Parser::DevToolsStyleDeclaration> parse_devtools_style_declarations(DOM::Document const& document, StringView declaration_block)
+{
+    return Parser::parse_css_declaration_block_for_devtools(Parser::ParsingParams(document), declaration_block);
+}
+
+static Optional<size_t> source_offset_for_line_and_column(StringView source, SourcePosition const& position)
+{
+    size_t line = 0;
+    size_t column = 0;
+
+    Utf8View source_code_points { source };
+    for (auto it = source_code_points.begin(); it != source_code_points.end();) {
+        auto offset = source_code_points.byte_offset_of(it);
+        if (line == position.line && column == position.column)
+            return offset;
+
+        auto code_point = *it;
+        ++it;
+
+        if (code_point == '\r') {
+            if (offset + 1 < source.length() && source[offset + 1] == '\n')
+                ++it;
+            ++line;
+            column = 0;
+        } else if (code_point == '\n' || code_point == '\f') {
+            ++line;
+            column = 0;
+        } else {
+            ++column;
+        }
+    }
+
+    if (line == position.line && column == position.column)
+        return source.length();
+
+    return {};
+}
+
+static Optional<String> extract_css_declaration_block_from_source(CSSRule const& rule)
+{
+    if (rule.type() != CSSRule::Type::Style)
+        return {};
+
+    auto const* style_sheet = rule.parent_style_sheet();
+    if (!style_sheet)
+        return {};
+
+    auto const source_text = style_sheet->source_text();
+    if (!source_text.has_value())
+        return {};
+
+    auto const& source = *source_text;
+    auto source_view = source.bytes_as_string_view();
+    auto const& source_location = rule.source_location();
+    if (!source_location.has_value())
+        return {};
+
+    auto maybe_offset = source_offset_for_line_and_column(source_view, *source_location);
+    if (!maybe_offset.has_value())
+        return {};
+
+    Optional<u8> string_quote;
+    bool in_comment = false;
+    bool escaped = false;
+    Optional<size_t> block_start;
+    size_t block_depth = 0;
+
+    for (size_t offset = *maybe_offset; offset < source_view.length(); ++offset) {
+        auto ch = source_view[offset];
+        auto next_ch = offset + 1 < source_view.length() ? source_view[offset + 1] : '\0';
+
+        if (in_comment) {
+            if (ch == '*' && next_ch == '/') {
+                in_comment = false;
+                ++offset;
+            }
+            continue;
+        }
+
+        if (string_quote.has_value()) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (ch == '\\') {
+                escaped = true;
+                continue;
+            }
+            if (ch == *string_quote)
+                string_quote = {};
+            continue;
+        }
+
+        if (ch == '/' && next_ch == '*') {
+            in_comment = true;
+            ++offset;
+            continue;
+        }
+
+        if (ch == '"' || ch == '\'') {
+            string_quote = ch;
+            continue;
+        }
+
+        if (ch == '{') {
+            if (!block_start.has_value())
+                block_start = offset + 1;
+            ++block_depth;
+            continue;
+        }
+
+        if (ch == '}' && block_start.has_value()) {
+            VERIFY(block_depth > 0);
+            --block_depth;
+            if (block_depth == 0)
+                return MUST(String::from_utf8(source_view.substring_view(*block_start, offset - *block_start)));
+        }
+    }
+
+    return {};
+}
+
+static bool has_inherited_declaration(DOM::Document const& document, CSSStyleProperties const& declaration)
+{
+    if (any_of(declaration.properties(), [](auto const& property) {
+            return CSS::is_inherited_property(property.property_id);
+        })) {
+        return true;
+    }
+
+    return any_of(declaration.custom_properties(), [&](auto const& custom_property) {
+        return custom_property_inherits(document, custom_property.key);
+    });
+}
+
+static JsonArray serialize_devtools_selectors(MatchingRule const& rule)
+{
+    JsonArray selectors;
+    for (auto const& selector : rule.absolutized_selectors())
+        selectors.must_append(selector->serialize());
+    return selectors;
+}
+
+static JsonArray serialize_devtools_selector_specificities(MatchingRule const& rule)
+{
+    JsonArray specificities;
+    for (auto const& selector : rule.absolutized_selectors())
+        specificities.must_append(selector->specificity());
+    return specificities;
+}
+
+static JsonObject serialize_devtools_matching_rule(DOM::Document const& document, MatchingRule const& rule)
+{
+    auto const& declaration = rule.declaration();
+    auto authored_text = extract_css_declaration_block_from_source(*rule.rule);
+
+    JsonArray matched_selector_indexes;
+    matched_selector_indexes.must_append(rule.selector_index);
+
+    JsonObject serialized_rule;
+    serialized_rule.set("type"sv, to_underlying(rule.rule->type()));
+    serialized_rule.set("className"sv, rule.rule->type() == CSSRule::Type::Style ? "CSSStyleRule"sv : "CSSNestedDeclarations"sv);
+    serialized_rule.set("selectors"sv, serialize_devtools_selectors(rule));
+    serialized_rule.set("selectorsSpecificity"sv, serialize_devtools_selector_specificities(rule));
+    serialized_rule.set("matchedSelectorIndexes"sv, move(matched_selector_indexes));
+    serialized_rule.set("cssText"sv, rule.rule->css_text());
+    if (authored_text.has_value()) {
+        serialized_rule.set("authoredText"sv, *authored_text);
+        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->bytes_as_string_view())));
+    } else {
+        serialized_rule.set("authoredText"sv, declaration.serialized());
+        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));
+    }
+    serialized_rule.set("styleSheetIndex"sv, rule.style_sheet_index);
+    serialized_rule.set("ruleIndex"sv, rule.rule_index);
+    serialized_rule.set("isSystem"sv, rule.cascade_origin == CascadeOrigin::UserAgent);
+
+    return serialized_rule;
+}
+
+static JsonObject serialize_devtools_inline_style(DOM::Document const& document, DOM::AbstractElement abstract_element, CSSStyleProperties const& declaration)
+{
+    auto authored_text = abstract_element.element().get_attribute(HTML::AttributeNames::style);
+
+    JsonObject serialized_rule;
+    serialized_rule.set("type"sv, 100);
+    serialized_rule.set("className"sv, 100);
+    serialized_rule.set("cssText"sv, declaration.serialized());
+    if (authored_text.has_value()) {
+        serialized_rule.set("authoredText"sv, *authored_text);
+        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->bytes_as_string_view())));
+    } else {
+        serialized_rule.set("authoredText"sv, declaration.serialized());
+        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));
+    }
+    serialized_rule.set("isSystem"sv, false);
+    serialized_rule.set("nodeId"sv, abstract_element.element().unique_id().value());
+    return serialized_rule;
+}
+
+static void append_devtools_applied_style_entry(JsonArray& entries, JsonObject rule, Optional<UniqueNodeID> inherited_node_id = {})
+{
+    JsonObject entry;
+
+    JsonValue matched_selector_indexes { JsonArray {} };
+    if (auto value = rule.get("matchedSelectorIndexes"sv); value.has_value())
+        matched_selector_indexes = *value;
+    rule.remove("matchedSelectorIndexes"sv);
+    auto is_system = rule.get_bool("isSystem"sv).value_or(false);
+
+    entry.set("rule"sv, move(rule));
+    entry.set("isSystem"sv, is_system);
+    entry.set("matchedSelectorIndexes"sv, move(matched_selector_indexes));
+    if (inherited_node_id.has_value())
+        entry.set("inheritedNodeId"sv, inherited_node_id->value());
+    else
+        entry.set("inherited"sv, JsonValue {});
+
+    entries.must_append(move(entry));
+}
+
+static void append_devtools_rules_for_element(DOM::Document const& document, JsonArray& entries, auto const& matching_rule_set, bool include_user_agent_styles, Optional<UniqueNodeID> inherited_node_id = {})
+{
+    auto should_include_rule = [&](MatchingRule const& rule) {
+        return !inherited_node_id.has_value() || has_inherited_declaration(document, rule.declaration());
+    };
+
+    auto append_rules = [&](auto const& matching_rules) {
+        for (auto const& matching_rule : matching_rules.in_reverse()) {
+            auto const& rule = *matching_rule.rule;
+            if (!should_include_rule(rule))
+                continue;
+            append_devtools_applied_style_entry(entries, serialize_devtools_matching_rule(document, rule), inherited_node_id);
+        }
+    };
+
+    for (auto const& context : matching_rule_set.author_contexts.in_reverse()) {
+        for (auto const& layer : context.author_rules.in_reverse())
+            append_rules(layer.rules);
+    }
+    append_rules(matching_rule_set.user_rules);
+    if (include_user_agent_styles)
+        append_rules(matching_rule_set.user_agent_rules);
+}
+
+JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractElement abstract_element, bool include_inherited, bool include_user_agent_styles)
+{
+    JsonArray entries;
+
+    auto append_rules_for_abstract_element = [&](DOM::AbstractElement current_element, Optional<UniqueNodeID> inherited_node_id) {
+        if (auto inline_style = current_element.inline_style()) {
+            if (!inherited_node_id.has_value() || has_inherited_declaration(m_document, *inline_style))
+                append_devtools_applied_style_entry(entries, serialize_devtools_inline_style(m_document, current_element, *inline_style), inherited_node_id);
+        }
+
+        auto const first_ancestor = [&] -> GC::Ptr<DOM::Element const> {
+            if (current_element.pseudo_element().has_value())
+                return &current_element.element();
+            return current_element.element().parent_or_shadow_host_element();
+        }();
+
+        for (auto ancestor = first_ancestor; ancestor; ancestor = ancestor->parent_or_shadow_host_element())
+            push_ancestor(*ancestor);
+
+        ScopeGuard pop_ancestors = [&] {
+            for (auto ancestor = first_ancestor; ancestor; ancestor = ancestor->parent_or_shadow_host_element())
+                pop_ancestor(*ancestor);
+        };
+
+        bool did_match_any_pseudo_element_rules = false;
+        auto matching_rule_set = build_matching_rule_set(current_element, did_match_any_pseudo_element_rules, ComputeStyleMode::Normal);
+        append_devtools_rules_for_element(m_document, entries, matching_rule_set, include_user_agent_styles, inherited_node_id);
+    };
+
+    append_rules_for_abstract_element(abstract_element, {});
+
+    if (!include_inherited)
+        return entries;
+
+    for (auto current_element = abstract_element.element_to_inherit_style_from(); current_element.has_value(); current_element = current_element->element_to_inherit_style_from())
+        append_rules_for_abstract_element(*current_element, current_element->element().unique_id());
+
+    return entries;
 }
 
 // https://www.w3.org/TR/css-cascade/#cascading
