@@ -871,6 +871,37 @@ GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM:
     return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
 }
 
+void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
+{
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-page
+    // When a body element has a link attribute, its value is expected to be parsed using the rules for parsing a legacy
+    // color value, and if that does not return failure, the user agent is expected to treat the attribute as a
+    // presentational hint setting the 'color' property of any element in the Document matching the :link pseudo-class
+    // to the resulting color.
+    if (matches_link_pseudo_class()) {
+        if (auto const& link_color = document().normal_link_color(); link_color.has_value())
+            properties.append({ .property_id = CSS::PropertyID::Color, .value = CSS::ColorStyleValue::create_from_color(*link_color, CSS::ColorSyntax::Legacy) });
+    }
+
+    // When a body element has a vlink attribute, its value is expected to be parsed using the rules for parsing a
+    // legacy color value, and if that does not return failure, the user agent is expected to treat the attribute as a
+    // presentational hint setting the 'color' property of any element in the Document matching the :visited
+    // pseudo-class to the resulting color.
+    if (matches_visited_pseudo_class()) {
+        if (auto const& visited_link_color = document().visited_link_color(); visited_link_color.has_value())
+            properties.append({ .property_id = CSS::PropertyID::Color, .value = CSS::ColorStyleValue::create_from_color(*visited_link_color, CSS::ColorSyntax::Legacy) });
+    }
+
+    // When a body element has an alink attribute, its value is expected to be parsed using the rules for parsing a
+    // legacy color value, and if that does not return failure, the user agent is expected to treat the attribute as a
+    // presentational hint setting the 'color' property of any element in the Document matching the :active pseudo-class
+    // and either the :link pseudo-class or the :visited pseudo-class to the resulting color.
+    if (is_being_activated() && (matches_link_pseudo_class() || matches_visited_pseudo_class())) {
+        if (auto const& active_link_color = document().active_link_color(); active_link_color.has_value())
+            properties.append({ .property_id = CSS::PropertyID::Color, .value = CSS::ColorStyleValue::create_from_color(*active_link_color, CSS::ColorSyntax::Legacy) });
+    }
+}
+
 void Element::run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     attribute_changed(local_name, old_value, value, namespace_);

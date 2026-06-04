@@ -157,6 +157,8 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
         return SystemColor::accent_color(scheme);
     case Keyword::Accentcolortext:
         return SystemColor::accent_color_text(scheme);
+    case Keyword::Activetext:
+        return SystemColor::active_text(scheme);
     case Keyword::Buttonborder:
     case Keyword::Activeborder:
     case Keyword::Inactiveborder:
@@ -212,6 +214,11 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
         return SystemColor::button_face(scheme).with_alpha(128);
     case Keyword::LibwebButtonfacehover:
         return SystemColor::button_face(scheme).darkened(0.8f);
+    case Keyword::LibwebLink:
+    case Keyword::Linktext:
+        return SystemColor::link_text(scheme);
+    case Keyword::Visitedtext:
+        return SystemColor::visited_text(scheme);
     default:
         break;
     }
@@ -219,18 +226,6 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
     if (!color_resolution_context.document) {
         // FIXME: Can't resolve palette colors without a document.
         return Color::Black;
-    }
-
-    switch (keyword()) {
-    case Keyword::LibwebLink:
-    case Keyword::Linktext:
-        return color_resolution_context.document->normal_link_color().value_or(SystemColor::link_text(scheme));
-    case Keyword::Visitedtext:
-        return color_resolution_context.document->visited_link_color().value_or(SystemColor::visited_text(scheme));
-    case Keyword::Activetext:
-        return color_resolution_context.document->active_link_color().value_or(SystemColor::active_text(scheme));
-    default:
-        break;
     }
 
     auto palette = color_resolution_context.document->page().palette();

@@ -1,0 +1,5 @@
+link: rgb(255, 0, 0)
+active: rgb(0, 0, 255)
+link-text: rgb(0, 0, 238)
+visited-text: rgb(85, 26, 139)
+active-text: rgb(255, 0, 0)

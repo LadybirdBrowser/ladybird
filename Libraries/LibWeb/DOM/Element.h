@@ -192,7 +192,7 @@ public:
     virtual bool supports_dimension_attributes() const { return false; }
 
     virtual bool is_presentational_hint(FlyString const&) const { return false; }
-    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const { }
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const;
 
     void run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
