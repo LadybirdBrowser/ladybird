@@ -7,7 +7,7 @@
 #include <AK/IDAllocator.h>
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/ConnectionFromWebContent.h>
-#include <LibCore/EventLoop.h>
+#include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibIPC/Transport.h>
 
@@ -26,7 +26,7 @@ void ConnectionFromClient::die()
 {
     for (auto& [id, connection] : m_web_content_connections)
         connection->notify_compositor_lost();
-    Core::EventLoop::current().quit(0);
+    Core::Process::terminate_immediately(0);
 }
 
 void ConnectionFromClient::did_allocate_backing_stores(Web::Compositor::CompositorContextId context_id, i32 front_bitmap_id, Gfx::SharedImage&& front_backing_store, i32 back_bitmap_id, Gfx::SharedImage&& back_backing_store)
