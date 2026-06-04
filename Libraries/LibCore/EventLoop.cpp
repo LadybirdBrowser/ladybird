@@ -42,6 +42,11 @@ EventLoop::~EventLoop()
         current_event_loop() = nullptr;
 }
 
+EventLoop& EventLoop::initialize_for_current_thread()
+{
+    return *new EventLoop;
+}
+
 bool EventLoop::is_running()
 {
     return current_event_loop() != nullptr;

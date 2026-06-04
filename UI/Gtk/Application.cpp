@@ -22,7 +22,7 @@ Application::~Application()
     g_clear_object(&m_adw_application);
 }
 
-NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
+Core::EventLoop& Application::create_platform_event_loop()
 {
     if (!browser_options().headless_mode.has_value()) {
         Core::EventLoopManager::install(*new EventLoopManagerGtk);
@@ -42,10 +42,10 @@ NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
         setup_dbus_handlers();
     }
 
-    auto event_loop = WebView::Application::create_platform_event_loop();
+    auto& event_loop = WebView::Application::create_platform_event_loop();
 
     if (!browser_options().headless_mode.has_value())
-        static_cast<EventLoopImplementationGtk&>(event_loop->impl()).set_main_loop();
+        static_cast<EventLoopImplementationGtk&>(event_loop.impl()).set_main_loop();
 
     return event_loop;
 }

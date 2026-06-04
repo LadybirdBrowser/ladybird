@@ -44,7 +44,6 @@ class CORE_API EventLoop {
     AK_MAKE_NONMOVABLE(EventLoop);
     AK_MAKE_NONCOPYABLE(EventLoop);
 
-private:
 public:
     enum class WaitMode {
         WaitForEvents,
@@ -53,6 +52,9 @@ public:
 
     EventLoop();
     ~EventLoop();
+
+    // Create an event loop for the current thread and keep it alive for the rest of the program.
+    static EventLoop& initialize_for_current_thread();
 
     // Pump the event loop until its exit is requested.
     int exec();

@@ -124,17 +124,17 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Req
     web_content_options.config_path = Settings::the()->directory();
 }
 
-NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
+Core::EventLoop& Application::create_platform_event_loop()
 {
     if (!browser_options().headless_mode.has_value()) {
         Core::EventLoopManager::install(*new EventLoopManagerQt);
         m_application = make<LadybirdQApplication>(arguments());
     }
 
-    auto event_loop = WebView::Application::create_platform_event_loop();
+    auto& event_loop = WebView::Application::create_platform_event_loop();
 
     if (!browser_options().headless_mode.has_value())
-        static_cast<EventLoopImplementationQt&>(event_loop->impl()).set_main_loop();
+        static_cast<EventLoopImplementationQt&>(event_loop.impl()).set_main_loop();
 
     return event_loop;
 }

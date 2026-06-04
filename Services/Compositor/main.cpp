@@ -45,7 +45,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Gfx::SkiaBackendContext::initialize_gpu_backend();
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
 
-    Core::EventLoop event_loop;
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
         mach_server_name, move(skia_backend_context), !disable_async_scrolling));
 

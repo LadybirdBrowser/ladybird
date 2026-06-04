@@ -77,7 +77,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto worker_type = TRY(agent_type_from_string(worker_type_string));
 
-    Core::EventLoop event_loop;
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     WebView::platform_init();
 

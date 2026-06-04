@@ -29,7 +29,7 @@ ErrorOr<int> service_main(int ipc_socket)
 
     RequestServer::g_default_certificate_path = ByteString::formatted("{}/cacert.pem", WebView::s_ladybird_resource_root);
 
-    Core::EventLoop event_loop;
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     auto socket = TRY(Core::LocalSocket::adopt_fd(ipc_socket));
     auto client = TRY(RequestServer::ConnectionFromClient::try_create(make<IPC::Transport>(move(socket))));
