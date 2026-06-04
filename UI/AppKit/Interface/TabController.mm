@@ -178,11 +178,15 @@ static NSImage* location_field_globe_icon()
 {
     BOOL m_loading;
     BOOL m_shows_page_icon;
+    BOOL m_uses_fullscreen_focus_ring_mask;
     NSImage* m_favicon;
     NSProgressIndicator* m_loading_indicator;
 }
 
 - (BOOL)becomeFirstResponder;
+- (NSRect)focusRingMaskBounds;
+- (void)drawFocusRingMask;
+- (void)setUsesFullscreenFocusRingMask:(BOOL)uses_fullscreen_focus_ring_mask;
 - (void)setLoading:(BOOL)loading;
 - (void)setFavicon:(NSImage*)favicon;
 - (void)setShowsPageIcon:(BOOL)showsPageIcon;
@@ -226,6 +230,32 @@ static NSImage* location_field_globe_icon()
 
     if (self.willBeginEditing)
         self.willBeginEditing();
+}
+
+- (NSRect)focusRingMaskBounds
+{
+    auto bounds = [self bounds];
+    if (!m_uses_fullscreen_focus_ring_mask)
+        return bounds;
+
+    return NSInsetRect(bounds, 0.0, -5.0);
+}
+
+- (void)drawFocusRingMask
+{
+    auto bounds = [self focusRingMaskBounds];
+    auto radius = NSHeight(bounds) / 2.0;
+    [[NSBezierPath bezierPathWithRoundedRect:bounds xRadius:radius yRadius:radius] fill];
+}
+
+- (void)setUsesFullscreenFocusRingMask:(BOOL)uses_fullscreen_focus_ring_mask
+{
+    if (m_uses_fullscreen_focus_ring_mask == uses_fullscreen_focus_ring_mask)
+        return;
+
+    m_uses_fullscreen_focus_ring_mask = uses_fullscreen_focus_ring_mask;
+    [self noteFocusRingMaskChanged];
+    [self setNeedsDisplay:YES];
 }
 
 - (void)layout
@@ -1060,6 +1090,8 @@ static NSImage* location_field_globe_icon()
 
 - (void)windowWillEnterFullScreen:(NSNotification*)notification
 {
+    [(LocationSearchField*)[self.location_toolbar_item view] setUsesFullscreenFocusRingMask:YES];
+
     if (m_fullscreen_requested_for_web_content) {
         [self.toolbar setVisible:NO];
         [[self tab] updateBookmarksBarDisplay:NO];
@@ -1085,6 +1117,8 @@ static NSImage* location_field_globe_icon()
 
 - (void)windowDidExitFullScreen:(NSNotification*)notification
 {
+    [(LocationSearchField*)[self.location_toolbar_item view] setUsesFullscreenFocusRingMask:NO];
+
     if (exchange(m_fullscreen_requested_for_web_content, false)) {
         [self.toolbar setVisible:YES];
         [[self tab] updateBookmarksBarDisplay:WebView::Application::settings().show_bookmarks_bar()];
