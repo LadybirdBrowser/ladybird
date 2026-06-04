@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Date.h>
@@ -137,14 +138,14 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::supported_values_of)
     // 6. Else if key is "timeZone", then
     else if (key == "timeZone"sv) {
         // a. Let list be ! AvailablePrimaryTimeZoneIdentifiers( ).
-        static auto const time_zones = available_primary_time_zone_identifiers();
-        list = time_zones.span();
+        static NeverDestroyed<Vector<String>> time_zones { available_primary_time_zone_identifiers() };
+        list = time_zones->span();
     }
     // 7. Else if key is "unit", then
     else if (key == "unit"sv) {
         // a. Let list be ! AvailableCanonicalUnits( ).
-        static auto const units = sanctioned_single_unit_identifiers();
-        list = units.span();
+        static NeverDestroyed<Vector<StringView>> units { sanctioned_single_unit_identifiers() };
+        list = units->span();
     }
     // 8. Else,
     else {

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/SharedWorkerExposedInterfaces.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
@@ -14,8 +15,8 @@ GC_DEFINE_ALLOCATOR(SharedWorkerGlobalScope);
 
 HashTable<GC::RawRef<SharedWorkerGlobalScope>>& all_shared_worker_global_scopes()
 {
-    static HashTable<GC::RawRef<SharedWorkerGlobalScope>> set;
-    return set;
+    static NeverDestroyed<HashTable<GC::RawRef<SharedWorkerGlobalScope>>> set;
+    return *set;
 }
 
 SharedWorkerGlobalScope::SharedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)

@@ -684,7 +684,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
 Gfx::Font const& FontComputer::initial_font() const
 {
     // FIXME: This is not correct.
-    static auto font = ComputedProperties::font_fallback(false, false, 12);
+    static auto const& font = ComputedProperties::font_fallback(false, false, 12).leak_ref();
     return font;
 }
 

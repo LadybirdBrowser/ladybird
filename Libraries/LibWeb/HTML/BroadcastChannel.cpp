@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <LibCore/System.h>
 #include <LibJS/Runtime/Realm.h>
@@ -61,23 +62,27 @@ void BroadcastChannelRepository::unregister_channel(GC::Ref<BroadcastChannel> ch
 
 auto const& BroadcastChannelRepository::registered_channels_for_key(StorageAPI::StorageKey key) const
 {
-    static Vector<GC::Weak<BroadcastChannel>> s_empty_channels;
+    static NeverDestroyed<Vector<GC::Weak<BroadcastChannel>>> empty_channels;
 
     auto maybe_channels = m_channels.get(key);
     if (!maybe_channels.has_value())
-        return s_empty_channels;
+        return *empty_channels;
 
     return maybe_channels.value();
 }
 
-static BroadcastChannelRepository s_broadcast_channel_repository;
+static BroadcastChannelRepository& broadcast_channel_repository()
+{
+    static NeverDestroyed<BroadcastChannelRepository> repository;
+    return *repository;
+}
 
 GC_DEFINE_ALLOCATOR(BroadcastChannel);
 
 GC::Ref<BroadcastChannel> BroadcastChannel::construct_impl(JS::Realm& realm, FlyString const& name)
 {
     auto channel = realm.create<BroadcastChannel>(realm, name);
-    s_broadcast_channel_repository.register_channel(channel);
+    broadcast_channel_repository().register_channel(channel);
     return channel;
 }
 
@@ -96,7 +101,7 @@ void BroadcastChannel::initialize(JS::Realm& realm)
 void BroadcastChannel::finalize()
 {
     Base::finalize();
-    s_broadcast_channel_repository.unregister_channel(*this);
+    broadcast_channel_repository().unregister_channel(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#eligible-for-messaging
@@ -166,7 +171,7 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
     GC::RootVector<GC::Ref<BroadcastChannel>> destinations;
 
     // * The result of running obtain a storage key for non-storage purposes with their relevant settings object equals sourceStorageKey.
-    auto same_origin_broadcast_channels = s_broadcast_channel_repository.registered_channels_for_key(message.storage_key);
+    auto same_origin_broadcast_channels = broadcast_channel_repository().registered_channels_for_key(message.storage_key);
     for (auto const& channel : same_origin_broadcast_channels) {
         // * They are eligible for messaging.
         if (!channel->is_eligible_for_messaging())
@@ -226,7 +231,7 @@ void BroadcastChannel::close()
     // The close() method steps are to set this's closed flag to true.
     m_closed_flag = true;
 
-    s_broadcast_channel_repository.unregister_channel(*this);
+    broadcast_channel_repository().unregister_channel(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessage

@@ -9,7 +9,7 @@
 namespace JS {
 
 #define __ENUMERATE_JS_ERROR(name, message) \
-    const ErrorType ErrorType::name = ErrorType(message##sv);
+    ErrorType const& ErrorType::name = *new ErrorType(message##sv);
 JS_ENUMERATE_ERROR_TYPES(__ENUMERATE_JS_ERROR)
 #undef __ENUMERATE_JS_ERROR
 

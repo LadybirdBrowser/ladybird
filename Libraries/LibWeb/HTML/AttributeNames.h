@@ -331,7 +331,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(wrap, "wrap")                                                       \
     __ENUMERATE_HTML_ATTRIBUTE(writingsuggestions, "writingsuggestions")
 
-#define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) extern WEB_API FlyString name;
+#define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) extern WEB_API FlyString const& name;
 ENUMERATE_HTML_ATTRIBUTES
 #undef __ENUMERATE_HTML_ATTRIBUTE
 

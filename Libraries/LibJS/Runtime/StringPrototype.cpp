@@ -631,7 +631,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::match)
     auto regexp = vm.argument(0);
     if (regexp.is_object()) {
         // a. Let matcher be ? GetMethod(regexp, @@match).
-        static Bytecode::StaticPropertyLookupCache cache;
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;
         auto matcher = TRY(regexp.get_method(vm, vm.well_known_symbol_match(), cache));
 
         // b. If matcher is not undefined, then
@@ -679,7 +679,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::match_all)
         }
 
         // c. Let matcher be ? GetMethod(regexp, @@matchAll).
-        static Bytecode::StaticPropertyLookupCache cache;
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;
         auto matcher = TRY(regexp.get_method(vm, vm.well_known_symbol_match_all(), cache));
 
         // d. If matcher is not undefined, then
@@ -850,7 +850,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
     // 2. If searchValue is an Object, then
     if (search_value.is_object()) {
         // a. Let replacer be ? GetMethod(searchValue, @@replace).
-        static Bytecode::StaticPropertyLookupCache cache;
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;
         auto replacer = TRY(search_value.get_method(vm, vm.well_known_symbol_replace(), cache));
 
         // b. If replacer is not undefined, then
@@ -952,7 +952,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
         }
 
         // c. Let replacer be ? GetMethod(searchValue, @@replace).
-        static Bytecode::StaticPropertyLookupCache cache;
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;
         auto replacer = TRY(search_value.get_method(vm, vm.well_known_symbol_replace(), cache));
 
         // d. If replacer is not undefined, then
@@ -1059,7 +1059,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::search)
     // 2. If regexp is an Object, then
     if (regexp.is_object()) {
         // a. Let searcher be ? GetMethod(regexp, @@search).
-        static Bytecode::StaticPropertyLookupCache cache;
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;
         auto searcher = TRY(regexp.get_method(vm, vm.well_known_symbol_search(), cache));
 
         // b. If searcher is not undefined, then
@@ -1144,7 +1144,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
     // 3. If separator is an Object, then
     if (separator_argument.is_object()) {
         // a. Let splitter be ? GetMethod(separator, @@split).
-        static Bytecode::StaticPropertyLookupCache cache;
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;
         auto splitter = TRY(separator_argument.get_method(vm, vm.well_known_symbol_split(), cache));
         // b. If splitter is not undefined, then
         if (splitter) {

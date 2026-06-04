@@ -89,7 +89,7 @@ struct PartialDuration {
     Optional<double> nanoseconds;
 };
 
-extern TimeDuration const MAX_TIME_DURATION;
+extern TimeDuration const& MAX_TIME_DURATION;
 
 // 7.5.3 Internal Duration Records, https://tc39.es/proposal-temporal/#sec-temporal-internal-duration-records
 struct InternalDuration {

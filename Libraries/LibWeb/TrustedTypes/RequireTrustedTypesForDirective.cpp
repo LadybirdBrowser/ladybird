@@ -17,7 +17,7 @@
 namespace Web::TrustedTypes {
 
 #define __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR(name, value) \
-    FlyString name = value##_fly_string;
+    FlyString const& name = *new FlyString(value##_fly_string);
 ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
 #undef __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
 

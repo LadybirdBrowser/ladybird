@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -313,10 +314,9 @@ Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const& property_key)
 {
     // A JavaScript property name P is a cross-origin accessible window property name if it is "window", "self", "location", "close", "closed", "focus", "blur", "frames", "length", "top", "opener", "parent", "postMessage", or an array index property name.
-    static Array<FlyString, 13> property_names {
-        "window"_fly_string, "self"_fly_string, "location"_fly_string, "close"_fly_string, "closed"_fly_string, "focus"_fly_string, "blur"_fly_string, "frames"_fly_string, "length"_fly_string, "top"_fly_string, "opener"_fly_string, "parent"_fly_string, "postMessage"_fly_string
-    };
-    return (property_key.is_string() && any_of(property_names, [&](auto const& name) { return property_key.as_string() == name; })) || property_key.is_number();
+    static NeverDestroyed<Array<FlyString, 13>> property_names { Array<FlyString, 13> {
+        "window"_fly_string, "self"_fly_string, "location"_fly_string, "close"_fly_string, "closed"_fly_string, "focus"_fly_string, "blur"_fly_string, "frames"_fly_string, "length"_fly_string, "top"_fly_string, "opener"_fly_string, "parent"_fly_string, "postMessage"_fly_string } };
+    return (property_key.is_string() && any_of(*property_names, [&](auto const& name) { return property_key.as_string() == name; })) || property_key.is_number();
 }
 
 // 7.2.3.2 CrossOriginPropertyFallback ( P ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginpropertyfallback-(-p-)

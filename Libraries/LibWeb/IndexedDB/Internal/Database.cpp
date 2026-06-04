@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
@@ -14,11 +15,15 @@
 namespace Web::IndexedDB {
 
 using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Root<Database>>>;
-static IDBDatabaseMapping m_databases;
+static IDBDatabaseMapping& idb_databases()
+{
+    static NeverDestroyed<IDBDatabaseMapping> databases;
+    return *databases;
+}
 
 void Database::for_each_database(AK::Function<void(Database&)> const& visitor)
 {
-    for (auto const& [key, mapping] : m_databases) {
+    for (auto const& [key, mapping] : idb_databases()) {
         for (auto const& [_, database] : mapping) {
             if (!database)
                 continue;
@@ -59,7 +64,7 @@ GC::Ptr<ObjectStore> Database::object_store_with_name(String const& name) const
 Vector<GC::Weak<Database>> Database::for_key(StorageAPI::StorageKey const& key)
 {
     Vector<GC::Weak<Database>> databases;
-    for (auto const& database_mapping : m_databases.get(key).value_or({})) {
+    for (auto const& database_mapping : idb_databases().get(key).value_or({})) {
         databases.append(*database_mapping.value);
     }
 
@@ -83,7 +88,7 @@ RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey con
 
 Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
-    auto database_mapping = m_databases.ensure(key, [] { return HashMap<String, GC::Root<Database>>(); });
+    auto database_mapping = idb_databases().ensure(key, [] { return HashMap<String, GC::Root<Database>>(); });
     if (auto maybe_database = database_mapping.get(name); maybe_database.has_value())
         return *maybe_database.value();
     return {};
@@ -91,14 +96,14 @@ Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key
 
 ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(GC::Heap& heap, StorageAPI::StorageKey const& key, String const& name)
 {
-    auto database_mapping = TRY(m_databases.try_ensure(key, [] {
+    auto database_mapping = TRY(idb_databases().try_ensure(key, [] {
         return HashMap<String, GC::Root<Database>>();
     }));
 
     auto value = Database::create(heap, name);
 
     database_mapping.set(name, value);
-    m_databases.set(key, database_mapping);
+    idb_databases().set(key, database_mapping);
 
     return value;
 }
@@ -106,7 +111,7 @@ ErrorOr<GC::Ref<Database>> Database::create_for_key_and_name(GC::Heap& heap, Sto
 ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
     // FIXME: Is a missing entry a failure?
-    auto maybe_database_mapping = m_databases.get(key);
+    auto maybe_database_mapping = idb_databases().get(key);
     if (!maybe_database_mapping.has_value())
         return {};
 
@@ -119,7 +124,7 @@ ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey const& ke
     if (!did_remove)
         return {};
 
-    m_databases.set(key, database_mapping);
+    idb_databases().set(key, database_mapping);
 
     return {};
 }

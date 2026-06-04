@@ -922,7 +922,7 @@ struct Names {
 ErrorOr<HostFunction> Implementation::function_by_name(StringView name)
 {
     auto name_for_comparison = TRY(FlyString::from_utf8(name));
-    static auto names = TRY(Names::construct());
+    static auto& names = *new Names(TRY(Names::construct()));
 
 #define IMPL(x)                         \
     if (name_for_comparison == names.x) \

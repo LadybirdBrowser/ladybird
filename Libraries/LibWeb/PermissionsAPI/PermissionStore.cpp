@@ -41,7 +41,7 @@ URL::Origin permission_key_generation_algorithm(URL::Origin const& origin, URL::
 // FIXME: This should be store at the user-agent level (IPC to the browser process)
 PermissionStore& PermissionStore::the()
 {
-    static PermissionStore s_the;
+    static auto& s_the = *new PermissionStore;
     return s_the;
 }
 

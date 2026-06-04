@@ -32,9 +32,9 @@
 
 namespace Web::MediaCapture {
 
-static String const AUDIO_INPUT_KIND = "audioinput"_string;
-static String const AUDIO_OUTPUT_KIND = "audiooutput"_string;
-static String const VIDEO_INPUT_KIND = "videoinput"_string;
+static String const& AUDIO_INPUT_KIND = *new String("audioinput"_string);
+static String const& AUDIO_OUTPUT_KIND = *new String("audiooutput"_string);
+static String const& VIDEO_INPUT_KIND = *new String("videoinput"_string);
 
 using ConstrainDOMString = Variant<String, Vector<String>, Bindings::ConstrainDOMStringParameters>;
 

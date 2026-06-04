@@ -14,6 +14,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
 #include <AK/Platform.h>
 #include <AK/ScopeGuard.h>
@@ -139,7 +140,13 @@ struct IncrementalSweepStats {
     Vector<IncrementalSweepBatchStats> batches;
     Core::ElapsedTimer timer { Core::TimerType::Precise };
 };
-IncrementalSweepStats g_incremental_sweep_stats;
+
+IncrementalSweepStats& incremental_sweep_stats()
+{
+    static NeverDestroyed<IncrementalSweepStats> stats;
+    return *stats;
+}
+
 bool g_next_incremental_sweep_should_report { false };
 
 // Set by collect_garbage() while a reported collection is in flight. Used by
@@ -196,9 +203,9 @@ void print_gc_report(i64 total_us, size_t live_block_count)
 
 void record_incremental_sweep_batch(size_t blocks_swept, i64 elapsed_us, bool forced)
 {
-    if (!g_incremental_sweep_stats.should_report || blocks_swept == 0)
+    if (!incremental_sweep_stats().should_report || blocks_swept == 0)
         return;
-    g_incremental_sweep_stats.batches.append({
+    incremental_sweep_stats().batches.append({
         .blocks_swept = blocks_swept,
         .elapsed_us = elapsed_us,
         .forced = forced,
@@ -207,30 +214,30 @@ void record_incremental_sweep_batch(size_t blocks_swept, i64 elapsed_us, bool fo
 
 void print_incremental_sweep_report(size_t live_cell_bytes, size_t live_external_bytes, size_t next_gc_bytes_threshold)
 {
-    if (!g_incremental_sweep_stats.should_report)
+    if (!incremental_sweep_stats().should_report)
         return;
 
     size_t swept_blocks = 0;
     i64 batch_time_us = 0;
     i64 shortest_batch_us = NumericLimits<i64>::max();
     i64 longest_batch_us = 0;
-    for (auto const& batch : g_incremental_sweep_stats.batches) {
+    for (auto const& batch : incremental_sweep_stats().batches) {
         swept_blocks += batch.blocks_swept;
         batch_time_us += batch.elapsed_us;
         shortest_batch_us = min(shortest_batch_us, batch.elapsed_us);
         longest_batch_us = max(longest_batch_us, batch.elapsed_us);
     }
 
-    if (g_incremental_sweep_stats.batches.is_empty())
+    if (incremental_sweep_stats().batches.is_empty())
         shortest_batch_us = 0;
 
     dbgln("Incremental sweep report");
     dbgln("=================================================================");
     dbgln("Totals:");
-    dbgln("        Wall time: {} us", g_incremental_sweep_stats.timer.elapsed_time().to_microseconds());
+    dbgln("        Wall time: {} us", incremental_sweep_stats().timer.elapsed_time().to_microseconds());
     dbgln("       Batch time: {} us", batch_time_us);
-    dbgln("          Batches: {}", g_incremental_sweep_stats.batches.size());
-    dbgln("    Swept blocks: {} / {} ({})", swept_blocks, g_incremental_sweep_stats.total_blocks, human_readable_size(swept_blocks * HeapBlock::BLOCK_SIZE));
+    dbgln("          Batches: {}", incremental_sweep_stats().batches.size());
+    dbgln("    Swept blocks: {} / {} ({})", swept_blocks, incremental_sweep_stats().total_blocks, human_readable_size(swept_blocks * HeapBlock::BLOCK_SIZE));
     dbgln("     Live cells: {}", human_readable_size(live_cell_bytes));
     dbgln("  Live external: {}", human_readable_size(live_external_bytes));
     dbgln("  Next threshold: {}", human_readable_size(next_gc_bytes_threshold));
@@ -238,8 +245,8 @@ void print_incremental_sweep_report(size_t live_cell_bytes, size_t live_external
     dbgln("Batch timings:");
     dbgln("  Shortest batch: {} us", shortest_batch_us);
     dbgln("   Longest batch: {} us", longest_batch_us);
-    for (size_t i = 0; i < g_incremental_sweep_stats.batches.size(); ++i) {
-        auto const& batch = g_incremental_sweep_stats.batches[i];
+    for (size_t i = 0; i < incremental_sweep_stats().batches.size(); ++i) {
+        auto const& batch = incremental_sweep_stats().batches[i];
         dbgln("    #{:>3}: {:>5} blocks in {:>8} us{}", i + 1, batch.blocks_swept, batch.elapsed_us, batch.forced ? " (forced)"sv : ""sv);
     }
     dbgln("=================================================================");
@@ -1279,13 +1286,13 @@ void Heap::start_incremental_sweep()
     m_incremental_sweep_active = true;
     m_sweep_live_cell_bytes = 0;
     m_sweep_live_external_bytes = 0;
-    g_incremental_sweep_stats.should_report = false;
-    g_incremental_sweep_stats.total_blocks = 0;
-    g_incremental_sweep_stats.batches.clear();
-    g_incremental_sweep_stats.should_report = g_next_incremental_sweep_should_report;
+    incremental_sweep_stats().should_report = false;
+    incremental_sweep_stats().total_blocks = 0;
+    incremental_sweep_stats().batches.clear();
+    incremental_sweep_stats().should_report = g_next_incremental_sweep_should_report;
     g_next_incremental_sweep_should_report = false;
-    if (g_incremental_sweep_stats.should_report)
-        g_incremental_sweep_stats.timer.start();
+    if (incremental_sweep_stats().should_report)
+        incremental_sweep_stats().timer.start();
 
     // Populate each allocator's pending sweep list with its current blocks.
     // Blocks allocated during incremental sweep won't be on these lists
@@ -1300,7 +1307,7 @@ void Heap::start_incremental_sweep()
         if (allocator.has_blocks_pending_sweep())
             m_allocators_to_sweep.append(allocator);
     }
-    g_incremental_sweep_stats.total_blocks = total_blocks;
+    incremental_sweep_stats().total_blocks = total_blocks;
 
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] {} blocks to sweep", total_blocks);
 

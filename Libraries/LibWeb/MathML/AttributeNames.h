@@ -24,7 +24,7 @@ namespace Web::MathML::AttributeNames {
     __ENUMERATE_MATHML_ATTRIBUTE(scriptlevel, "scriptlevel")       \
     __ENUMERATE_MATHML_ATTRIBUTE(width, "width")
 
-#define __ENUMERATE_MATHML_ATTRIBUTE(name, attribute) extern WEB_API FlyString name;
+#define __ENUMERATE_MATHML_ATTRIBUTE(name, attribute) extern WEB_API FlyString const& name;
 ENUMERATE_MATHML_ATTRIBUTES
 #undef __ENUMERATE_MATHML_ATTRIBUTE
 

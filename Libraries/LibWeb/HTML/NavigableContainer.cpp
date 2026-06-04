@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
@@ -28,8 +29,8 @@ namespace Web::HTML {
 
 HashTable<NavigableContainer*>& NavigableContainer::all_instances()
 {
-    static HashTable<NavigableContainer*> set;
-    return set;
+    static NeverDestroyed<HashTable<NavigableContainer*>> set;
+    return *set;
 }
 
 NavigableContainer::NavigableContainer(DOM::Document& document, DOM::QualifiedName qualified_name)

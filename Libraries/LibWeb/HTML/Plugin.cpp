@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Plugin.h>
 #include <LibWeb/HTML/Plugin.h>
@@ -45,7 +46,7 @@ String const& Plugin::name() const
 String Plugin::description() const
 {
     // The Plugin interface's description getter steps are to return "Portable Document Format".
-    static String description_string = "Portable Document Format"_string;
+    static String const& description_string = *new String("Portable Document Format"_string);
     return description_string;
 }
 
@@ -53,7 +54,7 @@ String Plugin::description() const
 String Plugin::filename() const
 {
     // The Plugin interface's filename getter steps are to return "internal-pdf-viewer".
-    static String filename_string = "internal-pdf-viewer"_string;
+    static String const& filename_string = *new String("internal-pdf-viewer"_string);
     return filename_string;
 }
 
@@ -66,12 +67,12 @@ Vector<FlyString> Plugin::supported_property_names() const
         return {};
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-types
-    static Vector<FlyString> const mime_types = {
+    static NeverDestroyed<Vector<FlyString>> mime_types { Vector<FlyString> {
         "application/pdf"_fly_string,
         "text/pdf"_fly_string,
-    };
+    } };
 
-    return mime_types;
+    return *mime_types;
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-length

@@ -26,7 +26,7 @@ namespace Web::HTML {
 
 namespace DataTransferEffect {
 
-#define __ENUMERATE_DATA_TRANSFER_EFFECT(name) extern FlyString name;
+#define __ENUMERATE_DATA_TRANSFER_EFFECT(name) extern FlyString const& name;
 ENUMERATE_DATA_TRANSFER_EFFECTS
 #undef __ENUMERATE_DATA_TRANSFER_EFFECT
 

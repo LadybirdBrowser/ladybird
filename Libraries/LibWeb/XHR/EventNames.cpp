@@ -9,7 +9,7 @@
 namespace Web::XHR::EventNames {
 
 #define __ENUMERATE_XHR_EVENT(name) \
-    FlyString name = #name##_fly_string;
+    FlyString const& name = *new FlyString(#name##_fly_string);
 ENUMERATE_XHR_EVENTS
 #undef __ENUMERATE_XHR_EVENT
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLTableColElement.h>
@@ -1348,7 +1349,7 @@ bool TableFormattingContext::border_is_less_specific(CSS::BorderData const& a, C
 {
     // Implements criteria for steps 1, 2 and 3 of border conflict resolution algorithm, as described in
     // https://www.w3.org/TR/CSS22/tables.html#border-conflict-resolution.
-    static HashMap<CSS::LineStyle, unsigned> const line_style_score = {
+    static NeverDestroyed<HashMap<CSS::LineStyle, unsigned>> line_style_score { HashMap<CSS::LineStyle, unsigned> {
         { CSS::LineStyle::Inset, 0 },
         { CSS::LineStyle::Groove, 1 },
         { CSS::LineStyle::Outset, 2 },
@@ -1357,7 +1358,7 @@ bool TableFormattingContext::border_is_less_specific(CSS::BorderData const& a, C
         { CSS::LineStyle::Dashed, 5 },
         { CSS::LineStyle::Solid, 6 },
         { CSS::LineStyle::Double, 7 },
-    };
+    } };
 
     // 1. Borders with the 'border-style' of 'hidden' take precedence over all other conflicting borders. Any border with this
     //    value suppresses all borders at this location.
@@ -1385,9 +1386,9 @@ bool TableFormattingContext::border_is_less_specific(CSS::BorderData const& a, C
     } else if (a.width < b.width) {
         return true;
     }
-    if (*line_style_score.get(a.line_style) > *line_style_score.get(b.line_style)) {
+    if (*line_style_score->get(a.line_style) > *line_style_score->get(b.line_style)) {
         return false;
-    } else if (*line_style_score.get(a.line_style) < *line_style_score.get(b.line_style)) {
+    } else if (*line_style_score->get(a.line_style) < *line_style_score->get(b.line_style)) {
         return true;
     }
     return false;

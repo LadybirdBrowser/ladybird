@@ -24,7 +24,7 @@ namespace Web::PerformanceTimeline::EntryTypes {
     __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(paint, "paint")                                       \
     __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(resource, "resource")
 
-#define __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(name, type) extern FlyString name;
+#define __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(name, type) extern FlyString const& name;
 ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPES
 #undef __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE
 

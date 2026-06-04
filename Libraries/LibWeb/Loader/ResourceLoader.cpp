@@ -32,25 +32,29 @@
 
 namespace Web {
 
-static RefPtr<ResourceLoader> s_resource_loader;
+static RefPtr<ResourceLoader>& resource_loader()
+{
+    static RefPtr<ResourceLoader>& resource_loader = *new RefPtr<ResourceLoader>;
+    return resource_loader;
+}
 
 void ResourceLoader::initialize(GC::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
 {
-    s_resource_loader = adopt_ref(*new ResourceLoader(heap, move(request_client)));
+    resource_loader() = adopt_ref(*new ResourceLoader(heap, move(request_client)));
 }
 
 bool ResourceLoader::is_initialized()
 {
-    return s_resource_loader != nullptr;
+    return resource_loader() != nullptr;
 }
 
 ResourceLoader& ResourceLoader::the()
 {
-    if (!s_resource_loader) {
+    if (!resource_loader()) {
         dbgln("Web::ResourceLoader was not initialized");
         VERIFY_NOT_REACHED();
     }
-    return *s_resource_loader;
+    return *resource_loader();
 }
 
 ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)

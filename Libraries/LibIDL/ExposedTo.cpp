@@ -5,10 +5,15 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Vector.h>
 #include <LibIDL/ExposedTo.h>
 
-static ByteString s_error_string;
+static auto& error_string()
+{
+    static NeverDestroyed<ByteString> string;
+    return *string;
+}
 
 namespace IDL {
 
@@ -54,19 +59,19 @@ ErrorOr<ExposedTo> parse_exposure_set(StringView interface_name, StringView expo
             if (auto parsed_exposed = exposed_from_string(candidate); parsed_exposed.has_value()) {
                 whom |= parsed_exposed.value();
             } else {
-                s_error_string = ByteString::formatted("Unknown Exposed attribute candidate {} in {} in {}", candidate, exposed_trimmed, interface_name);
-                return Error::from_string_view(s_error_string.view());
+                error_string() = ByteString::formatted("Unknown Exposed attribute candidate {} in {} in {}", candidate, exposed_trimmed, interface_name);
+                return Error::from_string_view(error_string().view());
             }
         }
         if (whom == ExposedTo::Nobody) {
-            s_error_string = ByteString::formatted("Unknown Exposed attribute {} in {}", exposed_trimmed, interface_name);
-            return Error::from_string_view(s_error_string.view());
+            error_string() = ByteString::formatted("Unknown Exposed attribute {} in {}", exposed_trimmed, interface_name);
+            return Error::from_string_view(error_string().view());
         }
         return whom;
     }
 
-    s_error_string = ByteString::formatted("Unknown Exposed attribute {} in {}", exposed_trimmed, interface_name);
-    return Error::from_string_view(s_error_string.view());
+    error_string() = ByteString::formatted("Unknown Exposed attribute {} in {}", exposed_trimmed, interface_name);
+    return Error::from_string_view(error_string().view());
 }
 
 }

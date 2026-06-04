@@ -51,7 +51,7 @@ public:
     template<CallableAs<IterationDecision, WebContentClient&> Callback>
     static void for_each_client(Callback callback);
 
-    static size_t client_count() { return s_clients.size(); }
+    static size_t client_count() { return clients().size(); }
     static Optional<WebContentClient&> client_for_compositor_context_id(Web::Compositor::CompositorContextId);
 
     WebContentClient(NonnullOwnPtr<IPC::Transport>, u64 initial_page_id);
@@ -210,13 +210,13 @@ private:
 
     RefPtr<WebUI> m_web_ui;
 
-    static HashTable<WebContentClient*> s_clients;
+    static HashTable<WebContentClient*>& clients();
 };
 
 template<CallableAs<IterationDecision, WebContentClient&> Callback>
 void WebContentClient::for_each_client(Callback callback)
 {
-    for (auto& it : s_clients) {
+    for (auto& it : clients()) {
         if (callback(*it) == IterationDecision::Break)
             return;
     }

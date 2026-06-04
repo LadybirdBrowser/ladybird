@@ -20,8 +20,8 @@ public:
     static RequestList& for_key_and_name(StorageAPI::StorageKey const& key, String const& name);
     static ConnectionQueueHandler& the()
     {
-        static ConnectionQueueHandler s_instance;
-        return s_instance;
+        static ConnectionQueueHandler& instance = *new ConnectionQueueHandler;
+        return instance;
     }
 
 private:

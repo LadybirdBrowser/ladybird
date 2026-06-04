@@ -10,7 +10,7 @@ namespace Web::HTML {
 namespace AttributeNames {
 
 #define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) \
-    FlyString name = attribute##_fly_string;
+    FlyString const& name = *new FlyString(attribute##_fly_string);
 ENUMERATE_HTML_ATTRIBUTES
 #undef __ENUMERATE_HTML_ATTRIBUTE
 

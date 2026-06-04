@@ -34,27 +34,27 @@ private:
 };
 
 // https://tc39.es/proposal-temporal/#eqn-nsMaxInstant
-extern Crypto::SignedBigInteger const NANOSECONDS_MAX_INSTANT;
+extern Crypto::SignedBigInteger const& NANOSECONDS_MAX_INSTANT;
 
 // https://tc39.es/proposal-temporal/#eqn-nsMinInstant
-extern Crypto::SignedBigInteger const NANOSECONDS_MIN_INSTANT;
+extern Crypto::SignedBigInteger const& NANOSECONDS_MIN_INSTANT;
 
 // https://tc39.es/proposal-temporal/#eqn-nsPerDay
-extern Crypto::UnsignedBigInteger const NANOSECONDS_PER_DAY;
+extern Crypto::UnsignedBigInteger const& NANOSECONDS_PER_DAY;
 
 // Non-standard:
-extern Crypto::UnsignedBigInteger const NANOSECONDS_PER_HOUR;
-extern Crypto::UnsignedBigInteger const NANOSECONDS_PER_MINUTE;
-extern Crypto::UnsignedBigInteger const NANOSECONDS_PER_SECOND;
-extern Crypto::UnsignedBigInteger const NANOSECONDS_PER_MILLISECOND;
-extern Crypto::UnsignedBigInteger const NANOSECONDS_PER_MICROSECOND;
-extern Crypto::UnsignedBigInteger const NANOSECONDS_PER_NANOSECOND;
+extern Crypto::UnsignedBigInteger const& NANOSECONDS_PER_HOUR;
+extern Crypto::UnsignedBigInteger const& NANOSECONDS_PER_MINUTE;
+extern Crypto::UnsignedBigInteger const& NANOSECONDS_PER_SECOND;
+extern Crypto::UnsignedBigInteger const& NANOSECONDS_PER_MILLISECOND;
+extern Crypto::UnsignedBigInteger const& NANOSECONDS_PER_MICROSECOND;
+extern Crypto::UnsignedBigInteger const& NANOSECONDS_PER_NANOSECOND;
 
-extern Crypto::UnsignedBigInteger const MICROSECONDS_PER_MILLISECOND;
-extern Crypto::UnsignedBigInteger const MILLISECONDS_PER_SECOND;
-extern Crypto::UnsignedBigInteger const SECONDS_PER_MINUTE;
-extern Crypto::UnsignedBigInteger const MINUTES_PER_HOUR;
-extern Crypto::UnsignedBigInteger const HOURS_PER_DAY;
+extern Crypto::UnsignedBigInteger const& MICROSECONDS_PER_MILLISECOND;
+extern Crypto::UnsignedBigInteger const& MILLISECONDS_PER_SECOND;
+extern Crypto::UnsignedBigInteger const& SECONDS_PER_MINUTE;
+extern Crypto::UnsignedBigInteger const& MINUTES_PER_HOUR;
+extern Crypto::UnsignedBigInteger const& HOURS_PER_DAY;
 
 bool is_valid_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds);
 ThrowCompletionOr<GC::Ref<Instant>> create_temporal_instant(VM&, BigInt const& epoch_nanoseconds, GC::Ptr<FunctionObject> new_target = {});

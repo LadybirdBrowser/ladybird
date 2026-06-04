@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
@@ -510,12 +511,16 @@ bool time_zone_equals(StringView one, StringView two)
 }
 
 // OPTIMIZATION: The result of parsing a time zone identifier will not change, so we can cache the result.
-static HashMap<String, ParsedTimeZoneIdentifier> s_time_zone_id_cache;
+static auto& time_zone_id_cache()
+{
+    static NeverDestroyed<HashMap<String, ParsedTimeZoneIdentifier>> cache;
+    return *cache;
+}
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
 ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, String const& identifier)
 {
-    if (auto result = s_time_zone_id_cache.get(identifier); result.has_value())
+    if (auto result = time_zone_id_cache().get(identifier); result.has_value())
         return *result;
 
     // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
@@ -526,7 +531,7 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, S
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, identifier);
 
     auto result = parse_time_zone_identifier(*parse_result);
-    s_time_zone_id_cache.set(identifier, result);
+    time_zone_id_cache().set(identifier, result);
 
     return result;
 }
@@ -535,7 +540,7 @@ ThrowCompletionOr<ParsedTimeZoneIdentifier> parse_time_zone_identifier(VM& vm, S
 ParsedTimeZoneIdentifier const& parse_time_zone_identifier(String const& identifier)
 {
     // OPTIMIZATION: Some callers can assume that parsing will succeed.
-    return s_time_zone_id_cache.ensure(identifier, [&]() {
+    return time_zone_id_cache().ensure(identifier, [&]() {
         // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
         auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, identifier);
         VERIFY(parse_result.has_value());

@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <AK/StdLibExtras.h>
@@ -636,8 +637,8 @@ size_t Executable::external_memory_size() const
 
 static Vector<PropertyLookupCache*>& static_property_lookup_caches()
 {
-    static Vector<PropertyLookupCache*> caches;
-    return caches;
+    static NeverDestroyed<Vector<PropertyLookupCache*>> caches;
+    return *caches;
 }
 
 StaticPropertyLookupCache::StaticPropertyLookupCache()
@@ -732,8 +733,8 @@ SourceRange const& Executable::get_source_range(u32 program_counter)
     return m_source_range_cache.ensure(program_counter, [&] {
         if (auto source_range = source_range_at(program_counter); source_range.has_value())
             return *source_range;
-        static SourceRange dummy { SourceCode::create({}, Utf16String {}), {} };
-        return dummy;
+        static NeverDestroyed<SourceRange> dummy { SourceRange { SourceCode::create({}, Utf16String {}), {} } };
+        return *dummy;
     });
 }
 

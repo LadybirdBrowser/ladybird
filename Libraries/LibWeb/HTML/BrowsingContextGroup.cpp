@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
@@ -16,8 +17,8 @@ GC_DEFINE_ALLOCATOR(BrowsingContextGroup);
 // https://html.spec.whatwg.org/multipage/browsers.html#browsing-context-group-set
 static HashTable<GC::Ref<BrowsingContextGroup>>& user_agent_browsing_context_group_set()
 {
-    static HashTable<GC::Ref<BrowsingContextGroup>> set;
-    return set;
+    static NeverDestroyed<HashTable<GC::Ref<BrowsingContextGroup>>> set;
+    return *set;
 }
 
 BrowsingContextGroup::BrowsingContextGroup(GC::Ref<Web::Page> page)

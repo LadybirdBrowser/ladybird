@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/QuickSort.h>
 #include <LibUnicode/ICU.h>
@@ -16,7 +17,11 @@
 
 namespace Unicode {
 
-static Optional<String> cached_system_time_zone;
+static auto& cached_system_time_zone()
+{
+    static NeverDestroyed<Optional<String>> cached_system_time_zone;
+    return *cached_system_time_zone;
+}
 
 static String current_time_zone_impl(OwnPtr<icu::TimeZone> time_zone)
 {
@@ -49,12 +54,12 @@ static String current_default_time_zone()
 
 String current_time_zone()
 {
-    return cached_system_time_zone.ensure([] { return current_host_time_zone(); });
+    return cached_system_time_zone().ensure([] { return current_host_time_zone(); });
 }
 
 void clear_system_time_zone_cache()
 {
-    cached_system_time_zone.clear();
+    cached_system_time_zone().clear();
 }
 
 ErrorOr<void> set_current_time_zone(StringView time_zone)
@@ -64,7 +69,7 @@ ErrorOr<void> set_current_time_zone(StringView time_zone)
         return Error::from_string_literal("Unable to find the provided time zone");
 
     icu::TimeZone::setDefault(time_zone_data->time_zone());
-    cached_system_time_zone = current_default_time_zone();
+    cached_system_time_zone() = current_default_time_zone();
 
     return {};
 }
@@ -128,8 +133,8 @@ static Vector<String> icu_available_time_zones(Optional<ByteString> const& regio
 
 Vector<String> const& available_time_zones()
 {
-    static auto time_zones = icu_available_time_zones({});
-    return time_zones;
+    static NeverDestroyed<Vector<String>> time_zones { icu_available_time_zones({}) };
+    return *time_zones;
 }
 
 Vector<String> available_time_zones_in_region(StringView region)

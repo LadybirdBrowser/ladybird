@@ -37,9 +37,9 @@ ByteString normalize_method(StringView method)
 {
     // To normalize a method, if it is a byte-case-insensitive match for `DELETE`, `GET`, `HEAD`, `OPTIONS`, `POST`,
     // or `PUT`, byte-uppercase it.
-    static auto NORMALIZED_METHODS = to_array<ByteString>({ "DELETE"sv, "GET"sv, "HEAD"sv, "OPTIONS"sv, "POST"sv, "PUT"sv });
+    static constexpr auto normalized_methods = to_array<StringView>({ "DELETE"sv, "GET"sv, "HEAD"sv, "OPTIONS"sv, "POST"sv, "PUT"sv });
 
-    for (auto const& normalized_method : NORMALIZED_METHODS) {
+    for (auto const& normalized_method : normalized_methods) {
         if (normalized_method.equals_ignoring_ascii_case(method))
             return normalized_method;
     }

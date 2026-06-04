@@ -7,6 +7,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -1573,8 +1574,8 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier deca
 
 SupportedAlgorithmsMap& supported_algorithms_internal()
 {
-    static SupportedAlgorithmsMap s_supported_algorithms;
-    return s_supported_algorithms;
+    static NeverDestroyed<SupportedAlgorithmsMap> supported_algorithms;
+    return *supported_algorithms;
 }
 
 // https://w3c.github.io/webcrypto/#algorithm-normalization-internal

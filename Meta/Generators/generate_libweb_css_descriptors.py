@@ -162,6 +162,7 @@ def write_implementation_file(out: TextIO, at_rules_data: dict, all_descriptors:
     descriptor_count = len(all_descriptors)
 
     out.write("""
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -277,8 +278,8 @@ RefPtr<StyleValue const> descriptor_initial_value(AtRuleID at_rule_id, Descripto
     if (!at_rule_supports_descriptor(at_rule_id, descriptor_id))
         return nullptr;
 
-    static Array<Array<RefPtr<StyleValue const>, {descriptor_count}>, {at_rule_count}> initial_values;
-    if (auto initial_value = initial_values[to_underlying(at_rule_id)][to_underlying(descriptor_id)])
+    static NeverDestroyed<Array<Array<RefPtr<StyleValue const>, {descriptor_count}>, {at_rule_count}>> initial_values;
+    if (auto initial_value = (*initial_values)[to_underlying(at_rule_id)][to_underlying(descriptor_id)])
         return initial_value.release_nonnull();
 
     // Lazily parse initial values as needed.
@@ -306,7 +307,7 @@ RefPtr<StyleValue const> descriptor_initial_value(AtRuleID at_rule_id, Descripto
             auto parsed_value = parse_css_descriptor(parsing_params, AtRuleID::{at_rule_titlecase}, DescriptorNameAndID::from_id(DescriptorID::{descriptor_titlecase}), "{initial_value}"sv);
             VERIFY(!parsed_value.is_null());
             auto initial_value = parsed_value.release_nonnull();
-            initial_values[to_underlying(at_rule_id)][to_underlying(descriptor_id)] = initial_value;
+            (*initial_values)[to_underlying(at_rule_id)][to_underlying(descriptor_id)] = initial_value;
             return initial_value;
         }}
 """)

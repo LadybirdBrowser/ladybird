@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/NeverDestroyed.h>
 #include <LibJS/SyntaxHighlighter.h>
 #include <LibJS/Token.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
@@ -191,11 +192,11 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
 
 Vector<Syntax::Highlighter::MatchingTokenPair> SyntaxHighlighter::matching_token_pairs_impl() const
 {
-    static Vector<MatchingTokenPair> pairs;
-    if (pairs.is_empty()) {
-        pairs.append({ static_cast<u64>(AugmentedTokenKind::OpenTag), static_cast<u64>(AugmentedTokenKind::CloseTag) });
+    static NeverDestroyed<Vector<MatchingTokenPair>> pairs;
+    if (pairs->is_empty()) {
+        pairs->append({ static_cast<u64>(AugmentedTokenKind::OpenTag), static_cast<u64>(AugmentedTokenKind::CloseTag) });
     }
-    return pairs;
+    return *pairs;
 }
 
 bool SyntaxHighlighter::token_types_equal(u64 token0, u64 token1) const

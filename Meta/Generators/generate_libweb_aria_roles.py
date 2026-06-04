@@ -148,8 +148,8 @@ def generate_hash_table_member(
         out.write(f"""
 HashTable<{enum_class}> const& {name}::{member_name}() const
 {{
-    static HashTable<{enum_class}> {hash_table_name};
-    return {hash_table_name};
+    static NeverDestroyed<HashTable<{enum_class}>> {hash_table_name};
+    return *{hash_table_name};
 }}
 """)
         return
@@ -157,21 +157,22 @@ HashTable<{enum_class}> const& {name}::{member_name}() const
     out.write(f"""
 HashTable<{enum_class}> const& {name}::{member_name}() const
 {{
-    static HashTable<{enum_class}> {hash_table_name};
-    if ({hash_table_name}.is_empty()) {{
-        {hash_table_name}.ensure_capacity({len(values)});
+    static NeverDestroyed<HashTable<{enum_class}>> {hash_table_name};
+    if ({hash_table_name}->is_empty()) {{
+        {hash_table_name}->ensure_capacity({len(values)});
 """)
     for v in values:
-        out.write(f"        {hash_table_name}.set({enum_class}::{v});\n")
+        out.write(f"        {hash_table_name}->set({enum_class}::{v});\n")
     out.write(f"""
     }}
-    return {hash_table_name};
+    return *{hash_table_name};
 }}
 """)
 
 
 def write_implementation_file(out: TextIO, roles_data: dict) -> None:
     out.write("""
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/ARIA/AriaRoles.h>
 
 namespace Web::ARIA {

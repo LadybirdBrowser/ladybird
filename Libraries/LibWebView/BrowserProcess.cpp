@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/NeverDestroyed.h>
 #include <LibCore/Process.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
@@ -20,7 +21,11 @@
 
 namespace WebView {
 
-static HashMap<int, RefPtr<UIProcessConnectionFromClient>> s_connections;
+static HashMap<int, RefPtr<UIProcessConnectionFromClient>>& connections()
+{
+    static NeverDestroyed<HashMap<int, RefPtr<UIProcessConnectionFromClient>>> connections;
+    return *connections;
+}
 
 class UIProcessClient final
     : public IPC::ConnectionToServer<UIProcessClientEndpoint, UIProcessServerEndpoint> {
@@ -172,12 +177,12 @@ UIProcessClient::UIProcessClient(NonnullOwnPtr<IPC::Transport> transport)
 UIProcessConnectionFromClient::UIProcessConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, int client_id)
     : IPC::ConnectionFromClient<UIProcessClientEndpoint, UIProcessServerEndpoint>(*this, move(transport), client_id)
 {
-    s_connections.set(client_id, *this);
+    connections().set(client_id, *this);
 }
 
 void UIProcessConnectionFromClient::die()
 {
-    s_connections.remove(client_id());
+    connections().remove(client_id());
 }
 
 void UIProcessConnectionFromClient::create_new_tab(Vector<ByteString> urls)

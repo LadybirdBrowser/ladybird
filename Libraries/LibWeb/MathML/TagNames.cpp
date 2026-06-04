@@ -9,7 +9,7 @@
 namespace Web::MathML::TagNames {
 
 #define __ENUMERATE_MATHML_TAG(name, tag) \
-    FlyString name = tag##_fly_string;
+    FlyString const& name = *new FlyString(tag##_fly_string);
 ENUMERATE_MATHML_TAGS
 #undef __ENUMERATE_MATHML_TAG
 

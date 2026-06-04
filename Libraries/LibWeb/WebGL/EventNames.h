@@ -15,7 +15,7 @@ namespace Web::WebGL::EventNames {
     __ENUMERATE_GL_EVENT(webglcontextlost)          \
     __ENUMERATE_GL_EVENT(webglcontextrestored)
 
-#define __ENUMERATE_GL_EVENT(name) extern FlyString name;
+#define __ENUMERATE_GL_EVENT(name) extern FlyString const& name;
 ENUMERATE_GL_EVENTS
 #undef __ENUMERATE_GL_EVENT
 

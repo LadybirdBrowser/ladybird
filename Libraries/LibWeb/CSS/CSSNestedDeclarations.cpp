@@ -5,6 +5,7 @@
  */
 
 #include "CSSNestedDeclarations.h"
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/CSSNestedDeclarations.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSScopeRule.h>
@@ -48,7 +49,7 @@ void CSSNestedDeclarations::visit_edges(Cell::Visitor& visitor)
 
 static SelectorList absolutize_parent_selectors(CSSNestedDeclarations const& nested_declarations)
 {
-    static SelectorList s_where_scope_selector_list {
+    static NeverDestroyed<SelectorList> where_scope_selector_list { SelectorList {
         Selector::create({
             Selector::CompoundSelector {
                 .combinator = Selector::Combinator::None,
@@ -77,7 +78,7 @@ static SelectorList absolutize_parent_selectors(CSSNestedDeclarations const& nes
                 },
             },
         }),
-    };
+    } };
 
     for (auto const* parent_rule = nested_declarations.parent_rule(); parent_rule; parent_rule = parent_rule->parent_rule()) {
         if (auto const* parent_style_rule = as_if<CSSStyleRule>(parent_rule))
@@ -86,7 +87,7 @@ static SelectorList absolutize_parent_selectors(CSSNestedDeclarations const& nes
             // https://drafts.csswg.org/css-cascade-6/#scoped-declarations
             // Declarations may be used directly with the body of a @scope rule. Contiguous runs of declarations are
             // wrapped in nested declarations rules, which match the scoping root with zero specificity.
-            return s_where_scope_selector_list;
+            return *where_scope_selector_list;
         }
     }
 

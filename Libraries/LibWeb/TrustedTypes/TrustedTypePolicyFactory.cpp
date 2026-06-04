@@ -98,7 +98,7 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String co
         TrustedTypeName trusted_type;
     };
 
-    static Vector<TrustedTypesPropertyTypeData> const table {
+    static auto const& table = *new Vector<TrustedTypesPropertyTypeData> {
         { "HTMLIFrameElement"_utf16, "srcdoc"_utf16, TrustedTypeName::TrustedHTML },
         { "HTMLScriptElement"_utf16, "innerText"_utf16, TrustedTypeName::TrustedScript },
         { "HTMLScriptElement"_utf16, "src"_utf16, TrustedTypeName::TrustedScriptURL },
@@ -318,7 +318,7 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface c
 #undef __ENUMERATE
     }
 
-    static Vector<TrustedTypeData> const table {
+    static auto const& table = *new Vector<TrustedTypeData> {
         { "HTMLIFrameElement"_utf16, {}, HTML::AttributeNames::srcdoc, TrustedTypeName::TrustedHTML, InjectionSink::HTMLIFrameElement_srcdoc },
         { "HTMLScriptElement"_utf16, {}, HTML::AttributeNames::src, TrustedTypeName::TrustedScriptURL, InjectionSink::HTMLScriptElement_src },
         { "SVGScriptElement"_utf16, {}, HTML::AttributeNames::href, TrustedTypeName::TrustedScriptURL, InjectionSink::SVGScriptElement_href },

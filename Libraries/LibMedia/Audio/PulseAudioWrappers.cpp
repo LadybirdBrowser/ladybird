@@ -6,25 +6,31 @@
 
 #include "PulseAudioWrappers.h"
 
+#include <AK/NeverDestroyed.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibSync/Mutex.h>
 
 namespace Audio {
 
 static PulseAudioContext* s_pulse_audio_context;
-static Sync::RecursiveMutex s_pulse_audio_context_mutex;
+
+static Sync::RecursiveMutex& pulse_audio_context_mutex()
+{
+    static NeverDestroyed<Sync::RecursiveMutex> mutex;
+    return *mutex;
+}
 
 ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 {
-    auto instantiation_locker = Sync::MutexLocker(s_pulse_audio_context_mutex);
+    auto instantiation_locker = Sync::MutexLocker(pulse_audio_context_mutex());
 
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
     // exit.
     static bool registered_atexit_callback = false;
     if (!registered_atexit_callback) {
         auto atexit_result = atexit([]() {
-            s_pulse_audio_context_mutex.lock();
-            s_pulse_audio_context_mutex.unlock();
+            pulse_audio_context_mutex().lock();
+            pulse_audio_context_mutex().unlock();
         });
         if (atexit_result)
             return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
@@ -112,7 +118,7 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 
 bool PulseAudioContext::is_connected()
 {
-    auto locker = Sync::MutexLocker(s_pulse_audio_context_mutex);
+    auto locker = Sync::MutexLocker(pulse_audio_context_mutex());
     return s_pulse_audio_context != nullptr;
 }
 
@@ -125,7 +131,7 @@ PulseAudioContext::PulseAudioContext(pa_threaded_mainloop* main_loop, pa_mainloo
 
 PulseAudioContext::~PulseAudioContext()
 {
-    auto locker = Sync::MutexLocker(s_pulse_audio_context_mutex);
+    auto locker = Sync::MutexLocker(pulse_audio_context_mutex());
 
     {
         auto loop_locker = main_loop_locker();

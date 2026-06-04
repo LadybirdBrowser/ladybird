@@ -6,8 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Utf16FlyString.h>
 #include <LibCore/Promise.h>
 #include <LibCore/Resource.h>
@@ -421,7 +423,7 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
     VERIFY(navigation_params.response->url().has_value());
     auto pdf_url = navigation_params.response->url().value();
 
-    static auto const s_viewer_bytes = MUST(Core::Resource::load_from_uri("resource://ladybird/pdfjs/web/viewer.html"sv))->clone_data();
+    static NeverDestroyed<ByteBuffer> viewer_bytes { MUST(Core::Resource::load_from_uri("resource://ladybird/pdfjs/web/viewer.html"sv))->clone_data() };
 
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
     document->set_origin(URL::Origin("resource"_string, String {}, {}));
@@ -441,7 +443,7 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
     document->add_event_listener_without_options("ladybirdviewerready"_fly_string, *DOM::IDLEventListener::create(realm, *callback));
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [document, pdf_url] {
-        auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, s_viewer_bytes);
+        auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *viewer_bytes);
         if (document->ready_to_run_scripts()) {
             parser->run(pdf_url);
         } else {

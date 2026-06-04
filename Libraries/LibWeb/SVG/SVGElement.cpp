@@ -58,7 +58,7 @@ struct NamedPropertyID {
 static ReadonlySpan<NamedPropertyID> attribute_style_properties()
 {
     // https://svgwg.org/svg2-draft/styling.html#PresentationAttributes
-    static Array const properties = {
+    static auto const& properties = *new Array {
         // FIXME: The `fill` attribute and CSS `fill` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Fill),
         // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.

@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Error.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Time.h>
@@ -29,12 +30,16 @@
 
 namespace WebView {
 
-static HashMap<u64, ViewImplementation*> s_all_views;
+static HashMap<u64, ViewImplementation*>& all_views()
+{
+    static NeverDestroyed<HashMap<u64, ViewImplementation*>> views;
+    return *views;
+}
 static u64 s_view_count = 1; // This has to start at 1 for Firefox DevTools.
 
 void ViewImplementation::for_each_view(Function<IterationDecision(ViewImplementation&)> callback)
 {
-    for (auto& view : s_all_views) {
+    for (auto& view : all_views()) {
         if (callback(*view.value) == IterationDecision::Break)
             break;
     }
@@ -42,7 +47,7 @@ void ViewImplementation::for_each_view(Function<IterationDecision(ViewImplementa
 
 Optional<ViewImplementation&> ViewImplementation::find_view_by_id(u64 id)
 {
-    if (auto view = s_all_views.get(id); view.has_value())
+    if (auto view = all_views().get(id); view.has_value())
         return *view.value();
     return {};
 }
@@ -51,7 +56,7 @@ ViewImplementation::ViewImplementation()
     : m_document_cookie_version_buffer(Core::create_shared_version_buffer())
     , m_view_id(s_view_count++)
 {
-    s_all_views.set(m_view_id, this);
+    all_views().set(m_view_id, this);
 
     initialize_context_menus();
 
@@ -73,7 +78,7 @@ ViewImplementation::ViewImplementation()
 
 ViewImplementation::~ViewImplementation()
 {
-    s_all_views.remove(m_view_id);
+    all_views().remove(m_view_id);
 
     if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
@@ -1189,7 +1194,7 @@ void ViewImplementation::set_user_style_sheet(String const& source)
 
 void ViewImplementation::use_native_user_style_sheet()
 {
-    extern String native_stylesheet_source;
+    extern String const& native_stylesheet_source;
     set_user_style_sheet(native_stylesheet_source);
 }
 

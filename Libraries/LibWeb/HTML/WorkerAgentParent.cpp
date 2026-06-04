@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -27,8 +28,8 @@ GC_DEFINE_ALLOCATOR(WorkerAgentParent);
 
 static HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>& worker_agent_parents()
 {
-    static HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>> map;
-    return map;
+    static NeverDestroyed<HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>> map;
+    return *map;
 }
 
 WorkerAgentParent::WorkerAgentParent(URL::URL url, Bindings::WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target, Bindings::AgentType agent_type)

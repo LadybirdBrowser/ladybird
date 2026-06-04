@@ -231,7 +231,7 @@ struct LayoutState {
         void add_floating_descendant(Box const& box) { ensure_rare_data().floating_descendants.set(&box); }
         HashTable<GC::Ptr<Box const>> const& floating_descendants() const
         {
-            static HashTable<GC::Ptr<Box const>> const empty;
+            static auto const& empty = *new HashTable<GC::Ptr<Box const>>;
             return m_rare ? m_rare->floating_descendants : empty;
         }
 
@@ -279,14 +279,14 @@ struct LayoutState {
         void set_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> used_values_for_grid_template_columns) { ensure_rare_data().grid_template_columns = move(used_values_for_grid_template_columns); }
         RefPtr<CSS::GridTrackSizeListStyleValue const> const& grid_template_columns() const
         {
-            static RefPtr<CSS::GridTrackSizeListStyleValue const> const empty;
+            static auto const& empty = *new RefPtr<CSS::GridTrackSizeListStyleValue const>;
             return m_rare ? m_rare->grid_template_columns : empty;
         }
 
         void set_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> used_values_for_grid_template_rows) { ensure_rare_data().grid_template_rows = move(used_values_for_grid_template_rows); }
         RefPtr<CSS::GridTrackSizeListStyleValue const> const& grid_template_rows() const
         {
-            static RefPtr<CSS::GridTrackSizeListStyleValue const> const empty;
+            static auto const& empty = *new RefPtr<CSS::GridTrackSizeListStyleValue const>;
             return m_rare ? m_rare->grid_template_rows : empty;
         }
 

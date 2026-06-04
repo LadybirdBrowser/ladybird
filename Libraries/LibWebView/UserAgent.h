@@ -13,7 +13,7 @@
 
 namespace WebView {
 
-WEBVIEW_API extern OrderedHashMap<StringView, StringView> const user_agents;
+WEBVIEW_API extern OrderedHashMap<StringView, StringView> const& user_agents;
 
 WEBVIEW_API Optional<StringView> normalize_user_agent_name(StringView);
 

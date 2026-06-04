@@ -419,8 +419,8 @@ void HTMLSelectElement::children_changed(ChildrenChangedMetadata const& metadata
 String const& HTMLSelectElement::type() const
 {
     // The type IDL attribute, on getting, must return the string "select-one" if the multiple attribute is absent, and the string "select-multiple" if the multiple attribute is present.
-    static String const select_one = "select-one"_string;
-    static String const select_multiple = "select-multiple"_string;
+    static String const& select_one = *new String("select-one"_string);
+    static String const& select_multiple = *new String("select-multiple"_string);
 
     if (!has_attribute(AttributeNames::multiple))
         return select_one;

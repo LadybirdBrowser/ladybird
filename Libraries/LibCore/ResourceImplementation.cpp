@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/ResourceImplementation.h>
 #include <LibCore/ResourceImplementationFile.h>
@@ -11,18 +12,23 @@
 
 namespace Core {
 
-static OwnPtr<ResourceImplementation> s_the;
+static auto& installed_resource_implementation()
+{
+    static NeverDestroyed<OwnPtr<ResourceImplementation>> implementation;
+    return *implementation;
+}
 
 void ResourceImplementation::install(OwnPtr<ResourceImplementation> the)
 {
-    s_the = move(the);
+    installed_resource_implementation() = move(the);
 }
 
 ResourceImplementation& ResourceImplementation::the()
 {
-    if (!s_the)
+    auto& implementation = installed_resource_implementation();
+    if (!implementation)
         install(make<ResourceImplementationFile>("/res"_string));
-    return *s_the;
+    return *implementation;
 }
 
 NonnullRefPtr<Resource> ResourceImplementation::make_resource(String full_path, NonnullOwnPtr<Core::MappedFile> file, time_t modified_time)

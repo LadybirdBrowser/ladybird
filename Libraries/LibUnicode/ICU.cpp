@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Utf16View.h>
 #include <LibUnicode/ICU.h>
@@ -17,15 +18,24 @@
 
 namespace Unicode {
 
-static HashMap<String, OwnPtr<LocaleData>> s_locale_cache;
-static HashMap<String, OwnPtr<TimeZoneData>> s_time_zone_cache;
+static auto& locale_cache()
+{
+    static NeverDestroyed<HashMap<String, OwnPtr<LocaleData>>> cache;
+    return *cache;
+}
+
+static auto& time_zone_cache()
+{
+    static NeverDestroyed<HashMap<String, OwnPtr<TimeZoneData>>> cache;
+    return *cache;
+}
 
 Optional<LocaleData&> LocaleData::for_locale(StringView locale)
 {
-    auto locale_data = s_locale_cache.get(locale);
+    auto locale_data = locale_cache().get(locale);
 
     if (!locale_data.has_value()) {
-        locale_data = s_locale_cache.ensure(MUST(String::from_utf8(locale)), [&]() -> OwnPtr<LocaleData> {
+        locale_data = locale_cache().ensure(MUST(String::from_utf8(locale)), [&]() -> OwnPtr<LocaleData> {
             UErrorCode status = U_ZERO_ERROR;
 
             auto icu_locale = icu::Locale::forLanguageTag(icu_string_piece(locale), status);
@@ -164,10 +174,10 @@ icu::TimeZoneNames& LocaleData::time_zone_names()
 
 Optional<TimeZoneData&> TimeZoneData::for_time_zone(StringView time_zone)
 {
-    auto time_zone_data = s_time_zone_cache.get(time_zone);
+    auto time_zone_data = time_zone_cache().get(time_zone);
 
     if (!time_zone_data.has_value()) {
-        time_zone_data = s_time_zone_cache.ensure(MUST(String::from_utf8(time_zone)), [&]() -> OwnPtr<TimeZoneData> {
+        time_zone_data = time_zone_cache().ensure(MUST(String::from_utf8(time_zone)), [&]() -> OwnPtr<TimeZoneData> {
             auto icu_time_zone = adopt_own_if_nonnull(icu::TimeZone::createTimeZone(icu_string(time_zone)));
             if (!icu_time_zone || *icu_time_zone == icu::TimeZone::getUnknown())
                 return nullptr;

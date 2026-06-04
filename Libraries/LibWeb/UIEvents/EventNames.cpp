@@ -9,7 +9,7 @@
 namespace Web::UIEvents::EventNames {
 
 #define __ENUMERATE_UI_EVENT(name) \
-    FlyString name = #name##_fly_string;
+    FlyString const& name = *new FlyString(#name##_fly_string);
 ENUMERATE_UI_EVENTS
 #undef __ENUMERATE_UI_EVENT
 

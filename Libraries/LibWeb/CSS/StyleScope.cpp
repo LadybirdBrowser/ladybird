@@ -199,9 +199,9 @@ void StyleScope::build_rule_cache_if_needed() const
 
 static CSSStyleSheet& default_stylesheet()
 {
-    static GC::Root<CSSStyleSheet> sheet;
+    static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
-        extern String default_stylesheet_source;
+        extern String const& default_stylesheet_source;
         sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), default_stylesheet_source));
     }
     return *sheet;
@@ -209,9 +209,9 @@ static CSSStyleSheet& default_stylesheet()
 
 static CSSStyleSheet& quirks_mode_stylesheet()
 {
-    static GC::Root<CSSStyleSheet> sheet;
+    static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
-        extern String quirks_mode_stylesheet_source;
+        extern String const& quirks_mode_stylesheet_source;
         sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), quirks_mode_stylesheet_source));
     }
     return *sheet;
@@ -219,9 +219,9 @@ static CSSStyleSheet& quirks_mode_stylesheet()
 
 static CSSStyleSheet& mathml_stylesheet()
 {
-    static GC::Root<CSSStyleSheet> sheet;
+    static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
-        extern String mathml_stylesheet_source;
+        extern String const& mathml_stylesheet_source;
         sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), mathml_stylesheet_source));
     }
     return *sheet;
@@ -229,9 +229,9 @@ static CSSStyleSheet& mathml_stylesheet()
 
 static CSSStyleSheet& svg_stylesheet()
 {
-    static GC::Root<CSSStyleSheet> sheet;
+    static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
-        extern String svg_stylesheet_source;
+        extern String const& svg_stylesheet_source;
         sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), svg_stylesheet_source));
     }
     return *sheet;

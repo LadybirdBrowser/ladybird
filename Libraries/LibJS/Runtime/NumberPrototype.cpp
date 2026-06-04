@@ -9,6 +9,7 @@
 #include <AK/Array.h>
 #include <AK/FloatingPoint.h>
 #include <AK/Function.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
@@ -98,9 +99,9 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
 {
     using Extractor = AK::FloatExtractor<double>;
 
-    static auto ONE_BIGINT = 1_bigint;
-    static auto TWO_BIGINT = 2_bigint;
-    static auto TEN_BIGINT = 10_bigint;
+    static NeverDestroyed<Crypto::UnsignedBigInteger> ONE_BIGINT { 1_bigint };
+    static NeverDestroyed<Crypto::UnsignedBigInteger> TWO_BIGINT { 2_bigint };
+    static NeverDestroyed<Crypto::UnsignedBigInteger> TEN_BIGINT { 10_bigint };
 
     auto result = AK::convert_to_decimal_exponential_form(number);
     auto exponent = result.exponent + count_digits(result.fraction) - 1;
@@ -134,7 +135,7 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     // involves only unsigned integers.
     auto compute_significand = [&](i32 exponent) {
         auto numerator = binary_significand;
-        auto denominator = ONE_BIGINT;
+        auto denominator = *ONE_BIGINT;
 
         // 2 ^ binary_exponent
         if (binary_exponent > 0)
@@ -144,9 +145,9 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
 
         // 10 ^ (precision - exponent - 1)
         if (auto scale = precision - exponent - 1; scale > 0)
-            numerator = numerator.multiplied_by(TEN_BIGINT.pow(scale));
+            numerator = numerator.multiplied_by(TEN_BIGINT->pow(scale));
         else if (scale < 0)
-            denominator = denominator.multiplied_by(TEN_BIGINT.pow(-scale));
+            denominator = denominator.multiplied_by(TEN_BIGINT->pow(-scale));
 
         auto [quotient, remainder] = numerator.divided_by(denominator);
 
@@ -191,18 +192,18 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     //
     // Similar to `compute_significand` above, we take care to clear any negative exponents to ensure that the math
     // involves only unsigned integers.
-    if (significand == TEN_BIGINT.pow(precision - 1)) {
+    if (significand == TEN_BIGINT->pow(precision - 1)) {
         auto alternate = compute_significand(exponent - 1);
 
         if (alternate.count_digits_in_base(10) == static_cast<size_t>(precision)) {
-            auto lhs = significand.multiplied_by(TEN_BIGINT).plus(alternate);
-            auto rhs = TWO_BIGINT.multiplied_by(binary_significand);
+            auto lhs = significand.multiplied_by(*TEN_BIGINT).plus(alternate);
+            auto rhs = TWO_BIGINT->multiplied_by(binary_significand);
 
             // 10 ^ (exponent - precision)
             if (auto scale = exponent - precision; scale > 0)
-                lhs = lhs.multiplied_by(TEN_BIGINT.pow(scale));
+                lhs = lhs.multiplied_by(TEN_BIGINT->pow(scale));
             else if (scale < 0)
-                rhs = rhs.multiplied_by(TEN_BIGINT.pow(-scale));
+                rhs = rhs.multiplied_by(TEN_BIGINT->pow(-scale));
 
             // 2 ^ binary_exponent
             if (binary_exponent > 0)
@@ -224,8 +225,8 @@ static Crypto::UnsignedBigInteger compute_to_fixed_scaled_integer(double number,
 {
     using Extractor = AK::FloatExtractor<double>;
 
-    static auto ONE_BIGINT = 1_bigint;
-    static auto FIVE_BIGINT = 5_bigint;
+    static NeverDestroyed<Crypto::UnsignedBigInteger> ONE_BIGINT { 1_bigint };
+    static NeverDestroyed<Crypto::UnsignedBigInteger> FIVE_BIGINT { 5_bigint };
 
     // Decompose the number into its exact binary representation. An IEEE-754 double is exactly equal to:
     //
@@ -244,12 +245,12 @@ static Crypto::UnsignedBigInteger compute_to_fixed_scaled_integer(double number,
         binary_exponent = extractor.exponent - Extractor::exponent_bias - Extractor::mantissa_bits;
     }
 
-    auto numerator = binary_significand.multiplied_by(FIVE_BIGINT.pow(fraction_digits));
+    auto numerator = binary_significand.multiplied_by(FIVE_BIGINT->pow(fraction_digits));
     auto binary_scale = binary_exponent + static_cast<i32>(fraction_digits);
     if (binary_scale >= 0)
         return MUST(numerator.shift_left(static_cast<size_t>(binary_scale)));
 
-    auto denominator = MUST(ONE_BIGINT.shift_left(static_cast<size_t>(-binary_scale)));
+    auto denominator = MUST(ONE_BIGINT->shift_left(static_cast<size_t>(-binary_scale)));
     auto [quotient, remainder] = numerator.divided_by(denominator);
 
     // Pick the larger integer if x * 10^f is exactly between two candidates.

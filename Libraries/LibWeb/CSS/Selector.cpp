@@ -7,6 +7,7 @@
 
 #include "Selector.h"
 #include <AK/GenericShorthands.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -946,7 +947,7 @@ SelectorList adapt_nested_relative_selector_list(SelectorList const& selectors, 
 SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC::Ptr<CSSRule const> parent)
 {
     // NB: We use `:where(:scope)` to avoid adding specificity.
-    static Selector::SimpleSelector const s_where_scope_selector {
+    static NeverDestroyed<Selector::SimpleSelector> where_scope_selector { Selector::SimpleSelector {
         .type = Selector::SimpleSelector::Type::PseudoClass,
         .value = Selector::SimpleSelector::PseudoClassSelector {
             .type = PseudoClass::Where,
@@ -966,7 +967,7 @@ SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC:
                 }),
             },
         },
-    };
+    } };
 
     // Replace all occurrences of `&` with the nearest ancestor style rule's selector list wrapped in `:is(...)`,
     // or if we have no such ancestor, with `:scope`.
@@ -994,7 +995,7 @@ SelectorList absolutize_selectors_relative_to(SelectorList const& selectors, GC:
             };
         }
 
-        return s_where_scope_selector;
+        return *where_scope_selector;
     }();
 
     SelectorList absolutized_selectors;

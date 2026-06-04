@@ -105,10 +105,10 @@ static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, Calcula
     if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
         return a_from;
 
-    static auto one = TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { NumberStyleValue::create(1), NumberStyleValue::create(1) });
+    static auto const& one = TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { NumberStyleValue::create(1), NumberStyleValue::create(1) }).leak_ref();
 
-    auto const& from = a_from.to_keyword() == Keyword::None ? *one : a_from;
-    auto const& to = a_to.to_keyword() == Keyword::None ? *one : a_to;
+    auto const& from = a_from.to_keyword() == Keyword::None ? one : a_from;
+    auto const& to = a_to.to_keyword() == Keyword::None ? one : a_to;
 
     auto const& from_transform = from.as_transformation();
     auto const& to_transform = to.as_transformation();
@@ -122,9 +122,9 @@ static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, Calcula
     RefPtr<StyleValue const> interpolated_z;
 
     if (from_transform.values().size() == 3 || to_transform.values().size() == 3) {
-        static auto one_value = NumberStyleValue::create(1);
-        auto from = from_transform.values().size() == 3 ? from_transform.values()[2] : one_value;
-        auto to = to_transform.values().size() == 3 ? to_transform.values()[2] : one_value;
+        static auto const& one_value = NumberStyleValue::create(1).leak_ref();
+        auto from = from_transform.values().size() == 3 ? from_transform.values()[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
+        auto to = to_transform.values().size() == 3 ? to_transform.values()[2] : ValueComparingNonnullRefPtr<StyleValue const> { one_value };
         interpolated_z = interpolate_value(element, calculation_context, from, to, delta, allow_discrete);
         if (!interpolated_z)
             return {};
@@ -363,11 +363,11 @@ static RefPtr<StyleValue const> interpolate_translate(DOM::Element& element, Cal
     if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
         return a_from;
 
-    static auto zero_px = LengthStyleValue::create(Length::make_px(0));
-    static auto zero = TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { zero_px, zero_px });
+    static auto const& zero_px = LengthStyleValue::create(Length::make_px(0)).leak_ref();
+    static auto const& zero = TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { zero_px, zero_px }).leak_ref();
 
-    auto const& from = a_from.to_keyword() == Keyword::None ? *zero : a_from;
-    auto const& to = a_to.to_keyword() == Keyword::None ? *zero : a_to;
+    auto const& from = a_from.to_keyword() == Keyword::None ? zero : a_from;
+    auto const& to = a_to.to_keyword() == Keyword::None ? zero : a_to;
 
     auto const& from_transform = from.as_transformation();
     auto const& to_transform = to.as_transformation();
@@ -426,11 +426,11 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
     if (a_from.to_keyword() == Keyword::None && a_to.to_keyword() == Keyword::None)
         return a_from;
 
-    static auto zero_degrees_value = AngleStyleValue::create(Angle::make_degrees(0));
-    static auto zero = TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { zero_degrees_value });
+    static auto const& zero_degrees_value = AngleStyleValue::create(Angle::make_degrees(0)).leak_ref();
+    static auto const& zero = TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { zero_degrees_value }).leak_ref();
 
-    auto const& from = a_from.to_keyword() == Keyword::None ? *zero : a_from;
-    auto const& to = a_to.to_keyword() == Keyword::None ? *zero : a_to;
+    auto const& from = a_from.to_keyword() == Keyword::None ? zero : a_from;
+    auto const& to = a_to.to_keyword() == Keyword::None ? zero : a_to;
 
     auto const& from_transform = from.as_transformation();
     auto const& to_transform = to.as_transformation();
@@ -674,9 +674,9 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
         }
 
         if (property_id == PropertyID::FontStyle) {
-            auto static oblique_0deg_value = FontStyleStyleValue::create(FontStyleKeyword::Oblique, AngleStyleValue::create(Angle::make_degrees(0)));
-            auto from_value = from->as_font_style().font_style() == FontStyleKeyword::Normal ? oblique_0deg_value : from;
-            auto to_value = to->as_font_style().font_style() == FontStyleKeyword::Normal ? oblique_0deg_value : to;
+            static auto const& oblique_0deg_value = FontStyleStyleValue::create(FontStyleKeyword::Oblique, AngleStyleValue::create(Angle::make_degrees(0))).leak_ref();
+            auto from_value = from->as_font_style().font_style() == FontStyleKeyword::Normal ? ValueComparingNonnullRefPtr<StyleValue const> { oblique_0deg_value } : from;
+            auto to_value = to->as_font_style().font_style() == FontStyleKeyword::Normal ? ValueComparingNonnullRefPtr<StyleValue const> { oblique_0deg_value } : to;
             return interpolate_value(element, calculation_context, from_value, to_value, delta, allow_discrete);
         }
 

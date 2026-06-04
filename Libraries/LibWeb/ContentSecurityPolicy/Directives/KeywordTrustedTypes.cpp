@@ -9,7 +9,7 @@
 namespace Web::ContentSecurityPolicy::Directives::KeywordTrustedTypes {
 
 #define __ENUMERATE_KEYWORD_TRUSTED_TYPE(name, value) \
-    FlyString name = value##_fly_string;
+    FlyString const& name = *new FlyString(value##_fly_string);
 ENUMERATE_KEYWORD_TRUSTED_TYPES
 #undef __ENUMERATE_KEYWORD_TRUSTED_TYPE
 

@@ -8,6 +8,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
@@ -292,7 +293,7 @@ Vector<String> const& available_calendars()
     // in canonical form (12.1) identifying the calendars for which the implementation provides the functionality of
     // Intl.DateTimeFormat objects, including their aliases (e.g., both "islamicc" and "islamic-civil"). The List must
     // consist of the "Calendar Type" value of every row of Table 1, except the header row.
-    static auto calendars = []() {
+    static NeverDestroyed<Vector<String>> calendars { []() {
         auto calendars = Unicode::available_calendars();
 
         for (auto calendar : CLDR_CALENDAR_TYPES) {
@@ -302,9 +303,9 @@ Vector<String> const& available_calendars()
 
         quick_sort(calendars);
         return calendars;
-    }();
+    }() };
 
-    return calendars;
+    return *calendars;
 }
 
 // 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode

@@ -20,23 +20,23 @@ public:
     {
         switch (keyword) {
         case Keyword::Inherit: {
-            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const inherit_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Inherit));
+            static auto const& inherit_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Inherit)).leak_ref();
             return inherit_instance;
         }
         case Keyword::Initial: {
-            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const initial_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Initial));
+            static auto const& initial_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Initial)).leak_ref();
             return initial_instance;
         }
         case Keyword::Revert: {
-            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const revert_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Revert));
+            static auto const& revert_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Revert)).leak_ref();
             return revert_instance;
         }
         case Keyword::RevertLayer: {
-            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const revert_layer_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::RevertLayer));
+            static auto const& revert_layer_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::RevertLayer)).leak_ref();
             return revert_layer_instance;
         }
         case Keyword::Unset: {
-            static ValueComparingNonnullRefPtr<KeywordStyleValue const> const unset_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Unset));
+            static auto const& unset_instance = adopt_ref(*new (nothrow) KeywordStyleValue(Keyword::Unset)).leak_ref();
             return unset_instance;
         }
         default:

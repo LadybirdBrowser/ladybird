@@ -44,7 +44,7 @@ namespace Web::MathML::TagNames {
     __ENUMERATE_MATHML_TAG(munderover, "munderover")         \
     __ENUMERATE_MATHML_TAG(semantics, "semantics")
 
-#define __ENUMERATE_MATHML_TAG(name, tag) extern FlyString name;
+#define __ENUMERATE_MATHML_TAG(name, tag) extern FlyString const& name;
 ENUMERATE_MATHML_TAGS
 #undef __ENUMERATE_MATHML_TAG
 

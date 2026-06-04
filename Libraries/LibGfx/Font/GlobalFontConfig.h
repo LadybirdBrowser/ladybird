@@ -8,6 +8,13 @@
 
 #include <fontconfig/fontconfig.h>
 
+namespace AK {
+
+template<typename T>
+class NeverDestroyed;
+
+}
+
 namespace Gfx {
 
 class GlobalFontConfig {
@@ -16,6 +23,8 @@ public:
     FcConfig* get();
 
 private:
+    friend class AK::NeverDestroyed<GlobalFontConfig>;
+
     GlobalFontConfig();
     ~GlobalFontConfig();
 

@@ -15,11 +15,11 @@ ValueComparingNonnullRefPtr<LengthStyleValue const> LengthStyleValue::create(Len
 {
     if (length.is_px()) {
         if (length.raw_value() == 0) {
-            static auto value = adopt_ref(*new (nothrow) LengthStyleValue(CSS::Length::make_px(0)));
+            static auto const& value = adopt_ref(*new (nothrow) LengthStyleValue(CSS::Length::make_px(0))).leak_ref();
             return value;
         }
         if (length.raw_value() == 1) {
-            static auto value = adopt_ref(*new (nothrow) LengthStyleValue(CSS::Length::make_px(1)));
+            static auto const& value = adopt_ref(*new (nothrow) LengthStyleValue(CSS::Length::make_px(1))).leak_ref();
             return value;
         }
     }

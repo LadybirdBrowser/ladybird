@@ -15,7 +15,7 @@ namespace Web {
 
 ContentBlocker& ContentBlocker::the()
 {
-    static ContentBlocker blocker;
+    static ContentBlocker& blocker = *new ContentBlocker;
     return blocker;
 }
 

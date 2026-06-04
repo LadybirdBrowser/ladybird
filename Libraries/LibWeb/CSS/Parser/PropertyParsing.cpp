@@ -4637,7 +4637,7 @@ RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<Compone
     auto transaction = tokens.begin_transaction();
 
     do {
-        static auto default_axis = property_initial_value(PropertyID::ScrollTimelineAxis)->as_value_list().values()[0];
+        static auto const& default_axis = *new ValueComparingNonnullRefPtr<StyleValue const>(property_initial_value(PropertyID::ScrollTimelineAxis)->as_value_list().values()[0]);
 
         tokens.discard_whitespace();
 
@@ -5981,11 +5981,17 @@ RefPtr<StyleValue const> Parser::parse_view_timeline_value(TokenStream<Component
             VERIFY(name);
             names.append(name.release_nonnull());
 
-            static auto default_axis = property_initial_value(PropertyID::ViewTimelineAxis)->as_value_list().values()[0];
-            static auto default_inset = property_initial_value(PropertyID::ViewTimelineInset)->as_value_list().values()[0];
+            static auto const& default_axis = *new ValueComparingNonnullRefPtr<StyleValue const>(property_initial_value(PropertyID::ViewTimelineAxis)->as_value_list().values()[0]);
+            static auto const& default_inset = *new ValueComparingNonnullRefPtr<StyleValue const>(property_initial_value(PropertyID::ViewTimelineInset)->as_value_list().values()[0]);
 
-            axes.append(axis ? axis.release_nonnull() : default_axis);
-            insets.append(inset ? inset.release_nonnull() : default_inset);
+            if (axis)
+                axes.append(axis.release_nonnull());
+            else
+                axes.append(default_axis);
+            if (inset)
+                insets.append(inset.release_nonnull());
+            else
+                insets.append(default_inset);
         };
 
         tokens.discard_whitespace();

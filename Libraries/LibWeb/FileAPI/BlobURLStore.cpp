@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -20,8 +21,8 @@ namespace Web::FileAPI {
 
 BlobURLStore& blob_url_store()
 {
-    static GC::ConservativeHashMap<String, BlobURLEntry> store;
-    return store;
+    static NeverDestroyed<GC::ConservativeHashMap<String, BlobURLEntry>> store;
+    return *store;
 }
 
 // https://w3c.github.io/FileAPI/#unicodeBlobURL

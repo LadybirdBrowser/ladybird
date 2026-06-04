@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/DOM/QualifiedName.h>
 
 namespace Web::DOM {
@@ -33,18 +34,22 @@ struct ImplTraits : public Traits<QualifiedName::Impl*> {
     }
 };
 
-static HashTable<QualifiedName::Impl*, ImplTraits> impls;
+static HashTable<QualifiedName::Impl*, ImplTraits>& impls()
+{
+    static NeverDestroyed<HashTable<QualifiedName::Impl*, ImplTraits>> impls;
+    return *impls;
+}
 
 static NonnullRefPtr<QualifiedName::Impl> ensure_impl(FlyString const& local_name, Optional<FlyString> const& prefix, Optional<FlyString> const& namespace_)
 {
     unsigned hash = hash_impl(local_name, prefix, namespace_);
 
-    auto it = impls.find(hash, [&](QualifiedName::Impl* entry) {
+    auto it = impls().find(hash, [&](QualifiedName::Impl* entry) {
         return entry->local_name == local_name
             && entry->prefix == prefix
             && entry->namespace_ == namespace_;
     });
-    if (it != impls.end())
+    if (it != impls().end())
         return *(*it);
     return adopt_ref(*new QualifiedName::Impl(local_name, prefix, namespace_));
 }
@@ -60,13 +65,13 @@ QualifiedName::Impl::Impl(FlyString const& a_local_name, Optional<FlyString> con
     , prefix(a_prefix)
     , namespace_(a_namespace)
 {
-    impls.set(this);
+    impls().set(this);
     make_internal_string();
 }
 
 QualifiedName::Impl::~Impl()
 {
-    impls.remove(this);
+    impls().remove(this);
 }
 
 // https://dom.spec.whatwg.org/#concept-attribute-qualified-name

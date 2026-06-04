@@ -14,7 +14,7 @@ class EmptyOptionalStyleValue final : public StyleValueWithDefaultOperators<Empt
 public:
     static ValueComparingNonnullRefPtr<EmptyOptionalStyleValue> create()
     {
-        auto static const instance = adopt_ref(*new (nothrow) EmptyOptionalStyleValue());
+        static auto& instance = adopt_ref(*new (nothrow) EmptyOptionalStyleValue()).leak_ref();
         return instance;
     }
 

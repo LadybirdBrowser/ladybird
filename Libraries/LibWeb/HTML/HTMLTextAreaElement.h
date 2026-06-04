@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/NeverDestroyed.h>
 #include <LibCore/Timer.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/Text.h>
@@ -35,8 +36,8 @@ public:
 
     String const& type() const
     {
-        static String const textarea = "textarea"_string;
-        return textarea;
+        static NeverDestroyed<String> textarea { "textarea"_string };
+        return *textarea;
     }
 
     // ^EventTarget

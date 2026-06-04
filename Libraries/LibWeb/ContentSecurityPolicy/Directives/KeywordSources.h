@@ -21,7 +21,7 @@ namespace Web::ContentSecurityPolicy::Directives::KeywordSources {
     __ENUMERATE_KEYWORD_SOURCE(UnsafeAllowRedirects, "'unsafe-allow-redirects'") \
     __ENUMERATE_KEYWORD_SOURCE(WasmUnsafeEval, "'wasm-unsafe-eval'")
 
-#define __ENUMERATE_KEYWORD_SOURCE(name, value) extern FlyString name;
+#define __ENUMERATE_KEYWORD_SOURCE(name, value) extern FlyString const& name;
 ENUMERATE_KEYWORD_SOURCES
 #undef __ENUMERATE_KEYWORD_SOURCE
 

@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -25,18 +26,26 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-web-element-identifier
-static String const web_element_identifier = "element-6066-11e4-a52e-4f735466cecf"_string;
-static JS::PropertyKey web_element_identifier_key { Utf16FlyString::from_utf8(web_element_identifier) };
+static auto const& web_element_identifier = *new String("element-6066-11e4-a52e-4f735466cecf"_string);
+static auto const& web_element_identifier_key = *new JS::PropertyKey(Utf16FlyString::from_utf8(web_element_identifier));
 
 // https://w3c.github.io/webdriver/#dfn-shadow-root-identifier
-static String const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"_string;
-static JS::PropertyKey shadow_root_identifier_key { Utf16FlyString::from_utf8(shadow_root_identifier) };
+static auto const& shadow_root_identifier = *new String("shadow-6066-11e4-a52e-4f735466cecf"_string);
+static auto const& shadow_root_identifier_key = *new JS::PropertyKey(Utf16FlyString::from_utf8(shadow_root_identifier));
 
 // https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
-static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>> browsing_context_group_node_map;
+static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>>& browsing_context_group_node_map()
+{
+    static NeverDestroyed<HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>>> map;
+    return *map;
+}
 
 // https://w3c.github.io/webdriver/#dfn-navigable-seen-nodes-map
-static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<String>> navigable_seen_nodes_map;
+static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<String>>& navigable_seen_nodes_map()
+{
+    static NeverDestroyed<HashMap<GC::RawPtr<HTML::Navigable>, HashTable<String>>> map;
+    return *map;
+}
 
 // https://w3c.github.io/webdriver/#dfn-get-a-node
 GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
@@ -47,7 +56,7 @@ GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, 
 
     // 3. If browsing context group node map does not contain browsing context group, return null.
     // 4. Let node id map be browsing context group node map[browsing context group].
-    auto node_id_map = browsing_context_group_node_map.get(browsing_context_group);
+    auto node_id_map = browsing_context_group_node_map().get(browsing_context_group);
     if (!node_id_map.has_value())
         return nullptr;
 
@@ -73,7 +82,7 @@ String get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_cont
     // 3. If browsing context group node map does not contain browsing context group, set browsing context group node
     //    map[browsing context group] to a new weak map.
     // 4. Let node id map be browsing context group node map[browsing context group].
-    auto& node_id_map = browsing_context_group_node_map.ensure(browsing_context_group);
+    auto& node_id_map = browsing_context_group_node_map().ensure(browsing_context_group);
 
     auto node_id = String::number(node.unique_id().value());
 
@@ -89,7 +98,7 @@ String get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_cont
         // 4. Let navigable seen nodes map be session's navigable seen nodes map.
         // 5. If navigable seen nodes map does not contain navigable, set navigable seen nodes map[navigable] to an empty set.
         // 6. Append node id to navigable seen nodes map[navigable].
-        navigable_seen_nodes_map.ensure(navigable).set(node_id);
+        navigable_seen_nodes_map().ensure(navigable).set(node_id);
     }
 
     // 6. Return node id map[node].
@@ -107,7 +116,7 @@ bool node_reference_is_known(HTML::BrowsingContext const& browsing_context, Stri
     // 2. Let navigable seen nodes map be session's navigable seen nodes map.
     // 3. If navigable seen nodes map contains navigable and navigable seen nodes map[navigable] contains reference,
     //    return true, otherwise return false.
-    if (auto map = navigable_seen_nodes_map.get(navigable); map.has_value())
+    if (auto map = navigable_seen_nodes_map().get(navigable); map.has_value())
         return map->contains(reference);
     return false;
 }

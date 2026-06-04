@@ -6,6 +6,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DurationFormat.h>
@@ -38,11 +39,14 @@ ReadonlySpan<StringView> DurationFormat::relevant_extension_keys() const
 ReadonlySpan<ResolutionOptionDescriptor> DurationFormat::resolution_option_descriptors(VM& vm) const
 {
     // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "nu", [[Property]]: "numberingSystem" } ».
-    static auto descriptors = to_array<ResolutionOptionDescriptor>({
-        { .key = "nu"sv, .property = vm.names.numberingSystem },
-    });
+    auto make_descriptors = [&] {
+        return to_array<ResolutionOptionDescriptor>({
+            { .key = "nu"sv, .property = vm.names.numberingSystem },
+        });
+    };
+    static NeverDestroyed<decltype(make_descriptors())> descriptors { make_descriptors() };
 
-    return descriptors;
+    return *descriptors;
 }
 
 DurationFormat::Style DurationFormat::style_from_string(StringView style)

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
@@ -48,14 +49,17 @@ ReadonlySpan<ResolutionOptionDescriptor> DateTimeFormat::resolution_option_descr
     // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "ca", [[Property]]: "calendar" }, { [[Key]]: "nu", [[Property]]: "numberingSystem" }, { [[Key]]: "hour12", [[Property]]: "hour12", [[Type]]: boolean }, { [[Key]]: "hc", [[Property]]: "hourCycle", [[Values]]: « "h11", "h12", "h23", "h24" » } ».
     static constexpr AK::Array hour_cycle_values { "h11"sv, "h12"sv, "h23"sv, "h24"sv };
 
-    static auto descriptors = to_array<ResolutionOptionDescriptor>({
-        { .key = "ca"sv, .property = vm.names.calendar },
-        { .key = "nu"sv, .property = vm.names.numberingSystem },
-        { .key = "hour12"sv, .property = vm.names.hour12, .type = OptionType::Boolean },
-        { .key = "hc"sv, .property = vm.names.hourCycle, .values = hour_cycle_values },
-    });
+    auto make_descriptors = [&] {
+        return to_array<ResolutionOptionDescriptor>({
+            { .key = "ca"sv, .property = vm.names.calendar },
+            { .key = "nu"sv, .property = vm.names.numberingSystem },
+            { .key = "hour12"sv, .property = vm.names.hour12, .type = OptionType::Boolean },
+            { .key = "hc"sv, .property = vm.names.hourCycle, .values = hour_cycle_values },
+        });
+    };
+    static NeverDestroyed<decltype(make_descriptors())> descriptors { make_descriptors() };
 
-    return descriptors;
+    return *descriptors;
 }
 
 static Optional<Unicode::DateTimeFormat const&> get_or_create_formatter(StringView locale, StringView time_zone, OwnPtr<Unicode::DateTimeFormat>& formatter, Optional<Unicode::CalendarPattern> const& format)

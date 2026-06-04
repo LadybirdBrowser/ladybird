@@ -16,7 +16,7 @@ namespace WebView {
 
 WorkerProcessManager& WorkerProcessManager::the()
 {
-    static WorkerProcessManager manager;
+    static auto& manager = *new WorkerProcessManager;
     return manager;
 }
 

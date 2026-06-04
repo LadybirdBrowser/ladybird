@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PluginArray.h>
 #include <LibWeb/HTML/PluginArray.h>
@@ -48,15 +49,15 @@ Vector<FlyString> PluginArray::supported_property_names() const
         return {};
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-names
-    static Vector<FlyString> const plugin_names = {
+    static NeverDestroyed<Vector<FlyString>> plugin_names { Vector<FlyString> {
         "PDF Viewer"_fly_string,
         "Chrome PDF Viewer"_fly_string,
         "Chromium PDF Viewer"_fly_string,
         "Microsoft Edge PDF Viewer"_fly_string,
         "WebKit built-in PDF"_fly_string,
-    };
+    } };
 
-    return plugin_names;
+    return *plugin_names;
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-pluginarray-length

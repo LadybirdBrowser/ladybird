@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
@@ -37,7 +38,11 @@ static constexpr auto skia_deferred_cleanup_resource_age = std::chrono::seconds(
 static constexpr auto skia_resource_cache_high_watermark = 384 * MiB;
 static constexpr auto skia_resource_cache_critical_watermark = 512 * MiB;
 
-static RefPtr<SkiaBackendContext> s_main_thread_context;
+static auto& main_thread_context()
+{
+    static NeverDestroyed<RefPtr<SkiaBackendContext>> context;
+    return *context;
+}
 
 #if defined(AK_OS_MACOS) || USE_VULKAN
 static void invoke_async_flush_callback(void* context)
@@ -110,9 +115,9 @@ void SkiaBackendContext::perform_post_flush_cleanup()
 
 void SkiaBackendContext::initialize_gpu_backend()
 {
-    VERIFY(!s_main_thread_context);
+    VERIFY(!main_thread_context());
 
-    s_main_thread_context = create_independent_gpu_backend();
+    main_thread_context() = create_independent_gpu_backend();
 }
 
 RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend()
@@ -137,7 +142,7 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_independent_gpu_backend()
 
 RefPtr<SkiaBackendContext> SkiaBackendContext::the_main_thread_context()
 {
-    return s_main_thread_context;
+    return main_thread_context();
 }
 
 #ifdef USE_VULKAN
