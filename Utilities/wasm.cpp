@@ -22,8 +22,6 @@
 #include <LibJS/Script.h>
 #if defined(AK_OS_WINDOWS)
 #    include <AK/Windows.h>
-#else
-#    include <LibLine/Editor.h>
 #endif
 #include <LibMain/Main.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>

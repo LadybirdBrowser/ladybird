@@ -2,6 +2,10 @@ include_guard()
 
 find_package(PkgConfig REQUIRED)
 
+if (NOT WIN32 AND NOT ANDROID)
+    pkg_check_modules(LIBEDIT REQUIRED IMPORTED_TARGET libedit)
+endif()
+
 find_package(mimalloc CONFIG REQUIRED)
 
 # AK dependencies

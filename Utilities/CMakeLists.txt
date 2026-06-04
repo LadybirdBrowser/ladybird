@@ -1,10 +1,8 @@
-if(WIN32)
-    # FIXME: Add support for LibLine on Windows
-    ladybird_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-    ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJS LibCrypto LibGC)
-else()
-    ladybird_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-    ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS LibCrypto LibGC)
+ladybird_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibMain LibTextCodec LibGC)
+ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJS LibCrypto LibGC)
+
+if (NOT WIN32 AND NOT ANDROID)
+    target_link_libraries(js PRIVATE PkgConfig::LIBEDIT)
 endif()
 
 ladybird_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)

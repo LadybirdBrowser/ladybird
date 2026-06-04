@@ -7,6 +7,7 @@
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -124,7 +125,10 @@ def check_for_match(vcpkg: dict, vcpkg_baseline, name: str, identifier: str) -> 
             vcpkg[name] = version
 
     if name in vcpkg:
-        if vcpkg[name] not in identifier:
+        version = vcpkg[name]
+        normalized_version = re.sub(r"[^A-Za-z0-9]", "", version)
+        normalized_identifier = re.sub(r"[^A-Za-z0-9]", "", identifier)
+        if version not in identifier and normalized_version not in normalized_identifier:
             return DepMatch.VersionMismatch
         else:
             return DepMatch.Match
@@ -190,6 +194,10 @@ def check_vcpkg_vs_flatpak_versioning():
                         mismatch_found |= match_and_update(name, branch)
 
                         break
+                elif "type" in source and source["type"] == "archive":
+                    mismatch_found |= match_and_update(name, source["url"])
+
+                    break
             else:
                 if not (name == SELF or name in flatpak_build_tools or name in flatpak_transitive_deps):
                     flatpak.append(name)
