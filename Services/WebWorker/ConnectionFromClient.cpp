@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/EventLoop.h>
+#include <LibCore/Process.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <WebWorker/ConnectionFromClient.h>
@@ -39,7 +39,7 @@ void ConnectionFromClient::die()
 {
     // FIXME: When handling multiple workers in the same process,
     //     this logic needs to be smarter (only when all workers are dead, etc).
-    Core::EventLoop::current().quit(0);
+    Core::Process::terminate_immediately(0);
 }
 
 void ConnectionFromClient::request_file(Web::FileRequest request)
