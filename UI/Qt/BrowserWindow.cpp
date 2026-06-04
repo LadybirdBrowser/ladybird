@@ -449,6 +449,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
                 tab->view().setFocus();
         }
         fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::UI);
+
+        if (m_session_window_id.has_value() && !m_is_restoring_session) {
+            auto store = Application::session_store();
+            if (store.has_value())
+                store->set_active_tab(m_session_window_id.value(), static_cast<size_t>(index));
+        }
     });
     QObject::connect(m_tabs_container, &TabWidget::tab_close_requested, this, &BrowserWindow::request_to_close_tab);
     QObject::connect(m_tabs_container, &TabWidget::tab_reordered, this, [this](int from, int to) {
