@@ -684,8 +684,9 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return target.element().matches_local_link_pseudo_class();
     }
     case CSS::PseudoClass::Visited:
-        // FIXME: Maybe match this selector sometimes?
-        return false;
+        if (target.pseudo_element().has_value())
+            return false;
+        return target.element().matches_visited_pseudo_class();
     case CSS::PseudoClass::Active:
         // FIXME: Match pseudo-elements
         if (target.pseudo_element().has_value())

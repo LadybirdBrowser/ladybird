@@ -1921,6 +1921,30 @@ bool Element::matches_link_pseudo_class() const
     return has_attribute(HTML::AttributeNames::href);
 }
 
+// https://drafts.csswg.org/selectors/#visited-pseudo
+bool Element::matches_visited_pseudo_class() const
+{
+    // The :visited pseudo-class comes with obvious privacy implications—​letting random websites know what other
+    // websites you’ve visited can be problematic for a number of reasons—​and so user agents must preserve user
+    // privacy in their implementation of :visited.
+
+    // NOTE: This specification intentionally does not specify exactly how to preserve user privacy in this regard, to
+    //       allow for user agents to innovate in this space. The following methods are suggested, however:
+    //       - Have :visited never match, so all links match :link instead.
+    //       - Carefully track what history entries could have been observed by a given origin on their own, and only
+    //         have links match :visited if that visit would have been observable from the site’s origin. A possible
+    //         specific approach for this is described in Appendix C: Example Privacy-Preserving :visited Restrictions.
+    //       - Allow links to match :visited on any origin, but carefully restrict what styles they can apply and what
+    //         information is returned by style-querying APIs like getComputedStyle(), to prevent sites from observing
+    //         whether a link is styled with :link or :visited. (This is documented at MDN, and was the historical
+    //         approach browsers took, but is not perfect; there are several ways for a hostile page to still extract
+    //         history information.)
+
+    // FIXME: For simplicity we currently take the first approach and have :visited never match. We may want to rethink
+    //        this in the future.
+    return false;
+}
+
 bool Element::matches_local_link_pseudo_class() const
 {
     // The :local-link pseudo-class allows authors to style hyperlinks based on the users current location

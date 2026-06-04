@@ -531,6 +531,7 @@ public:
     bool matches_unchecked_pseudo_class() const;
     bool matches_placeholder_shown_pseudo_class() const;
     bool matches_link_pseudo_class() const;
+    bool matches_visited_pseudo_class() const;
     bool matches_local_link_pseudo_class() const;
     bool matches_focus_within_pseudo_class() const;
 
