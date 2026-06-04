@@ -6,6 +6,7 @@
 
 #include <AK/BufferedStream.h>
 #include <AK/MemoryStream.h>
+#include <AK/NumericLimits.h>
 #include <AK/String.h>
 #include <LibTest/TestCase.h>
 
@@ -270,6 +271,19 @@ TEST_CASE(fixed_memory_read_in_place)
     auto characters_again = TRY_OR_FAIL(mutable_stream.read_in_place<u8 const>(20));
     EXPECT_EQ(characters_again, some_words.bytes());
     EXPECT(mutable_stream.is_eof());
+
+    // An out-of-bounds count must fail and leave the stream untouched, not return a span past the end.
+    FixedMemoryStream short_stream { ReadonlyBytes { some_words.bytes() } };
+    EXPECT(short_stream.read_in_place<u8 const>(some_words.length() + 1).is_error());
+    EXPECT_EQ(short_stream.offset(), 0u);
+
+    // A count that sign-flips when converted to a seek offset, or that overflows size_t * sizeof(T), must
+    // also fail rather than hand back an out-of-bounds span.
+    FixedMemoryStream huge_stream { ReadonlyBytes { some_words.bytes() } };
+    EXPECT(huge_stream.read_in_place<u8 const>(NumericLimits<size_t>::max()).is_error());
+    EXPECT_EQ(huge_stream.offset(), 0u);
+    EXPECT(huge_stream.read_in_place<u64 const>(NumericLimits<size_t>::max()).is_error());
+    EXPECT_EQ(huge_stream.offset(), 0u);
 }
 
 TEST_CASE(buffered_memory_stream_read_line)

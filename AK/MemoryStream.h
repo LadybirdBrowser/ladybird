@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Checked.h>
 #include <AK/Error.h>
 #include <AK/OwnPtr.h>
 #include <AK/Stream.h>
@@ -74,8 +75,13 @@ public:
                 return Error::from_string_literal("Tried to obtain a non-const span from a read-only FixedMemoryStream");
         }
 
+        Checked<size_t> byte_count = sizeof(T);
+        byte_count *= count;
+        if (byte_count.has_overflow() || byte_count.value() > remaining())
+            return Error::from_string_literal("Read of out-of-bounds span from FixedMemoryStream");
+
         Span<T> span { reinterpret_cast<T*>(m_bytes.offset_pointer(m_offset)), count };
-        TRY(discard(sizeof(T) * count));
+        TRY(discard(byte_count.value()));
         return span;
     }
 
