@@ -8,6 +8,7 @@
  */
 
 #include <AK/AnyOf.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -25,7 +26,11 @@
 
 namespace Web::CSS {
 
-static HashTable<ImageStyleValue const*> s_active_animation_timers;
+static HashTable<ImageStyleValue const*>& active_animation_timers()
+{
+    static NeverDestroyed<HashTable<ImageStyleValue const*>> timers;
+    return *timers;
+}
 
 ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url)
 {
@@ -48,7 +53,7 @@ ImageStyleValue::~ImageStyleValue() = default;
 u64 ImageStyleValue::active_animation_timer_count(DOM::Document const& document)
 {
     u64 count = 0;
-    for (auto const* image_style_value : s_active_animation_timers) {
+    for (auto const* image_style_value : active_animation_timers()) {
         if (any_of(image_style_value->m_clients, [&](auto const* client) {
                 return client->document() == &document;
             }))
@@ -125,14 +130,14 @@ void ImageStyleValue::start_animation_timer_if_needed(DOM::Document& document) c
 
     m_timer->set_interval(current_frame_duration());
     m_timer->start();
-    s_active_animation_timers.set(this);
+    active_animation_timers().set(this);
 }
 
 void ImageStyleValue::stop_animation_timer() const
 {
     if (m_timer && m_timer->is_active()) {
         m_timer->stop();
-        s_active_animation_timers.remove(this);
+        active_animation_timers().remove(this);
     }
 }
 

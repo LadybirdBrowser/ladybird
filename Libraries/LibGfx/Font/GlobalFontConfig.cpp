@@ -5,6 +5,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGfx/Font/GlobalFontConfig.h>
 #include <fontconfig/fontconfig.h>
 
@@ -26,8 +27,8 @@ GlobalFontConfig::~GlobalFontConfig()
 
 GlobalFontConfig& GlobalFontConfig::the()
 {
-    static GlobalFontConfig s_the;
-    return s_the;
+    static NeverDestroyed<GlobalFontConfig> s_the;
+    return *s_the;
 }
 
 FcConfig* GlobalFontConfig::get()

@@ -9,7 +9,7 @@
 namespace Web::ARIA::AttributeNames {
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
-    FlyString name = attribute##_fly_string;
+    FlyString const& name = *new FlyString(attribute##_fly_string);
 ENUMERATE_ARIA_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
@@ -176,10 +177,10 @@ struct Formatter<Web::WebIDL::Exception> : Formatter<FormatString> {
                 auto value = completion.value();
 
                 if (auto object = value.template as_if<JS::Object>()) {
-                    static JS::PropertyKey const message_property_key { "message"_utf16_fly_string };
-                    auto has_message_or_error = object->has_own_property(message_property_key);
+                    static NeverDestroyed<JS::PropertyKey> message_property_key { "message"_utf16_fly_string };
+                    auto has_message_or_error = object->has_own_property(*message_property_key);
                     if (!has_message_or_error.is_error() && has_message_or_error.value()) {
-                        auto message_object = object->get_without_side_effects(message_property_key);
+                        auto message_object = object->get_without_side_effects(*message_property_key);
                         return Formatter<StringView>::format(builder, message_object.to_string_without_side_effects());
                     }
                 }

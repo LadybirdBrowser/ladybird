@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/MaybeOwned.h>
 #include <AK/MemoryStream.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <AK/Random.h>
 #include <AK/StringView.h>
@@ -41,22 +42,28 @@ namespace DNS {
 
 // FIXME: Load these keys from a file (likely something trusted by the system, e.g. "whatever systemd does").
 // https://data.iana.org/root-anchors/root-anchors.xml
-static Vector<Messages::Records::DNSKEY> s_root_zone_dnskeys = {
-    {
-        .flags = 257,
-        .protocol = 3,
-        .algorithm = Messages::DNSSEC::Algorithm::RSASHA256,
-        .public_key = decode_base64("AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU="sv).release_value(),
-        .calculated_key_tag = 20326,
-    },
-    {
-        .flags = 256,
-        .protocol = 3,
-        .algorithm = Messages::DNSSEC::Algorithm::RSASHA256,
-        .public_key = decode_base64("AwEAAa96jeuknZlaeSrvyAJj6ZHv28hhOKkx3rLGXVaC6rXTsDc449/cidltpkyGwCJNnOAlFNKF2jBosZBU5eeHspaQWOmOElZsjICMQMC3aeHbGiShvZsx4wMYSjH8e7Vrhbu6irwCzVBApESjbUdpWWmEnhathWu1jo+siFUiRAAxm9qyJNg/wOZqqzL/dL/q8PkcRU5oUKEpUge71M3ej2/7CPqpdVwuMoTvoB+ZOT4YeGyxMvHmbrxlFzGOHOijtzN+u1TQNatX2XBuzZNQ1K+s2CXkPIZo7s6JgZyvaBevYtxPvYLw4z9mR7K2vaF18UYH9Z9GNUUeayffKC73PYc="sv).release_value(),
-        .calculated_key_tag = 38696,
-    },
-};
+static Vector<Messages::Records::DNSKEY> const& root_zone_dnskeys()
+{
+    static NeverDestroyed<Vector<Messages::Records::DNSKEY>> root_zone_dnskeys {
+        Vector<Messages::Records::DNSKEY> {
+            {
+                .flags = 257,
+                .protocol = 3,
+                .algorithm = Messages::DNSSEC::Algorithm::RSASHA256,
+                .public_key = decode_base64("AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU="sv).release_value(),
+                .calculated_key_tag = 20326,
+            },
+            {
+                .flags = 256,
+                .protocol = 3,
+                .algorithm = Messages::DNSSEC::Algorithm::RSASHA256,
+                .public_key = decode_base64("AwEAAa96jeuknZlaeSrvyAJj6ZHv28hhOKkx3rLGXVaC6rXTsDc449/cidltpkyGwCJNnOAlFNKF2jBosZBU5eeHspaQWOmOElZsjICMQMC3aeHbGiShvZsx4wMYSjH8e7Vrhbu6irwCzVBApESjbUdpWWmEnhathWu1jo+siFUiRAAxm9qyJNg/wOZqqzL/dL/q8PkcRU5oUKEpUge71M3ej2/7CPqpdVwuMoTvoB+ZOT4YeGyxMvHmbrxlFzGOHOijtzN+u1TQNatX2XBuzZNQ1K+s2CXkPIZo7s6JgZyvaBevYtxPvYLw4z9mR7K2vaF18UYH9Z9GNUUeayffKC73PYc="sv).release_value(),
+                .calculated_key_tag = 38696,
+            },
+        }
+    };
+    return *root_zone_dnskeys;
+}
 
 class Resolver;
 
@@ -1134,7 +1141,7 @@ private:
             };
 
             if (is_root_zone) {
-                resolve_using_keys(s_root_zone_dnskeys);
+                resolve_using_keys(root_zone_dnskeys());
                 return;
             }
 

@@ -9,7 +9,7 @@
 namespace Web::ContentSecurityPolicy::Directives::Names {
 
 #define __ENUMERATE_DIRECTIVE_NAME(name, value) \
-    FlyString name = value##_fly_string;
+    FlyString const& name = *new FlyString(value##_fly_string);
 ENUMERATE_DIRECTIVE_NAMES
 #undef __ENUMERATE_DIRECTIVE_NAME
 

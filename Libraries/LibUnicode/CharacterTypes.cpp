@@ -8,6 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Traits.h>
 #include <LibUnicode/CharacterTypes.h>
@@ -53,8 +54,17 @@ static constexpr GeneralCategory GENERAL_CATEGORY_SEPARATOR = U_CHAR_CATEGORY_CO
 static constexpr GeneralCategory GENERAL_CATEGORY_OTHER = U_CHAR_CATEGORY_COUNT + 8;
 static constexpr GeneralCategory GENERAL_CATEGORY_LIMIT = U_CHAR_CATEGORY_COUNT + 9;
 
-static HashMap<GeneralCategory, NonnullOwnPtr<icu::UnicodeSet>> s_category_sets_with_case_closure;
-static HashMap<Property, NonnullOwnPtr<icu::UnicodeSet>> s_property_sets_with_case_closure;
+static auto& category_sets_with_case_closure()
+{
+    static NeverDestroyed<HashMap<GeneralCategory, NonnullOwnPtr<icu::UnicodeSet>>> sets;
+    return *sets;
+}
+
+static auto& property_sets_with_case_closure()
+{
+    static NeverDestroyed<HashMap<Property, NonnullOwnPtr<icu::UnicodeSet>>> sets;
+    return *sets;
+}
 
 Optional<GeneralCategory> general_category_from_string(StringView general_category)
 {
@@ -123,7 +133,7 @@ bool code_point_has_general_category(u32 code_point, GeneralCategory general_cat
     if (case_sensitivity == CaseSensitivity::CaseSensitive)
         return false;
 
-    auto& set = s_category_sets_with_case_closure.ensure(general_category, [&] {
+    auto& set = category_sets_with_case_closure().ensure(general_category, [&] {
         UErrorCode status = U_ZERO_ERROR;
         auto new_set = make<icu::UnicodeSet>();
         new_set->applyIntPropertyValue(UCHAR_GENERAL_CATEGORY_MASK, static_cast<int32_t>(category_mask), status);
@@ -231,7 +241,7 @@ bool code_point_has_property(u32 code_point, Property property, CaseSensitivity 
     if (case_sensitivity == CaseSensitivity::CaseSensitive)
         return false;
 
-    auto& set = s_property_sets_with_case_closure.ensure(property, [&] {
+    auto& set = property_sets_with_case_closure().ensure(property, [&] {
         UErrorCode status = U_ZERO_ERROR;
         auto new_set = make<icu::UnicodeSet>();
         new_set->applyIntPropertyValue(icu_property, 1, status);

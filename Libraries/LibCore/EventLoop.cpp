@@ -6,28 +6,58 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/Badge.h>
+#include <AK/Platform.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
+#ifndef AK_OS_WINDOWS
+#    include <pthread.h>
+#endif
 
 namespace Core {
 
 namespace {
 
-OwnPtr<Vector<EventLoop&>>& event_loop_stack_uninitialized()
+#ifndef AK_OS_WINDOWS
+static pthread_key_t s_event_loop_stack_key;
+static pthread_once_t s_event_loop_stack_key_once = PTHREAD_ONCE_INIT;
+
+static void destroy_event_loop_stack(void* value)
 {
-    thread_local OwnPtr<Vector<EventLoop&>> s_event_loop_stack = nullptr;
+    delete static_cast<Vector<EventLoop&>*>(value);
+}
+
+static void initialize_event_loop_stack_key()
+{
+    VERIFY(pthread_key_create(&s_event_loop_stack_key, destroy_event_loop_stack) == 0);
+}
+
+static void ensure_event_loop_stack_key()
+{
+    VERIFY(pthread_once(&s_event_loop_stack_key_once, initialize_event_loop_stack_key) == 0);
+}
+#endif
+
+Vector<EventLoop&>*& event_loop_stack_uninitialized()
+{
+    thread_local Vector<EventLoop&>* s_event_loop_stack = nullptr;
     return s_event_loop_stack;
 }
 Vector<EventLoop&>& event_loop_stack()
 {
     auto& the_stack = event_loop_stack_uninitialized();
-    if (the_stack == nullptr)
-        the_stack = make<Vector<EventLoop&>>();
+    if (the_stack == nullptr) {
+        the_stack = new Vector<EventLoop&>();
+#ifndef AK_OS_WINDOWS
+        ensure_event_loop_stack_key();
+        VERIFY(pthread_setspecific(s_event_loop_stack_key, the_stack) == 0);
+#endif
+    }
     return *the_stack;
 }
 

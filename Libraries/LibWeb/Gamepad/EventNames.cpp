@@ -9,7 +9,7 @@
 namespace Web::Gamepad::EventNames {
 
 #define __ENUMERATE_GAMEPAD_EVENT(name) \
-    FlyString name = #name##_fly_string;
+    FlyString const& name = *new FlyString(#name##_fly_string);
 ENUMERATE_GAMEPAD_EVENTS
 #undef __ENUMERATE_GAMEPAD_EVENT
 

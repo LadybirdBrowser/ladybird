@@ -16,7 +16,7 @@ namespace Web::DOM::MutationType {
     __ENUMERATE_MUTATION_TYPE(characterData) \
     __ENUMERATE_MUTATION_TYPE(childList)
 
-#define __ENUMERATE_MUTATION_TYPE(name) extern WEB_API FlyString name;
+#define __ENUMERATE_MUTATION_TYPE(name) extern WEB_API FlyString const& name;
 ENUMERATE_MUTATION_TYPES
 #undef __ENUMERATE_MUTATION_TYPE
 

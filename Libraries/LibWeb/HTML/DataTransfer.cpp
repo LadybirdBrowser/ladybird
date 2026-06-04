@@ -23,7 +23,7 @@ GC_DEFINE_ALLOCATOR(DataTransfer);
 
 namespace DataTransferEffect {
 
-#define __ENUMERATE_DATA_TRANSFER_EFFECT(name) FlyString name = #name##_fly_string;
+#define __ENUMERATE_DATA_TRANSFER_EFFECT(name) FlyString const& name = *new FlyString(#name##_fly_string);
 ENUMERATE_DATA_TRANSFER_EFFECTS
 #undef __ENUMERATE_DATA_TRANSFER_EFFECT
 

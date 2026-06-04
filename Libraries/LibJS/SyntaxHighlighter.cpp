@@ -6,6 +6,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Palette.h>
 #include <LibJS/RustFFI.h>
@@ -154,13 +155,13 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
 
 Vector<Syntax::Highlighter::MatchingTokenPair> SyntaxHighlighter::matching_token_pairs_impl() const
 {
-    static Vector<Syntax::Highlighter::MatchingTokenPair> pairs;
-    if (pairs.is_empty()) {
-        pairs.append({ pack_token_data(TokenType::CurlyOpen, TokenCategory::Punctuation), pack_token_data(TokenType::CurlyClose, TokenCategory::Punctuation) });
-        pairs.append({ pack_token_data(TokenType::ParenOpen, TokenCategory::Punctuation), pack_token_data(TokenType::ParenClose, TokenCategory::Punctuation) });
-        pairs.append({ pack_token_data(TokenType::BracketOpen, TokenCategory::Punctuation), pack_token_data(TokenType::BracketClose, TokenCategory::Punctuation) });
+    static NeverDestroyed<Vector<Syntax::Highlighter::MatchingTokenPair>> pairs;
+    if (pairs->is_empty()) {
+        pairs->append({ pack_token_data(TokenType::CurlyOpen, TokenCategory::Punctuation), pack_token_data(TokenType::CurlyClose, TokenCategory::Punctuation) });
+        pairs->append({ pack_token_data(TokenType::ParenOpen, TokenCategory::Punctuation), pack_token_data(TokenType::ParenClose, TokenCategory::Punctuation) });
+        pairs->append({ pack_token_data(TokenType::BracketOpen, TokenCategory::Punctuation), pack_token_data(TokenType::BracketClose, TokenCategory::Punctuation) });
     }
-    return pairs;
+    return *pairs;
 }
 
 bool SyntaxHighlighter::token_types_equal(u64 token1, u64 token2) const

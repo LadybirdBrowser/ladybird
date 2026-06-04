@@ -9,6 +9,7 @@
 
 #include <AK/Function.h>
 #include <AK/HashTable.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -29,7 +30,11 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ArrayPrototype);
 
-static HashTable<GC::Ref<Object>> s_array_join_seen_objects;
+static auto& array_join_seen_objects()
+{
+    static NeverDestroyed<HashTable<GC::Ref<Object>>> seen_objects;
+    return *seen_objects;
+}
 
 ArrayPrototype::ArrayPrototype(Realm& realm)
     : Array(realm, realm.intrinsics().object_prototype())
@@ -119,7 +124,7 @@ static ThrowCompletionOr<Object*> array_species_create(VM& vm, Object& original_
     if (!is_array)
         return TRY(Array::create(realm, length)).ptr();
 
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto constructor = TRY(original_array.get(vm.names.constructor, cache));
     if (constructor.is_constructor()) {
         auto& constructor_function = constructor.as_function();
@@ -132,7 +137,7 @@ static ThrowCompletionOr<Object*> array_species_create(VM& vm, Object& original_
     }
 
     if (constructor.is_object()) {
-        static Bytecode::StaticPropertyLookupCache cache2;
+        static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
         constructor = TRY(constructor.as_object().get(vm.well_known_symbol_species(), cache2));
         if (constructor.is_null())
             constructor = js_undefined();
@@ -918,11 +923,11 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::join)
     // This is not part of the spec, but all major engines do some kind of circular reference checks.
     // FWIW: engine262, a "100% spec compliant" ECMA-262 impl, aborts with "too much recursion".
     // Same applies to Array.prototype.toLocaleString().
-    if (s_array_join_seen_objects.contains(this_object))
+    if (array_join_seen_objects().contains(this_object))
         return PrimitiveString::create(vm, String {});
-    s_array_join_seen_objects.set(this_object);
+    array_join_seen_objects().set(this_object);
     ArmedScopeGuard unsee_object_guard = [&] {
-        s_array_join_seen_objects.remove(this_object);
+        array_join_seen_objects().remove(this_object);
     };
 
     auto length = TRY(length_of_array_like(vm, this_object));
@@ -1803,11 +1808,11 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::to_locale_string)
     // 1. Let array be ? ToObject(this value).
     auto this_object = TRY(vm.this_value().to_object(vm));
 
-    if (s_array_join_seen_objects.contains(this_object))
+    if (array_join_seen_objects().contains(this_object))
         return PrimitiveString::create(vm, String {});
-    s_array_join_seen_objects.set(this_object);
+    array_join_seen_objects().set(this_object);
     ArmedScopeGuard unsee_object_guard = [&] {
-        s_array_join_seen_objects.remove(this_object);
+        array_join_seen_objects().remove(this_object);
     };
 
     // 2. Let len be ? ToLength(? Get(array, "length")).

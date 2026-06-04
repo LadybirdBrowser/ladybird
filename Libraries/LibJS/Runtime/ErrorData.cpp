@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/ErrorData.h>
 #include <LibJS/Runtime/ExecutionContext.h>
@@ -15,12 +16,16 @@
 
 namespace JS {
 
-static SourceRange dummy_source_range { SourceCode::create({}, Utf16String {}), {} };
+static auto& dummy_source_range()
+{
+    static NeverDestroyed<SourceRange> source_range { SourceRange { SourceCode::create({}, Utf16String {}), {} } };
+    return *source_range;
+}
 
 SourceRange const& TracebackFrame::source_range() const
 {
     if (!cached_source_range.has_value())
-        return dummy_source_range;
+        return dummy_source_range();
     return *cached_source_range;
 }
 

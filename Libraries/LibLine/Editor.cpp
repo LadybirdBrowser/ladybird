@@ -11,6 +11,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/JsonObject.h>
 #include <AK/MemoryStream.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/RedBlackTree.h>
 #include <AK/ScopeGuard.h>
 #include <AK/ScopedValueRollback.h>
@@ -929,8 +930,10 @@ ErrorOr<void> Editor::handle_read_event()
     Utf8View input_view { StringView { m_incomplete_data.data(), valid_bytes } };
     size_t consumed_code_points = 0;
 
-    static Vector<u8, 4> csi_parameter_bytes;
-    static Vector<u8> csi_intermediate_bytes;
+    static NeverDestroyed<Vector<u8, 4>> s_csi_parameter_bytes;
+    static NeverDestroyed<Vector<u8>> s_csi_intermediate_bytes;
+    auto& csi_parameter_bytes = *s_csi_parameter_bytes;
+    auto& csi_intermediate_bytes = *s_csi_intermediate_bytes;
     Vector<unsigned, 4> csi_parameters;
     u8 csi_final;
     enum CSIMod {

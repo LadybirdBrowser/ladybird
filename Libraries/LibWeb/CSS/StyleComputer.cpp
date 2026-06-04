@@ -16,6 +16,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Math.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
 #include <LibGfx/Font/FontDatabase.h>
@@ -158,10 +159,10 @@ void StyleComputer::visit_edges(Visitor& visitor)
 
 Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)
 {
-    extern String default_stylesheet_source;
-    extern String quirks_mode_stylesheet_source;
-    extern String mathml_stylesheet_source;
-    extern String svg_stylesheet_source;
+    extern String const& default_stylesheet_source;
+    extern String const& quirks_mode_stylesheet_source;
+    extern String const& mathml_stylesheet_source;
+    extern String const& svg_stylesheet_source;
 
     if (name == "CSS/Default.css"sv)
         return default_stylesheet_source;
@@ -2197,9 +2198,9 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     if (did_change_custom_properties.has_value()) {
         auto new_custom_property_data = abstract_element.custom_property_data();
         if (old_custom_property_data.ptr() != new_custom_property_data.ptr()) {
-            static OrderedHashMap<FlyString, StyleProperty> const empty_own_values;
-            auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : empty_own_values;
-            auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : empty_own_values;
+            static NeverDestroyed<OrderedHashMap<FlyString, StyleProperty>> empty_own_values;
+            auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : *empty_own_values;
+            auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : *empty_own_values;
             if (old_own != new_own)
                 *did_change_custom_properties = true;
         }
@@ -2235,8 +2236,8 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
     // FIXME: This should be configurable.
     constexpr CSSPixels default_monospace_font_size_in_px = 13;
-    static auto monospace_font_family_name = Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::Monospace, 400, 0);
-    static auto monospace_font = Gfx::FontDatabase::the().get(monospace_font_family_name, default_monospace_font_size_in_px * 0.75f, 400, Gfx::FontWidth::Normal, 0);
+    static auto const& monospace_font_family_name = *new String(Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::Monospace, 400, 0));
+    static auto const& monospace_font = Gfx::FontDatabase::the().get(monospace_font_family_name, default_monospace_font_size_in_px * 0.75f, 400, Gfx::FontWidth::Normal, 0).release_nonnull().leak_ref();
 
     // Reconstruct the line of ancestor elements we need to inherit style from, and then do the cascade again
     // but only for the font-size property.
@@ -2305,7 +2306,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
         bool did_resolve_viewport_relative_length = false;
         Length::ResolutionContext resolution_context {
             .viewport_rect = viewport_rect(),
-            .font_metrics = { current_size_in_px, monospace_font->with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height },
+            .font_metrics = { current_size_in_px, monospace_font.with_size(current_size_in_px * 0.75f)->pixel_metrics(), inherited_line_height },
             .root_font_metrics = m_root_element_font_metrics,
             .font_metrics_depend_on_viewport_metrics = current_size_depends_on_viewport_metrics || inherited_font_metrics_depend_on_viewport_metrics,
             .root_font_metrics_depend_on_viewport_metrics = m_root_element_font_metrics_depend_on_viewport_metrics,
@@ -2864,7 +2865,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
     case Keyword::Round:
         // The corner shape is a quarter of a convex ellipse. Equivalent to superellipse(1).
         // NB: We cache this value since 'round' is the initial value of the `corner-*-*-shape` properties
-        static NonnullRefPtr<StyleValue const> const cached_round_value = SuperellipseStyleValue::create(NumberStyleValue::create(1));
+        static auto const& cached_round_value = SuperellipseStyleValue::create(NumberStyleValue::create(1)).leak_ref();
         return cached_round_value;
     case Keyword::Squircle:
         // The corner shape is a quarter of a "squircle", a convex curve between round and square. Equivalent to superellipse(2).

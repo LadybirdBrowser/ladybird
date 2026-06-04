@@ -72,7 +72,7 @@ Duration::Duration(double years, double months, double weeks, double days, doubl
 }
 
 // maxTimeDuration = 2**53 × 10**9 - 1 = 9,007,199,254,740,991,999,999,999
-TimeDuration const MAX_TIME_DURATION = "9007199254740991999999999"_sbigint;
+TimeDuration const& MAX_TIME_DURATION = *new TimeDuration("9007199254740991999999999"_sbigint);
 
 // 7.5.4 ZeroDateDuration ( ), https://tc39.es/proposal-temporal/#sec-temporal-zerodateduration
 DateDuration zero_date_duration(VM& vm)

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -59,8 +60,8 @@ void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
 
 static OrderedHashTable<TraversableNavigable*>& user_agent_top_level_traversable_set()
 {
-    static OrderedHashTable<TraversableNavigable*> set;
-    return set;
+    static NeverDestroyed<OrderedHashTable<TraversableNavigable*>> set;
+    return *set;
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-browsing-context

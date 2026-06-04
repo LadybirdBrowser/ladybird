@@ -9,7 +9,7 @@
 namespace Web::Namespace {
 
 #define __ENUMERATE_NAMESPACE(name, namespace_) \
-    FlyString name = namespace_##_fly_string;
+    FlyString const& name = *new FlyString(namespace_##_fly_string);
 ENUMERATE_NAMESPACES
 #undef __ENUMERATE_NAMESPACE
 

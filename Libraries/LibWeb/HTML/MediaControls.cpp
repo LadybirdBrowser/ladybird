@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -61,12 +62,12 @@ void MediaControls::create_shadow_tree()
 
     m_dom = MediaControlsDOM(document, *shadow_root, is_video ? MediaControlsDOM::Options::Video : MediaControlsDOM::Options::None);
 
-    static Vector<String> s_video_class = { "video"_string };
-    static Vector<String> s_audio_class = { "audio"_string };
+    static NeverDestroyed<Vector<String>> video_class { Vector<String> { "video"_string } };
+    static NeverDestroyed<Vector<String>> audio_class { Vector<String> { "audio"_string } };
     if (is_video)
-        MUST(m_dom->container->class_list()->add(s_video_class));
+        MUST(m_dom->container->class_list()->add(*video_class));
     else
-        MUST(m_dom->container->class_list()->add(s_audio_class));
+        MUST(m_dom->container->class_list()->add(*audio_class));
 
     // Initialize state
     update_play_pause_icon();
@@ -522,8 +523,8 @@ void MediaControls::update_timeline()
 
     while (m_buffered_ranges.size() < range_count) {
         auto range = MUST(DOM::create_element(m_media_element->document(), HTML::TagNames::div, Namespace::HTML));
-        static auto s_timeline_buffered_class = "timeline-buffered"_string;
-        MUST(range->class_list()->toggle(s_timeline_buffered_class, true));
+        static String const& timeline_buffered_class = *new String("timeline-buffered"_string);
+        MUST(range->class_list()->toggle(timeline_buffered_class, true));
         MUST(range->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
         m_dom->timeline_track->insert_before(range, nullptr);
         m_buffered_ranges.empend(*range);
@@ -595,18 +596,18 @@ void MediaControls::update_volume_and_mute_indicator()
         return MuteIconState::Empty;
     }();
 
-    static constexpr auto icon_class = [](MuteIconState state) {
-        static Vector<String> s_no_volume_class = {};
-        static Vector<String> s_low_volume_class = { "low"_string };
-        static Vector<String> s_high_volume_class = { "high"_string };
+    static auto icon_class = [](MuteIconState state) -> Vector<String> const& {
+        static NeverDestroyed<Vector<String>> no_volume_class;
+        static NeverDestroyed<Vector<String>> low_volume_class { Vector<String> { "low"_string } };
+        static NeverDestroyed<Vector<String>> high_volume_class { Vector<String> { "high"_string } };
 
         switch (state) {
         case MuteIconState::Empty:
-            return s_no_volume_class;
+            return *no_volume_class;
         case MuteIconState::Low:
-            return s_low_volume_class;
+            return *low_volume_class;
         case MuteIconState::High:
-            return s_high_volume_class;
+            return *high_volume_class;
         }
         VERIFY_NOT_REACHED();
     };
@@ -633,12 +634,12 @@ void MediaControls::update_fullscreen_icon()
     if (!m_dom->fullscreen_icon)
         return;
 
-    static auto s_fullscreen_class = "fullscreen"_string;
+    static String const& fullscreen_class = *new String("fullscreen"_string);
 
     VERIFY(m_media_element);
 
     auto is_fullscreen_element = m_media_element->document().fullscreen_element() == m_media_element;
-    MUST(m_dom->fullscreen_icon->class_list()->toggle(s_fullscreen_class, is_fullscreen_element));
+    MUST(m_dom->fullscreen_icon->class_list()->toggle(fullscreen_class, is_fullscreen_element));
 }
 
 void MediaControls::update_placeholder_visibility()
@@ -661,13 +662,17 @@ bool MediaControls::should_show_placeholder() const
     return video_element.current_representation() != HTMLVideoElement::Representation::VideoFrame;
 }
 
-static Vector<String> s_visible_class = { "visible"_string };
+static Vector<String> const& visible_class()
+{
+    static NeverDestroyed<Vector<String>> visible_class { Vector<String> { "visible"_string } };
+    return *visible_class;
+}
 
 void MediaControls::show_controls()
 {
     VERIFY(m_dom->control_bar);
 
-    MUST(m_dom->control_bar->class_list()->add(s_visible_class));
+    MUST(m_dom->control_bar->class_list()->add(visible_class()));
 
     if (!m_hover_timer) {
         constexpr int hover_timeout_ms = 1000;
@@ -689,7 +694,7 @@ void MediaControls::hide_controls()
     if (m_dom->placeholder_circle && should_show_placeholder())
         return;
 
-    MUST(m_dom->control_bar->class_list()->remove(s_visible_class));
+    MUST(m_dom->control_bar->class_list()->remove(visible_class()));
     m_hover_timer.clear();
 }
 

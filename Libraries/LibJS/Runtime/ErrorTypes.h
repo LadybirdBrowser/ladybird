@@ -314,7 +314,7 @@ namespace JS {
 class JS_API ErrorType {
 public:
 #define __ENUMERATE_JS_ERROR(name, message) \
-    static const ErrorType name;
+    static ErrorType const& name;
     JS_ENUMERATE_ERROR_TYPES(__ENUMERATE_JS_ERROR)
 #undef __ENUMERATE_JS_ERROR
 

@@ -13,7 +13,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-counter-styles-3/#decimal
 NonnullRefPtr<CounterStyle const> CounterStyle::decimal()
 {
-    static auto decimal_counter_style = CounterStyle::create(
+    static auto const& decimal_counter_style = CounterStyle::create(
         "decimal"_fly_string,
         GenericCounterStyleAlgorithm { CounterStyleSystem::Numeric, { "0"_fly_string, "1"_fly_string, "2"_fly_string, "3"_fly_string, "4"_fly_string, "5"_fly_string, "6"_fly_string, "7"_fly_string, "8"_fly_string, "9"_fly_string } },
         CounterStyleNegativeSign { .prefix = "-"_fly_string, .suffix = ""_fly_string },
@@ -21,7 +21,8 @@ NonnullRefPtr<CounterStyle const> CounterStyle::decimal()
         ". "_fly_string,
         { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } },
         {},
-        CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
+        CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string })
+                                                   .leak_ref();
 
     return decimal_counter_style;
 }
@@ -29,7 +30,7 @@ NonnullRefPtr<CounterStyle const> CounterStyle::decimal()
 // https://drafts.csswg.org/css-counter-styles-3/#disc
 NonnullRefPtr<CounterStyle const> CounterStyle::disc()
 {
-    static auto disc_counter_style = CounterStyle::create(
+    static auto const& disc_counter_style = CounterStyle::create(
         "disc"_fly_string,
         GenericCounterStyleAlgorithm { CounterStyleSystem::Cyclic, { "•"_fly_string } },
         CounterStyleNegativeSign { .prefix = ""_fly_string, .suffix = " "_fly_string },
@@ -37,7 +38,8 @@ NonnullRefPtr<CounterStyle const> CounterStyle::disc()
         " "_fly_string,
         { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } },
         "decimal"_fly_string,
-        CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
+        CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string })
+                                                .leak_ref();
 
     return disc_counter_style;
 }

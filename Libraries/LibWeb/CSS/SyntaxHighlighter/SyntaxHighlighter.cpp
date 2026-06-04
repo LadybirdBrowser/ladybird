@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 
@@ -156,14 +157,14 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
 
 Vector<Syntax::Highlighter::MatchingTokenPair> SyntaxHighlighter::matching_token_pairs_impl() const
 {
-    static Vector<Syntax::Highlighter::MatchingTokenPair> pairs;
-    if (pairs.is_empty()) {
-        pairs.append({ static_cast<u64>(CSS::Parser::Token::Type::OpenCurly), static_cast<u64>(CSS::Parser::Token::Type::CloseCurly) });
-        pairs.append({ static_cast<u64>(CSS::Parser::Token::Type::OpenParen), static_cast<u64>(CSS::Parser::Token::Type::CloseParen) });
-        pairs.append({ static_cast<u64>(CSS::Parser::Token::Type::OpenSquare), static_cast<u64>(CSS::Parser::Token::Type::CloseSquare) });
-        pairs.append({ static_cast<u64>(CSS::Parser::Token::Type::CDO), static_cast<u64>(CSS::Parser::Token::Type::CDC) });
+    static NeverDestroyed<Vector<Syntax::Highlighter::MatchingTokenPair>> pairs;
+    if (pairs->is_empty()) {
+        pairs->append({ static_cast<u64>(CSS::Parser::Token::Type::OpenCurly), static_cast<u64>(CSS::Parser::Token::Type::CloseCurly) });
+        pairs->append({ static_cast<u64>(CSS::Parser::Token::Type::OpenParen), static_cast<u64>(CSS::Parser::Token::Type::CloseParen) });
+        pairs->append({ static_cast<u64>(CSS::Parser::Token::Type::OpenSquare), static_cast<u64>(CSS::Parser::Token::Type::CloseSquare) });
+        pairs->append({ static_cast<u64>(CSS::Parser::Token::Type::CDO), static_cast<u64>(CSS::Parser::Token::Type::CDC) });
     }
-    return pairs;
+    return *pairs;
 }
 
 bool SyntaxHighlighter::token_types_equal(u64 token0, u64 token1) const

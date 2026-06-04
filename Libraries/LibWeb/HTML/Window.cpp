@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/Utf8View.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibIPC/File.h>
@@ -87,8 +88,8 @@ GC_DEFINE_ALLOCATOR(Window);
 
 static GC::WeakHashSet<Window>& all_windows()
 {
-    static GC::WeakHashSet<Window> windows;
-    return windows;
+    static NeverDestroyed<GC::WeakHashSet<Window>> windows;
+    return *windows;
 }
 
 void Window::for_each_active(Function<IterationDecision(Window&)> callback)

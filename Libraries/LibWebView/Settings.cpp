@@ -69,7 +69,7 @@ static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
 
 static constexpr auto CONFIG_VARIABLES_KEY = "configVariables"sv;
 
-static Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Count)> const CONFIG_VARIABLE_DEFINITIONS { {
+static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Count)> { {
     {
         .id = ConfigVariableID::ShowWebContentProcessIDInTabTitle,
         .name = "debug.process.show_web_content_process_id"sv,

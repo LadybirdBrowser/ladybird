@@ -61,7 +61,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(use)                 \
     __ENUMERATE_SVG_TAG(view)
 
-#define __ENUMERATE_SVG_TAG(name) extern FlyString name;
+#define __ENUMERATE_SVG_TAG(name) extern FlyString const& name;
 ENUMERATE_SVG_TAGS
 #undef __ENUMERATE_SVG_TAG
 

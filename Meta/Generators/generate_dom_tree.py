@@ -366,9 +366,9 @@ def generate(
 
     # Static stylesheet sources
     for source_var, css_content in parser.stylesheet_sources:
-        impl_lines.append(f'static String {source_var} = R"~~~(')
+        impl_lines.append(f'static String const& {source_var} = *new String(R"~~~(')
         impl_lines.append(css_content.strip())
-        impl_lines.append(')~~~"_string;')
+        impl_lines.append(')~~~"_string);')
         impl_lines.append("")
 
     # Constructor

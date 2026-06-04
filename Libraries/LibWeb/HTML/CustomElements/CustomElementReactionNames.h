@@ -22,7 +22,7 @@ namespace Web::HTML::CustomElementReactionNames {
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(formResetCallback)        \
     __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(formStateRestoreCallback)
 
-#define __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(name) extern FlyString name;
+#define __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME(name) extern FlyString const& name;
 ENUMERATE_CUSTOM_ELEMENT_REACTION_NAMES
 #undef __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/String.h>
 #include <LibCore/File.h>
 #include <LibCore/Platform/ProcessStatistics.h>
@@ -20,12 +21,12 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     // Read the total time scheduled from /proc/stat, and each process's usage from /proc/pid/stat
     // Calculate the CPU percentage for each process based on the total time scheduled and the time spent in the process
 
-    static auto proc_stat = TRY(Core::File::open("/proc/stat"sv, Core::File::OpenMode::Read));
-    TRY(proc_stat->seek(0, SeekMode::SetPosition));
+    static NeverDestroyed<NonnullOwnPtr<Core::File>> proc_stat { TRY(Core::File::open("/proc/stat"sv, Core::File::OpenMode::Read)) };
+    TRY((*proc_stat)->seek(0, SeekMode::SetPosition));
 
     char buf[1024] = {};
     auto buffer = Bytes { buf, sizeof(buf) };
-    auto line = TRY(proc_stat->read_some(buffer));
+    auto line = TRY((*proc_stat)->read_some(buffer));
 
     int user_time = 0;
     int system_time = 0;

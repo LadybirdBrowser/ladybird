@@ -22,9 +22,9 @@ namespace Web {
 
 GC::Ref<JS::Realm> internal_css_realm()
 {
-    static GC::Root<JS::Realm> realm;
-    static GC::Root<HTML::Window> window;
-    static OwnPtr<JS::ExecutionContext> execution_context;
+    static auto& realm = *new GC::Root<JS::Realm>;
+    static auto& window = *new GC::Root<HTML::Window>;
+    static auto& execution_context = *new OwnPtr<JS::ExecutionContext>;
     if (!realm) {
         execution_context = Bindings::create_a_new_javascript_realm(
             Bindings::main_thread_vm(),

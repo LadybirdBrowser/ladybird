@@ -40,27 +40,27 @@ void Instant::visit_edges(Cell::Visitor& visitor)
 }
 
 // nsMaxInstant = 10**8 × nsPerDay = 8.64 × 10**21
-Crypto::SignedBigInteger const NANOSECONDS_MAX_INSTANT = "8640000000000000000000"_sbigint;
+Crypto::SignedBigInteger const& NANOSECONDS_MAX_INSTANT = *new Crypto::SignedBigInteger("8640000000000000000000"_sbigint);
 
 // nsMinInstant = -nsMaxInstant = -8.64 × 10**21
-Crypto::SignedBigInteger const NANOSECONDS_MIN_INSTANT = "-8640000000000000000000"_sbigint;
+Crypto::SignedBigInteger const& NANOSECONDS_MIN_INSTANT = *new Crypto::SignedBigInteger("-8640000000000000000000"_sbigint);
 
 // nsPerDay = 10**6 × ℝ(msPerDay) = 8.64 × 10**13
-Crypto::UnsignedBigInteger const NANOSECONDS_PER_DAY = 86400000000000_bigint;
+Crypto::UnsignedBigInteger const& NANOSECONDS_PER_DAY = *new Crypto::UnsignedBigInteger(86400000000000_bigint);
 
 // Non-standard:
-Crypto::UnsignedBigInteger const NANOSECONDS_PER_HOUR = 3600000000000_bigint;
-Crypto::UnsignedBigInteger const NANOSECONDS_PER_MINUTE = 60000000000_bigint;
-Crypto::UnsignedBigInteger const NANOSECONDS_PER_SECOND = 1000000000_bigint;
-Crypto::UnsignedBigInteger const NANOSECONDS_PER_MILLISECOND = 1000000_bigint;
-Crypto::UnsignedBigInteger const NANOSECONDS_PER_MICROSECOND = 1000_bigint;
-Crypto::UnsignedBigInteger const NANOSECONDS_PER_NANOSECOND = 1_bigint;
+Crypto::UnsignedBigInteger const& NANOSECONDS_PER_HOUR = *new Crypto::UnsignedBigInteger(3600000000000_bigint);
+Crypto::UnsignedBigInteger const& NANOSECONDS_PER_MINUTE = *new Crypto::UnsignedBigInteger(60000000000_bigint);
+Crypto::UnsignedBigInteger const& NANOSECONDS_PER_SECOND = *new Crypto::UnsignedBigInteger(1000000000_bigint);
+Crypto::UnsignedBigInteger const& NANOSECONDS_PER_MILLISECOND = *new Crypto::UnsignedBigInteger(1000000_bigint);
+Crypto::UnsignedBigInteger const& NANOSECONDS_PER_MICROSECOND = *new Crypto::UnsignedBigInteger(1000_bigint);
+Crypto::UnsignedBigInteger const& NANOSECONDS_PER_NANOSECOND = *new Crypto::UnsignedBigInteger(1_bigint);
 
-Crypto::UnsignedBigInteger const MICROSECONDS_PER_MILLISECOND = 1000_bigint;
-Crypto::UnsignedBigInteger const MILLISECONDS_PER_SECOND = 1000_bigint;
-Crypto::UnsignedBigInteger const SECONDS_PER_MINUTE = 60_bigint;
-Crypto::UnsignedBigInteger const MINUTES_PER_HOUR = 60_bigint;
-Crypto::UnsignedBigInteger const HOURS_PER_DAY = 24_bigint;
+Crypto::UnsignedBigInteger const& MICROSECONDS_PER_MILLISECOND = *new Crypto::UnsignedBigInteger(1000_bigint);
+Crypto::UnsignedBigInteger const& MILLISECONDS_PER_SECOND = *new Crypto::UnsignedBigInteger(1000_bigint);
+Crypto::UnsignedBigInteger const& SECONDS_PER_MINUTE = *new Crypto::UnsignedBigInteger(60_bigint);
+Crypto::UnsignedBigInteger const& MINUTES_PER_HOUR = *new Crypto::UnsignedBigInteger(60_bigint);
+Crypto::UnsignedBigInteger const& HOURS_PER_DAY = *new Crypto::UnsignedBigInteger(24_bigint);
 
 // 8.5.1 IsValidEpochNanoseconds ( epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
 bool is_valid_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds)

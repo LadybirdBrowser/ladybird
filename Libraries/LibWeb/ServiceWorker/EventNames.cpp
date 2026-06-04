@@ -9,7 +9,7 @@
 namespace Web::ServiceWorker::EventNames {
 
 #define __ENUMERATE_SERVICE_WORKER_EVENT(name) \
-    FlyString name = #name##_fly_string;
+    FlyString const& name = *new FlyString(#name##_fly_string);
 ENUMERATE_SERVICE_WORKER_EVENTS
 #undef __ENUMERATE_SERVICE_WORKER_EVENT
 

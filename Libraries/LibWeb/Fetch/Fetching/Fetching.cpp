@@ -95,8 +95,8 @@ public:
 
     static HTTPCache& the()
     {
-        static HTTPCache s_cache;
-        return s_cache;
+        static HTTPCache& cache = *new HTTPCache;
+        return cache;
     }
 
     void clear_cache()
@@ -2569,7 +2569,7 @@ void set_sec_fetch_user_header(Infrastructure::Request& request)
 
     // 4. Set header’s value to true.
     // NOTE: See https://datatracker.ietf.org/doc/html/rfc8941#name-booleans for boolean format in RFC 8941.
-    static ByteString value = "?1"sv;
+    static ByteString const& value = *new ByteString("?1"sv);
 
     // 5. Set a structured field value `Sec-Fetch-User`/header in r’s header list.
     request.header_list()->append({ "Sec-Fetch-User"sv, value });

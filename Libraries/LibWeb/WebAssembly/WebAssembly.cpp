@@ -7,6 +7,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/MemoryStream.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -53,11 +54,15 @@ static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM&, 
 
 namespace Detail {
 
-GC::WeakHashMap<JS::Object, WebAssemblyCache> s_caches;
+static GC::WeakHashMap<JS::Object, WebAssemblyCache>& caches()
+{
+    static NeverDestroyed<GC::WeakHashMap<JS::Object, WebAssemblyCache>> caches;
+    return *caches;
+}
 
 WebAssemblyCache& get_cache(JS::Realm& realm)
 {
-    return s_caches.ensure(realm.global_object());
+    return caches().ensure(realm.global_object());
 }
 
 }
@@ -65,7 +70,7 @@ WebAssemblyCache& get_cache(JS::Realm& realm)
 void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
 {
     auto& global_object = HTML::relevant_global_object(object);
-    if (auto maybe_cache = Detail::s_caches.get(global_object); maybe_cache.has_value()) {
+    if (auto maybe_cache = Detail::caches().get(global_object); maybe_cache.has_value()) {
         auto& cache = maybe_cache.value();
         visitor.visit(cache.function_instances());
         visitor.visit(cache.imported_objects());
@@ -83,7 +88,7 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
 void finalize(JS::Object& object)
 {
     auto& global_object = HTML::relevant_global_object(object);
-    Detail::s_caches.remove(global_object);
+    Detail::caches().remove(global_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#error-objects
@@ -683,7 +688,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
 
 JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value value, Wasm::ValueType const& type)
 {
-    static ::Crypto::SignedBigInteger two_64 = TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64));
+    static auto& two_64 = *new ::Crypto::SignedBigInteger(TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64)));
 
     switch (type.kind()) {
     case Wasm::ValueType::I64: {

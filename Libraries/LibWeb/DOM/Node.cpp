@@ -10,6 +10,7 @@
 
 #include <AK/HashTable.h>
 #include <AK/JsonObjectSerializer.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/WeakHashMap.h>
@@ -82,8 +83,8 @@ namespace Web::DOM {
 static UniqueNodeID s_next_unique_id;
 static GC::WeakHashMap<UniqueNodeID, Node>& node_directory()
 {
-    static GC::WeakHashMap<UniqueNodeID, Node> directory;
-    return directory;
+    static NeverDestroyed<GC::WeakHashMap<UniqueNodeID, Node>> directory;
+    return *directory;
 }
 
 static UniqueNodeID allocate_unique_id(Node& node)

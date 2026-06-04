@@ -15,7 +15,7 @@ class GuaranteedInvalidStyleValue final : public StyleValueWithDefaultOperators<
 public:
     static ValueComparingNonnullRefPtr<GuaranteedInvalidStyleValue> create()
     {
-        static ValueComparingNonnullRefPtr<GuaranteedInvalidStyleValue> instance = adopt_ref(*new (nothrow) GuaranteedInvalidStyleValue());
+        static auto& instance = adopt_ref(*new (nothrow) GuaranteedInvalidStyleValue()).leak_ref();
         return instance;
     }
     virtual ~GuaranteedInvalidStyleValue() override = default;

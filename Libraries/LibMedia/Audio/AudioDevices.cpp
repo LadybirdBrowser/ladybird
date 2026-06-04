@@ -10,7 +10,7 @@ namespace Media {
 
 AudioDevices& AudioDevices::the()
 {
-    static AudioDevices devices;
+    static AudioDevices& devices = *new AudioDevices;
     return devices;
 }
 

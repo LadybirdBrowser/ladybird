@@ -7,6 +7,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/DirIterator.h>
@@ -14,17 +15,21 @@
 
 namespace Gfx {
 
-static Core::AnonymousBuffer theme_buffer;
+static auto& theme_buffer()
+{
+    static NeverDestroyed<Core::AnonymousBuffer> buffer;
+    return *buffer;
+}
 
 Core::AnonymousBuffer& current_system_theme_buffer()
 {
-    VERIFY(theme_buffer.is_valid());
-    return theme_buffer;
+    VERIFY(theme_buffer().is_valid());
+    return theme_buffer();
 }
 
 void set_system_theme(Core::AnonymousBuffer buffer)
 {
-    theme_buffer = move(buffer);
+    theme_buffer() = move(buffer);
 }
 
 ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, Optional<ByteString> const& color_scheme)
@@ -39,7 +44,7 @@ ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const& file, O
         if (color_scheme.value() != "Custom"sv)
             memcpy(data->path[(int)PathRole::ColorScheme], color_scheme.value().characters(), color_scheme.value().length());
         else
-            memcpy(buffer.data<SystemTheme>(), theme_buffer.data<SystemTheme>(), sizeof(SystemTheme));
+            memcpy(buffer.data<SystemTheme>(), theme_buffer().data<SystemTheme>(), sizeof(SystemTheme));
     }
 
     auto get_color = [&](auto& name) -> Optional<Color> {

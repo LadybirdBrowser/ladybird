@@ -19,12 +19,12 @@ def main():
         f.write("#include <AK/String.h>\n")
         if args.namespace:
             f.write(f"namespace {args.namespace} {{\n")
-        f.write(f"extern String {args.variable_name};\n")
-        f.write(f'String {args.variable_name} = R"~~~(')
+        f.write(f"extern String const& {args.variable_name};\n")
+        f.write(f'String const& {args.variable_name} = *new String(R"~~~(')
         with open(args.input, "r", encoding="utf-8") as input:
             for line in input.readlines():
                 f.write(f"{line}")
-        f.write(')~~~"_string;\n')
+        f.write(')~~~"_string);\n')
         if args.namespace:
             f.write("}\n")
 

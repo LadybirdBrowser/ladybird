@@ -351,6 +351,7 @@ struct Formatter<Web::CSS::PropertyID> : Formatter<StringView> {
 def write_implementation_file(out: TextIO, properties: dict, logical_property_groups: dict, enum_names: list) -> None:
     out.write("""
 #include <AK/Assertions.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -378,7 +379,7 @@ static auto generate_camel_case_property_table()
     return table;
 }
 
-static HashMap<StringView, PropertyID, CaseInsensitiveASCIIStringViewTraits> const camel_case_properties_table = generate_camel_case_property_table();
+static auto const& camel_case_properties_table = *new HashMap<StringView, PropertyID, CaseInsensitiveASCIIStringViewTraits>(generate_camel_case_property_table());
 
 Optional<PropertyID> property_id_from_camel_case_string(StringView string)
 {
@@ -401,7 +402,7 @@ static auto generate_properties_table()
     return table;
 }
 
-static HashMap<StringView, PropertyID, CaseInsensitiveASCIIStringViewTraits> const properties_table = generate_properties_table();
+static auto const& properties_table = *new HashMap<StringView, PropertyID, CaseInsensitiveASCIIStringViewTraits>(generate_properties_table());
 
 Optional<PropertyID> property_id_from_string(StringView string)
 {
@@ -420,14 +421,14 @@ FlyString const& string_from_property_id(PropertyID property_id) {
             continue
         out.write(f"""
     case PropertyID::{title_casify(name)}: {{
-        static FlyString name = "{name}"_fly_string;
+        static FlyString const& name = *new FlyString("{name}"_fly_string);
         return name;
     }}
 """)
 
     out.write("""
     default: {
-        static FlyString invalid_property_id_string = "(invalid CSS::PropertyID)"_fly_string;
+        static FlyString const& invalid_property_id_string = *new FlyString("(invalid CSS::PropertyID)"_fly_string);
         return invalid_property_id_string;
     }
     }
@@ -442,14 +443,14 @@ FlyString const& camel_case_string_from_property_id(PropertyID property_id) {
             continue
         out.write(f"""
     case PropertyID::{title_casify(name)}: {{
-        static FlyString name = "{camel_casify(name)}"_fly_string;
+        static FlyString const& name = *new FlyString("{camel_casify(name)}"_fly_string);
         return name;
     }}
 """)
 
     out.write("""
     default: {
-        static FlyString invalid_property_id_string = "(invalid CSS::PropertyID)"_fly_string;
+        static FlyString const& invalid_property_id_string = *new FlyString("(invalid CSS::PropertyID)"_fly_string);
         return invalid_property_id_string;
     }
     }
@@ -604,8 +605,8 @@ bool property_needs_layout_node_for_resolved_value(PropertyID property_id)
 
 NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
 {
-    static Array<RefPtr<StyleValue const>, to_underlying(last_property_id) + 1> initial_values;
-    if (auto initial_value = initial_values[to_underlying(property_id)])
+    static NeverDestroyed<Array<RefPtr<StyleValue const>, to_underlying(last_property_id) + 1>> initial_values;
+    if (auto initial_value = (*initial_values)[to_underlying(property_id)])
         return initial_value.release_nonnull();
 
     // Lazily parse initial values as needed.
@@ -629,7 +630,7 @@ NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
             auto parsed_value = parse_css_value(parsing_params, "{initial_value_string}"sv, PropertyID::{title});
             VERIFY(!parsed_value.is_null());
             auto initial_value = parsed_value.release_nonnull();
-            initial_values[to_underlying(PropertyID::{title})] = initial_value;
+            (*initial_values)[to_underlying(PropertyID::{title})] = initial_value;
             return initial_value;
         }}
 """)
@@ -1018,13 +1019,13 @@ Vector<PropertyID> const& longhands_for_shorthand(PropertyID property_id)
             longhands = ", ".join(f"PropertyID::{title_casify(lh)}" for lh in get_longhands(name))
             out.write(f"""
         case PropertyID::{title_casify(name)}: {{
-            static Vector<PropertyID> longhands = {{ {longhands} }};
+            static auto const& longhands = *new Vector<PropertyID> {{ {longhands} }};
             return longhands;
         }}""")
 
     out.write("""
         default:
-            static Vector<PropertyID> empty_longhands;
+            static auto const& empty_longhands = *new Vector<PropertyID>;
             return empty_longhands;
         }
 }
@@ -1051,13 +1052,13 @@ Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID property_i
             longhands = ", ".join(f"PropertyID::{title_casify(lh)}" for lh in get_expanded_longhands(name))
             out.write(f"""
     case PropertyID::{title_casify(name)}: {{
-        static Vector<PropertyID> longhands = {{ {longhands} }};
+        static auto const& longhands = *new Vector<PropertyID> {{ {longhands} }};
         return longhands;
     }}""")
 
     out.write("""
     default: {
-        static Vector<PropertyID> empty_longhands;
+        static auto const& empty_longhands = *new Vector<PropertyID>;
         return empty_longhands;
     }
     }
@@ -1131,13 +1132,13 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
         shorthands = ", ".join(f"PropertyID::{title_casify(s)}" for s in get_shorthands_for_longhand(longhand))
         out.write(f"""
     case PropertyID::{title_casify(longhand)}: {{
-        static Vector<PropertyID> shorthands = {{ {shorthands} }};
+        static auto const& shorthands = *new Vector<PropertyID> {{ {shorthands} }};
         return shorthands;
     }}""")
 
     out.write("""
     default: {
-        static Vector<PropertyID> empty_shorthands;
+        static auto const& empty_shorthands = *new Vector<PropertyID>;
         return empty_shorthands;
     }
     }
@@ -1178,7 +1179,7 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
 
     out.write("""
 Vector<PropertyID> const& property_computation_order() {
-    static Vector<PropertyID> order = {
+    static auto const& order = *new Vector<PropertyID> {
 """)
     for property_name in manually_specified_computation_order:
         out.write(f"        PropertyID::{property_name},\n")

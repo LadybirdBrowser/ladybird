@@ -8,15 +8,20 @@
 
 #include <AK/Format.h>
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
 
 namespace Core {
 
-static HashMap<ByteString, TimingInfo> g_timing_info_table;
+static auto& timing_info_table()
+{
+    static NeverDestroyed<HashMap<ByteString, TimingInfo>> timing_info_table;
+    return *timing_info_table;
+}
 
 void log_timing_info(ByteString const& name, AK::Duration const& elapsed_time, u64 print_every_n_calls)
 {
-    auto& timing_info = g_timing_info_table.ensure(name);
+    auto& timing_info = timing_info_table().ensure(name);
     timing_info.call_count++;
     timing_info.cumulative_time_nanoseconds += elapsed_time.to_nanoseconds();
 

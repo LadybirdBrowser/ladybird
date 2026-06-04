@@ -3547,8 +3547,8 @@ DocumentType const* Document::doctype() const
 
 String const& Document::compat_mode() const
 {
-    static String const back_compat = "BackCompat"_string;
-    static String const css1_compat = "CSS1Compat"_string;
+    static String const& back_compat = *new String("BackCompat"_string);
+    static String const& css1_compat = *new String("CSS1Compat"_string);
 
     if (m_quirks_mode == QuirksMode::Yes)
         return back_compat;

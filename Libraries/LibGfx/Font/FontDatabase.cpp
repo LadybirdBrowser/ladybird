@@ -26,8 +26,8 @@ SystemFontProvider::~SystemFontProvider() = default;
 
 FontDatabase& FontDatabase::the()
 {
-    static FontDatabase s_the;
-    return s_the;
+    static FontDatabase& database = *new FontDatabase;
+    return database;
 }
 
 SystemFontProvider& FontDatabase::install_system_font_provider(NonnullOwnPtr<SystemFontProvider> provider)

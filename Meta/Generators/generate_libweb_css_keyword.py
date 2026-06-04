@@ -71,11 +71,14 @@ def write_implementation_file(out: TextIO, keyword_data: list) -> None:
     out.write("""
 #include <AK/Assertions.h>
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/Keyword.h>
 
 namespace Web::CSS {
 
-HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> g_stringview_to_keyword_map {
+static HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> const& stringview_to_keyword_map()
+{
+    static auto const& map = *new HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> {
 """)
 
     for name in keyword_data:
@@ -84,11 +87,13 @@ HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> g_stringv
 """)
 
     out.write("""
-};
+    };
+    return map;
+}
 
 Optional<Keyword> keyword_from_string(StringView string)
 {
-    return g_stringview_to_keyword_map.get(string);
+    return stringview_to_keyword_map().get(string);
 }
 
 StringView string_from_keyword(Keyword keyword) {

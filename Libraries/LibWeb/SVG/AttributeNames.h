@@ -122,7 +122,7 @@ namespace Web::SVG::AttributeNames {
     __ENUMERATE_SVG_ATTRIBUTE(yChannelSelector, "yChannelSelector")       \
     __ENUMERATE_SVG_ATTRIBUTE(zoomAndPan, "zoomAndPan")
 
-#define __ENUMERATE_SVG_ATTRIBUTE(name, attribute) extern FlyString name;
+#define __ENUMERATE_SVG_ATTRIBUTE(name, attribute) extern FlyString const& name;
 ENUMERATE_SVG_ATTRIBUTES
 #undef __ENUMERATE_SVG_ATTRIBUTE
 

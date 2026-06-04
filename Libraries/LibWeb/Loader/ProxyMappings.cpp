@@ -9,7 +9,7 @@
 
 Web::ProxyMappings& Web::ProxyMappings::the()
 {
-    static ProxyMappings instance {};
+    static ProxyMappings& instance = *new ProxyMappings;
     return instance;
 }
 

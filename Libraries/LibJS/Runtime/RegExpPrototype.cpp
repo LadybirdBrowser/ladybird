@@ -9,6 +9,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -62,7 +63,7 @@ void RegExpPrototype::initialize(Realm& realm)
 static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_object, Utf16View const& string, bool unicode)
 {
     // Let thisIndex be ℝ(? ToLength(? Get(rx, "lastIndex"))).
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex, cache));
     auto last_index = TRY(last_index_value.to_length(vm));
 
@@ -70,13 +71,17 @@ static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_objec
     last_index = advance_string_index(string, last_index, unicode);
 
     // Perform ? Set(rx, "lastIndex", 𝔽(nextIndex), true).
-    static Bytecode::StaticPropertyLookupCache cache2;
+    static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
     TRY(regexp_object.set(vm.names.lastIndex, Value(last_index), cache2));
     return {};
 }
 
 // FIXME: Add an eviction policy to bound the size of this cache.
-static HashMap<String, NonnullOwnPtr<regex::ECMAScriptRegex>> s_regex_cache;
+static auto& regex_cache()
+{
+    static NeverDestroyed<HashMap<String, NonnullOwnPtr<regex::ECMAScriptRegex>>> cache;
+    return *cache;
+}
 
 static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_object)
 {
@@ -95,7 +100,7 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
     key_builder.append_code_point(static_cast<u8>(flag_bits));
     auto cache_key = key_builder.to_string_without_validation();
 
-    if (auto it = s_regex_cache.find(cache_key); it != s_regex_cache.end()) {
+    if (auto it = regex_cache().find(cache_key); it != regex_cache().end()) {
         auto* ptr = it->value.ptr();
         regexp_object.set_cached_regex(ptr);
         return ptr;
@@ -125,7 +130,7 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
 
     auto owned = make<regex::ECMAScriptRegex>(compiled.release_value());
     auto* ptr = owned.ptr();
-    s_regex_cache.set(cache_key, move(owned));
+    regex_cache().set(cache_key, move(owned));
     regexp_object.set_cached_regex(ptr);
     return ptr;
 }
@@ -189,7 +194,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 {
     auto& realm = *vm.current_realm();
 
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex, cache));
     auto last_index = TRY(last_index_value.to_length(vm));
 
@@ -205,7 +210,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     if (last_index > string->length_in_utf16_code_units()) {
         if (sticky || global) {
-            static Bytecode::StaticPropertyLookupCache cache2;
+            static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
             TRY(regexp_object.set(vm.names.lastIndex, Value(0), cache2));
         }
         return js_null();
@@ -231,7 +236,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     if (!matched) {
         if (sticky || global) {
-            static Bytecode::StaticPropertyLookupCache cache2;
+            static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
             TRY(regexp_object.set(vm.names.lastIndex, Value(0), cache2));
         }
         return js_null();
@@ -244,7 +249,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     // In Unicode mode, match_index and end_index are already in code unit indices from the VM.
     // Update lastIndex.
     if (global || sticky) {
-        static Bytecode::StaticPropertyLookupCache cache3;
+        static auto& cache3 = *new Bytecode::StaticPropertyLookupCache;
         TRY(regexp_object.set(vm.names.lastIndex, Value(end_index), cache3));
     }
 
@@ -315,7 +320,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
             MUST(groups.as_object().create_data_property_or_throw(group_name, value));
         }
 
-        static Bytecode::StaticPropertyLookupCache cache4;
+        static auto& cache4 = *new Bytecode::StaticPropertyLookupCache;
         MUST(array->set(vm.names.groups, groups, cache4));
     }
 
@@ -391,7 +396,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<PrimitiveString> string)
 {
     // 1. Let exec be ? Get(R, "exec").
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto exec = TRY(regexp_object.get(vm.names.exec, cache));
 
     auto* typed_regexp_object = as_if<RegExpObject>(regexp_object);
@@ -514,7 +519,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::flags)
     // 19. If sticky is true, append the code unit 0x0079 (LATIN SMALL LETTER Y) as the last code unit of result.
 #define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)                   \
     {                                                                              \
-        static Bytecode::StaticPropertyLookupCache cache;                          \
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;             \
         auto flag_##flag_name = TRY(regexp_object->get(vm.names.flagName, cache)); \
         if (flag_##flag_name.to_boolean())                                         \
             builder.append(#flag_char##sv);                                        \
@@ -539,7 +544,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
     auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let flags be ? ToString(? Get(rx, "flags")).
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
@@ -554,7 +559,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
     bool full_unicode = flags.contains('u') || flags.contains('v');
 
     // b. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-    static Bytecode::StaticPropertyLookupCache cache2;
+    static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
     TRY(regexp_object->set(vm.names.lastIndex, Value(0), cache2));
 
     // c. Let A be ! ArrayCreate(0).
@@ -617,7 +622,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(R, "flags")).
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
@@ -635,12 +640,12 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     auto matcher = TRY(construct(vm, *constructor, regexp_object, PrimitiveString::create(vm, move(flags))));
 
     // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-    static Bytecode::StaticPropertyLookupCache cache2;
+    static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
     auto last_index_value = TRY(regexp_object->get(vm.names.lastIndex, cache2));
     auto last_index = TRY(last_index_value.to_length(vm));
 
     // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
-    static Bytecode::StaticPropertyLookupCache cache3;
+    static auto& cache3 = *new Bytecode::StaticPropertyLookupCache;
     TRY(matcher->set(vm.names.lastIndex, Value(last_index), cache3));
 
     // 13. Return CreateRegExpStringIterator(matcher, S, global, fullUnicode).
@@ -675,7 +680,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
         auto& realm = *vm.current_realm();
         bool exec_is_builtin = false;
         if (typed_regexp) {
-            static Bytecode::StaticPropertyLookupCache exec_cache;
+            static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
             auto exec_val = TRY(regexp_object.get(vm.names.exec, exec_cache));
             if (auto exec_fn = exec_val.as_if<FunctionObject>())
                 exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
@@ -715,11 +720,11 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                 // fast path (e.g. redefining exec). Do the Get and re-check exec.
                 bool fast_path_valid = true;
                 if (is_global) {
-                    static Bytecode::StaticPropertyLookupCache unicode_cache;
+                    static auto& unicode_cache = *new Bytecode::StaticPropertyLookupCache;
                     auto unicode_val = TRY(regexp_object.get(vm.names.unicode, unicode_cache));
                     full_unicode = unicode_val.to_boolean();
                     // Re-verify exec is still the builtin after potential side effects.
-                    static Bytecode::StaticPropertyLookupCache exec_recheck;
+                    static auto& exec_recheck = *new Bytecode::StaticPropertyLookupCache;
                     auto exec_val2 = TRY(regexp_object.get(vm.names.exec, exec_recheck));
                     auto exec_fn2 = exec_val2.as_if<FunctionObject>();
                     if (!exec_fn2 || exec_fn2->builtin() != Bytecode::Builtin::RegExpPrototypeExec)
@@ -733,7 +738,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
 
                     size_t last_index = 0;
                     if (is_global || is_sticky) {
-                        static Bytecode::StaticPropertyLookupCache li_cache;
+                        static auto& li_cache = *new Bytecode::StaticPropertyLookupCache;
                         auto li_value = TRY(typed_regexp->get(vm.names.lastIndex, li_cache));
                         last_index = TRY(li_value.to_length(vm));
                     }
@@ -780,7 +785,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                         while (true) {
                             if (last_index > length_s) {
                                 if (is_sticky || is_global) {
-                                    static Bytecode::StaticPropertyLookupCache li_cache2;
+                                    static auto& li_cache2 = *new Bytecode::StaticPropertyLookupCache;
                                     TRY(typed_regexp->set(vm.names.lastIndex, Value(0), li_cache2));
                                 }
                                 break;
@@ -797,7 +802,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
 
                             if (!matched) {
                                 if (is_sticky || is_global) {
-                                    static Bytecode::StaticPropertyLookupCache li_cache2;
+                                    static auto& li_cache2 = *new Bytecode::StaticPropertyLookupCache;
                                     TRY(typed_regexp->set(vm.names.lastIndex, Value(0), li_cache2));
                                 }
                                 break;
@@ -814,7 +819,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                             // For global, lastIndex is always reset to 0 after the loop,
                             // so skip intermediate updates.
                             if (is_sticky && !is_global) {
-                                static Bytecode::StaticPropertyLookupCache li_cache3;
+                                static auto& li_cache3 = *new Bytecode::StaticPropertyLookupCache;
                                 TRY(typed_regexp->set(vm.names.lastIndex, Value(match_end), li_cache3));
                             }
 
@@ -888,7 +893,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
     }
 
     // 7. Let flags be ? ToString(? Get(rx, "flags")).
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto flags_value = TRY(regexp_object.get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
@@ -898,7 +903,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
     // 9. If global is true, then
     if (global) {
         // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-        static Bytecode::StaticPropertyLookupCache cache2;
+        static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
         TRY(regexp_object.set(vm.names.lastIndex, Value(0), cache2));
     }
 
@@ -962,7 +967,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
         auto matched_length = matched->length_in_utf16_code_units();
 
         // e. Let position be ? ToIntegerOrInfinity(? Get(result, "index")).
-        static Bytecode::StaticPropertyLookupCache cache2;
+        static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
         auto position_value = TRY(result->get(vm.names.index, cache2));
         double position = TRY(position_value.to_integer_or_infinity(vm));
 
@@ -992,7 +997,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
         }
 
         // j. Let namedCaptures be ? Get(result, "groups").
-        static Bytecode::StaticPropertyLookupCache cache3;
+        static auto& cache3 = *new Bytecode::StaticPropertyLookupCache;
         auto named_captures = TRY(result->get(vm.names.groups, cache3));
 
         String replacement;
@@ -1066,13 +1071,13 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Let previousLastIndex be ? Get(rx, "lastIndex").
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto previous_last_index = TRY(regexp_object->get(vm.names.lastIndex, cache));
 
     // 5. If SameValue(previousLastIndex, +0𝔽) is false, then
     if (!same_value(previous_last_index, Value(0))) {
         // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-        static Bytecode::StaticPropertyLookupCache cache2;
+        static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
         TRY(regexp_object->set(vm.names.lastIndex, Value(0), cache2));
     }
 
@@ -1080,13 +1085,13 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     auto result = TRY(regexp_exec(vm, regexp_object, string));
 
     // 7. Let currentLastIndex be ? Get(rx, "lastIndex").
-    static Bytecode::StaticPropertyLookupCache cache2;
+    static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
     auto current_last_index = TRY(regexp_object->get(vm.names.lastIndex, cache2));
 
     // 8. If SameValue(currentLastIndex, previousLastIndex) is false, then
     if (!same_value(current_last_index, previous_last_index)) {
         // a. Perform ? Set(rx, "lastIndex", previousLastIndex, true).
-        static Bytecode::StaticPropertyLookupCache cache3;
+        static auto& cache3 = *new Bytecode::StaticPropertyLookupCache;
         TRY(regexp_object->set(vm.names.lastIndex, previous_last_index, cache3));
     }
 
@@ -1095,7 +1100,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
         return Value(-1);
 
     // 10. Return ? Get(result, "index").
-    static Bytecode::StaticPropertyLookupCache cache3;
+    static auto& cache3 = *new Bytecode::StaticPropertyLookupCache;
     return TRY(result.get(vm, vm.names.index, cache3));
 }
 
@@ -1149,7 +1154,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         auto* typed_regexp = as_if<RegExpObject>(regexp_object);
         bool exec_is_builtin = false;
         if (typed_regexp) {
-            static Bytecode::StaticPropertyLookupCache exec_cache;
+            static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
             auto exec_val = TRY(regexp_object.get(vm.names.exec, exec_cache));
             if (auto exec_fn = exec_val.as_if<FunctionObject>())
                 exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
@@ -1285,7 +1290,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
     auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(rx, "flags")).
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto flags_value = TRY(regexp_object.get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
@@ -1342,7 +1347,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
     // 19. Repeat, while q < size,
     while (next_search_from < string->length_in_utf16_code_units()) {
         // a. Perform ? Set(splitter, "lastIndex", 𝔽(q), SplitBehavior::KeepEmpty).
-        static Bytecode::StaticPropertyLookupCache cache2;
+        static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
         TRY(splitter->set(vm.names.lastIndex, Value(next_search_from), cache2));
 
         // b. Let z be ? RegExpExec(splitter, S).
@@ -1357,7 +1362,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         // d. Else,
 
         // i. Let e be ℝ(? ToLength(? Get(splitter, "lastIndex"))).
-        static Bytecode::StaticPropertyLookupCache cache3;
+        static auto& cache3 = *new Bytecode::StaticPropertyLookupCache;
         auto last_index_value = TRY(splitter->get(vm.names.lastIndex, cache3));
         auto last_index = TRY(last_index_value.to_length(vm));
 
@@ -1441,7 +1446,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
         auto& realm = *vm.current_realm();
         bool exec_is_builtin = false;
         if (typed_regexp) {
-            static Bytecode::StaticPropertyLookupCache exec_cache;
+            static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
             auto exec_val = TRY(regexp_object->get(vm.names.exec, exec_cache));
             if (auto exec_fn = exec_val.as_if<FunctionObject>())
                 exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
@@ -1513,12 +1518,12 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::to_string)
     auto regexp_object = TRY(this_object(vm));
 
     // 3. Let pattern be ? ToString(? Get(R, "source")).
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto source_attr = TRY(regexp_object->get(vm.names.source, cache));
     auto pattern = TRY(source_attr.to_string(vm));
 
     // 4. Let flags be ? ToString(? Get(R, "flags")).
-    static Bytecode::StaticPropertyLookupCache cache2;
+    static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
     auto flags_attr = TRY(regexp_object->get(vm.names.flags, cache2));
     auto flags = TRY(flags_attr.to_string(vm));
 

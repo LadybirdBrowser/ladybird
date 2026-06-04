@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <LibUnicode/DateTimeFormat.h>
@@ -37,14 +38,14 @@ Vector<String> available_keyword_values(StringView locale, StringView key)
 
 Vector<String> const& available_calendars()
 {
-    static auto calendars = []() {
+    static NeverDestroyed<Vector<String>> calendars { []() {
         auto calendars = available_calendars("und"sv);
 
         quick_sort(calendars);
         return calendars;
-    }();
+    }() };
 
-    return calendars;
+    return *calendars;
 }
 
 Vector<String> available_calendars(StringView locale)
@@ -68,7 +69,7 @@ Vector<String> available_calendars(StringView locale)
 
 Vector<String> const& available_currencies()
 {
-    static auto currencies = []() -> Vector<String> {
+    static NeverDestroyed<Vector<String>> currencies { []() -> Vector<String> {
         UErrorCode status = U_ZERO_ERROR;
 
         auto* currencies = ucurr_openISOCurrencies(UCURR_ALL, &status);
@@ -95,26 +96,26 @@ Vector<String> const& available_currencies()
 
         quick_sort(result);
         return result;
-    }();
+    }() };
 
-    return currencies;
+    return *currencies;
 }
 
 Vector<String> const& available_collation_case_orderings()
 {
-    static Vector<String> case_orderings { "false"_string, "lower"_string, "upper"_string };
-    return case_orderings;
+    static NeverDestroyed<Vector<String>> case_orderings { Vector<String> { "false"_string, "lower"_string, "upper"_string } };
+    return *case_orderings;
 }
 
 Vector<String> const& available_collation_numeric_orderings()
 {
-    static Vector<String> case_orderings { "false"_string, "true"_string };
-    return case_orderings;
+    static NeverDestroyed<Vector<String>> case_orderings { Vector<String> { "false"_string, "true"_string } };
+    return *case_orderings;
 }
 
 Vector<String> const& available_collations()
 {
-    static auto collations = []() -> Vector<String> {
+    static NeverDestroyed<Vector<String>> collations { []() -> Vector<String> {
         UErrorCode status = U_ZERO_ERROR;
 
         auto keywords = adopt_own_if_nonnull(icu::Collator::getKeywordValues("collation", status));
@@ -129,9 +130,9 @@ Vector<String> const& available_collations()
 
         quick_sort(collations);
         return collations;
-    }();
+    }() };
 
-    return collations;
+    return *collations;
 }
 
 Vector<String> available_collations(StringView locale)
@@ -160,8 +161,8 @@ Vector<String> available_collations(StringView locale)
 
 Vector<String> const& available_hour_cycles()
 {
-    static Vector<String> case_orderings { "h11"_string, "h12"_string, "h23"_string, "h24"_string };
-    return case_orderings;
+    static NeverDestroyed<Vector<String>> hour_cycles { Vector<String> { "h11"_string, "h12"_string, "h23"_string, "h24"_string } };
+    return *hour_cycles;
 }
 
 Vector<String> available_hour_cycles(StringView locale)
@@ -183,7 +184,7 @@ Vector<String> available_hour_cycles(StringView locale)
 
 Vector<String> const& available_number_systems()
 {
-    static auto number_systems = []() -> Vector<String> {
+    static NeverDestroyed<Vector<String>> number_systems { []() -> Vector<String> {
         UErrorCode status = U_ZERO_ERROR;
 
         auto keywords = adopt_own_if_nonnull(icu::NumberingSystem::getAvailableNames(status));
@@ -200,9 +201,9 @@ Vector<String> const& available_number_systems()
 
         quick_sort(number_systems);
         return number_systems;
-    }();
+    }() };
 
-    return number_systems;
+    return *number_systems;
 }
 
 Vector<String> available_number_systems(StringView locale)

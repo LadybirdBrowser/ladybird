@@ -5,6 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/SaturatingMath.h>
 #include <LibCore/System.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
@@ -16,21 +17,25 @@
 
 namespace Wasm {
 
-static Vector<ModuleStats> s_module_stats;
+static auto& module_stats()
+{
+    static NeverDestroyed<Vector<ModuleStats>> stats;
+    return *stats;
+}
 
 void record_module_stats(ModuleStats stats)
 {
-    s_module_stats.append(move(stats));
+    module_stats().append(move(stats));
 }
 
 void dump_module_stats()
 {
-    if (s_module_stats.is_empty()) {
+    if (module_stats().is_empty()) {
         warnln("wasm-stats: no modules compiled yet");
         return;
     }
 
-    warnln("wasm-stats: {} module(s) compiled", s_module_stats.size());
+    warnln("wasm-stats: {} module(s) compiled", module_stats().size());
     warnln("wasm-stats:   hash      input KiB  parse ms  validate ms  cl ms  cl blob KiB  funcs  cache");
 
     AK::Duration total_parse;
@@ -40,7 +45,7 @@ void dump_module_stats()
     size_t total_blob = 0;
     size_t total_hits = 0;
 
-    for (auto const& s : s_module_stats) {
+    for (auto const& s : module_stats()) {
         StringBuilder hash_prefix;
         for (size_t i = 0; i < 4; ++i)
             hash_prefix.appendff("{:02x}", s.wasm_hash[i]);

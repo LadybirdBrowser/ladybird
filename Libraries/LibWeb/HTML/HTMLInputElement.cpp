@@ -13,6 +13,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -807,7 +808,7 @@ void HTMLInputElement::commit_pending_changes()
 // https://www.w3.org/TR/css-ui-4/#input-rules
 static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_visible()
 {
-    static GC::Root<CSS::CSSStyleProperties> style;
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text(R"~~~(
@@ -825,7 +826,7 @@ static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_visible()
 
 static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_hidden()
 {
-    static GC::Root<CSS::CSSStyleProperties> style;
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text(R"~~~(
@@ -838,7 +839,7 @@ static GC::Ref<CSS::CSSStyleProperties> inner_text_style_when_hidden()
 
 static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_visible()
 {
-    static GC::Root<CSS::CSSStyleProperties> style;
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text(R"~~~(
@@ -851,7 +852,7 @@ static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_visible()
 
 static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_hidden()
 {
-    static GC::Root<CSS::CSSStyleProperties> style;
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text(R"~~~(
@@ -863,7 +864,7 @@ static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_hidden()
 
 static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
 {
-    static GC::Root<CSS::CSSStyleProperties> style;
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text(R"~~~(
@@ -881,7 +882,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
 
 static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
 {
-    static GC::Root<CSS::CSSStyleProperties> style;
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
     if (!style) {
         style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
         style->set_declarations_from_text("display: none;"sv);
@@ -1130,7 +1131,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
     auto element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     {
-        static GC::Root<CSS::CSSStyleProperties> style;
+        static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
         if (!style) {
             style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
             style->set_declarations_from_text(R"~~~(
@@ -1149,7 +1150,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     // https://www.w3.org/TR/css-ui-4/#input-rules
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     {
-        static GC::Root<CSS::CSSStyleProperties> style;
+        static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
         if (!style) {
             style = CSS::CSSStyleProperties::create(internal_css_realm(), {}, {});
             style->set_declarations_from_text(R"~~~(
@@ -3603,10 +3604,10 @@ bool HTMLInputElement::suffering_from_being_missing() const
 // https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
 static regex::ECMAScriptRegex& valid_email_address_regex()
 {
-    static auto regex = MUST(regex::ECMAScriptRegex::compile(
+    static NeverDestroyed<regex::ECMAScriptRegex> regex { MUST(regex::ECMAScriptRegex::compile(
         "^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"sv,
-        regex::ECMAScriptCompileFlags {}));
-    return regex;
+        regex::ECMAScriptCompileFlags {})) };
+    return *regex;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-type-mismatch

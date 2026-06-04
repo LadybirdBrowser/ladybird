@@ -8,6 +8,7 @@
 #include <AK/Debug.h>
 #include <AK/FFIHelpers.h>
 #include <AK/FlyString.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
@@ -72,22 +73,22 @@ static Vector<FlyString> build_interned_name_table(size_t count, void (*fetch)(u
 
 static FlyString const& interned_rust_tag_name(uint16_t id)
 {
-    static Vector<FlyString> const s_table = build_interned_name_table(
+    static NeverDestroyed<Vector<FlyString>> table { build_interned_name_table(
         rust_html_tokenizer_interned_tag_name_count(),
-        rust_html_tokenizer_interned_tag_name);
-    if (id == 0 || id >= s_table.size())
-        return s_table[0];
-    return s_table[id];
+        rust_html_tokenizer_interned_tag_name) };
+    if (id == 0 || id >= table->size())
+        return (*table)[0];
+    return (*table)[id];
 }
 
 static FlyString const& interned_rust_attr_name(uint16_t id)
 {
-    static Vector<FlyString> const s_table = build_interned_name_table(
+    static NeverDestroyed<Vector<FlyString>> table { build_interned_name_table(
         rust_html_tokenizer_interned_attr_name_count(),
-        rust_html_tokenizer_interned_attr_name);
-    if (id == 0 || id >= s_table.size())
-        return s_table[0];
-    return s_table[id];
+        rust_html_tokenizer_interned_attr_name) };
+    if (id == 0 || id >= table->size())
+        return (*table)[0];
+    return (*table)[id];
 }
 
 HTMLTokenizer::HTMLTokenizer()

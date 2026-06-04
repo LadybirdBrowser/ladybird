@@ -14,7 +14,7 @@ namespace Web::Gamepad::EventNames {
     __ENUMERATE_GAMEPAD_EVENT(gamepadconnected) \
     __ENUMERATE_GAMEPAD_EVENT(gamepaddisconnected)
 
-#define __ENUMERATE_GAMEPAD_EVENT(name) extern FlyString name;
+#define __ENUMERATE_GAMEPAD_EVENT(name) extern FlyString const& name;
 ENUMERATE_GAMEPAD_EVENTS
 #undef __ENUMERATE_GAMEPAD_EVENT
 

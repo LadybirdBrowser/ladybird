@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/AriaRoles.h>
 #include <LibWeb/ARIA/RoleType.h>
@@ -47,54 +48,54 @@ constexpr StateAndProperties supported_properties_array[] = {
 
 HashTable<StateAndProperties> const& RoleType::supported_states() const
 {
-    static HashTable<StateAndProperties> states;
-    if (states.is_empty())
-        states.set_from(supported_state_array);
-    return states;
+    static NeverDestroyed<HashTable<StateAndProperties>> states;
+    if (states->is_empty())
+        states->set_from(supported_state_array);
+    return *states;
 }
 
 HashTable<StateAndProperties> const& RoleType::supported_properties() const
 {
-    static HashTable<StateAndProperties> properties;
-    if (properties.is_empty())
-        properties.set_from(supported_properties_array);
-    return properties;
+    static NeverDestroyed<HashTable<StateAndProperties>> properties;
+    if (properties->is_empty())
+        properties->set_from(supported_properties_array);
+    return *properties;
 }
 
 HashTable<StateAndProperties> const& RoleType::required_states() const
 {
-    static HashTable<StateAndProperties> states;
-    return states;
+    static NeverDestroyed<HashTable<StateAndProperties>> states;
+    return *states;
 }
 
 HashTable<StateAndProperties> const& RoleType::required_properties() const
 {
-    static HashTable<StateAndProperties> properties;
-    return properties;
+    static NeverDestroyed<HashTable<StateAndProperties>> properties;
+    return *properties;
 }
 
 HashTable<StateAndProperties> const& RoleType::prohibited_properties() const
 {
-    static HashTable<StateAndProperties> properties;
-    return properties;
+    static NeverDestroyed<HashTable<StateAndProperties>> properties;
+    return *properties;
 }
 
 HashTable<StateAndProperties> const& RoleType::prohibited_states() const
 {
-    static HashTable<StateAndProperties> states;
-    return states;
+    static NeverDestroyed<HashTable<StateAndProperties>> states;
+    return *states;
 }
 
 HashTable<Role> const& RoleType::required_context_roles() const
 {
-    static HashTable<Role> roles;
-    return roles;
+    static NeverDestroyed<HashTable<Role>> roles;
+    return *roles;
 }
 
 HashTable<Role> const& RoleType::required_owned_elements() const
 {
-    static HashTable<Role> roles;
-    return roles;
+    static NeverDestroyed<HashTable<Role>> roles;
+    return *roles;
 }
 
 ErrorOr<void> RoleType::serialize_as_json(JsonObjectSerializer<StringBuilder>& object) const

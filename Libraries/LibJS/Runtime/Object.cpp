@@ -6,6 +6,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <AK/kmalloc.h>
@@ -34,7 +35,11 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(Object);
 
-static GC::WeakHashMap<GC::Ptr<Object const>, HashMap<Utf16FlyString, Object::IntrinsicAccessor>> s_intrinsics;
+static auto& intrinsic_accessor_map()
+{
+    static NeverDestroyed<GC::WeakHashMap<GC::Ptr<Object const>, HashMap<Utf16FlyString, Object::IntrinsicAccessor>>> intrinsics;
+    return *intrinsics;
+}
 
 // Heap-allocated named property storage layout:
 //   [u32 capacity] [u32 padding] [Value 0] [Value 1] ...
@@ -165,7 +170,7 @@ Object::~Object()
 {
     free_indexed_elements();
     if (has_intrinsic_accessors())
-        s_intrinsics.remove(this);
+        intrinsic_accessor_map().remove(this);
     if (!named_storage_is_inline())
         free_heap_named_storage(m_named_properties);
 }
@@ -1281,7 +1286,7 @@ static Optional<Object::IntrinsicAccessor> find_intrinsic_accessor(Object const*
     if (!property_key.is_string())
         return {};
 
-    auto intrinsics = s_intrinsics.get(object);
+    auto intrinsics = intrinsic_accessor_map().get(object);
     if (!intrinsics.has_value())
         return {};
 
@@ -1347,7 +1352,7 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
     }
 
     if (has_intrinsic_accessors() && property_key.is_string()) {
-        if (auto intrinsics = s_intrinsics.get(this); intrinsics.has_value())
+        if (auto intrinsics = intrinsic_accessor_map().get(this); intrinsics.has_value())
             intrinsics->remove(property_key.as_string());
     }
 
@@ -1387,7 +1392,7 @@ void Object::storage_delete(PropertyKey const& property_key)
         return indexed_delete(property_key.as_number());
 
     if (has_intrinsic_accessors() && property_key.is_string()) {
-        if (auto intrinsics = s_intrinsics.get(this); intrinsics.has_value())
+        if (auto intrinsics = intrinsic_accessor_map().get(this); intrinsics.has_value())
             intrinsics->remove(property_key.as_string());
     }
 
@@ -1456,7 +1461,7 @@ void Object::define_intrinsic_accessor(PropertyKey const& property_key, Property
     (void)storage_set(property_key, { {}, attributes });
 
     set_has_intrinsic_accessors();
-    auto& intrinsics = s_intrinsics.ensure(this);
+    auto& intrinsics = intrinsic_accessor_map().ensure(this);
     intrinsics.set(property_key.as_string(), move(accessor));
 }
 
@@ -1697,11 +1702,11 @@ ThrowCompletionOr<Value> Object::ordinary_to_primitive(Value::PreferredType pref
         // a. Let method be ? Get(O, name).
         Value method;
         if (method_name == vm.names.toString) {
-            static Bytecode::StaticPropertyLookupCache cache;
+            static auto& cache = *new Bytecode::StaticPropertyLookupCache;
             method = TRY(get(method_name, cache));
         } else {
             ASSERT(method_name == vm.names.valueOf);
-            static Bytecode::StaticPropertyLookupCache cache;
+            static auto& cache = *new Bytecode::StaticPropertyLookupCache;
             method = TRY(get(method_name, cache));
         }
 

@@ -39,7 +39,7 @@ String const& MimeType::type() const
 String MimeType::description() const
 {
     // The MimeType interface's description getter steps are to return "Portable Document Format".
-    static String description_string = "Portable Document Format"_string;
+    static String const& description_string = *new String("Portable Document Format"_string);
     return description_string;
 }
 
@@ -47,7 +47,7 @@ String MimeType::description() const
 String const& MimeType::suffixes() const
 {
     // The MimeType interface's suffixes getter steps are to return "pdf".
-    static String suffixes_string = "pdf"_string;
+    static String const& suffixes_string = *new String("pdf"_string);
     return suffixes_string;
 }
 

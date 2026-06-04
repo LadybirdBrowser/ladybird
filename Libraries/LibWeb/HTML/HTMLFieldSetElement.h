@@ -22,7 +22,7 @@ public:
 
     String const& type() const
     {
-        static String const fieldset = "fieldset"_string;
+        static String const& fieldset = *new String("fieldset"_string);
         return fieldset;
     }
 

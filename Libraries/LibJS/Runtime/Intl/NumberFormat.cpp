@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -49,11 +50,14 @@ ReadonlySpan<StringView> NumberFormat::relevant_extension_keys() const
 ReadonlySpan<ResolutionOptionDescriptor> NumberFormat::resolution_option_descriptors(VM& vm) const
 {
     // The value of the [[ResolutionOptionDescriptors]] internal slot is « { [[Key]]: "nu", [[Property]]: "numberingSystem" } ».
-    static auto descriptors = to_array<ResolutionOptionDescriptor>({
-        { .key = "nu"sv, .property = vm.names.numberingSystem },
-    });
+    auto make_descriptors = [&] {
+        return to_array<ResolutionOptionDescriptor>({
+            { .key = "nu"sv, .property = vm.names.numberingSystem },
+        });
+    };
+    static NeverDestroyed<decltype(make_descriptors())> descriptors { make_descriptors() };
 
-    return descriptors;
+    return *descriptors;
 }
 
 StringView NumberFormatBase::computed_rounding_priority_string() const

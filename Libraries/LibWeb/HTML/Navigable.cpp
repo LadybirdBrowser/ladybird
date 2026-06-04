@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibCore/Timer.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PseudoElement.h>
@@ -248,8 +249,8 @@ void PopulateSessionHistoryEntryDocumentOutput::visit_edges(Cell::Visitor& visit
 
 HashTable<GC::RawRef<Navigable>>& all_navigables()
 {
-    static HashTable<GC::RawRef<Navigable>> set;
-    return set;
+    static NeverDestroyed<HashTable<GC::RawRef<Navigable>>> set;
+    return *set;
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable

@@ -8,6 +8,7 @@
 
 #include <AK/ByteReader.h>
 #include <AK/MemoryStream.h>
+#include <AK/NeverDestroyed.h>
 #include <LibCore/System.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibIPC/Decoder.h>
@@ -34,8 +35,8 @@ GC_DEFINE_ALLOCATOR(MessagePort);
 
 static GC::WeakHashSet<MessagePort>& all_message_ports()
 {
-    static GC::WeakHashSet<MessagePort> ports;
-    return ports;
+    static NeverDestroyed<GC::WeakHashSet<MessagePort>> ports;
+    return *ports;
 }
 
 GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm)

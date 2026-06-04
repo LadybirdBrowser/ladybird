@@ -3262,7 +3262,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     // 8. Otherwise (i.e., if definition is for a customized built-in element):
     else {
         // 1. Let valid local names be the list of local names for elements defined in this specification or in other applicable specifications that use the active function object as their element interface.
-        static auto valid_local_names = MUST(DOM::valid_local_names_for_given_html_element_interface("@name@"sv));
+        static auto const& valid_local_names = *new auto(MUST(DOM::valid_local_names_for_given_html_element_interface("@name@"sv)));
 
         // 2. If valid local names does not contain definition's local name, then throw a TypeError.
         if (!valid_local_names.contains_slow(definition->local_name()))
@@ -5053,7 +5053,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
             //     2. Run this's delete the content attribute.
             //     3. Return.
             attribute_generator.append(R"~~~(
-    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
+    static auto const& content_attribute = *new FlyString("@attribute.reflect_name@"_fly_string);
 
     if (!cpp_value) {
         impl->set_@attribute.cpp_name@({});
@@ -5079,7 +5079,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
             //     2. Run this's delete the content attribute.
             //     3. Return.
             attribute_generator.append(R"~~~(
-    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
+    static auto const& content_attribute = *new FlyString("@attribute.reflect_name@"_fly_string);
 
     if (!cpp_value.has_value()) {
         impl->set_@attribute.cpp_name@({});
@@ -5532,7 +5532,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             else if (attribute.type->is_nullable() && attribute.type->name() == "Element") {
                 // The getter steps are to return the result of running this's get the attr-associated element.
                 attribute_generator.append(R"~~~(
-    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
+    static auto const& content_attribute = *new FlyString("@attribute.reflect_name@"_fly_string);
 
     auto retval = impl->get_the_attribute_associated_element(content_attribute, TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); })));
 )~~~");
@@ -5545,7 +5545,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 
                 // 1. Let elements be the result of running this's get the attr-associated elements.
                 attribute_generator.append(R"~~~(
-    static auto content_attribute = "@attribute.reflect_name@"_fly_string;
+    static auto const& content_attribute = *new FlyString("@attribute.reflect_name@"_fly_string);
 
     auto retval = impl->get_the_attribute_associated_elements(content_attribute, TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); })));
 )~~~");

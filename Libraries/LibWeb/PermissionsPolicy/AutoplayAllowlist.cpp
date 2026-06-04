@@ -19,7 +19,7 @@ namespace Web::PermissionsPolicy {
 
 AutoplayAllowlist& AutoplayAllowlist::the()
 {
-    static AutoplayAllowlist filter;
+    static auto& filter = *new AutoplayAllowlist;
     return filter;
 }
 

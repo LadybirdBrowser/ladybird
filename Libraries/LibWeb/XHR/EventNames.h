@@ -20,7 +20,7 @@ namespace Web::XHR::EventNames {
     __ENUMERATE_XHR_EVENT(readystatechange) \
     __ENUMERATE_XHR_EVENT(timeout)
 
-#define __ENUMERATE_XHR_EVENT(name) extern FlyString name;
+#define __ENUMERATE_XHR_EVENT(name) extern FlyString const& name;
 ENUMERATE_XHR_EVENTS
 #undef __ENUMERATE_XHR_EVENT
 

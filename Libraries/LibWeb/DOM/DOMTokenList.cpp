@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/DOMTokenList.h>
@@ -237,7 +238,7 @@ WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
 // https://dom.spec.whatwg.org/#concept-domtokenlist-validation
 WebIDL::ExceptionOr<bool> DOMTokenList::run_validation_steps(StringView token)
 {
-    static HashMap<SupportedTokenKey, Vector<StringView>> supported_tokens_map = {
+    static NeverDestroyed<HashMap<SupportedTokenKey, Vector<StringView>>> supported_tokens_map { HashMap<SupportedTokenKey, Vector<StringView>> {
         // https://html.spec.whatwg.org/multipage/links.html#linkTypes
         { { HTML::TagNames::link, HTML::AttributeNames::rel },
             { "modulepreload"sv, "preload"sv, "preconnect"sv, "dns-prefetch"sv, "stylesheet"sv, "icon"sv, "alternate"sv, "prefetch"sv, "prerender"sv, "next"sv, "manifest"sv, "apple-touch-icon"sv, "apple-touch-icon-precomposed"sv, "canonical"sv } },
@@ -251,10 +252,10 @@ WebIDL::ExceptionOr<bool> DOMTokenList::run_validation_steps(StringView token)
         // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
         { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox },
             { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
-    };
+    } };
 
     // 1. If set’s element and attribute name does not define supported tokens, then throw a TypeError.
-    auto supported_tokens = supported_tokens_map.get({ m_associated_element->local_name(), m_associated_attribute });
+    auto supported_tokens = supported_tokens_map->get({ m_associated_element->local_name(), m_associated_attribute });
     if (!supported_tokens.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Attribute {} does not define any supported tokens", m_associated_attribute)) };
 

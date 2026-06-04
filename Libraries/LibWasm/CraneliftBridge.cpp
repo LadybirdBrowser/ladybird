@@ -141,8 +141,13 @@ struct CacheState {
     Vector<BatchInput> pending_batch;
 };
 
-static thread_local CacheState s_cranelift_cache_state;
 static thread_local u32 s_active_function_index = NumericLimits<u32>::max();
+
+static CacheState& cranelift_cache_state()
+{
+    static thread_local auto* state = new CacheState;
+    return *state;
+}
 
 static u64 compute_layout_hash(RuntimeHelpers const& h)
 {
@@ -1262,7 +1267,7 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
             ? ReadonlySpan<CraneliftTrap> {}
             : ReadonlySpan<CraneliftTrap> { reinterpret_cast<CraneliftTrap const*>(base + reloc_region_start + trap_offset), trap_count };
 
-        auto& capture = s_cranelift_cache_state.cache_capture;
+        auto& capture = cranelift_cache_state().cache_capture;
         if (capture.capturing && batch[i].function_index != NumericLimits<u32>::max()) {
             if (auto copy = ByteBuffer::copy(code_bytes.data(), code_bytes.size()); !copy.is_error()) {
                 CacheRecord rec;
@@ -1305,8 +1310,8 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
 
     // Cache hit: install from the parsed blob instead of going through cranelift.
     //            dispatches[] has just been populated by try_compile_instructions, so handler_ptr is ready to be set.
-    if (s_cranelift_cache_state.pending_install.active && s_active_function_index != NumericLimits<u32>::max()) {
-        auto record = s_cranelift_cache_state.pending_install.records.take(s_active_function_index);
+    if (cranelift_cache_state().pending_install.active && s_active_function_index != NumericLimits<u32>::max()) {
+        auto record = cranelift_cache_state().pending_install.records.take(s_active_function_index);
         if (record.has_value()) {
             static auto cache_install_helpers = make_runtime_helpers();
             if (install_compiled_function(
@@ -1319,7 +1324,7 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
                 return true;
             }
             // Put it back so we can try later.
-            s_cranelift_cache_state.pending_install.records.set(s_active_function_index, record.release_value());
+            cranelift_cache_state().pending_install.records.set(s_active_function_index, record.release_value());
         }
     }
 
@@ -1352,9 +1357,9 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
         static size_t s_min_insns = read_size_env("CRANELIFT_MIN_INSNS", 0);
         static size_t s_min_fn = read_size_env("CRANELIFT_MIN_FN", 0);
         static size_t s_max_fn = read_size_env("CRANELIFT_MAX_FN", NumericLimits<size_t>::max());
-        static auto s_skip_fn = read_set_env("CRANELIFT_SKIP_FN");
-        static auto s_only_fn = read_set_env("CRANELIFT_ONLY_FN");
-        static auto s_dump_fn = read_set_env("CRANELIFT_DUMP_FN");
+        static auto& s_skip_fn = *new HashTable<size_t>(read_set_env("CRANELIFT_SKIP_FN"));
+        static auto& s_only_fn = *new HashTable<size_t>(read_set_env("CRANELIFT_ONLY_FN"));
+        static auto& s_dump_fn = *new HashTable<size_t>(read_set_env("CRANELIFT_DUMP_FN"));
         static bool s_trace = getenv("CRANELIFT_TRACE") != nullptr;
 
         static size_t s_func_counter = 0;
@@ -1435,22 +1440,22 @@ bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
         }
     }
 
-    s_cranelift_cache_state.pending_batch.append({ move(flat), result_arity, s_active_function_index, &compiled });
+    cranelift_cache_state().pending_batch.append({ move(flat), result_arity, s_active_function_index, &compiled });
     return false; // Not compiled yet, will be compiled in flush.
 #endif
 }
 
 void flush_cranelift_batch()
 {
-    if (s_cranelift_cache_state.pending_batch.is_empty())
+    if (cranelift_cache_state().pending_batch.is_empty())
         return;
-    try_cranelift_compile_batch(s_cranelift_cache_state.pending_batch);
-    s_cranelift_cache_state.pending_batch.clear();
+    try_cranelift_compile_batch(cranelift_cache_state().pending_batch);
+    cranelift_cache_state().pending_batch.clear();
 }
 
 void discard_cranelift_batch()
 {
-    s_cranelift_cache_state.pending_batch.clear();
+    cranelift_cache_state().pending_batch.clear();
 }
 
 void free_cranelift_code(void* handle)
@@ -1473,30 +1478,30 @@ void set_cranelift_active_function_index(u32 function_index)
 
 void begin_cranelift_cache_capture()
 {
-    s_cranelift_cache_state.cache_capture.capturing = true;
-    s_cranelift_cache_state.cache_capture.records.clear();
+    cranelift_cache_state().cache_capture.capturing = true;
+    cranelift_cache_state().cache_capture.records.clear();
 }
 
 void abort_cranelift_cache_capture()
 {
-    s_cranelift_cache_state.cache_capture.capturing = false;
-    s_cranelift_cache_state.cache_capture.records.clear();
+    cranelift_cache_state().cache_capture.capturing = false;
+    cranelift_cache_state().cache_capture.records.clear();
 }
 
 void abort_cranelift_cache_install()
 {
-    s_cranelift_cache_state.pending_install.active = false;
-    s_cranelift_cache_state.pending_install.records.clear();
+    cranelift_cache_state().pending_install.active = false;
+    cranelift_cache_state().pending_install.records.clear();
 }
 
 Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes wasm_hash)
 {
     ScopeGuard reset = [] {
-        s_cranelift_cache_state.cache_capture.capturing = false;
-        s_cranelift_cache_state.cache_capture.records.clear();
+        cranelift_cache_state().cache_capture.capturing = false;
+        cranelift_cache_state().cache_capture.records.clear();
     };
 
-    auto const& capture = s_cranelift_cache_state.cache_capture;
+    auto const& capture = cranelift_cache_state().cache_capture;
 
     if (!capture.capturing || capture.records.is_empty())
         return {};
@@ -1618,10 +1623,10 @@ bool try_install_cranelift_cache_blob(ReadonlyBytes expected_wasm_hash, Readonly
             __builtin_memcpy(&trap, blob.data() + trap_off + j * sizeof(CraneliftTrap), sizeof(CraneliftTrap));
             rec.traps.unchecked_append(trap);
         }
-        s_cranelift_cache_state.pending_install.records.set(entry->function_index, move(rec));
+        cranelift_cache_state().pending_install.records.set(entry->function_index, move(rec));
     }
 
-    s_cranelift_cache_state.pending_install.active = true;
+    cranelift_cache_state().pending_install.active = true;
     return true;
 }
 

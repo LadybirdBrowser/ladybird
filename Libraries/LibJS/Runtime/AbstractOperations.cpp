@@ -155,7 +155,7 @@ ThrowCompletionOr<size_t> length_of_array_like(VM& vm, Object const& object)
         return object.indexed_array_like_size();
 
     // 1. Return ℝ(? ToLength(? Get(obj, "length"))).
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     return TRY(object.get(vm.names.length, cache)).to_length(vm);
 }
 
@@ -202,7 +202,7 @@ ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM& vm, Val
 ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& object, FunctionObject& default_constructor)
 {
     // 1. Let C be ? Get(O, "constructor").
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto constructor = TRY(object.get(vm.names.constructor, cache));
 
     // 2. If C is undefined, return defaultConstructor.
@@ -214,7 +214,7 @@ ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& obj
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor);
 
     // 4. Let S be ? Get(C, @@species).
-    static Bytecode::StaticPropertyLookupCache cache2;
+    static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
     auto species = TRY(constructor.as_object().get(vm.well_known_symbol_species(), cache2));
 
     // 5. If S is either undefined or null, return defaultConstructor.
@@ -414,7 +414,7 @@ ThrowCompletionOr<Object*> get_prototype_from_constructor(VM& vm, FunctionObject
     // 1. Assert: intrinsicDefaultProto is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
 
     // 2. Let proto be ? Get(constructor, "prototype").
-    static Bytecode::StaticPropertyLookupCache cache;
+    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
     auto prototype = TRY(constructor.get(vm.names.prototype, cache));
 
     // 3. If Type(proto) is not Object, then

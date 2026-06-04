@@ -13,8 +13,8 @@
 namespace Wasm {
 
 struct Names {
-    static HashMap<OpCode, ByteString> instruction_names;
-    static HashMap<ByteString, OpCode> instructions_by_name;
+    static HashMap<OpCode, ByteString>& instruction_names;
+    static HashMap<ByteString, OpCode>& instructions_by_name;
 };
 
 ByteString instruction_name(OpCode const& opcode)
@@ -845,7 +845,7 @@ void Printer::print(Wasm::Reference const& value)
 
 }
 
-HashMap<Wasm::OpCode, ByteString> Wasm::Names::instruction_names {
+HashMap<Wasm::OpCode, ByteString>& Wasm::Names::instruction_names = *new HashMap<Wasm::OpCode, ByteString> {
     { Instructions::unreachable, "unreachable" },
     { Instructions::nop, "nop" },
     { Instructions::block, "block" },
@@ -1368,4 +1368,4 @@ HashMap<Wasm::OpCode, ByteString> Wasm::Names::instruction_names {
     { Instructions::synthetic_i64_shrs2local, "synthetic:i64.shrs2local" },
     { Instructions::synthetic_local_seti64_const, "synthetic:local.seti64_const" },
 };
-HashMap<ByteString, Wasm::OpCode> Wasm::Names::instructions_by_name;
+HashMap<ByteString, Wasm::OpCode>& Wasm::Names::instructions_by_name = *new HashMap<ByteString, Wasm::OpCode>;

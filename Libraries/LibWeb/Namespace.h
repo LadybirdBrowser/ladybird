@@ -19,7 +19,7 @@ namespace Web::Namespace {
     __ENUMERATE_NAMESPACE(XML, "http://www.w3.org/XML/1998/namespace")  \
     __ENUMERATE_NAMESPACE(XMLNS, "http://www.w3.org/2000/xmlns/")
 
-#define __ENUMERATE_NAMESPACE(name, namespace_) extern WEB_API FlyString name;
+#define __ENUMERATE_NAMESPACE(name, namespace_) extern WEB_API FlyString const& name;
 ENUMERATE_NAMESPACES
 #undef __ENUMERATE_NAMESPACE
 

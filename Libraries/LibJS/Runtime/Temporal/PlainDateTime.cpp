@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
@@ -51,10 +52,18 @@ ISODateTime combine_iso_date_and_time_record(ISODate iso_date, Time const& time)
 }
 
 // nsMinInstant - nsPerDay
-static auto const DATETIME_NANOSECONDS_MIN = "-8640000086400000000000"_sbigint;
+static auto const& datetime_nanoseconds_min()
+{
+    static NeverDestroyed<Crypto::SignedBigInteger> value { "-8640000086400000000000"_sbigint };
+    return *value;
+}
 
 // nsMaxInstant + nsPerDay
-static auto const DATETIME_NANOSECONDS_MAX = "8640000086400000000000"_sbigint;
+static auto const& datetime_nanoseconds_max()
+{
+    static NeverDestroyed<Crypto::SignedBigInteger> value { "8640000086400000000000"_sbigint };
+    return *value;
+}
 
 // 5.5.4 ISODateTimeWithinLimits ( isoDateTime ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits
 bool iso_date_time_within_limits(ISODateTime const& iso_date_time)
@@ -67,11 +76,11 @@ bool iso_date_time_within_limits(ISODateTime const& iso_date_time)
     auto nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
 
     // 3. If ns ≤ nsMinInstant - nsPerDay, return false.
-    if (nanoseconds <= DATETIME_NANOSECONDS_MIN)
+    if (nanoseconds <= datetime_nanoseconds_min())
         return false;
 
     // 4. If ns ≥ nsMaxInstant + nsPerDay, return false.
-    if (nanoseconds >= DATETIME_NANOSECONDS_MAX)
+    if (nanoseconds >= datetime_nanoseconds_max())
         return false;
 
     // 5. Return true.

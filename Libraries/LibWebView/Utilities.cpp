@@ -32,10 +32,10 @@ static constexpr auto libexec_path = STRINGIFY(LADYBIRD_LIBEXECDIR);
 static constexpr auto libexec_path = "libexec"sv;
 #endif
 
-ByteString s_ladybird_resource_root;
-static Optional<ByteString> s_ladybird_binary_path;
+ByteString& s_ladybird_resource_root = *new ByteString;
+static auto& s_ladybird_binary_path = *new Optional<ByteString>;
 
-Optional<ByteString> s_mach_server_name;
+Optional<ByteString>& s_mach_server_name = *new Optional<ByteString>;
 
 Optional<ByteString const&> mach_server_name()
 {

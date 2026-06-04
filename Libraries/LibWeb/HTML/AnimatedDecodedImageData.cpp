@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -19,8 +20,8 @@ GC_DEFINE_ALLOCATOR(AnimatedDecodedImageData);
 
 HashMap<i64, GC::RawPtr<AnimatedDecodedImageData>>& AnimatedDecodedImageData::session_registry()
 {
-    static HashMap<i64, GC::RawPtr<AnimatedDecodedImageData>> s_registry;
-    return s_registry;
+    static NeverDestroyed<HashMap<i64, GC::RawPtr<AnimatedDecodedImageData>>> registry;
+    return *registry;
 }
 
 void AnimatedDecodedImageData::install_frame_delivery_callback()

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
@@ -46,11 +47,16 @@ struct ThreadEventQueue::Private {
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
-static Sync::OnceFlag s_current_thread_event_queue_key_once {};
+
+static auto& current_thread_event_queue_key_once()
+{
+    static NeverDestroyed<Sync::OnceFlag> once;
+    return *once;
+}
 
 ThreadEventQueue* ThreadEventQueue::current_or_null()
 {
-    Sync::call_once(s_current_thread_event_queue_key_once, [] {
+    Sync::call_once(current_thread_event_queue_key_once(), [] {
         pthread_key_create(&s_current_thread_event_queue_key, [](void* value) {
             if (value)
                 delete static_cast<ThreadEventQueue*>(value);

@@ -5973,7 +5973,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         I64Const,
         I64ConstGetLocal,
     } pattern_state { InsnPatternState::Nothing };
-    static Instruction nop { Instructions::nop };
+    static auto& nop = *new Instruction { Instructions::nop };
 
     size_t calls_in_expression = 0;
 

@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Range.h>
 #include <LibWeb/DOM/Comment.h>
@@ -41,8 +42,8 @@ GC_DEFINE_ALLOCATOR(Range);
 
 HashTable<Range*>& Range::live_ranges()
 {
-    static HashTable<Range*> ranges;
-    return ranges;
+    static NeverDestroyed<HashTable<Range*>> ranges;
+    return *ranges;
 }
 
 GC::Ref<Range> Range::create(HTML::Window& window)

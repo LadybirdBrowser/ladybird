@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MimeTypeArray.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
@@ -42,12 +43,12 @@ Vector<FlyString> MimeTypeArray::supported_property_names() const
         return {};
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-types
-    static Vector<FlyString> const mime_types = {
+    static NeverDestroyed<Vector<FlyString>> mime_types { Vector<FlyString> {
         "application/pdf"_fly_string,
         "text/pdf"_fly_string,
-    };
+    } };
 
-    return mime_types;
+    return *mime_types;
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetypearray-length

@@ -7,6 +7,7 @@
 #include <AK/AllOf.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -134,7 +135,7 @@ bool is_well_formed_currency_code(StringView currency)
 Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
 {
     // It is recommended that the result of AvailableNamedTimeZoneIdentifiers remains the same for the lifetime of the surrounding agent.
-    static auto named_time_zone_identifiers = []() {
+    static NeverDestroyed<Vector<TimeZoneIdentifier>> named_time_zone_identifiers { []() {
         // 1. Let identifiers be a List containing the String value of each Zone or Link name in the IANA Time Zone Database.
         auto const& identifiers = Unicode::available_time_zones();
 
@@ -184,9 +185,9 @@ Vector<TimeZoneIdentifier> const& available_named_time_zone_identifiers()
 
         // 8. Return result.
         return result;
-    }();
+    }() };
 
-    return named_time_zone_identifiers;
+    return *named_time_zone_identifiers;
 }
 
 // 6.5.2 GetAvailableNamedTimeZoneIdentifier ( timeZoneIdentifier ), https://tc39.es/ecma402/#sec-getavailablenamedtimezoneidentifier

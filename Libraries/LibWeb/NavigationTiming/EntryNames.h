@@ -33,7 +33,7 @@ namespace Web::NavigationTiming::EntryNames {
     __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(unloadEventEnd, unload_event_end)                           \
     __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(unloadEventStart, unload_event_start)
 
-#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _) extern FlyString name;
+#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _) extern FlyString const& name;
 ENUMERATE_NAVIGATION_TIMING_ENTRY_NAMES
 #undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
 

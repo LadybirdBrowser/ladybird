@@ -37,7 +37,7 @@ namespace Web::ContentSecurityPolicy::Directives::Names {
     __ENUMERATE_DIRECTIVE_NAME(WebRTC, "webrtc")                                    \
     __ENUMERATE_DIRECTIVE_NAME(WorkerSrc, "worker-src")
 
-#define __ENUMERATE_DIRECTIVE_NAME(name, value) extern FlyString name;
+#define __ENUMERATE_DIRECTIVE_NAME(name, value) extern FlyString const& name;
 ENUMERATE_DIRECTIVE_NAMES
 #undef __ENUMERATE_DIRECTIVE_NAME
 

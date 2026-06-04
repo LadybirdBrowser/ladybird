@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -382,7 +383,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
     // 2. Append "auto" to allowedStrings.
     // 3. NOTE: For each singular Temporal unit name that is contained within allowedStrings, the corresponding plural
     //    name is also contained within it.
-    static auto allowed_strings = [&]() {
+    static NeverDestroyed<Vector<StringView>> allowed_strings { [&]() {
         Vector<StringView> allowed_strings;
         allowed_strings.ensure_capacity((temporal_units.size() * 2) + 1);
 
@@ -393,7 +394,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
 
         allowed_strings.unchecked_append("auto"sv);
         return allowed_strings;
-    }();
+    }() };
 
     // 4. If default is UNSET, then
     //     a. Let defaultValue be undefined.
@@ -406,7 +407,7 @@ ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM& vm, Object cons
         [](Unit unit) -> OptionDefault { return temporal_unit_to_string(unit); });
 
     // 6. Let value be ? GetOption(options, key, STRING, allowedStrings, defaultValue).
-    auto value = TRY(get_option(vm, options, key, OptionType::String, allowed_strings, default_value));
+    auto value = TRY(get_option(vm, options, key, OptionType::String, *allowed_strings, default_value));
 
     // 7. If value is undefined, return UNSET.
     if (value.is_undefined())

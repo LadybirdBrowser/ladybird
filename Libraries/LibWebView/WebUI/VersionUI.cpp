@@ -22,12 +22,12 @@ void VersionUI::register_interfaces()
 
 void VersionUI::load_version_info()
 {
-    static auto browser_name = String::from_utf8_without_validation({ BROWSER_NAME, __builtin_strlen(BROWSER_NAME) });
-    static auto browser_version = String::from_utf8_without_validation({ BROWSER_VERSION, __builtin_strlen(BROWSER_VERSION) });
-    static auto arch = String::from_utf8_without_validation({ CPU_STRING, __builtin_strlen(CPU_STRING) });
-    static auto platform_name = String::from_utf8_without_validation({ OS_STRING, __builtin_strlen(OS_STRING) });
-    static auto command_line = MUST(String::join(' ', Application::the().command_line_arguments().strings));
-    static auto executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path())));
+    static auto& browser_name = *new String(String::from_utf8_without_validation({ BROWSER_NAME, __builtin_strlen(BROWSER_NAME) }));
+    static auto& browser_version = *new String(String::from_utf8_without_validation({ BROWSER_VERSION, __builtin_strlen(BROWSER_VERSION) }));
+    static auto& arch = *new String(String::from_utf8_without_validation({ CPU_STRING, __builtin_strlen(CPU_STRING) }));
+    static auto& platform_name = *new String(String::from_utf8_without_validation({ OS_STRING, __builtin_strlen(OS_STRING) }));
+    static auto& command_line = *new String(MUST(String::join(' ', Application::the().command_line_arguments().strings)));
+    static auto& executable_path = *new String(MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))));
 
     JsonObject version_info;
     version_info.set("browserName"_string, browser_name);
