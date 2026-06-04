@@ -51,4 +51,10 @@ private:
 template<>
 inline bool CSSRule::fast_is<CSSScopeRule>() const { return type() == CSSRule::Type::Scope; }
 
+SelectorList adapt_scope_end_selectors_for_matching(SelectorList const&);
+Optional<SelectorList> const& scope_start_selectors_for_matching(CSSRule const&);
+Optional<SelectorList> const& scope_end_selectors_for_matching(CSSRule const&);
+GC::Ptr<CSSImportRule const> nearest_scoped_owner_import(CSSStyleSheet const*);
+GC::Ptr<CSSRule const> nearest_ancestor_scope_rule_for_matching(CSSRule const&);
+
 }

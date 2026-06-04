@@ -32,7 +32,7 @@ struct MatchingRule {
     GC::Ptr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
     GC::Ptr<CSSStyleSheet const> sheet;
     GC::Ptr<CSSContainerRule const> container_rule;
-    GC::Ptr<CSSScopeRule const> scope_rule;
+    GC::Ptr<CSSRule const> scope_rule; // Either CSSScopeRule or CSSImportRule
     Optional<FlyString> default_namespace;
     Selector const& selector;
     size_t style_sheet_index { 0 };

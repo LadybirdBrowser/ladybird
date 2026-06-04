@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Scope-imported rule applies within scope, above limit
-Fail	Scope-imported rule does not apply below limit
+Pass	Scope-imported rule does not apply below limit

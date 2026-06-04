@@ -8,7 +8,9 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSScopeRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
@@ -65,7 +67,7 @@ Optional<SelectorList> const& CSSScopeRule::start_selectors_for_matching() const
     return m_cached_start_selectors_for_matching;
 }
 
-static SelectorList adapt_end_selectors(SelectorList const& selectors)
+SelectorList adapt_scope_end_selectors_for_matching(SelectorList const& selectors)
 {
     // NB: This is a modified version of adapt_nested_relative_selector_list().
     // End selectors are implicitly prepended with `:scope` if that doesn't already appear.
@@ -101,8 +103,51 @@ Optional<SelectorList> const& CSSScopeRule::end_selectors_for_matching() const
         return m_end_selectors;
 
     if (!m_cached_end_selectors_for_matching.has_value())
-        m_cached_end_selectors_for_matching = adapt_end_selectors(*m_end_selectors);
+        m_cached_end_selectors_for_matching = adapt_scope_end_selectors_for_matching(*m_end_selectors);
     return m_cached_end_selectors_for_matching;
+}
+
+Optional<SelectorList> const& scope_start_selectors_for_matching(CSSRule const& scope_rule)
+{
+    if (auto const* css_scope_rule = as_if<CSSScopeRule const>(scope_rule))
+        return css_scope_rule->start_selectors_for_matching();
+    if (auto const* import_rule = as_if<CSSImportRule const>(scope_rule)) {
+        VERIFY(import_rule->has_scope());
+        return import_rule->scope_start_selectors_for_matching();
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<SelectorList> const& scope_end_selectors_for_matching(CSSRule const& scope_rule)
+{
+    if (auto const* css_scope_rule = as_if<CSSScopeRule const>(scope_rule))
+        return css_scope_rule->end_selectors_for_matching();
+    if (auto const* import_rule = as_if<CSSImportRule const>(scope_rule)) {
+        VERIFY(import_rule->has_scope());
+        return import_rule->scope_end_selectors_for_matching();
+    }
+    VERIFY_NOT_REACHED();
+}
+
+GC::Ptr<CSSImportRule const> nearest_scoped_owner_import(CSSStyleSheet const* style_sheet)
+{
+    for (auto const* current_style_sheet = style_sheet; current_style_sheet;) {
+        auto owner_rule = current_style_sheet->owner_rule();
+        if (auto const* import_rule = as_if<CSSImportRule const>(owner_rule.ptr()); import_rule && import_rule->has_scope())
+            return import_rule;
+        current_style_sheet = owner_rule ? owner_rule->parent_style_sheet() : nullptr;
+    }
+    return nullptr;
+}
+
+GC::Ptr<CSSRule const> nearest_ancestor_scope_rule_for_matching(CSSRule const& scope_rule)
+{
+    for (auto const* parent_rule = scope_rule.parent_rule(); parent_rule; parent_rule = parent_rule->parent_rule()) {
+        if (is<CSSScopeRule>(*parent_rule))
+            return parent_rule;
+    }
+
+    return nearest_scoped_owner_import(scope_rule.parent_style_sheet());
 }
 
 GC::Ptr<CSSScopeRule const> CSSScopeRule::nearest_ancestor_scope_rule() const
