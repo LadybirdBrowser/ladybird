@@ -358,18 +358,6 @@ Optional<PropertyMetadata> Shape::lookup(PropertyKey const& property_key) const
     return descriptors()->lookup(property_key, m_property_count);
 }
 
-void Shape::for_each_property_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const& callback) const
-{
-    if (m_dictionary) {
-        for (auto const& [property_key, metadata] : property_table())
-            callback(property_key, metadata);
-        return;
-    }
-    if (!descriptors())
-        return;
-    descriptors()->for_each_in_insertion_order(callback, m_property_count);
-}
-
 void Shape::ensure_descriptor_array()
 {
     VERIFY(!m_dictionary);

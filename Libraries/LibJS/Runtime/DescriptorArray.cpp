@@ -88,17 +88,6 @@ void DescriptorArray::remove(PropertyKey const& property_key, u32 descriptor_cou
     }
 }
 
-void DescriptorArray::for_each_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const& callback, u32 descriptor_count) const
-{
-    VERIFY(descriptor_count <= m_entry_indices_by_enum_index.size());
-    for (u32 enum_index = 0; enum_index < descriptor_count; ++enum_index) {
-        auto const& entry = m_entries[m_entry_indices_by_enum_index[enum_index]];
-        VERIFY(entry.enum_index == enum_index);
-        auto metadata = entry.metadata();
-        callback(entry.property_key, metadata);
-    }
-}
-
 void DescriptorArray::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);

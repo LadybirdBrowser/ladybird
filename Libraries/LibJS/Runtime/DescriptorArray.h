@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Function.h>
+#include <AK/IterationDecision.h>
 #include <AK/NumericLimits.h>
 #include <AK/Vector.h>
 #include <LibJS/Export.h>
@@ -51,7 +51,22 @@ public:
     void set_attributes(PropertyKey const&, PropertyAttributes, u32 descriptor_count);
     void remove(PropertyKey const&, u32 descriptor_count);
 
-    void for_each_in_insertion_order(Function<void(PropertyKey const&, PropertyMetadata const&)> const&, u32 descriptor_count) const;
+    template<typename Callback>
+    void for_each_in_insertion_order(Callback&& callback, u32 descriptor_count) const
+    {
+        VERIFY(descriptor_count <= m_entry_indices_by_enum_index.size());
+        for (u32 enum_index = 0; enum_index < descriptor_count; ++enum_index) {
+            auto const& entry = m_entries[m_entry_indices_by_enum_index[enum_index]];
+            VERIFY(entry.enum_index == enum_index);
+            auto metadata = entry.metadata();
+            if constexpr (IsSame<IterationDecision, decltype(callback(entry.property_key, metadata))>) {
+                if (callback(entry.property_key, metadata) == IterationDecision::Break)
+                    return;
+            } else {
+                callback(entry.property_key, metadata);
+            }
+        }
+    }
 
 private:
     virtual void visit_edges(Visitor&) override;
