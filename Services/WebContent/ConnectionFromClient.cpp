@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/CookieStore/CookieStore.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -547,8 +548,6 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
 
 void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)
 {
-    (void)options_value;
-
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
@@ -556,8 +555,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     clear_inspected_dom_node(page_id);
 
     auto* node = Web::DOM::Node::from_unique_id(node_id);
-    // Nodes without layout (aka non-visible nodes) don't have style computed.
-    if (!node || !node->layout_node() || !node->is_element()) {
+    if (!node || !node->is_element()) {
         async_did_inspect_dom_node(page_id, { property_type, {} });
         return;
     }
@@ -565,9 +563,19 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     auto& element = as<Web::DOM::Element>(*node);
     node->document().set_inspected_node(node);
 
+    Web::DOM::AbstractElement abstract_element { element, pseudo_element };
+    node->document().update_style_for_element(abstract_element);
+
     auto properties = element.computed_properties(pseudo_element);
 
     if (!properties) {
+        async_did_inspect_dom_node(page_id, { property_type, {} });
+        return;
+    }
+
+    // Nodes without layout (aka non-visible nodes) do not have box metrics, but DevTools can still ask for their style
+    // rules and computed properties.
+    if (property_type == WebView::DOMNodeProperties::Type::Layout && !node->layout_node()) {
         async_did_inspect_dom_node(page_id, { property_type, {} });
         return;
     }
@@ -646,9 +654,20 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
         return serialized;
     };
 
+    auto serialize_applied_style_rules = [&]() {
+        JsonObject const empty_options;
+        auto const& options = options_value.is_object() ? options_value.as_object() : empty_options;
+        auto include_inherited = options.get_bool("inherited"sv).value_or(false);
+        auto include_user_agent_styles = options.get_string("filter"sv).map([](auto const& filter) { return filter == "ua"sv; }).value_or(false);
+        return node->document().style_computer().collect_devtools_applied_style_rules(abstract_element, include_inherited, include_user_agent_styles);
+    };
+
     JsonValue serialized;
 
     switch (property_type) {
+    case WebView::DOMNodeProperties::Type::AppliedStyleRules:
+        serialized = serialize_applied_style_rules();
+        break;
     case WebView::DOMNodeProperties::Type::ComputedStyle:
         serialized = serialize_computed_style();
         break;

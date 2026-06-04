@@ -122,8 +122,8 @@ public:
 
     bool disallow_modification() const { return m_disallow_modification; }
 
-    void set_source_text(String);
-    Optional<String> source_text(Badge<DOM::Document>) const;
+    void set_source_text(String source) { m_source_text = move(source); }
+    Optional<String> source_text() const { return m_source_text; }
 
     void add_critical_subresource(Subresource&);
     void remove_critical_subresource(Subresource&);

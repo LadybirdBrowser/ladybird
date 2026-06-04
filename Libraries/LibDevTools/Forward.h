@@ -32,6 +32,7 @@ class ParentAccessibilityActor;
 class PreferenceActor;
 class ProcessActor;
 class RootActor;
+class StyleRuleActor;
 class StyleSheetsActor;
 class TabActor;
 class TargetConfigurationActor;

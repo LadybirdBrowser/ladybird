@@ -59,6 +59,7 @@ public:
     void set_parent_rule(CSSRule*);
 
     CSSStyleSheet* parent_style_sheet() { return m_parent_style_sheet.ptr(); }
+    CSSStyleSheet const* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
     MUST_UPCALL virtual void set_parent_style_sheet(CSSStyleSheet*);
 
     Optional<SourcePosition> const& source_location() const { return m_source_position; }

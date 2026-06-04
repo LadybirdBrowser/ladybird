@@ -35,6 +35,7 @@ struct MatchingRule {
     GC::Ptr<CSSScopeRule const> scope_rule;
     Optional<FlyString> default_namespace;
     Selector const& selector;
+    size_t selector_index { 0 };
     size_t style_sheet_index { 0 };
     size_t rule_index { 0 };
 

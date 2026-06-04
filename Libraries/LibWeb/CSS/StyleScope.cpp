@@ -404,7 +404,8 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
             if (scope_rule)
                 collect_scope_boundary_selector_dependencies(*scope_rule, style_cache);
 
-            for (CSS::Selector const& selector : absolutized_selectors) {
+            for (size_t selector_index = 0; selector_index < absolutized_selectors.size(); ++selector_index) {
+                auto const& selector = *absolutized_selectors[selector_index];
                 MatchingRule matching_rule {
                     .rule = &rule,
                     .sheet = sheet,
@@ -412,6 +413,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     .scope_rule = scope_rule,
                     .default_namespace = sheet.default_namespace(),
                     .selector = selector,
+                    .selector_index = selector_index,
                     .style_sheet_index = style_sheet_index,
                     .rule_index = rule_index,
                     .specificity = selector.specificity(),
