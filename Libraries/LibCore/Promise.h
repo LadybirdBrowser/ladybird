@@ -140,13 +140,13 @@ public:
     template<CallableAs<void, Result&> F>
     Promise& when_resolved(F handler)
     {
-        return when_resolved([handler = move(handler)](Result& result) mutable -> ErrorOr<void> {
+        return when_resolved([handler = move(handler)](Result& result) mutable -> ErrorOr<void, ErrorType> {
             handler(result);
             return {};
         });
     }
 
-    template<CallableAs<ErrorOr<void>, Result&> F>
+    template<CallableAs<ErrorOr<void, ErrorType>, Result&> F>
     Promise& when_resolved(F handler)
     {
         on_resolution = move(handler);
