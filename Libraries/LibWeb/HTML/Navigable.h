@@ -299,6 +299,7 @@ private:
     void resolve_all_pending_async_scroll_operations();
     void schedule_hover_update_after_async_scroll();
     void update_hover_after_async_scroll_stops();
+    void cancel_hover_update_after_async_scroll();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-id
     String m_id;

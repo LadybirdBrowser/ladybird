@@ -295,8 +295,7 @@ Navigable::~Navigable() = default;
 
 void Navigable::set_has_been_destroyed()
 {
-    if (m_async_scroll_hover_update_timer)
-        m_async_scroll_hover_update_timer->stop();
+    cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
     m_has_been_destroyed = true;
     resolve_all_pending_async_scroll_operations();
@@ -304,8 +303,7 @@ void Navigable::set_has_been_destroyed()
 
 void Navigable::remove_from_all_navigables()
 {
-    if (m_async_scroll_hover_update_timer)
-        m_async_scroll_hover_update_timer->stop();
+    cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
     resolve_all_pending_async_scroll_operations();
 
@@ -316,8 +314,7 @@ void Navigable::remove_from_all_navigables()
 
 void Navigable::finalize()
 {
-    if (m_async_scroll_hover_update_timer)
-        m_async_scroll_hover_update_timer->stop();
+    cancel_hover_update_after_async_scroll();
     destroy_compositor_context();
     all_navigables().remove(*this);
     Base::finalize();
@@ -485,8 +482,11 @@ void Navigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Re
 
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
-    if (m_active_document && m_active_document != new_document)
+    if (m_active_document && m_active_document != new_document) {
+        // The pending post-scroll hover refresh belongs to the outgoing document; drop it.
+        cancel_hover_update_after_async_scroll();
         m_active_document->set_navigable(nullptr);
+    }
     m_active_document = new_document;
     new_document->set_navigable(this);
     set_needs_to_record_display_list();
@@ -536,8 +536,11 @@ Optional<UniqueNodeID> Navigable::active_document_id() const
 
 void Navigable::set_active_document(GC::Ptr<DOM::Document> document)
 {
-    if (m_active_document && m_active_document != document)
+    if (m_active_document && m_active_document != document) {
+        // The pending post-scroll hover refresh belongs to the outgoing document; drop it.
+        cancel_hover_update_after_async_scroll();
         m_active_document->set_navigable(nullptr);
+    }
     m_active_document = document;
     if (document)
         document->set_navigable(this);
@@ -3176,6 +3179,12 @@ void Navigable::update_hover_after_async_scroll_stops()
     if (has_been_destroyed())
         return;
     event_handler().update_hover_after_scroll();
+}
+
+void Navigable::cancel_hover_update_after_async_scroll()
+{
+    if (m_async_scroll_hover_update_timer)
+        m_async_scroll_hover_update_timer->stop();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
