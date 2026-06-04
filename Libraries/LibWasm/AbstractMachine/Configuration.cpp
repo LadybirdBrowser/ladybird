@@ -7,7 +7,6 @@
 #include <AK/MemoryStream.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/AbstractMachine/Interpreter.h>
-#include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/Printer/Printer.h>
 
 namespace Wasm {
@@ -65,11 +64,10 @@ ErrorOr<Optional<HostFunction&>, Trap> Configuration::prepare_call(FunctionAddre
 
 ErrorOr<void, Trap> Configuration::prepare_wasm_call(WasmFunction const& wasm_function, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall)
 {
-    if (auto module = wasm_function.module_ref()) {
-        if (auto result = ensure_cranelift_compiled(const_cast<Module&>(*module)); result.is_error())
-            return Trap::from_string(ByteString::formatted("Cranelift compilation failed: {}", result.error().error_string));
-    }
-
+    // Tier-0 by default: don't block the call waiting for native compilation. Non-Web embedders
+    // compile synchronously at instantiate time (so the JIT is already live here); the Web path
+    // compiles in the background and the interpreter picks up the native entry on a later call
+    // once it's published. Either way, execution falls back to the interpreter until then.
     if (is_tailcall)
         unwind_impl();
 

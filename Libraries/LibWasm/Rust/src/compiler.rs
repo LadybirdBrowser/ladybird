@@ -15,6 +15,7 @@ use cranelift_codegen::Context;
 use cranelift_codegen::FinalizedRelocTarget;
 use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::ir::AbiParam;
+use cranelift_codegen::ir::Block;
 use cranelift_codegen::ir::ExtFuncData;
 use cranelift_codegen::ir::ExternalName;
 use cranelift_codegen::ir::Function;
@@ -586,6 +587,23 @@ impl CraneliftCompiler {
                     .call_indirect(set_trap_sig, st_ptr, &[interp, msg_ptr, msg_len]);
             }};
         }
+
+        // If we have any tier-up checkpoints, the interpreter will eventually need to jump to some point in the function other than the entry block, so prepare dispatch blocks for that.
+        // Note that the initial block will already have the correct register state loaded, so we don't need to sync registers for the tier-up dispatch targets.
+        let has_tier_up = insns.iter().any(|i| i.opcode == op::SYNTHETIC_TIER_UP);
+        let tier_up_target_ip = builder.block_params(entry_block)[3];
+        let mut tier_up_dispatch_tail: Option<Block> = None;
+        let tier_up_body_start: Option<Block> = if has_tier_up {
+            let body_start = builder.create_block();
+            let dispatch = builder.create_block();
+            let is_tier_up = builder.ins().icmp_imm(IntCC::NotEqual, tier_up_target_ip, 0);
+            builder.ins().brif(is_tier_up, dispatch, &[], body_start, &[]);
+            builder.switch_to_block(body_start);
+            tier_up_dispatch_tail = Some(dispatch);
+            Some(body_start)
+        } else {
+            None
+        };
 
         let mut ip = 0usize;
         while ip < insns.len() {
@@ -1889,6 +1907,22 @@ impl CraneliftCompiler {
                     }
                 }
 
+                op::SYNTHETIC_TIER_UP => {
+                    if let Some(tail) = tier_up_dispatch_tail {
+                        let header = control_stack
+                            .last()
+                            .expect("tier-up checkpoint must be inside a loop")
+                            .branch_target;
+                        let next_tail = builder.create_block();
+                        builder.switch_to_block(tail);
+                        let matches = builder.ins().icmp_imm(IntCC::Equal, tier_up_target_ip, insn.imm1);
+                        builder.ins().brif(matches, header, &[], next_tail, &[]);
+                        builder.seal_block(tail);
+                        tier_up_dispatch_tail = Some(next_tail);
+                        builder.switch_to_block(header);
+                    }
+                }
+
                 _ => {
                     return Err("unsupported instruction during codegen");
                 }
@@ -1901,6 +1935,14 @@ impl CraneliftCompiler {
         if !is_unreachable {
             push_top_n_to_real!(builder, result_arity);
             builder.ins().jump(epilogue_block, &[]);
+        }
+
+        if let Some(tail) = tier_up_dispatch_tail {
+            let body_start = tier_up_body_start.expect("tier_up_body_start set when dispatch tail exists");
+            builder.switch_to_block(tail);
+            builder.ins().jump(body_start, &[]);
+            builder.seal_block(tail);
+            builder.seal_block(body_start);
         }
 
         builder.switch_to_block(trap_block);
@@ -2048,6 +2090,7 @@ impl CraneliftCompiler {
                 | op::SYNTHETIC_I32_SUB2LOCAL..=op::SYNTHETIC_I32_SHRS2LOCAL
                 | op::SYNTHETIC_I64_ADD2LOCAL..=op::SYNTHETIC_LOCAL_SETI64_CONST
                 | op::SYNTHETIC_BR_TABLE_CONT
+                | op::SYNTHETIC_TIER_UP
         )
     }
 

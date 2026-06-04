@@ -40,7 +40,7 @@ void dump_module_stats()
         }
 
         warnln("wasm-stats: {} module(s) compiled", v.size());
-        warnln("wasm-stats:   hash      input KiB  parse ms  validate ms  cl ms  cl blob KiB  funcs  cache");
+        warnln("wasm-stats:   hash      input KiB  parse ms  validate ms  cl ms  cl blob KiB  funcs   tu fns   tu pts  cache");
 
         AK::Duration total_parse;
         AK::Duration total_validate;
@@ -48,13 +48,15 @@ void dump_module_stats()
         size_t total_input = 0;
         size_t total_blob = 0;
         size_t total_hits = 0;
+        size_t total_tier_up_functions = 0;
+        size_t total_tier_up_checkpoints = 0;
 
         for (auto const& s : v) {
             StringBuilder hash_prefix;
             for (size_t i = 0; i < 4; ++i)
                 hash_prefix.appendff("{:02x}", s.wasm_hash[i]);
 
-            warnln("wasm-stats:   {}  {:>9}  {:>8}  {:>11}  {:>5}  {:>11}  {:>5}  {}",
+            warnln("wasm-stats:   {}  {:>9}  {:>8}  {:>11}  {:>5}  {:>11}  {:>5}  {:>7}  {:>7}  {}",
                 hash_prefix.to_byte_string(),
                 s.input_size_bytes / 1024,
                 s.parse_time.to_milliseconds(),
@@ -62,6 +64,8 @@ void dump_module_stats()
                 s.cranelift_time.to_milliseconds(),
                 s.cranelift_blob_size_bytes / 1024,
                 s.function_count,
+                s.tier_up_function_count,
+                s.tier_up_checkpoint_count,
                 s.cache_hit ? "HIT" : "miss");
 
             total_parse = total_parse + s.parse_time;
@@ -69,16 +73,21 @@ void dump_module_stats()
             total_cranelift = total_cranelift + s.cranelift_time;
             total_input += s.input_size_bytes;
             total_blob += s.cranelift_blob_size_bytes;
+            total_tier_up_functions += s.tier_up_function_count;
+            total_tier_up_checkpoints += s.tier_up_checkpoint_count;
             if (s.cache_hit)
                 ++total_hits;
         }
 
-        warnln("wasm-stats:   ----      {:>9}  {:>8}  {:>11}  {:>5}  {:>11}         hits={}",
+        warnln("wasm-stats:   ----      {:>9}  {:>8}  {:>11}  {:>5}  {:>11}  {:>5}  {:>7}  {:>7}  hits={}",
             total_input / 1024,
             total_parse.to_milliseconds(),
             total_validate.to_milliseconds(),
             total_cranelift.to_milliseconds(),
             total_blob / 1024,
+            ""sv,
+            total_tier_up_functions,
+            total_tier_up_checkpoints,
             total_hits);
     });
 }
@@ -235,26 +244,32 @@ Vector<CompiledFunctionEntry> const& ModuleInstance::compiled_fn_table(Store& st
 {
     if (m_compiled_fn_table_built)
         return m_compiled_fn_table;
-    m_compiled_fn_table_built = true;
 
     auto count = m_functions.size();
-    if (count == 0)
+    if (count == 0) {
+        m_compiled_fn_table_built = true;
         return m_compiled_fn_table;
+    }
 
     m_compiled_fn_table.resize_with_default_value_and_keep_capacity(count, {});
     auto* entries = m_compiled_fn_table.data();
 
+    // Since we asynchronously compile the code to native, we'll need to rebuild this table incrementally until all functions have been compiled.
+    bool all_ready = true;
     for (size_t i = 0; i < count; i++) {
         auto* instance = store.unsafe_get(m_functions[i]);
         auto* wasm_fn = instance->get_pointer<WasmFunction>();
         if (!wasm_fn)
             continue;
+        if (auto src = wasm_fn->module_ref(); src && !src->has_attempted_cranelift_compilation())
+            all_ready = false;
         auto& ci = wasm_fn->code().func().body().compiled_instructions;
-        if (!ci.cranelift_compiled)
+        auto native = cranelift_entry_acquire(ci);
+        if (native == 0)
             continue;
 
         auto& entry = entries[i];
-        entry.handler_ptr = ci.dispatches[0].handler_ptr;
+        entry.handler_ptr = native;
         entry.dispatches_ptr = bit_cast<FlatPtr>(ci.dispatches.data());
         entry.src_dst_ptr = bit_cast<FlatPtr>(ci.src_dst_mappings.data());
         entry.first_insn = ci.dispatches[0].instruction;
@@ -264,6 +279,7 @@ Vector<CompiledFunctionEntry> const& ModuleInstance::compiled_fn_table(Store& st
         entry.arity = static_cast<u32>(wasm_fn->type().results().size());
         entry.max_call_rec_size = static_cast<u32>(ci.max_call_rec_size);
     }
+    m_compiled_fn_table_built = all_ready;
     return m_compiled_fn_table;
 }
 

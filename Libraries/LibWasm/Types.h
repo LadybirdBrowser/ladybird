@@ -589,6 +589,7 @@ public:
         struct Meta {
             u32 arity;
             u32 parameter_count;
+            bool tier_up_eligible;
         };
         mutable Meta meta {};
     };
@@ -882,17 +883,44 @@ struct CompiledInstructions {
     Vector<Dispatch> dispatches;
     Vector<SourcesAndDestination> src_dst_mappings;
     InstructionStorage extra_instruction_storage;
-    bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
-    bool cranelift_eligible = false; // true if this expression cleared the Cranelift type/shape checks during validation.
-    u32 cranelift_result_arity = 0;  // result count to hand to try_cranelift_compile(); only meaningful when cranelift_eligible.
-    bool cranelift_compiled = false;
+
+    // Pointer/size_t-sized members first, then the u32, then the bools, so the trailing scalars pack
+    // into one word instead of scattering padding between them.
+
+    // Native entry point for this function (conforms to the interpreter handler ABI). Zero until
+    // the background/AOT compile has fully installed the code. Published with an atomic store-release
+    // as the LAST step of install_compiled_function() and read with an atomic load-acquire at every
+    // execution-decision site, so a function can tier up to JIT concurrently with execution without
+    // a reader ever observing a half-installed function. dispatches[0].handler_ptr always stays the
+    // C++ interpreter handler, so the interpreter path is valid regardless of compilation state.
+    FlatPtr cranelift_entry = 0;
     void* cranelift_code_handle = nullptr; // Owned; freed when the owning Module is destroyed.
     size_t cranelift_code_size = 0;
     CraneliftTrap const* cranelift_traps = nullptr; // Owned by cranelift_code_handle.
     size_t cranelift_trap_count = 0;
     size_t max_call_arg_count = 0;
     size_t max_call_rec_size = 0;
+
+    u32 cranelift_result_arity = 0; // result count to hand to try_cranelift_compile(); only meaningful when cranelift_eligible.
+
+    bool direct = false;                  // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
+    bool cranelift_eligible = false;      // true if this expression cleared the Cranelift type/shape checks during validation.
+    bool has_tier_up_checkpoints = false; // true if try_compile_instructions inserted synthetic_tier_up ops (Tier-Up sites).
+    bool cranelift_compiled = false;
 };
+
+// Read the native entry with acquire ordering: a non-zero result means the function is fully
+// installed and every cranelift_* field written before publication is visible to this thread.
+inline FlatPtr cranelift_entry_acquire(CompiledInstructions const& ci)
+{
+    return AK::atomic_load(const_cast<FlatPtr volatile*>(&ci.cranelift_entry), AK::MemoryOrder::memory_order_acquire);
+}
+
+// Publish the native entry with release ordering. Must be the LAST write of install.
+inline void publish_cranelift_entry(CompiledInstructions& ci, FlatPtr entry)
+{
+    AK::atomic_store(&ci.cranelift_entry, entry, AK::MemoryOrder::memory_order_release);
+}
 
 template<Enum auto... Vs>
 consteval auto as_ordered()
@@ -1496,6 +1524,8 @@ struct ModuleStats {
     AK::Duration cranelift_time;
     size_t cranelift_blob_size_bytes { 0 };
     size_t function_count { 0 };
+    size_t tier_up_function_count { 0 };   // functions instrumented with tier-up checkpoints
+    size_t tier_up_checkpoint_count { 0 }; // total tier-up checkpoints inserted across the module
     bool cache_hit { false };
 };
 

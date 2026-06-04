@@ -218,7 +218,7 @@ static void compiled_fault_signal_handler(int signal, siginfo_t* info, void* con
 #        endif
 
         auto const& compiled = recovery->configuration->frame().expression().compiled_instructions;
-        auto const code_start = compiled.dispatches.is_empty() ? 0 : compiled.dispatches[0].handler_ptr;
+        auto const code_start = compiled.cranelift_entry;
         auto const code_size = compiled.cranelift_code_size;
         if (compiled.cranelift_compiled && code_start != 0 && pc >= code_start && pc < code_start + code_size) {
             auto const offset = static_cast<u32>(pc - code_start);
@@ -393,9 +393,12 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
 {
     m_trap = Empty {};
     auto& expression = configuration.frame().expression();
+    auto const native_entry = cranelift_entry_acquire(expression.compiled_instructions);
+    // We may end up running native code either at entry (native_entry != 0) or mid-loop via a tier-up checkpoint, so install fault recovery in either case.
+    bool const may_run_native = native_entry != 0 || expression.compiled_instructions.has_tier_up_checkpoints;
     CompiledFaultRecoveryContext compiled_fault_recovery;
     bool did_install_compiled_fault_recovery = false;
-    if (expression.compiled_instructions.cranelift_compiled && !s_compiled_fault_recovery) {
+    if (may_run_native && !s_compiled_fault_recovery) {
         install_compiled_fault_handlers();
         compiled_fault_recovery.interpreter = this;
         compiled_fault_recovery.configuration = &configuration;
@@ -411,24 +414,30 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
             return;
         }
     }
-    auto const should_limit_instruction_count = configuration.should_limit_instruction_count();
-    if (!expression.compiled_instructions.dispatches.is_empty()) {
-        if (expression.compiled_instructions.direct) {
-            if (should_limit_instruction_count) {
-                interpret_impl<true, true, true>(configuration, expression);
+    if (native_entry != 0) {
+        (void)run_native_entry(configuration);
+        goto done;
+    }
+    {
+        auto const should_limit_instruction_count = configuration.should_limit_instruction_count();
+        if (!expression.compiled_instructions.dispatches.is_empty()) {
+            if (expression.compiled_instructions.direct) {
+                if (should_limit_instruction_count) {
+                    interpret_impl<true, true, true>(configuration, expression);
+                    goto done;
+                }
+                interpret_impl<true, false, true>(configuration, expression);
                 goto done;
             }
-            interpret_impl<true, false, true>(configuration, expression);
+            interpret_impl<true, false, false>(configuration, expression);
             goto done;
         }
-        interpret_impl<true, false, false>(configuration, expression);
-        goto done;
+        if (should_limit_instruction_count) {
+            interpret_impl<false, true, false>(configuration, expression);
+            goto done;
+        }
+        interpret_impl<false, false, false>(configuration, expression);
     }
-    if (should_limit_instruction_count) {
-        interpret_impl<false, true, false>(configuration, expression);
-        goto done;
-    }
-    interpret_impl<false, false, false>(configuration, expression);
 
 done:
     if (did_install_compiled_fault_recovery)
@@ -468,6 +477,21 @@ Outcome BytecodeInterpreter::run_compiled_function_direct(Configuration& configu
     ShortenedIP short_ip { .current_ip_value = 0 };
     auto const instruction = cc[0].instruction;
     auto const handler = bit_cast<Outcome (*)(HANDLER_PARAMS(DECOMPOSE_PARAMS_TYPE_ONLY))>(cc[0].handler_ptr);
+    return handler(*this, configuration, instruction, short_ip, cc, addresses_ptr);
+}
+
+// Enter the Cranelift-compiled native code for this function. The native entry conforms to the
+// same handler ABI as the direct-threaded interpreter, but lives in CompiledInstructions::cranelift_entry
+// (dispatches[0].handler_ptr stays the C++ handler). Caller must have confirmed the entry is non-zero.
+Outcome BytecodeInterpreter::run_native_entry(Configuration& configuration)
+{
+    m_trap = Empty {};
+    auto& expression = configuration.frame().expression();
+    auto const* cc = expression.compiled_instructions.dispatches.data();
+    auto const* addresses_ptr = expression.compiled_instructions.src_dst_mappings.data();
+    ShortenedIP short_ip { .current_ip_value = 0 };
+    auto const instruction = cc[0].instruction;
+    auto const handler = bit_cast<Outcome (*)(HANDLER_PARAMS(DECOMPOSE_PARAMS_TYPE_ONLY))>(cranelift_entry_acquire(expression.compiled_instructions));
     return handler(*this, configuration, instruction, short_ip, cc, addresses_ptr);
 }
 
@@ -1950,6 +1974,20 @@ HANDLE_INSTRUCTION(synthetic_local_seti64_const)
 HANDLE_INSTRUCTION(synthetic_br_table_cont)
 {
     VERIFY_NOT_REACHED();
+}
+
+HANDLE_INSTRUCTION(synthetic_tier_up)
+{
+    LOG_INSN;
+    auto& ci = configuration.frame().expression().compiled_instructions;
+    auto const native_entry = cranelift_entry_acquire(ci);
+    if (native_entry != 0) {
+        // If we have native code for this block, jump into it.
+        // The code is set up such that the target checkpoint is recovered from short_ip and nothing else needs to be passed as the stack is empty and all live state is in the shared locals.
+        auto const handler = bit_cast<Outcome (*)(HANDLER_PARAMS(DECOMPOSE_PARAMS_TYPE_ONLY))>(native_entry);
+        return handler(interpreter, configuration, cc[short_ip.current_ip_value].instruction, short_ip, cc, addresses_ptr);
+    }
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(synthetic_call_00)
@@ -6409,6 +6447,70 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     result.dispatches.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
     result.src_dst_mappings.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
+
+    // Every time we have a large-enough function, drop a synthetic_tier_up checkpoint right after each loop header that's eligible for tier-up (empty stack at the header, so the back-edge hits it every iteration).
+    // This allows us to start running code immediately in the interpreter, and switch to native code on paths that matter (or eventually) once compiled code is ready and the tier-up check hits.
+    constexpr size_t tier_up_instruction_threshold = 32;
+    if (result.dispatches.size() >= tier_up_instruction_threshold) {
+        Vector<size_t> loop_positions;
+        for (size_t i = 0; i < result.dispatches.size(); ++i) {
+            if (result.dispatches[i].instruction->opcode() != Instructions::loop)
+                continue;
+            auto& sa = result.dispatches[i].instruction->arguments().get<Instruction::StructuredInstructionArgs>();
+            if (sa.meta.tier_up_eligible)
+                loop_positions.append(i);
+        }
+
+        if (!loop_positions.is_empty()) {
+            // Number of tier-up ops inserted strictly before a given old dispatch index. A tier-up
+            // sits between its loop (at L) and L+1, so it precedes any old index > L.
+            auto shift_before = [&](size_t old_index) {
+                size_t shift = 0;
+                for (auto position : loop_positions) {
+                    if (position < old_index)
+                        ++shift;
+                    else
+                        break;
+                }
+                return shift;
+            };
+
+            Vector<Dispatch> new_dispatches;
+            Vector<SourcesAndDestination> new_src_dst;
+            new_dispatches.ensure_capacity(result.dispatches.size() + loop_positions.size());
+            new_src_dst.ensure_capacity(result.src_dst_mappings.size() + loop_positions.size());
+
+            size_t next_loop = 0;
+            for (size_t i = 0; i < result.dispatches.size(); ++i) {
+                new_dispatches.append(result.dispatches[i]);
+                new_src_dst.append(result.src_dst_mappings[i]);
+                if (next_loop < loop_positions.size() && loop_positions[next_loop] == i) {
+                    auto& tier_up = append_extra_instruction(Instructions::synthetic_tier_up);
+                    new_dispatches.append({ { .instruction_opcode = tier_up.opcode() }, &tier_up });
+                    new_src_dst.append({ .sources = { Dispatch::Stack, Dispatch::Stack, Dispatch::Stack }, .destination = Dispatch::Stack });
+                    ++next_loop;
+                }
+            }
+
+            // Re-point absolute IPs in structured args (end_ip / else_ip) past the inserted ops.
+            for (size_t i = 0; i < new_dispatches.size(); ++i) {
+                auto* sa = new_dispatches[i].instruction->arguments().get_pointer<Instruction::StructuredInstructionArgs>();
+                if (!sa)
+                    continue;
+                InstructionPointer new_end_ip = sa->end_ip.value() + shift_before(sa->end_ip.value());
+                auto new_else_ip = sa->else_ip().map([&](InstructionPointer ip) -> InstructionPointer { return ip.value() + shift_before(ip.value()); });
+                auto rebuilt = *new_dispatches[i].instruction;
+                rebuilt.arguments() = Instruction::StructuredInstructionArgs { sa->block_type, new_end_ip, new_else_ip, sa->meta };
+                auto& extra_instruction = append_extra_instruction(move(rebuilt));
+                new_dispatches[i].instruction = &extra_instruction;
+                new_dispatches[i].instruction_opcode = extra_instruction.opcode();
+            }
+
+            result.dispatches = move(new_dispatches);
+            result.src_dst_mappings = move(new_src_dst);
+            result.has_tier_up_checkpoints = true;
+        }
+    }
 
     // Rewrite local.* of arguments to argument.* to keep local.* for locals only.
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
