@@ -65,6 +65,8 @@ public:
 
     static ErrorOr<String> get_name();
 
+    [[noreturn]] static void terminate_immediately(int status);
+
     static void wait_for_debugger_and_break();
     static ErrorOr<bool> is_being_debugged();
 
