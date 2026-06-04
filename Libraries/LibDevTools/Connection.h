@@ -11,12 +11,15 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/Weakable.h>
 #include <LibCore/Socket.h>
 #include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
-class DEVTOOLS_API Connection : public RefCounted<Connection> {
+class DEVTOOLS_API Connection
+    : public RefCounted<Connection>
+    , public Weakable<Connection> {
 public:
     static NonnullRefPtr<Connection> create(NonnullOwnPtr<Core::BufferedTCPSocket>);
     ~Connection();

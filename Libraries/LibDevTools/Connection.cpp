@@ -94,9 +94,13 @@ ErrorOr<void> Connection::on_ready_to_read()
         if (!message.is_object())
             continue;
 
-        Core::deferred_invoke([this, message = move(message)]() mutable {
-            if (on_message_received)
-                on_message_received(move(message.as_object()));
+        Core::deferred_invoke([weak_self = make_weak_ptr<Connection>(), message = move(message)]() mutable {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+
+            if (self->on_message_received)
+                self->on_message_received(move(message.as_object()));
         });
     }
 
