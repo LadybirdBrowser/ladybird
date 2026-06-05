@@ -108,7 +108,6 @@ namespace Web::CSS {
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
     Optional<Color> current_color;
-    GC::Ptr<DOM::Document const> document;
     CalculationResolutionContext calculation_resolution_context;
 
     [[nodiscard]] static ColorResolutionContext for_element(DOM::AbstractElement const&);
