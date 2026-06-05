@@ -37,6 +37,7 @@ public:
     void dispatch_state_if_changed(PipelineStatus, u32 seek_id);
 
     RefPtr<Audio::PlaybackStream> m_playback_stream;
+    Audio::SampleSpecification m_sample_specification;
     RefPtr<AudioProducer> m_input;
     Core::EventLoop& m_main_thread_event_loop;
 
@@ -196,8 +197,9 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
         output_thread_data.m_waiting_for_upstream_data = false;
         output_thread_data.m_output_condition.broadcast();
     });
-    if (m_sample_specification.is_valid()) {
-        if (auto result = input->set_output_sample_specification(m_sample_specification); result.is_error()) {
+    auto const& sample_specification = m_output_thread_data->m_sample_specification;
+    if (sample_specification.is_valid()) {
+        if (auto result = input->set_output_sample_specification(sample_specification); result.is_error()) {
             Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
             disconnect_input_while_locked(input);
             return result.release_error();
@@ -241,10 +243,11 @@ void AudioPlaybackSink::create_playback_stream()
     auto promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
 
     promise->when_resolved([self = NonnullRefPtr(*this)](auto& stream) {
-        self->m_sample_specification = stream->sample_specification();
+        auto sample_specification = stream->sample_specification();
+        self->m_output_thread_data->m_sample_specification = sample_specification;
         auto const& input = self->m_output_thread_data->m_input;
         if (input != nullptr) {
-            if (auto result = input->set_output_sample_specification(self->m_sample_specification); result.is_error()) {
+            if (auto result = input->set_output_sample_specification(sample_specification); result.is_error()) {
                 if (self->on_audio_output_error)
                     self->on_audio_output_error(result.release_error());
                 return;
@@ -353,12 +356,13 @@ AK::Duration AudioPlaybackSink::current_time() const
 {
     if (m_temporary_time.has_value())
         return m_temporary_time.value();
-    if (!m_output_thread_data->m_playback_stream || !m_sample_specification.is_valid())
+    auto const& sample_specification = m_output_thread_data->m_sample_specification;
+    if (!m_output_thread_data->m_playback_stream || !sample_specification.is_valid())
         return m_minimum_media_time;
 
     auto stream_time = m_output_thread_data->m_playback_stream->total_time_played();
     auto stream_delta = stream_time - m_anchor_stream_time;
-    auto frames_played = stream_delta.to_time_units(1, m_sample_specification.sample_rate());
+    auto frames_played = stream_delta.to_time_units(1, sample_specification.sample_rate());
     auto current_output_frame_index = m_anchor_output_frame_index + frames_played;
 
     auto maybe_timing = m_output_thread_data->m_block_timings.find_timing_for_frame_index(current_output_frame_index);
@@ -404,7 +408,7 @@ void AudioPlaybackSink::pause()
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
                 auto stream_delta = new_stream_time - self->m_anchor_stream_time;
-                auto frames_played = stream_delta.to_time_units(1, self->m_sample_specification.sample_rate());
+                auto frames_played = stream_delta.to_time_units(1, self->m_output_thread_data->m_sample_specification.sample_rate());
                 self->m_anchor_output_frame_index += frames_played;
                 self->m_anchor_stream_time = new_stream_time;
             });
@@ -423,7 +427,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
     if (!m_output_thread_data->m_playback_stream)
         return;
 
-    auto seek_target_in_frames = time.to_time_units(1, m_sample_specification.sample_rate());
+    auto seek_target_in_frames = time.to_time_units(1, m_output_thread_data->m_sample_specification.sample_rate());
     {
         Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
         m_output_thread_data->m_seek_id++;
@@ -450,7 +454,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
                 self->m_anchor_stream_time = new_stream_time;
                 auto seek_target = self->m_temporary_time.release_value();
-                self->m_anchor_output_frame_index = seek_target.to_time_units(1, self->m_sample_specification.sample_rate());
+                self->m_anchor_output_frame_index = seek_target.to_time_units(1, self->m_output_thread_data->m_sample_specification.sample_rate());
                 self->m_minimum_media_time = seek_target;
 
                 if (self->m_playing)
