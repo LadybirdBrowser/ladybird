@@ -60,6 +60,7 @@ public:
     HistoryObjectLengthAndIndex get_the_history_object_length_and_index(int) const;
 
     void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
+    void resume_applying_the_traverse_history_step(int, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     enum class SynchronousNavigation : bool {
         Yes,

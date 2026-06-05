@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let sawTraverseNavigate = false;
+        let sawVerificationCurrentEntryChange = false;
+        let sawVerificationNavigateSuccess = false;
+        let traverseNavigateCount = 0;
+        let startedVerificationBack = false;
+        let finished = false;
+
+        function pathAndHashFromURL(url) {
+            const parsed = new URL(url);
+            return `${parsed.pathname}${parsed.hash}`;
+        }
+
+        function locationPathAndHash() {
+            return `${location.pathname}${location.hash}`;
+        }
+
+        function maybeDone() {
+            if (finished)
+                return;
+            if (!sawTraverseNavigate || !sawVerificationCurrentEntryChange || !sawVerificationNavigateSuccess)
+                return;
+            if (locationPathAndHash() !== "/r/programming/comments/post" || pathAndHashFromURL(navigation.currentEntry.url) !== "/r/programming/comments/post")
+                return;
+
+            finished = true;
+            println(`final current=${pathAndHashFromURL(navigation.currentEntry.url)} location=${locationPathAndHash()}`);
+            done();
+        }
+
+        navigation.addEventListener("navigate", event => {
+            if (!sawTraverseNavigate && event.navigationType !== "traverse")
+                return;
+
+            println(`navigate type=${event.navigationType} destination=${pathAndHashFromURL(event.destination.url)} current=${pathAndHashFromURL(navigation.currentEntry.url)} location=${locationPathAndHash()}`);
+
+            if (event.navigationType !== "traverse")
+                return;
+
+            ++traverseNavigateCount;
+            if (traverseNavigateCount !== 1)
+                return;
+
+            sawTraverseNavigate = true;
+            event.intercept({
+                handler() {
+                    println(`unexpected traverse handler current=${pathAndHashFromURL(navigation.currentEntry.url)} location=${locationPathAndHash()}`);
+                },
+            });
+
+            Promise.resolve().then(() => {
+                navigation.navigate("#other", { history: "push" });
+            });
+        });
+
+        navigation.addEventListener("currententrychange", event => {
+            if (!sawTraverseNavigate)
+                return;
+
+            println(`currententrychange type=${event.navigationType} current=${pathAndHashFromURL(navigation.currentEntry.url)} location=${locationPathAndHash()}`);
+
+            if (event.navigationType === "traverse" && traverseNavigateCount < 2) {
+                done();
+                return;
+            }
+
+            if (event.navigationType === "traverse")
+                sawVerificationCurrentEntryChange = true;
+
+            maybeDone();
+        });
+
+        navigation.addEventListener("navigatesuccess", () => {
+            if (!sawTraverseNavigate)
+                return;
+
+            println(`navigatesuccess current=${pathAndHashFromURL(navigation.currentEntry.url)} location=${locationPathAndHash()}`);
+
+            if (!startedVerificationBack && locationPathAndHash() === "/r/programming/comments/post#other") {
+                startedVerificationBack = true;
+                history.back();
+                return;
+            }
+
+            if (startedVerificationBack && locationPathAndHash() === "/r/programming/comments/post")
+                sawVerificationNavigateSuccess = true;
+
+            maybeDone();
+        });
+
+        navigation.addEventListener("navigateerror", () => {
+            if (!sawTraverseNavigate)
+                return;
+
+            println(`navigateerror current=${pathAndHashFromURL(navigation.currentEntry.url)} location=${locationPathAndHash()}`);
+        });
+
+        history.replaceState({}, "", "/r/programming");
+        history.pushState({}, "", "/r/programming/comments/post");
+        history.back();
+    });
+</script>

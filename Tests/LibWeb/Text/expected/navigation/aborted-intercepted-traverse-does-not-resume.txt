@@ -1,0 +1,9 @@
+navigate type=traverse destination=/r/programming current=/r/programming/comments/post location=/r/programming/comments/post
+navigateerror current=/r/programming/comments/post location=/r/programming/comments/post
+navigate type=push destination=/r/programming/comments/post#other current=/r/programming/comments/post location=/r/programming/comments/post
+currententrychange type=push current=/r/programming/comments/post#other location=/r/programming/comments/post#other
+navigatesuccess current=/r/programming/comments/post#other location=/r/programming/comments/post#other
+navigate type=traverse destination=/r/programming/comments/post current=/r/programming/comments/post#other location=/r/programming/comments/post#other
+currententrychange type=traverse current=/r/programming/comments/post location=/r/programming/comments/post
+navigatesuccess current=/r/programming/comments/post location=/r/programming/comments/post
+final current=/r/programming/comments/post location=/r/programming/comments/post
