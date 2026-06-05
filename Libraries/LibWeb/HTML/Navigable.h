@@ -136,8 +136,13 @@ public:
         Tag
     };
 
+    enum class NavigationAPIAbortBehavior {
+        Abort,
+        Preserve
+    };
+
     Variant<Empty, Traversal, String> ongoing_navigation() const { return m_ongoing_navigation; }
-    void set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation);
+    void set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior = NavigationAPIAbortBehavior::Abort);
 
     void populate_session_history_entry_document(
         URL::URL url,
