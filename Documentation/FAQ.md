@@ -13,7 +13,7 @@ Ladybird is pre-alpha software you have to build from the sources yourself in or
 
 ## Windows support when?
 
-There are very few Windows developers contributing to the project. As such, maintaining a native Windows port would be
+There are very few maintainers working on Windows support. As such, maintaining a native Windows port would be
 a lot of effort that distracts from building out the web platform standards in a reasonable amount of time.
 
 After we have a solid foundation, we may consider a Windows port, but it's not a priority. In the meantime, Windows
@@ -25,7 +25,8 @@ Eventually, probably, if there's a Web Spec for it!
 
 ## When will you implement `$THING`?
 
-Maybe someday. Maybe never. If you want to see something happen, you can do it yourself!
+There's no concrete roadmap of individual features yet. You can always raise an issue so we can keep track, if one does
+not already exist!
 
 ### Will you have a built in ad blocker?
 
@@ -86,7 +87,7 @@ Here’s a short timeline:
 - Prove that developing an engine doesn’t take hundreds of engineers — and not anything close to even just a hundred.
 - Browser engineering: Further help de-mystify it and make it a standard thing to learn (hat tip: https://browser.engineering/).
 - Using project Discord server for communication [discord.gg/nvfjVJ4Svh](https://discord.gg/nvfjVJ4Svh).
-- Using [one GithHub repo](https://github.com/LadybirdBrowser/ladybird) for everything: issues (no bugzilla or other), patch/PR submission/review, CI/test automation.
+- Using [one GitHub repo](https://github.com/LadybirdBrowser/ladybird) for issues, CI, and test automation.
 
 ## What are some of the project coding conventions? And do you have any activity metrics?
 

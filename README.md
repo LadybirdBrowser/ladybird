@@ -41,13 +41,13 @@ Code-related documentation can be found in the [documentation](Documentation/) f
 
 ## Get in touch and participate!
 
-Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in development discussion.
+Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in issue and development discussions.
 
-Please read [Getting started contributing](Documentation/GettingStartedContributing.md) if you plan to contribute to Ladybird for the first time.
+Please read [Getting involved with Ladybird](Documentation/GettingStartedContributing.md) if you're new to Ladybird and want to help.
 
 Before opening an issue, please see the [issue policy](CONTRIBUTING.md#issue-policy) and the [detailed issue-reporting guidelines](ISSUES.md).
 
-The full contribution guidelines can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+The project participation guidelines can be found in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 

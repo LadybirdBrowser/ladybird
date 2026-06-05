@@ -1,8 +1,8 @@
-# Getting started contributing to Ladybird
+# Getting involved with Ladybird
 
 Welcome to the Ladybird web browser project!
 
-This document aims to be a beginner-friendly guide to your first Ladybird contribution; remember to read the linked documentation for more information.
+This document is a beginner-friendly guide to getting familiar with Ladybird and helping the project through testing, bug reports, reductions, standards discussion, design discussion, security reports, and technical feedback.
 
 ## Getting familiar with the project
 
@@ -32,30 +32,26 @@ Here are some of the ways you can find an issue in Ladybird:
 
 * By checking the [issue tracker](https://github.com/LadybirdBrowser/ladybird/issues).
 * Manually, by using the browser as you normally would.
-* By finding failing WPT tests on [WPT.fyi](https://wpt.fyi/results/?label=master&product=ladybird). Note that while fixes are welcome, you don't need to submit issue reports for individual tests.
+* By finding failing WPT tests on [WPT.fyi](https://wpt.fyi/results/?label=master&product=ladybird). You do not need to submit issue reports for individual tests.
 * By finding WPT tests on [WPT.fyi](https://wpt.fyi/results/?label=master&product=ladybird) that are [timing out in Ladybird](https://wpt.fyi/results/?product=ladybird&q=status%3Atimeout). For a real-world walk-through of doing that from start to finish with an actual timing-out-in-Ladybird test case, see the [“Fixing a WPT timeout in Window.postMessage()”](https://www.youtube.com/watch?v=X4S9afzRTXs) “browser hacking” video.
 * By using a profiling tool such as [Callgrind](https://valgrind.org/docs/manual/cl-manual.html) to find code that can be improved.
 * By looking for [`TODO`](https://github.com/search?q=repo%3ALadybirdBrowser%2Fladybird%20%22%2F%2F%20TODO%22&type=code) and [`FIXME`](https://github.com/search?q=repo%3ALadybirdBrowser%2Fladybird+%22%2F%2F+FIXME%22&type=code) comments in the codebase.
 
-If you’re not necessarily already a proficient C++ programmer, beginning by troubleshooting WPT tests may be the very best way to get started contributing to the project — especially if you _do_ already have some proficiency with frontend JavaScript code.
+If you’re not necessarily fluent in C++, beginning by troubleshooting WPT tests may be the very best way to get started helping the project — especially if you _do_ already have some proficiency with frontend JavaScript code.
 
-That’s because without even knowing any C++ at all, you can still — by working just with the JavaScript code in the WPT test source — get a long way toward isolating the cause of a particular WPT test failure or timeout. And that alone can be a very big help to other contributors who can then follow up on your work by digging further into the related C++ code.
-
-That said, if you _do_ want to start learning some C++ programming yourself, then working from a WPT test case may be the very best way for you on your own to start — by getting an understanding of how and where the JavaScript code in the WPT test ends up calling into the related C++ code in the Ladybird sources — and then start fixing the underlying problem in the C++ code on your own.
-
-There currently isn't a strict roadmap of issues to address first. It is ultimately up to you to choose a task that you feel comfortable working on.
+That’s because without even knowing any C++ at all, you can still — by working just with the JavaScript code in the WPT test source — get a long way toward isolating the cause of a particular WPT test failure or timeout. That alone can be a very big help to maintainers and other people investigating the related C++ code.
 
 ## Submitting an issue
 
 If you have found an issue that is not already in the [issue tracker](https://github.com/LadybirdBrowser/ladybird/issues), you may submit it. Do not submit general questions about the project, please use the Discord server instead.
 
-Read the [full contribution guidelines](/CONTRIBUTING.md), in particular the Issue policy and Human language policy. It is recommended you reduce the website to the most minimal amount of HTML/CSS/JS which still results in the error (if applicable), and provide the result expected from other browsers vs Ladybird. Read the [detailed issue-reporting guidelines](/ISSUES.md) for the exact steps to do so.
+Read the [project participation guidelines](/CONTRIBUTING.md), in particular the Issue policy and Human language policy. It is recommended you reduce the website to the most minimal amount of HTML/CSS/JS which still results in the error (if applicable), and provide the result expected from other browsers vs Ladybird. Read the [detailed issue-reporting guidelines](/ISSUES.md) for the exact steps to do so.
 
-## Submitting your code
+## Learning the codebase
 
 ### Getting familiar with C++
 
-Ladybird requires at least a basic knowledge of C++, consult a tutorial website like [Learn C++](https://www.learncpp.com/) and online references if you need help. Start small before attempting to make large changes, as they require more in-depth C++ knowledge.
+Ladybird requires at least a basic knowledge of C++. Consult a tutorial website like [Learn C++](https://www.learncpp.com/) and online references if you need help.
 
 ### Getting familiar with the codebase
 
@@ -67,42 +63,3 @@ Developer documentation:
 * [Coding patterns](Patterns.md)
 * [Smart pointers](SmartPointers.md)
 * [String formatting](StringFormatting.md)
-
-### Using `git`
-
-The recommended way to work on Ladybird is by forking the main repository on GitHub, then cloning the fork and adding the main repository as a git remote:
-
-```sh
-git remote add upstream git@github.com:LadybirdBrowser/ladybird.git
-```
-
-You can then create a new branch and start making changes to the code:
-
-```sh
-git switch -c mybranch
-```
-
-And finally push the commits to your fork:
-
-```sh
-git push
-```
-
-If you wish to sync your branch with master, or locally resolve merge conflicts, use:
-
-```sh
-# On mybranch
-git fetch upstream
-git rebase upstream/master
-```
-
-You may be asked to perform actions like squashing, rewording, or editing commits. See the [Rewriting history in Git](https://www.youtube.com/watch?v=ElRzTuYln0M) YouTube tutorial for more information.
-
-### Creating a pull request
-
-Make sure your code meets the requirements in the [full contribution guidelines](/CONTRIBUTING.md) and [coding style](CodingStyle.md). Additionally:
-
-* Make correctly formatted, atomic commits (building the project at every commit should succeed).
-* Discuss and resolve any reviews you receive.
-* Fix CI failures by editing your commits.
-* Include tests ([use `Meta/import-wpt-test.py` to import WPT tests](Testing.md#importing-web-platform-tests))
