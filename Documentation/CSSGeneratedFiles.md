@@ -5,7 +5,7 @@ We generate a significant amount of CSS-related code, taking in one or more .jso
 `Build/<build-preset>/Libraries/LibWeb/CSS/`.
 It's likely that you'll need to work with these if you add or modify a CSS property or its values.
 
-The generators are found in [`Meta/Lagom/Tools/CodeGenerators/LibWeb`](../Meta/Lagom/Tools/CodeGenerators/LibWeb).
+The generators are found in [`Meta/Generators`](../Meta/Generators).
 They are run automatically as part of the build, and most of the time you can ignore them.
 
 ## Properties.json
