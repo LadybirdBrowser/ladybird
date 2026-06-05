@@ -741,10 +741,6 @@ impl DecodedCacheBlob {
         self.program.validate();
     }
 
-    pub(crate) fn source_len(&self) -> usize {
-        self.source_len
-    }
-
     pub(crate) fn validate_for_materialization(&mut self, source_len: usize) -> Result<(), ValidationErrorKind> {
         if self.source_len != source_len {
             return Err(ValidationErrorKind::InvalidLength);

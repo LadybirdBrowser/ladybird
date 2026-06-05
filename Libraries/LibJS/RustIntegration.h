@@ -115,10 +115,7 @@ JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledPro
 
 // Decode an ImmutableBytes-backed bytecode cache blob into a parser-free cache handle.
 JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes, ProgramType, ReadonlyBytes source_hash);
-JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes, ProgramType, ReadonlyBytes source_hash, NonnullRefPtr<Core::WeakEventLoopReference>);
-
-// Return the decoded source length carried by a bytecode cache blob.
-JS_API size_t decoded_bytecode_cache_source_length(FFI::DecodedBytecodeCacheBlob const*);
+JS_API FFI::DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes, ProgramType, ReadonlyBytes source_hash, Core::EventLoop&);
 
 // Validate a decoded bytecode cache blob before materialization. Thread-safe.
 JS_API bool validate_decoded_bytecode_cache_blob(FFI::DecodedBytecodeCacheBlob*, size_t source_length);

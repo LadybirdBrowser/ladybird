@@ -920,20 +920,6 @@ pub unsafe extern "C" fn rust_free_decoded_bytecode_cache_blob(blob: *mut Decode
     }
 }
 
-/// Return the decoded source length carried by a decoded bytecode cache blob.
-///
-/// # Safety
-/// `blob` must be a valid pointer from `rust_decode_bytecode_cache_blob_with_owner()`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_decoded_bytecode_cache_source_len(blob: *const DecodedBytecodeCacheBlob) -> usize {
-    unsafe {
-        if blob.is_null() {
-            return 0;
-        }
-        (*blob)._blob.source_len()
-    }
-}
-
 /// Validate a decoded bytecode cache blob before materializing it.
 ///
 /// # Safety
