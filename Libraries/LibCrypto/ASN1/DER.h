@@ -157,16 +157,19 @@ public:
             return Error::from_string_literal("ASN1::Decoder: Trying to drop using a decoder that is EOF");
 
         auto previous_position = m_stack;
+        auto previous_tag = m_current_tag;
 
         auto tag_or_error = peek();
         if (tag_or_error.is_error()) {
             m_stack = move(previous_position);
+            m_current_tag = move(previous_tag);
             return tag_or_error.release_error();
         }
 
         auto length_or_error = read_length();
         if (length_or_error.is_error()) {
             m_stack = move(previous_position);
+            m_current_tag = move(previous_tag);
             return length_or_error.release_error();
         }
 
@@ -175,6 +178,7 @@ public:
         auto bytes_result = read_bytes(length);
         if (bytes_result.is_error()) {
             m_stack = move(previous_position);
+            m_current_tag = move(previous_tag);
             return bytes_result.release_error();
         }
 
@@ -192,16 +196,19 @@ public:
             return Error::from_string_literal("ASN1::Decoder: Trying to read using a decoder that is EOF");
 
         auto previous_position = m_stack;
+        auto previous_tag = m_current_tag;
 
         auto tag_or_error = peek();
         if (tag_or_error.is_error()) {
             m_stack = move(previous_position);
+            m_current_tag = move(previous_tag);
             return tag_or_error.release_error();
         }
 
         auto length_or_error = read_length();
         if (length_or_error.is_error()) {
             m_stack = move(previous_position);
+            m_current_tag = move(previous_tag);
             return length_or_error.release_error();
         }
 
@@ -211,6 +218,7 @@ public:
         auto value_or_error = read_value<ValueType>(class_override.value_or(tag.class_), kind_override.value_or(tag.kind), length);
         if (value_or_error.is_error()) {
             m_stack = move(previous_position);
+            m_current_tag = move(previous_tag);
             return value_or_error.release_error();
         }
 

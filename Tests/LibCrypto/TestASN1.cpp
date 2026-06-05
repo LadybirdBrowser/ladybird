@@ -238,3 +238,27 @@ TEST_CASE(test_encoder_constructed)
     MUST(decoder.leave());                                                 // Sequence
     EXPECT(decoder.eof());                                                 // no other data
 }
+
+TEST_CASE(test_decoder_restores_state_after_failed_read)
+{
+    // A Boolean tag declaring a length of 5, but only 3 value bytes are present.
+    u8 const data[] { 0x01, 0x05, 0x00, 0x00, 0x00 };
+    Crypto::ASN1::Decoder decoder({ data, sizeof(data) });
+
+    EXPECT(decoder.read<bool>().is_error());
+
+    // The first failed read should leave the decoder state unchanged, so a second drop should have the same result.
+    EXPECT(decoder.read<bool>().is_error());
+}
+
+TEST_CASE(test_decoder_restores_state_after_failed_drop)
+{
+    // A Boolean tag declaring a length of 5, but only 3 value bytes are present.
+    u8 const data[] { 0x01, 0x05, 0x00, 0x00, 0x00 };
+    Crypto::ASN1::Decoder decoder({ data, sizeof(data) });
+
+    EXPECT(decoder.drop().is_error());
+
+    // The first failed drop should leave the decoder state unchanged, so a second drop should have the same result.
+    EXPECT(decoder.drop().is_error());
+}
