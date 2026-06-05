@@ -1,0 +1,86 @@
+<!D<!DOCTYPE html>
+<meta charset="utf-8">
+
+<title>CSS Color 5: contrast-color</title>
+
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#contrast-color">
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/contrast-color-001-ref.html">
+
+<!--
+Although the spec says that
+
+    "The precise color contrast algorithm for determining whether to output
+    a light or dark color is UA-defined",
+
+it does require that
+
+    "contrast-color() resolves to either white or black, whichever produces
+    maximum color contrast..."
+
+so although the exact definition of "contrast" is unspecified, it is clear that
+for very light colors, it must resolve to black, and for very dark ones, it must
+resolve to white. It would only be for intermediate colors nearer the middle of
+the lightness range that the result may be UA-dependent.
+
+Here, we check that contrast-color() resolves to black for a selection of very
+light colors, and to white for some dark ones.
+-->
+
+<style>
+body {
+  background: ivory;
+  color: magenta;
+}
+p {
+  font: bold 16px sans-serif;
+  padding: .5em;
+  background: var(--bgcolor);
+  color: contrast-color(var(--bgcolor));
+}
+/* light colors for which contrast-color() should be black: */
+p.test1 {
+  --bgcolor: white;
+}
+p.test2 {
+  --bgcolor: aliceblue;
+}
+p.test3 {
+  --bgcolor: mistyrose;
+}
+p.test4 {
+  --bgcolor: lightyellow;
+}
+p.test5 {
+  --bgcolor: palegreen;
+}
+/* dark colors for which contrast-color() should be white: */
+p.test6 {
+  --bgcolor: darkblue;
+}
+p.test7 {
+  --bgcolor: maroon;
+}
+p.test8 {
+  --bgcolor: purple;
+}
+p.test9 {
+  --bgcolor: brown;
+}
+p.test10 {
+  --bgcolor: black;
+}
+</style>
+
+<p class=test1>This text should be black</p>
+<p class=test2>This text should be black</p>
+<p class=test3>This text should be black</p>
+<p class=test4>This text should be black</p>
+<p class=test5>This text should be black</p>
+
+<p class=test6>This text should be white</p>
+<p class=test7>This text should be white</p>
+<p class=test8>This text should be white</p>
+<p class=test9>This text should be white</p>
+<p class=test10>This text should be white</p>

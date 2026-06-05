@@ -268,6 +268,7 @@ set(SOURCES
     CSS/StyleValues/ColorStyleValue.cpp
     CSS/StyleValues/ConicGradientStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
+    CSS/StyleValues/ContrastColorStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
     CSS/StyleValues/CounterStyleSystemStyleValue.cpp
     CSS/StyleValues/CounterStyleValue.cpp
