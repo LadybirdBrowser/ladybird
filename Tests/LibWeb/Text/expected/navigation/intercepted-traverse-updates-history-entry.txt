@@ -1,0 +1,4 @@
+navigate destination=/r/programming current=/r/programming/comments/post location=/r/programming/comments/post
+handler current=/r/programming/comments/post location=/r/programming/comments/post
+navigatesuccess current=/r/programming/comments/post location=/r/programming/comments/post
+currententrychange current=/r/programming location=/r/programming

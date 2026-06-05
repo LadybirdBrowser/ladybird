@@ -1235,9 +1235,9 @@ public:
             // 2. Let targetEntry be the result of getting the target history entry given traversable and targetStep.
             m_target_entry = m_traversable->get_the_target_history_entry(target_step.value());
 
-            // 3. If targetEntry is not traversable's current session history entry, and targetEntry's document state's origin is not the same as
-            //    traversable's current session history entry's document state's origin, then:
-            if (m_target_entry != m_traversable->current_session_history_entry() && m_target_entry->document_state()->origin() != m_traversable->current_session_history_entry()->document_state()->origin()) {
+            // 3. If targetEntry is not traversable's current session history entry, and targetEntry's document state's origin is the same as
+            //    traversable's current session history entry's document state's origin:
+            if (m_target_entry != m_traversable->current_session_history_entry() && m_target_entry->document_state()->origin() == m_traversable->current_session_history_entry()->document_state()->origin()) {
 
                 // 1. Let eventsFired be false.
 
@@ -1618,6 +1618,18 @@ void TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<Sou
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
     apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No, nullptr, on_complete);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#resume-applying-the-traverse-history-step
+void TraversableNavigable::resume_applying_the_traverse_history_step(int step, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
+{
+    // To resume applying the traverse history step given a non-negative integer step, a traversable
+    // navigable traversable, and user navigation involvement userInvolvement, apply step to
+    // traversable given false, null, null, userInvolvement, and "traverse".
+    // NOTE: When resuming a traverse, we are already past the cancelation, initiator, and
+    //       source snapshot checks, and this traversal has already been determined to be a
+    //       same-document traversal. Hence, we can pass false and null for those arguments.
+    apply_the_history_step(step, false, {}, {}, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No, nullptr, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable

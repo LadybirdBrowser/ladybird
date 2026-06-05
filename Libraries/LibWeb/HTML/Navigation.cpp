@@ -1142,13 +1142,47 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         //         promise as handled at the equivalent place.
         WebIDL::mark_promise_as_handled(*m_transition->committed());
 
-        // 6. If navigationType is "traverse", then set navigation's suppress normal scroll restoration during ongoing navigation to true.
-        // NOTE: If event's scroll behavior was set to "after-transition", then scroll restoration will happen as part of finishing
-        //       the relevant NavigateEvent. Otherwise, there will be no scroll restoration. That is, no navigation which is intercepted
-        //       by intercept() goes through the normal scroll restoration process; scroll restoration for such navigations
-        //       is either done manually, by the web developer, or is done after the transition.
-        if (navigation_type == Bindings::NavigationType::Traverse)
+        // Switch on event's navigationType:
+        // - "traverse":
+        if (navigation_type == Bindings::NavigationType::Traverse) {
+            // 1. Set navigation's suppress normal scroll restoration during ongoing navigation to true.
+            // NOTE: If event's scroll behavior was set to "after-transition", then scroll restoration will happen as part of finishing
+            //       the relevant NavigateEvent. Otherwise, there will be no scroll restoration. That is, no navigation which is intercepted
+            //       by intercept() goes through the normal scroll restoration process; scroll restoration for such navigations
+            //       is either done manually, by the web developer, or is done after the transition.
             m_suppress_scroll_restoration_during_ongoing_navigation = true;
+
+            // 2. Let userInvolvement be "none".
+            auto user_involvement_for_resume = UserNavigationInvolvement::None;
+
+            // 3. If event's userInitiated is true, then set userInvolvement to "activation".
+            if (event->user_initiated())
+                user_involvement_for_resume = UserNavigationInvolvement::Activation;
+
+            // NOTE: At this point after interception, it is not consequential whether the
+            //       activation was a result of browser UI.
+
+            // 4. Append the following session history traversal steps to navigable's traversable navigable:
+            auto destination_entry = event->destination()->navigation_history_entry();
+            VERIFY(destination_entry);
+            auto target_step = destination_entry->session_history_entry().step().get<int>();
+            auto traversable = navigable->traversable_navigable();
+            traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this, event, traversable, target_step, user_involvement_for_resume](NonnullRefPtr<Core::Promise<Empty>> signal) {
+                // NB: This appended step can run after a later navigation has aborted the intercepted
+                //     traverse. In that case, the aborted traverse must not be resumed.
+                if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
+                    signal->resolve({});
+                    return;
+                }
+
+                // 1. Resume applying the traverse history step given event's destination's entry's session history entry's step,
+                //    navigable's traversable navigable, and userInvolvement.
+                traversable->resume_applying_the_traverse_history_step(target_step, user_involvement_for_resume,
+                    GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
+                        signal->resolve({});
+                    }));
+            }));
+        }
 
         // 7. If navigationType is "push" or "replace", then run the URL and history update steps given document and
         //    event's destination's URL, with serializedData set to event's classic history API state and historyHandling
