@@ -13,8 +13,10 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
     AK::set_debug_enabled(false);
 
     Crypto::ASN1::Decoder decoder(ReadonlyBytes { data, size });
-    while (!decoder.eof())
-        (void)decoder.drop();
+    while (!decoder.eof()) {
+        if (decoder.drop().is_error())
+            break;
+    }
 
     return 0;
 }
