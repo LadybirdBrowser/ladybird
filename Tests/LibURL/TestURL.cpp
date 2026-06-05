@@ -575,6 +575,25 @@ TEST_CASE(username_and_password)
     }
 }
 
+TEST_CASE(non_ascii_userinfo)
+{
+    {
+        auto url = URL::Parser::basic_parse("http://é@é"sv);
+        EXPECT(url.has_value());
+        EXPECT_EQ(url->username(), "%C3%A9"sv);
+        EXPECT(url->password().is_empty());
+        EXPECT_EQ(url->serialized_host(), "xn--9ca"sv);
+    }
+
+    {
+        auto url = URL::Parser::basic_parse("http://é@example.com"sv);
+        EXPECT(url.has_value());
+        EXPECT_EQ(url->username(), "%C3%A9"sv);
+        EXPECT(url->password().is_empty());
+        EXPECT_EQ(url->serialized_host(), "example.com"sv);
+    }
+}
+
 TEST_CASE(ascii_only_url)
 {
     {
