@@ -6,10 +6,13 @@
 
 #include <AK/ByteString.h>
 #include <AK/Checked.h>
+#include <AK/LexicalPath.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
 #include <AK/ScopeGuard.h>
 #include <CraneliftFFI.h>
 #include <LibCore/Process.h>
+#include <LibCore/System.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/Printer/Printer.h>
@@ -1103,6 +1106,33 @@ static CraneliftInsn serialize_insn(Dispatch const& dispatch, SourcesAndDestinat
     return out;
 }
 
+static StringView resolve_cranelift_compiler_path()
+{
+    // Lookup order: LADYBIRD_CRANELIFT_COMPILER, compile-time path, sibling-of-self.
+    static NeverDestroyed<ByteString> s_path = []() -> ByteString {
+        auto file_exists = [](ByteString const& path) {
+            return !Core::System::stat(path).is_error();
+        };
+
+        if (auto const* env = getenv("LADYBIRD_CRANELIFT_COMPILER"); env && *env) {
+            if (file_exists(env))
+                return ByteString { env };
+        }
+
+        if (file_exists(WASM_CRANELIFT_COMPILER_PATH))
+            return WASM_CRANELIFT_COMPILER_PATH;
+
+        if (auto self_path = Core::System::current_executable_path(); !self_path.is_error()) {
+            auto sibling = LexicalPath::join(LexicalPath::dirname(self_path.value()), "cranelift-compiler"sv).string();
+            if (file_exists(sibling))
+                return sibling;
+        }
+
+        return WASM_CRANELIFT_COMPILER_PATH;
+    }();
+    return s_path->view();
+}
+
 static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
 {
     if (batch.is_empty())
@@ -1214,7 +1244,7 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
 
     auto process_result = Core::Process::spawn({
         .name = "cranelift-compiler"sv,
-        .executable = WASM_CRANELIFT_COMPILER_PATH,
+        .executable = resolve_cranelift_compiler_path(),
         .arguments = arguments,
     });
     if (process_result.is_error())
