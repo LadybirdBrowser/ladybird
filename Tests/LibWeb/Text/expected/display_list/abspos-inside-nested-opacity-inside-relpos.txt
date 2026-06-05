@@ -2,8 +2,8 @@ AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
     [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[8,8 200x200] (PaintableWithLines(BlockContainer(anonymous)))
-        [5] effects=[opacity=0.5]
-          [6] effects=[opacity=0.3] (PaintableWithLines(BlockContainer<DIV>.abspos))
+        [4] effects=[opacity=0.5]
+          [7] effects=[opacity=0.3] (PaintableWithLines(BlockContainer<DIV>.abspos))
 
 DisplayList:
 SaveLayer@0
@@ -11,7 +11,7 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[0,0 800x221]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 784x200]
   CompositorWheelHitTestTarget@1 target_scroll_frame_index=0 rect=[8,8 200x200]
-  CompositorWheelHitTestTarget@6 target_scroll_frame_index=0 rect=[8,8 100x100]
-  FillRect@6 rect=[8,8 100x100] color=rgb(0, 0, 0)
+  CompositorWheelHitTestTarget@7 target_scroll_frame_index=0 rect=[8,8 100x100]
+  FillRect@7 rect=[8,8 100x100] color=rgb(0, 0, 0)
 Restore@0
 
