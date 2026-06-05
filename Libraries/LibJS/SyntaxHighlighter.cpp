@@ -6,7 +6,6 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/NeverDestroyed.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Palette.h>
 #include <LibJS/RustFFI.h>
@@ -40,27 +39,11 @@ static Gfx::TextAttributes style_for_token_category(Gfx::Palette const& palette,
     }
 }
 
-bool SyntaxHighlighter::is_identifier(u64 token) const
-{
-    return token_type_from_packed(token) == TokenType::Identifier;
-}
-
-bool SyntaxHighlighter::is_navigatable([[maybe_unused]] u64 token) const
-{
-    return false;
-}
-
 struct RehighlightState {
     Gfx::Palette const& palette;
     Vector<Syntax::TextDocumentSpan>& spans;
-    Vector<Syntax::TextDocumentFoldingRegion>& folding_regions;
     u16 const* source;
     Syntax::TextPosition position { 0, 0 };
-
-    struct FoldStart {
-        Syntax::TextRange range;
-    };
-    Vector<FoldStart> folding_region_starts;
 };
 
 static void advance_position(Syntax::TextPosition& position, u16 const* source, u32 start, u32 len)
@@ -106,19 +89,6 @@ static void on_token(void* ctx, FFI::FFIToken const* ffi_token)
         span.data = pack_token_data(token_type, category);
         state.spans.append(span);
     }
-
-    // Track folding regions for {} blocks
-    if (token_type == TokenType::CurlyOpen) {
-        state.folding_region_starts.append({ .range = { token_start, state.position } });
-    } else if (token_type == TokenType::CurlyClose) {
-        if (!state.folding_region_starts.is_empty()) {
-            auto curly_open = state.folding_region_starts.take_last();
-            Syntax::TextDocumentFoldingRegion region;
-            region.range.set_start(curly_open.range.end());
-            region.range.set_end(token_start);
-            state.folding_regions.append(region);
-        }
-    }
 }
 
 void SyntaxHighlighter::rehighlight(Palette const& palette)
@@ -130,43 +100,18 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
     auto source_len = source_code->length_in_code_units();
 
     Vector<Syntax::TextDocumentSpan> spans;
-    Vector<Syntax::TextDocumentFoldingRegion> folding_regions;
 
     RehighlightState state {
         .palette = palette,
         .spans = spans,
-        .folding_regions = folding_regions,
         .source = source_data,
         .position = { 0, 0 },
-        .folding_region_starts = {},
     };
 
     FFI::rust_tokenize(source_data, source_len, &state,
         [](void* ctx, FFI::FFIToken const* token) { on_token(ctx, token); });
 
     m_client->do_set_spans(move(spans));
-    m_client->do_set_folding_regions(move(folding_regions));
-
-    m_has_brace_buddies = false;
-    highlight_matching_token_pair();
-
-    m_client->do_update();
-}
-
-Vector<Syntax::Highlighter::MatchingTokenPair> SyntaxHighlighter::matching_token_pairs_impl() const
-{
-    static NeverDestroyed<Vector<Syntax::Highlighter::MatchingTokenPair>> pairs;
-    if (pairs->is_empty()) {
-        pairs->append({ pack_token_data(TokenType::CurlyOpen, TokenCategory::Punctuation), pack_token_data(TokenType::CurlyClose, TokenCategory::Punctuation) });
-        pairs->append({ pack_token_data(TokenType::ParenOpen, TokenCategory::Punctuation), pack_token_data(TokenType::ParenClose, TokenCategory::Punctuation) });
-        pairs->append({ pack_token_data(TokenType::BracketOpen, TokenCategory::Punctuation), pack_token_data(TokenType::BracketClose, TokenCategory::Punctuation) });
-    }
-    return *pairs;
-}
-
-bool SyntaxHighlighter::token_types_equal(u64 token1, u64 token2) const
-{
-    return static_cast<TokenType>(token1) == static_cast<TokenType>(token2);
 }
 
 }

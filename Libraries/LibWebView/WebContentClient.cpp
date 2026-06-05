@@ -624,7 +624,7 @@ void WebContentClient::did_request_media_context_menu(u64 page_id, Gfx::IntPoint
 void WebContentClient::did_get_source(u64, URL::URL url, URL::URL base_url, String source)
 {
     if (auto view = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); view.has_value()) {
-        auto html = highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
+        auto html = highlight_source(url, base_url, source, Syntax::Language::HTML);
         view->load_html(html);
     }
 }

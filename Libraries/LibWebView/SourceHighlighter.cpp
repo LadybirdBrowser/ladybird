@@ -97,60 +97,20 @@ SourceHighlighterClient::SourceHighlighterClient(String const& source, Syntax::L
     }
 }
 
-Vector<Syntax::TextDocumentSpan> const& SourceHighlighterClient::spans() const
-{
-    return document().spans();
-}
-
-void SourceHighlighterClient::set_span_at_index(size_t index, Syntax::TextDocumentSpan span)
-{
-    document().set_span_at_index(index, span);
-}
-
-Vector<Syntax::TextDocumentFoldingRegion>& SourceHighlighterClient::folding_regions()
-{
-    return document().folding_regions();
-}
-
-Vector<Syntax::TextDocumentFoldingRegion> const& SourceHighlighterClient::folding_regions() const
-{
-    return document().folding_regions();
-}
-
-ByteString SourceHighlighterClient::highlighter_did_request_text() const
+StringView SourceHighlighterClient::highlighter_did_request_text() const
 {
     return document().text();
 }
 
-void SourceHighlighterClient::highlighter_did_request_update()
-{
-    // No-op
-}
-
-Syntax::Document& SourceHighlighterClient::highlighter_did_request_document()
-{
-    return document();
-}
-
-Syntax::TextPosition SourceHighlighterClient::highlighter_did_request_cursor() const
-{
-    return {};
-}
-
 void SourceHighlighterClient::highlighter_did_set_spans(Vector<Syntax::TextDocumentSpan> spans)
 {
-    document().set_spans(span_collection_index, move(spans));
+    document().set_spans(move(spans));
 }
 
-void SourceHighlighterClient::highlighter_did_set_folding_regions(Vector<Syntax::TextDocumentFoldingRegion> folding_regions)
-{
-    document().set_folding_regions(move(folding_regions));
-}
-
-String highlight_source(Optional<URL::URL> const& url, URL::URL const& base_url, String const& source, Syntax::Language language, HighlightOutputMode mode)
+String highlight_source(Optional<URL::URL> const& url, URL::URL const& base_url, String const& source, Syntax::Language language)
 {
     SourceHighlighterClient highlighter_client { source, language };
-    return highlighter_client.to_html_string(url, base_url, mode);
+    return highlighter_client.to_html_string(url, base_url);
 }
 
 StringView SourceHighlighterClient::class_for_token(u64 token_type) const
@@ -268,7 +228,7 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
     }
 }
 
-String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, URL::URL const& base_url, HighlightOutputMode mode) const
+String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, URL::URL const& base_url) const
 {
     StringBuilder builder;
 
@@ -295,24 +255,22 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
         builder.append("</span>"sv);
     };
 
-    if (mode == HighlightOutputMode::FullDocument) {
-        builder.append(R"~~~(
+    builder.append(R"~~~(
 <!DOCTYPE html>
 <html>
 <head>
     <meta name="color-scheme" content="dark light">)~~~"sv);
 
-        if (url.has_value())
-            builder.appendff("<title>View Source - {}</title>", escape_html_entities(url->serialize_for_display()));
-        else
-            builder.append("<title>View Source</title>"sv);
+    if (url.has_value())
+        builder.appendff("<title>View Source - {}</title>", escape_html_entities(url->serialize_for_display()));
+    else
+        builder.append("<title>View Source</title>"sv);
 
-        builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
-        builder.append(R"~~~(
+    builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
+    builder.append(R"~~~(
 </head>
-<body>)~~~"sv);
-    }
-    builder.append("<pre class=\"html\">"sv);
+<body>
+<pre class=\"html\">)~~~"sv);
 
     static constexpr auto href = to_array<u32>({ 'h', 'r', 'e', 'f' });
     static constexpr auto src = to_array<u32>({ 's', 'r', 'c' });
@@ -409,13 +367,11 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
         builder.append("</div>"sv);
     }
 
-    builder.append("</pre>"sv);
-    if (mode == HighlightOutputMode::FullDocument) {
-        builder.append(R"~~~(
+    builder.append(R"~~~(
+</pre>
 </body>
 </html>
 )~~~"sv);
-    }
 
     return builder.to_string_without_validation();
 }
