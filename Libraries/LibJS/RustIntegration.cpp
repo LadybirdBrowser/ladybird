@@ -426,7 +426,7 @@ ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& 
 
 struct BytecodeCacheBlobOwner {
     Core::ImmutableBytes bytes;
-    NonnullRefPtr<Core::WeakEventLoopReference> event_loop;
+    Core::EventLoop* event_loop { nullptr };
 };
 
 static void free_bytecode_cache_blob_owner(void* owner)
@@ -435,13 +435,10 @@ static void free_bytecode_cache_blob_owner(void* owner)
     if (!owner_ptr)
         return;
 
-    auto origin = owner_ptr->event_loop->take();
-    if (!origin) {
-        (void)owner_ptr.leak_ptr();
+    if (owner_ptr->event_loop) {
+        owner_ptr->event_loop->deferred_invoke([owner = move(owner_ptr)] { (void)owner; });
         return;
     }
-
-    origin->deferred_invoke([owner = move(owner_ptr)] { (void)owner; });
 }
 
 static void* clone_bytecode_cache_blob_owner(void const* owner)
@@ -452,18 +449,14 @@ static void* clone_bytecode_cache_blob_owner(void const* owner)
 
 DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash)
 {
-    return decode_bytecode_cache_blob(move(bytes), expected_type, source_hash, Core::EventLoop::current_weak());
-}
-
-DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash, NonnullRefPtr<Core::WeakEventLoopReference> event_loop)
-{
-    auto* owner = new BytecodeCacheBlobOwner { move(bytes), move(event_loop) };
+    auto* owner = new BytecodeCacheBlobOwner { move(bytes) };
     return rust_decode_bytecode_cache_blob_with_owner(owner->bytes.bytes().data(), owner->bytes.bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
 }
 
-size_t decoded_bytecode_cache_source_length(DecodedBytecodeCacheBlob const* blob)
+DecodedBytecodeCacheBlob* decode_bytecode_cache_blob(Core::ImmutableBytes bytes, ProgramType expected_type, ReadonlyBytes source_hash, Core::EventLoop& event_loop)
 {
-    return rust_decoded_bytecode_cache_source_len(blob);
+    auto* owner = new BytecodeCacheBlobOwner { move(bytes), &event_loop };
+    return rust_decode_bytecode_cache_blob_with_owner(owner->bytes.bytes().data(), owner->bytes.bytes().size(), static_cast<u8>(expected_type), source_hash.data(), source_hash.size(), owner, clone_bytecode_cache_blob_owner, free_bytecode_cache_blob_owner);
 }
 
 bool validate_decoded_bytecode_cache_blob(DecodedBytecodeCacheBlob* blob, size_t source_length)
