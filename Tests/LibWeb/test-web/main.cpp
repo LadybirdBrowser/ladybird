@@ -549,6 +549,26 @@ pre { margin: 0; padding: 16px; font-family: ui-monospace, monospace; font-size:
     return {};
 }
 
+static void apply_variant_to_test(Test& test, String variant)
+{
+    VERIFY(variant.starts_with('?'));
+
+    test.variant = move(variant);
+
+    // relative_path uses '?' for display, safe_relative_path uses '@' for filesystem.
+    auto variant_suffix = test.variant->bytes_as_string_view().substring_view(1);
+    test.relative_path = ByteString::formatted("{}?{}", test.relative_path, variant_suffix);
+    test.safe_relative_path = ByteString::formatted("{}@{}", test.safe_relative_path, variant_suffix);
+
+    // Expected file: test@variant_suffix.txt
+    auto dir = LexicalPath::dirname(test.expectation_path);
+    auto title = LexicalPath::title(LexicalPath::basename(test.input_path));
+    if (dir.is_empty())
+        test.expectation_path = ByteString::formatted("{}@{}.txt", title, variant_suffix);
+    else
+        test.expectation_path = ByteString::formatted("{}/{}@{}.txt", dir, title, variant_suffix);
+}
+
 static void expand_test_with_variants(TestRunContext& context, size_t base_test_index, ReadonlySpan<String> variants)
 {
     VERIFY(!variants.is_empty());
@@ -562,20 +582,10 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
         variant_test.run_index = base_test.run_index;
         variant_test.total_runs = base_test.total_runs;
         variant_test.input_path = base_test.input_path;
-        variant_test.variant = variant;
-
-        // relative_path uses '?' for display, safe_relative_path uses '@' for filesystem
-        auto variant_suffix = StringView { variant }.substring_view(1);
-        variant_test.relative_path = ByteString::formatted("{}?{}", base_test.relative_path, variant_suffix);
-        variant_test.safe_relative_path = ByteString::formatted("{}@{}", base_test.safe_relative_path, variant_suffix);
-
-        // Expected file: test@variant_suffix.txt
-        auto dir = LexicalPath::dirname(base_test.expectation_path);
-        auto title = LexicalPath::title(LexicalPath::basename(base_test.input_path));
-        if (dir.is_empty())
-            variant_test.expectation_path = ByteString::formatted("{}@{}.txt", title, variant_suffix);
-        else
-            variant_test.expectation_path = ByteString::formatted("{}/{}@{}.txt", dir, title, variant_suffix);
+        variant_test.expectation_path = base_test.expectation_path;
+        variant_test.relative_path = base_test.relative_path;
+        variant_test.safe_relative_path = base_test.safe_relative_path;
+        apply_variant_to_test(variant_test, variant);
 
         // Set the index before appending so it matches the position in the vector
         variant_test.index = context.tests.size();
@@ -1230,16 +1240,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     for (auto& test : tests) {
         for (auto const& [glob, variant] : explicit_variants) {
             if (test.relative_path.matches(glob, CaseSensitivity::CaseSensitive)) {
-                test.variant = variant;
-                auto variant_suffix = variant.bytes_as_string_view().substring_view(1);
-                test.relative_path = ByteString::formatted("{}?{}", test.relative_path, variant_suffix);
-                test.safe_relative_path = ByteString::formatted("{}@{}", test.safe_relative_path, variant_suffix);
-                auto dir = LexicalPath::dirname(test.expectation_path);
-                auto title = LexicalPath::title(LexicalPath::basename(test.input_path));
-                if (dir.is_empty())
-                    test.expectation_path = ByteString::formatted("{}@{}.txt", title, variant_suffix);
-                else
-                    test.expectation_path = ByteString::formatted("{}/{}@{}.txt", dir, title, variant_suffix);
+                apply_variant_to_test(test, variant);
                 break;
             }
         }
