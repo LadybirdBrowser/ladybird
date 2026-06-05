@@ -31,7 +31,7 @@ target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 
-if (NOT WIN32)
+if (NOT WIN32 AND NOT ENABLE_ALL_THE_DEBUG_MACROS)
     add_custom_target(test-css-tokenizer ALL DEPENDS css-tokenizer "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer")
     add_custom_command(
         OUTPUT "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer"

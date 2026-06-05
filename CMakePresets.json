@@ -51,6 +51,14 @@
       "configurePreset": "Debug"
     },
     {
+      "name": "All_Debug",
+      "inherits": "root_base",
+      "configurePreset": "All_Debug",
+      "environment": {
+        "TESTS_ONLY": "1"
+      }
+    },
+    {
       "name": "Sanitizer",
       "inherits": "root_base",
       "configurePreset": "Sanitizer",

@@ -27,7 +27,11 @@ if (WIN32)
     return()
 endif()
 
-if (BUILD_TESTING)
+# Exclude test-web tests when all the debug macros are enabled, as there
+# is too much output for ctest to handle and it takes too long to run
+if (BUILD_TESTING AND NOT ENABLE_ALL_THE_DEBUG_MACROS)
+    find_package(Python3 REQUIRED)
+
     add_test(
         NAME LibWeb
         COMMAND $<TARGET_FILE:test-web> --python-executable ${Python3_EXECUTABLE} --per-test-timeout 120 -v -v
