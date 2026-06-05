@@ -55,61 +55,6 @@ bool KeywordStyleValue::is_color(Keyword keyword)
     case Keyword::Infotext:
     case Keyword::LibwebButtonfacedisabled:
     case Keyword::LibwebButtonfacehover:
-    case Keyword::LibwebLink:
-    case Keyword::LibwebPaletteActiveLink:
-    case Keyword::LibwebPaletteActiveWindowBorder1:
-    case Keyword::LibwebPaletteActiveWindowBorder2:
-    case Keyword::LibwebPaletteActiveWindowTitle:
-    case Keyword::LibwebPaletteBase:
-    case Keyword::LibwebPaletteBaseText:
-    case Keyword::LibwebPaletteButton:
-    case Keyword::LibwebPaletteButtonText:
-    case Keyword::LibwebPaletteDesktopBackground:
-    case Keyword::LibwebPaletteFocusOutline:
-    case Keyword::LibwebPaletteHighlightWindowBorder1:
-    case Keyword::LibwebPaletteHighlightWindowBorder2:
-    case Keyword::LibwebPaletteHighlightWindowTitle:
-    case Keyword::LibwebPaletteHoverHighlight:
-    case Keyword::LibwebPaletteInactiveSelection:
-    case Keyword::LibwebPaletteInactiveSelectionText:
-    case Keyword::LibwebPaletteInactiveWindowBorder1:
-    case Keyword::LibwebPaletteInactiveWindowBorder2:
-    case Keyword::LibwebPaletteInactiveWindowTitle:
-    case Keyword::LibwebPaletteLink:
-    case Keyword::LibwebPaletteMenuBase:
-    case Keyword::LibwebPaletteMenuBaseText:
-    case Keyword::LibwebPaletteMenuSelection:
-    case Keyword::LibwebPaletteMenuSelectionText:
-    case Keyword::LibwebPaletteMenuStripe:
-    case Keyword::LibwebPaletteMovingWindowBorder1:
-    case Keyword::LibwebPaletteMovingWindowBorder2:
-    case Keyword::LibwebPaletteMovingWindowTitle:
-    case Keyword::LibwebPaletteRubberBandBorder:
-    case Keyword::LibwebPaletteRubberBandFill:
-    case Keyword::LibwebPaletteRuler:
-    case Keyword::LibwebPaletteRulerActiveText:
-    case Keyword::LibwebPaletteRulerBorder:
-    case Keyword::LibwebPaletteRulerInactiveText:
-    case Keyword::LibwebPaletteSelection:
-    case Keyword::LibwebPaletteSelectionText:
-    case Keyword::LibwebPaletteSyntaxComment:
-    case Keyword::LibwebPaletteSyntaxControlKeyword:
-    case Keyword::LibwebPaletteSyntaxIdentifier:
-    case Keyword::LibwebPaletteSyntaxKeyword:
-    case Keyword::LibwebPaletteSyntaxNumber:
-    case Keyword::LibwebPaletteSyntaxOperator:
-    case Keyword::LibwebPaletteSyntaxPreprocessorStatement:
-    case Keyword::LibwebPaletteSyntaxPreprocessorValue:
-    case Keyword::LibwebPaletteSyntaxPunctuation:
-    case Keyword::LibwebPaletteSyntaxString:
-    case Keyword::LibwebPaletteSyntaxType:
-    case Keyword::LibwebPaletteTextCursor:
-    case Keyword::LibwebPaletteThreedHighlight:
-    case Keyword::LibwebPaletteThreedShadow1:
-    case Keyword::LibwebPaletteThreedShadow2:
-    case Keyword::LibwebPaletteVisitedLink:
-    case Keyword::LibwebPaletteWindow:
-    case Keyword::LibwebPaletteWindowText:
     case Keyword::Linktext:
     case Keyword::Mark:
     case Keyword::Marktext:
@@ -146,7 +91,6 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
 
     PreferredColorScheme scheme = color_resolution_context.color_scheme.value_or(PreferredColorScheme::Light);
 
-    // First, handle <system-color>s, since they don't strictly require a node.
     // https://www.w3.org/TR/css-color-4/#css-system-colors
     // https://www.w3.org/TR/css-color-4/#deprecated-system-colors
     switch (keyword()) {
@@ -214,7 +158,6 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
         return SystemColor::button_face(scheme).with_alpha(128);
     case Keyword::LibwebButtonfacehover:
         return SystemColor::button_face(scheme).darkened(0.8f);
-    case Keyword::LibwebLink:
     case Keyword::Linktext:
         return SystemColor::link_text(scheme);
     case Keyword::Visitedtext:
@@ -223,124 +166,7 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
         break;
     }
 
-    if (!color_resolution_context.document) {
-        // FIXME: Can't resolve palette colors without a document.
-        return Color::Black;
-    }
-
-    auto palette = color_resolution_context.document->page().palette();
-    switch (keyword()) {
-    case Keyword::LibwebPaletteDesktopBackground:
-        return palette.color(ColorRole::DesktopBackground);
-    case Keyword::LibwebPaletteActiveWindowBorder1:
-        return palette.color(ColorRole::ActiveWindowBorder1);
-    case Keyword::LibwebPaletteActiveWindowBorder2:
-        return palette.color(ColorRole::ActiveWindowBorder2);
-    case Keyword::LibwebPaletteActiveWindowTitle:
-        return palette.color(ColorRole::ActiveWindowTitle);
-    case Keyword::LibwebPaletteInactiveWindowBorder1:
-        return palette.color(ColorRole::InactiveWindowBorder1);
-    case Keyword::LibwebPaletteInactiveWindowBorder2:
-        return palette.color(ColorRole::InactiveWindowBorder2);
-    case Keyword::LibwebPaletteInactiveWindowTitle:
-        return palette.color(ColorRole::InactiveWindowTitle);
-    case Keyword::LibwebPaletteMovingWindowBorder1:
-        return palette.color(ColorRole::MovingWindowBorder1);
-    case Keyword::LibwebPaletteMovingWindowBorder2:
-        return palette.color(ColorRole::MovingWindowBorder2);
-    case Keyword::LibwebPaletteMovingWindowTitle:
-        return palette.color(ColorRole::MovingWindowTitle);
-    case Keyword::LibwebPaletteHighlightWindowBorder1:
-        return palette.color(ColorRole::HighlightWindowBorder1);
-    case Keyword::LibwebPaletteHighlightWindowBorder2:
-        return palette.color(ColorRole::HighlightWindowBorder2);
-    case Keyword::LibwebPaletteHighlightWindowTitle:
-        return palette.color(ColorRole::HighlightWindowTitle);
-    case Keyword::LibwebPaletteMenuStripe:
-        return palette.color(ColorRole::MenuStripe);
-    case Keyword::LibwebPaletteMenuBase:
-        return palette.color(ColorRole::MenuBase);
-    case Keyword::LibwebPaletteMenuBaseText:
-        return palette.color(ColorRole::MenuBaseText);
-    case Keyword::LibwebPaletteMenuSelection:
-        return palette.color(ColorRole::MenuSelection);
-    case Keyword::LibwebPaletteMenuSelectionText:
-        return palette.color(ColorRole::MenuSelectionText);
-    case Keyword::LibwebPaletteWindow:
-        return palette.color(ColorRole::Window);
-    case Keyword::LibwebPaletteWindowText:
-        return palette.color(ColorRole::WindowText);
-    case Keyword::LibwebPaletteButton:
-        return palette.color(ColorRole::Button);
-    case Keyword::LibwebPaletteButtonText:
-        return palette.color(ColorRole::ButtonText);
-    case Keyword::LibwebPaletteBase:
-        return palette.color(ColorRole::Base);
-    case Keyword::LibwebPaletteBaseText:
-        return palette.color(ColorRole::BaseText);
-    case Keyword::LibwebPaletteThreedHighlight:
-        return palette.color(ColorRole::ThreedHighlight);
-    case Keyword::LibwebPaletteThreedShadow1:
-        return palette.color(ColorRole::ThreedShadow1);
-    case Keyword::LibwebPaletteThreedShadow2:
-        return palette.color(ColorRole::ThreedShadow2);
-    case Keyword::LibwebPaletteHoverHighlight:
-        return palette.color(ColorRole::HoverHighlight);
-    case Keyword::LibwebPaletteSelection:
-        return palette.color(ColorRole::Selection);
-    case Keyword::LibwebPaletteSelectionText:
-        return palette.color(ColorRole::SelectionText);
-    case Keyword::LibwebPaletteInactiveSelection:
-        return palette.color(ColorRole::InactiveSelection);
-    case Keyword::LibwebPaletteInactiveSelectionText:
-        return palette.color(ColorRole::InactiveSelectionText);
-    case Keyword::LibwebPaletteRubberBandFill:
-        return palette.color(ColorRole::RubberBandFill);
-    case Keyword::LibwebPaletteRubberBandBorder:
-        return palette.color(ColorRole::RubberBandBorder);
-    case Keyword::LibwebPaletteLink:
-        return palette.color(ColorRole::Link);
-    case Keyword::LibwebPaletteActiveLink:
-        return palette.color(ColorRole::ActiveLink);
-    case Keyword::LibwebPaletteVisitedLink:
-        return palette.color(ColorRole::VisitedLink);
-    case Keyword::LibwebPaletteRuler:
-        return palette.color(ColorRole::Ruler);
-    case Keyword::LibwebPaletteRulerBorder:
-        return palette.color(ColorRole::RulerBorder);
-    case Keyword::LibwebPaletteRulerActiveText:
-        return palette.color(ColorRole::RulerActiveText);
-    case Keyword::LibwebPaletteRulerInactiveText:
-        return palette.color(ColorRole::RulerInactiveText);
-    case Keyword::LibwebPaletteTextCursor:
-        return palette.color(ColorRole::TextCursor);
-    case Keyword::LibwebPaletteFocusOutline:
-        return palette.color(ColorRole::FocusOutline);
-    case Keyword::LibwebPaletteSyntaxComment:
-        return palette.color(ColorRole::SyntaxComment);
-    case Keyword::LibwebPaletteSyntaxNumber:
-        return palette.color(ColorRole::SyntaxNumber);
-    case Keyword::LibwebPaletteSyntaxString:
-        return palette.color(ColorRole::SyntaxString);
-    case Keyword::LibwebPaletteSyntaxType:
-        return palette.color(ColorRole::SyntaxType);
-    case Keyword::LibwebPaletteSyntaxPunctuation:
-        return palette.color(ColorRole::SyntaxPunctuation);
-    case Keyword::LibwebPaletteSyntaxOperator:
-        return palette.color(ColorRole::SyntaxOperator);
-    case Keyword::LibwebPaletteSyntaxKeyword:
-        return palette.color(ColorRole::SyntaxKeyword);
-    case Keyword::LibwebPaletteSyntaxControlKeyword:
-        return palette.color(ColorRole::SyntaxControlKeyword);
-    case Keyword::LibwebPaletteSyntaxIdentifier:
-        return palette.color(ColorRole::SyntaxIdentifier);
-    case Keyword::LibwebPaletteSyntaxPreprocessorStatement:
-        return palette.color(ColorRole::SyntaxPreprocessorStatement);
-    case Keyword::LibwebPaletteSyntaxPreprocessorValue:
-        return palette.color(ColorRole::SyntaxPreprocessorValue);
-    default:
-        return {};
-    }
+    return {};
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> KeywordStyleValue::absolutized(ComputationContext const& context) const
@@ -355,7 +181,6 @@ ValueComparingNonnullRefPtr<StyleValue const> KeywordStyleValue::absolutized(Com
 
     ColorResolutionContext color_resolution_context;
     if (context.abstract_element.has_value()) {
-        color_resolution_context.document = context.abstract_element->document();
         color_resolution_context.calculation_resolution_context = CalculationResolutionContext::from_computation_context(context);
         color_resolution_context.color_scheme = context.color_scheme;
     }

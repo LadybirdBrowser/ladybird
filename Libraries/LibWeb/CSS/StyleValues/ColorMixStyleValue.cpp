@@ -226,7 +226,6 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
     ColorResolutionContext color_resolution_context {
         .color_scheme = context.color_scheme,
         .current_color = {},
-        .document = context.abstract_element.map([](auto& it) { return &it.document(); }).value_or(nullptr),
         .calculation_resolution_context = CalculationResolutionContext::from_computation_context(context),
     };
     auto absolutized_color_interpolation_method = m_properties.color_interpolation_method ? ValueComparingRefPtr<StyleValue const> { m_properties.color_interpolation_method->absolutized(context) } : nullptr;
