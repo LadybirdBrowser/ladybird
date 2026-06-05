@@ -1147,6 +1147,9 @@ void PaintableBox::record_async_scrolling_metadata(DisplayListRecordingContext& 
 
 void PaintableBox::record_hit_test_items(DisplayListRecordingContext& context, PaintPhase phase) const
 {
+    if (phase != PaintPhase::Background && phase != PaintPhase::Overlay)
+        return;
+
     auto* hit_test_display_list = context.hit_test_display_list();
     if (!hit_test_display_list)
         return;
