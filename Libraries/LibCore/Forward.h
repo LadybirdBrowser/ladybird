@@ -47,8 +47,6 @@ class UDPServer;
 class UDPSocket;
 class WeakEventLoopReference;
 
-struct ProxyData;
-
 #ifdef AK_OS_MACH
 class MachPort;
 #endif

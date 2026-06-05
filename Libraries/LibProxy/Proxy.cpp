@@ -7,6 +7,7 @@
 #include "Proxy.h"
 #include "Platform/ProxyPlatform.h"
 #include "ProxyManager.h"
+#include <AK/Atomic.h>
 #include <AK/String.h>
 #include <AK/StringUtils.h>
 #include <AK/StringView.h>

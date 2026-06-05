@@ -12,7 +12,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibSync/Mutex.h>
-#include <LibSync/Once.h>
 
 namespace Proxy {
 
@@ -28,7 +27,6 @@ public:
 
 private:
     static ProxyManager* s_the;
-    static Sync::OnceFlag s_once;
 
     Sync::Mutex m_proxy_table_lock;
     AK::RefPtr<SystemProxyTable> m_proxy_tables;

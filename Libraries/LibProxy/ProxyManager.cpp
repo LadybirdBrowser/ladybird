@@ -5,11 +5,12 @@
  */
 
 #include "ProxyManager.h"
+#include <AK/NeverDestroyed.h>
+#include <LibSync/Once.h>
 
 namespace Proxy {
 
 ProxyManager* ProxyManager::s_the = nullptr;
-Sync::OnceFlag ProxyManager::s_once {};
 
 ProxyManager::ProxyManager()
 {
@@ -20,7 +21,8 @@ ProxyManager::ProxyManager()
 
 ProxyManager& ProxyManager::the()
 {
-    Sync::call_once(s_once, [] {
+    static NeverDestroyed<Sync::OnceFlag> s_once;
+    Sync::call_once(*s_once, [] {
         s_the = new ProxyManager();
     });
     return *s_the;

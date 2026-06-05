@@ -3,7 +3,6 @@ set(SOURCES
     ProxyManager.cpp
     Platform/ProxyPlatform.cpp
     Platform/ProxyEnv.cpp
-    Platform/ProxyEnv.cpp
 )
 
 if (APPLE)
