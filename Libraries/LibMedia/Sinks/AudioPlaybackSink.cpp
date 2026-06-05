@@ -92,6 +92,11 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         output_thread_data->m_output_condition.broadcast();
                         continue;
                     }
+                    if (!is_waiting_for_data(status)) {
+                        Sync::MutexLocker locker { output_thread_data->m_output_mutex };
+                        output_thread_data->m_last_pull_status = status;
+                        output_thread_data->m_waiting_for_upstream_data = false;
+                    }
                 }
 
                 u32 seek_id_at_pull;
