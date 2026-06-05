@@ -297,7 +297,8 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
     // Draw the background and borders for block-level children (step 4)
     paint_descendants(context, paintable_box(), StackingContextPaintPhase::BackgroundAndBorders);
     // Draw the non-positioned floats (step 5)
-    paint_descendants(context, paintable_box(), StackingContextPaintPhase::Floats);
+    if (!m_non_positioned_floating_descendants.is_empty())
+        paint_descendants(context, paintable_box(), StackingContextPaintPhase::Floats);
     // Draw inline content, replaced content, etc. (steps 6, 7)
     paint_descendants(context, paintable_box(), StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced);
     paint_node(paintable_box(), context, PaintPhase::Foreground);
