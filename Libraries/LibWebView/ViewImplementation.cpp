@@ -1192,12 +1192,6 @@ void ViewImplementation::set_user_style_sheet(String const& source)
     client().async_set_user_style(page_id(), source);
 }
 
-void ViewImplementation::use_native_user_style_sheet()
-{
-    extern String const& native_stylesheet_source;
-    set_user_style_sheet(native_stylesheet_source);
-}
-
 void ViewImplementation::initialize_context_menus()
 {
     auto& application = Application::the();

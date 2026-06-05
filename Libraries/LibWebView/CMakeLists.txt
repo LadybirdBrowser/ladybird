@@ -41,14 +41,6 @@ set(SOURCES
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
-embed_as_string(
-    "NativeStyleSheetSource.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Native.css"
-    "NativeStyleSheetSource.cpp"
-    "native_stylesheet_source"
-    NAMESPACE "WebView"
-)
-
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)
 compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
@@ -72,7 +64,6 @@ set(GENERATED_SOURCES
     ../../Services/WebContent/WebDriverServerEndpoint.h
     ../../Services/WebContent/WebUIClientEndpoint.h
     ../../Services/WebContent/WebUIServerEndpoint.h
-    NativeStyleSheetSource.cpp
     UIProcessClientEndpoint.h
     UIProcessServerEndpoint.h
 )
