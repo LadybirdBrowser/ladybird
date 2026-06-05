@@ -344,8 +344,10 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(!track_data.enabled);
-    if (m_audio_mixer)
+    if (m_audio_mixer) {
+        m_audio_mixer->seek(current_time());
         MUST(m_audio_mixer->connect_input(track_data.producer));
+    }
     track_data.enabled = true;
 }
 
@@ -353,8 +355,10 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.enabled);
-    if (m_audio_mixer)
+    if (m_audio_mixer) {
+        m_audio_mixer->seek(current_time());
         m_audio_mixer->disconnect_input(track_data.producer);
+    }
     track_data.enabled = false;
 }
 
