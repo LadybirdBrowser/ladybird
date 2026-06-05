@@ -23,20 +23,36 @@ enum class PipelineStatus : u8 {
 
 constexpr bool is_waiting_for_data(PipelineStatus status)
 {
-    if (status == PipelineStatus::Pending)
+    return status != PipelineStatus::HaveData;
+}
+
+constexpr bool is_terminal(PipelineStatus status)
+{
+    if (status == PipelineStatus::Error)
         return true;
-    if (status == PipelineStatus::MovedPosition)
-        return true;
-    if (status == PipelineStatus::Blocked)
+    if (status == PipelineStatus::EndOfStream)
         return true;
     return false;
 }
 
-constexpr bool can_carry_data(PipelineStatus status)
+constexpr bool resolves_seek(PipelineStatus status)
 {
-    if (status == PipelineStatus::HaveData)
+    if (!is_waiting_for_data(status))
         return true;
-    if (status == PipelineStatus::EndOfStream)
+    if (is_terminal(status))
+        return true;
+    return false;
+}
+
+constexpr bool status_change_should_wake(PipelineStatus previous, PipelineStatus current)
+{
+    if (previous == current)
+        return false;
+    if (!resolves_seek(current))
+        return false;
+    if (is_waiting_for_data(previous))
+        return true;
+    if (previous == PipelineStatus::EndOfStream)
         return true;
     return false;
 }

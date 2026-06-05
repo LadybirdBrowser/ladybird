@@ -36,6 +36,18 @@ public:
         m_latest_sequence.store(sequence);
     }
 
+    Optional<AudioBlockTiming> latest_timing() const
+    {
+        auto latest_sequence = m_latest_sequence.load();
+        if (latest_sequence < m_first_valid_sequence.load())
+            return {};
+
+        auto record = read_record(latest_sequence);
+        if (!record.has_value())
+            return {};
+        return record->timing;
+    }
+
     Optional<AudioBlockTiming> find_timing_for_frame_index(i64 frame_index) const
     {
         auto latest_sequence = m_latest_sequence.load();

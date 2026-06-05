@@ -25,6 +25,13 @@ namespace Media {
 
 static constexpr size_t OUTPUT_BLOCK_QUEUE_CAPACITY = 4;
 
+static bool audio_processor_will_enqueue(PipelineStatus status)
+{
+    if (status == PipelineStatus::EndOfStream)
+        return true;
+    return !is_waiting_for_data(status);
+}
+
 class AudioPlaybackSink::OutputThreadData : public AtomicRefCounted<OutputThreadData> {
 public:
     OutputThreadData(PipelineStateChangeHandler on_state_changed)
@@ -51,6 +58,7 @@ public:
     i64 m_next_frame_to_play { 0 };
     AudioBlockTimingRing m_block_timings;
     float m_playback_rate { 1.0f };
+    float m_eos_media_frame_remainder { 0.0f };
 
     PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_pull_status { PipelineStatus::Pending };
@@ -89,11 +97,12 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         output_thread_data->m_block_count = 0;
                         output_thread_data->m_block_timings.clear();
                         output_thread_data->m_last_real_data_end_in_frames = output_thread_data->m_next_frame_to_play;
+                        output_thread_data->m_eos_media_frame_remainder = 0.0f;
                         output_thread_data->m_waiting_for_upstream_data = false;
                         output_thread_data->m_output_condition.broadcast();
                         continue;
                     }
-                    if (!is_waiting_for_data(status)) {
+                    if (audio_processor_will_enqueue(status)) {
                         Sync::MutexLocker locker { output_thread_data->m_output_mutex };
                         output_thread_data->m_last_pull_status = status;
                         output_thread_data->m_waiting_for_upstream_data = false;
@@ -131,15 +140,42 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                 auto status = input->status();
                 if (status == PipelineStatus::MovedPosition)
                     continue;
-                input->pull(output_block);
+                if (status == PipelineStatus::EndOfStream)
+                    output_block.clear();
+                else
+                    input->pull(output_block);
 
                 {
                     Sync::MutexLocker locker { output_thread_data->m_output_mutex };
                     if (output_thread_data->m_seek_id != seek_id_at_pull)
                         continue;
                     output_thread_data->m_last_pull_status = status;
+                    if (status == PipelineStatus::EndOfStream) {
+                        VERIFY(output_block.is_empty());
+                        VERIFY(output_thread_data->m_sample_specification.is_valid());
+                        auto channel_count = output_thread_data->m_sample_specification.channel_count();
+                        size_t frame_count = 1024 / channel_count;
+                        VERIFY(frame_count > 0);
+                        auto maybe_previous_timing = output_thread_data->m_block_timings.latest_timing();
+                        auto first_frame_index = max(output_thread_data->m_last_real_data_end_in_frames, output_thread_data->m_next_frame_to_play);
+                        if (maybe_previous_timing.has_value())
+                            first_frame_index = max(first_frame_index, maybe_previous_timing->end_frame_index());
+                        output_block.initialize(output_thread_data->m_sample_specification, first_frame_index, frame_count);
+                        for (size_t channel = 0; channel < output_block.channel_count(); channel++)
+                            output_block.channel_data(channel).fill(0.0f);
+
+                        auto sample_rate = output_thread_data->m_sample_specification.sample_rate();
+                        auto media_frame_count_with_remainder = (frame_count * output_thread_data->m_playback_rate) + output_thread_data->m_eos_media_frame_remainder;
+                        auto media_frame_count = static_cast<i64>(media_frame_count_with_remainder);
+                        output_thread_data->m_eos_media_frame_remainder = media_frame_count_with_remainder - media_frame_count;
+                        auto media_time_start = AK::Duration::from_time_units(first_frame_index, 1, sample_rate);
+                        if (maybe_previous_timing.has_value())
+                            media_time_start = maybe_previous_timing->media_time_at_frame_index(first_frame_index);
+                        output_block.set_media_time_start(media_time_start);
+                        output_block.set_media_time_duration(AK::Duration::from_time_units(media_frame_count, 1, sample_rate));
+                    }
                     if (!output_block.is_empty()) {
-                        VERIFY(can_carry_data(status));
+                        VERIFY(audio_processor_will_enqueue(status));
                         output_thread_data->m_block_tail = (output_thread_data->m_block_tail + 1) % OUTPUT_BLOCK_QUEUE_CAPACITY;
                         output_thread_data->m_block_count++;
                         output_thread_data->m_block_timings.enqueue(output_block.timing());
@@ -147,14 +183,20 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         if (output_thread_data->m_playback_stream)
                             output_thread_data->m_playback_stream->notify_data_available();
 
-                        if (status == PipelineStatus::HaveData)
+                        if (status == PipelineStatus::HaveData) {
                             output_thread_data->m_last_real_data_end_in_frames = output_block.end_frame_index();
+                            output_thread_data->m_eos_media_frame_remainder = 0.0f;
+                        }
                     }
 
-                    output_thread_data->m_waiting_for_upstream_data = !can_carry_data(status);
+                    output_thread_data->m_waiting_for_upstream_data = !audio_processor_will_enqueue(status);
 
-                    if (!can_carry_data(output_thread_data->m_last_dispatched_status) && can_carry_data(status))
-                        output_thread_data->dispatch_state_if_changed(status, seek_id_at_pull);
+                    if (!status_change_should_wake(output_thread_data->m_last_dispatched_status, status))
+                        continue;
+                    if (is_waiting_for_data(status) && output_thread_data->m_next_frame_to_play < output_thread_data->m_last_real_data_end_in_frames)
+                        continue;
+
+                    output_thread_data->dispatch_state_if_changed(status, seek_id_at_pull);
                 }
             }
 
@@ -436,6 +478,8 @@ void AudioPlaybackSink::seek(AK::Duration time)
 
         m_output_thread_data->m_last_pull_status = PipelineStatus::Pending;
         m_output_thread_data->m_last_dispatched_status = PipelineStatus::Pending;
+        m_output_thread_data->m_last_real_data_end_in_frames = seek_target_in_frames;
+        m_output_thread_data->m_eos_media_frame_remainder = 0.0f;
 
         m_output_thread_data->m_waiting_for_upstream_data = true;
         m_output_thread_data->m_block_timings.clear();

@@ -63,7 +63,7 @@ public:
 
     virtual void on_audio_sink_state_changed(PipelineStatus status) override
     {
-        if (is_waiting_for_data(status))
+        if (!resolves_seek(status))
             return;
         m_audio_seek_pending = false;
         possibly_complete_seek();
@@ -71,7 +71,7 @@ public:
 
     virtual void on_video_sink_state_changed(Track const& track, PipelineStatus status) override
     {
-        if (is_waiting_for_data(status))
+        if (!resolves_seek(status))
             return;
         m_video_seeks_pending.remove(track);
         possibly_complete_seek();
