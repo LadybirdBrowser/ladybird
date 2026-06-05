@@ -5,8 +5,7 @@
  */
 
 //! Build script that generates a DAFSA (Deterministic Acyclic Finite State Automaton)
-//! for named character reference matching. This is a Rust port of the C++ generator at
-//! Meta/Lagom/Tools/CodeGenerators/LibWeb/GenerateNamedCharacterReferences.cpp.
+//! for named character reference matching.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
