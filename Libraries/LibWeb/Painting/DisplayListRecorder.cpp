@@ -293,6 +293,9 @@ static DisplayListDataSpan append_filter_data(
 
 void DisplayListRecorder::replay_cached_commands(ReadonlyBytes command_bytes)
 {
+    if (command_bytes.is_empty())
+        return;
+
     DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes) {
         m_save_nesting_level += display_list_command_nesting_level_change(header.type);
     });
