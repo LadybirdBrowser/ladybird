@@ -747,37 +747,6 @@ static ErrorOr<void> expand_tests_with_static_variants(Vector<Test>& tests)
     return {};
 }
 
-static void expand_test_with_variants(TestRunContext& context, size_t base_test_index, ReadonlySpan<String> variants)
-{
-    VERIFY(!variants.is_empty());
-
-    context.tests.ensure_capacity(context.tests.size() + variants.size());
-    auto const& base_test = context.tests[base_test_index];
-
-    for (auto const& variant : variants) {
-        Test variant_test;
-        variant_test.mode = base_test.mode;
-        variant_test.run_index = base_test.run_index;
-        variant_test.total_runs = base_test.total_runs;
-        variant_test.input_path = base_test.input_path;
-        variant_test.expectation_path = base_test.expectation_path;
-        variant_test.relative_path = base_test.relative_path;
-        variant_test.safe_relative_path = base_test.safe_relative_path;
-        apply_variant_to_test(variant_test, variant);
-
-        // Set the index before appending so it matches the position in the vector
-        variant_test.index = context.tests.size();
-        context.tests.unchecked_append(move(variant_test));
-    }
-
-    // Add variants.size() because the original test will decrement tests_remaining when
-    // it completes as Expanded, and each variant will also decrement when it completes.
-    context.tests_remaining += variants.size();
-
-    // For display, add (variants.size() - 1) since Expanded tests don't count in s_completed_tests
-    context.total_tests += variants.size() - 1;
-}
-
 static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
 {
     auto test_index = test.index;
@@ -857,36 +826,6 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             });
         };
     } else if (test.mode == TestMode::Text) {
-        // Set up variant detection callback.
-        view.on_test_variant_metadata = [&view, &context, test_index, on_test_complete](JsonValue metadata) {
-            // Verify this IPC response is for the current test on this view (use index to avoid dangling pointer issues)
-            auto current_index = s_current_test_index_by_view.get(&view);
-            if (!current_index.has_value() || *current_index != test_index)
-                return;
-
-            auto& test = context.tests[test_index];
-            if (test.variant.has_value())
-                return;
-
-            auto const& variants_array = metadata.as_array();
-
-            if (!variants_array.is_empty()) {
-                Vector<String> variants;
-                variants.ensure_capacity(variants_array.size());
-                for (auto const& variant : variants_array.values())
-                    variants.unchecked_append(variant.as_string());
-
-                expand_test_with_variants(context, test_index, variants);
-                view.on_test_complete({ test_index, TestResult::Expanded });
-                return;
-            }
-
-            auto& test_after_check = context.tests[test_index];
-            test_after_check.did_check_variants = true;
-            if (test_after_check.did_finish_test)
-                on_test_complete();
-        };
-
         view.on_load_finish = [&view, &context, test_index, on_test_complete](auto const& loaded_url) {
             // page_did_finish_loading is already top-level-only (Document.cpp gates it on navigable->is_traversable()).
             // We accept *any* top-level URL here — not just the test's original URL; otherwise a test that navigates
@@ -897,11 +836,6 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             auto& test = context.tests[test_index];
             test.did_finish_loading = true;
 
-            if (!test.variant.has_value())
-                view.run_javascript("internals.loadTestVariants();"_string);
-            else
-                test.did_check_variants = true;
-
             if (test.expectation_path.is_empty()) {
                 auto promise = view.request_internal_page_info(WebView::PageInfoType::Text);
 
@@ -910,7 +844,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
                     test.text = text;
                     on_test_complete();
                 });
-            } else if (test.did_finish_test && test.did_check_variants) {
+            } else if (test.did_finish_test) {
                 on_test_complete();
             }
         };
@@ -920,7 +854,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             test.text = text;
             test.did_finish_test = true;
 
-            if (test.did_finish_loading && test.did_check_variants)
+            if (test.did_finish_loading)
                 on_test_complete();
         };
     } else if (test.mode == TestMode::Crash) {
@@ -1514,7 +1448,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             view->on_load_finish = {};
             view->on_test_finish = {};
             view->on_reference_test_metadata = {};
-            view->on_test_variant_metadata = {};
             view->on_set_test_timeout = {};
 
             // Disconnect child crash handlers so old child crashes don't affect the next test
@@ -1579,7 +1512,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 if (result.result != TestResult::Crashed)
                     test_run_capture.write_test_output(*view);
 
-                bool const is_non_passing_result = result.result != TestResult::Pass && result.result != TestResult::Expanded;
+                bool const is_non_passing_result = result.result != TestResult::Pass;
                 bool const should_trigger_fail_fast = result.result == TestResult::Fail || result.result == TestResult::Timeout || result.result == TestResult::Crashed;
 
                 if (is_non_passing_result)
