@@ -51,8 +51,6 @@ private:
 
     Core::EventLoop& m_main_thread_event_loop;
 
-    Audio::SampleSpecification m_sample_specification;
-
     bool m_started_creating_playback_stream { false };
     bool m_playing { false };
     double m_volume { 1 };
