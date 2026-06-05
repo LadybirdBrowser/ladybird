@@ -178,3 +178,11 @@ jobs:
           name: ladybird-wasm-${{ matrix.package_type }}
           path: Build/distribution/ladybird-wasm-*.tar.gz
           retention-days: 7
+
+      - name: Upload cranelift-compiler binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: ladybird-cranelift-compiler-${{ matrix.package_type }}
+          path: Build/distribution/bin/cranelift-compiler
+          retention-days: 7
+          if-no-files-found: ignore

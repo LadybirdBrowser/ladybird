@@ -83,6 +83,20 @@ jobs:
           cd wasm-repl
           tar -xvzf ladybird-wasm-${{ matrix.os_name }}-${{ matrix.arch }}.tar.gz
 
+      - name: 'Download cranelift-compiler artifact'
+        uses: dawidd6/action-download-artifact@v21
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ladybird-cranelift-compiler-${{ matrix.package_type }}
+          path: cranelift-compiler
+          if_no_artifact_found: warn
+
+      - name: 'Install cranelift-compiler next to wasm'
+        if: ${{ hashFiles('cranelift-compiler/cranelift-compiler') != '' && hashFiles('wasm-repl/bin/wasm') != '' }}
+        shell: bash
+        run: |
+          install -m 0755 cranelift-compiler/cranelift-compiler wasm-repl/bin/cranelift-compiler
+
       - name: 'Run the benchmarks'
         shell: bash
         run: |
