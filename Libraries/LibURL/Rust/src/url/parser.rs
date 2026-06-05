@@ -671,8 +671,10 @@ pub(crate) fn basic_parse_into(
                         username_builder.push_str(&encoded_authority);
                     }
 
-                    // NB: Since we have batch processed the username/password, we need to move the pointer past those code points.
-                    pointer += authority_length;
+                    // NB: Since we have batch processed the username/password, we need to move the pointer past those
+                    //     code points and the U+0040 (@) delimiter.
+                    pointer += authority_length + '@'.len_utf8();
+                    continue;
                 }
                 // 2. Otherwise, if one of the following is true:
                 //    * c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
