@@ -574,6 +574,8 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
         return;
     }
 
+    node->document().update_layout(Web::DOM::UpdateLayoutReason::Debugging);
+
     // Nodes without layout (aka non-visible nodes) do not have box metrics, but DevTools can still ask for their style
     // rules and computed properties.
     if (property_type == WebView::DOMNodeProperties::Type::Layout && !node->layout_node()) {
