@@ -210,9 +210,6 @@ public:
     ErrorOr<LexicalPath> dump_gc_graph();
 
     void set_user_style_sheet(String const& source);
-    // Load Native.css as the User style sheet, which attempts to make WebView content look as close to
-    // native GUI widgets as possible.
-    void use_native_user_style_sheet();
 
     void request_close();
     Function<void()> prepare_for_immediate_close();
