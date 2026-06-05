@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let sawTraverseNavigate = false;
+        let sawTraverseCurrentEntryChange = false;
+        let sawNavigateSuccess = false;
+        let finished = false;
+
+        function pathFromURL(url) {
+            return new URL(url).pathname;
+        }
+
+        function maybeDone() {
+            if (finished)
+                return;
+            if (!sawTraverseNavigate || !sawTraverseCurrentEntryChange || !sawNavigateSuccess)
+                return;
+            if (location.pathname !== "/r/programming" || pathFromURL(navigation.currentEntry.url) !== "/r/programming")
+                return;
+
+            finished = true;
+            done();
+        }
+
+        navigation.addEventListener("navigate", event => {
+            if (event.navigationType !== "traverse")
+                return;
+
+            sawTraverseNavigate = true;
+            println(`navigate destination=${pathFromURL(event.destination.url)} current=${pathFromURL(navigation.currentEntry.url)} location=${location.pathname}`);
+        });
+
+        navigation.addEventListener("currententrychange", event => {
+            if (event.navigationType !== "traverse")
+                return;
+
+            sawTraverseCurrentEntryChange = true;
+            println(`currententrychange current=${pathFromURL(navigation.currentEntry.url)} location=${location.pathname}`);
+            maybeDone();
+        });
+
+        navigation.addEventListener("navigatesuccess", () => {
+            if (!sawTraverseNavigate)
+                return;
+
+            sawNavigateSuccess = true;
+            println(`navigatesuccess current=${pathFromURL(navigation.currentEntry.url)} location=${location.pathname}`);
+            maybeDone();
+        });
+
+        navigation.addEventListener("navigateerror", () => {
+            if (!sawTraverseNavigate)
+                return;
+
+            println("navigateerror");
+            done();
+        });
+
+        history.replaceState({}, "", "/r/programming");
+        history.pushState({}, "", "/r/programming/comments/post");
+        history.back();
+    });
+</script>

@@ -137,6 +137,7 @@ private:
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
+        Navigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
@@ -147,6 +148,7 @@ private:
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
+        Navigable::NavigationAPIAbortBehavior,
         GC::Ptr<DOM::Document> pending_document,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 

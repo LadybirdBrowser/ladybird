@@ -638,14 +638,15 @@ GC::Ptr<TraversableNavigable> Navigable::top_level_traversable()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#set-the-ongoing-navigation
-void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation)
+void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation, NavigationAPIAbortBehavior navigation_api_abort_behavior)
 {
     // 1. If navigable's ongoing navigation is equal to newValue, then return.
     if (m_ongoing_navigation == ongoing_navigation)
         return;
 
     // 2. Inform the navigation API about aborting navigation given navigable.
-    inform_the_navigation_api_about_aborting_navigation();
+    if (navigation_api_abort_behavior == NavigationAPIAbortBehavior::Abort)
+        inform_the_navigation_api_about_aborting_navigation();
 
     // 3. Set navigable's ongoing navigation to newValue.
     auto was_traversal = m_ongoing_navigation.has<Traversal>();

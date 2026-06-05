@@ -126,6 +126,7 @@ private:
     void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, JS::Value exception);
     void clean_up(GC::Ref<NavigationAPIMethodTracker>);
     void notify_about_the_committed_to_entry(GC::Ref<NavigationAPIMethodTracker>, GC::Ref<NavigationHistoryEntry>);
+    void run_the_navigate_event_intercept_commit_handler_steps(GC::Ref<NavigateEvent>, GC::Ptr<NavigationAPIMethodTracker>);
 
     bool inner_navigate_event_firing_algorithm(
         Bindings::NavigationType,
