@@ -206,6 +206,36 @@ static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, C
     return {};
 }
 
+static Optional<ClipData> compute_css_clip_data(PaintableBox const& paintable_box, DevicePixelConverter const& converter)
+{
+    if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
+        auto effective_rect = effective_css_clip_rect(*css_clip);
+        return ClipData { converter.rounded_device_rect(effective_rect), {} };
+    }
+    return {};
+}
+
+static Optional<ClipPathData> compute_basic_shape_clip_path_data(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter, float scale)
+{
+    // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
+    auto const& clip_path = computed_values.clip_path();
+    if (!clip_path.has_value() || !clip_path->is_basic_shape())
+        return {};
+
+    auto masking_area = paintable_box.absolute_border_box_rect();
+    auto reference_box = CSSPixelRect { {}, masking_area.size() };
+    auto const& basic_shape = clip_path->basic_shape();
+    auto path = basic_shape.to_path(reference_box, paintable_box.layout_node());
+    path.offset(masking_area.top_left().template to_type<float>());
+    auto fill_rule = basic_shape.basic_shape().visit(
+        [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
+        [](CSS::Path const& path) { return path.fill_rule; },
+        [](auto const&) { return Gfx::WindingRule::Nonzero; });
+    auto device_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(scale, scale));
+    auto device_bounding_rect = converter.rounded_device_rect(masking_area);
+    return ClipPathData { move(device_path), device_bounding_rect, fill_rule };
+}
+
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable& viewport_paintable)
 {
     auto& document = viewport_paintable.document();
@@ -239,12 +269,13 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
     viewport_paintable.set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);
     viewport_paintable.set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
 
-    viewport_paintable.for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
-        auto visual_parent_paintable = paintable_box.parent();
-        auto* visual_parent = as_if<PaintableBox>(visual_parent_paintable.ptr());
-        if (!visual_parent)
-            return TraversalDecision::Continue;
+    struct DescendantVisualContexts {
+        VisualContextIndex normal;
+        VisualContextIndex absolute_position;
+        VisualContextIndex fixed_position;
+    };
 
+    auto build_paintable_box = [&](auto& self, PaintableBox& paintable_box, DescendantVisualContexts inherited_contexts) -> void {
         // Resolve filters before make_effects_data reads them.
         auto const& paintable_box_computed_values = paintable_box.computed_values();
         if (paintable_box_computed_values.filter().has_filters())
@@ -255,38 +286,28 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         VisualContextIndex inherited_state;
 
         if (paintable_box.is_fixed_position()) {
-            inherited_state = visual_viewport_context_index;
+            inherited_state = inherited_contexts.fixed_position;
         } else if (paintable_box.is_absolutely_positioned()) {
-            // For position: absolute, use containing block's state to correctly escape scroll containers.
-            auto containing = paintable_box.containing_block();
-            inherited_state = containing->accumulated_visual_context_for_descendants_index();
-
-            // Abspos elements escape scroll containers and overflow clips of non-positioned
-            // ancestors, but cannot escape stacking contexts created by intermediate effects
-            // (opacity, mix-blend-mode, isolation). Walk from visual parent to containing
-            // block and collect these intermediate effects.
-            // NOTE: transforms/perspectives/filters establish containing blocks for abspos,
-            //       so they cannot appear as intermediates.
-            Vector<VisualContextData, 4> intermediate_effects;
-            RefPtr<Paintable> containing_paintable = containing;
-            for (RefPtr<Paintable> paintable = visual_parent; paintable && paintable != containing_paintable; paintable = paintable->parent()) {
-                auto* ancestor_box = as_if<PaintableBox>(paintable.ptr());
-                if (!ancestor_box)
-                    continue;
-                if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
-                    intermediate_effects.append(effects.release_value());
-            }
-            for (auto& effects : intermediate_effects.in_reverse())
-                inherited_state = append_node(inherited_state, move(effects));
+            inherited_state = inherited_contexts.absolute_position;
         } else {
-            // For position: relative/static, use visual parent's state directly.
-            // This avoids duplicate transform/perspective allocations that would occur with
-            // the containing block + intermediate walk approach.
-            inherited_state = visual_parent->accumulated_visual_context_for_descendants_index();
+            // In-flow and relatively positioned boxes inherit the normal descendant context from their visual parent.
+            inherited_state = inherited_contexts.normal;
         }
 
         // Build this element's own state from inherited state.
         VisualContextIndex own_state = inherited_state;
+
+        // Out-of-flow descendants can skip overflow and scroll clips from intermediate ancestors. Keep their visual
+        // contexts separate as we descend, and replace them with the normal descendant context only when this box
+        // establishes the relevant containing block.
+        VisualContextIndex state_for_absolute_position_descendants = inherited_contexts.absolute_position;
+        VisualContextIndex state_for_fixed_position_descendants = inherited_contexts.fixed_position;
+
+        auto append_to_own_and_positioned_descendant_contexts = [&](auto const& data) {
+            own_state = append_node(own_state, data);
+            state_for_absolute_position_descendants = append_node(state_for_absolute_position_descendants, data);
+            state_for_fixed_position_descendants = append_node(state_for_fixed_position_descendants, data);
+        };
 
         if (paintable_box.is_sticky_position()) {
             // For sticky elements, use enclosing_scroll_frame which holds the sticky frame.
@@ -298,7 +319,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         auto const& computed_values = paintable_box.computed_values();
 
         if (auto effects = make_effects_data(paintable_box); effects.has_value())
-            own_state = append_node(own_state, effects.release_value());
+            append_to_own_and_positioned_descendant_contexts(effects.value());
 
         if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
             paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
@@ -307,26 +328,11 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             paintable_box.set_has_non_invertible_css_transform(false);
         }
 
-        if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
-            auto effective_rect = effective_css_clip_rect(*css_clip);
-            own_state = append_node(own_state, ClipData { converter.rounded_device_rect(effective_rect), {} });
-        }
+        if (auto css_clip = compute_css_clip_data(paintable_box, converter); css_clip.has_value())
+            append_to_own_and_positioned_descendant_contexts(css_clip.value());
 
-        // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-        if (auto const& clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
-            auto masking_area = paintable_box.absolute_border_box_rect();
-            auto reference_box = CSSPixelRect { {}, masking_area.size() };
-            auto const& basic_shape = clip_path->basic_shape();
-            auto path = basic_shape.to_path(reference_box, paintable_box.layout_node());
-            path.offset(masking_area.top_left().template to_type<float>());
-            auto fill_rule = basic_shape.basic_shape().visit(
-                [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
-                [](CSS::Path const& path) { return path.fill_rule; },
-                [](auto const&) { return Gfx::WindingRule::Nonzero; });
-            auto device_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(scale, scale));
-            auto device_bounding_rect = converter.rounded_device_rect(masking_area);
-            own_state = append_node(own_state, ClipPathData { move(device_path), device_bounding_rect, fill_rule });
-        }
+        if (auto clip_path_data = compute_basic_shape_clip_path_data(paintable_box, computed_values, converter, scale); clip_path_data.has_value())
+            append_to_own_and_positioned_descendant_contexts(clip_path_data.value());
 
         paintable_box.set_accumulated_visual_context(own_state);
 
@@ -395,8 +401,30 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         }
 
         paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
+        if (paintable_box.layout_node().establishes_an_absolute_positioning_containing_block())
+            state_for_absolute_position_descendants = state_for_descendants;
+        if (paintable_box.layout_node().establishes_a_fixed_positioning_containing_block())
+            state_for_fixed_position_descendants = state_for_descendants;
 
-        return TraversalDecision::Continue;
+        DescendantVisualContexts child_contexts {
+            state_for_descendants,
+            state_for_absolute_position_descendants,
+            state_for_fixed_position_descendants,
+        };
+        paintable_box.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+            self(self, child, child_contexts);
+            return IterationDecision::Continue;
+        });
+    };
+
+    DescendantVisualContexts viewport_contexts {
+        viewport_state_for_descendants,
+        viewport_state_for_descendants,
+        visual_viewport_context_index,
+    };
+    viewport_paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+        build_paintable_box(build_paintable_box, child, viewport_contexts);
+        return IterationDecision::Continue;
     });
 
     return visual_context_tree;

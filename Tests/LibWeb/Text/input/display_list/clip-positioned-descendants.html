@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .clip-path-ancestor {
+        width: 200px;
+        height: 200px;
+        clip-path: inset(50px);
+    }
+
+    .clip-path-ancestor .abspos {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 200px;
+        height: 200px;
+        background: red;
+    }
+
+    .clip-ancestor {
+        position: absolute;
+        top: 0;
+        left: 220px;
+        width: 200px;
+        height: 200px;
+        clip: rect(0px, 100px, 100px, 0px);
+    }
+
+    .clip-ancestor .fixed {
+        position: fixed;
+        top: 0;
+        left: 220px;
+        width: 200px;
+        height: 200px;
+        background: green;
+    }
+</style>
+<div class="clip-path-ancestor">
+    <div class="abspos"></div>
+</div>
+<div class="clip-ancestor">
+    <div class="fixed"></div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
