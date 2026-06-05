@@ -121,11 +121,8 @@ void Display::on_test_finished(size_t view_index, Test const& test, TestResult r
     case TestResult::Skipped:
         ++skipped_count;
         break;
-    case TestResult::Expanded:
-        break;
     }
-    if (result != TestResult::Expanded)
-        ++completed_tests;
+    ++completed_tests;
 
     if (view_index >= view_states().size())
         return;
