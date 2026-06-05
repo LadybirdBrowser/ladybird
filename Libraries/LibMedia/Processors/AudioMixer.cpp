@@ -37,7 +37,7 @@ ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& inpu
         {
             Sync::MutexLocker locker { m_mutex };
             m_status = combined_input_status();
-            should_wake_downstream = m_downstream_needs_wake && !is_waiting_for_data(m_status);
+            should_wake_downstream = status_change_should_wake(m_last_returned_status, m_status);
             if (m_moved_position_pending)
                 m_status = PipelineStatus::MovedPosition;
         }
@@ -69,7 +69,7 @@ void AudioMixer::disconnect_input_while_locked(NonnullRefPtr<AudioProducer> cons
     input->set_wake_handler(nullptr);
     m_inputs.remove(input);
     m_status = combined_input_status();
-    if (m_downstream_needs_wake && !is_waiting_for_data(m_status)) {
+    if (status_change_should_wake(m_last_returned_status, m_status)) {
         Core::deferred_invoke([self = NonnullRefPtr(*this)] {
             self->dispatch_wake();
         });
@@ -151,7 +151,7 @@ void AudioMixer::seek(AK::Duration timestamp)
         }
 
         m_status = PipelineStatus::Pending;
-        m_downstream_needs_wake = true;
+        m_last_returned_status = PipelineStatus::Pending;
     }
 
     if (m_inputs.is_empty()) {
@@ -175,7 +175,7 @@ PipelineStatus AudioMixer::status() const
     m_status = combined_input_status();
     if (m_moved_position_pending)
         m_status = PipelineStatus::MovedPosition;
-    m_downstream_needs_wake = is_waiting_for_data(m_status);
+    m_last_returned_status = m_status;
     return m_status;
 }
 
@@ -186,10 +186,6 @@ void AudioMixer::set_wake_handler(PipelineWakeHandler handler)
 
 void AudioMixer::dispatch_wake()
 {
-    {
-        Sync::MutexLocker locker { m_mutex };
-        m_downstream_needs_wake = false;
-    }
     if (m_wake_handler)
         m_wake_handler();
 }
@@ -205,7 +201,7 @@ PipelineStatus AudioMixer::combined_input_status() const
             continue;
         }
 
-        if (!can_carry_data(input_data.last_status)) {
+        if (is_waiting_for_data(input_data.last_status) && !is_terminal(input_data.last_status)) {
             while ((input_data.last_status = input->status()) == PipelineStatus::MovedPosition) {
                 input->pull(input_data.current_block);
                 VERIFY(input_data.current_block.is_empty());
@@ -243,6 +239,7 @@ void AudioMixer::pull(AudioBlock& into)
 
     auto combined_status_after_mix = PipelineStatus::EndOfStream;
     i64 latest_mixed_frame = frames_end_cap;
+    i64 latest_frame_containing_data = buffer_start_frame;
 
     for (auto& [input, input_data] : m_inputs)
         input_data.next_frame = buffer_start_frame;
@@ -331,6 +328,7 @@ void AudioMixer::pull(AudioBlock& into)
         }
 
         input_data.next_frame = next_frame + static_cast<i64>(frames_to_write);
+        latest_frame_containing_data = max(latest_frame_containing_data, input_data.next_frame);
     }
 
     for (auto& [input, input_data] : m_inputs) {
@@ -340,13 +338,20 @@ void AudioMixer::pull(AudioBlock& into)
     }
 
     VERIFY(latest_mixed_frame >= buffer_start_frame);
-    auto frame_count = static_cast<size_t>(latest_mixed_frame - buffer_start_frame);
-
     if (combined_status_after_mix == PipelineStatus::EndOfStream) {
-        m_next_frame_to_write = frames_end_cap;
+        if (latest_frame_containing_data > buffer_start_frame) {
+            auto frame_count = static_cast<size_t>(latest_frame_containing_data - buffer_start_frame);
+            into.trim(frame_count);
+            m_next_frame_to_write += static_cast<i64>(frame_count);
+            m_status = PipelineStatus::HaveData;
+            return;
+        }
+        into.clear();
         m_status = PipelineStatus::EndOfStream;
         return;
     }
+
+    auto frame_count = static_cast<size_t>(latest_mixed_frame - buffer_start_frame);
 
     if (frame_count == 0) {
         into.clear();

@@ -65,10 +65,10 @@ private:
     float m_playback_rate { 1.0f };
     bool m_started { false };
     bool m_moved_position_pending { false };
-    mutable bool m_downstream_needs_wake { true };
 
     PipelineWakeHandler m_wake_handler;
     mutable PipelineStatus m_status { PipelineStatus::Pending };
+    mutable PipelineStatus m_last_returned_status { PipelineStatus::Pending };
 };
 
 }

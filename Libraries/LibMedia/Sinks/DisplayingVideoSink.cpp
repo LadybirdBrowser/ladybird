@@ -55,7 +55,7 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
     input->set_wake_handler([this, input] {
         auto status = PipelineStatus::Pending;
         consume_moved_position_signals(status);
-        if (is_waiting_for_data(status))
+        if (!resolves_seek(status))
             return;
         dispatch_state_if_changed(status);
     });
@@ -143,7 +143,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
             if (m_seek_status == SeekStatus::FrameInvalidated)
                 m_current_frame.clear();
         }
-        if (!is_waiting_for_data(last_status))
+        if (resolves_seek(last_status))
             m_seek_status = SeekStatus::None;
         if (m_seek_status != SeekStatus::None)
             break;
