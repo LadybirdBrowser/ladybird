@@ -13,6 +13,6 @@ TEST_CASE(highlight_script_with_braces)
     // Regression test for https://github.com/LadybirdBrowser/ladybird/issues/8529
     auto source = "<script>\nfunction foo() {\n    return 1;\n}\n</script>"_string;
     URL::URL base_url {};
-    auto result = WebView::highlight_source({}, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::SourceOnly);
+    auto result = WebView::highlight_source({}, base_url, source, Syntax::Language::HTML);
     EXPECT(!result.is_empty());
 }

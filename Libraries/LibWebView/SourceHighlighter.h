@@ -18,11 +18,6 @@
 
 namespace WebView {
 
-enum class HighlightOutputMode {
-    FullDocument, // Include HTML header, title, style sheet, etc
-    SourceOnly,   // Just the highlighted source
-};
-
 class WEBVIEW_API SourceDocument final : public Syntax::Document {
 public:
     static NonnullRefPtr<SourceDocument> create(String const& source)
@@ -53,20 +48,12 @@ public:
     SourceHighlighterClient(String const& source, Syntax::Language);
     virtual ~SourceHighlighterClient() = default;
 
-    String to_html_string(Optional<URL::URL> const&, URL::URL const& base_url, HighlightOutputMode) const;
+    String to_html_string(Optional<URL::URL> const&, URL::URL const& base_url) const;
 
 private:
     // ^ Syntax::HighlighterClient
-    virtual Vector<Syntax::TextDocumentSpan> const& spans() const override;
-    virtual void set_span_at_index(size_t index, Syntax::TextDocumentSpan span) override;
-    virtual Vector<Syntax::TextDocumentFoldingRegion>& folding_regions() override;
-    virtual Vector<Syntax::TextDocumentFoldingRegion> const& folding_regions() const override;
-    virtual ByteString highlighter_did_request_text() const override;
-    virtual void highlighter_did_request_update() override;
-    virtual Syntax::Document& highlighter_did_request_document() override;
-    virtual Syntax::TextPosition highlighter_did_request_cursor() const override;
+    virtual StringView highlighter_did_request_text() const override;
     virtual void highlighter_did_set_spans(Vector<Syntax::TextDocumentSpan>) override;
-    virtual void highlighter_did_set_folding_regions(Vector<Syntax::TextDocumentFoldingRegion>) override;
 
     StringView class_for_token(u64 token_type) const;
 
@@ -76,7 +63,7 @@ private:
     OwnPtr<Syntax::Highlighter> m_highlighter;
 };
 
-WEBVIEW_API String highlight_source(Optional<URL::URL> const&, URL::URL const& base_url, String const& source, Syntax::Language, HighlightOutputMode);
+WEBVIEW_API String highlight_source(Optional<URL::URL> const&, URL::URL const& base_url, String const& source, Syntax::Language);
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     @media (prefers-color-scheme: dark) {

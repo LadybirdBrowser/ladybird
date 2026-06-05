@@ -6,29 +6,14 @@
 
 #pragma once
 
-#include <AK/Forward.h>
-#include <AK/StringView.h>
+#include <AK/Types.h>
 
 namespace Syntax {
 
-enum class Language {
-    CMake,
-    CMakeCache,
-    Cpp,
+enum class Language : u8 {
     CSS,
-    GitCommit,
-    GML,
     HTML,
-    INI,
     JavaScript,
-    Markdown,
-    PlainText,
-    Shell,
 };
-
-StringView language_to_string(Language);
-StringView common_language_extension(Language);
-Optional<Language> language_from_name(StringView);
-Optional<Language> language_from_filename(LexicalPath const&);
 
 }
