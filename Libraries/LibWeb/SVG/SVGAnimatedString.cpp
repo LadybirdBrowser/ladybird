@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 #include <LibWeb/SVG/SVGElement.h>
 
@@ -13,13 +12,13 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedString);
 
-GC::Ref<SVGAnimatedString> SVGAnimatedString::create(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+GC::Ref<SVGAnimatedString> SVGAnimatedString::create(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
 {
-    return realm.create<SVGAnimatedString>(realm, element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
+    return GC::Heap::the().allocate<SVGAnimatedString>(element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
 }
 
-SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
-    : Bindings::Wrappable(realm)
+SVGAnimatedString::SVGAnimatedString(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+    : Bindings::Wrappable()
     , m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_deprecated_reflected_attribute(move(deprecated_reflected_attribute))

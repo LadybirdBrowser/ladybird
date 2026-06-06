@@ -5,6 +5,7 @@
  */
 
 #include <AK/Format.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
@@ -159,9 +160,9 @@ static void convert_xpath_result(xmlXPathObjectPtr xpath_result, XPath::XPathRes
     }
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(JS::Realm& realm, String const& expression, GC::Ptr<XPathNSResolver> resolver)
+WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(String const& expression, GC::Ptr<XPathNSResolver> resolver)
 {
-    return realm.create<XPathExpression>(realm, expression, resolver);
+    return XPathExpression::create(expression, resolver);
 }
 
 WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> /*resolver*/, unsigned short type, GC::Ptr<XPathResult> result)
@@ -200,7 +201,7 @@ WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, String cons
     };
 
     if (!result) {
-        result = realm.create<XPathResult>(realm);
+        result = XPathResult::create();
     }
 
     convert_xpath_result(xpath_result, result, type);

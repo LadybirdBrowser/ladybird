@@ -20,14 +20,14 @@ class DOMParser final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(DOMParser);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMParser>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMParser>> construct_impl();
 
     virtual ~DOMParser() override;
 
-    WebIDL::ExceptionOr<GC::Ref<DOM::Document>> parse_from_string(TrustedTypes::TrustedHTMLOrString, Bindings::DOMParserSupportedType type);
+    WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_from_string(JS::Realm&, TrustedTypes::TrustedHTMLOrString, Bindings::DOMParserSupportedType type);
 
 private:
-    explicit DOMParser(JS::Realm&);
+    DOMParser() = default;
 };
 
 }

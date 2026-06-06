@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/FakeXRDevice.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Bindings/XRTest.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/Internals/XRTest.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -15,8 +18,13 @@ namespace Web::Internals {
 
 GC_DEFINE_ALLOCATOR(XRTest);
 
-XRTest::XRTest(JS::Realm& realm)
-    : InternalsBase(realm)
+GC::Ref<XRTest> XRTest::create(HTML::Window& window)
+{
+    return GC::Heap::the().allocate<XRTest>(window);
+}
+
+XRTest::XRTest(HTML::Window& window)
+    : InternalsBase(window)
 {
 }
 
@@ -27,9 +35,9 @@ GC::Ref<WebIDL::Promise> XRTest::simulate_device_connection(Bindings::FakeXRDevi
     // Simulates connecting a device to the system.
     // Used to instantiate a fake device for use in tests.
     // FIXME: Actually perform whatever device connection steps are needed once those are implemented.
-    auto& realm = HTML::relevant_realm(*this);
+    auto& realm = window().realm();
     auto promise = WebIDL::create_promise(realm);
-    WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, FakeXRDevice::create(realm)));
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FakeXRDevice::create(window())));
     return promise;
 }
 
@@ -46,7 +54,7 @@ GC::Ref<WebIDL::Promise> XRTest::disconnect_all_devices() const
 {
     // Disconnect all fake devices
     // FIXME: Actually disconnect fake devices once we have any.
-    auto& realm = HTML::relevant_realm(*this);
+    auto& realm = window().realm();
     auto promise = WebIDL::create_promise(realm);
     WebIDL::resolve_promise(realm, promise);
     return promise;

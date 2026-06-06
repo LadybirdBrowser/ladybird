@@ -16,39 +16,39 @@ class CSSPageDescriptors final : public CSSDescriptors {
     GC_DECLARE_ALLOCATOR(CSSPageDescriptors);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSPageDescriptors> create(JS::Realm&, Vector<Descriptor>);
+    [[nodiscard]] static GC::Ref<CSSPageDescriptors> create(Vector<Descriptor>);
 
     virtual ~CSSPageDescriptors() override;
 
-    WebIDL::ExceptionOr<void> set_margin(StringView value);
+    WebIDL::ExceptionOr<void> set_margin(JS::Realm&, StringView value);
     String margin() const;
 
-    WebIDL::ExceptionOr<void> set_margin_top(StringView value);
+    WebIDL::ExceptionOr<void> set_margin_top(JS::Realm&, StringView value);
     String margin_top() const;
 
-    WebIDL::ExceptionOr<void> set_margin_right(StringView value);
+    WebIDL::ExceptionOr<void> set_margin_right(JS::Realm&, StringView value);
     String margin_right() const;
 
-    WebIDL::ExceptionOr<void> set_margin_bottom(StringView value);
+    WebIDL::ExceptionOr<void> set_margin_bottom(JS::Realm&, StringView value);
     String margin_bottom() const;
 
-    WebIDL::ExceptionOr<void> set_margin_left(StringView value);
+    WebIDL::ExceptionOr<void> set_margin_left(JS::Realm&, StringView value);
     String margin_left() const;
 
-    WebIDL::ExceptionOr<void> set_size(StringView value);
+    WebIDL::ExceptionOr<void> set_size(JS::Realm&, StringView value);
     String size() const;
 
-    WebIDL::ExceptionOr<void> set_page_orientation(StringView value);
+    WebIDL::ExceptionOr<void> set_page_orientation(JS::Realm&, StringView value);
     String page_orientation() const;
 
-    WebIDL::ExceptionOr<void> set_marks(StringView value);
+    WebIDL::ExceptionOr<void> set_marks(JS::Realm&, StringView value);
     String marks() const;
 
-    WebIDL::ExceptionOr<void> set_bleed(StringView value);
+    WebIDL::ExceptionOr<void> set_bleed(JS::Realm&, StringView value);
     String bleed() const;
 
 private:
-    CSSPageDescriptors(JS::Realm&, Vector<Descriptor>);
+    explicit CSSPageDescriptors(Vector<Descriptor>);
 };
 
 }

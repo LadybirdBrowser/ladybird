@@ -26,52 +26,52 @@ class FontFace final : public Bindings::Wrappable {
 public:
     using FontFaceSource = FlattenVariant<Variant<String>, WebIDL::BufferSourceVariant>;
 
-    [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
-    [[nodiscard]] static GC::Ref<FontFace> create_css_connected(JS::Realm&, CSSFontFaceRule&);
+    [[nodiscard]] static GC::Ref<FontFace> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
+    [[nodiscard]] static GC::Ref<FontFace> create_css_connected(HTML::EnvironmentSettingsObject&, CSSFontFaceRule&);
     virtual ~FontFace() override;
 
     String family() const { return m_family; }
-    WebIDL::ExceptionOr<void> set_family(String const&);
+    WebIDL::ExceptionOr<void> set_family(JS::Realm&, String const&);
     void set_family_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String style() const { return m_style; }
-    WebIDL::ExceptionOr<void> set_style(String const&);
+    WebIDL::ExceptionOr<void> set_style(JS::Realm&, String const&);
     void set_style_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String weight() const { return m_weight; }
-    WebIDL::ExceptionOr<void> set_weight(String const&);
+    WebIDL::ExceptionOr<void> set_weight(JS::Realm&, String const&);
     void set_weight_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String stretch() const { return m_stretch; }
-    WebIDL::ExceptionOr<void> set_stretch(String const&);
+    WebIDL::ExceptionOr<void> set_stretch(JS::Realm&, String const&);
     void set_stretch_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String unicode_range() const { return m_unicode_range; }
-    WebIDL::ExceptionOr<void> set_unicode_range(String const&);
+    WebIDL::ExceptionOr<void> set_unicode_range(JS::Realm&, String const&);
     void set_unicode_range_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String feature_settings() const { return m_feature_settings; }
-    WebIDL::ExceptionOr<void> set_feature_settings(String const&);
+    WebIDL::ExceptionOr<void> set_feature_settings(JS::Realm&, String const&);
     void set_feature_settings_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String variation_settings() const { return m_variation_settings; }
-    WebIDL::ExceptionOr<void> set_variation_settings(String const&);
+    WebIDL::ExceptionOr<void> set_variation_settings(JS::Realm&, String const&);
     void set_variation_settings_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String display() const { return m_display; }
-    WebIDL::ExceptionOr<void> set_display(String const&);
+    WebIDL::ExceptionOr<void> set_display(JS::Realm&, String const&);
     void set_display_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String ascent_override() const { return m_ascent_override; }
-    WebIDL::ExceptionOr<void> set_ascent_override(String const&);
+    WebIDL::ExceptionOr<void> set_ascent_override(JS::Realm&, String const&);
     void set_ascent_override_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String descent_override() const { return m_descent_override; }
-    WebIDL::ExceptionOr<void> set_descent_override(String const&);
+    WebIDL::ExceptionOr<void> set_descent_override(JS::Realm&, String const&);
     void set_descent_override_impl(NonnullRefPtr<StyleValue const> const& value);
 
     String line_gap_override() const { return m_line_gap_override; }
-    WebIDL::ExceptionOr<void> set_line_gap_override(String const&);
+    WebIDL::ExceptionOr<void> set_line_gap_override(JS::Realm&, String const&);
     void set_line_gap_override_impl(NonnullRefPtr<StyleValue const> const& value);
 
     bool is_css_connected() const { return m_css_font_face_rule != nullptr; }
@@ -111,9 +111,10 @@ public:
     void remove_from_set(FontFaceSet&);
 
 private:
-    FontFace(JS::Realm&, GC::Ref<WebIDL::Promise> font_status_promise);
+    FontFace(GC::Ref<HTML::EnvironmentSettingsObject>, GC::Ref<WebIDL::Promise> font_status_promise);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
+    JS::Object& task_global_object() const;
     void reject_status_promise(JS::Value reason);
     void reject_status_promise(GC::Ref<WebIDL::DOMException> reason);
 
@@ -139,6 +140,7 @@ private:
     int m_cached_slope { 0 };
     int m_cached_width { 100 };
     GC::Ptr<FontLoader> m_font_loader;
+    GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
 
     // https://drafts.csswg.org/css-font-loading/#dom-fontface-status
     Bindings::FontFaceLoadStatus m_status { Bindings::FontFaceLoadStatus::Unloaded };

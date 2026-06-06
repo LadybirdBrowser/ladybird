@@ -9,7 +9,7 @@ interface ClipboardItem {
     readonly attribute PresentationStyle presentationStyle;
     readonly attribute FrozenArray<DOMString> types;
 
-    Promise<Blob> getType(DOMString type);
+    [NeedsCallerRealm] Promise<Blob> getType(DOMString type);
 
     static boolean supports(DOMString type);
 };

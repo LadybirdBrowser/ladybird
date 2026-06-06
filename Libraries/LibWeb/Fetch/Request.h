@@ -30,8 +30,11 @@ class Request final
     GC_DECLARE_ALLOCATOR(Request);
 
 public:
-    [[nodiscard]] static GC::Ref<Request> create(JS::Realm&, GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
-    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
+    [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>);
+    [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
+    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, RequestInfo const& input, Bindings::RequestInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl_for_realm(JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl_with_settings(HTML::EnvironmentSettingsObject&, JS::Realm&, RequestInfo const& input, Bindings::RequestInit const& init = {});
 
     virtual ~Request() override;
 
@@ -39,8 +42,6 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
     virtual GC::Ptr<Infrastructure::Body> body_impl() override;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
-    virtual Bindings::Wrappable& as_wrappable() override { return *this; }
-    virtual Bindings::Wrappable const& as_wrappable() const override { return *this; }
 
     [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
 
@@ -61,10 +62,10 @@ public:
     [[nodiscard]] bool is_history_navigation() const;
     [[nodiscard]] GC::Ref<DOM::AbortSignal> signal() const;
     [[nodiscard]] Bindings::RequestDuplex duplex() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Request>> clone() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Request>> clone(JS::Realm&) const;
 
 private:
-    Request(JS::Realm&, GC::Ref<Infrastructure::Request>);
+    explicit Request(GC::Ref<Infrastructure::Request>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

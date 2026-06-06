@@ -18,18 +18,18 @@ class AbortController final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(AbortController);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<AbortController>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<AbortController>> construct_impl();
 
     virtual ~AbortController() override;
 
     // https://dom.spec.whatwg.org/#dom-abortcontroller-signal
     GC::Ref<AbortSignal> signal() const { return *m_signal; }
 
-    void abort(Optional<JS::Value> reason);
-    void abort(GC::Ref<WebIDL::DOMException> reason);
+    void abort(JS::Realm&, Optional<JS::Value> reason);
+    void abort(JS::Realm&, GC::Ref<WebIDL::DOMException> reason);
 
 private:
-    AbortController(JS::Realm&, GC::Ref<AbortSignal>);
+    AbortController(GC::Ref<AbortSignal>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

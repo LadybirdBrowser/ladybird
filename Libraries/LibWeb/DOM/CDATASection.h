@@ -16,6 +16,7 @@ class CDATASection final : public Text {
     GC_DECLARE_ALLOCATOR(CDATASection);
 
 public:
+    [[nodiscard]] static GC::Ref<CDATASection> create(Document&, Utf16String data);
     virtual ~CDATASection() override;
 
     // ^Node
@@ -23,8 +24,6 @@ public:
 
 private:
     CDATASection(Document&, Utf16String);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 template<>

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLVertexArrayObjectOES.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
@@ -18,15 +18,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESVertexArrayObject);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESVertexArrayObject::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESVertexArrayObject::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<OESVertexArrayObject>(realm, context);
+    auto extension = GC::Heap::the().allocate<OESVertexArrayObject>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-OESVertexArrayObject::OESVertexArrayObject(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
-    , m_context(context)
+OESVertexArrayObject::OESVertexArrayObject(GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
 }
 
@@ -36,10 +35,10 @@ GC::Ref<WebGLVertexArrayObjectOES> OESVertexArrayObject::create_vertex_array_oes
 
     GLuint handle = 0;
     glGenVertexArraysOES(1, &handle);
-    return WebGLVertexArrayObjectOES::create(realm(), m_context, handle);
+    return WebGLVertexArrayObjectOES::create(m_context, handle);
 }
 
-void OESVertexArrayObject::delete_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)
+void OESVertexArrayObject::delete_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object)
 {
     m_context->context().make_current();
 
@@ -56,7 +55,7 @@ void OESVertexArrayObject::delete_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjec
     glDeleteVertexArraysOES(1, &vertex_array_handle);
 }
 
-bool OESVertexArrayObject::is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)
+bool OESVertexArrayObject::is_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object)
 {
     m_context->context().make_current();
 
@@ -72,7 +71,7 @@ bool OESVertexArrayObject::is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES
     return glIsVertexArrayOES(vertex_array_handle) == GL_TRUE;
 }
 
-void OESVertexArrayObject::bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object)
+void OESVertexArrayObject::bind_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object)
 {
     m_context->context().make_current();
 

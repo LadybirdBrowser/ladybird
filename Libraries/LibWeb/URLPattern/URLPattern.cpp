@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/URLPattern/URLPattern.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -84,8 +85,8 @@ static Bindings::URLPatternResult to_bindings_url_pattern_result(URL::RustIntegr
     };
 }
 
-URLPattern::URLPattern(JS::Realm& realm, URL::RustIntegration::URLPattern pattern)
-    : Wrappable(realm)
+URLPattern::URLPattern(URL::RustIntegration::URLPattern pattern)
+    : Bindings::Wrappable()
     , m_url_pattern(move(pattern))
 {
 }
@@ -93,27 +94,27 @@ URLPattern::URLPattern(JS::Realm& realm, URL::RustIntegration::URLPattern patter
 URLPattern::~URLPattern() = default;
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-urlpattern
-WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const& input, String const& base_url, URLPatternOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(URLPatternInput const& input, String const& base_url, URLPatternOptions const& options)
 {
     // 1. Run initialize given this, input, baseURL, and options.
-    return create(realm, input, base_url, options);
+    return create(input, base_url, options);
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-urlpattern-input-options
-WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const& input, URLPatternOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(URLPatternInput const& input, URLPatternOptions const& options)
 {
     // 1. Run initialize given this, input, null, and options.
-    return create(realm, input, {}, options);
+    return create(input, {}, options);
 }
 
 // https://urlpattern.spec.whatwg.org/#urlpattern-initialize
-WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::create(JS::Realm& realm, URLPatternInput const& input, Optional<String> const& base_url, URLPatternOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::create(URLPatternInput const& input, Optional<String> const& base_url, URLPatternOptions const& options)
 {
     // 1. Set this’s associated URL pattern to the result of create given input, baseURL, and options.
     auto pattern_or_error = URL::RustIntegration::URLPattern::create(to_internal_url_pattern_input(input), base_url, options.ignore_case ? URL::FFI::IgnoreCase::Yes : URL::FFI::IgnoreCase::No);
     if (pattern_or_error.is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, pattern_or_error.error().message };
-    return realm.create<URLPattern>(realm, pattern_or_error.release_value());
+    return GC::Heap::the().allocate<URLPattern>(pattern_or_error.release_value());
 }
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-test

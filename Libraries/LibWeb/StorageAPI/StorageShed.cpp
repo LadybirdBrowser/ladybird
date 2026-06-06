@@ -35,8 +35,8 @@ GC::Ptr<StorageShelf> StorageShed::obtain_a_storage_shelf(HTML::EnvironmentSetti
 
     // 3. If shed[key] does not exist, then set shed[key] to the result of running create a storage shelf with type.
     // 4. Return shed[key].
-    return m_data.ensure(key.value(), [&page, key, type, &heap = this->heap()] {
-        return StorageShelf::create(heap, page, *key, type);
+    return m_data.ensure(key.value(), [&page, key, type] {
+        return StorageShelf::create(page, *key, type);
     });
 }
 
@@ -48,7 +48,7 @@ void StorageShed::legacy_clone(StorageShed const& a_storage_shed, GC::Ref<Page> 
     for (auto const& [key, shelf] : a_storage_shed.m_data) {
 
         // 1. Let newShelf be the result of running create a storage shelf with "session".
-        auto new_shelf = StorageShelf::create(heap(), page, key, StorageType::Session);
+        auto new_shelf = StorageShelf::create(page, key, StorageType::Session);
 
         // 2. Set newShelf’s bucket map["default"]'s bottle map["sessionStorage"]'s map to a clone of shelf’s bucket map["default"]'s bottle map["sessionStorage"]'s map.
         auto& shelf_bucket = *shelf->bucket_map().get("default"sv).value();

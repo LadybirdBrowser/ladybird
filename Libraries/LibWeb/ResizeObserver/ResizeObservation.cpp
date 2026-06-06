@@ -14,9 +14,9 @@ namespace Web::ResizeObserver {
 
 GC_DEFINE_ALLOCATOR(ResizeObservation);
 
-WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
 {
-    return realm.create<ResizeObservation>(target, observed_box);
+    return GC::Heap::the().allocate<ResizeObservation>(target, observed_box);
 }
 
 ResizeObservation::ResizeObservation(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)

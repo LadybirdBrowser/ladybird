@@ -142,7 +142,7 @@ static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(JS::Realm& realm
         fallback = reify_a_list_of_component_values(realm, var_arguments[1]);
 
     // 4. Return object.
-    return CSSVariableReferenceValue::create(realm, move(variable), move(fallback));
+    return CSSVariableReferenceValue::create(move(variable), move(fallback));
 }
 
 class Reifier {
@@ -212,7 +212,7 @@ static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(JS::Realm& rea
     auto reified_values = Reifier::reify(realm, component_values);
 
     // 3. Return a new CSSUnparsedValue whose [[tokens]] slot is set to list.
-    return CSSUnparsedValue::create(realm, move(reified_values));
+    return CSSUnparsedValue::create(move(reified_values));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-list-of-component-values

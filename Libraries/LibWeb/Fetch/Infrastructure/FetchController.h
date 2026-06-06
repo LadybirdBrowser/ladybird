@@ -42,7 +42,7 @@ public:
         Stopped,
     };
 
-    [[nodiscard]] static GC::Ref<FetchController> create(JS::VM&);
+    [[nodiscard]] static GC::Ref<FetchController> create();
 
     void set_full_timing_info(GC::Ref<FetchTimingInfo> full_timing_info) { m_full_timing_info = full_timing_info; }
     void set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps);
@@ -117,7 +117,7 @@ class FetchControllerHolder : public JS::Cell {
     GC_DECLARE_ALLOCATOR(FetchControllerHolder);
 
 public:
-    static GC::Ref<FetchControllerHolder> create(JS::VM&);
+    static GC::Ref<FetchControllerHolder> create();
 
     [[nodiscard]] GC::Ptr<FetchController> const& controller() const { return m_controller; }
     void set_controller(GC::Ref<FetchController> controller) { m_controller = controller; }

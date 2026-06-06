@@ -31,11 +31,11 @@ class MediaDevices final : public DOM::EventTarget {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<MediaDevices> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<MediaDevices> create(HTML::Window&);
 
-    GC::Ref<WebIDL::Promise> enumerate_devices();
+    GC::Ref<WebIDL::Promise> enumerate_devices(JS::Realm&);
     Bindings::MediaTrackSupportedConstraints get_supported_constraints();
-    GC::Ref<WebIDL::Promise> get_user_media(Optional<Bindings::MediaStreamConstraints> const& constraints = {});
+    GC::Ref<WebIDL::Promise> get_user_media(JS::Realm&, Optional<Bindings::MediaStreamConstraints> const& constraints = {});
 
     void set_ondevicechange(WebIDL::CallbackType* event_handler);
     WebIDL::CallbackType* ondevicechange();
@@ -54,10 +54,9 @@ private:
         Optional<Vector<String>> requested_device_ids;
     };
 
-    explicit MediaDevices(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit MediaDevices(HTML::Window&);
     virtual void finalize() override;
+    void initialize_pending_request_state_change_listener();
 
     bool microphone_information_can_be_exposed();
     bool can_use_microphone_feature() const;
@@ -72,11 +71,13 @@ private:
     void queue_get_user_media_task(GC::Ref<WebIDL::Promise>, Optional<Vector<String>> requested_device_ids);
     void process_pending_enumerate_devices_requests();
     void process_pending_get_user_media_requests();
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> create_list_of_device_info_objects(Vector<StoredDevice> const& device_list);
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> create_list_of_device_info_objects(JS::Realm&, Vector<StoredDevice> const& device_list);
     void run_device_change_notification_steps(Vector<StoredDevice> const& device_list);
     static Vector<StoredDevice> current_audio_device_snapshot();
     void did_observe_audio_device_cache_update();
     virtual void visit_edges(Cell::Visitor&) override;
+
+    GC::Ref<HTML::Window> m_window;
 
     // https://w3c.github.io/mediacapture-main/#mediadevices
     // [[devicesLiveMap]]

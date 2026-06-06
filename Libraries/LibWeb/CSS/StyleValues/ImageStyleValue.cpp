@@ -9,6 +9,7 @@
 
 #include <AK/AnyOf.h>
 #include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -121,9 +122,9 @@ void ImageStyleValueResource::start_animation_timer_if_needed(DOM::Document& doc
         return;
 
     if (!m_timer) {
-        auto timer = Platform::Timer::create(document.heap());
+        auto timer = Platform::Timer::create(GC::Heap::the());
         m_timer = timer;
-        timer->on_timeout = GC::create_function(document.heap(), [weak_document = GC::Weak(document), url = m_url] {
+        timer->on_timeout = GC::create_function(GC::Heap::the(), [weak_document = GC::Weak(document), url = m_url] {
             if (auto document = weak_document.ptr())
                 document->animate_css_image_resource(url);
         });
@@ -347,7 +348,11 @@ void ImageStyleValue::update_style_sheet_resource_context(CSSStyleSheet const& s
 {
     m_style_resource_base_url = style_sheet.base_url()
                                     .value_or_lazy_evaluated_optional([&]() { return style_sheet.location(); })
-                                    .value_or_lazy_evaluated_optional([&]() { return HTML::relevant_settings_object(style_sheet).api_base_url(); });
+                                    .value_or_lazy_evaluated_optional([&]() -> Optional<::URL::URL> {
+                                        if (auto document = style_sheet.owning_document())
+                                            return HTML::relevant_settings_object(*document).api_base_url();
+                                        return {};
+                                    });
     m_parent_style_sheet_origin_clean = style_sheet.is_origin_clean();
     m_should_absolutize_url_for_computed_value = true;
 }

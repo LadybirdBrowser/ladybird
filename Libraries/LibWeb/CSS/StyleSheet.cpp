@@ -13,9 +13,8 @@
 
 namespace Web::CSS {
 
-StyleSheet::StyleSheet(JS::Realm& realm, MediaList& media)
-    : Bindings::Wrappable(realm)
-    , m_media(media)
+StyleSheet::StyleSheet(MediaList& media)
+    : m_media(media)
 {
     m_media->set_associated_style_sheet(*this);
 }

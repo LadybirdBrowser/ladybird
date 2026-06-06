@@ -3,5 +3,5 @@
 interface Instance {
     constructor(Module module, optional object importObject);
 
-    readonly attribute object exports;
+    [NeedsCallerRealmForGetter] readonly attribute object exports;
 };

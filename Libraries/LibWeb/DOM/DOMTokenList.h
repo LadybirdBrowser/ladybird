@@ -30,15 +30,15 @@ public:
 
     void associated_attribute_changed(StringView value);
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     size_t length() const { return m_token_set.size(); }
     Optional<String> item(size_t index) const;
     bool contains(String const& token);
-    WebIDL::ExceptionOr<void> add(Vector<String> const& tokens);
-    WebIDL::ExceptionOr<void> remove(Vector<String> const& tokens);
-    WebIDL::ExceptionOr<bool> toggle(String const& token, Optional<bool> force);
-    WebIDL::ExceptionOr<bool> replace(String const& token, String const& new_token);
+    WebIDL::ExceptionOr<void> add(JS::Realm&, Vector<String> const& tokens);
+    WebIDL::ExceptionOr<void> remove(JS::Realm&, Vector<String> const& tokens);
+    WebIDL::ExceptionOr<bool> toggle(JS::Realm&, String const& token, Optional<bool> force);
+    WebIDL::ExceptionOr<bool> replace(JS::Realm&, String const& token, String const& new_token);
     WebIDL::ExceptionOr<bool> supports(StringView token);
     String value() const;
     void set_value(String const& value);
@@ -49,9 +49,9 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
-    WebIDL::ExceptionOr<void> validate_token(StringView token) const;
-    WebIDL::ExceptionOr<void> validate_token_not_empty(StringView token) const;
-    WebIDL::ExceptionOr<void> validate_token_not_whitespace(StringView token) const;
+    WebIDL::ExceptionOr<void> validate_token(JS::Realm&, StringView token) const;
+    WebIDL::ExceptionOr<void> validate_token_not_empty(JS::Realm&, StringView token) const;
+    WebIDL::ExceptionOr<void> validate_token_not_whitespace(JS::Realm&, StringView token) const;
     WebIDL::ExceptionOr<bool> run_validation_steps(StringView token);
     void run_update_steps();
 

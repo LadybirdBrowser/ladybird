@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
@@ -81,7 +82,7 @@ ReadableStreamPipeTo::ReadableStreamPipeTo(
     , m_destination(destination)
     , m_reader(reader)
     , m_writer(writer)
-    , m_on_shutdown(GC::create_function(heap(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    , m_on_shutdown(GC::create_function(GC::Heap::the(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         check_for_error_and_close_states();
         return JS::js_undefined();
     }))
@@ -111,6 +112,11 @@ void ReadableStreamPipeTo::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_on_shutdown);
 }
 
+JS::Realm& ReadableStreamPipeTo::promise_realm() const
+{
+    return WebIDL::promise_realm(m_promise);
+}
+
 void ReadableStreamPipeTo::process()
 {
     if (check_for_error_and_close_states())
@@ -123,7 +129,7 @@ void ReadableStreamPipeTo::process()
         return;
     }
 
-    auto when_ready = GC::create_function(realm().heap(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto when_ready = GC::create_function(GC::Heap::the(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         read_chunk();
         return JS::js_undefined();
     });
@@ -149,20 +155,20 @@ void ReadableStreamPipeTo::shutdown_with_action(GC::Ref<GC::Function<GC::Ref<Web
     m_shutting_down = true;
 
     auto on_pending_writes_complete = [this, action, original_error = move(original_error)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { promise_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 4. Let p be the result of performing action.
         auto promise = action->function()();
 
         WebIDL::react_to_promise(promise,
             // 5. Upon fulfillment of p, finalize, passing along originalError if it was given.
-            GC::create_function(heap(), [this, original_error = move(original_error)](JS::Value) mutable -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), [this, original_error = move(original_error)](JS::Value) mutable -> WebIDL::ExceptionOr<JS::Value> {
                 finish(move(original_error));
                 return JS::js_undefined();
             }),
 
             // 6. Upon rejection of p with reason newError, finalize with newError.
-            GC::create_function(heap(), [this](JS::Value new_error) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), [this](JS::Value new_error) -> WebIDL::ExceptionOr<JS::Value> {
                 finish(new_error);
                 return JS::js_undefined();
             }));
@@ -191,7 +197,7 @@ void ReadableStreamPipeTo::shutdown(Optional<JS::Value> error)
     m_shutting_down = true;
 
     auto on_pending_writes_complete = [this, error = move(error)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { promise_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 4. Finalize, passing along error if it was given.
         finish(move(error));
@@ -217,25 +223,25 @@ void ReadableStreamPipeTo::read_chunk()
     if (check_for_error_and_close_states())
         return;
 
-    auto on_chunk = GC::create_function(heap(), [this](JS::Value chunk) {
+    auto on_chunk = GC::create_function(GC::Heap::the(), [this](JS::Value chunk) {
         m_unwritten_chunks.append(chunk);
 
         if (check_for_error_and_close_states())
             return;
 
-        HTML::queue_a_microtask(nullptr, GC::create_function(realm().heap(), [this]() {
-            HTML::TemporaryExecutionContext execution_context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [this]() {
+            HTML::TemporaryExecutionContext execution_context { promise_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             write_chunk();
             process();
         }));
     });
 
-    auto on_complete = GC::create_function(heap(), [this]() {
+    auto on_complete = GC::create_function(GC::Heap::the(), [this]() {
         if (!check_for_error_and_close_states())
             finish();
     });
 
-    auto read_request = heap().allocate<ReadableStreamPipeToReadRequest>(on_chunk, on_complete, *m_on_shutdown);
+    auto read_request = GC::Heap::the().allocate<ReadableStreamPipeToReadRequest>(on_chunk, on_complete, *m_on_shutdown);
     readable_stream_default_reader_read(m_reader, read_request);
 }
 
@@ -264,12 +270,12 @@ void ReadableStreamPipeTo::wait_for_pending_writes_to_complete(Function<void()> 
     auto last_write_promise = m_last_write_promise;
     m_last_write_promise = {};
     if (!last_write_promise) {
-        HTML::queue_a_microtask(nullptr, GC::create_function(heap(), [on_complete = move(on_complete)]() {
+        HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [on_complete = move(on_complete)]() {
             on_complete();
         }));
         return;
     }
-    auto run_complete_steps = GC::create_function(heap(), [on_complete = move(on_complete)](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto run_complete_steps = GC::create_function(GC::Heap::the(), [on_complete = move(on_complete)](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         on_complete();
         return JS::js_undefined();
     });
@@ -293,11 +299,11 @@ void ReadableStreamPipeTo::finish(Optional<JS::Value> error)
 
     // 5. If error was given, reject promise with error.
     if (error.has_value()) {
-        WebIDL::reject_promise(realm(), m_promise, *error);
+        WebIDL::reject_promise(promise_realm(), m_promise, *error);
     }
     // 6. Otherwise, resolve promise with undefined.
     else {
-        WebIDL::resolve_promise(realm(), m_promise, JS::js_undefined());
+        WebIDL::resolve_promise(promise_realm(), m_promise, JS::js_undefined());
     }
 
     m_reader->set_readable_stream_pipe_to_operation({}, nullptr);
@@ -320,8 +326,8 @@ bool ReadableStreamPipeTo::check_for_forward_errors()
         // 1. If preventAbort is false, shutdown with an action of ! WritableStreamAbort(dest, source.[[storedError]])
         //    and with source.[[storedError]].
         if (!m_prevent_abort) {
-            auto action = GC::create_function(heap(), [this]() {
-                return writable_stream_abort(m_destination, m_source->stored_error());
+            auto action = GC::create_function(GC::Heap::the(), [this]() {
+                return writable_stream_abort(promise_realm(), m_destination, m_source->stored_error());
             });
 
             shutdown_with_action(action, m_source->stored_error());
@@ -342,8 +348,8 @@ bool ReadableStreamPipeTo::check_for_backward_errors()
         // 1. If preventCancel is false, shutdown with an action of ! ReadableStreamCancel(source, dest.[[storedError]])
         //    and with dest.[[storedError]].
         if (!m_prevent_cancel) {
-            auto action = GC::create_function(heap(), [this]() {
-                return readable_stream_cancel(m_source, m_destination->stored_error());
+            auto action = GC::create_function(GC::Heap::the(), [this]() {
+                return readable_stream_cancel(promise_realm(), m_source, m_destination->stored_error());
             });
 
             shutdown_with_action(action, m_destination->stored_error());
@@ -363,7 +369,7 @@ bool ReadableStreamPipeTo::check_for_forward_close()
     if (m_source->state() == ReadableStream::State::Closed) {
         // 1. If preventClose is false, shutdown with an action of ! WritableStreamDefaultWriterCloseWithErrorPropagation(writer).
         if (!m_prevent_close) {
-            auto action = GC::create_function(heap(), [this]() {
+            auto action = GC::create_function(GC::Heap::the(), [this]() {
                 return writable_stream_default_writer_close_with_error_propagation(m_writer);
             });
 
@@ -385,12 +391,12 @@ bool ReadableStreamPipeTo::check_for_backward_close()
         // 1. Assert: no chunks have been read or written.
 
         // 2. Let destClosed be a new TypeError.
-        auto destination_closed = JS::TypeError::create(realm(), "Destination stream was closed during piping operation"sv);
+        auto destination_closed = JS::TypeError::create(promise_realm(), "Destination stream was closed during piping operation"sv);
 
         // 3. If preventCancel is false, shutdown with an action of ! ReadableStreamCancel(source, destClosed) and with destClosed.
         if (!m_prevent_cancel) {
-            auto action = GC::create_function(heap(), [this, destination_closed]() {
-                return readable_stream_cancel(m_source, destination_closed);
+            auto action = GC::create_function(GC::Heap::the(), [this, destination_closed]() {
+                return readable_stream_cancel(promise_realm(), m_source, destination_closed);
             });
 
             shutdown_with_action(action, destination_closed);

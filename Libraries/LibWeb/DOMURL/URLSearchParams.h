@@ -25,9 +25,9 @@ class URLSearchParams : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(URLSearchParams);
 
 public:
-    static GC::Ref<URLSearchParams> create(JS::Realm&, StringView);
-    static GC::Ref<URLSearchParams> create(JS::Realm&, Vector<QueryParam> list);
-    static WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> construct_impl(JS::Realm&, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
+    static GC::Ref<URLSearchParams> create(StringView);
+    static GC::Ref<URLSearchParams> create(Vector<QueryParam> list);
+    static WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> construct_impl(Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init);
 
     virtual ~URLSearchParams() override;
 
@@ -50,7 +50,7 @@ private:
     friend class DOMURL;
     friend class URLSearchParamsIterator;
 
-    URLSearchParams(JS::Realm&, Vector<QueryParam> list);
+    explicit URLSearchParams(Vector<QueryParam> list);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -28,8 +28,6 @@ public:
 
 private:
     SVGFEFloodElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 };
 

@@ -5,6 +5,7 @@
  */
 
 #include "CSSContainerRule.h"
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSContainerRule.h>
 #include <LibWeb/CSS/ContainerQuery.h>
@@ -16,13 +17,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSContainerRule);
 
-GC::Ref<CSSContainerRule> CSSContainerRule::create(JS::Realm& realm, Vector<Condition>&& conditions, CSSRuleList& rules)
+GC::Ref<CSSContainerRule> CSSContainerRule::create(Vector<Condition>&& conditions, CSSRuleList& rules)
 {
-    return realm.create<CSSContainerRule>(realm, move(conditions), rules);
+    return GC::Heap::the().allocate<CSSContainerRule>(move(conditions), rules);
 }
 
-CSSContainerRule::CSSContainerRule(JS::Realm& realm, Vector<Condition>&& conditions, CSSRuleList& rules)
-    : CSSConditionRule(realm, rules, Type::Container)
+CSSContainerRule::CSSContainerRule(Vector<Condition>&& conditions, CSSRuleList& rules)
+    : CSSConditionRule(rules, Type::Container)
     , m_conditions(move(conditions))
 {
 }

@@ -20,8 +20,8 @@ class CSSKeywordValue final : public CSSStyleValue {
     GC_DECLARE_ALLOCATOR(CSSKeywordValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSKeywordValue> create(JS::Realm&, FlyString value);
-    static WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> construct_impl(JS::Realm&, FlyString value);
+    [[nodiscard]] static GC::Ref<CSSKeywordValue> create(FlyString value);
+    static WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> construct_impl(FlyString value);
 
     virtual ~CSSKeywordValue() override = default;
 
@@ -33,11 +33,11 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSKeywordValue(JS::Realm&, FlyString value);
+    explicit CSSKeywordValue(FlyString value);
 
     FlyString m_value;
 };
 
-GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(JS::Realm&, CSSKeywordish const&);
+GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(CSSKeywordish const&);
 
 }

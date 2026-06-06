@@ -38,7 +38,6 @@ public:
 
 private:
     PerformanceEventTiming(
-        JS::Realm&,
         String const& name,
         HighResolutionTime::DOMHighResTimeStamp start_time,
         HighResolutionTime::DOMHighResTimeStamp duration,

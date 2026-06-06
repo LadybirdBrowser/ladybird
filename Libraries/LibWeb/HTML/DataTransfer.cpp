@@ -6,7 +6,8 @@
 
 #include <AK/Enumerate.h>
 #include <AK/Find.h>
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
@@ -27,13 +28,21 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 
 }
 
-GC::Ref<DataTransfer> DataTransfer::create(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
+GC::Ref<DataTransfer> DataTransfer::create(NonnullRefPtr<DragDataStore> drag_data_store)
 {
-    return realm.create<DataTransfer>(realm, move(drag_data_store));
+    auto data_transfer = GC::Heap::the().allocate<DataTransfer>(move(drag_data_store));
+
+    for (auto const& [i, item] : enumerate(data_transfer->m_associated_drag_data_store->item_list())) {
+        auto data_transfer_item = DataTransferItem::create(data_transfer, i);
+        data_transfer->m_item_list.append(data_transfer_item);
+    }
+
+    data_transfer->update_data_transfer_types_list();
+    return data_transfer;
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer
-GC::Ref<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
+GC::Ref<DataTransfer> DataTransfer::construct_impl()
 {
     // 1. Set the drag data store's item list to be an empty list.
     auto drag_data_store = DragDataStore::create();
@@ -44,19 +53,12 @@ GC::Ref<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
     // 3. Set the dropEffect and effectAllowed to "none".
     // NOTE: This is done by the default-initializers.
 
-    return realm.create<DataTransfer>(realm, move(drag_data_store));
+    return create(move(drag_data_store));
 }
 
-DataTransfer::DataTransfer(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
-    : Wrappable(realm)
-    , m_associated_drag_data_store(move(drag_data_store))
+DataTransfer::DataTransfer(NonnullRefPtr<DragDataStore> drag_data_store)
+    : m_associated_drag_data_store(move(drag_data_store))
 {
-    for (auto const& [i, item] : enumerate(m_associated_drag_data_store->item_list())) {
-        auto data_transfer_item = DataTransferItem::create(realm, *this, i);
-        m_item_list.append(data_transfer_item);
-    }
-
-    update_data_transfer_types_list();
 }
 
 DataTransfer::~DataTransfer() = default;
@@ -66,8 +68,6 @@ void DataTransfer::visit_edges(GC::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_items);
     visitor.visit(m_item_list);
-
-    VISIT_CACHED_ATTRIBUTE(types);
 }
 
 void DataTransfer::set_drop_effect(String const& drop_effect)
@@ -113,7 +113,7 @@ GC::Ref<DataTransferItemList> DataTransfer::items()
 {
     // The items attribute must return a DataTransferItemList object associated with the DataTransfer object.
     if (!m_items)
-        m_items = DataTransferItemList::create(realm(), *this);
+        m_items = DataTransferItemList::create(*this);
     return *m_items;
 }
 
@@ -122,6 +122,32 @@ ReadonlySpan<String> DataTransfer::types() const
 {
     // The types attribute must return this DataTransfer object's types array.
     return m_types;
+}
+
+GC::Ptr<JS::Object> DataTransfer::cached_types(Bindings::WrapperWorld const& wrapper_world) const
+{
+    return m_cached_types.get(wrapper_world);
+}
+
+void DataTransfer::set_cached_types(Bindings::WrapperWorld const& wrapper_world, GC::Ptr<JS::Object> cached_types)
+{
+    if (!cached_types) {
+        clear_cached_types();
+        return;
+    }
+
+    m_cached_types.set(wrapper_world, cached_types);
+}
+
+void DataTransfer::set_cached_types(GC::Ptr<JS::Object> cached_types)
+{
+    VERIFY(!cached_types);
+    clear_cached_types();
+}
+
+void DataTransfer::clear_cached_types()
+{
+    m_cached_types.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-getdata
@@ -218,10 +244,8 @@ void DataTransfer::set_data(String const& format_argument, String const& value)
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-files
 GC::Ref<FileAPI::FileList> DataTransfer::files() const
 {
-    auto& realm = this->realm();
-
     // 1. Start with an empty list L.
-    auto files = FileAPI::FileList::create(realm);
+    auto files = FileAPI::FileList::create();
 
     // 2. If the DataTransfer object is no longer associated with a drag data store, the FileList is empty. Return
     //    the empty list L.
@@ -238,7 +262,7 @@ GC::Ref<FileAPI::FileList> DataTransfer::files() const
         if (item.kind != DragDataStoreItem::Kind::File)
             continue;
 
-        auto blob = FileAPI::Blob::create(realm, item.data, item.type_string);
+        auto blob = FileAPI::Blob::create(item.data, item.type_string);
 
         // FIXME: The FileAPI should use ByteString for file names.
         auto file_name = MUST(String::from_byte_string(item.file_name));
@@ -247,7 +271,7 @@ GC::Ref<FileAPI::FileList> DataTransfer::files() const
         Bindings::FilePropertyBag options {};
         options.type = item.type_string;
 
-        auto file = MUST(FileAPI::File::create(realm, { { blob } }, file_name, move(options)));
+        auto file = MUST(FileAPI::File::create({ { blob } }, file_name, move(options)));
         files->add_file(file);
     }
 
@@ -270,12 +294,10 @@ void DataTransfer::disassociate_with_drag_data_store()
 
 GC::Ref<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
 {
-    auto& realm = this->realm();
-
     VERIFY(m_associated_drag_data_store);
     m_associated_drag_data_store->add_item(move(item));
 
-    auto data_transfer_item = DataTransferItem::create(realm, *this, m_associated_drag_data_store->size() - 1);
+    auto data_transfer_item = DataTransferItem::create(*this, m_associated_drag_data_store->size() - 1);
     m_item_list.append(data_transfer_item);
 
     update_data_transfer_types_list();

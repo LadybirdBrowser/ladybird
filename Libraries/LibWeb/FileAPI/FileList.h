@@ -23,7 +23,7 @@ class WEB_API FileList
     GC_DECLARE_ALLOCATOR(FileList);
 
 public:
-    [[nodiscard]] static GC::Ref<FileList> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FileList> create();
 
     void add_file(GC::Ref<File> file) { m_files.append(file); }
 
@@ -44,13 +44,13 @@ public:
         return index < m_files.size() ? m_files[index].ptr() : nullptr;
     }
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 private:
-    explicit FileList(JS::Realm&);
+    explicit FileList();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

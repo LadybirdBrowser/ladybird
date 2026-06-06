@@ -6,11 +6,15 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/NavigateEvent.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
+
+class Window;
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationintercepthandler
 using NavigationInterceptHandler = GC::Ref<WebIDL::CallbackType>;
@@ -30,8 +34,8 @@ public:
         Finished
     };
 
-    [[nodiscard]] static GC::Ref<NavigateEvent> create(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const&);
-    [[nodiscard]] static GC::Ref<NavigateEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const&);
+    [[nodiscard]] static GC::Ref<NavigateEvent> create(Window& relevant_window, FlyString const& event_name, Bindings::NavigateEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<NavigateEvent> construct_impl(Window&, FlyString const& event_name, Bindings::NavigateEventInit const&);
 
     // The navigationType, destination, canIntercept, userInitiated, hashChange, signal, formData, downloadRequest,
     // info, hasUAVisualTransition, and sourceElement attributes must return the values they are initialized to.
@@ -47,10 +51,12 @@ public:
     bool has_ua_visual_transition() const { return m_has_ua_visual_transition; }
     GC::Ptr<DOM::Element> source_element() const { return m_source_element; }
 
-    WebIDL::ExceptionOr<void> intercept(Bindings::NavigationInterceptOptions const&);
-    WebIDL::ExceptionOr<void> scroll();
+    WebIDL::ExceptionOr<void> intercept(JS::Realm&, Bindings::NavigationInterceptOptions const&);
+    WebIDL::ExceptionOr<void> scroll(JS::Realm&);
 
     virtual ~NavigateEvent() override;
+
+    Window& relevant_window() const { return *m_relevant_window; }
 
     GC::Ref<DOM::AbortController> abort_controller() const { return *m_abort_controller; }
     InterceptionState interception_state() const { return m_interception_state; }
@@ -66,14 +72,17 @@ public:
     void finish(bool did_fulfill);
 
 private:
-    NavigateEvent(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const& event_init);
+    NavigateEvent(Window&, FlyString const& event_name, Bindings::NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> perform_shared_checks();
+    WebIDL::ExceptionOr<void> perform_shared_checks(JS::Realm&);
     void process_scroll_behavior();
     void potentially_process_scroll_behavior();
     void potentially_reset_the_focus();
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global
+    GC::Ref<Window> m_relevant_window;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-interception-state
     InterceptionState m_interception_state = InterceptionState::None;

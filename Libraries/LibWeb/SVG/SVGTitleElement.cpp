@@ -20,12 +20,6 @@ SVGTitleElement::SVGTitleElement(DOM::Document& document, DOM::QualifiedName qua
 {
 }
 
-void SVGTitleElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTitleElement);
-    Base::initialize(realm);
-}
-
 RefPtr<Layout::Node> SVGTitleElement::create_layout_node(CSS::ComputedProperties const&)
 {
     return nullptr;

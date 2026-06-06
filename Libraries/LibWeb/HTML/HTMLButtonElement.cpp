@@ -13,6 +13,8 @@
 #include <LibWeb/HTML/CommandEvent.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
@@ -25,12 +27,6 @@ HTMLButtonElement::HTMLButtonElement(DOM::Document& document, DOM::QualifiedName
 }
 
 HTMLButtonElement::~HTMLButtonElement() = default;
-
-void HTMLButtonElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLButtonElement);
-    Base::initialize(realm);
-}
 
 void HTMLButtonElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
@@ -235,7 +231,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         event_init.source = this;
         event_init.cancelable = true;
 
-        auto event = CommandEvent::create(realm(), HTML::EventNames::command, move(event_init));
+        auto event = CommandEvent::create(HTML::EventNames::command, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         event->set_is_trusted(true);
         auto continue_ = target->dispatch_event(event);
 

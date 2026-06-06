@@ -52,8 +52,6 @@ public:
 
 private:
     explicit VisualViewport(DOM::Document&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     void update_accumulated_visual_context();

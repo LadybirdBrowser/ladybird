@@ -6,6 +6,7 @@
  */
 
 #include <AK/InsertionSort.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -19,11 +20,11 @@ GC_DEFINE_ALLOCATOR(HTMLCollection);
 
 GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort)
 {
-    return root.realm().create<HTMLCollection>(root, scope, move(filter), move(sort));
+    return GC::Heap::the().allocate<HTMLCollection>(root, scope, move(filter), move(sort));
 }
 
 HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort)
-    : Wrappable(root.realm())
+    : Bindings::Wrappable()
     , GC::WeakContainer(heap())
     , m_root(root)
     , m_filter(move(filter))
@@ -177,20 +178,20 @@ Vector<FlyString> HTMLCollection::supported_property_names() const
     return result;
 }
 
-Optional<JS::Value> HTMLCollection::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> HTMLCollection::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     auto* element = item(index);
     if (!element)
         return {};
-    return Bindings::wrap(realm, GC::Ref { *element }).ptr();
+    return Bindings::wrap(wrapper_world, realm, GC::Ref { *element }).ptr();
 }
 
-JS::Value HTMLCollection::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value HTMLCollection::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
 {
     auto* element = named_item(name);
     if (!element)
         return JS::js_undefined();
-    return Bindings::wrap(realm, GC::Ref { *element }).ptr();
+    return Bindings::wrap(wrapper_world, realm, GC::Ref { *element }).ptr();
 }
 
 }

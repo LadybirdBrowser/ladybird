@@ -30,12 +30,6 @@ SVGTextPositioningElement::SVGTextPositioningElement(DOM::Document& document, DO
 {
 }
 
-void SVGTextPositioningElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextPositioningElement);
-    Base::initialize(realm);
-}
-
 void SVGTextPositioningElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -105,9 +99,9 @@ GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::ensure_length_list(GC:
         if (maybe_number_percentage.has_value())
             value = maybe_number_percentage.release_value().value();
 
-        auto length = SVGLength::create(realm(), SVGLength::SVG_LENGTHTYPE_NUMBER, value, SVGLength::ReadOnly::Yes);
-        auto length_list = SVGLengthList::create(realm(), { length }, ReadOnlyList::Yes);
-        list = SVGAnimatedLengthList::create(realm(), length_list);
+        auto length = SVGLength::create(SVGLength::SVG_LENGTHTYPE_NUMBER, value, SVGLength::ReadOnly::Yes);
+        auto length_list = SVGLengthList::create({ length }, ReadOnlyList::Yes);
+        list = SVGAnimatedLengthList::create(length_list);
     }
     return *list;
 }
@@ -146,9 +140,9 @@ GC::Ref<SVGAnimatedNumberList> SVGTextPositioningElement::rotate()
         if (maybe_number_percentage.has_value() && !maybe_number_percentage.value().is_percentage())
             value = maybe_number_percentage.release_value().value();
 
-        auto number = SVGNumber::create(realm(), value, SVGNumber::ReadOnly::Yes);
-        auto number_list = SVGNumberList::create(realm(), { number }, ReadOnlyList::Yes);
-        m_rotate = SVGAnimatedNumberList::create(realm(), number_list);
+        auto number = SVGNumber::create(value, SVGNumber::ReadOnly::Yes);
+        auto number_list = SVGNumberList::create({ number }, ReadOnlyList::Yes);
+        m_rotate = SVGAnimatedNumberList::create(number_list);
     }
     return *m_rotate;
 }

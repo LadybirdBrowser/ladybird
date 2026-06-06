@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGTransform.h>
@@ -14,33 +15,31 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGTransformList);
 
-GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm, Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
+GC::Ref<SVGTransformList> SVGTransformList::create(Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
 {
-    return realm.create<SVGTransformList>(realm, move(items), read_only);
+    return GC::Heap::the().allocate<SVGTransformList>(move(items), read_only);
 }
 
-GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm, ReadOnlyList read_only)
+GC::Ref<SVGTransformList> SVGTransformList::create(ReadOnlyList read_only)
 {
-    return realm.create<SVGTransformList>(realm, read_only);
+    return GC::Heap::the().allocate<SVGTransformList>(read_only);
 }
 
-SVGTransformList::SVGTransformList(JS::Realm& realm, Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
-    : Bindings::Wrappable(realm)
-    , SVGList(move(items), read_only)
-{
-}
-
-SVGTransformList::SVGTransformList(JS::Realm& realm, ReadOnlyList read_only)
-    : Bindings::Wrappable(realm)
-    , SVGList(read_only)
+SVGTransformList::SVGTransformList(Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
+    : SVGList(move(items), read_only)
 {
 }
 
-Optional<JS::Value> SVGTransformList::item_value(JS::Realm& realm, size_t index) const
+SVGTransformList::SVGTransformList(ReadOnlyList read_only)
+    : SVGList(read_only)
+{
+}
+
+Optional<JS::Value> SVGTransformList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     if (index >= items().size())
         return {};
-    return Bindings::wrap(realm, items()[index]);
+    return Bindings::wrap(wrapper_world, realm, items()[index]);
 }
 
 static WebIDL::ExceptionOr<GC::Ref<SVGTransform>> svg_transform_from_value(JS::Value value)
@@ -52,21 +51,21 @@ static WebIDL::ExceptionOr<GC::Ref<SVGTransform>> svg_transform_from_value(JS::V
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be an SVGTransform"sv };
 }
 
-WebIDL::ExceptionOr<void> SVGTransformList::set_value_of_new_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> SVGTransformList::set_value_of_new_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    TRY(replace_item(TRY(svg_transform_from_value(value)), index));
+    TRY(replace_item(realm, TRY(svg_transform_from_value(value)), index));
     return {};
 }
 
-WebIDL::ExceptionOr<void> SVGTransformList::set_value_of_existing_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> SVGTransformList::set_value_of_existing_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    TRY(replace_item(TRY(svg_transform_from_value(value)), index));
+    TRY(replace_item(realm, TRY(svg_transform_from_value(value)), index));
     return {};
 }
 
-WebIDL::ExceptionOr<void> SVGTransformList::set_value_of_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> SVGTransformList::set_value_of_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    TRY(replace_item(TRY(svg_transform_from_value(value)), index));
+    TRY(replace_item(realm, TRY(svg_transform_from_value(value)), index));
     return {};
 }
 

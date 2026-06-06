@@ -27,8 +27,6 @@ public:
 
 protected:
     SVGGeometryElement(DOM::Document& document, DOM::QualifiedName qualified_name);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

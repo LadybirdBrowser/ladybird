@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/Plugin.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -17,6 +18,8 @@ class Plugin : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Plugin);
 
 public:
+    [[nodiscard]] static GC::Ref<Plugin> create(Window&, String name);
+
     virtual ~Plugin() override;
 
     String const& name() const;
@@ -27,15 +30,19 @@ public:
     GC::Ptr<MimeType> named_item(FlyString const& name) const;
 
 private:
-    Plugin(JS::Realm&, String name);
+    Plugin(Window&, String name);
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#concept-plugin-name
     String m_name;
 
+    GC::Ref<Window> m_window;
+
     // ^Bindings::Wrappable
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override;
 };
 
 }

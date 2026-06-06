@@ -10,8 +10,8 @@ namespace Web::MediaSourceExtensions {
 
 GC_DEFINE_ALLOCATOR(MediaSourceHandle);
 
-MediaSourceHandle::MediaSourceHandle(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+MediaSourceHandle::MediaSourceHandle()
+    : Bindings::Wrappable()
 {
 }
 

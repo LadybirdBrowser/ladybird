@@ -13,6 +13,7 @@
 #include <AK/Math.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -1337,7 +1338,7 @@ public:
         m_timer = Core::Timer::create_single_shot(static_cast<int>(tick_duration.to_milliseconds()), [this]() {
             m_timer = nullptr;
 
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [this]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
                 process_next_tick();
             }));
         });
@@ -1390,7 +1391,7 @@ GC::Ref<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vector<Action
 
     // 2. Let actions result be the result of dispatch actions inner with input state, actions by tick, browsing
     //    context, and actions options.
-    auto action_executor = browsing_context.heap().allocate<ActionExecutor>(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
+    auto action_executor = GC::Heap::the().allocate<ActionExecutor>(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
     action_executor->process_next_tick();
 
     // 3. Dequeue input state's actions queue.
@@ -1622,7 +1623,7 @@ GC::Ref<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState& inpu
 
     // 5. Dispatch the events for a typeable string with input state, input id and source, current typeable text, and
     //    browsing context.
-    return dispatch_the_events_for_a_typeable_string(input_state, input_id, source, text, browsing_context, GC::create_function(browsing_context.heap(), [on_complete](Web::WebDriver::Response result) {
+    return dispatch_the_events_for_a_typeable_string(input_state, input_id, source, text, browsing_context, GC::create_function(GC::Heap::the(), [on_complete](Web::WebDriver::Response result) {
         // FIXME: 6. Try to clear the modifier key state with input state, input id, source, undo actions, and browsing context.
 
         on_complete->function()(move(result));

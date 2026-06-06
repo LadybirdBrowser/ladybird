@@ -36,8 +36,6 @@ private:
     // ^DOM::Node
     virtual bool is_html_body_element() const override { return true; }
 
-    virtual void initialize(JS::Realm&) override;
-
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const& event_name) override;
 

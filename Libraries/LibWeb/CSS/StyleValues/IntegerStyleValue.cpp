@@ -22,19 +22,18 @@ Vector<Parser::ComponentValue> IntegerStyleValue::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
-GC::Ref<CSSStyleValue> IntegerStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> IntegerStyleValue::reify(JS::Realm&, Utf16FlyString const& associated_property) const
 {
     // NB: Step 1 doesn't apply here.
     // 2. If num is the unitless value 0 and num is a <dimension>, return a new CSSUnitValue with its value internal
     //    slot set to 0, and its unit internal slot set to "px".
-    if (m_value == 0 && associated_property.is_ascii()) {
+    if (m_value == 0) {
         // NB: Determine whether the associated property expects 0 to be a <length>.
         // FIXME: Do this for registered custom properties.
-        auto associated_property_string = associated_property.to_utf16_string();
-        if (auto property_id = property_id_from_string(associated_property_string.ascii_view()); property_id.has_value()
-            && *property_id != PropertyID::Custom
+        if (auto property_id = property_id_from_string(associated_property); property_id.has_value()
+            && property_id != PropertyID::Custom
             && property_accepts_type(*property_id, ValueType::Length)) {
-            return CSSUnitValue::create(realm, 0, "px"_fly_string);
+            return CSSUnitValue::create(0, "px"_fly_string);
         }
     }
 
@@ -43,7 +42,7 @@ GC::Ref<CSSStyleValue> IntegerStyleValue::reify(JS::Realm& realm, Utf16FlyString
     //    <dimension>.
     //    If the value being reified is a computed value, the unit used must be the appropriate canonical unit for the
     //    value’s type, with the numeric value scaled accordingly.
-    return CSSUnitValue::create(realm, m_value, "number"_fly_string);
+    return CSSUnitValue::create(m_value, "number"_fly_string);
 }
 
 }

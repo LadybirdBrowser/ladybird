@@ -84,7 +84,8 @@ class ViewTransition final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ViewTransition);
 
 public:
-    static GC::Ref<ViewTransition> create(JS::Realm&);
+    static GC::Ref<ViewTransition> create(GC::Ref<DOM::Document>, GC::Ref<WebIDL::Promise> ready_promise,
+        GC::Ref<WebIDL::Promise> update_callback_done_promise, GC::Ref<WebIDL::Promise> finished_promise);
     virtual ~ViewTransition() override = default;
 
     // https://drafts.csswg.org/css-view-transitions-1/#dom-viewtransition-updatecallbackdone
@@ -141,9 +142,13 @@ public:
     void set_update_callback(ViewTransitionUpdateCallback callback) { m_update_callback = callback; }
 
 private:
-    ViewTransition(JS::Realm&, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>);
+    ViewTransition(GC::Ref<DOM::Document>, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>);
+
+    DOM::Document& document() const { return m_document; }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<DOM::Document> m_document;
 
     // https://drafts.csswg.org/css-view-transitions-1/#viewtransition-named-elements
     HashMap<FlyString, GC::Ptr<CapturedElement>> m_named_elements = {};

@@ -31,7 +31,7 @@ public:
     };
 
     // https://w3c.github.io/ServiceWorker/#create-job
-    static GC::Ref<Job> create(JS::VM&, Type, StorageAPI::StorageKey, URL::URL scope_url, URL::URL script_url, GC::Ptr<WebIDL::Promise>, GC::Ptr<HTML::EnvironmentSettingsObject> client);
+    static GC::Ref<Job> create(Type, StorageAPI::StorageKey, URL::URL scope_url, URL::URL script_url, GC::Ptr<WebIDL::Promise>, GC::Ptr<HTML::EnvironmentSettingsObject> client);
 
     virtual ~Job() override;
 

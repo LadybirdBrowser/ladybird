@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/WheelEvent.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -29,10 +30,10 @@ class WheelEvent final : public MouseEvent {
     GC_DECLARE_ALLOCATOR(WheelEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<WheelEvent> create(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& = {});
+    [[nodiscard]] static GC::Ref<WheelEvent> create(FlyString const& event_name, Bindings::WheelEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0, HighResolutionTime::DOMHighResTimeStamp = 0);
+    [[nodiscard]] static GC::Ref<WheelEvent> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::WheelEventInit const& = {});
 
-    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
+    static WebIDL::ExceptionOr<GC::Ref<WheelEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers, WheelEventIsCancelable = WheelEventIsCancelable::Yes);
 
     virtual ~WheelEvent() override;
 
@@ -42,7 +43,7 @@ public:
     WebIDL::UnsignedLong delta_mode() const { return m_delta_mode; }
 
 private:
-    WheelEvent(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
+    WheelEvent(FlyString const& event_name, Bindings::WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);
 
     double m_delta_x { 0 };
     double m_delta_y { 0 };

@@ -102,7 +102,7 @@ interface Internals {
 
     undefined handleSDLInputEvents();
 
-    undefined setEnvironmentsTopLevelURL(USVString url);
+    [NeedsCallerRealm] undefined setEnvironmentsTopLevelURL(USVString url);
 
     InternalGamepad connectVirtualGamepad();
 

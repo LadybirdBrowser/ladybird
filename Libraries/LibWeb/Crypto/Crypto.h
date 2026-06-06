@@ -10,7 +10,6 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Crypto {
@@ -20,21 +19,20 @@ class Crypto : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Crypto);
 
 public:
-    [[nodiscard]] static GC::Ref<Crypto> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Crypto> create();
 
     virtual ~Crypto() override;
 
     GC::Ref<SubtleCrypto> subtle() const;
 
-    WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> get_random_values(WebIDL::ArrayBufferViewVariant array) const;
-
+    WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> get_random_values(JS::Realm&, WebIDL::ArrayBufferViewVariant) const;
     String random_uuid() const;
 
 protected:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    explicit Crypto(JS::Realm&);
+    Crypto();
 
     GC::Ptr<SubtleCrypto> m_subtle;
 };

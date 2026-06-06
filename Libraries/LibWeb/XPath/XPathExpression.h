@@ -20,11 +20,13 @@ class XPathExpression final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(XPathExpression);
 
 public:
-    explicit XPathExpression(JS::Realm&, String const& expression, GC::Ptr<XPathNSResolver> resolver);
+    [[nodiscard]] static GC::Ref<XPathExpression> create(String const& expression, GC::Ptr<XPathNSResolver> resolver);
+
+    explicit XPathExpression(String const& expression, GC::Ptr<XPathNSResolver> resolver);
     virtual ~XPathExpression() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm&, DOM::Node const& context_node, WebIDL::UnsignedShort type = 0, GC::Ptr<XPathResult> result = nullptr);
 
 private:
     String m_expression;

@@ -16,7 +16,7 @@ class CSSImageValue final : public CSSStyleValue {
     GC_DECLARE_ALLOCATOR(CSSImageValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImageValue> create(JS::Realm&, NonnullRefPtr<StyleValue const> source_value);
+    [[nodiscard]] static GC::Ref<CSSImageValue> create(NonnullRefPtr<StyleValue const> source_value);
 
     virtual ~CSSImageValue() override = default;
 
@@ -24,7 +24,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSImageValue(JS::Realm&, NonnullRefPtr<StyleValue const> source_value);
+    explicit CSSImageValue(NonnullRefPtr<StyleValue const> source_value);
 };
 
 }

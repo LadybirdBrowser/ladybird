@@ -10,6 +10,13 @@
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationPlaybackEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::Animations {
 
@@ -19,8 +26,8 @@ class AnimationPlaybackEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(AnimationPlaybackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(FlyString const& type, Bindings::AnimationPlaybackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(HTML::Window&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
 
     virtual ~AnimationPlaybackEvent() override = default;
 
@@ -28,7 +35,7 @@ public:
     NullableCSSNumberish timeline_time() const;
 
 private:
-    AnimationPlaybackEvent(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
+    AnimationPlaybackEvent(FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 

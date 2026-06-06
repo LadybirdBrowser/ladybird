@@ -21,7 +21,7 @@ class FileSystemEntry final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(FileSystemEntry);
 
 public:
-    static GC::Ref<FileSystemEntry> create(JS::Realm&, EntryType entry_type, ByteString name);
+    static GC::Ref<FileSystemEntry> create(EntryType entry_type, ByteString name);
     virtual ~FileSystemEntry() override = default;
 
     bool is_file() const;
@@ -29,7 +29,7 @@ public:
     ByteString name() const;
 
 private:
-    FileSystemEntry(JS::Realm&, EntryType entry_type, ByteString name);
+    FileSystemEntry(EntryType entry_type, ByteString name);
 
     EntryType m_entry_type;
     ByteString m_name;

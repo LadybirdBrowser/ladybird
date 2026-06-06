@@ -20,7 +20,7 @@ interface BaseAudioContext : EventTarget {
 
     AnalyserNode createAnalyser ();
     BiquadFilterNode createBiquadFilter ();
-    AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
+    [NeedsCallerRealm] AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
     AudioBufferSourceNode createBufferSource ();
     ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
     ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);

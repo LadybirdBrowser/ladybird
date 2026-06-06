@@ -26,8 +26,6 @@ private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_area_element() const override { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual Optional<URL::Origin> extract_an_origin() const final { return hyperlink_element_utils_extract_an_origin(); }

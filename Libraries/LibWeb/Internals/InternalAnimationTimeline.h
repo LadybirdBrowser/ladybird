@@ -15,6 +15,8 @@ public:
     WEB_WRAPPABLE(InternalAnimationTimeline, Web::Animations::AnimationTimeline);
     GC_DECLARE_ALLOCATOR(InternalAnimationTimeline);
 
+    [[nodiscard]] static GC::Ref<InternalAnimationTimeline> create(GC::Ref<DOM::Document>);
+
     virtual Optional<Animations::TimeValue> duration() const override { return {}; }
 
     virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<Animations::TimeValue>) override { return {}; }
@@ -24,7 +26,7 @@ public:
     void set_time(Optional<double> time);
 
 private:
-    explicit InternalAnimationTimeline(JS::Realm&, GC::Ref<DOM::Document>);
+    explicit InternalAnimationTimeline(GC::Ref<DOM::Document>);
     virtual ~InternalAnimationTimeline() override = default;
 };
 

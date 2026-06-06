@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(IDLEventListener);
 
-GC::Ref<IDLEventListener> IDLEventListener::create(JS::Realm& realm, GC::Ref<WebIDL::CallbackType> callback)
+GC::Ref<IDLEventListener> IDLEventListener::create(GC::Ref<WebIDL::CallbackType> callback)
 {
-    return realm.create<IDLEventListener>(move(callback));
+    return GC::Heap::the().allocate<IDLEventListener>(move(callback));
 }
 
 IDLEventListener::IDLEventListener(GC::Ref<WebIDL::CallbackType> callback)

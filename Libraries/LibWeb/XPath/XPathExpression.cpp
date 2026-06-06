@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
@@ -17,8 +18,13 @@ namespace Web::XPath {
 
 GC_DEFINE_ALLOCATOR(XPathExpression);
 
-XPathExpression::XPathExpression(JS::Realm& realm, String const& expression, GC::Ptr<XPathNSResolver> resolver)
-    : Wrappable(realm)
+GC::Ref<XPathExpression> XPathExpression::create(String const& expression, GC::Ptr<XPathNSResolver> resolver)
+{
+    return GC::Heap::the().allocate<XPathExpression>(expression, resolver);
+}
+
+XPathExpression::XPathExpression(String const& expression, GC::Ptr<XPathNSResolver> resolver)
+    : Bindings::Wrappable()
     , m_expression(expression)
     , m_resolver(resolver)
 {
@@ -32,9 +38,8 @@ void XPathExpression::visit_edges(GC::Cell::Visitor& visitor)
 
 XPathExpression::~XPathExpression() = default;
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathExpression::evaluate(DOM::Node const& context_node, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> XPathExpression::evaluate(JS::Realm& realm, DOM::Node const& context_node, WebIDL::UnsignedShort type, GC::Ptr<XPathResult> result)
 {
-    auto& realm = this->realm();
     return XPath::evaluate(realm, m_expression, context_node, m_resolver, type, result);
 }
 

@@ -49,6 +49,8 @@ public:
 
     virtual ~WorkerGlobalScope() override;
 
+    JS::Realm& realm() const;
+
     // ^WindowOrWorkerGlobalScopeMixin
     virtual DOM::EventTarget& this_impl() override { return *this; }
     virtual DOM::EventTarget const& this_impl() const override { return *this; }
@@ -118,7 +120,7 @@ public:
     auto const& owner_set() const { return m_owner_set; }
 
 protected:
-    explicit WorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
+    explicit WorkerGlobalScope(GC::Ref<Web::Page>);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

@@ -14,6 +14,7 @@
 #include <LibCore/ImmutableBytes.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
 #include <LibJS/Bytecode/Executable.h>
@@ -672,11 +673,8 @@ String resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSetti
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-script
 void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, String character_encoding, OnFetchScriptComplete on_complete)
 {
-    auto& realm = element->realm();
-    auto& vm = realm.vm();
-
     // 1. Let request be the result of creating a potential-CORS request given url, "script", and CORS setting.
-    auto request = create_potential_CORS_request(vm, url, Fetch::Infrastructure::Request::Destination::Script, cors_setting);
+    auto request = create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Script, cors_setting);
 
     // 2. Set request's client to settings object.
     request->set_client(&settings_object);
@@ -836,19 +834,17 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
             });
     };
 
-    Fetch::Fetching::fetch(element->realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+    Fetch::Fetching::fetch(HTML::relevant_realm(*element), request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-worker-script
 WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
 {
     auto& realm = settings_object.realm();
-    auto& vm = realm.vm();
-
     // 1. Let request be a new request whose URL is url, client is fetchClient, destination is destination, initiator type is "other",
     //    mode is "same-origin", credentials mode is "same-origin", parser metadata is "not parser-inserted",
     //    and whose use-URL-credentials flag is set.
-    auto request = Fetch::Infrastructure::Request::create(vm);
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
     request->set_client(&fetch_client);
     request->set_destination(destination);
@@ -911,7 +907,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
     else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
-        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }
     return {};
 }
@@ -920,7 +916,6 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
 WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_script(URL::URL const& url, HTML::EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch)
 {
     auto& realm = settings_object.realm();
-    auto& vm = realm.vm();
 
     // 1. Let response be null.
     IGNORE_USE_IN_ESCAPING_LAMBDA GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
@@ -930,7 +925,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
 
     // 3. Let request be a new request whose URL is url, client is settingsObject, destination is "script", initiator type is "other",
     //    parser metadata is "not parser-inserted", and whose use-URL-credentials flag is set.
-    auto request = Fetch::Infrastructure::Request::create(vm);
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
     request->set_client(&settings_object);
     request->set_destination(Fetch::Infrastructure::Request::Destination::Script);
@@ -954,13 +949,13 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
-        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }
 
     // 5. Pause until response is not null.
     // FIXME: Consider using a "response holder" to avoid needing to annotate response as IGNORE_USE_IN_ESCAPING_LAMBDA.
     auto& event_loop = settings_object.responsible_event_loop();
-    event_loop.spin_until(GC::create_function(vm.heap(), [&]() -> bool {
+    event_loop.spin_until(GC::create_function(GC::Heap::the(), [&]() -> bool {
         return response;
     }));
 
@@ -1004,7 +999,6 @@ WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, 
 WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
 {
     auto& realm = settings_object.realm();
-    auto& vm = realm.vm();
 
     // 1. Let options be a script fetch options whose cryptographic nonce is the empty string,
     //    integrity metadata is the empty string, parser metadata is "not-parser-inserted",
@@ -1020,7 +1014,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
     };
 
     // onSingleFetchComplete given result is the following algorithm:
-    auto on_single_fetch_complete = create_on_fetch_script_complete(vm.heap(), [&realm, &fetch_client, destination, perform_fetch = perform_fetch, on_complete = move(on_complete)](auto result) mutable {
+    auto on_single_fetch_complete = create_on_fetch_script_complete(GC::Heap::the(), [&realm, &fetch_client, destination, perform_fetch = perform_fetch, on_complete = move(on_complete)](auto result) mutable {
         // 1. If result is null, run onComplete with null, and abort these steps.
         if (!result) {
             dbgln("on single fetch complete with nool");
@@ -1085,8 +1079,8 @@ void fetch_single_module_script(JS::Realm& realm,
     // 5. If moduleMap[(url, moduleType)] is "fetching", wait in parallel until that entry's value changes,
     //    then queue a task on the networking task source to proceed with running the following steps.
     if (module_map.is_fetching(url, module_type.to_byte_string())) {
-        module_map.wait_for_change(realm.heap(), url, module_type.to_byte_string(), [on_complete, &realm](auto entry) -> void {
-            HTML::queue_global_task(HTML::Task::Source::Networking, realm.global_object(), GC::create_function(realm.heap(), [on_complete, entry] {
+        module_map.wait_for_change(GC::Heap::the(), url, module_type.to_byte_string(), [on_complete, &realm](auto entry) -> void {
+            HTML::queue_global_task(HTML::Task::Source::Networking, realm.global_object(), GC::create_function(GC::Heap::the(), [on_complete, entry] {
                 // FIXME: This should run other steps, for now we just assume the script loaded.
                 VERIFY(entry.type == ModuleMap::EntryType::ModuleScript || entry.type == ModuleMap::EntryType::Failed);
 
@@ -1108,7 +1102,7 @@ void fetch_single_module_script(JS::Realm& realm,
     module_map.set(url, module_type.to_byte_string(), { ModuleMap::EntryType::Fetching, nullptr });
 
     // 8. Let request be a new request whose URL is url, mode is "cors", referrer is referrer, and client is fetchClient.
-    auto request = Fetch::Infrastructure::Request::create(realm.vm());
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
     request->set_mode(Fetch::Infrastructure::Request::Mode::CORS);
     request->set_referrer(referrer);
@@ -1322,14 +1316,14 @@ void fetch_single_module_script(JS::Realm& realm,
     } else {
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
-        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(realm.vm(), move(fetch_algorithms_input)));
+        Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-script-tree
 void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, OnFetchScriptComplete on_complete)
 {
-    auto steps = create_on_fetch_script_complete(realm.heap(), [&realm, &settings_object, on_complete, url](auto result) mutable {
+    auto steps = create_on_fetch_script_complete(GC::Heap::the(), [&realm, &settings_object, on_complete, url](auto result) mutable {
         // 1. If result is null, run onComplete given null, and abort these steps.
         if (!result) {
             on_complete->function()(nullptr);
@@ -1411,7 +1405,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     }
 
     // 3. Let state be Record { [[ErrorToRethrow]]: null, [[Destination]]: destination, [[PerformFetch]]: null, [[FetchClient]]: fetchClient }.
-    auto state = realm.heap().allocate<FetchContext>(JS::js_null(), destination, nullptr, fetch_client);
+    auto state = GC::Heap::the().allocate<FetchContext>(JS::js_null(), destination, nullptr, fetch_client);
 
     // 4. If performFetch was given, set state.[[PerformFetch]] to performFetch.
     state->perform_fetch = perform_fetch;
@@ -1433,7 +1427,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
 
     WebIDL::react_to_promise(loading_promise,
         // 6. Upon fulfillment of loadingPromise, run the following steps:
-        GC::create_function(realm.heap(), [&realm, record, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&realm, record, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform record.Link().
             auto linking_result = record.visit(
                 [](Empty) -> JS::ThrowCompletionOr<void> { VERIFY_NOT_REACHED(); },
@@ -1450,7 +1444,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
         }),
 
         // 7. Upon rejection of loadingPromise, run the following steps:
-        GC::create_function(realm.heap(), [state, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [state, &module_script, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. If state.[[ErrorToRethrow]] is not null, set moduleScript's error to rethrow to state.[[ErrorToRethrow]] and run
             //    onComplete given moduleScript.
             if (!state->error_to_rethrow.is_null()) {

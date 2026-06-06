@@ -22,7 +22,7 @@ class ResizeObserver : public Bindings::Wrappable {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> construct_impl(JS::Realm&, WebIDL::CallbackType* callback);
+    static WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> construct_impl(HTML::Window&, WebIDL::CallbackType* callback);
 
     virtual ~ResizeObserver() override;
 
@@ -38,7 +38,7 @@ public:
     void remove_dead_observations();
 
 private:
-    explicit ResizeObserver(JS::Realm&, WebIDL::CallbackType* callback);
+    explicit ResizeObserver(WebIDL::CallbackType* callback, DOM::Document&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;

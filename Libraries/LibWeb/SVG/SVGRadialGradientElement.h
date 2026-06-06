@@ -33,8 +33,6 @@ public:
 protected:
     SVGRadialGradientElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
 private:
     GC::Ptr<SVGRadialGradientElement const> linked_radial_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
     {

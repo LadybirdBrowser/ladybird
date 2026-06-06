@@ -20,6 +20,8 @@ class XPathResult : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(XPathResult);
 
 public:
+    [[nodiscard]] static GC::Ref<XPathResult> create();
+
     static WebIDL::UnsignedShort const ANY_TYPE = 0;
     static WebIDL::UnsignedShort const NUMBER_TYPE = 1;
     static WebIDL::UnsignedShort const STRING_TYPE = 2;
@@ -31,7 +33,7 @@ public:
     static WebIDL::UnsignedShort const ANY_UNORDERED_NODE_TYPE = 8;
     static WebIDL::UnsignedShort const FIRST_ORDERED_NODE_TYPE = 9;
 
-    XPathResult(JS::Realm&);
+    XPathResult();
     virtual ~XPathResult() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

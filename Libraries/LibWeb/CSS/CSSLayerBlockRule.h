@@ -16,7 +16,7 @@ class CSSLayerBlockRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSLayerBlockRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSLayerBlockRule> create(JS::Realm&, FlyString name, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSLayerBlockRule> create(FlyString name, CSSRuleList&);
 
     static FlyString next_unique_anonymous_layer_name();
 
@@ -27,7 +27,7 @@ public:
     FlyString internal_qualified_name(Badge<StyleScope>) const;
 
 private:
-    CSSLayerBlockRule(JS::Realm&, FlyString name, CSSRuleList&);
+    CSSLayerBlockRule(FlyString name, CSSRuleList&);
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

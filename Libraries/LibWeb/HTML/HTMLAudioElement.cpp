@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/HTMLAudioElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -21,12 +22,6 @@ HTMLAudioElement::HTMLAudioElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLAudioElement::~HTMLAudioElement() = default;
-
-void HTMLAudioElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAudioElement);
-    Base::initialize(realm);
-}
 
 void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties& style)
 {

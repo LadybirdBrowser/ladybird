@@ -18,7 +18,7 @@ class SVGAnimatedNumberList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedNumberList);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedNumberList> create(JS::Realm&, GC::Ref<SVGNumberList>);
+    [[nodiscard]] static GC::Ref<SVGAnimatedNumberList> create(GC::Ref<SVGNumberList>);
     virtual ~SVGAnimatedNumberList() override = default;
 
     // https://www.w3.org/TR/SVG2/types.html#__svg__SVGAnimatedLengthList__baseVal
@@ -28,7 +28,7 @@ public:
     GC::Ref<SVGNumberList> anim_val() const { return m_base_val; }
 
 private:
-    SVGAnimatedNumberList(JS::Realm&, GC::Ref<SVGNumberList>);
+    SVGAnimatedNumberList(GC::Ref<SVGNumberList>);
 
     virtual void visit_edges(Visitor&) override;
 

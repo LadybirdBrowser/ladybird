@@ -22,12 +22,6 @@ HTMLUListElement::HTMLUListElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLUListElement::~HTMLUListElement() = default;
 
-void HTMLUListElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLUListElement);
-    Base::initialize(realm);
-}
-
 bool HTMLUListElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

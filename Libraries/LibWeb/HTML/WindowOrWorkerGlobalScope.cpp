@@ -12,7 +12,7 @@
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
-#include <LibGC/WeakInlines.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ScalingMode.h>
@@ -23,6 +23,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PerformanceObserver.h>
 #include <LibWeb/Bindings/PerformanceObserverEntryList.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
@@ -46,6 +47,7 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -73,7 +75,7 @@ namespace Web::HTML {
 
 WindowOrWorkerGlobalScopeMixin::~WindowOrWorkerGlobalScopeMixin() = default;
 
-void WindowOrWorkerGlobalScopeMixin::initialize(JS::Realm&)
+void WindowOrWorkerGlobalScopeMixin::initialize()
 {
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
     m_performance_entry_buffer_map.set(entry_type,                           \
@@ -111,21 +113,21 @@ void WindowOrWorkerGlobalScopeMixin::finalize()
 String WindowOrWorkerGlobalScopeMixin::origin() const
 {
     // The origin getter steps are to return this's relevant settings object's origin, serialized.
-    return relevant_settings_object(this_impl()).origin().serialize();
+    return relevant_settings_object(*this).origin().serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-issecurecontext
 bool WindowOrWorkerGlobalScopeMixin::is_secure_context() const
 {
     // The isSecureContext getter steps are to return true if this's relevant settings object is a secure context, or false otherwise.
-    return HTML::is_secure_context(relevant_settings_object(this_impl()));
+    return HTML::is_secure_context(relevant_settings_object(*this));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-crossoriginisolated
 bool WindowOrWorkerGlobalScopeMixin::cross_origin_isolated() const
 {
     // The crossOriginIsolated getter steps are to return this's relevant settings object's cross-origin isolated capability.
-    return relevant_settings_object(this_impl()).cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes;
+    return relevant_settings_object(*this).cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes;
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
@@ -268,7 +270,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> crop_to_the_source_rectangle_with_for
 
 GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<Bindings::ImageBitmapOptions>& options) const
 {
-    auto& realm = this_impl().realm();
+    auto& realm = relevant_realm(*this);
 
     // 1. If either sw or sh is given and is 0, then return a promise rejected with a RangeError.
     if (sw == 0 || sh == 0) {
@@ -291,8 +293,8 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
         },
         [&](auto& canvas_image_source) -> Optional<GC::Ref<WebIDL::Promise>> {
             // Note: "Check the usability of the image argument" is only defined for CanvasImageSource
-            if (auto usability = check_usability_of_image(canvas_image_source); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
-                auto error = WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_utf16);
+            if (auto usability = check_usability_of_image(realm, canvas_image_source); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
+                auto error = WebIDL::InvalidStateError::create(realm, "image argument is not usable"_utf16);
                 return WebIDL::create_rejected_promise_from_exception(realm, error);
             }
 
@@ -307,14 +309,14 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
     auto p = WebIDL::create_promise(realm);
 
     // 5. Let imageBitmap be a new ImageBitmap object.
-    auto image_bitmap = ImageBitmap::create(this_impl().realm());
+    auto image_bitmap = ImageBitmap::create();
 
     // 6. Switch on image:
     image.visit(
         // -> Blob
         [&](GC::Ref<FileAPI::Blob> blob) {
             // Run these step in parallel:
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [=]() {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [=]() {
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
                 //    object, then queue a global task, using the bitmap task source, to reject promise with an
                 //    "InvalidStateError" DOMException and abort these steps.
@@ -331,7 +333,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     //    (e.g., a vector graphic with no natural size), then queue a global task, using the bitmap
                     //    task source, to reject promise with an "InvalidStateError" DOMException and abort these steps.
                     auto& realm = relevant_realm(p->promise());
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [&realm, p] {
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, p] {
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                         WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image does not contain a supported image format"_utf16));
                     }));
@@ -347,7 +349,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
                         auto& realm = relevant_realm(p->promise());
-                        queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [&realm, p] {
+                        queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, p] {
                             TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
                             WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
                         }));
@@ -358,10 +360,10 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     auto& realm = relevant_realm(p->promise());
 
                     // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [p, image_bitmap] {
-                        auto& realm = relevant_realm(*image_bitmap);
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(p->promise());
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(realm, GC::Ref { *image_bitmap }));
+                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *image_bitmap }));
                     }));
                     return {};
                 };
@@ -376,7 +378,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
 
             // 2. If IsDetachedBuffer(buffer) is true, then return a promise rejected with an "InvalidStateError" DOMException.
             if (buffer->is_detached()) {
-                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_utf16));
+                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image data is detached"_utf16));
                 return;
             }
 
@@ -385,16 +387,16 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
             // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
             // Spec issue: https://github.com/whatwg/html/issues/3323
             if (cropped_bitmap_or_error.is_error()) {
-                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image size is invalid"_utf16));
+                WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
                 return;
             }
             image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
 
             // 4. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-            queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [p, image_bitmap] {
-                auto& realm = relevant_realm(*image_bitmap);
+            queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                auto& realm = relevant_realm(p->promise());
                 TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                WebIDL::resolve_promise(realm, *p, Bindings::wrap(realm, image_bitmap));
+                WebIDL::resolve_promise(realm, *p, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, image_bitmap));
             }));
         },
         [&](CanvasImageSource const& image_source) {
@@ -406,14 +408,14 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (!canvas_bitmap) {
-                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image size is invalid"_utf16));
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
                         return;
                     }
                     auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(canvas_bitmap, sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
-                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image size is invalid"_utf16));
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
                         return;
                     }
                     image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
@@ -421,10 +423,10 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // FIXME: 2. Set the origin-clean flag of the imageBitmap's bitmap to the same value as the origin-clean flag of image's bitmap.
 
                     // 3. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [p, image_bitmap] {
-                        auto& realm = relevant_realm(*image_bitmap);
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(p->promise());
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(realm, image_bitmap));
+                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, image_bitmap));
                     }));
                 },
                 // -> ImageBitmap
@@ -434,7 +436,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
-                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image size is invalid"_utf16));
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
                         return;
                     }
                     image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
@@ -442,10 +444,10 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // FIXME: 2. Set the origin-clean flag of imageBitmap's bitmap to the same value as the origin-clean flag of image's bitmap.
 
                     // 3. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [p, image_bitmap] {
-                        auto& realm = relevant_realm(*image_bitmap);
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(p->promise());
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(realm, image_bitmap));
+                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, image_bitmap));
                     }));
                 },
                 [&](GC::Ref<OffscreenCanvas>) {
@@ -467,7 +469,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // 1. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified content size) and options's resizeWidth or options's resizeHeight is not present, then return a promise rejected with an "InvalidStateError" DOMException.
                     auto const has_natural_dimensions = image_element->intrinsic_width().has_value() && image_element->intrinsic_height().has_value();
                     if (!has_natural_dimensions && (!options.has_value() || !options->resize_width.has_value() || !options->resize_height.has_value())) {
-                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image data is detached"_utf16));
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image data is detached"_utf16));
                         return;
                     }
 
@@ -483,7 +485,7 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
-                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image size is invalid"_utf16));
+                        WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "Image size is invalid"_utf16));
                         return;
                     }
                     image_bitmap->set_bitmap(cropped_bitmap_or_error.release_value());
@@ -491,10 +493,10 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     // FIXME: 4. If image is not origin-clean, then set the origin-clean flag of imageBitmap's bitmap to false.
 
                     // 5. Queue a global task, using the bitmap task source, to resolve promise with imageBitmap.
-                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(realm.heap(), [p, image_bitmap] {
-                        auto& realm = relevant_realm(*image_bitmap);
+                    queue_global_task(Task::Source::BitmapTask, realm.global_object(), GC::create_function(GC::Heap::the(), [p, image_bitmap] {
+                        auto& realm = relevant_realm(p->promise());
                         TemporaryExecutionContext const context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(realm, image_bitmap));
+                        WebIDL::resolve_promise(realm, *p, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, image_bitmap));
                     }));
                 });
         });
@@ -503,10 +505,9 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
     return p;
 }
 
-GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Bindings::RequestInit const& init) const
+GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::fetch(JS::Realm& realm, Fetch::RequestInfo const& input, Bindings::RequestInit const& init) const
 {
-    auto& vm = this_impl().vm();
-    return Fetch::fetch(vm, input, init);
+    return Fetch::fetch(realm, input, init);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-settimeout
@@ -571,7 +572,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         timeout = 4;
 
     // 6. Let realm be global's relevant realm.
-    auto& realm = relevant_realm(this_impl());
+    auto& realm = relevant_realm(*this);
 
     // 7. Let initiating script be the active script.
     auto const* initiating_script = Web::Bindings::active_script();
@@ -581,7 +582,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // FIXME: 8. Let uniqueHandle be null.
 
     // 9. Let task be a task that runs the following substeps:
-    auto task = GC::create_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() {
+    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() {
         // FIXME: 1. Assert: uniqueHandle is a unique internal value, not null.
 
         // 2. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
@@ -597,7 +598,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 auto this_value = [&]() -> JS::Value {
                     if (auto* window = as_if<Window>(this_impl()))
                         return window->window();
-                    return Bindings::wrap(realm, GC::Ref { this_impl() });
+                    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { this_impl() });
                 }();
                 (void)WebIDL::invoke_callback(*callback, this_value, WebIDL::ExceptionBehavior::Report, arguments);
                 return true;
@@ -628,7 +629,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 }
 
                 // 4. Let settings object be global's relevant settings object.
-                auto& settings_object = relevant_settings_object(this_impl());
+                auto& settings_object = relevant_settings_object(*this);
 
                 // 5. Let fetch options be the default classic script fetch options.
                 ScriptFetchOptions options {};
@@ -690,8 +691,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
     // 12. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
     Function<void()> completion_step = [this, task = move(task)]() mutable {
-        queue_global_task(Task::Source::TimerTask, relevant_global_object(this_impl()), GC::create_function(this_impl().heap(), [this, task] {
-            HTML::TemporaryExecutionContext execution_context { this_impl().realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        queue_global_task(Task::Source::TimerTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, task] {
+            HTML::TemporaryExecutionContext execution_context { relevant_settings_object(*this), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             task->function()();
         }));
     };
@@ -883,8 +884,8 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
 
     // 3. Queue a task that consists of running the following substeps. The task source for the queued task is the performance
     //    timeline task source.
-    queue_global_task(Task::Source::PerformanceTimeline, relevant_global_object(this_impl()), GC::create_function(this_impl().heap(), [this]() {
-        auto& realm = this_impl().realm();
+    queue_global_task(Task::Source::PerformanceTimeline, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this]() {
+        auto& realm = relevant_realm(*this);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Unset performance observer task queued flag of relevantGlobal.
@@ -910,7 +911,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
                 entries_as_gc_ptrs.append(*entry);
 
             // 5. Let observerEntryList be a new PerformanceObserverEntryList, with its entry list set to entries.
-            auto observer_entry_list = realm.create<PerformanceTimeline::PerformanceObserverEntryList>(realm, move(entries_as_gc_ptrs));
+            auto observer_entry_list = PerformanceTimeline::PerformanceObserverEntryList::create(move(entries_as_gc_ptrs));
 
             // 6. Let droppedEntriesCount be null.
             Optional<u64> dropped_entries_count;
@@ -960,8 +961,9 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
             // 9. Call po’s observer callback with observerEntryList as the first argument, with po as the second
             //    argument and as callback this value, and with callbackOptions as the third argument.
             //    If this throws an exception, report the exception.
-            auto wrapped_observer_entry_list = Bindings::wrap(callback_realm, observer_entry_list);
-            auto wrapped_observer = Bindings::wrap(callback_realm, registered_observer);
+            auto& wrapper_world = Bindings::host_defined_wrapper_world(callback_realm);
+            auto wrapped_observer_entry_list = Bindings::wrap(wrapper_world, callback_realm, observer_entry_list);
+            auto wrapped_observer = Bindings::wrap(wrapper_world, callback_realm, registered_observer);
             auto completion = WebIDL::invoke_callback(callback, wrapped_observer, { { wrapped_observer_entry_list, wrapped_observer, callback_options } });
             if (completion.is_abrupt())
                 HTML::report_exception(completion, realm);
@@ -989,7 +991,7 @@ void WindowOrWorkerGlobalScopeMixin::add_resource_timing_entry(Badge<ResourceTim
         m_resource_timing_buffer_full_event_pending = true;
 
         // b. Queue a task on the performance timeline task source to run fire a buffer full event.
-        HTML::queue_a_task(HTML::Task::Source::PerformanceTimeline, nullptr, nullptr, GC::create_function(this_impl().heap(), [this] {
+        HTML::queue_a_task(HTML::Task::Source::PerformanceTimeline, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
             fire_resource_timing_buffer_full_event();
         }));
     }
@@ -1025,7 +1027,8 @@ void WindowOrWorkerGlobalScopeMixin::fire_resource_timing_buffer_full_event()
 
         // 2. If can add resource timing entry returns false, then fire an event named resourcetimingbufferfull at the Performance object.
         if (!can_add_resource_timing_entry()) {
-            auto full_event = DOM::Event::create(this_impl().realm(), PerformanceTimeline::EventNames::resourcetimingbufferfull);
+            auto full_event = DOM::Event::create(PerformanceTimeline::EventNames::resourcetimingbufferfull,
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
             performance()->dispatch_event(full_event);
         }
 
@@ -1087,7 +1090,7 @@ void WindowOrWorkerGlobalScopeMixin::close_all_idb_connections()
         for (auto& connection : database.associated_connections_as_root_vector()) {
             if (connection->close_pending())
                 continue;
-            if (window_or_worker_global_scope_from_global_object(relevant_global_object(*connection)) == this)
+            if (&connection->relevant_global_scope() == this)
                 IndexedDB::close_a_database_connection(connection);
         }
     });
@@ -1147,7 +1150,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     // completed. The task callback still calls run_timer_initialization_steps to update nesting
     // levels and potentially clamp the interval.
     auto repeating = repeat == Repeat::Yes ? Timer::Repeating::Yes : Timer::Repeating::No;
-    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(relevant_global_object(this_impl()), timeout, move(completion_step), timer_key.value(), repeating);
+    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(timeout, move(completion_step), timer_key.value(), repeating);
 
     // FIXME: 4. Set global's map of active timers[timerKey] to startTime plus milliseconds.
     m_timers.set(timer_key.value(), timer);
@@ -1169,18 +1172,15 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
 // https://w3c.github.io/hr-time/#dom-windoworworkerglobalscope-performance
 GC::Ref<HighResolutionTime::Performance> WindowOrWorkerGlobalScopeMixin::performance()
 {
-    auto& realm = this_impl().realm();
     if (!m_performance)
-        m_performance = realm.create<HighResolutionTime::Performance>(realm);
+        m_performance = GC::Heap::the().allocate<HighResolutionTime::Performance>(this_impl());
     return GC::Ref { *m_performance };
 }
 
 GC::Ref<IndexedDB::IDBFactory> WindowOrWorkerGlobalScopeMixin::indexed_db()
 {
-    auto& realm = this_impl().realm();
-
     if (!m_indexed_db)
-        m_indexed_db = realm.create<IndexedDB::IDBFactory>(realm);
+        m_indexed_db = GC::Heap::the().allocate<IndexedDB::IDBFactory>(*this);
     return *m_indexed_db;
 }
 
@@ -1199,34 +1199,18 @@ static GC::Ref<JS::Object> create_supported_entry_types_array(JS::Realm& realm)
     return supported_entry_types_array;
 }
 
-static void prune_live_supported_entry_types_arrays(Vector<GC::Weak<JS::Object>>& live_supported_entry_types_arrays)
-{
-    live_supported_entry_types_arrays.remove_all_matching([](auto const& supported_entry_types_array) { return !supported_entry_types_array; });
-}
-
 // https://w3c.github.io/performance-timeline/#dfn-frozen-array-of-supported-entry-types
 GC::Ref<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_types(JS::Realm& realm) const
 {
     // Each global object has an associated frozen array of supported entry types, which is initialized to the
     // FrozenArray created from the sequence of strings among the registry that are supported for the global
     // object, in alphabetical order.
-    if (&realm != &this_impl().realm()) {
-        prune_live_supported_entry_types_arrays(m_live_supported_entry_types_arrays);
-        for (auto const& supported_entry_types_array : m_live_supported_entry_types_arrays) {
-            if (&supported_entry_types_array->shape().realm() == &realm)
-                return *supported_entry_types_array;
-        }
-
-        auto supported_entry_types_array = create_supported_entry_types_array(realm);
-        m_live_supported_entry_types_arrays.append(supported_entry_types_array);
-        return supported_entry_types_array;
-    }
-
-    if (m_supported_entry_types_array)
-        return *m_supported_entry_types_array;
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    if (auto supported_entry_types_array = m_supported_entry_types_arrays.get(wrapper_world))
+        return *supported_entry_types_array;
 
     auto supported_entry_types_array = create_supported_entry_types_array(realm);
-    m_supported_entry_types_array = supported_entry_types_array;
+    m_supported_entry_types_arrays.set(wrapper_world, supported_entry_types_array);
     return supported_entry_types_array;
 }
 
@@ -1241,7 +1225,7 @@ void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
 void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, OmitError omit_error)
 {
     auto& target = static_cast<DOM::EventTarget&>(this_impl());
-    auto& realm = relevant_realm(target);
+    auto& realm = relevant_realm(*this);
     auto& vm = realm.vm();
 
     // 1. Let notHandled be true.
@@ -1289,7 +1273,7 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
         event_init.colno = error_info.colno;
         event_init.error = error_info.error;
 
-        not_handled = target.dispatch_event(ErrorEvent::create(realm, EventNames::error, event_init));
+        not_handled = target.dispatch_event(ErrorEvent::create(EventNames::error, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object())));
 
         // 3. Set global's in error reporting mode to false.
         m_error_reporting_mode = false;
@@ -1321,40 +1305,31 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
 // https://w3c.github.io/webcrypto/#dom-windoworworkerglobalscope-crypto
 GC::Ref<Crypto::Crypto> WindowOrWorkerGlobalScopeMixin::crypto()
 {
-    auto& global_scope = this_impl();
-    auto& realm = global_scope.realm();
-
     if (!m_crypto)
-        m_crypto = realm.create<Crypto::Crypto>(realm);
+        m_crypto = Crypto::Crypto::create();
     return GC::Ref { *m_crypto };
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-interface
 GC::Ref<ServiceWorker::CacheStorage> WindowOrWorkerGlobalScopeMixin::caches()
 {
-    auto& global_scope = this_impl();
-    auto& realm = global_scope.realm();
-
     if (!m_cache_storage)
-        m_cache_storage = realm.create<ServiceWorker::CacheStorage>(realm);
+        m_cache_storage = GC::Heap::the().allocate<ServiceWorker::CacheStorage>();
     return GC::Ref { *m_cache_storage };
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#extensions-to-the-windoworworkerglobalscope-interface
 GC::Ref<TrustedTypes::TrustedTypePolicyFactory> WindowOrWorkerGlobalScopeMixin::trusted_types()
 {
-    auto const& global_scope = this_impl();
-    auto& realm = global_scope.realm();
-
     if (!m_trusted_type_policy_factory)
-        m_trusted_type_policy_factory = realm.create<TrustedTypes::TrustedTypePolicyFactory>(realm);
+        m_trusted_type_policy_factory = GC::Heap::the().allocate<TrustedTypes::TrustedTypePolicyFactory>();
     return *m_trusted_type_policy_factory;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope-mixin:extract-an-origin
 Optional<URL::Origin> WindowOrWorkerGlobalScopeMixin::window_or_worker_global_scope_extract_an_origin() const
 {
-    auto relevant_origin = relevant_settings_object(this_impl()).origin();
+    auto relevant_origin = relevant_settings_object(*this).origin();
 
     // 1. If this's relevant settings object's origin is not same origin-domain with the entry settings object's origin, then return null.
     if (!relevant_origin.is_same_origin_domain(entry_settings_object().origin()))

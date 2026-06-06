@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibTextCodec/Decoder.h>
@@ -14,11 +15,16 @@ namespace Web::Fetch {
 
 GC_DEFINE_ALLOCATOR(Headers);
 
+GC::Ref<Headers> Headers::create(NonnullRefPtr<HTTP::HeaderList> header_list)
+{
+    return GC::Heap::the().allocate<Headers>(move(header_list));
+}
+
 // https://fetch.spec.whatwg.org/#dom-headers
-WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(JS::Realm& realm, Optional<HeadersInit> const& init)
+WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(Optional<HeadersInit> const& init)
 {
     // The new Headers(init) constructor steps are:
-    auto headers = realm.create<Headers>(realm, HTTP::HeaderList::create());
+    auto headers = create(HTTP::HeaderList::create());
 
     // 1. Set this’s guard to "none".
     headers->m_guard = Guard::None;
@@ -30,8 +36,8 @@ WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(JS::Realm& realm, 
     return headers;
 }
 
-Headers::Headers(JS::Realm& realm, NonnullRefPtr<HTTP::HeaderList> header_list)
-    : Wrappable(realm)
+Headers::Headers(NonnullRefPtr<HTTP::HeaderList> header_list)
+    : Bindings::Wrappable()
     , m_header_list(move(header_list))
 {
 }

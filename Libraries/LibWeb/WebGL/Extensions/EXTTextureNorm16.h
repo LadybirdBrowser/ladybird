@@ -17,13 +17,13 @@ class EXTTextureNorm16 : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(EXTTextureNorm16);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    EXTTextureNorm16(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    EXTTextureNorm16(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

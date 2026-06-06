@@ -20,11 +20,9 @@ public:
     GC::Ptr<WebIDL::CallbackType> onbufferedchange();
 
 private:
-    ManagedSourceBuffer(JS::Realm&, ManagedMediaSource&);
+    ManagedSourceBuffer(ManagedMediaSource&, GC::Ref<HTML::AudioTrackList>, GC::Ref<HTML::VideoTrackList>, GC::Ref<HTML::TextTrackList>);
 
     virtual ~ManagedSourceBuffer() override;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

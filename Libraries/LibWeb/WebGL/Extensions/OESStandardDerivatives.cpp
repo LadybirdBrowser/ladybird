@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/OESStandardDerivatives.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESStandardDerivatives);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESStandardDerivatives::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESStandardDerivatives::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<OESStandardDerivatives>(realm, context);
+    auto extension = GC::Heap::the().allocate<OESStandardDerivatives>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-OESStandardDerivatives::OESStandardDerivatives(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+OESStandardDerivatives::OESStandardDerivatives(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
 }

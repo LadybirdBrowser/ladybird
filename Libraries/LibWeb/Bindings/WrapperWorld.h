@@ -7,9 +7,13 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/Vector.h>
 #include <LibGC/Cell.h>
+#include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
 #include <LibGC/Weak.h>
+#include <LibGC/WeakInlines.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -39,5 +43,76 @@ private:
 
 WEB_API WrapperWorld& host_defined_wrapper_world(JS::Realm&);
 WEB_API WrapperWorld const& host_defined_wrapper_world(JS::Realm const&);
+
+template<typename T>
+class WrapperWorldWeakValueCache {
+public:
+    [[nodiscard]] GC::Ptr<T> get(WrapperWorld const& wrapper_world)
+    {
+        if (wrapper_world.is_main_world())
+            return m_main_world_value.ptr();
+
+        prune();
+        for (auto const& entry : m_values) {
+            if (entry.wrapper_world.ptr() == &wrapper_world)
+                return entry.value.ptr();
+        }
+
+        return nullptr;
+    }
+
+    void set(WrapperWorld const& wrapper_world, GC::Ptr<T> value)
+    {
+        if (wrapper_world.is_main_world()) {
+            m_main_world_value = value.ptr();
+            return;
+        }
+
+        prune();
+        m_values.remove_all_matching([&](auto const& entry) {
+            return entry.wrapper_world.ptr() == &wrapper_world;
+        });
+
+        if (value)
+            m_values.append(Entry { wrapper_world, value.ptr() });
+    }
+
+    template<typename Callback>
+    void for_each(Callback callback)
+    {
+        if (m_main_world_value) {
+            auto value = GC::make_root(*m_main_world_value);
+            callback(*value);
+        }
+
+        prune();
+        for (auto const& entry : m_values) {
+            auto value = GC::make_root(*entry.value);
+            callback(*value);
+        }
+    }
+
+    void clear()
+    {
+        m_main_world_value = nullptr;
+        m_values.clear();
+    }
+
+private:
+    struct Entry {
+        GC::Weak<WrapperWorld> wrapper_world;
+        GC::Weak<T> value;
+    };
+
+    void prune()
+    {
+        m_values.remove_all_matching([](auto const& entry) {
+            return !entry.wrapper_world || !entry.value;
+        });
+    }
+
+    GC::Weak<T> m_main_world_value;
+    Vector<Entry> m_values;
+};
 
 }

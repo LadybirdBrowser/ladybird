@@ -28,7 +28,7 @@ public:
     WebIDL::ExceptionOr<void> set_transform(Bindings::DOMMatrix2DInit& transform);
 
 private:
-    CanvasPattern(JS::Realm&, Gfx::CanvasPatternPaintStyle&);
+    CanvasPattern(Gfx::CanvasPatternPaintStyle&);
 
     NonnullRefPtr<Gfx::CanvasPatternPaintStyle> m_pattern;
 };

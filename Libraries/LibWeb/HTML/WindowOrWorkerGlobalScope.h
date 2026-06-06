@@ -12,8 +12,8 @@
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
 #include <AK/Variant.h>
-#include <LibGC/Weak.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/Forward.h>
@@ -41,7 +41,7 @@ public:
     bool cross_origin_isolated() const;
     GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, Optional<Bindings::ImageBitmapOptions> options = {}) const;
     GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<Bindings::ImageBitmapOptions> options = {}) const;
-    GC::Ref<WebIDL::Promise> fetch(Fetch::RequestInfo const&, Bindings::RequestInit const&) const;
+    GC::Ref<WebIDL::Promise> fetch(JS::Realm&, Fetch::RequestInfo const&, Bindings::RequestInit const&) const;
 
     i32 set_timeout(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
     i32 set_interval(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
@@ -111,7 +111,7 @@ public:
     Optional<URL::Origin> window_or_worker_global_scope_extract_an_origin() const;
 
 protected:
-    void initialize(JS::Realm&);
+    void initialize();
     void visit_edges(JS::Cell::Visitor&);
     void finalize();
 
@@ -155,8 +155,7 @@ private:
 
     GC::Ptr<IndexedDB::IDBFactory> m_indexed_db;
 
-    mutable GC::Weak<JS::Object> m_supported_entry_types_array;
-    mutable Vector<GC::Weak<JS::Object>> m_live_supported_entry_types_arrays;
+    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_supported_entry_types_arrays;
 
     GC::Ptr<Crypto::Crypto> m_crypto;
 

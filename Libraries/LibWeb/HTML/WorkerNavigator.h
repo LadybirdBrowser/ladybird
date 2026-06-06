@@ -52,7 +52,9 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^StorageAPI::NavigatorStorage
-    virtual Bindings::Wrappable const& this_navigator_storage_object() const override { return *this; }
+    virtual EnvironmentSettingsObject& navigator_storage_settings_object() const override;
+
+    GC::Ref<WorkerGlobalScope> m_global_scope;
 
     // https://w3c.github.io/media-capabilities/#dom-workernavigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;

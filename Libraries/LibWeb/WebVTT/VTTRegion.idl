@@ -6,11 +6,11 @@ enum ScrollSetting { "", "up" };
 interface VTTRegion {
     constructor();
     attribute DOMString id;
-    attribute double width;
+    [NeedsThisObjectRealmForSetter] attribute double width;
     attribute unsigned long lines;
-    attribute double regionAnchorX;
-    attribute double regionAnchorY;
-    attribute double viewportAnchorX;
-    attribute double viewportAnchorY;
+    [NeedsThisObjectRealmForSetter] attribute double regionAnchorX;
+    [NeedsThisObjectRealmForSetter] attribute double regionAnchorY;
+    [NeedsThisObjectRealmForSetter] attribute double viewportAnchorX;
+    [NeedsThisObjectRealmForSetter] attribute double viewportAnchorY;
     attribute ScrollSetting scroll;
 };

@@ -23,7 +23,7 @@ class AbortSignal final : public EventTarget {
     GC_DECLARE_ALLOCATOR(AbortSignal);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> construct_impl(JS::Realm&);
+    static GC::Ref<AbortSignal> create();
 
     virtual ~AbortSignal() override = default;
 
@@ -35,7 +35,7 @@ public:
     // An AbortSignal object is aborted when its abort reason is not undefined.
     bool aborted() const { return !m_abort_reason.is_undefined(); }
 
-    void signal_abort(JS::Value reason);
+    void signal_abort(JS::Value reason, JS::Object& relevant_global_object);
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();
@@ -46,16 +46,15 @@ public:
 
     JS::ThrowCompletionOr<void> throw_if_aborted() const;
 
-    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> abort(JS::VM&, Optional<JS::Value> reason);
-    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> timeout(JS::VM&, Web::WebIDL::UnsignedLongLong milliseconds);
-    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> any(JS::VM&, ReadonlySpan<GC::Ref<AbortSignal>>);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> abort(JS::Realm&, Optional<JS::Value> reason);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> timeout(JS::Realm&, Web::WebIDL::UnsignedLongLong milliseconds);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> any(JS::Realm&, ReadonlySpan<GC::Ref<AbortSignal>>);
 
-    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> create_dependent_abort_signal(JS::Realm&, ReadonlySpan<GC::Ref<AbortSignal>>);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> create_dependent_abort_signal(ReadonlySpan<GC::Ref<AbortSignal>>);
 
 private:
-    explicit AbortSignal(JS::Realm&);
+    explicit AbortSignal();
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 

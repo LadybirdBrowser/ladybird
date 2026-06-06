@@ -4,25 +4,29 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PageTransitionEvent.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PageTransitionEvent);
 
-GC::Ref<PageTransitionEvent> PageTransitionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init)
+GC::Ref<PageTransitionEvent> PageTransitionEvent::create(FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<PageTransitionEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<PageTransitionEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> PageTransitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> PageTransitionEvent::construct_impl(Window& window, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(window)));
 }
 
-PageTransitionEvent::PageTransitionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+PageTransitionEvent::PageTransitionEvent(FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_persisted(event_init.persisted)
 {
 }

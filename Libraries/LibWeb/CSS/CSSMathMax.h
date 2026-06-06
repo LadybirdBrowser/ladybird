@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/CSSMathValue.h>
 
 namespace Web::CSS {
@@ -16,9 +17,9 @@ class CSSMathMax final : public CSSMathValue {
     GC_DECLARE_ALLOCATOR(CSSMathMax);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathMax> create(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> construct_impl(JS::Realm&, Vector<CSSNumberish>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> add_all_types_into_math_max(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
+    [[nodiscard]] static GC::Ref<CSSMathMax> create(NumericType, GC::Ref<CSSNumericArray>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> construct_impl(Vector<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMax>> add_all_types_into_math_max(GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathMax() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -32,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathMax(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
+    CSSMathMax(NumericType, GC::Ref<CSSNumericArray>);
     GC::Ref<CSSNumericArray> m_values;
 };
 

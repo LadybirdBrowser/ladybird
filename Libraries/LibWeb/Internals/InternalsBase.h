@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -20,10 +22,15 @@ public:
     virtual ~InternalsBase() override;
 
 protected:
-    explicit InternalsBase(JS::Realm&);
+    explicit InternalsBase(HTML::Window&);
 
     HTML::Window& window() const;
     Page& page() const;
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+private:
+    GC::Ref<HTML::Window> m_window;
 };
 
 }

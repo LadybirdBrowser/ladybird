@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

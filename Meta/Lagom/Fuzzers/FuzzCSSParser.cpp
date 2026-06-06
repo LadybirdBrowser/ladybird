@@ -26,8 +26,6 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
 {
     AK::set_debug_enabled(false);
 
-    // FIXME: There's got to be a better way to do this "correctly"
-    auto& vm = Web::Bindings::main_thread_vm();
-    (void)Web::parse_css_stylesheet(Web::CSS::Parser::ParsingParams(*vm.current_realm()), { data, size });
+    (void)Web::parse_css_stylesheet(Web::CSS::Parser::ParsingParams {}, { data, size });
     return 0;
 }

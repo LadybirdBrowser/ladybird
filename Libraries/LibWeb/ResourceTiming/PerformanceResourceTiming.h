@@ -23,6 +23,8 @@ class WEB_API PerformanceResourceTiming : public PerformanceTimeline::Performanc
 public:
     virtual ~PerformanceResourceTiming() override;
 
+    static GC::Ref<PerformanceResourceTiming> create(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
+
     static void mark_resource_timing(GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, String const& requested_url, FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, FlyString delivery_type = ""_fly_string);
 
     // NOTE: These three functions are answered by the registry for the given entry type.
@@ -69,7 +71,7 @@ public:
     String const& content_type() const;
 
 protected:
-    PerformanceResourceTiming(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info);
+    PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
 
     void setup_the_resource_timing_entry(FlyString const& initiator_type, String const& requested_url, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, FlyString delivery_type = ""_fly_string);
 
@@ -79,12 +81,13 @@ private:
     FlyString m_initiator_type;
     String m_requested_url;
     GC::Ref<Fetch::Infrastructure::FetchTimingInfo> m_timing_info;
+    HighResolutionTime::DOMHighResTimeStamp m_time_origin { 0.0 };
     Fetch::Infrastructure::Response::BodyInfo m_response_body_info;
     Optional<Fetch::Infrastructure::Response::CacheState> m_cache_mode;
     Fetch::Infrastructure::Status m_response_status;
     FlyString m_delivery_type;
 };
 
-HighResolutionTime::DOMHighResTimeStamp convert_fetch_timestamp(HighResolutionTime::DOMHighResTimeStamp time_stamp, JS::Object const& global);
+HighResolutionTime::DOMHighResTimeStamp convert_fetch_timestamp(HighResolutionTime::DOMHighResTimeStamp time_stamp, HighResolutionTime::DOMHighResTimeStamp time_origin);
 
 }

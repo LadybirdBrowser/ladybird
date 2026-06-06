@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/SVGTextPathElement.h>
 #include <LibWeb/Layout/SVGTextPathBox.h>
@@ -50,12 +51,6 @@ GC::Ref<SVGAnimatedLength> SVGTextPathElement::start_offset() const
     auto base_length = SVGLength::create(realm(), 0, m_start_offset.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::No);
     auto anim_length = SVGLength::create(realm(), 0, m_start_offset.value_or(NumberPercentage::create_number(0)).value(), SVGLength::ReadOnly::Yes);
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
-}
-
-void SVGTextPathElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextPathElement);
-    Base::initialize(realm);
 }
 
 void SVGTextPathElement::visit_edges(Cell::Visitor& visitor)

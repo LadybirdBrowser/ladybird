@@ -18,7 +18,7 @@ class WebGLProgram final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLProgram);
 
 public:
-    static GC::Ref<WebGLProgram> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    static GC::Ref<WebGLProgram> create(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     virtual ~WebGLProgram();
 
@@ -29,7 +29,7 @@ public:
     void set_attached_fragment_shader(GC::Ptr<WebGLShader> shader) { m_attached_fragment_shader = shader; }
 
 protected:
-    explicit WebGLProgram(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    explicit WebGLProgram(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ElementInternals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
@@ -17,13 +18,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ElementInternals);
 
-GC::Ref<ElementInternals> ElementInternals::create(JS::Realm& realm, HTMLElement& target_element)
+GC::Ref<ElementInternals> ElementInternals::create(HTMLElement& target_element)
 {
-    return realm.create<ElementInternals>(realm, target_element);
+    return GC::Heap::the().allocate<ElementInternals>(target_element);
 }
 
-ElementInternals::ElementInternals(JS::Realm& realm, HTMLElement& target_element)
-    : Bindings::Wrappable(realm)
+ElementInternals::ElementInternals(HTMLElement& target_element)
+    : Bindings::Wrappable()
     , m_target_element(target_element)
 {
 }
@@ -50,14 +51,14 @@ GC::Ptr<DOM::ShadowRoot> ElementInternals::shadow_root() const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setformvalue
-WebIDL::ExceptionOr<void> ElementInternals::set_form_value(ElementInternalsFormValue value, Optional<ElementInternalsFormValue> state)
+WebIDL::ExceptionOr<void> ElementInternals::set_form_value(JS::Realm& realm, ElementInternalsFormValue value, Optional<ElementInternalsFormValue> state)
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     // 3. Set target element's submission value to value if value is not a FormData object, or to a clone of value's entry list otherwise.
     auto submission_value = value.visit(
@@ -105,13 +106,13 @@ WebIDL::ExceptionOr<void> ElementInternals::set_form_value(ElementInternalsFormV
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-elementinternals-form
-WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> ElementInternals::form() const
+WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> ElementInternals::form(JS::Realm& realm) const
 {
     // Form-associated custom elements don't have form IDL attribute. Instead, their ElementInternals object has a form IDL attribute.
     // On getting, it must throw a "NotSupportedError" DOMException if the target element is not a form-associated custom element.
     // Otherwise, it must return the element's form owner, or null if there isn't one.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     return m_target_element->form();
 }
@@ -131,14 +132,14 @@ static bool validity_flags_has_one_or_more_true_values(Bindings::ValidityStateFl
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-setvalidity
-WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor)
+WebIDL::ExceptionOr<void> ElementInternals::set_validity(JS::Realm& realm, Bindings::ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor)
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     // 3. If flags contains one or more true values and message is not given or is the empty string, then throw a TypeError.
     if (validity_flags_has_one_or_more_true_values(flags) && (!message.has_value() || message->is_empty())) {
@@ -169,7 +170,7 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityState
 
     // 8. Otherwise, if anchor is not a shadow-including inclusive descendant of element, then throw a "NotFoundError" DOMException.
     else if (!anchor->is_shadow_including_inclusive_descendant_of(element)) {
-        return WebIDL::NotFoundError::create(realm(), "Anchor is not a shadow-including descendant of element"_utf16);
+        return WebIDL::NotFoundError::create(realm, "Anchor is not a shadow-including descendant of element"_utf16);
     }
 
     // 9. Set element's validation anchor to anchor.
@@ -181,79 +182,79 @@ WebIDL::ExceptionOr<void> ElementInternals::set_validity(Bindings::ValidityState
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-elementinternals-willvalidate
-WebIDL::ExceptionOr<bool> ElementInternals::will_validate() const
+WebIDL::ExceptionOr<bool> ElementInternals::will_validate(JS::Realm& realm) const
 {
     // The willValidate attribute of ElementInternals interface, on getting, must throw a "NotSupportedError" DOMException if
     // the target element is not a form-associated custom element. Otherwise, it must return true if the target element is a
     // candidate for constraint validation, and false otherwise.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     return m_target_element->is_candidate_for_constraint_validation();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-elementinternals-validity
-WebIDL::ExceptionOr<GC::Ref<ValidityState const>> ElementInternals::validity() const
+WebIDL::ExceptionOr<GC::Ref<ValidityState const>> ElementInternals::validity(JS::Realm& realm) const
 {
     // The validity attribute of ElementInternals interface, on getting, must throw a "NotSupportedError" DOMException if
     // the target element is not a form-associated custom element. Otherwise, it must return a ValidityState object that
     // represents the validity states of the target element. This object is live.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
-    return ValidityState::create(realm(), m_target_element);
+    return ValidityState::create(m_target_element);
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-validationmessage
-WebIDL::ExceptionOr<String> ElementInternals::validation_message() const
+WebIDL::ExceptionOr<String> ElementInternals::validation_message(JS::Realm& realm) const
 {
     // 1. Let element be this's target element.
     auto element = m_target_element;
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     // 3. Return element's validation message.
     return element->face_validation_message();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-elementinternals-checkvalidity
-WebIDL::ExceptionOr<bool> ElementInternals::check_validity() const
+WebIDL::ExceptionOr<bool> ElementInternals::check_validity(JS::Realm& realm) const
 {
     // 1. Let element be this ElementInternals's target element.
     auto element = m_target_element;
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     // 3. Run the check validity steps on element.
     return element->check_validity_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-elementinternals-reportvalidity
-WebIDL::ExceptionOr<bool> ElementInternals::report_validity() const
+WebIDL::ExceptionOr<bool> ElementInternals::report_validity(JS::Realm& realm) const
 {
     // 1. Let element be this ElementInternals's target element
     auto element = m_target_element;
 
     // 2. If element is not a form-associated custom element, then throw a "NotSupportedError" DOMException.
     if (!element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     // 3. Run the report validity steps on element.
     return element->report_validity_steps();
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-elementinternals-labels
-WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> ElementInternals::labels()
+WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> ElementInternals::labels(JS::Realm& realm)
 {
     // Form-associated custom elements don't have a labels IDL attribute. Instead, their ElementInternals object has a labels IDL attribute.
     // On getting, it must throw a "NotSupportedError" DOMException if the target element is not a form-associated custom element.
     // Otherwise, it must return that NodeList object, and that same value must always be returned.
     if (!m_target_element->is_form_associated_custom_element())
-        return WebIDL::NotSupportedError::create(realm(), "Element is not a form-associated custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Element is not a form-associated custom element"_utf16);
 
     return m_target_element->labels();
 }

@@ -41,8 +41,6 @@ private:
 
     virtual bool is_html_heading_element() const final { return true; }
 
-    virtual void initialize(JS::Realm&) override;
-
     mutable WebIDL::UnsignedLong m_cached_heading_level { 0 };
     mutable u64 m_dom_tree_version_for_cached_heading_level { 0 };
 };

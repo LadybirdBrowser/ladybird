@@ -4,11 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaSource.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/TextTrackList.h>
+#include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
@@ -21,25 +28,20 @@ using Bindings::ReadyState;
 
 GC_DEFINE_ALLOCATOR(MediaSource);
 
-WebIDL::ExceptionOr<GC::Ref<MediaSource>> MediaSource::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<MediaSource>> MediaSource::construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
-    return realm.create<MediaSource>(realm);
+    return GC::Heap::the().allocate<MediaSource>(relevant_global_object);
 }
 
-MediaSource::MediaSource(JS::Realm& realm)
-    : DOM::EventTarget(realm)
-    , m_source_buffers(realm.create<SourceBufferList>(realm))
-    , m_active_source_buffers(realm.create<SourceBufferList>(realm))
+MediaSource::MediaSource(GC::Ref<DOM::EventTarget> relevant_global_object)
+    : DOM::EventTarget()
+    , m_source_buffers(GC::Heap::the().allocate<SourceBufferList>(*this))
+    , m_active_source_buffers(GC::Heap::the().allocate<SourceBufferList>(*this))
+    , m_global_object(relevant_global_object)
 {
 }
 
 MediaSource::~MediaSource() = default;
-
-void MediaSource::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaSource);
-    Base::initialize(realm);
-}
 
 void MediaSource::visit_edges(Visitor& visitor)
 {
@@ -47,6 +49,18 @@ void MediaSource::visit_edges(Visitor& visitor)
     visitor.visit(m_media_element_assigned_to);
     visitor.visit(m_source_buffers);
     visitor.visit(m_active_source_buffers);
+    visitor.visit(m_global_object);
+}
+
+JS::Object& MediaSource::relevant_global_object() const
+{
+    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
+}
+
+GC::Ref<DOM::Event> MediaSource::create_associated_event(FlyString const& event_name) const
+{
+    return DOM::Event::create(event_name,
+        HighResolutionTime::current_high_resolution_time(relevant_global_object()));
 }
 
 void MediaSource::queue_a_media_source_task(GC::Ref<GC::Function<void()>> task)
@@ -86,8 +100,8 @@ void MediaSource::set_ready_state_to_open_and_fire_sourceopen_event()
         source_buffer.clear_reached_end_of_stream({});
     }
 
-    queue_a_media_source_task(GC::create_function(heap(), [this] {
-        auto event = DOM::Event::create(realm(), EventNames::sourceopen);
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
+        auto event = create_associated_event(EventNames::sourceopen);
         dispatch_event(event);
     }));
 }
@@ -154,7 +168,7 @@ GC::Ptr<WebIDL::CallbackType> MediaSource::onsourceclose()
 }
 
 // https://w3c.github.io/media-source/#addsourcebuffer-method
-WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String const& type)
+WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(JS::Realm& realm, String const& type)
 {
     // 1. If type is an empty string then throw a TypeError exception and abort these steps.
     if (type.is_empty()) {
@@ -168,7 +182,7 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
     //    supported with the types specified for the other SourceBuffer objects in sourceBuffers,
     //    then throw a NotSupportedError exception and abort these steps.
     if (!is_type_supported(type)) {
-        return WebIDL::NotSupportedError::create(realm(), "Unsupported MIME type"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Unsupported MIME type"_utf16);
     }
 
     // FIXME: 3. If the user agent can't handle any more SourceBuffer objects or if creating a SourceBuffer
@@ -177,11 +191,15 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
 
     // 4. If the readyState attribute is not in the "open" state then throw an InvalidStateError exception and abort these steps.
     if (ready_state() != ReadyState::Open)
-        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "MediaSource is not open"_utf16);
 
     // 5. Let buffer be a new instance of a ManagedSourceBuffer if this is a ManagedMediaSource, or
     //    a SourceBuffer otherwise, with their respective associated resources.
-    auto buffer = realm().create<SourceBuffer>(realm(), GC::Ref(*this));
+    auto buffer = SourceBuffer::create(
+        *this,
+        HTML::AudioTrackList::create(),
+        HTML::VideoTrackList::create(),
+        HTML::TextTrackList::create());
     buffer->set_content_type(type);
 
     // FIXME: 6. Set buffer's [[generate timestamps flag]] to the value in the "Generate Timestamps Flag"
@@ -198,18 +216,18 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-endofstream
-WebIDL::ExceptionOr<void> MediaSource::end_of_stream(Optional<Bindings::EndOfStreamError> const& error)
+WebIDL::ExceptionOr<void> MediaSource::end_of_stream(JS::Realm& realm, Optional<Bindings::EndOfStreamError> const& error)
 {
     // 1. If the readyState attribute is not in the "open" state then throw an InvalidStateError exception
     //    and abort these steps.
     if (ready_state() != ReadyState::Open)
-        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "MediaSource is not open"_utf16);
 
     // 2. If the updating attribute equals true on any SourceBuffer in sourceBuffers, then throw an
     //    InvalidStateError exception and abort these steps.
     for (size_t i = 0; i < m_source_buffers->length(); i++) {
         if (m_source_buffers->item(i)->updating())
-            return WebIDL::InvalidStateError::create(realm(), "A SourceBuffer is still updating"_utf16);
+            return WebIDL::InvalidStateError::create(realm, "A SourceBuffer is still updating"_utf16);
     }
 
     // 3. Run the end of stream algorithm with the error parameter set to error.
@@ -225,8 +243,8 @@ void MediaSource::run_end_of_stream_algorithm(Optional<Bindings::EndOfStreamErro
     m_ready_state = ReadyState::Ended;
 
     // 2. Queue a task to fire an event named sourceended at the MediaSource.
-    queue_a_media_source_task(GC::create_function(heap(), [this] {
-        dispatch_event(DOM::Event::create(realm(), EventNames::sourceended));
+    queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
+        dispatch_event(create_associated_event(EventNames::sourceended));
     }));
 
     // AD-HOC: Notify all demuxers that end of stream was reached, so that they can return the requisite error and
@@ -281,7 +299,7 @@ double MediaSource::duration() const
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-duration
-WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
+WebIDL::ExceptionOr<void> MediaSource::set_duration(JS::Realm& realm, double new_duration)
 {
     // 1. If the value being set is negative or NaN then throw a TypeError exception and abort these steps.
     if (new_duration < 0 || isnan(new_duration))
@@ -290,13 +308,13 @@ WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
     // 2. If the readyState attribute is not in the "open" state then throw an InvalidStateError exception
     //    and abort these steps.
     if (ready_state() != ReadyState::Open)
-        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "MediaSource is not open"_utf16);
 
     // 3. If the updating attribute equals true on any SourceBuffer in sourceBuffers, then throw an
     //    InvalidStateError exception and abort these steps.
     for (size_t i = 0; i < m_source_buffers->length(); i++) {
         if (m_source_buffers->item(i)->updating())
-            return WebIDL::InvalidStateError::create(realm(), "A SourceBuffer is still updating"_utf16);
+            return WebIDL::InvalidStateError::create(realm, "A SourceBuffer is still updating"_utf16);
     }
 
     // 4. Run the duration change algorithm with new duration set to the value being assigned to this attribute.

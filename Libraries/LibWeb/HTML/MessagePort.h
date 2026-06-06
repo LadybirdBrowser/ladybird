@@ -30,11 +30,13 @@ class WEB_API MessagePort final
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<MessagePort> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<MessagePort> create(GC::Ref<DOM::EventTarget> relevant_global_event_target);
 
     static void for_each_message_port(Function<void(MessagePort&)>);
 
     virtual ~MessagePort() override;
+
+    JS::Object& relevant_global_object() const;
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
     void entangle_with(MessagePort&);
@@ -45,10 +47,10 @@ public:
     GC::Ptr<MessagePort const> entangled_port() const { return m_remote_port; }
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Bindings::StructuredSerializeOptions const& options);
 
     void enable();
     void start();
@@ -62,18 +64,17 @@ public:
     GC::Ptr<WebIDL::CallbackType> onmessage();
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::MessagePort; }
 
     void set_worker_event_target(GC::Ref<DOM::EventTarget>);
 
-    WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, Bindings::StructuredSerializeOptions const& options);
+    WebIDL::ExceptionOr<void> message_port_post_message_steps(JS::Realm&, GC::Ptr<MessagePort> target_port, JS::Value message, Bindings::StructuredSerializeOptions const& options);
 
 private:
-    explicit MessagePort(JS::Realm&);
+    explicit MessagePort(GC::Ref<DOM::EventTarget> relevant_global_event_target);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -96,6 +97,7 @@ private:
 
     OwnPtr<IPC::Transport> m_transport;
 
+    GC::Ref<DOM::EventTarget> m_global_event_target;
     GC::Ptr<DOM::EventTarget> m_worker_event_target;
 
     Vector<SerializedTransferRecord> m_pending_incoming_messages;

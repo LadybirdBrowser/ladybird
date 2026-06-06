@@ -9,7 +9,6 @@
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 
@@ -23,7 +22,7 @@ class Index : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Index);
 
 public:
-    [[nodiscard]] static GC::Ref<Index> create(JS::Realm&, GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
+    [[nodiscard]] static GC::Ref<Index> create(GC::Ref<ObjectStore>, String const&, KeyPath const&, bool, bool);
     virtual ~Index();
 
     void set_name(String name);

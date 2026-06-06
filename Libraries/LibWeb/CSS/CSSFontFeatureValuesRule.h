@@ -20,7 +20,7 @@ class CSSFontFeatureValuesRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFontFeatureValuesRule);
 
 public:
-    static GC::Ref<CSSFontFeatureValuesRule> create(JS::Realm&, Vector<FlyString> font_families);
+    static GC::Ref<CSSFontFeatureValuesRule> create(Vector<FlyString> font_families);
 
     static bool is_font_feature_value_type_at_keyword(FlyString const&);
 
@@ -42,7 +42,7 @@ public:
     virtual String serialized() const override;
 
 private:
-    CSSFontFeatureValuesRule(JS::Realm&, Vector<FlyString> font_families);
+    CSSFontFeatureValuesRule(Vector<FlyString> font_families);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<FlyString> m_font_families;

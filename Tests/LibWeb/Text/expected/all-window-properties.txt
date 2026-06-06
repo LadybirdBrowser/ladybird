@@ -322,6 +322,7 @@ MutationRecord
 NamedNodeMap
 NavigateEvent
 Navigation
+NavigationActivation
 NavigationCurrentEntryChangeEvent
 NavigationDestination
 NavigationHistoryEntry
@@ -340,6 +341,7 @@ OffscreenCanvasRenderingContext2D
 Option
 Origin
 OscillatorNode
+PageSwapEvent
 PageTransitionEvent
 PannerNode
 PasswordCredential

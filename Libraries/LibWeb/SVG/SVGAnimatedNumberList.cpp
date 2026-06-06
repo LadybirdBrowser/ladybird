@@ -4,19 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/SVGAnimatedNumberList.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedNumberList);
 
-GC::Ref<SVGAnimatedNumberList> SVGAnimatedNumberList::create(JS::Realm& realm, GC::Ref<SVGNumberList> base_val)
+GC::Ref<SVGAnimatedNumberList> SVGAnimatedNumberList::create(GC::Ref<SVGNumberList> base_val)
 {
-    return realm.create<SVGAnimatedNumberList>(realm, base_val);
+    return GC::Heap::the().allocate<SVGAnimatedNumberList>(base_val);
 }
 
-SVGAnimatedNumberList::SVGAnimatedNumberList(JS::Realm& realm, GC::Ref<SVGNumberList> base_val)
-    : Bindings::Wrappable(realm)
+SVGAnimatedNumberList::SVGAnimatedNumberList(GC::Ref<SVGNumberList> base_val)
+    : Bindings::Wrappable()
     , m_base_val(base_val)
 {
 }

@@ -19,8 +19,9 @@ class WEB_API DOMPoint final : public DOMPointReadOnly {
     GC_DECLARE_ALLOCATOR(DOMPoint);
 
 public:
-    static GC::Ref<DOMPoint> construct_impl(JS::Realm&, double x = 0, double y = 0, double z = 0, double w = 1);
-    static GC::Ref<DOMPoint> create(JS::Realm&);
+    static GC::Ref<DOMPoint> construct_impl(double x = 0, double y = 0, double z = 0, double w = 1);
+    static GC::Ref<DOMPoint> create(double x, double y, double z, double w);
+    static GC::Ref<DOMPoint> create();
 
     static GC::Ref<DOMPoint> from_point(JS::VM&, Bindings::DOMPointInit const&);
 
@@ -37,8 +38,8 @@ public:
     void set_w(double w) { m_w = w; }
 
 private:
-    DOMPoint(JS::Realm&, double x, double y, double z, double w);
-    DOMPoint(JS::Realm&);
+    DOMPoint(double x, double y, double z, double w);
+    DOMPoint();
 };
 
 }

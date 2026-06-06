@@ -16,12 +16,6 @@ SVGFEComponentTransferElement::SVGFEComponentTransferElement(DOM::Document& docu
 {
 }
 
-void SVGFEComponentTransferElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEComponentTransferElement);
-    Base::initialize(realm);
-}
-
 void SVGFEComponentTransferElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -32,7 +26,7 @@ void SVGFEComponentTransferElement::visit_edges(Visitor& visitor)
 GC::Ref<SVGAnimatedString> SVGFEComponentTransferElement::in1()
 {
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, {}, {} });
+        m_in1 = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::in, {}, {} });
     return *m_in1;
 }
 

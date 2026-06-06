@@ -1,14 +1,14 @@
 [Exposed=(Window,Worker)]
 interface IDBKeyRange {
-    readonly attribute any lower;
-    readonly attribute any upper;
+    [NeedsCallerRealmForGetter] readonly attribute any lower;
+    [NeedsCallerRealmForGetter] readonly attribute any upper;
     readonly attribute boolean lowerOpen;
     readonly attribute boolean upperOpen;
 
-    [NewObject] static IDBKeyRange only(any value);
-    [NewObject] static IDBKeyRange lowerBound(any lower, optional boolean open = false);
-    [NewObject] static IDBKeyRange upperBound(any upper, optional boolean open = false);
-    [NewObject] static IDBKeyRange bound(any lower, any upper, optional boolean lowerOpen = false, optional boolean upperOpen = false);
+    [NeedsCallerRealm, NewObject] static IDBKeyRange only(any value);
+    [NeedsCallerRealm, NewObject] static IDBKeyRange lowerBound(any lower, optional boolean open = false);
+    [NeedsCallerRealm, NewObject] static IDBKeyRange upperBound(any upper, optional boolean open = false);
+    [NeedsCallerRealm, NewObject] static IDBKeyRange bound(any lower, any upper, optional boolean lowerOpen = false, optional boolean upperOpen = false);
 
-    boolean includes(any key);
+    [NeedsCallerRealm] boolean includes(any key);
 };

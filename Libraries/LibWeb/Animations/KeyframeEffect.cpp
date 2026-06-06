@@ -6,6 +6,7 @@
 
 #include <AK/Bitmap.h>
 #include <AK/QuickSort.h>
+#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Animations/Animation.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -657,20 +659,29 @@ int KeyframeEffect::composite_order(GC::Ref<KeyframeEffect> a, GC::Ref<KeyframeE
     return a_animation->global_animation_list_order() - b_animation->global_animation_list_order();
 }
 
-GC::Ref<KeyframeEffect> KeyframeEffect::create(JS::Realm& realm)
+GC::Ref<KeyframeEffect> KeyframeEffect::create()
 {
-    return realm.create<KeyframeEffect>(realm);
+    return GC::Heap::the().allocate<KeyframeEffect>();
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-keyframeeffect
 WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
+    HTML::WindowOrWorkerGlobalScopeMixin& global_scope,
+    GC::Ptr<DOM::Element> target,
+    GC::Ptr<JS::Object> keyframes,
+    Variant<double, Bindings::KeyframeEffectOptions> options)
+{
+    return construct_impl_for_realm(HTML::relevant_realm(global_scope), target, keyframes, move(options));
+}
+
+WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl_for_realm(
     JS::Realm& realm,
     GC::Ptr<DOM::Element> target,
     GC::Ptr<JS::Object> keyframes,
     Variant<double, Bindings::KeyframeEffectOptions> options)
 {
     // 1. Create a new KeyframeEffect object, effect.
-    auto effect = realm.create<KeyframeEffect>(realm);
+    auto effect = create();
 
     // 2. Set the target element of effect to target.
     effect->set_target(target);
@@ -684,7 +695,7 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
         // When assigning this property, the error-handling defined for the pseudoElement setter on the interface is
         // applied. If the setter requires an exception to be thrown, this procedure must throw the same exception and
         // abort all further steps.
-        TRY(effect->set_pseudo_element(options.get<Bindings::KeyframeEffectOptions>().pseudo_element));
+        TRY(effect->set_pseudo_element(realm, options.get<Bindings::KeyframeEffectOptions>().pseudo_element));
     }
     //     Otherwise,
     else {
@@ -730,16 +741,16 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
 
     // 7. Initialize the set of keyframes by performing the procedure defined for setKeyframes() passing keyframes as
     //    the input.
-    TRY(effect->set_keyframes(keyframes));
+    TRY(effect->set_keyframes(realm, keyframes));
 
     return effect;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-keyframeeffect-source
-WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(JS::Realm& realm, GC::Ref<KeyframeEffect> source)
+WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(GC::Ref<KeyframeEffect> source)
 {
     // 1. Create a new KeyframeEffect object, effect.
-    auto effect = realm.create<KeyframeEffect>(realm);
+    auto effect = create();
 
     // 2. Set the following properties of effect using the corresponding values of source:
 
@@ -811,12 +822,12 @@ Optional<String> KeyframeEffect::pseudo_element() const
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudoelement
-WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<String> value)
+WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(JS::Realm& realm, Optional<String> value)
 {
     // On setting, sets the target pseudo-selector of the animation effect to the result of
     // pseudo-element parsing on the provided value, defined as the following:
     // NOTE: The actual definition is in pseudo_element_parsing().
-    m_target_pseudo_selector = TRY(pseudo_element_parsing(realm(), value));
+    m_target_pseudo_selector = TRY(pseudo_element_parsing(realm, value));
 
     invalidate_effect();
     // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
@@ -852,9 +863,8 @@ void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
-WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
+WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes(JS::Realm& realm)
 {
-    auto& realm = *this->realm().vm().current_realm();
     auto& vm = realm.vm();
 
     GC::RootVector<JS::Object*> keyframes;
@@ -895,9 +905,9 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-setkeyframes
-WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(GC::Ptr<JS::Object> keyframe_object)
+WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(JS::Realm& realm, GC::Ptr<JS::Object> keyframe_object)
 {
-    m_keyframes = TRY(process_a_keyframes_argument(realm(), keyframe_object));
+    m_keyframes = TRY(process_a_keyframes_argument(realm, keyframe_object));
     // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
     //        keyframes using the procedure outlined in the second half of
     //        https://www.w3.org/TR/web-animations-1/#calculating-computed-keyframes. For now, just compute the
@@ -933,8 +943,8 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(GC::Ptr<JS::Object> keyf
     return {};
 }
 
-KeyframeEffect::KeyframeEffect(JS::Realm& realm)
-    : AnimationEffect(realm)
+KeyframeEffect::KeyframeEffect()
+    : AnimationEffect()
 {
 }
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTBlendMinMax);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> EXTBlendMinMax::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> EXTBlendMinMax::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<EXTBlendMinMax>(realm, context);
+    auto extension = GC::Heap::the().allocate<EXTBlendMinMax>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-EXTBlendMinMax::EXTBlendMinMax(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+EXTBlendMinMax::EXTBlendMinMax(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
 }

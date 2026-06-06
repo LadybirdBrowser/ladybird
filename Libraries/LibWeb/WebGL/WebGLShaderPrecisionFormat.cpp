@@ -5,20 +5,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLShaderPrecisionFormat);
 
-GC::Ref<WebGLShaderPrecisionFormat> WebGLShaderPrecisionFormat::create(JS::Realm& realm, GLint range_min, GLint range_max, GLint precision)
+GC::Ref<WebGLShaderPrecisionFormat> WebGLShaderPrecisionFormat::create(GLint range_min, GLint range_max, GLint precision)
 {
-    return realm.create<WebGLShaderPrecisionFormat>(realm, range_min, range_max, precision);
+    return GC::Heap::the().allocate<WebGLShaderPrecisionFormat>(range_min, range_max, precision);
 }
 
-WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(JS::Realm& realm, GLint range_min, GLint range_max, GLint precision)
-    : Wrappable(realm)
+WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(GLint range_min, GLint range_max, GLint precision)
+    : Bindings::Wrappable()
     , m_range_min(range_min)
     , m_range_max(range_max)
     , m_precision(precision)

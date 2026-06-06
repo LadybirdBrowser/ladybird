@@ -17,7 +17,7 @@ class HeadersIterator final : public JS::Object {
     GC_DECLARE_ALLOCATOR(HeadersIterator);
 
 public:
-    [[nodiscard]] static GC::Ref<HeadersIterator> create(Headers const&, JS::Object::PropertyKind iteration_kind);
+    [[nodiscard]] static GC::Ref<HeadersIterator> create(JS::Realm&, Headers const&, JS::Object::PropertyKind iteration_kind);
 
     virtual ~HeadersIterator() override;
 
@@ -27,7 +27,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    HeadersIterator(Headers const&, JS::Object::PropertyKind iteration_kind);
+    HeadersIterator(JS::Realm&, Headers const&, JS::Object::PropertyKind iteration_kind);
 
     GC::Ref<Headers const> m_headers;
     JS::Object::PropertyKind m_iteration_kind;

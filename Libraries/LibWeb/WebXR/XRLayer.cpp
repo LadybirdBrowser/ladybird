@@ -11,8 +11,8 @@ namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRLayer);
 
-XRLayer::XRLayer(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+XRLayer::XRLayer()
+    : DOM::EventTarget()
 {
 }
 

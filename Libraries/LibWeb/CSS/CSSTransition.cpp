@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Bindings/CSSTransition.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -32,8 +33,14 @@ GC::Ref<CSSTransition> CSSTransition::start_a_transition(
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
     double reversing_shortening_factor)
 {
-    auto& realm = abstract_element.element().realm();
-    return realm.create<CSSTransition>(realm, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+    auto& environment = abstract_element.document().relevant_settings_object();
+    auto keyframe_effect = Animations::KeyframeEffect::create();
+    auto transition = GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, keyframe_effect);
+
+    HTML::TemporaryExecutionContext context(environment);
+    transition->play().release_value_but_fixme_should_propagate_errors();
+
+    return transition;
 }
 
 StringView CSSTransition::transition_property() const
@@ -90,7 +97,7 @@ int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation>
 }
 
 CSSTransition::CSSTransition(
-    JS::Realm& realm,
+    HTML::EnvironmentSettingsObject& environment,
     DOM::AbstractElement abstract_element,
     PropertyID property_id,
     size_t transition_generation,
@@ -100,8 +107,9 @@ CSSTransition::CSSTransition(
     NonnullRefPtr<StyleValue const> start_value,
     NonnullRefPtr<StyleValue const> end_value,
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
-    double reversing_shortening_factor)
-    : Animations::Animation(realm)
+    double reversing_shortening_factor,
+    GC::Ref<Animations::KeyframeEffect> keyframe_effect)
+    : Animations::Animation(environment)
     , m_transition_property(property_id)
     , m_transition_generation(transition_generation)
     , m_start_time(start_time + delay)
@@ -110,7 +118,7 @@ CSSTransition::CSSTransition(
     , m_end_value(move(end_value))
     , m_reversing_adjusted_start_value(move(reversing_adjusted_start_value))
     , m_reversing_shortening_factor(reversing_shortening_factor)
-    , m_keyframe_effect(Animations::KeyframeEffect::create(realm))
+    , m_keyframe_effect(keyframe_effect)
 {
     // FIXME:
     // Transitions generated using the markup defined in this specification are not added to the global animation list
@@ -147,15 +155,6 @@ CSSTransition::CSSTransition(
     set_owning_element(abstract_element);
     set_effect(m_keyframe_effect);
     abstract_element.element().set_transition(abstract_element.pseudo_element(), m_transition_property, *this);
-
-    HTML::TemporaryExecutionContext context(realm);
-    play().release_value_but_fixme_should_propagate_errors();
-}
-
-void CSSTransition::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSTransition);
-    Base::initialize(realm);
 }
 
 void CSSTransition::visit_edges(Cell::Visitor& visitor)

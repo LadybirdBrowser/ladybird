@@ -35,7 +35,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const final override;
 
 protected:
-    explicit CSSMathValue(JS::Realm&, Bindings::CSSMathOperator, NumericType);
+    explicit CSSMathValue(Bindings::CSSMathOperator, NumericType);
 
     Bindings::CSSMathOperator m_operator;
 };

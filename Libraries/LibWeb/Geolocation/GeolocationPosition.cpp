@@ -10,9 +10,9 @@ namespace Web::Geolocation {
 
 GC_DEFINE_ALLOCATOR(GeolocationPosition);
 
-GeolocationPosition::GeolocationPosition(JS::Realm& realm, GC::Ref<GeolocationCoordinates> coords,
+GeolocationPosition::GeolocationPosition(GC::Ref<GeolocationCoordinates> coords,
     HighResolutionTime::EpochTimeStamp timestamp, bool is_high_accuracy)
-    : Wrappable(realm)
+    : Bindings::Wrappable()
     , m_coords(coords)
     , m_timestamp(timestamp)
     , m_is_high_accuracy(is_high_accuracy)

@@ -5,10 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Module.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -18,8 +20,9 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Module);
 
-WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(JS::Realm& realm, WebIDL::BufferSource bytes)
+WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, WebIDL::BufferSource bytes)
 {
+    auto& realm = HTML::relevant_realm(global_scope);
     auto& vm = realm.vm();
 
     auto stable_bytes_or_error = WebIDL::get_buffer_source_copy(bytes);
@@ -29,8 +32,8 @@ WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(JS::Realm& realm, We
     }
     auto stable_bytes = stable_bytes_or_error.release_value();
 
-    auto compiled_module = TRY(Detail::compile_a_webassembly_module(vm, move(stable_bytes)));
-    return realm.create<Module>(realm, move(compiled_module));
+    auto compiled_module = TRY(Detail::compile_a_webassembly_module(realm, move(stable_bytes)));
+    return GC::Heap::the().allocate<Module>(move(compiled_module));
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-imports
@@ -108,7 +111,7 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(JS
 }
 
 // https://webassembly.github.io/threads/js-api/index.html#dom-module-customsections
-WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::VM&, GC::Ref<Module> module_object, String section_name)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sections(JS::Realm& realm, GC::Ref<Module> module_object, String section_name)
 {
     // 1. Let bytes be moduleObject.[[Bytes]].
     // 2. Let customSections be « ».
@@ -123,16 +126,15 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> Module::custom_sec
         // 3.3. If name equals sectionName as string values,
         if (section_name == name) {
             // 3.3.1. Append a new ArrayBuffer containing a copy of the bytes in bytes for the range matched by this customsec production to customSections.
-            array_buffers.append(JS::ArrayBuffer::create(module_object->realm(), section.contents()));
+            array_buffers.append(JS::ArrayBuffer::create(realm, section.contents()));
         }
     }
     // 4. Return customSections.
     return array_buffers;
 }
 
-Module::Module(JS::Realm& realm, NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module)
-    : Bindings::Wrappable(realm)
-    , m_compiled_module(move(compiled_module))
+Module::Module(NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module)
+    : m_compiled_module(move(compiled_module))
 {
 }
 

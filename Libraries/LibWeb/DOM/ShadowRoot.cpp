@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ShadowRoot.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetList.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
@@ -27,6 +29,11 @@
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(ShadowRoot);
+
+GC::Ref<ShadowRoot> ShadowRoot::create(Document& document, Element& host, Bindings::ShadowRootMode mode)
+{
+    return GC::Heap::the().allocate<ShadowRoot>(document, host, mode);
+}
 
 ShadowRoot::ShadowRoot(Document& document, Element& host, Bindings::ShadowRootMode mode)
     : DocumentFragment(document)
@@ -63,12 +70,6 @@ GC::Ptr<Element> ShadowRoot::fullscreen_element_for_bindings() const
 
     // 4. Return null.
     return nullptr;
-}
-
-void ShadowRoot::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ShadowRoot);
-    Base::initialize(realm);
 }
 
 // https://dom.spec.whatwg.org/#dom-shadowroot-onslotchange
@@ -249,10 +250,10 @@ void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleShee
     }
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> ShadowRoot::get_animations()
+WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> ShadowRoot::get_animations(JS::Realm& realm)
 {
     document().update_style();
-    return calculate_get_animations(*this);
+    return calculate_get_animations(realm, *this);
 }
 
 ElementByIdMap& ShadowRoot::element_by_id() const

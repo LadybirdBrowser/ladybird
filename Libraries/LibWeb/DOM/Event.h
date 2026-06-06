@@ -7,11 +7,18 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Event.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
 
 namespace Web::DOM {
 
@@ -43,11 +50,13 @@ public:
 
     using Path = Vector<PathEntry>;
 
-    [[nodiscard]] static GC::Ref<Event> create(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<Event>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& event_init);
+    [[nodiscard]] static GC::Ref<Event> create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::EventInit const& event_init = {});
+    [[nodiscard]] static GC::Ref<Event> create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<Event> create(FlyString const& event_name, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<Event>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const& event_name, Bindings::EventInit const& event_init);
 
-    Event(JS::Realm&, FlyString const& type);
-    Event(JS::Realm&, FlyString const& type, Bindings::EventInit const& event_init);
+    Event(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp);
+    Event(FlyString const& type, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~Event() = default;
 

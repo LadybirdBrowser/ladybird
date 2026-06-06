@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Runtime/Array.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -25,16 +27,10 @@ namespace Web::CookieStore {
 
 GC_DEFINE_ALLOCATOR(CookieStore);
 
-CookieStore::CookieStore(JS::Realm& realm, PageClient& client)
-    : DOM::EventTarget(realm)
+CookieStore::CookieStore(PageClient& client)
+    : DOM::EventTarget()
     , m_client(client)
 {
-}
-
-void CookieStore::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CookieStore);
-    Base::initialize(realm);
 }
 
 void CookieStore::visit_edges(Cell::Visitor& visitor)
@@ -101,12 +97,10 @@ static Vector<Bindings::CookieListItem> query_cookies(PageClient& client, URL::U
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-get
-GC::Ref<WebIDL::Promise> CookieStore::get(String name)
+GC::Ref<WebIDL::Promise> CookieStore::get(JS::Realm& realm, String name)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -122,13 +116,13 @@ GC::Ref<WebIDL::Promise> CookieStore::get(String name)
     auto promise = WebIDL::create_promise(realm);
 
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
         // 1. Let list be the results of running query cookies with url and name.
         auto list = query_cookies(client, url, name);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, list = move(list)]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, list = move(list)]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If list is failure, then reject p with a TypeError and abort these steps.
 
@@ -147,12 +141,10 @@ GC::Ref<WebIDL::Promise> CookieStore::get(String name)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-get-options
-GC::Ref<WebIDL::Promise> CookieStore::get(Bindings::CookieStoreGetOptions const& options)
+GC::Ref<WebIDL::Promise> CookieStore::get(JS::Realm& realm, Bindings::CookieStoreGetOptions const& options)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -179,7 +171,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get(Bindings::CookieStoreGetOptions const&
 
         // 2. If this’s relevant global object is a Window object and parsed does not equal url with exclude fragments
         //    set to true, then return a promise rejected with a TypeError.
-        if (HTML::window_from_global_object(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
+        if (HTML::window_from_global_object(settings.global_object()) && !parsed->equals(url, URL::ExcludeFragment::Yes))
             return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"sv));
 
         // 3. If parsed’s origin and url’s origin are not the same origin, then return a promise rejected with a TypeError.
@@ -194,13 +186,13 @@ GC::Ref<WebIDL::Promise> CookieStore::get(Bindings::CookieStoreGetOptions const&
     auto promise = WebIDL::create_promise(realm);
 
     // 8. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = options.name]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), name = options.name]() {
         // 1. Let list be the results of running query cookies with url and options["name"] with default null.
         auto list = query_cookies(client, url, name);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, list = move(list)]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, list = move(list)]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If list is failure, then reject p with a TypeError and abort these steps.
 
@@ -226,12 +218,10 @@ static JS::Value cookie_list_to_value(JS::Realm& realm, Vector<Bindings::CookieL
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-getall
-GC::Ref<WebIDL::Promise> CookieStore::get_all(String name)
+GC::Ref<WebIDL::Promise> CookieStore::get_all(JS::Realm& realm, String name)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -247,13 +237,13 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(String name)
     auto promise = WebIDL::create_promise(realm);
 
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
         // 1. Let list be the results of running query cookies with url and name.
         auto list = query_cookies(client, url, name);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, list = move(list)]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, list = move(list)]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If list is failure, then reject p with a TypeError and abort these steps.
 
@@ -267,12 +257,10 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(String name)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-getall-options
-GC::Ref<WebIDL::Promise> CookieStore::get_all(Bindings::CookieStoreGetOptions const& options)
+GC::Ref<WebIDL::Promise> CookieStore::get_all(JS::Realm& realm, Bindings::CookieStoreGetOptions const& options)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -295,7 +283,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(Bindings::CookieStoreGetOptions co
 
         // 2. If this’s relevant global object is a Window object and parsed does not equal url with exclude fragments
         //    set to true, then return a promise rejected with a TypeError.
-        if (HTML::window_from_global_object(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
+        if (HTML::window_from_global_object(settings.global_object()) && !parsed->equals(url, URL::ExcludeFragment::Yes))
             return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"sv));
 
         // 3. If parsed’s origin and url’s origin are not the same origin, then return a promise rejected with a TypeError.
@@ -310,13 +298,13 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(Bindings::CookieStoreGetOptions co
     auto promise = WebIDL::create_promise(realm);
 
     // 7. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = options.name]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), name = options.name]() {
         // 1. Let list be the results of running query cookies with url and options["name"] with default null.
         auto list = query_cookies(client, url, name);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, list = move(list)]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, list = move(list)]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If list is failure, then reject p with a TypeError and abort these steps.
 
@@ -528,12 +516,10 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, String name, S
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-set
-GC::Ref<WebIDL::Promise> CookieStore::set(String name, String value)
+GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, String name, String value)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -554,13 +540,13 @@ GC::Ref<WebIDL::Promise> CookieStore::set(String name, String value)
     auto promise = WebIDL::create_promise(realm);
 
     // 10. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = move(name), value = move(value)]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), name = move(name), value = move(value)]() {
         // 1. Let r be the result of running set a cookie with url, name, value, domain, path, sameSite, and partitioned.
         auto result = set_a_cookie(client, url, move(name), move(value), {}, {}, "/"_string, Bindings::CookieSameSite::Strict, false);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, result]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, result]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
@@ -576,12 +562,10 @@ GC::Ref<WebIDL::Promise> CookieStore::set(String name, String value)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-set-options
-GC::Ref<WebIDL::Promise> CookieStore::set(Bindings::CookieInit const& options)
+GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, Bindings::CookieInit const& options)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -597,14 +581,14 @@ GC::Ref<WebIDL::Promise> CookieStore::set(Bindings::CookieInit const& options)
     auto promise = WebIDL::create_promise(realm);
 
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), options = options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), options = options]() {
         // 1. Let r be the result of running set a cookie with url, options["name"], options["value"], options["expires"],
         //    options["domain"], options["path"], options["sameSite"], and options["partitioned"].
         auto result = set_a_cookie(client, url, options.name, options.value, options.expires, options.domain, options.path, options.same_site, options.partitioned);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, result]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, result]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
@@ -641,12 +625,10 @@ static bool delete_a_cookie(PageClient& client, URL::URL const& url, String name
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-delete
-GC::Ref<WebIDL::Promise> CookieStore::delete_(String name)
+GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, String name)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -662,13 +644,13 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(String name)
     auto promise = WebIDL::create_promise(realm);
 
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), name = move(name)]() {
         // 1. Let r be the result of running delete a cookie with url, name, null, "/", and true.
         auto result = delete_a_cookie(client, url, move(name), {}, "/"_string, true);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, result]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, result]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
@@ -684,12 +666,10 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(String name)
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-delete-options
-GC::Ref<WebIDL::Promise> CookieStore::delete_(Bindings::CookieStoreDeleteOptions const& options)
+GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, Bindings::CookieStoreDeleteOptions const& options)
 {
-    auto& realm = this->realm();
-
     // 1. Let settings be this’s relevant settings object.
-    auto const& settings = HTML::relevant_settings_object(*this);
+    auto const& settings = HTML::principal_realm_settings_object(realm);
 
     // 2. Let origin be settings’s origin.
     auto const& origin = settings.origin();
@@ -705,14 +685,14 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(Bindings::CookieStoreDeleteOptions
     auto promise = WebIDL::create_promise(realm);
 
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, client = m_client, promise, url = move(url), options = options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, client = m_client, promise, url = move(url), options = options]() {
         // 1. Let r be the result of running delete a cookie with url, options["name"], options["domain"], options["path"],
         //    and options["partitioned"].
         auto result = delete_a_cookie(client, url, options.name, options.domain, options.path, options.partitioned);
 
         // AD-HOC: Queue a global task to perform the next steps
         // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, result]() {
+        queue_global_task(HTML::Task::Source::Unspecified, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, promise, result]() {
             HTML::TemporaryExecutionContext execution_context { realm };
             // 2. If r is failure, then reject p with a TypeError and abort these steps.
             if (!result)
@@ -810,10 +790,8 @@ static PreparedLists prepare_lists(Vector<CookieChange> const& changes)
 }
 
 // https://cookiestore.spec.whatwg.org/#process-cookie-changes
-void CookieStore::process_cookie_changes(Vector<HTTP::Cookie::Cookie> all_changes)
+void CookieStore::process_cookie_changes(JS::Object& relevant_global_object, Vector<HTTP::Cookie::Cookie> all_changes)
 {
-    auto& realm = this->realm();
-
     // 1. Let url be window’s relevant settings object’s creation URL.
     // 2. Let changes be the observable changes for url.
     // 3. If changes is empty, then continue.
@@ -823,7 +801,8 @@ void CookieStore::process_cookie_changes(Vector<HTTP::Cookie::Cookie> all_change
 
     // 4. Queue a global task on the DOM manipulation task source given window to fire a change event named "change"
     //    with changes at window’s CookieStore.
-    queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(realm.heap(), [this, &realm, changes = move(changes)]() {
+    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), [this, relevant_global_object = GC::Ref(relevant_global_object), changes = move(changes)]() {
+        auto& realm = HTML::relevant_realm(relevant_global_object);
         HTML::TemporaryExecutionContext execution_context { realm };
         // https://cookiestore.spec.whatwg.org/#fire-a-change-event
         // 4. Let changedList and deletedList be the result of running prepare lists from changes.
@@ -838,7 +817,7 @@ void CookieStore::process_cookie_changes(Vector<HTTP::Cookie::Cookie> all_change
 
         // 1. Let event be the result of creating an Event using CookieChangeEvent.
         // 2. Set event’s type attribute to type.
-        auto event = CookieChangeEvent::create(realm, HTML::EventNames::change, event_init);
+        auto event = CookieChangeEvent::create(HTML::EventNames::change, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 
         // 3. Set event’s bubbles and cancelable attributes to false.
         event->set_bubbles(false);

@@ -20,12 +20,6 @@ SVGEllipseElement::SVGEllipseElement(DOM::Document& document, DOM::QualifiedName
 {
 }
 
-void SVGEllipseElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGEllipseElement);
-    Base::initialize(realm);
-}
-
 void SVGEllipseElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
@@ -81,9 +75,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::cx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_x.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_center_x.value_or(0), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_center_x.value_or(0), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementCYAttribute
@@ -91,9 +85,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::cy() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_center_y.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_center_y.value_or(0), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_center_y.value_or(0), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRXAttribute
@@ -101,9 +95,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::rx() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_x.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_radius_x.value_or(0), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_radius_x.value_or(0), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#EllipseElementRYAttribute
@@ -111,9 +105,9 @@ GC::Ref<SVGAnimatedLength> SVGEllipseElement::ry() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
-    auto base_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::No);
-    auto anim_length = SVGLength::create(realm(), 0, m_radius_y.value_or(0), SVGLength::ReadOnly::Yes);
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto base_length = SVGLength::create(0, m_radius_y.value_or(0), SVGLength::ReadOnly::No);
+    auto anim_length = SVGLength::create(0, m_radius_y.value_or(0), SVGLength::ReadOnly::Yes);
+    return SVGAnimatedLength::create(base_length, anim_length);
 }
 
 }

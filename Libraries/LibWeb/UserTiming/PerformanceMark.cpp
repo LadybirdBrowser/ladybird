@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
@@ -18,22 +21,27 @@ namespace Web::UserTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceMark);
 
-PerformanceMark::PerformanceMark(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
-    : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
+PerformanceMark::PerformanceMark(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
+    : PerformanceTimeline::PerformanceEntry(name, start_time, duration)
     , m_detail(detail)
 {
 }
 
 PerformanceMark::~PerformanceMark() = default;
 
-// https://w3c.github.io/user-timing/#dfn-performancemark-constructor
-WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
+GC::Ref<PerformanceMark> PerformanceMark::create(String const& mark_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
 {
-    auto& current_global_object = HTML::current_global_object();
+    return GC::Heap::the().allocate<PerformanceMark>(mark_name, start_time, duration, detail);
+}
+
+// https://w3c.github.io/user-timing/#dfn-performancemark-constructor
+WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
+{
+    auto& realm = HTML::relevant_realm(global_scope);
     auto& vm = realm.vm();
 
     // 1. If the current global object is a Window object and markName uses the same name as a read only attribute in the PerformanceTiming interface, throw a SyntaxError.
-    if (HTML::window_from_global_object(current_global_object)) {
+    if (is<HTML::Window>(global_scope)) {
         bool matched = false;
 
 #define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _) \
@@ -68,7 +76,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     }
     // 2. Otherwise, set it to the value that would be returned by the Performance object's now() method.
     else {
-        start_time = HighResolutionTime::current_high_resolution_time(current_global_object);
+        start_time = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(global_scope));
     }
 
     // 6. Set entry's duration attribute to 0.
@@ -82,14 +90,14 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     // 8. Otherwise:
     else {
         // 1. Let record be the result of calling the StructuredSerialize algorithm on markOptions's detail.
-        auto record = TRY(HTML::structured_serialize(vm, *mark_options.detail));
+        auto record = TRY(HTML::structured_serialize(realm, *mark_options.detail));
 
         // 2. Set entry's detail to the result of calling the StructuredDeserialize algorithm on record and the current realm.
         detail = TRY(HTML::structured_deserialize(vm, record, realm));
     }
 
-    // 2. Create a new PerformanceMark object (entry) with the current global object's realm.
-    return realm.create<PerformanceMark>(realm, name, start_time, duration, detail);
+    // 2. Create a new PerformanceMark object (entry).
+    return PerformanceMark::create(name, start_time, duration, detail);
 }
 
 FlyString const& PerformanceMark::entry_type() const

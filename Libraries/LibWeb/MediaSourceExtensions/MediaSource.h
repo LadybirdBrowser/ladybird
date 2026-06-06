@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/MediaSource.h>
 #include <LibWeb/DOM/EventTarget.h>
 
@@ -17,7 +18,7 @@ class MediaSource : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(MediaSource);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<MediaSource>> construct_impl(JS::Realm&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<MediaSource>> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     void queue_a_media_source_task(GC::Ref<GC::Function<void()>>);
 
@@ -25,6 +26,8 @@ public:
     bool ready_state_is_closed() const;
     void set_has_ever_been_attached();
     void set_ready_state_to_open_and_fire_sourceopen_event();
+    JS::Object& relevant_global_object() const;
+    GC::Ref<DOM::Event> create_associated_event(FlyString const&) const;
 
     GC::Ref<SourceBufferList> source_buffers();
     GC::Ref<SourceBufferList> active_source_buffers();
@@ -47,14 +50,14 @@ public:
     void set_onsourceclose(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onsourceclose();
 
-    WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(String const& type);
+    WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(JS::Realm&, String const& type);
 
-    WebIDL::ExceptionOr<void> end_of_stream(Optional<Bindings::EndOfStreamError> const& error = {});
+    WebIDL::ExceptionOr<void> end_of_stream(JS::Realm&, Optional<Bindings::EndOfStreamError> const& error = {});
     void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<Bindings::EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
 
     // https://w3c.github.io/media-source/#dom-mediasource-duration
     double duration() const;
-    WebIDL::ExceptionOr<void> set_duration(double);
+    WebIDL::ExceptionOr<void> set_duration(JS::Realm&, double);
 
     // https://w3c.github.io/media-source/#duration-change-algorithm
     void run_duration_change_algorithm(double new_duration);
@@ -63,11 +66,9 @@ public:
     static bool is_type_supported(JS::VM&, String const& type) { return is_type_supported(type); }
 
 protected:
-    MediaSource(JS::Realm&);
+    MediaSource(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     virtual ~MediaSource() override;
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
@@ -84,6 +85,8 @@ private:
     double m_duration { NAN };
 
     u64 m_next_track_id = 1;
+
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

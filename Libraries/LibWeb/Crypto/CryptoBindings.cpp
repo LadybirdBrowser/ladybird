@@ -32,11 +32,11 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
     //    in the context of a new global object, with text argument set to a JavaScript String containing json.
     auto maybe_json_value = JsonValue::from_string(json);
     if (maybe_json_value.is_error())
-        return throw_completion(WebIDL::SyntaxError::create(realm, JS::ErrorType::JsonMalformed.message()));
+        return throw_completion(realm, WebIDL::SyntaxError::create(realm, JS::ErrorType::JsonMalformed.message()));
 
     auto json_value = maybe_json_value.release_value();
     if (!json_value.is_object()) {
-        return throw_completion(WebIDL::SyntaxError::create(realm, "JSON value is not an object"_utf16));
+        return throw_completion(realm, WebIDL::SyntaxError::create(realm, "JSON value is not an object"_utf16));
     }
 
     auto const& json_object = json_value.as_object();
@@ -77,7 +77,7 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
 
     // 6. If the kty field of key is not defined, then throw a DataError.
     if (!key.kty.has_value())
-        return throw_completion(WebIDL::DataError::create(realm, "kty field is not defined"_utf16));
+        return throw_completion(realm, WebIDL::DataError::create(realm, "kty field is not defined"_utf16));
 
     // 7. Return key.
     return key;

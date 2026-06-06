@@ -36,8 +36,8 @@ public:
     Optional<double> speed() const { return m_coordinates_data.speed; }
 
 private:
-    explicit GeolocationCoordinates(JS::Realm&);
-    GeolocationCoordinates(JS::Realm&, CoordinatesData);
+    GeolocationCoordinates();
+    explicit GeolocationCoordinates(CoordinatesData);
 
     CoordinatesData m_coordinates_data;
 };

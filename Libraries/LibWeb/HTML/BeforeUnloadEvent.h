@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
@@ -16,9 +17,7 @@ class BeforeUnloadEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(BeforeUnloadEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(JS::Realm&, FlyString const& event_name, Bindings::EventInit const& = {});
-
-    BeforeUnloadEvent(JS::Realm&, FlyString const& event_name, Bindings::EventInit const&);
+    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(FlyString const& event_name, Bindings::EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~BeforeUnloadEvent() override;
 
@@ -26,6 +25,8 @@ public:
     void set_return_value(String const& return_value) { m_return_value = return_value; }
 
 private:
+    BeforeUnloadEvent(FlyString const& event_name, Bindings::EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+
     String m_return_value;
 };
 

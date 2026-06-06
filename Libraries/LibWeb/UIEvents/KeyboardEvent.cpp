@@ -5,14 +5,23 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <LibGC/Heap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/Bindings/KeyboardEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(KeyboardEvent);
+
+static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
+{
+    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
+}
 
 // https://www.w3.org/TR/uievents/#determine-keydown-keyup-keyCode
 static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
@@ -697,7 +706,7 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
     return DOMKeyLocation::Standard;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
+GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
 {
     auto event_key = MUST(get_event_key(platform_key, code_point, modifiers));
     auto event_code = MUST(get_event_code(platform_key, modifiers));
@@ -720,7 +729,7 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& real
     event_init.cancelable = true;
     event_init.composed = true;
 
-    auto event = KeyboardEvent::create(realm, event_name, event_init);
+    auto event = KeyboardEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
     event->set_is_trusted(true);
     return event;
 }
@@ -781,18 +790,18 @@ void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool c
     m_meta_key = meta_key;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
+GC::Ref<KeyboardEvent> KeyboardEvent::create(FlyString const& event_name, Bindings::KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<KeyboardEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<KeyboardEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    return GC::Heap::the().allocate<KeyboardEvent>(event_name, event_init, event_time_stamp(window));
 }
 
-KeyboardEvent::KeyboardEvent(JS::Realm& realm, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
-    : UIEvent(realm, event_name, event_init)
+KeyboardEvent::KeyboardEvent(FlyString const& event_name, Bindings::KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
     , m_key(event_init.key)
     , m_code(event_init.code)
     , m_location(event_init.location)

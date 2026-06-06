@@ -28,7 +28,6 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ContrastColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
@@ -167,10 +166,10 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-as-a-cssstylevalue
-GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm&, Utf16FlyString const& associated_property) const
 {
     // 1. Return a new CSSStyleValue object representing value whose [[associatedProperty]] internal slot is set to property.
-    return CSSStyleValue::create(realm, associated_property, *this);
+    return CSSStyleValue::create(associated_property, *this);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations
@@ -224,7 +223,7 @@ double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_valu
     VERIFY_NOT_REACHED();
 }
 
-FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+Utf16FlyString const& string_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
 {
     if (style_value->is_string())
         return style_value->as_string().string_value();

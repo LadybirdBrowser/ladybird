@@ -26,8 +26,6 @@ public:
 private:
     HTMLUListElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };

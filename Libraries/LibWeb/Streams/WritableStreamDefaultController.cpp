@@ -61,8 +61,8 @@ void WritableStreamDefaultController::error_steps()
     reset_queue(*this);
 }
 
-WritableStreamDefaultController::WritableStreamDefaultController(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+WritableStreamDefaultController::WritableStreamDefaultController()
+    : Bindings::Wrappable()
 {
 }
 

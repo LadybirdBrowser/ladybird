@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/BooleanObject.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
@@ -110,28 +112,27 @@ bool is_valid_audio_configuration(Bindings::AudioConfiguration const& configurat
 
 GC_DEFINE_ALLOCATOR(MediaCapabilities);
 
-GC::Ref<MediaCapabilities> MediaCapabilities::create(JS::Realm& realm)
+GC::Ref<MediaCapabilities> MediaCapabilities::create()
 {
-    return realm.create<MediaCapabilities>(realm);
+    return GC::Heap::the().allocate<MediaCapabilities>();
 }
 
-MediaCapabilities::MediaCapabilities(JS::Realm& realm)
-    : Wrappable(realm)
+MediaCapabilities::MediaCapabilities()
+    : Bindings::Wrappable()
 {
 }
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
-void queue_a_media_capabilities_task(JS::VM& vm, Function<void()> steps)
+void queue_a_media_capabilities_task(JS::Object& global_object, Function<void()> steps)
 {
     // When an algorithm queues a Media Capabilities task T, the user agent MUST queue a global task T on the
     // media capabilities task source using the global object of the the current realm record.
-    queue_global_task(HTML::Task::Source::MediaCapabilities, vm.current_realm()->global_object(), GC::create_function(vm.current_realm()->heap(), move(steps)));
+    queue_global_task(HTML::Task::Source::MediaCapabilities, global_object, GC::create_function(GC::Heap::the(), move(steps)));
 }
 
 // https://w3c.github.io/media-capabilities/#dom-mediacapabilities-decodinginfo
-GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(Bindings::MediaDecodingConfiguration const& configuration)
+GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(JS::Realm& realm, Bindings::MediaDecodingConfiguration const& configuration)
 {
-    auto& realm = this->realm();
     // The decodingInfo() method MUST run the following steps:
 
     // 1. If configuration is not a valid MediaDecodingConfiguration, return a Promise rejected with a newly created
@@ -147,14 +148,13 @@ GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(Bindings::MediaDecodin
     auto p = WebIDL::create_promise(realm);
 
     // 4. Run the following steps in parallel:
-    auto& vm = realm.vm();
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, p, configuration]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, p, configuration]() mutable {
         HTML::TemporaryExecutionContext context(realm);
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.
         auto result = to_object(realm, create_a_media_capabilities_decoding_info(configuration));
 
         // Queue a Media Capabilities task to resolve p with its result.
-        queue_a_media_capabilities_task(vm, [&realm, p, result] {
+        queue_a_media_capabilities_task(realm.global_object(), [&realm, p, result] {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::resolve_promise(realm, p, JS::Value(result));
         });

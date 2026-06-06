@@ -22,7 +22,7 @@ public:
     Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(FlyString const& name) const;
 
 protected:
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const final;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const final;
 
 private:
     HTMLFormControlsCollection(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);

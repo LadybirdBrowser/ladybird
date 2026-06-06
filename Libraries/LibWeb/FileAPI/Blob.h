@@ -35,40 +35,39 @@ class WEB_API Blob
 public:
     virtual ~Blob() override;
 
-    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, ByteBuffer, String type);
-    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(JS::Realm&, Optional<BlobParts> const& blob_parts = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
+    [[nodiscard]] static GC::Ref<Blob> create(ByteBuffer, String type);
+    [[nodiscard]] static GC::Ref<Blob> create(Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(Optional<BlobParts> const& blob_parts = {}, Optional<Bindings::BlobPropertyBag> const& options = {});
 
     // https://w3c.github.io/FileAPI/#dfn-size
     u64 size() const { return m_byte_buffer.size(); }
     // https://w3c.github.io/FileAPI/#dfn-type
     String const& type() const { return m_type; }
 
-    WebIDL::ExceptionOr<GC::Ref<Blob>> slice(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+    WebIDL::ExceptionOr<GC::Ref<Blob>> slice(JS::Realm&, Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+    ErrorOr<GC::Ref<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
 
-    GC::Ref<Streams::ReadableStream> stream();
-    GC::Ref<WebIDL::Promise> text();
-    GC::Ref<WebIDL::Promise> array_buffer();
-    GC::Ref<WebIDL::Promise> bytes();
+    GC::Ref<Streams::ReadableStream> stream(JS::Realm&);
+    GC::Ref<WebIDL::Promise> text(JS::Realm&);
+    GC::Ref<WebIDL::Promise> array_buffer(JS::Realm&);
+    GC::Ref<WebIDL::Promise> bytes(JS::Realm&);
 
     ReadonlyBytes raw_bytes() const LIFETIME_BOUND { return m_byte_buffer.bytes(); }
 
-    GC::Ref<Streams::ReadableStream> get_stream();
+    GC::Ref<Streams::ReadableStream> get_stream(JS::Realm&);
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 protected:
-    Blob(JS::Realm&, ByteBuffer, String type);
-    Blob(JS::Realm&, ByteBuffer);
-
-    WebIDL::ExceptionOr<GC::Ref<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+    Blob(ByteBuffer, String type);
+    Blob(ByteBuffer);
 
     ByteBuffer m_byte_buffer {};
     String m_type {};
 
 private:
-    explicit Blob(JS::Realm&);
+    Blob();
 };
 
 }

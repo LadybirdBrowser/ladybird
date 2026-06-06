@@ -30,18 +30,18 @@ class MediaCapabilities final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MediaCapabilities);
 
 public:
-    static GC::Ref<MediaCapabilities> create(JS::Realm&);
+    static GC::Ref<MediaCapabilities> create();
     virtual ~MediaCapabilities() override = default;
 
     // https://w3c.github.io/media-capabilities/#dom-mediacapabilities-decodinginfo
-    GC::Ref<WebIDL::Promise> decoding_info(Bindings::MediaDecodingConfiguration const&);
+    GC::Ref<WebIDL::Promise> decoding_info(JS::Realm&, Bindings::MediaDecodingConfiguration const&);
 
 private:
-    MediaCapabilities(JS::Realm&);
+    MediaCapabilities();
 };
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
-void queue_a_media_capabilities_task(JS::VM& vm, Function<void()>);
+void queue_a_media_capabilities_task(JS::Object& global_object, Function<void()>);
 
 // https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
 Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(Bindings::MediaDecodingConfiguration);

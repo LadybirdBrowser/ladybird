@@ -16,16 +16,16 @@ class CSSFunctionDescriptors final : public CSSDescriptors {
     GC_DECLARE_ALLOCATOR(CSSFunctionDescriptors);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFunctionDescriptors> create(JS::Realm&, Vector<Descriptor>);
+    [[nodiscard]] static GC::Ref<CSSFunctionDescriptors> create(Vector<Descriptor>);
 
     virtual ~CSSFunctionDescriptors() override = default;
 
     String result() const;
-    WebIDL::ExceptionOr<void> set_result(StringView value);
+    WebIDL::ExceptionOr<void> set_result(JS::Realm&, StringView value);
 
 private:
-    CSSFunctionDescriptors(JS::Realm& realm, Vector<Descriptor> descriptors)
-        : CSSDescriptors(realm, AtRuleID::Function, move(descriptors))
+    explicit CSSFunctionDescriptors(Vector<Descriptor> descriptors)
+        : CSSDescriptors(AtRuleID::Function, move(descriptors))
     {
     }
 };

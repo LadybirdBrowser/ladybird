@@ -21,20 +21,20 @@ class DataTransferItem : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(DataTransferItem);
 
 public:
-    static GC::Ref<DataTransferItem> create(JS::Realm&, GC::Ref<DataTransfer>, size_t item_index);
+    static GC::Ref<DataTransferItem> create(GC::Ref<DataTransfer>, size_t item_index);
     virtual ~DataTransferItem() override;
 
     String kind() const;
     String type() const;
     void set_item_index(Badge<DataTransfer>, Optional<size_t> index) { m_item_index = move(index); }
 
-    void get_as_string(GC::Ptr<WebIDL::CallbackType>) const;
+    void get_as_string(JS::Realm&, GC::Ptr<WebIDL::CallbackType>) const;
     GC::Ptr<FileAPI::File> get_as_file() const;
 
     GC::Ptr<EntriesAPI::FileSystemEntry> webkit_get_as_entry() const;
 
 private:
-    DataTransferItem(JS::Realm&, GC::Ref<DataTransfer>, size_t item_index);
+    DataTransferItem(GC::Ref<DataTransfer>, size_t item_index);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

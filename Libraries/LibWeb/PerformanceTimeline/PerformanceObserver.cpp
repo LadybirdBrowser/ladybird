@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
@@ -17,14 +18,15 @@ namespace Web::PerformanceTimeline {
 
 GC_DEFINE_ALLOCATOR(PerformanceObserver);
 
-WebIDL::ExceptionOr<GC::Ref<PerformanceObserver>> PerformanceObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
+WebIDL::ExceptionOr<GC::Ref<PerformanceObserver>> PerformanceObserver::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& relevant_global, GC::Ptr<WebIDL::CallbackType> callback)
 {
-    return realm.create<PerformanceObserver>(realm, callback);
+    return GC::Heap::the().allocate<PerformanceObserver>(callback, relevant_global);
 }
 
-PerformanceObserver::PerformanceObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
-    : Wrappable(realm)
+PerformanceObserver::PerformanceObserver(GC::Ptr<WebIDL::CallbackType> callback, HTML::WindowOrWorkerGlobalScopeMixin& relevant_global)
+    : Bindings::Wrappable()
     , m_callback(move(callback))
+    , m_relevant_global(relevant_global.this_impl())
 {
 }
 
@@ -34,16 +36,20 @@ void PerformanceObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_callback);
+    visitor.visit(m_relevant_global);
     visitor.visit(m_observer_buffer);
 }
 
-// https://w3c.github.io/performance-timeline/#dom-performanceobserver-observe
-WebIDL::ExceptionOr<void> PerformanceObserver::observe(Bindings::PerformanceObserverInit& options)
+HTML::WindowOrWorkerGlobalScopeMixin& PerformanceObserver::relevant_global() const
 {
-    auto& realm = this->realm();
+    return as<HTML::WindowOrWorkerGlobalScopeMixin>(*m_relevant_global);
+}
 
+// https://w3c.github.io/performance-timeline/#dom-performanceobserver-observe
+WebIDL::ExceptionOr<void> PerformanceObserver::observe(JS::Realm& realm, Bindings::PerformanceObserverInit& options)
+{
     // 1. Let relevantGlobal be this's relevant global object.
-    auto& relevant_global = HTML::relevant_window_or_worker_global_scope(*this);
+    auto& relevant_global = this->relevant_global();
 
     // 2. If options's entryTypes and type members are both omitted, then throw a "TypeError".
     if (!options.entry_types.has_value() && !options.type.has_value())
@@ -187,7 +193,7 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(Bindings::PerformanceObse
 void PerformanceObserver::disconnect()
 {
     // 1. Remove this from the list of registered performance observer objects of relevant global object.
-    auto& relevant_global = HTML::relevant_window_or_worker_global_scope(*this);
+    auto& relevant_global = this->relevant_global();
     relevant_global.unregister_performance_observer({}, *this);
 
     // 2. Empty this's observer buffer.
@@ -209,14 +215,14 @@ Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> PerformanceObserver::tak
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver-supportedentrytypes
-GC::Ref<JS::Object> PerformanceObserver::supported_entry_types(JS::VM& vm)
+GC::Ref<JS::Object> PerformanceObserver::supported_entry_types(JS::Realm& realm)
 {
     // 1. Let globalObject be the environment settings object's global object.
-    auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(vm.get_global_object());
+    auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(realm.global_object());
     VERIFY(window_or_worker);
 
     // 2. Return globalObject's frozen array of supported entry types.
-    return window_or_worker->supported_entry_types(*vm.current_realm());
+    return window_or_worker->supported_entry_types(realm);
 }
 
 void PerformanceObserver::unset_requires_dropped_entries(Badge<HTML::WindowOrWorkerGlobalScopeMixin>)

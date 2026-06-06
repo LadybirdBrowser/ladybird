@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/HTMLIFrameElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
@@ -18,7 +19,9 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -33,12 +36,6 @@ HTMLIFrameElement::HTMLIFrameElement(DOM::Document& document, DOM::QualifiedName
 }
 
 HTMLIFrameElement::~HTMLIFrameElement() = default;
-
-void HTMLIFrameElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLIFrameElement);
-    Base::initialize(realm);
-}
 
 RefPtr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::ComputedProperties const& style)
 {
@@ -230,7 +227,9 @@ void run_iframe_load_event_steps(HTML::HTMLIFrameElement& element)
     // FIXME: 4. Set childDocument's iframe load in progress flag.
 
     // 5. Fire an event named load at element.
-    element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::load));
+    element.dispatch_event(DOM::Event::create(
+        HTML::EventNames::load,
+        HighResolutionTime::current_high_resolution_time(relevant_global_object(element))));
 
     // FIXME: 6. Unset childDocument's iframe load in progress flag.
 }

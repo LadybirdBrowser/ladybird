@@ -26,8 +26,6 @@ private:
     virtual bool is_html_br_element() const override { return true; }
 
     HTMLBRElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

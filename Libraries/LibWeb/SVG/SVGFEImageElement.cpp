@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Namespace.h>
@@ -22,12 +23,6 @@ GC_DEFINE_ALLOCATOR(SVGFEImageElement);
 SVGFEImageElement::SVGFEImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, qualified_name)
 {
-}
-
-void SVGFEImageElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEImageElement);
-    Base::initialize(realm);
 }
 
 void SVGFEImageElement::visit_edges(Cell::Visitor& visitor)
@@ -65,7 +60,7 @@ void SVGFEImageElement::process_href(Optional<String> const& href)
     if (!m_href.has_value())
         return;
 
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), *m_href);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *m_href);
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
             set_needs_style_update(true);
@@ -74,9 +69,9 @@ void SVGFEImageElement::process_href(Optional<String> const& href)
         nullptr);
 
     if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(vm(), *m_href, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
+        auto request = HTML::create_potential_CORS_request(*m_href, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
-        m_resource_request->fetch_resource(realm(), request);
+        m_resource_request->fetch_resource(HTML::relevant_realm(*this), request);
     }
 }
 

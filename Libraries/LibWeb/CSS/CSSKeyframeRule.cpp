@@ -6,6 +6,7 @@
  */
 
 #include "CSSKeyframeRule.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>
@@ -14,13 +15,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframeRule);
 
-GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
+GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(Percentage key, CSSStyleProperties& declarations)
 {
-    return realm.create<CSSKeyframeRule>(realm, key, declarations);
+    return GC::Heap::the().allocate<CSSKeyframeRule>(key, declarations);
 }
 
-CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, Percentage key, CSSStyleProperties& declarations)
-    : CSSRule(realm, Type::Keyframe)
+CSSKeyframeRule::CSSKeyframeRule(Percentage key, CSSStyleProperties& declarations)
+    : CSSRule(Type::Keyframe)
     , m_key(key)
     , m_declarations(declarations)
 {

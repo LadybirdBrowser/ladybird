@@ -18,7 +18,7 @@ class IDLEventListener final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(IDLEventListener);
 
 public:
-    [[nodiscard]] static GC::Ref<IDLEventListener> create(JS::Realm&, GC::Ref<WebIDL::CallbackType>);
+    [[nodiscard]] static GC::Ref<IDLEventListener> create(GC::Ref<WebIDL::CallbackType>);
 
     virtual ~IDLEventListener() = default;
 

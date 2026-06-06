@@ -21,12 +21,6 @@ HTMLTitleElement::HTMLTitleElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLTitleElement::~HTMLTitleElement() = default;
 
-void HTMLTitleElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTitleElement);
-    Base::initialize(realm);
-}
-
 void HTMLTitleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     HTMLElement::children_changed(metadata);

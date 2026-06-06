@@ -4,19 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedTransformList);
 
-GC::Ref<SVGAnimatedTransformList> SVGAnimatedTransformList::create(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
+GC::Ref<SVGAnimatedTransformList> SVGAnimatedTransformList::create(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
 {
-    return realm.create<SVGAnimatedTransformList>(realm, base_val, anim_val);
+    return GC::Heap::the().allocate<SVGAnimatedTransformList>(base_val, anim_val);
 }
 
-SVGAnimatedTransformList::SVGAnimatedTransformList(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
-    : Bindings::Wrappable(realm)
+SVGAnimatedTransformList::SVGAnimatedTransformList(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
+    : Bindings::Wrappable()
     , m_base_val(base_val)
     , m_anim_val(anim_val)
 {

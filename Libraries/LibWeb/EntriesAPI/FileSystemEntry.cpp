@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/EntriesAPI/FileSystemEntry.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -11,15 +12,15 @@ namespace Web::EntriesAPI {
 
 GC_DEFINE_ALLOCATOR(FileSystemEntry);
 
-GC::Ref<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType entry_type, ByteString name)
+GC::Ref<FileSystemEntry> FileSystemEntry::create(EntryType entry_type, ByteString name)
 {
-    return realm.create<FileSystemEntry>(realm, entry_type, name);
+    return GC::Heap::the().allocate<FileSystemEntry>(entry_type, move(name));
 }
 
-FileSystemEntry::FileSystemEntry(JS::Realm& realm, EntryType entry_type, ByteString name)
-    : Wrappable(realm)
+FileSystemEntry::FileSystemEntry(EntryType entry_type, ByteString name)
+    : Bindings::Wrappable()
     , m_entry_type(entry_type)
-    , m_name(name)
+    , m_name(move(name))
 {
 }
 

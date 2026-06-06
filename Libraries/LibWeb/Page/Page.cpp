@@ -7,6 +7,7 @@
  */
 
 #include <AK/SourceLocation.h>
+#include <LibGC/Heap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -39,9 +40,9 @@ namespace Web {
 
 GC_DEFINE_ALLOCATOR(Page);
 
-GC::Ref<Page> Page::create(JS::VM& vm, GC::Ref<PageClient> page_client)
+GC::Ref<Page> Page::create(GC::Ref<PageClient> page_client)
 {
-    return vm.heap().allocate<Page>(page_client);
+    return GC::Heap::the().allocate<Page>(page_client);
 }
 
 Page::Page(GC::Ref<PageClient> client)
@@ -138,10 +139,10 @@ void Page::load_html(StringView html, URL::URL const& url)
     heap().collect_garbage();
 
     auto document = top_level_traversable()->active_document();
-    auto& realm = document->realm();
+    auto& realm = document->relevant_settings_object().realm();
     auto html_string = String::from_utf8(html).release_value_but_fixme_should_propagate_errors();
 
-    auto response = Fetch::Infrastructure::Response::create(realm.vm());
+    auto response = Fetch::Infrastructure::Response::create();
     response->url_list().append(url);
     response->header_list()->append({ "Content-Type"sv, "text/html"sv });
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, html_string.bytes()));
@@ -445,7 +446,7 @@ static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Opti
     auto& event_loop = Web::HTML::current_settings_object().responsible_event_loop();
     auto pause_handle = event_loop.pause();
 
-    Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(event_loop.heap(), [&]() {
+    Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [&]() {
         return response.has_value() || !client.is_connection_open();
     }));
 
@@ -723,7 +724,7 @@ void Page::toggle_media_play_state()
         return;
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
+    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
 
     if (media_element->potentially_playing())
         media_element->pause();
@@ -738,7 +739,7 @@ void Page::toggle_media_mute_state()
         return;
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
+    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
 
     media_element->set_muted(!media_element->muted());
 }
@@ -750,7 +751,7 @@ void Page::toggle_media_loop_state()
         return;
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
+    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
 
     if (media_element->has_attribute(HTML::AttributeNames::loop))
         media_element->remove_attribute(HTML::AttributeNames::loop);
@@ -764,7 +765,7 @@ void Page::toggle_media_fullscreen_state()
     if (!media_element)
         return;
 
-    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
+    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
     media_element->toggle_fullscreen();
 }
 
@@ -774,7 +775,7 @@ void Page::toggle_media_controls_state()
     if (!media_element)
         return;
 
-    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
+    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
 
     if (media_element->has_attribute(HTML::AttributeNames::controls))
         media_element->remove_attribute(HTML::AttributeNames::controls);
@@ -1022,7 +1023,7 @@ void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::
     m_pending_fullscreen_operations.enqueue(PendingFullscreenEnter { element, pending_doc, error, promise });
     // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
     //       meaning the caller's synchronous JS should complete before we process the operation.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this]() {
         process_pending_fullscreen_operations();
     }));
 }
@@ -1032,7 +1033,7 @@ void Page::enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::
     m_pending_fullscreen_operations.enqueue(PendingFullscreenExit { doc, resize, promise });
     // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
     //       meaning the caller's synchronous JS should complete before we process the operation.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this]() {
         process_pending_fullscreen_operations();
     }));
 }
@@ -1081,7 +1082,7 @@ void Page::process_pending_fullscreen_operations()
                         enter.error = DOM::RequestFullscreenError::ElementReadyCheckFailed;
                 }
 
-                auto& realm = enter.element->realm();
+                auto& realm = HTML::relevant_realm(*enter.pending_doc);
                 HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
                 // 10. If error is true:
@@ -1095,7 +1096,7 @@ void Page::process_pending_fullscreen_operations()
                 }
 
                 // 11. Let fullscreenElements be an ordered set initially consisting of this.
-                auto fullscreen_elements = realm.heap().allocate<GC::HeapVector<GC::Ref<DOM::Element>>>();
+                auto fullscreen_elements = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<DOM::Element>>>();
                 fullscreen_elements->elements().append(enter.element);
 
                 // 12. While true:
@@ -1139,7 +1140,7 @@ void Page::process_pending_fullscreen_operations()
                 return true;
             },
             [&](PendingFullscreenExit& exit) -> bool {
-                auto& realm = exit.doc->realm();
+                auto& realm = HTML::relevant_realm(*exit.doc);
                 HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
                 // https://fullscreen.spec.whatwg.org/#exit-fullscreen
@@ -1169,7 +1170,7 @@ void Page::process_pending_fullscreen_operations()
 
                 // 13. Let descendantDocs be an ordered set consisting of doc's descendant navigables' active documents
                 //     whose fullscreen element is non-null, if any, in tree order.
-                auto descendant_docs = realm.heap().allocate<GC::HeapVector<GC::Ref<DOM::Document>>>();
+                auto descendant_docs = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<DOM::Document>>>();
                 for (auto& descendant : exit.doc->descendant_navigables()) {
                     if (descendant->active_document()->fullscreen_element())
                         descendant_docs->elements().append(*descendant->active_document());

@@ -33,7 +33,9 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/RadioNodeList.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SubmitEvent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Page/Page.h>
@@ -48,12 +50,6 @@ HTMLFormElement::HTMLFormElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLFormElement::~HTMLFormElement() = default;
-
-void HTMLFormElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFormElement);
-    Base::initialize(realm);
-}
 
 void HTMLFormElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -97,7 +93,6 @@ WebIDL::ExceptionOr<void> HTMLFormElement::implicitly_submit_form()
 WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> submitter, SubmitFormOptions options)
 {
     auto& vm = this->vm();
-    auto& realm = this->realm();
 
     // 1. If form cannot navigate, then return.
     if (cannot_navigate())
@@ -160,7 +155,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         //    cancelable attribute initialized to true.
         Bindings::SubmitEventInit event_init {};
         event_init.submitter = submitter_button;
-        auto submit_event = SubmitEvent::create(realm, EventNames::submit, event_init);
+        auto submit_event = SubmitEvent::create(EventNames::submit, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         submit_event->set_bubbles(true);
         submit_event->set_cancelable(true);
         bool should_continue = dispatch_event(*submit_event);
@@ -182,7 +177,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     auto encoding = TRY_OR_THROW_OOM(vm, pick_an_encoding());
 
     // 7. Let entry list be the result of constructing the entry list with form, submitter, and encoding.
-    auto entry_list_or_null = TRY(construct_entry_list(realm, *this, submitter, encoding));
+    auto entry_list_or_null = TRY(construct_entry_list(*this, submitter, encoding));
 
     // 8. Assert: entry list is not null.
     VERIFY(entry_list_or_null.has_value());
@@ -341,7 +336,9 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 void HTMLFormElement::reset_form()
 {
     // 1. Let reset be the result of firing an event named reset at form, with the bubbles and cancelable attributes initialized to true.
-    auto reset_event = DOM::Event::create(realm(), HTML::EventNames::reset);
+    auto reset_event = DOM::Event::create(
+        HTML::EventNames::reset,
+        HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
     reset_event->set_bubbles(true);
     reset_event->set_cancelable(true);
 
@@ -375,7 +372,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::request_submit(GC::Ptr<Element> submi
 
         // 2. If submitter's form owner is not this form element, then throw a "NotFoundError" DOMException.
         if (form_associated_element->form() != this)
-            return WebIDL::NotFoundError::create(realm(), "The submitter is not owned by this form element"_utf16);
+            return WebIDL::NotFoundError::create(HTML::relevant_realm(*this), "The submitter is not owned by this form element"_utf16);
     }
     // 2. Otherwise, set submitter to this form element.
     else {
@@ -574,8 +571,10 @@ HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_con
     for (auto& field : invalid_controls) {
         // 1. Let notCanceled be the result of firing an event named invalid at field, with the cancelable attribute
         // initialized to true.
-        auto not_canceled = field->dispatch_event(DOM::Event::create(this->realm(),
-            EventNames::invalid, { .cancelable = true }));
+        auto not_canceled = field->dispatch_event(DOM::Event::create(
+            EventNames::invalid,
+            { .cancelable = true },
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
         // 2. If notCanceled is true, then add field to unhandled invalid controls.
         if (not_canceled)
             unhandled_invalid_controls.append(field);
@@ -997,12 +996,12 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-item
-Optional<JS::Value> HTMLFormElement::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> HTMLFormElement::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property for a form element, the user agent must return the value returned by
     // the item method on the elements collection, when invoked with the given index as its argument.
     if (auto value = elements()->item(index))
-        return Bindings::wrap(realm, GC::Ref { *value });
+        return Bindings::wrap(wrapper_world, realm, GC::Ref { *value });
     return {};
 }
 
@@ -1106,7 +1105,7 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-nameditem
-JS::Value HTMLFormElement::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value HTMLFormElement::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
 {
     auto& root = as<ParentNode>(this->root());
 
@@ -1115,7 +1114,7 @@ JS::Value HTMLFormElement::named_item_value(JS::Realm& realm, FlyString const& n
     // 1. Let candidates be a live RadioNodeList object containing all the listed elements, whose form owner is the form
     //    element, that have either an id attribute or a name attribute equal to name, with the exception of input
     //    elements whose type attribute is in the Image Button state, in tree order.
-    auto candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+    auto candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
         if (!is<DOM::Element>(node))
             return false;
         auto const& element = static_cast<DOM::Element const&>(node);
@@ -1132,7 +1131,7 @@ JS::Value HTMLFormElement::named_item_value(JS::Realm& realm, FlyString const& n
     //    whose form owner is the form element, that have either an id attribute or a name attribute equal to name,
     //    in tree order.
     if (candidates->length() == 0) {
-        candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+        candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
             if (!is<HTMLImageElement>(node))
                 return false;
 
@@ -1150,12 +1149,12 @@ JS::Value HTMLFormElement::named_item_value(JS::Realm& realm, FlyString const& n
     if (length == 0) {
         auto it = m_past_names_map.find(name);
         if (it != m_past_names_map.end())
-            return Bindings::wrap(realm, GC::Ref { const_cast<DOM::Node&>(*it->value.node) });
+            return Bindings::wrap(wrapper_world, realm, GC::Ref { const_cast<DOM::Node&>(*it->value.node) });
     }
 
     // 4. If candidates contains more than one node, return candidates.
     if (length > 1)
-        return Bindings::wrap(realm, candidates).ptr();
+        return Bindings::wrap(wrapper_world, realm, candidates).ptr();
 
     // 5. Otherwise, candidates contains exactly one node. Add a mapping from name to the node in candidates in the form
     //    element's past names map, replacing the previous entry with the same name, if any.
@@ -1163,7 +1162,7 @@ JS::Value HTMLFormElement::named_item_value(JS::Realm& realm, FlyString const& n
     m_past_names_map.set(name, HTMLFormElement::PastNameEntry { .node = node, .insertion_time = MonotonicTime::now() });
 
     // 6. Return the node in candidates.
-    return Bindings::wrap(realm, GC::Ref { const_cast<DOM::Node&>(*node) });
+    return Bindings::wrap(wrapper_world, realm, GC::Ref { const_cast<DOM::Node&>(*node) });
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#default-button

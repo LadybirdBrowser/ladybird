@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/HTML/Window.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/StorageAPI/StorageManager.h>
 
 namespace Web::StorageAPI {
 
 GC_DEFINE_ALLOCATOR(StorageManager);
 
-WebIDL::ExceptionOr<GC::Ref<StorageManager>> StorageManager::create(JS::Realm& realm)
+GC::Ref<StorageManager> StorageManager::create()
 {
-    return realm.create<StorageManager>(realm);
+    return GC::Heap::the().allocate<StorageManager>();
 }
 
-StorageManager::StorageManager(JS::Realm& realm)
-    : Wrappable(realm)
+StorageManager::StorageManager()
+    : Bindings::Wrappable()
 {
 }
 

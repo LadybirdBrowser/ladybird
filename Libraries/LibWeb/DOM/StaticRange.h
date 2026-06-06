@@ -16,7 +16,7 @@ class StaticRange final : public AbstractRange {
     GC_DECLARE_ALLOCATOR(StaticRange);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<StaticRange>> construct_impl(JS::Realm&, Bindings::StaticRangeInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<StaticRange>> construct_impl(Bindings::StaticRangeInit const&);
 
     StaticRange(Node& start_container, u32 start_offset, Node& end_container, u32 end_offset);
     virtual ~StaticRange() override;

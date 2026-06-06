@@ -18,9 +18,10 @@ GC_DEFINE_ALLOCATOR(WrapperWorld);
 static void verify_cache_entry(WrapperWorld const& world, Wrappable const& wrappable, PlatformObject const& wrapper)
 {
     VERIFY(wrapper.realm().host_defined());
-    VERIFY(&host_defined_wrapper_world(wrapper.realm()) == &world);
     if (world.is_main_world())
-        VERIFY(&wrapper.realm() == &wrappable.realm());
+        VERIFY(host_defined_wrapper_world(wrapper.realm()).is_main_world());
+    else
+        VERIFY(&host_defined_wrapper_world(wrapper.realm()) == &world);
     VERIFY(wrappable_impl_from(&wrapper) == &wrappable);
 }
 

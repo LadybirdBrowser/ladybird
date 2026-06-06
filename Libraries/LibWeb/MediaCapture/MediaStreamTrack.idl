@@ -15,5 +15,5 @@ interface MediaStreamTrack : EventTarget {
     MediaTrackCapabilities getCapabilities();
     MediaTrackConstraints getConstraints();
     MediaTrackSettings getSettings();
-    Promise<undefined> applyConstraints(optional MediaTrackConstraints constraints = {});
+    [NeedsThisObjectRealm] Promise<undefined> applyConstraints(optional MediaTrackConstraints constraints = {});
 };

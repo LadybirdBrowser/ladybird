@@ -29,7 +29,7 @@ public:
     Utf16String const& language() const { return m_language; }
 
 protected:
-    MediaTrackBase(JS::Realm&, GC::Ref<HTMLMediaElement>, Media::Track const&);
+    MediaTrackBase(GC::Ref<HTMLMediaElement>, Media::Track const&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

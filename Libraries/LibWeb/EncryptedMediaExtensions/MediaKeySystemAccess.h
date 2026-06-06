@@ -22,13 +22,13 @@ class MediaKeySystemAccess : public Bindings::Wrappable {
 
 public:
     virtual ~MediaKeySystemAccess() override;
-    [[nodiscard]] static GC::Ref<MediaKeySystemAccess> create(JS::Realm&, Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
+    [[nodiscard]] static GC::Ref<MediaKeySystemAccess> create(Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
 
     [[nodiscard]] Utf16String key_system() const { return m_key_system; }
     [[nodiscard]] Bindings::MediaKeySystemConfiguration get_configuration() const { return m_configuration; }
 
 protected:
-    explicit MediaKeySystemAccess(JS::Realm&, Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
+    explicit MediaKeySystemAccess(Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
 
 private:
     Utf16String m_key_system;

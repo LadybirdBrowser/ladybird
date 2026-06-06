@@ -18,7 +18,7 @@ class MessageChannel final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MessageChannel);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<MessageChannel>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<MessageChannel>> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
     virtual ~MessageChannel() override;
 
     MessagePort* port1();
@@ -28,7 +28,7 @@ public:
     MessagePort const* port2() const;
 
 private:
-    explicit MessageChannel(JS::Realm&);
+    MessageChannel(GC::Ref<MessagePort>, GC::Ref<MessagePort>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

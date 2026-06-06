@@ -22,17 +22,17 @@ class CredentialsContainer final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CredentialsContainer);
 
 public:
-    [[nodiscard]] static GC::Ref<CredentialsContainer> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CredentialsContainer> create();
 
     virtual ~CredentialsContainer() override;
 
-    GC::Ref<WebIDL::Promise> get(Bindings::CredentialRequestOptions const& options);
-    GC::Ref<WebIDL::Promise> store(Credential const& credential);
-    GC::Ref<WebIDL::Promise> create(Bindings::CredentialCreationOptions const& options);
-    GC::Ref<WebIDL::Promise> prevent_silent_access();
+    GC::Ref<WebIDL::Promise> get(JS::Realm&, Bindings::CredentialRequestOptions const& options);
+    GC::Ref<WebIDL::Promise> store(JS::Realm&, Credential const& credential);
+    GC::Ref<WebIDL::Promise> create(JS::Realm&, Bindings::CredentialCreationOptions const& options);
+    GC::Ref<WebIDL::Promise> prevent_silent_access(JS::Realm&);
 
 private:
-    explicit CredentialsContainer(JS::Realm&);
+    CredentialsContainer();
 };
 
 }

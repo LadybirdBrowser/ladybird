@@ -21,13 +21,10 @@ class HTMLDocument final : public DOM::Document {
 public:
     virtual ~HTMLDocument() override;
 
-    [[nodiscard]] static GC::Ref<HTMLDocument> create(JS::Realm&, URL::URL const& url = URL::about_blank());
-    WebIDL::ExceptionOr<GC::Ref<HTMLDocument>> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<HTMLDocument> create(Page&, GC::Ref<DOM::EventTarget> relevant_global_event_target, URL::URL const& url = URL::about_blank());
 
 private:
-    virtual void initialize(JS::Realm&) override;
-
-    HTMLDocument(JS::Realm&, URL::URL const&);
+    HTMLDocument(Page&, GC::Ref<DOM::EventTarget> relevant_global_event_target, URL::URL const&);
 };
 
 }

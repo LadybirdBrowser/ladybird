@@ -59,7 +59,7 @@ public:
 protected:
     AsyncIterator(JS::Realm&, JS::Object::PropertyKind);
 
-    JS::Realm& realm() const { return shape().realm(); }
+    JS::Realm& promise_realm() const { return shape().realm(); }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

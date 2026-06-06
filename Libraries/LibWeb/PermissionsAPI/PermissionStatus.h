@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Permissions.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -19,7 +18,7 @@ class WEB_API PermissionStatus : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(PermissionStatus);
 
 public:
-    static GC::Ref<PermissionStatus> create(JS::Realm&, Bindings::PermissionDescriptor);
+    static GC::Ref<PermissionStatus> create(GC::Ref<DOM::EventTarget> relevant_global_object, Bindings::PermissionDescriptor);
 
     // https://w3c.github.io/permissions/#dom-permissionstatus-state
     Bindings::PermissionState state() const { return m_state; }
@@ -38,15 +37,18 @@ public:
     GC::Ptr<WebIDL::CallbackType> onchange();
 
 private:
-    PermissionStatus(JS::Realm&, String const&, Bindings::PermissionDescriptor const&);
-
-    virtual void initialize(JS::Realm&) override;
+    PermissionStatus(GC::Ref<DOM::EventTarget> relevant_global_object, String const&,
+        Bindings::PermissionDescriptor const&);
+    JS::Object& relevant_global_object() const;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     String m_name;
     Bindings::PermissionState m_state { Bindings::PermissionState::Prompt };
 
     // https://w3c.github.io/permissions/#dfn-query
     Bindings::PermissionDescriptor m_query;
+
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

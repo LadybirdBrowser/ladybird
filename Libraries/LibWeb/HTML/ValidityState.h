@@ -18,7 +18,7 @@ class ValidityState final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ValidityState);
 
 public:
-    [[nodiscard]] static GC::Ref<ValidityState> create(JS::Realm&, FormAssociatedElement const&);
+    [[nodiscard]] static GC::Ref<ValidityState> create(FormAssociatedElement const&);
 
     virtual ~ValidityState() override = default;
 
@@ -46,7 +46,7 @@ public:
     bool valid() const;
 
 private:
-    ValidityState(JS::Realm&, FormAssociatedElement const&);
+    ValidityState(FormAssociatedElement const&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ReadableByteStreamController.h>
@@ -36,14 +37,14 @@ Optional<double> ReadableByteStreamController::desired_size() const
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-byob-request
-GC::Ptr<ReadableStreamBYOBRequest> ReadableByteStreamController::byob_request()
+GC::Ptr<ReadableStreamBYOBRequest> ReadableByteStreamController::byob_request(JS::Realm& realm)
 {
     // 1. Return ! ReadableByteStreamControllerGetBYOBRequest(this).
-    return readable_byte_stream_controller_get_byob_request(*this);
+    return readable_byte_stream_controller_get_byob_request(realm, *this);
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-close
-WebIDL::ExceptionOr<void> ReadableByteStreamController::close()
+WebIDL::ExceptionOr<void> ReadableByteStreamController::close(JS::Realm& realm)
 {
     // 1. If this.[[closeRequested]] is true, throw a TypeError exception.
     if (m_close_requested)
@@ -56,7 +57,7 @@ WebIDL::ExceptionOr<void> ReadableByteStreamController::close()
     }
 
     // 3. Perform ? ReadableByteStreamControllerClose(this).
-    TRY(readable_byte_stream_controller_close(*this));
+    TRY(readable_byte_stream_controller_close(realm, *this));
 
     return {};
 }
@@ -68,17 +69,14 @@ void ReadableByteStreamController::error(Optional<JS::Value> error)
     readable_byte_stream_controller_error(*this, error.value_or(JS::js_undefined()));
 }
 
-ReadableByteStreamController::ReadableByteStreamController(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
-{
-}
-
 // https://streams.spec.whatwg.org/#rbs-controller-enqueue
-WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(WebIDL::ArrayBufferView chunk)
+WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(JS::Realm& realm, WebIDL::ArrayBufferViewVariant const& chunk)
 {
+    WebIDL::ArrayBufferView chunk_view { chunk };
+
     // 1. If chunk.[[ByteLength]] is 0, throw a TypeError exception.
     // 2. If chunk.[[ViewedArrayBuffer]].[[ByteLength]] is 0, throw a TypeError exception.
-    if (chunk.byte_length() == 0 || chunk.viewed_array_buffer()->byte_length() == 0)
+    if (chunk_view.byte_length() == 0 || chunk_view.viewed_array_buffer()->byte_length() == 0)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot enqueue chunk with byte length of zero"sv };
 
     // 3. If this.[[closeRequested]] is true, throw a TypeError exception.
@@ -90,7 +88,8 @@ WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(WebIDL::ArrayBuf
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Stream is not readable"sv };
 
     // 5. Return ? ReadableByteStreamControllerEnqueue(this, chunk).
-    return readable_byte_stream_controller_enqueue(*this, chunk.array_buffer_view().visit([](auto const& object) -> JS::Value { return object; }));
+    auto chunk_object = chunk.visit([](auto const& view) -> GC::Ref<JS::Object> { return view; });
+    return readable_byte_stream_controller_enqueue(realm, *this, chunk_object);
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-private-cancel
@@ -113,10 +112,8 @@ GC::Ref<WebIDL::Promise> ReadableByteStreamController::cancel_steps(JS::Value re
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-private-pull
-void ReadableByteStreamController::pull_steps(GC::Ref<ReadRequest> read_request)
+void ReadableByteStreamController::pull_steps(JS::Realm& realm, GC::Ref<ReadRequest> read_request)
 {
-    auto& realm = this->realm();
-
     // 1. Let stream be this.[[stream]].
 
     // 2. Assert: ! ReadableStreamHasDefaultReader(stream) is true.
@@ -128,7 +125,7 @@ void ReadableByteStreamController::pull_steps(GC::Ref<ReadRequest> read_request)
         VERIFY(readable_stream_get_num_read_requests(*m_stream) == 0);
 
         // 2. Perform ! ReadableByteStreamControllerFillReadRequestFromQueue(this, readRequest).
-        readable_byte_stream_controller_fill_read_request_from_queue(*this, read_request);
+        readable_byte_stream_controller_fill_read_request_from_queue(realm, *this, read_request);
 
         // 3. Return.
         return;
@@ -152,7 +149,7 @@ void ReadableByteStreamController::pull_steps(GC::Ref<ReadRequest> read_request)
 
         // 3. Let pullIntoDescriptor be a new pull-into descriptor with buffer buffer.[[Value]], buffer byte length autoAllocateChunkSize, byte offset 0,
         //    byte length autoAllocateChunkSize, bytes filled 0, element size 1, view constructor %Uint8Array%, and reader type "default".
-        auto pull_into_descriptor = realm.heap().allocate<PullIntoDescriptor>(
+        auto pull_into_descriptor = GC::Heap::the().allocate<PullIntoDescriptor>(
             buffer.release_value(),
             *m_auto_allocate_chunk_size,
             0,

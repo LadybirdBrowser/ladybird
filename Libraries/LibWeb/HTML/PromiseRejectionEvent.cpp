@@ -4,27 +4,35 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PromiseRejectionEvent);
 
-GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
 {
-    auto event = realm.create<PromiseRejectionEvent>(realm, event_name, event_init);
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = GC::Heap::the().allocate<PromiseRejectionEvent>(event_name, event_init, time_stamp);
     event->set_is_trusted(true);
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(WindowOrWorkerGlobalScopeMixin& global_scope, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
 {
-    return realm.create<PromiseRejectionEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<PromiseRejectionEvent>(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(global_scope)));
 }
 
-PromiseRejectionEvent::PromiseRejectionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+PromiseRejectionEvent::PromiseRejectionEvent(FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_promise(*event_init.promise)
     , m_reason(event_init.reason.value_or(JS::js_undefined()))
 {

@@ -17,16 +17,16 @@ class DOMStringList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(DOMStringList);
 
 public:
-    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<String>);
+    static GC::Ref<DOMStringList> create(Vector<String>);
 
     u32 length() const;
     Optional<String> item(u32 index) const;
     bool contains(StringView string);
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
 private:
-    explicit DOMStringList(JS::Realm&, Vector<String>);
+    explicit DOMStringList(Vector<String>);
 
     Vector<String> m_list;
 };

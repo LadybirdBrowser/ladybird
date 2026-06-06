@@ -6,9 +6,17 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/BufferedChangeEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/TimeRanges.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
 
 namespace Web::MediaSourceExtensions {
 
@@ -18,10 +26,10 @@ class BufferedChangeEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(BufferedChangeEvent);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> construct_impl(JS::Realm&, FlyString const& type, Bindings::BufferedChangeEventInit const& = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const& type, Bindings::BufferedChangeEventInit const& = {});
 
 private:
-    BufferedChangeEvent(JS::Realm&, FlyString const& type, Bindings::BufferedChangeEventInit const&);
+    BufferedChangeEvent(FlyString const& type, Bindings::BufferedChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~BufferedChangeEvent() override;
 };

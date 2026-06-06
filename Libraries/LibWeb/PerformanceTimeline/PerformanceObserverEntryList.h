@@ -17,14 +17,16 @@ class PerformanceObserverEntryList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(PerformanceObserverEntryList);
 
 public:
+    static GC::Ref<PerformanceObserverEntryList> create(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&&);
+
     virtual ~PerformanceObserverEntryList() override;
 
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
-    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries(JS::Realm&) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(JS::Realm&, String const& type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(JS::Realm&, String const& name, Optional<String> type) const;
 
 private:
-    PerformanceObserverEntryList(JS::Realm&, Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&&);
+    explicit PerformanceObserverEntryList(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebVTT/VTTCue.h>
 
@@ -13,10 +13,10 @@ namespace Web::WebVTT {
 GC_DEFINE_ALLOCATOR(VTTCue);
 
 // https://w3c.github.io/webvtt/#dom-vttcue-vttcue
-WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, double start_time, double end_time, String const& text)
+WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(double start_time, double end_time, String const& text)
 {
     // 1. Create a new WebVTT cue. Let cue be that WebVTT cue.
-    auto cue = realm.create<VTTCue>(realm, nullptr);
+    auto cue = GC::Heap::the().allocate<VTTCue>(nullptr);
 
     // 2. Let cue’s text track cue start time be the value of the startTime argument.
     cue->m_start_time = start_time;
@@ -69,15 +69,9 @@ WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, do
     return cue;
 }
 
-VTTCue::VTTCue(JS::Realm& realm, GC::Ptr<HTML::TextTrack> track)
-    : HTML::TextTrackCue(realm, track)
+VTTCue::VTTCue(GC::Ptr<HTML::TextTrack> track)
+    : HTML::TextTrackCue(track)
 {
-}
-
-void VTTCue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(VTTCue);
-    Base::initialize(realm);
 }
 
 void VTTCue::visit_edges(Visitor& visitor)

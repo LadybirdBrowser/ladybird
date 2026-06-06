@@ -25,7 +25,7 @@ class MediaDeviceInfo final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MediaDeviceInfo);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(JS::Realm&, String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
+    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
     virtual ~MediaDeviceInfo() override;
 
     String device_id() const { return m_device_id; }
@@ -34,7 +34,7 @@ public:
     String group_id() const { return m_group_id; }
 
 private:
-    MediaDeviceInfo(JS::Realm&, String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
+    MediaDeviceInfo(String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
 
     String m_device_id;
     Bindings::MediaDeviceKind m_kind;

@@ -25,12 +25,10 @@ public:
     GC::Ptr<TextTrackCue> get_cue_by_id(StringView id) const;
 
 private:
-    TextTrackCueList(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    TextTrackCueList();
     virtual void visit_edges(Visitor&) override;
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     Vector<GC::Ref<TextTrackCue>> m_cues;
 };

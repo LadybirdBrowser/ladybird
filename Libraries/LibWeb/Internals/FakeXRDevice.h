@@ -18,7 +18,7 @@ class WEB_API FakeXRDevice final : public InternalsBase {
     GC_DECLARE_ALLOCATOR(FakeXRDevice);
 
 public:
-    static GC::Ref<FakeXRDevice> create(JS::Realm&);
+    static GC::Ref<FakeXRDevice> create(HTML::Window&);
     virtual ~FakeXRDevice() override;
 
     void simulate_user_activation(GC::Ref<WebIDL::CallbackType>) const;
@@ -26,7 +26,7 @@ public:
     GC::Ref<WebIDL::Promise> disconnect() const;
 
 private:
-    explicit FakeXRDevice(JS::Realm&);
+    explicit FakeXRDevice(HTML::Window&);
 };
 
 }

@@ -18,7 +18,7 @@ class XPathNSResolver final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(XPathNSResolver);
 
 public:
-    [[nodiscard]] static GC::Ref<XPathNSResolver> create(JS::Realm&, GC::Ref<WebIDL::CallbackType>);
+    [[nodiscard]] static GC::Ref<XPathNSResolver> create(GC::Ref<WebIDL::CallbackType>);
 
     virtual ~XPathNSResolver() = default;
 

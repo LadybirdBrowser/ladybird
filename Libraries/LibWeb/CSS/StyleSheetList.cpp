@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
@@ -128,13 +129,11 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
 
 GC::Ref<StyleSheetList> StyleSheetList::create(GC::Ref<DOM::Node> document_or_shadow_root)
 {
-    auto& realm = document_or_shadow_root->realm();
-    return realm.create<StyleSheetList>(document_or_shadow_root);
+    return GC::Heap::the().allocate<StyleSheetList>(document_or_shadow_root);
 }
 
 StyleSheetList::StyleSheetList(GC::Ref<DOM::Node> document_or_shadow_root)
-    : Bindings::Wrappable(document_or_shadow_root->realm())
-    , m_document_or_shadow_root(document_or_shadow_root)
+    : m_document_or_shadow_root(document_or_shadow_root)
 {
 }
 
@@ -145,12 +144,12 @@ void StyleSheetList::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_sheets);
 }
 
-Optional<JS::Value> StyleSheetList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> StyleSheetList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     if (index >= m_sheets.size())
         return {};
 
-    return Bindings::wrap(realm, m_sheets[index]);
+    return Bindings::wrap(wrapper_world, realm, m_sheets[index]);
 }
 
 DOM::Document& StyleSheetList::document()

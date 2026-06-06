@@ -18,7 +18,7 @@ class NavigationTransition : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(NavigationTransition);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationTransition> create(JS::Realm&, Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
+    [[nodiscard]] static GC::Ref<NavigationTransition> create(Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationtransition-navigationtype
     Bindings::NavigationType navigation_type() const
@@ -58,7 +58,7 @@ public:
     virtual ~NavigationTransition() override;
 
 private:
-    NavigationTransition(JS::Realm&, Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
+    NavigationTransition(Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

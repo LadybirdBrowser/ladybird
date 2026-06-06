@@ -25,7 +25,7 @@ interface HTMLElement : Element {
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString innerText;
     [LegacyNullToEmptyString, CEReactions] attribute Utf16DOMString outerText;
 
-    ElementInternals attachInternals();
+    [NeedsCallerRealm] ElementInternals attachInternals();
 
     // The popover API
     [ImplementedAs=show_popover_for_bindings] undefined showPopover(optional ShowPopoverOptions options = {});

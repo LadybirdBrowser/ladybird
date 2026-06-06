@@ -28,8 +28,10 @@ class Response final
     GC_DECLARE_ALLOCATOR(Response);
 
 public:
-    [[nodiscard]] static GC::Ref<Response> create(JS::Realm&, GC::Ref<Infrastructure::Response>, Headers::Guard);
-    static WebIDL::ExceptionOr<GC::Ref<Response>> construct_impl(JS::Realm&, NullableBodyInit const& body = { Empty {} }, Bindings::ResponseInit const& init = {});
+    [[nodiscard]] static GC::Ref<Response> create(GC::Ref<Infrastructure::Response>);
+    [[nodiscard]] static GC::Ref<Response> create(GC::Ref<Infrastructure::Response>, Headers::Guard);
+    static WebIDL::ExceptionOr<GC::Ref<Response>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, NullableBodyInit const& body = { Empty {} }, Bindings::ResponseInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Response>> construct_impl_for_realm(JS::Realm&, NullableBodyInit const& body = { Empty {} }, Bindings::ResponseInit const& init = {});
 
     virtual ~Response() override;
 
@@ -37,15 +39,13 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
     virtual GC::Ptr<Infrastructure::Body> body_impl() override;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
-    virtual Bindings::Wrappable& as_wrappable() override { return *this; }
-    virtual Bindings::Wrappable const& as_wrappable() const override { return *this; }
 
     [[nodiscard]] GC::Ref<Infrastructure::Response> response() const { return m_response; }
 
     // JS API functions
     [[nodiscard]] static GC::Ref<Response> error(JS::VM&);
     static WebIDL::ExceptionOr<GC::Ref<Response>> redirect(JS::VM&, String const& url, u16 status);
-    static WebIDL::ExceptionOr<GC::Ref<Response>> json(JS::VM&, JS::Value data, Bindings::ResponseInit const& init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Response>> json(JS::Realm&, JS::Value data, Bindings::ResponseInit const& init = {});
     [[nodiscard]] Bindings::ResponseType type() const;
     [[nodiscard]] String url() const;
     [[nodiscard]] bool redirected() const;
@@ -53,13 +53,13 @@ public:
     [[nodiscard]] bool ok() const;
     [[nodiscard]] String status_text() const;
     [[nodiscard]] GC::Ref<Headers> headers() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Response>> clone() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Response>> clone(JS::Realm&) const;
 
     // Pull in json() from the BodyMixin, which gets lost due to the static json() above
     using BodyMixin::json;
 
 private:
-    Response(JS::Realm&, GC::Ref<Infrastructure::Response>);
+    explicit Response(GC::Ref<Infrastructure::Response>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

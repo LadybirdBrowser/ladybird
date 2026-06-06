@@ -29,8 +29,6 @@ public:
 
 private:
     SVGAElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_svg_a_element() const override { return true; }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -15,6 +16,7 @@
 #include <LibWeb/Bindings/MediaDevices.h>
 #include <LibWeb/Bindings/MediaStream.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
@@ -22,6 +24,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaCapture/MediaDeviceInfo.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
@@ -44,27 +47,17 @@ static void resolve_with_device_info_list(JS::Realm& realm, WebIDL::Promise& pro
 
 GC_DEFINE_ALLOCATOR(MediaDevices);
 
-GC::Ref<MediaDevices> MediaDevices::create(JS::Realm& realm)
+GC::Ref<MediaDevices> MediaDevices::create(HTML::Window& window)
 {
-    return realm.create<MediaDevices>(realm);
+    auto media_devices = GC::Heap::the().allocate<MediaDevices>(window);
+    media_devices->initialize_pending_request_state_change_listener();
+    return media_devices;
 }
 
-MediaDevices::MediaDevices(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+MediaDevices::MediaDevices(HTML::Window& window)
+    : DOM::EventTarget()
+    , m_window(window)
 {
-    auto pending_request_state_change_callback_function = JS::NativeFunction::create(realm, [media_devices = GC::Ref(*this)](JS::VM&) {
-        media_devices->process_pending_enumerate_devices_requests();
-        media_devices->process_pending_get_user_media_requests();
-        return JS::js_undefined(); }, 0, Utf16FlyString {}, &realm);
-
-    auto pending_request_state_change_callback = realm.heap().allocate<WebIDL::CallbackType>(*pending_request_state_change_callback_function, realm);
-    m_pending_request_state_change_listener = DOM::IDLEventListener::create(realm, pending_request_state_change_callback);
-
-    auto& window = HTML::relevant_window(realm.global_object());
-    window.associated_document().add_event_listener_without_options(HTML::EventNames::visibilitychange, *m_pending_request_state_change_listener);
-    window.add_event_listener_without_options(HTML::EventNames::focus, *m_pending_request_state_change_listener);
-    window.add_event_listener_without_options(HTML::EventNames::blur, *m_pending_request_state_change_listener);
-
     m_audio_device_cache_listener_id = Media::AudioDevices::the().add_devices_changed_listener([this] {
         did_observe_audio_device_cache_update();
     });
@@ -72,16 +65,26 @@ MediaDevices::MediaDevices(JS::Realm& realm)
     did_observe_audio_device_cache_update();
 }
 
-void MediaDevices::initialize(JS::Realm& realm)
+void MediaDevices::initialize_pending_request_state_change_listener()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaDevices);
-    Base::initialize(realm);
+    auto& realm = m_window->realm();
+    auto pending_request_state_change_callback_function = JS::NativeFunction::create(realm, [media_devices = GC::Ref(*this)](JS::VM&) {
+        media_devices->process_pending_enumerate_devices_requests();
+        media_devices->process_pending_get_user_media_requests();
+        return JS::js_undefined(); }, 0, Utf16FlyString {}, &realm);
+
+    auto pending_request_state_change_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*pending_request_state_change_callback_function, realm);
+    m_pending_request_state_change_listener = DOM::IDLEventListener::create(pending_request_state_change_callback);
+
+    m_window->associated_document().add_event_listener_without_options(HTML::EventNames::visibilitychange, *m_pending_request_state_change_listener);
+    m_window->add_event_listener_without_options(HTML::EventNames::focus, *m_pending_request_state_change_listener);
+    m_window->add_event_listener_without_options(HTML::EventNames::blur, *m_pending_request_state_change_listener);
 }
 
 void MediaDevices::finalize()
 {
     if (m_pending_request_state_change_listener) {
-        auto& window = HTML::relevant_window(realm().global_object());
+        auto& window = *m_window;
         window.associated_document().remove_event_listener_without_options(HTML::EventNames::visibilitychange, *m_pending_request_state_change_listener);
         window.remove_event_listener_without_options(HTML::EventNames::focus, *m_pending_request_state_change_listener);
         window.remove_event_listener_without_options(HTML::EventNames::blur, *m_pending_request_state_change_listener);
@@ -95,6 +98,7 @@ void MediaDevices::finalize()
 void MediaDevices::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_window);
     visitor.visit(m_pending_enumerate_devices_promises);
     for (auto const& request : m_pending_get_user_media_requests)
         visitor.visit(request.promise);
@@ -131,13 +135,13 @@ bool MediaDevices::camera_information_can_be_exposed() const
 
 bool MediaDevices::can_use_microphone_feature() const
 {
-    auto const& document = HTML::relevant_window(realm().global_object()).associated_document();
+    auto const& document = m_window->associated_document();
     return document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Microphone);
 }
 
 bool MediaDevices::can_use_camera_feature() const
 {
-    auto const& document = HTML::relevant_window(realm().global_object()).associated_document();
+    auto const& document = m_window->associated_document();
     return document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Camera);
 }
 
@@ -153,12 +157,12 @@ bool MediaDevices::device_enumeration_can_proceed()
 
 bool MediaDevices::get_user_media_can_proceed() const
 {
-    return is_in_view() && HTML::relevant_window(realm().global_object()).associated_document().has_focus();
+    return is_in_view() && m_window->associated_document().has_focus();
 }
 
 bool MediaDevices::is_in_view() const
 {
-    auto const& document = HTML::relevant_window(realm().global_object()).associated_document();
+    auto const& document = m_window->associated_document();
     return document.is_fully_active() && document.visibility_state_value() == HTML::VisibilityState::Visible;
 }
 
@@ -201,13 +205,12 @@ void MediaDevices::set_device_information_exposure(bool audio_requested, bool vi
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
 void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<Vector<String>> requested_device_ids)
 {
-    JS::Realm& realm = this->realm();
     GC::Ref<MediaDevices> media_devices = *this;
 
     // FIXME: Add camera/video
     Vector<Media::AudioDeviceInfo> audio_input_devices = Media::AudioDevices::the().input_devices();
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [promise = GC::Root(promise), media_devices, requested_device_ids = move(requested_device_ids), audio_input_devices = move(audio_input_devices)] mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, requested_device_ids = move(requested_device_ids), audio_input_devices = move(audio_input_devices)] mutable {
         JS::Realm& realm = HTML::relevant_realm(*promise->promise());
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -270,7 +273,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         final_set = move(candidate_set);
 
         // 11.4 Let stream be a new and empty MediaStream object.
-        GC::Ref<MediaStream> stream = MediaStream::create(realm);
+        GC::Ref<MediaStream> stream = MediaStream::create();
 
         // 11.5 For each media type kind in requestedMediaTypes, run the following sub steps, preferably at the same time.
 
@@ -306,7 +309,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         media_devices->m_devices_accessible_map.set(granted_device_id, true);
 
         // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
-        GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(realm,
+        GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(
             Bindings::MediaStreamTrackKind::Audio,
             String::from_utf8_with_replacement_character(granted_device.label.view()));
 
@@ -317,7 +320,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         track->set_settings(move(settings));
 
         // 11.9.6 Add track to stream's track set.
-        stream->add_track(track);
+        stream->append_track(track);
 
         // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate constraints.
 
@@ -325,7 +328,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         media_devices->m_media_stream_track_sources.set(track->provider_id());
 
         // 11.12 Resolve p with stream and abort these steps.
-        WebIDL::resolve_promise(realm, *promise, Bindings::wrap(realm, stream));
+        WebIDL::resolve_promise(realm, *promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, stream));
 
         // 11.15 Permission Failure: Reject p with a new DOMException object whose name attribute has the value "NotAllowedError".
         (void)reject_permission_failure;
@@ -333,10 +336,8 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-enumeratedevices
-GC::Ref<WebIDL::Promise> MediaDevices::enumerate_devices()
+GC::Ref<WebIDL::Promise> MediaDevices::enumerate_devices(JS::Realm& realm)
 {
-    JS::Realm& realm = this->realm();
-
     // 1. Let p be a new promise.
     GC::Ref<WebIDL::Promise> promise = WebIDL::create_promise(realm);
     m_stored_device_list = current_audio_device_snapshot();
@@ -356,23 +357,20 @@ GC::Ref<WebIDL::Promise> MediaDevices::enumerate_devices()
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-enumeratedevices
 void MediaDevices::queue_enumerate_devices_task(GC::Ref<WebIDL::Promise> promise)
 {
-    JS::Realm& realm = this->realm();
     GC::Ref<MediaDevices> media_devices = *this;
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [promise = GC::Root(promise), media_devices] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices] {
         JS::Realm& realm = HTML::relevant_realm(*promise->promise());
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-        auto result_list = media_devices->create_list_of_device_info_objects(media_devices->m_stored_device_list);
+        auto result_list = media_devices->create_list_of_device_info_objects(realm, media_devices->m_stored_device_list);
         resolve_with_device_info_list(realm, *promise, result_list);
     }));
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-enumeratedevices
-GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_info_objects(Vector<StoredDevice> const& device_list)
+GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_info_objects(JS::Realm&, Vector<StoredDevice> const& device_list)
 {
-    JS::Realm& realm = this->realm();
-
     // To perform creating a list of device info objects, given mediaDevices and deviceList, run the following steps:
 
     // 1. Let resultList be an empty list.
@@ -384,7 +382,7 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
     GC::RootVector<GC::Ref<MediaDeviceInfo>> other_device_list;
 
     // 3. Let document be mediaDevices's relevant global object's associated Document.
-    auto const& document = HTML::relevant_window(realm.global_object()).associated_document();
+    auto const& document = m_window->associated_document();
     (void)document;
 
     auto create_device_info_object = [&](StoredDevice const& device) -> Optional<GC::Ref<MediaDeviceInfo>> {
@@ -407,7 +405,7 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
         }
         // FIXME: Implement videoinput creation when camera enumeration is available.
 
-        return MediaDeviceInfo::create(realm, move(device_id), *kind, move(label), move(group_id));
+        return MediaDeviceInfo::create(move(device_id), *kind, move(label), move(group_id));
     };
 
     // 4. Run the following sub steps for each discovered device in deviceList, device.
@@ -529,6 +527,8 @@ void MediaDevices::process_pending_get_user_media_requests()
 // https://w3c.github.io/mediacapture-main/#dfn-device-change-notification-steps
 void MediaDevices::run_device_change_notification_steps(Vector<StoredDevice> const& device_list)
 {
+    auto& realm = m_window->realm();
+
     // When new media input and/or output devices are made available to the User Agent, or any available
     // input and/or output device becomes unavailable, or the system default for input and/or output
     // devices of a MediaDeviceKind changed, the User Agent MUST run the following device change
@@ -539,13 +539,13 @@ void MediaDevices::run_device_change_notification_steps(Vector<StoredDevice> con
         return;
 
     // 1. Let lastExposedDevices be the result of creating a list of device info objects with mediaDevices and mediaDevices.[[storedDeviceList]].
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> last_exposed_devices = create_list_of_device_info_objects(m_stored_device_list);
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> last_exposed_devices = create_list_of_device_info_objects(realm, m_stored_device_list);
 
     // 2. Let deviceList be the list of all media input and/or output devices available to the User Agent.
     // device_list is the caller-provided snapshot.
 
     // 3. Let newExposedDevices be the result of creating a list of device info objects with mediaDevices and deviceList.
-    GC::RootVector<GC::Ref<MediaDeviceInfo>> new_exposed_devices = create_list_of_device_info_objects(device_list);
+    GC::RootVector<GC::Ref<MediaDeviceInfo>> new_exposed_devices = create_list_of_device_info_objects(realm, device_list);
 
     // 4. If the MediaDeviceInfo objects in newExposedDevices match those in lastExposedDevices and have
     //    the same order, then abort these steps.
@@ -570,9 +570,14 @@ void MediaDevices::run_device_change_notification_steps(Vector<StoredDevice> con
     // 6. Queue a task that fires an event named devicechange, using the DeviceChangeEvent constructor
     //    with devices initialized to newExposedDevices, at mediaDevices.
     // FIXME: Dispatch DeviceChangeEvent with devices once DeviceChangeEvent is implemented in LibWeb.
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(heap(), [media_devices = GC::Ref(*this)] {
-        media_devices->dispatch_event(DOM::Event::create(media_devices->realm(), HTML::EventNames::devicechange));
-    }));
+    auto& relevant_global_object = HTML::relevant_global_object(*m_window);
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation,
+        relevant_global_object,
+        GC::create_function(GC::Heap::the(),
+            [media_devices = GC::Ref(*this), relevant_global_object = GC::Ref(relevant_global_object)] {
+                media_devices->dispatch_event(DOM::Event::create(HTML::EventNames::devicechange,
+                    HighResolutionTime::current_high_resolution_time(*relevant_global_object)));
+            }));
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getsupportedconstraints
@@ -585,9 +590,8 @@ Bindings::MediaTrackSupportedConstraints MediaDevices::get_supported_constraints
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
-GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<Bindings::MediaStreamConstraints> const& constraints)
+GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(JS::Realm& realm, Optional<Bindings::MediaStreamConstraints> const& constraints)
 {
-    JS::Realm& realm = this->realm();
     JS::VM& vm = realm.vm();
 
     bool audio_requested = false;
@@ -620,7 +624,7 @@ GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<Bindings::MediaSt
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("No media types requested"sv));
 
     // 4. Let document be the relevant global object's associated Document.
-    auto const& document = HTML::relevant_window(realm.global_object()).associated_document();
+    auto const& document = m_window->associated_document();
 
     // 5. If document is NOT fully active, return a promise rejected with an InvalidStateError.
     if (!document.is_fully_active())
@@ -754,7 +758,7 @@ static void resolve_with_device_info_list(JS::Realm& realm, WebIDL::Promise& pro
     GC::Ref<JS::Array> array = MUST(JS::Array::create(realm, result_list.size()));
     for (size_t index = 0; index < result_list.size(); ++index) {
         JS::PropertyKey property_index { index };
-        if (array->create_data_property(property_index, Bindings::wrap(realm, result_list[index])).is_error()) {
+        if (array->create_data_property(property_index, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result_list[index])).is_error()) {
             WebIDL::reject_promise(realm, promise, WebIDL::OperationError::create(realm, "Failed to build enumerateDevices result"_utf16));
             return;
         }

@@ -22,7 +22,7 @@ class SpeculativeHTMLParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SpeculativeHTMLParser);
 
 public:
-    static GC::Ref<SpeculativeHTMLParser> create(JS::Realm&, GC::Ref<DOM::Document>, String pending_input, URL::URL base_url);
+    static GC::Ref<SpeculativeHTMLParser> create(GC::Ref<DOM::Document>, String pending_input, URL::URL base_url);
 
     virtual ~SpeculativeHTMLParser() override;
 

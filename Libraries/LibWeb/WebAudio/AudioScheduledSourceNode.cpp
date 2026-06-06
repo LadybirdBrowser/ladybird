@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/AudioScheduledSourceNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebAudio/AudioScheduledSourceNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/ControlMessage.h>
@@ -15,8 +16,8 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioScheduledSourceNode);
 
-AudioScheduledSourceNode::AudioScheduledSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
-    : AudioNode(realm, context)
+AudioScheduledSourceNode::AudioScheduledSourceNode(GC::Ref<BaseAudioContext> context)
+    : AudioNode(context)
 {
 }
 
@@ -39,7 +40,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
 {
     // 1. If this AudioScheduledSourceNode internal slot [[source started]] is true, an InvalidStateError exception MUST be thrown.
     if (source_started())
-        return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has already started"_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(relevant_global_object()), "AudioScheduledSourceNode source has already started"_utf16);
 
     // 2. Check for any errors that must be thrown due to parameter constraints described below.
     //    If any exception is thrown during this step, abort those steps.
@@ -63,7 +64,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
 {
     // 1. If this AudioScheduledSourceNode internal slot [[source started]] is not true, an InvalidStateError exception MUST be thrown.
     if (!m_source_started)
-        return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has not been started"_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(relevant_global_object()), "AudioScheduledSourceNode source has not been started"_utf16);
 
     // 2. Check for any errors that must be thrown due to parameter constraints described below.
     //    A RangeError exception MUST be thrown if when is negative.
@@ -74,12 +75,6 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
     context()->queue_control_message(StopSource { .node_id = node_id(), .when = when });
 
     return {};
-}
-
-void AudioScheduledSourceNode::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioScheduledSourceNode);
-    Base::initialize(realm);
 }
 
 void AudioScheduledSourceNode::visit_edges(Cell::Visitor& visitor)

@@ -15,22 +15,22 @@ namespace Web::ResizeObserver {
 GC_DEFINE_ALLOCATOR(ResizeObserverEntry);
 
 // https://drafts.csswg.org/resize-observer-1/#create-and-populate-resizeobserverentry-h
-WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(JS::Realm& realm, DOM::Element& target)
+WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(DOM::Element& target)
 {
     // 1. Let this be a new ResizeObserverEntry.
     // 2. Set this.target slot to target.
-    auto resize_observer_entry = realm.create<ResizeObserverEntry>(realm, target);
+    auto resize_observer_entry = GC::Heap::the().allocate<ResizeObserverEntry>(target);
 
     // 3. Set this.borderBoxSize slot to result of calculating box size given target and observedBox of "border-box".
-    auto border_box_size = ResizeObserverSize::calculate_box_size(realm, target, Bindings::ResizeObserverBoxOptions::BorderBox);
+    auto border_box_size = ResizeObserverSize::calculate_box_size(target, Bindings::ResizeObserverBoxOptions::BorderBox);
     resize_observer_entry->m_border_box_size.append(border_box_size);
 
     // 4. Set this.contentBoxSize slot to result of calculating box size given target and observedBox of "content-box".
-    auto content_box_size = ResizeObserverSize::calculate_box_size(realm, target, Bindings::ResizeObserverBoxOptions::ContentBox);
+    auto content_box_size = ResizeObserverSize::calculate_box_size(target, Bindings::ResizeObserverBoxOptions::ContentBox);
     resize_observer_entry->m_content_box_size.append(content_box_size);
 
     // 5. Set this.devicePixelContentBoxSize slot to result of calculating box size given target and observedBox of "device-pixel-content-box".
-    auto device_pixel_content_box_size = ResizeObserverSize::calculate_box_size(realm, target, Bindings::ResizeObserverBoxOptions::DevicePixelContentBox);
+    auto device_pixel_content_box_size = ResizeObserverSize::calculate_box_size(target, Bindings::ResizeObserverBoxOptions::DevicePixelContentBox);
     resize_observer_entry->m_device_pixel_content_box_size.append(device_pixel_content_box_size);
 
     // 6. Set this.contentRect to logical this.contentBoxSize given target and observedBox of "content-box".
@@ -55,7 +55,7 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_an
         // Set this.contentRect.top and this.contentRect.left to 0.
         // NOTE: This is already done by the default constructor.
     }
-    resize_observer_entry->m_content_rect = MUST(Geometry::DOMRectReadOnly::construct_impl(realm, x, y, width, height));
+    resize_observer_entry->m_content_rect = Geometry::DOMRectReadOnly::create(x, y, width, height);
 
     return resize_observer_entry;
 }

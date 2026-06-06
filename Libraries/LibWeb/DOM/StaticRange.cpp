@@ -6,6 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/StaticRange.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DocumentType.h>
@@ -24,17 +25,17 @@ StaticRange::StaticRange(Node& start_container, u32 start_offset, Node& end_cont
 StaticRange::~StaticRange() = default;
 
 // https://dom.spec.whatwg.org/#dom-staticrange-staticrange
-WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::construct_impl(JS::Realm& realm, Bindings::StaticRangeInit const& init)
+WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::construct_impl(Bindings::StaticRangeInit const& init)
 {
     // 1. If init["startContainer"] or init["endContainer"] is a DocumentType or Attr node, then throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*init.start_container) || is<Attr>(*init.start_container))
-        return WebIDL::InvalidNodeTypeError::create(realm, "startContainer cannot be a DocumentType or Attribute node."_utf16);
+        return WebIDL::InvalidNodeTypeError::create("startContainer cannot be a DocumentType or Attribute node."_utf16);
 
     if (is<DocumentType>(*init.end_container) || is<Attr>(*init.end_container))
-        return WebIDL::InvalidNodeTypeError::create(realm, "endContainer cannot be a DocumentType or Attribute node."_utf16);
+        return WebIDL::InvalidNodeTypeError::create("endContainer cannot be a DocumentType or Attribute node."_utf16);
 
     // 2. Set this’s start to (init["startContainer"], init["startOffset"]) and end to (init["endContainer"], init["endOffset"]).
-    return realm.create<StaticRange>(*init.start_container, init.start_offset, *init.end_container, init.end_offset);
+    return GC::Heap::the().allocate<StaticRange>(*init.start_container, init.start_offset, *init.end_container, init.end_offset);
 }
 
 }

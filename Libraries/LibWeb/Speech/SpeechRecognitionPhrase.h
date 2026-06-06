@@ -21,7 +21,7 @@ class SpeechRecognitionPhrase final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionPhrase);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> construct_impl(JS::Realm&, String const& phrase, float boost = 1.f);
+    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> construct_impl(String const& phrase, float boost = 1.f);
     virtual ~SpeechRecognitionPhrase() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionphrase-phrase
@@ -31,7 +31,7 @@ public:
     float boost() const { return m_boost; }
 
 private:
-    SpeechRecognitionPhrase(JS::Realm&, String const& phrase, float boost);
+    SpeechRecognitionPhrase(String const& phrase, float boost);
 
     String m_phrase;
     float m_boost { 1.f };

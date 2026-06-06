@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGNumber.h>
@@ -13,33 +14,31 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGNumberList);
 
-GC::Ref<SVGNumberList> SVGNumberList::create(JS::Realm& realm, Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
+GC::Ref<SVGNumberList> SVGNumberList::create(Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
 {
-    return realm.create<SVGNumberList>(realm, move(items), read_only);
+    return GC::Heap::the().allocate<SVGNumberList>(move(items), read_only);
 }
 
-GC::Ref<SVGNumberList> SVGNumberList::create(JS::Realm& realm, ReadOnlyList read_only)
+GC::Ref<SVGNumberList> SVGNumberList::create(ReadOnlyList read_only)
 {
-    return realm.create<SVGNumberList>(realm, read_only);
+    return GC::Heap::the().allocate<SVGNumberList>(read_only);
 }
 
-SVGNumberList::SVGNumberList(JS::Realm& realm, Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
-    : Bindings::Wrappable(realm)
-    , SVGList(move(items), read_only)
-{
-}
-
-SVGNumberList::SVGNumberList(JS::Realm& realm, ReadOnlyList read_only)
-    : Bindings::Wrappable(realm)
-    , SVGList(read_only)
+SVGNumberList::SVGNumberList(Vector<GC::Ref<SVGNumber>> items, ReadOnlyList read_only)
+    : SVGList(move(items), read_only)
 {
 }
 
-Optional<JS::Value> SVGNumberList::item_value(JS::Realm& realm, size_t index) const
+SVGNumberList::SVGNumberList(ReadOnlyList read_only)
+    : SVGList(read_only)
+{
+}
+
+Optional<JS::Value> SVGNumberList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     if (index >= items().size())
         return {};
-    return Bindings::wrap(realm, items()[index]);
+    return Bindings::wrap(wrapper_world, realm, items()[index]);
 }
 
 static WebIDL::ExceptionOr<GC::Ref<SVGNumber>> svg_number_from_value(JS::Value value)
@@ -51,21 +50,21 @@ static WebIDL::ExceptionOr<GC::Ref<SVGNumber>> svg_number_from_value(JS::Value v
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be an SVGNumber"sv };
 }
 
-WebIDL::ExceptionOr<void> SVGNumberList::set_value_of_new_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> SVGNumberList::set_value_of_new_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    TRY(replace_item(TRY(svg_number_from_value(value)), index));
+    TRY(replace_item(realm, TRY(svg_number_from_value(value)), index));
     return {};
 }
 
-WebIDL::ExceptionOr<void> SVGNumberList::set_value_of_existing_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> SVGNumberList::set_value_of_existing_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    TRY(replace_item(TRY(svg_number_from_value(value)), index));
+    TRY(replace_item(realm, TRY(svg_number_from_value(value)), index));
     return {};
 }
 
-WebIDL::ExceptionOr<void> SVGNumberList::set_value_of_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> SVGNumberList::set_value_of_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    TRY(replace_item(TRY(svg_number_from_value(value)), index));
+    TRY(replace_item(realm, TRY(svg_number_from_value(value)), index));
     return {};
 }
 

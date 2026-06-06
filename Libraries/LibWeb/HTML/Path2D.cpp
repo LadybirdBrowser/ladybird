@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Path2D.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Path2D.h>
@@ -16,14 +17,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Path2D);
 
-WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
+WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(Optional<Variant<GC::Ref<Path2D>, String>> const& path)
 {
-    return realm.create<Path2D>(realm, path);
+    return GC::Heap::the().allocate<Path2D>(path);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
-Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
-    : Bindings::Wrappable(realm)
+Path2D::Path2D(Optional<Variant<GC::Ref<Path2D>, String>> const& path)
+    : Bindings::Wrappable()
 {
     // 1. Let output be a new Path2D object.
     // 2. If path is not given, then return output.
@@ -67,7 +68,7 @@ WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Bindings::DOMMa
         return {};
 
     // 2. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-    auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm(), transform));
+    auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(transform));
 
     // 3. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
     if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))

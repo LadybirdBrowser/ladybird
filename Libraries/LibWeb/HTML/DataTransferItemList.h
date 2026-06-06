@@ -20,22 +20,22 @@ class DataTransferItemList : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(DataTransferItemList);
 
 public:
-    static GC::Ref<DataTransferItemList> create(JS::Realm&, GC::Ref<DataTransfer>);
+    static GC::Ref<DataTransferItemList> create(GC::Ref<DataTransfer>);
     virtual ~DataTransferItemList() override;
 
     WebIDL::UnsignedLong length() const;
 
-    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(String const& data, String const& type);
+    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(JS::Realm&, String const& data, String const& type);
     GC::Ptr<DataTransferItem> add(GC::Ref<FileAPI::File>);
-    WebIDL::ExceptionOr<void> remove(WebIDL::UnsignedLong index);
+    WebIDL::ExceptionOr<void> remove(JS::Realm&, WebIDL::UnsignedLong index);
     void clear();
 
 private:
-    DataTransferItemList(JS::Realm&, GC::Ref<DataTransfer>);
+    explicit DataTransferItemList(GC::Ref<DataTransfer>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     GC::Ref<DataTransfer> m_data_transfer;
 };

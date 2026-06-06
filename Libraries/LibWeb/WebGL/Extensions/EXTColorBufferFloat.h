@@ -17,13 +17,13 @@ class EXTColorBufferFloat : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(EXTColorBufferFloat);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    EXTColorBufferFloat(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    EXTColorBufferFloat(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

@@ -39,9 +39,9 @@ static void unregister(JS::VM&, GC::Ref<Job>);
 GC_DEFINE_ALLOCATOR(Job);
 
 // https://w3c.github.io/ServiceWorker/#create-job-algorithm
-GC::Ref<Job> Job::create(JS::VM& vm, Job::Type type, StorageAPI::StorageKey storage_key, URL::URL scope_url, URL::URL script_url, GC::Ptr<WebIDL::Promise> promise, GC::Ptr<HTML::EnvironmentSettingsObject> client)
+GC::Ref<Job> Job::create(Job::Type type, StorageAPI::StorageKey storage_key, URL::URL scope_url, URL::URL script_url, GC::Ptr<WebIDL::Promise> promise, GC::Ptr<HTML::EnvironmentSettingsObject> client)
 {
-    return vm.heap().allocate<Job>(type, move(storage_key), move(scope_url), move(script_url), promise, client);
+    return GC::Heap::the().allocate<Job>(type, move(storage_key), move(scope_url), move(script_url), promise, client);
 }
 
 Job::Job(Job::Type type, StorageAPI::StorageKey storage_key, URL::URL scope_url, URL::URL script_url, GC::Ptr<WebIDL::Promise> promise, GC::Ptr<HTML::EnvironmentSettingsObject> client)
@@ -152,9 +152,9 @@ class UpdateAlgorithmState : JS::Cell {
     GC_DECLARE_ALLOCATOR(UpdateAlgorithmState);
 
 public:
-    static GC::Ref<UpdateAlgorithmState> create(JS::VM& vm)
+    static GC::Ref<UpdateAlgorithmState> create()
     {
-        return vm.heap().allocate<UpdateAlgorithmState>();
+        return GC::Heap::the().allocate<UpdateAlgorithmState>();
     }
 
     OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::Response>>& updated_resource_map() { return m_map; }
@@ -207,7 +207,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
     // 5. Let hasUpdatedResources be false.
     // 6. Let updatedResourceMap be an ordered map where the keys are URLs and the values are responses.
-    auto state = UpdateAlgorithmState::create(vm);
+    auto state = UpdateAlgorithmState::create();
 
     // Fetch time, with a few caveats:
     // - The spec says to use the 'to be created environment settings object for this service worker'
@@ -217,7 +217,6 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
     auto perform_the_fetch_hook_function = [&registration = *registration, job, newest_worker, state](GC::Ref<Fetch::Infrastructure::Request> request, HTML::TopLevelModule top_level, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> WebIDL::ExceptionOr<void> {
         // FIXME: Soft-Update has no client
         auto& realm = job->client->realm();
-        auto& vm = realm.vm();
 
         // 1. Append `Service-Worker`/`script` to request’s header list.
         // Note: See https://w3c.github.io/ServiceWorker/#service-worker
@@ -242,7 +241,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         // 4. If the isTopLevel flag is unset, then return the result of fetching request.
         // FIXME: Needs spec issue, this wording is confusing and contradicts the way perform the fetch hook is used in `run a worker`
         if (top_level == HTML::TopLevelModule::No) {
-            Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+            Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
             return {};
         }
 
@@ -381,11 +380,11 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             process_response_completion_result = WebIDL::ExceptionOr<void> {};
         };
 
-        auto fetch_controller = Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+        auto fetch_controller = Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 
         // FIXME: This feels.. uncomfortable but it should work to block the current task until the fetch has progressed past our processResponse hook or aborted
         auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::main_thread_event_loop();
-        event_loop.spin_until(GC::create_function(realm.heap(), [fetch_controller, &realm, &process_response_completion_result]() -> bool {
+        event_loop.spin_until(GC::create_function(GC::Heap::the(), [fetch_controller, &realm, &process_response_completion_result]() -> bool {
             if (process_response_completion_result.has_value())
                 return true;
             if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated || fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted) {
@@ -397,10 +396,10 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
         return process_response_completion_result.release_value();
     };
-    auto perform_the_fetch_hook = HTML::create_perform_the_fetch_hook(vm.heap(), move(perform_the_fetch_hook_function));
+    auto perform_the_fetch_hook = HTML::create_perform_the_fetch_hook(GC::Heap::the(), move(perform_the_fetch_hook_function));
 
     // When the algorithm asynchronously completes, continue the rest of these steps, with script being the asynchronous completion value.
-    auto on_fetch_complete = HTML::create_on_fetch_script_complete(vm.heap(), [job, newest_worker, state, &registration = *registration, &vm](GC::Ptr<HTML::Script> script) -> void {
+    auto on_fetch_complete = HTML::create_on_fetch_script_complete(GC::Heap::the(), [job, newest_worker, state, &registration = *registration, &vm](GC::Ptr<HTML::Script> script) -> void {
         // 8. If script is null or Is Async Module with script’s record, script’s base URL, and « » is true, then:
         // FIXME: Reject async modules
         if (!script) {
@@ -482,7 +481,7 @@ static void run_job(JS::VM& vm, JobQueue& job_queue)
     VERIFY(!job_queue.is_empty());
 
     // 2. Queue a task to run these steps:
-    auto job_run_steps = GC::create_function(vm.heap(), [&vm, &job_queue] {
+    auto job_run_steps = GC::create_function(GC::Heap::the(), [&vm, &job_queue] {
         // 1. Let job be the first item in jobQueue.
         auto& job = job_queue.first();
 
@@ -535,7 +534,7 @@ static void resolve_job_promise(GC::Ref<Job> job, Optional<Registration const&>,
     // 1. If job’s client is not null, queue a task, on job’s client's responsible event loop using the DOM manipulation task source, to run the following substeps:
     if (job->client) {
         auto& realm = job->client->realm();
-        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, job->client->responsible_event_loop(), nullptr, GC::create_function(realm.heap(), [&realm, job, value] {
+        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, job->client->responsible_event_loop(), nullptr, GC::create_function(GC::Heap::the(), [&realm, job, value] {
             HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             // FIXME: Resolve to a ServiceWorkerRegistration platform object
             // 1. Let convertedValue be null.
@@ -556,7 +555,7 @@ static void resolve_job_promise(GC::Ref<Job> job, Optional<Registration const&>,
         // 2. Queue a task, on equivalentJob’s client's responsible event loop using the DOM manipulation task source,
         //    to run the following substeps:
         auto& realm = equivalent_job->client->realm();
-        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, equivalent_job->client->responsible_event_loop(), nullptr, GC::create_function(realm.heap(), [&realm, equivalent_job, value] {
+        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, equivalent_job->client->responsible_event_loop(), nullptr, GC::create_function(GC::Heap::the(), [&realm, equivalent_job, value] {
             HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             // FIXME: Resolve to a ServiceWorkerRegistration platform object
             // 1. Let convertedValue be null.
@@ -577,7 +576,7 @@ static void reject_job_promise(GC::Ref<Job> job, Utf16String message)
     //    to reject job’s job promise with a new exception with errorData and a user agent-defined message, in job’s client's Realm.
     if (job->client) {
         auto& realm = job->client->realm();
-        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, job->client->responsible_event_loop(), nullptr, GC::create_function(realm.heap(), [&realm, job, message] {
+        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, job->client->responsible_event_loop(), nullptr, GC::create_function(GC::Heap::the(), [&realm, job, message] {
             HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::reject_promise(realm, *job->job_promise, Error::create(realm, message));
         }));
@@ -593,7 +592,7 @@ static void reject_job_promise(GC::Ref<Job> job, Utf16String message)
         //    to reject equivalentJob’s job promise with a new exception with errorData and a user agent-defined message,
         //    in equivalentJob’s client's Realm.
         auto& realm = equivalent_job->client->realm();
-        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, equivalent_job->client->responsible_event_loop(), nullptr, GC::create_function(realm.heap(), [&realm, equivalent_job, message] {
+        HTML::queue_a_task(HTML::Task::Source::DOMManipulation, equivalent_job->client->responsible_event_loop(), nullptr, GC::create_function(GC::Heap::the(), [&realm, equivalent_job, message] {
             HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::reject_promise(realm, *equivalent_job->job_promise, Error::create(realm, message));
         }));

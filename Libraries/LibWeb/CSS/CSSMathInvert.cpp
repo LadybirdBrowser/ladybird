@@ -5,6 +5,7 @@
  */
 
 #include "CSSMathInvert.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSMathInvert.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -13,27 +14,27 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMathInvert);
 
-GC::Ref<CSSMathInvert> CSSMathInvert::create(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericValue> values)
+GC::Ref<CSSMathInvert> CSSMathInvert::create(NumericType type, GC::Ref<CSSNumericValue> values)
 {
-    return realm.create<CSSMathInvert>(realm, move(type), move(values));
+    return GC::Heap::the().allocate<CSSMathInvert>(move(type), move(values));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathinvert-cssmathinvert
-GC::Ref<CSSMathInvert> CSSMathInvert::construct_impl(JS::Realm& realm, CSSNumberish value)
+GC::Ref<CSSMathInvert> CSSMathInvert::construct_impl(CSSNumberish value)
 {
     // The CSSMathInvert(arg) constructor is defined identically to the above, except that in the last step it returns
     // a new CSSMathInvert object.
     // NB: So, the steps below are a modification of the CSSMathNegate steps.
 
     // 1. Replace arg with the result of rectifying a numberish value for arg.
-    auto converted_value = rectify_a_numberish_value(realm, value);
+    auto converted_value = rectify_a_numberish_value(value);
 
     // 2. Return a new CSSMathInvert whose value internal slot is set to arg.
-    return CSSMathInvert::create(realm, converted_value->type().inverted(), converted_value);
+    return CSSMathInvert::create(converted_value->type().inverted(), converted_value);
 }
 
-CSSMathInvert::CSSMathInvert(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericValue> values)
-    : CSSMathValue(realm, Bindings::CSSMathOperator::Invert, move(type))
+CSSMathInvert::CSSMathInvert(NumericType type, GC::Ref<CSSNumericValue> values)
+    : CSSMathValue(Bindings::CSSMathOperator::Invert, move(type))
     , m_value(move(values))
 {
 }

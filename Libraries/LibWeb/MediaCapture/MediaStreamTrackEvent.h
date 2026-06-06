@@ -6,8 +6,15 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::MediaCapture {
 
@@ -17,15 +24,15 @@ class MediaStreamTrackEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(MediaStreamTrackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
-    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
+    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> create(FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
 
     virtual ~MediaStreamTrackEvent() override;
 
     GC::Ref<MediaStreamTrack> track() const { return m_track; }
 
 private:
-    MediaStreamTrackEvent(JS::Realm&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
+    MediaStreamTrackEvent(FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

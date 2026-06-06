@@ -31,8 +31,8 @@ interface KeyframeEffect : AnimationEffect {
     constructor(KeyframeEffect source);
 
     attribute Element? target;
-    attribute CSSOMString? pseudoElement;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString? pseudoElement;
     attribute CompositeOperation composite;
-    sequence<object> getKeyframes();
-    undefined setKeyframes(object? keyframes);
+    [NeedsCallerRealm] sequence<object> getKeyframes();
+    [NeedsCallerRealm] undefined setKeyframes(object? keyframes);
 };

@@ -30,13 +30,12 @@ public:
     bool contains(SourceBuffer const&) const;
 
 private:
-    SourceBufferList(JS::Realm&);
+    SourceBufferList(MediaSource&);
 
     virtual ~SourceBufferList() override;
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    GC::Ref<MediaSource> m_media_source;
     Vector<GC::Ref<SourceBuffer>> m_buffers;
 };
 

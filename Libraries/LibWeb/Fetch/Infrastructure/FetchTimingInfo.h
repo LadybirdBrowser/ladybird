@@ -26,7 +26,7 @@ class WEB_API FetchTimingInfo : public JS::Cell {
     GC_DECLARE_ALLOCATOR(FetchTimingInfo);
 
 public:
-    [[nodiscard]] static GC::Ref<FetchTimingInfo> create(JS::VM&);
+    [[nodiscard]] static GC::Ref<FetchTimingInfo> create();
 
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp start_time() const { return m_start_time; }
     void set_start_time(HighResolutionTime::DOMHighResTimeStamp start_time) { m_start_time = start_time; }
@@ -133,6 +133,6 @@ private:
     bool m_render_blocking { false };
 };
 
-WEB_API GC::Ref<FetchTimingInfo> create_opaque_timing_info(JS::VM&, FetchTimingInfo const& timing_info);
+WEB_API GC::Ref<FetchTimingInfo> create_opaque_timing_info(FetchTimingInfo const& timing_info);
 
 }

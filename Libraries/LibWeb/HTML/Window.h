@@ -66,9 +66,13 @@ class WEB_API Window final
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<Window> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Window> create();
 
     ~Window();
+
+    JS::Realm& realm() const;
+    EnvironmentSettingsObject& relevant_settings_object() const;
+    void set_environment_settings_object(Badge<WindowEnvironmentSettingsObject>, WindowEnvironmentSettingsObject&);
 
     using UniversalGlobalScopeMixin::atob;
     using UniversalGlobalScopeMixin::btoa;
@@ -259,14 +263,14 @@ public:
     [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
 
     [[nodiscard]] Vector<FlyString> supported_property_names() const override;
-    [[nodiscard]] JS::Value named_item_value(JS::Realm&, FlyString const&) const override;
+    [[nodiscard]] JS::Value named_item_value(Bindings::WrapperWorld&, JS::Realm&, FlyString const&) const override;
 
     bool find(String const& string);
 
     static void for_each_active(Function<IterationDecision(Window&)> callback);
 
 private:
-    explicit Window(JS::Realm&);
+    Window();
 
     virtual bool is_universal_global_scope_mixin() const final { return true; }
 
@@ -291,6 +295,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/window-object.html#concept-document-window
     GC::Ptr<DOM::Document> m_associated_document;
+    GC::Ptr<WindowEnvironmentSettingsObject> m_environment_settings_object;
 
     GC::Ptr<DOM::Event> m_current_event;
 

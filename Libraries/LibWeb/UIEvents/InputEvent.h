@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/DOM/StaticRange.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
@@ -16,8 +17,8 @@ class InputEvent final : public UIEvent {
     GC_DECLARE_ALLOCATOR(InputEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<InputEvent> create_from_platform_event(JS::Realm&, FlyString const& type, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {});
-    static WebIDL::ExceptionOr<GC::Ref<InputEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::InputEventInit const&);
+    [[nodiscard]] static GC::Ref<InputEvent> create_from_platform_event(FlyString const& type, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
+    static WebIDL::ExceptionOr<GC::Ref<InputEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::InputEventInit const&);
 
     virtual ~InputEvent() override;
 
@@ -33,7 +34,7 @@ public:
     ReadonlySpan<GC::Ref<DOM::StaticRange>> get_target_ranges() const;
 
 private:
-    InputEvent(JS::Realm&, FlyString const& event_name, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {});
+    InputEvent(FlyString const& event_name, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 

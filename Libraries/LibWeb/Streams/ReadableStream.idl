@@ -28,15 +28,15 @@ dictionary ReadableStreamIteratorOptions {
 interface ReadableStream {
     constructor(optional object underlyingSource, optional QueuingStrategy strategy = {});
 
-    static ReadableStream from(any asyncIterable);
+    [NeedsCallerRealm] static ReadableStream from(any asyncIterable);
 
     readonly attribute boolean locked;
 
-    Promise<undefined> cancel(optional any reason);
-    ReadableStreamReader getReader(optional ReadableStreamGetReaderOptions options = {});
-    ReadableStream pipeThrough(ReadableWritablePair transform, optional StreamPipeOptions options = {});
-    Promise<undefined> pipeTo(WritableStream destination, optional StreamPipeOptions options = {});
-    sequence<ReadableStream> tee();
+    [NeedsThisObjectRealm] Promise<undefined> cancel(optional any reason);
+    [NeedsThisObjectRealm] ReadableStreamReader getReader(optional ReadableStreamGetReaderOptions options = {});
+    [NeedsThisObjectRealm] ReadableStream pipeThrough(ReadableWritablePair transform, optional StreamPipeOptions options = {});
+    [NeedsThisObjectRealm] Promise<undefined> pipeTo(WritableStream destination, optional StreamPipeOptions options = {});
+    [NeedsThisObjectRealm] sequence<ReadableStream> tee();
 
     async iterable<any>(optional ReadableStreamIteratorOptions options = {});
 };

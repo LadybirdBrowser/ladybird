@@ -76,7 +76,7 @@ public:
     {
         auto transform = drawing_state().transform;
         Bindings::DOMMatrix2DInit init = { transform.a(), transform.b(), transform.c(), transform.d(), transform.e(), transform.f(), {}, {}, {}, {}, {}, {} };
-        return Geometry::DOMMatrix::create_from_dom_matrix_2d_init(my_realm(), init);
+        return Geometry::DOMMatrix::create_from_dom_matrix_2d_init(init);
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform
@@ -98,7 +98,7 @@ public:
     WebIDL::ExceptionOr<void> set_transform(Bindings::DOMMatrix2DInit& init)
     {
         // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-        auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(my_realm(), init));
+        auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(init));
 
         // 2. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
         if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))

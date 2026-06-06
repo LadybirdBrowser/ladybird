@@ -19,7 +19,7 @@ class CSSScopeRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSScopeRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSScopeRule> create(JS::Realm&, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSScopeRule> create(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList&);
 
     virtual ~CSSScopeRule() override;
 
@@ -33,7 +33,7 @@ public:
     Optional<String> end() const;
 
 private:
-    CSSScopeRule(JS::Realm&, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList&);
+    CSSScopeRule(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList&);
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual String serialized() const override;

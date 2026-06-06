@@ -19,7 +19,7 @@ class WebGLActiveInfo : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(WebGLActiveInfo);
 
 public:
-    static GC::Ptr<WebGLActiveInfo> create(JS::Realm&, String name, GLenum type, GLsizei size);
+    static GC::Ptr<WebGLActiveInfo> create(String name, GLenum type, GLsizei size);
     virtual ~WebGLActiveInfo();
 
     GLsizei size() const { return m_size; }
@@ -27,7 +27,7 @@ public:
     String const& name() const { return m_name; }
 
 protected:
-    explicit WebGLActiveInfo(JS::Realm&, String name, GLenum type, GLsizei size);
+    explicit WebGLActiveInfo(String name, GLenum type, GLsizei size);
 
 private:
     String m_name;

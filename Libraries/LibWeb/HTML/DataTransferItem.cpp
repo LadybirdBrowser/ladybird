@@ -6,6 +6,7 @@
  */
 
 #include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
@@ -17,14 +18,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DataTransferItem);
 
-GC::Ref<DataTransferItem> DataTransferItem::create(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer, size_t item_index)
+GC::Ref<DataTransferItem> DataTransferItem::create(GC::Ref<DataTransfer> data_transfer, size_t item_index)
 {
-    return realm.create<DataTransferItem>(realm, data_transfer, item_index);
+    return GC::Heap::the().allocate<DataTransferItem>(data_transfer, item_index);
 }
 
-DataTransferItem::DataTransferItem(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer, size_t item_index)
-    : Wrappable(realm)
-    , m_data_transfer(data_transfer)
+DataTransferItem::DataTransferItem(GC::Ref<DataTransfer> data_transfer, size_t item_index)
+    : m_data_transfer(data_transfer)
     , m_item_index(item_index)
 {
 }
@@ -83,9 +83,8 @@ Optional<DragDataStore::Mode> DataTransferItem::mode() const
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasstring
-void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) const
+void DataTransferItem::get_as_string(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback) const
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. If the callback is null, return.
@@ -108,7 +107,7 @@ void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) con
     auto data = JS::PrimitiveString::create(vm, MUST(String::from_utf8({ item.data })));
 
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
-        GC::Function<void()>::create(realm.heap(), [callback, data]() {
+        GC::Function<void()>::create(GC::Heap::the(), [callback, data]() {
             (void)WebIDL::invoke_callback(*callback, {}, { { data } });
         }));
 }
@@ -116,8 +115,6 @@ void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) con
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasfile
 GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
 {
-    auto& realm = this->realm();
-
     // 1. If the DataTransferItem object is not in the read/write mode or the read-only mode, then return null
     if (mode() != DragDataStore::Mode::ReadWrite && mode() != DragDataStore::Mode::ReadOnly)
         return nullptr;
@@ -129,7 +126,7 @@ GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
         return nullptr;
 
     // 3. Return a new File object representing the actual data of the item represented by the DataTransferItem object.
-    auto blob = FileAPI::Blob::create(realm, item.data, item.type_string);
+    auto blob = FileAPI::Blob::create(item.data, item.type_string);
 
     // FIXME: The FileAPI should use ByteString for file names.
     auto file_name = MUST(String::from_byte_string(item.file_name));
@@ -140,14 +137,12 @@ GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
 
     FileAPI::BlobParts file_bits {};
     file_bits.append(blob);
-    return MUST(FileAPI::File::create(realm, file_bits, file_name, move(options)));
+    return MUST(FileAPI::File::create(file_bits, file_name, move(options)));
 }
 
 // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry
 GC::Ptr<EntriesAPI::FileSystemEntry> DataTransferItem::webkit_get_as_entry() const
 {
-    auto& realm = this->realm();
-
     // 1. Let store be this's DataTransfer object’s drag data store.
 
     // 2. If store’s drag data store mode is not read/write mode or read-only mode, return null and abort these steps
@@ -162,7 +157,7 @@ GC::Ptr<EntriesAPI::FileSystemEntry> DataTransferItem::webkit_get_as_entry() con
         return nullptr;
 
     // 5. Return a new FileSystemEntry object representing the entry.
-    return EntriesAPI::FileSystemEntry::create(realm, EntriesAPI::EntryType::File, item.file_name);
+    return EntriesAPI::FileSystemEntry::create(EntriesAPI::EntryType::File, item.file_name);
 }
 
 }

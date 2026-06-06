@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
@@ -16,9 +17,9 @@ GC_DEFINE_ALLOCATOR(MutationLog);
 
 MutationLog::MutationLog() = default;
 
-GC::Ref<MutationLog> MutationLog::create(JS::Realm& realm)
+GC::Ref<MutationLog> MutationLog::create()
 {
-    return realm.create<MutationLog>();
+    return GC::Heap::the().allocate<MutationLog>();
 }
 
 void MutationLog::visit_edges(Visitor& visitor)

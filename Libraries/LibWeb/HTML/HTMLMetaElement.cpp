@@ -6,6 +6,7 @@
  */
 
 #include <AK/GenericLexer.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/HTMLMetaElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -18,6 +19,7 @@
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Page/Page.h>
 
@@ -31,12 +33,6 @@ HTMLMetaElement::HTMLMetaElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLMetaElement::~HTMLMetaElement() = default;
-
-void HTMLMetaElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMetaElement);
-    Base::initialize(realm);
-}
 
 Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_state() const
 {
@@ -203,8 +199,7 @@ void HTMLMetaElement::inserted()
             // 3. Let policy be the result of executing Content Security Policy's parse a serialized Content Security
             //    Policy algorithm on the meta element's content attribute's value, with a source of "meta", and a
             //    disposition of "enforce".
-            auto& realm = this->realm();
-            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(realm.heap(), input, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
+            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(GC::Heap::the(), input, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
 
             // 4. Remove all occurrences of the report-uri, frame-ancestors, and sandbox directives from policy.
             policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::ReportUri);
@@ -215,6 +210,7 @@ void HTMLMetaElement::inserted()
             policy->set_self_origin({}, document().origin());
 
             // 5. Enforce the policy policy.
+            auto& realm = HTML::relevant_realm(*this);
             auto policy_list = ContentSecurityPolicy::PolicyList::from_object(realm.global_object());
             VERIFY(policy_list);
             policy_list->enforce_policy(policy);

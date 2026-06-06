@@ -27,6 +27,7 @@
 #include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibJS/Forward.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -70,7 +71,7 @@ class WEB_API Page final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Page);
 
 public:
-    static GC::Ref<Page> create(JS::VM&, GC::Ref<PageClient>);
+    static GC::Ref<Page> create(GC::Ref<PageClient>);
 
     ~Page();
 

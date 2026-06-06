@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<video></video>";
+        iframe.onload = () => {
+            const other = iframe.contentWindow;
+            const mimeType = 'video/webm;codecs="vp9,opus"';
+
+            if (!MediaSource.isTypeSupported(mimeType)) {
+                println("MediaSource type is supported: false");
+                done();
+                return;
+            }
+
+            const mediaSource = new other.MediaSource();
+            other.document.querySelector("video").src = other.URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener("sourceopen", () => {
+                const sourceBuffer = MediaSource.prototype.addSourceBuffer.call(mediaSource, mimeType);
+                println(`sourceBuffer uses iframe prototype: ${Object.getPrototypeOf(sourceBuffer) === other.SourceBuffer.prototype}`);
+                println(`sourceBuffer uses top prototype: ${Object.getPrototypeOf(sourceBuffer) === SourceBuffer.prototype}`);
+
+                const buffered = Object.getOwnPropertyDescriptor(SourceBuffer.prototype, "buffered").get.call(sourceBuffer);
+                println(`buffered uses iframe prototype: ${Object.getPrototypeOf(buffered) === other.TimeRanges.prototype}`);
+                println(`buffered uses top prototype: ${Object.getPrototypeOf(buffered) === TimeRanges.prototype}`);
+                done();
+            });
+        };
+        document.body.append(iframe);
+    });
+</script>

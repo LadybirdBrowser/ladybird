@@ -22,16 +22,14 @@ class Path2D final
     GC_DECLARE_ALLOCATOR(Path2D);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Path2D>> construct_impl(JS::Realm&, Optional<Variant<GC::Ref<Path2D>, String>> const& path);
+    static WebIDL::ExceptionOr<GC::Ref<Path2D>> construct_impl(Optional<Variant<GC::Ref<Path2D>, String>> const& path);
 
     virtual ~Path2D() override;
 
     WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit& transform);
 
 private:
-    Path2D(JS::Realm&, Optional<Variant<GC::Ref<Path2D>, String>> const&);
-
-    virtual JS::Realm& canvas_path_realm() const override { return realm(); }
+    explicit Path2D(Optional<Variant<GC::Ref<Path2D>, String>> const&);
 };
 
 }

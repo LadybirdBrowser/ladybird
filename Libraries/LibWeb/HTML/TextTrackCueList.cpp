@@ -15,18 +15,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TextTrackCueList);
 
-TextTrackCueList::TextTrackCueList(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+TextTrackCueList::TextTrackCueList()
+    : DOM::EventTarget()
 {
 }
 
 TextTrackCueList::~TextTrackCueList() = default;
-
-void TextTrackCueList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextTrackCueList);
-    Base::initialize(realm);
-}
 
 void TextTrackCueList::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -34,14 +28,14 @@ void TextTrackCueList::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_cues);
 }
 
-Optional<JS::Value> TextTrackCueList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> TextTrackCueList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property for a given index index, the user agent must return the indexth text track cue in the list
     // represented by the TextTrackCueList object.
     if (index >= m_cues.size())
         return {};
 
-    return Bindings::wrap(realm, m_cues.at(index));
+    return Bindings::wrap(wrapper_world, realm, m_cues.at(index));
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrackcuelist-length

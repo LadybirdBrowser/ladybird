@@ -37,17 +37,17 @@ dictionary CookieStoreDeleteOptions {
 // https://cookiestore.spec.whatwg.org/#cookiestore
 [Exposed=(ServiceWorker,Window), SecureContext]
 interface CookieStore : EventTarget {
-    Promise<CookieListItem?> get(USVString name);
-    Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
+    [NeedsThisObjectRealm] Promise<CookieListItem?> get(USVString name);
+    [NeedsThisObjectRealm] Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
 
-    Promise<CookieList> getAll(USVString name);
-    Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+    [NeedsThisObjectRealm] Promise<CookieList> getAll(USVString name);
+    [NeedsThisObjectRealm] Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
 
-    Promise<undefined> set(USVString name, USVString value);
-    Promise<undefined> set(CookieInit options);
+    [NeedsThisObjectRealm] Promise<undefined> set(USVString name, USVString value);
+    [NeedsThisObjectRealm] Promise<undefined> set(CookieInit options);
 
-    Promise<undefined> delete(USVString name);
-    Promise<undefined> delete(CookieStoreDeleteOptions options);
+    [NeedsThisObjectRealm] Promise<undefined> delete(USVString name);
+    [NeedsThisObjectRealm] Promise<undefined> delete(CookieStoreDeleteOptions options);
 
     [Exposed=Window] attribute EventHandler onchange;
 };

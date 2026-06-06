@@ -7,12 +7,14 @@
 
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWasm/Types.h>
 #include <LibWeb/Bindings/Table.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebAssembly/Table.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -71,8 +73,9 @@ static JS::Value table_limit_to_js_value(JS::VM& vm, u64 value, Wasm::AddressTyp
     return JS::Value { static_cast<u32>(value) };
 }
 
-WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bindings::TableDescriptor& descriptor, Optional<JS::Value> value)
+WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, Bindings::TableDescriptor& descriptor, Optional<JS::Value> value)
 {
+    auto& realm = HTML::relevant_realm(global_scope);
     auto& vm = realm.vm();
 
     // 1. Let elementtype be ToValueType(descriptor["element"]).
@@ -103,19 +106,19 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bind
     // 8. If value is missing, let ref be DefaultValue(elementtype).
     // 9. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
     auto reference_value = !value.has_value()
-        ? Detail::default_webassembly_value(vm, reference_type)
-        : TRY(Detail::to_webassembly_value(vm, *value, reference_type));
+        ? Detail::default_webassembly_value(realm, reference_type)
+        : TRY(Detail::to_webassembly_value(realm, *value, reference_type));
 
     // 10. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm);
+    auto cache = Detail::get_cache(realm);
 
     // 11. Let (store, tableaddr) be table_alloc(store, type, ref). If allocation fails, throw a RangeError exception.
-    auto address = cache.abstract_machine().store().allocate(table_type);
+    auto address = cache->abstract_machine().store().allocate(table_type);
     if (!address.has_value())
         return vm.throw_completion<JS::RangeError>("Wasm Table allocation failed"sv);
 
     auto const& reference = reference_value.to<Wasm::Reference>();
-    auto& table = *cache.abstract_machine().store().get(*address);
+    auto& table = *cache->abstract_machine().store().get(*address);
     for (auto& element : table.elements())
         element = reference;
 
@@ -123,37 +126,41 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bind
     // NOTE: The store is updated in-place.
 
     // 13. Initialize this from tableaddr.
-    return realm.create<Table>(realm, *address);
+    return GC::Heap::the().allocate<Table>(cache, *address);
 }
 
-Table::Table(JS::Realm& realm, Wasm::TableAddress address)
-    : Bindings::Wrappable(realm)
+Table::Table(NonnullRefPtr<Detail::WebAssemblyCache> cache, Wasm::TableAddress address)
+    : m_cache(move(cache))
     , m_address(address)
 {
     // https://webassembly.github.io/spec/js-api/#initialize-a-table-object
     // 1. Let map be the surrounding agent's associated Table object cache.
-    auto& cache = Detail::get_cache(realm);
 
     // 2. Assert: map[tableaddr] doesn't exist.
-    auto exists = cache.table_instances().contains(m_address);
+    auto exists = m_cache->table_instances().contains(m_address);
     VERIFY(!exists);
 
     // 3. Set table.[[Table]] to tableaddr.
     // NOTE: This is already set by the Table constructor.
 
     // 4. Set map[tableaddr] to table.
-    cache.add_table_instance(m_address, *this);
+    m_cache->add_table_instance(m_address, *this);
+}
+
+void Table::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    m_cache->visit_edges(visitor);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-grow
-WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::Value> value)
+WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Realm& realm, JS::Value delta_value, Optional<JS::Value> value)
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
+    auto* table = cache().abstract_machine().store().get(address());
     if (!table)
         return vm.throw_completion<JS::RangeError>("Could not find the memory table to grow"sv);
 
@@ -170,8 +177,8 @@ WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::V
     // 6. If value is missing, let ref be DefaultValue(elementtype).
     // 7. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
     auto reference_value = !value.has_value()
-        ? Detail::default_webassembly_value(vm, element_type)
-        : TRY(Detail::to_webassembly_value(vm, *value, element_type));
+        ? Detail::default_webassembly_value(realm, element_type)
+        : TRY(Detail::to_webassembly_value(realm, *value, element_type));
     auto const& reference = reference_value.to<Wasm::Reference>();
 
     // 8. Let result be table_grow(store, tableaddr, delta64, ref).
@@ -187,14 +194,13 @@ WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::V
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-get
-WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
+WebIDL::ExceptionOr<JS::Value> Table::get(JS::Realm& realm, JS::Value index_value) const
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
+    auto* table = cache().abstract_machine().store().get(address());
     if (!table)
         return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
 
@@ -218,18 +224,17 @@ WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
 
     // 8. Return ! ToJSValue(result).
     Wasm::Value wasm_value { ref };
-    return Detail::to_js_value(vm, wasm_value, element_type);
+    return Detail::to_js_value(realm, wasm_value, element_type);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-set
-WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> value)
+WebIDL::ExceptionOr<void> Table::set(JS::Realm& realm, JS::Value index_value, Optional<JS::Value> value)
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
+    auto* table = cache().abstract_machine().store().get(address());
     if (!table)
         return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
 
@@ -250,8 +255,8 @@ WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> 
     // 6. If value is missing, let ref be DefaultValue(elementtype).
     // 7. Otherwise, let ref be ? ToWebAssemblyValue(value, elementtype).
     auto reference_value = !value.has_value()
-        ? Detail::default_webassembly_value(vm, element_type)
-        : TRY(Detail::to_webassembly_value(vm, *value, element_type));
+        ? Detail::default_webassembly_value(realm, element_type)
+        : TRY(Detail::to_webassembly_value(realm, *value, element_type));
     auto const& reference = reference_value.to<Wasm::Reference>();
 
     // 8. Let store be table_write(store, tableaddr, index64, ref).
@@ -264,14 +269,13 @@ WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> 
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-length
-WebIDL::ExceptionOr<JS::Value> Table::length() const
+WebIDL::ExceptionOr<JS::Value> Table::length(JS::Realm& realm) const
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.
-    auto& cache = Detail::get_cache(realm());
-    auto* table = cache.abstract_machine().store().get(address());
+    auto* table = cache().abstract_machine().store().get(address());
     if (!table)
         return vm.throw_completion<JS::RangeError>("Could not find the memory table"sv);
 

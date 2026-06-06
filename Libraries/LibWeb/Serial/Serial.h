@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Serial.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -18,10 +19,12 @@ class Serial : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(Serial);
 
 public:
+    [[nodiscard]] static GC::Ref<Serial> create();
+
     // https://wicg.github.io/serial/#requestport-method
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_port(Bindings::SerialPortRequestOptions const& = {});
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_port(JS::Realm&, Bindings::SerialPortRequestOptions const& = {});
     // https://wicg.github.io/serial/#getports-method
-    GC::Ref<WebIDL::Promise> get_ports();
+    GC::Ref<WebIDL::Promise> get_ports(JS::Realm&);
 
     // https://wicg.github.io/serial/#onconnect-attribute
     void set_onconnect(WebIDL::CallbackType*);
@@ -32,9 +35,7 @@ public:
     WebIDL::CallbackType* ondisconnect();
 
 private:
-    explicit Serial(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit Serial();
 };
 
 }

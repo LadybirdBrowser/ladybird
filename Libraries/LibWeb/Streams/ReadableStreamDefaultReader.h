@@ -72,7 +72,7 @@ class ReadableStreamDefaultReader final
     GC_DECLARE_ALLOCATOR(ReadableStreamDefaultReader);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> construct_impl(JS::Realm&, GC::Ref<ReadableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ref<ReadableStream>);
 
     virtual ~ReadableStreamDefaultReader() override = default;
 
@@ -89,10 +89,9 @@ public:
     void set_readable_stream_pipe_to_operation(Badge<Detail::ReadableStreamPipeTo>, GC::Ptr<JS::Cell> readable_stream_pipe_to_operation) { m_readable_stream_pipe_to_operation = readable_stream_pipe_to_operation; }
 
 private:
-    explicit ReadableStreamDefaultReader(JS::Realm&);
+    ReadableStreamDefaultReader();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual JS::Realm& reader_realm() const override { return realm(); }
 
     SinglyLinkedList<GC::Ref<ReadRequest>> m_read_requests;
 

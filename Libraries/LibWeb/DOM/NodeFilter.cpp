@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/NodeFilter.h>
 
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(NodeFilter);
 
-GC::Ref<NodeFilter> NodeFilter::create(JS::Realm& realm, GC::Ref<WebIDL::CallbackType> callback)
+GC::Ref<NodeFilter> NodeFilter::create(GC::Ref<WebIDL::CallbackType> callback)
 {
-    return realm.create<NodeFilter>(realm, callback);
+    return GC::Heap::the().allocate<NodeFilter>(callback);
 }
 
-NodeFilter::NodeFilter(JS::Realm&, GC::Ref<WebIDL::CallbackType> callback)
+NodeFilter::NodeFilter(GC::Ref<WebIDL::CallbackType> callback)
     : m_callback(callback)
 {
 }

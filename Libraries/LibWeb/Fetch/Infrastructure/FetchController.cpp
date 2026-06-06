@@ -21,9 +21,9 @@ GC_DEFINE_ALLOCATOR(FetchController);
 
 FetchController::FetchController() = default;
 
-GC::Ref<FetchController> FetchController::create(JS::VM& vm)
+GC::Ref<FetchController> FetchController::create()
 {
-    return vm.heap().allocate<FetchController>();
+    return GC::Heap::the().allocate<FetchController>();
 }
 
 void FetchController::visit_edges(JS::Cell::Visitor& visitor)
@@ -43,12 +43,12 @@ void FetchController::set_pending_request(RefPtr<Requests::Request> const& reque
 
 void FetchController::set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps)
 {
-    m_report_timing_steps = GC::create_function(vm().heap(), move(report_timing_steps));
+    m_report_timing_steps = GC::create_function(GC::Heap::the(), move(report_timing_steps));
 }
 
 void FetchController::set_next_manual_redirect_steps(Function<void()> next_manual_redirect_steps)
 {
-    m_next_manual_redirect_steps = GC::create_function(vm().heap(), move(next_manual_redirect_steps));
+    m_next_manual_redirect_steps = GC::create_function(GC::Heap::the(), move(next_manual_redirect_steps));
 }
 
 // https://fetch.spec.whatwg.org/#finalize-and-report-timing
@@ -89,7 +89,7 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
 
     // 2. Let fallbackError be an "AbortError" DOMException.
     auto fallback_error = WebIDL::AbortError::create(realm, "Fetch was aborted"_utf16);
-    auto fallback_error_value = throw_completion(fallback_error).value();
+    auto fallback_error_value = throw_completion(realm, fallback_error).value();
 
     // 3. Set error to fallbackError if it is not given.
     if (!error.has_value())
@@ -97,13 +97,13 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
 
     // 4. Let serializedError be StructuredSerialize(error). If that threw an exception, catch it, and let serializedError be StructuredSerialize(fallbackError).
     // 5. Set controller’s serialized abort reason to serializedError
-    auto structured_serialize = [](JS::VM& vm, JS::Value error, JS::Value fallback_error) {
-        auto serialized_value_or_error = HTML::structured_serialize(vm, error);
+    auto structured_serialize = [&realm](JS::Value error, JS::Value fallback_error) {
+        auto serialized_value_or_error = HTML::structured_serialize(realm, error);
         return serialized_value_or_error.is_error()
-            ? HTML::structured_serialize(vm, fallback_error).value()
+            ? HTML::structured_serialize(realm, fallback_error).value()
             : serialized_value_or_error.value();
     };
-    m_serialized_abort_reason = structured_serialize(realm.vm(), error.value(), fallback_error_value);
+    m_serialized_abort_reason = structured_serialize(error.value(), fallback_error_value);
 }
 
 // https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
@@ -111,7 +111,7 @@ JS::Value FetchController::deserialize_a_serialized_abort_reason(JS::Realm& real
 {
     // 1. Let fallbackError be an "AbortError" DOMException.
     auto fallback_error = WebIDL::AbortError::create(realm, "Fetch was aborted"_utf16);
-    auto fallback_error_value = throw_completion(fallback_error).value();
+    auto fallback_error_value = throw_completion(realm, fallback_error).value();
 
     // 2. Let deserializedError be fallbackError.
     JS::Value deserialized_error = fallback_error_value;
@@ -143,8 +143,6 @@ void FetchController::stop_fetch()
 
     m_state = State::Stopped;
 
-    auto& vm = this->vm();
-
     // AD-HOC: Some HTML elements need to stop an ongoing fetching process without causing any network error to be raised
     //         (which abort() and terminate() will both do). This is tricky because the fetch process runs across several
     //         nested Platform::EventLoopPlugin::deferred_invoke() invocations. For now, we "stop" the fetch process by
@@ -158,7 +156,7 @@ void FetchController::stop_fetch()
     });
 
     if (m_fetch_params) {
-        auto fetch_algorithms = FetchAlgorithms::create(vm, {});
+        auto fetch_algorithms = FetchAlgorithms::create({});
         m_fetch_params->set_algorithms(fetch_algorithms);
     }
 
@@ -188,9 +186,9 @@ GC_DEFINE_ALLOCATOR(FetchControllerHolder);
 
 FetchControllerHolder::FetchControllerHolder() = default;
 
-GC::Ref<FetchControllerHolder> FetchControllerHolder::create(JS::VM& vm)
+GC::Ref<FetchControllerHolder> FetchControllerHolder::create()
 {
-    return vm.heap().allocate<FetchControllerHolder>();
+    return GC::Heap::the().allocate<FetchControllerHolder>();
 }
 
 void FetchControllerHolder::visit_edges(JS::Cell::Visitor& visitor)

@@ -18,7 +18,7 @@ class WebGLShaderPrecisionFormat final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(WebGLShaderPrecisionFormat);
 
 public:
-    static GC::Ref<WebGLShaderPrecisionFormat> create(JS::Realm& realm, GLint range_min, GLint range_max, GLint precision);
+    static GC::Ref<WebGLShaderPrecisionFormat> create(GLint range_min, GLint range_max, GLint precision);
 
     virtual ~WebGLShaderPrecisionFormat() override;
 
@@ -27,7 +27,7 @@ public:
     GLint precision() const { return m_precision; }
 
 protected:
-    explicit WebGLShaderPrecisionFormat(JS::Realm&, GLint range_min, GLint range_max, GLint precision);
+    explicit WebGLShaderPrecisionFormat(GLint range_min, GLint range_max, GLint precision);
 
 private:
     GLint m_range_min { 0 };

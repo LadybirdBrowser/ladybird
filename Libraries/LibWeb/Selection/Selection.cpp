@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
@@ -20,13 +21,13 @@ namespace Web::Selection {
 
 GC_DEFINE_ALLOCATOR(Selection);
 
-GC::Ref<Selection> Selection::create(GC::Ref<JS::Realm> realm, GC::Ref<DOM::Document> document)
+GC::Ref<Selection> Selection::create(GC::Ref<DOM::Document> document)
 {
-    return realm->create<Selection>(realm, document);
+    return GC::Heap::the().allocate<Selection>(document);
 }
 
-Selection::Selection(GC::Ref<JS::Realm> realm, GC::Ref<DOM::Document> document)
-    : Wrappable(*realm)
+Selection::Selection(GC::Ref<DOM::Document> document)
+    : Bindings::Wrappable()
     , m_document(document)
 {
 }
@@ -129,7 +130,7 @@ String Selection::direction() const
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
-WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(unsigned index)
+WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(JS::Realm& realm, unsigned index)
 {
     GC::Ptr<DOM::Node> focus = focus_node();
     GC::Ptr<DOM::Node> anchor = anchor_node();
@@ -139,10 +140,15 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(unsigned index)
     auto is_anchor_in_document_tree = anchor && &anchor->document() == document();
 
     if (index != 0 || is_empty() || !is_focus_in_document_tree || !is_anchor_in_document_tree)
-        return WebIDL::IndexSizeError::create(realm(), "Selection.getRangeAt() on empty Selection or with invalid argument"_utf16);
+        return WebIDL::IndexSizeError::create(realm, "Selection.getRangeAt() on empty Selection or with invalid argument"_utf16);
 
     // Otherwise, it must return a reference to (not a copy of) this's range.
     return m_range;
+}
+
+WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(unsigned index)
+{
+    return get_range_at(m_document->relevant_settings_object().realm(), index);
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-addrange
@@ -164,7 +170,7 @@ void Selection::add_range(GC::Ref<DOM::Range> range)
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-removerange
-WebIDL::ExceptionOr<void> Selection::remove_range(GC::Ref<DOM::Range> range)
+WebIDL::ExceptionOr<void> Selection::remove_range(JS::Realm& realm, GC::Ref<DOM::Range> range)
 {
     // The method must make this empty by disassociating its range if this's range is range.
     if (m_range == range) {
@@ -173,7 +179,12 @@ WebIDL::ExceptionOr<void> Selection::remove_range(GC::Ref<DOM::Range> range)
     }
 
     // Otherwise, it must throw a NotFoundError.
-    return WebIDL::NotFoundError::create(realm(), "Selection.removeRange() with invalid argument"_utf16);
+    return WebIDL::NotFoundError::create(realm, "Selection.removeRange() with invalid argument"_utf16);
+}
+
+WebIDL::ExceptionOr<void> Selection::remove_range(GC::Ref<DOM::Range> range)
+{
+    return remove_range(m_document->relevant_settings_object().realm(), range);
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-removeallranges
@@ -191,7 +202,7 @@ void Selection::empty()
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-collapse
-WebIDL::ExceptionOr<void> Selection::collapse(GC::Ptr<DOM::Node> node, unsigned offset)
+WebIDL::ExceptionOr<void> Selection::collapse(JS::Realm& realm, GC::Ptr<DOM::Node> node, unsigned offset)
 {
     // 1. If node is null, this method must behave identically as removeAllRanges() and abort these steps.
     if (!node) {
@@ -201,11 +212,11 @@ WebIDL::ExceptionOr<void> Selection::collapse(GC::Ptr<DOM::Node> node, unsigned 
 
     // 2. If node is a DocumentType, throw an InvalidNodeTypeError exception and abort these steps.
     if (node->is_document_type())
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Selection.collapse() with DocumentType node"_utf16);
+        return WebIDL::InvalidNodeTypeError::create(realm, "Selection.collapse() with DocumentType node"_utf16);
 
     // 3. The method must throw an IndexSizeError exception if offset is longer than node's length and abort these steps.
     if (offset > node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Selection.collapse() with offset longer than node's length"_utf16);
+        return WebIDL::IndexSizeError::create(realm, "Selection.collapse() with offset longer than node's length"_utf16);
 
     // 4. If document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
     if (!m_document->is_shadow_including_inclusive_ancestor_of(*node))
@@ -223,19 +234,29 @@ WebIDL::ExceptionOr<void> Selection::collapse(GC::Ptr<DOM::Node> node, unsigned 
     return {};
 }
 
+WebIDL::ExceptionOr<void> Selection::collapse(GC::Ptr<DOM::Node> node, unsigned offset)
+{
+    return collapse(m_document->relevant_settings_object().realm(), node, offset);
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-setposition
-WebIDL::ExceptionOr<void> Selection::set_position(GC::Ptr<DOM::Node> node, unsigned offset)
+WebIDL::ExceptionOr<void> Selection::set_position(JS::Realm& realm, GC::Ptr<DOM::Node> node, unsigned offset)
 {
     // The method must be an alias, and behave identically, to collapse().
-    return collapse(node, offset);
+    return collapse(realm, node, offset);
+}
+
+WebIDL::ExceptionOr<void> Selection::set_position(GC::Ptr<DOM::Node> node, unsigned offset)
+{
+    return set_position(m_document->relevant_settings_object().realm(), node, offset);
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-collapsetostart
-WebIDL::ExceptionOr<void> Selection::collapse_to_start()
+WebIDL::ExceptionOr<void> Selection::collapse_to_start(JS::Realm& realm)
 {
     // 1. The method must throw InvalidStateError exception if the this is empty.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_start() on empty range"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Selection.collapse_to_start() on empty range"_utf16);
     }
 
     // 2. Otherwise, it must create a new range
@@ -250,12 +271,17 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_start()
     return {};
 }
 
+WebIDL::ExceptionOr<void> Selection::collapse_to_start()
+{
+    return collapse_to_start(m_document->relevant_settings_object().realm());
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-collapsetoend
-WebIDL::ExceptionOr<void> Selection::collapse_to_end()
+WebIDL::ExceptionOr<void> Selection::collapse_to_end(JS::Realm& realm)
 {
     // 1. The method must throw InvalidStateError exception if the this is empty.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_end() on empty range"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Selection.collapse_to_end() on empty range"_utf16);
     }
 
     // 2. Otherwise, it must create a new range
@@ -271,8 +297,13 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_end()
     return {};
 }
 
+WebIDL::ExceptionOr<void> Selection::collapse_to_end()
+{
+    return collapse_to_end(m_document->relevant_settings_object().realm());
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-extend
-WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned offset)
+WebIDL::ExceptionOr<void> Selection::extend(JS::Realm& realm, GC::Ref<DOM::Node> node, unsigned offset)
 {
     // 1. If the document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
     if (!m_document->is_shadow_including_inclusive_ancestor_of(node))
@@ -280,7 +311,7 @@ WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned of
 
     // 2. If this is empty, throw an InvalidStateError exception and abort these steps.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.extend() on empty range"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Selection.extend() on empty range"_utf16);
     }
 
     // 3. Let oldAnchor and oldFocus be the this's anchor and focus, and let newFocus be the boundary point (node, offset).
@@ -324,15 +355,20 @@ WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned of
     return {};
 }
 
+WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned offset)
+{
+    return extend(m_document->relevant_settings_object().realm(), node, offset);
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-setbaseandextent
-WebIDL::ExceptionOr<void> Selection::set_base_and_extent(GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset)
+WebIDL::ExceptionOr<void> Selection::set_base_and_extent(JS::Realm& realm, GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset)
 {
     // 1. If anchorOffset is longer than anchorNode's length or if focusOffset is longer than focusNode's length, throw an IndexSizeError exception and abort these steps.
     if (anchor_offset > anchor_node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Anchor offset points outside of the anchor node"_utf16);
+        return WebIDL::IndexSizeError::create(realm, "Anchor offset points outside of the anchor node"_utf16);
 
     if (focus_offset > focus_node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Focus offset points outside of the focus node"_utf16);
+        return WebIDL::IndexSizeError::create(realm, "Focus offset points outside of the focus node"_utf16);
 
     // 2. If document associated with this is not a shadow-including inclusive ancestor of anchorNode or focusNode, abort these steps.
     if (!m_document->is_shadow_including_inclusive_ancestor_of(anchor_node) || !m_document->is_shadow_including_inclusive_ancestor_of(focus_node))
@@ -366,12 +402,17 @@ WebIDL::ExceptionOr<void> Selection::set_base_and_extent(GC::Ref<DOM::Node> anch
     return {};
 }
 
+WebIDL::ExceptionOr<void> Selection::set_base_and_extent(GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset)
+{
+    return set_base_and_extent(m_document->relevant_settings_object().realm(), anchor_node, anchor_offset, focus_node, focus_offset);
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-selectallchildren
-WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node)
+WebIDL::ExceptionOr<void> Selection::select_all_children(JS::Realm& realm, GC::Ref<DOM::Node> node)
 {
     // 1. If node is a DocumentType, throw an InvalidNodeTypeError exception and abort these steps.
     if (node->is_document_type())
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Selection.selectAllChildren() with DocumentType node"_utf16);
+        return WebIDL::InvalidNodeTypeError::create(realm, "Selection.selectAllChildren() with DocumentType node"_utf16);
 
     // 2. If node's root is not the document associated with this, abort these steps.
     if (&node->root() != m_document.ptr())
@@ -394,6 +435,11 @@ WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node
     m_direction = Direction::Forwards;
 
     return {};
+}
+
+WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node)
+{
+    return select_all_children(m_document->relevant_settings_object().realm(), node);
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-modify
@@ -582,7 +628,7 @@ GC::Ptr<DOM::Position> Selection::cursor_position() const
     if (!m_range || !is_collapsed())
         return nullptr;
 
-    return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset());
+    return DOM::Position::create(*m_range->start_container(), m_range->start_offset());
 }
 
 // FIXME: The offset adjustment algorithms below do not handle moving over multiple DOM nodes. For example, if we have:

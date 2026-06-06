@@ -20,8 +20,6 @@ public:
 private:
     HTMLSourceElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;

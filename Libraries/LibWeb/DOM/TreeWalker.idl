@@ -8,11 +8,11 @@ interface TreeWalker {
 
     attribute Node currentNode;
 
-    Node? parentNode();
-    Node? firstChild();
-    Node? lastChild();
-    Node? previousSibling();
-    Node? nextSibling();
-    Node? previousNode();
-    Node? nextNode();
+    [NeedsCallerRealm] Node? parentNode();
+    [NeedsCallerRealm] Node? firstChild();
+    [NeedsCallerRealm] Node? lastChild();
+    [NeedsCallerRealm] Node? previousSibling();
+    [NeedsCallerRealm] Node? nextSibling();
+    [NeedsCallerRealm] Node? previousNode();
+    [NeedsCallerRealm] Node? nextNode();
 };

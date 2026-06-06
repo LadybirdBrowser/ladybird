@@ -17,14 +17,14 @@ class CSSFunctionDeclarations final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionDeclarations);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(JS::Realm&, Parser::Parser&, Vector<Parser::Declaration> const&);
+    [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(Parser::Parser&, Vector<Parser::Declaration> const&);
 
     virtual ~CSSFunctionDeclarations() override = default;
 
     GC::Ref<CSSFunctionDescriptors> style() { return m_style; }
 
 private:
-    CSSFunctionDeclarations(JS::Realm&, GC::Ref<CSSFunctionDescriptors>);
+    CSSFunctionDeclarations(GC::Ref<CSSFunctionDescriptors>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

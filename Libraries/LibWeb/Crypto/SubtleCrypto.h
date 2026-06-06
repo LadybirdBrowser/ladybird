@@ -22,37 +22,35 @@ class SubtleCrypto final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SubtleCrypto);
 
 public:
-    using ImportKeyData = FlattenVariant<WebIDL::BufferSourceVariant, Variant<Bindings::JsonWebKey>>;
-
-    [[nodiscard]] static GC::Ref<SubtleCrypto> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SubtleCrypto> create();
 
     virtual ~SubtleCrypto() override;
 
-    GC::Ref<WebIDL::Promise> encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource data_parameter);
-    GC::Ref<WebIDL::Promise> decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource data_parameter);
-    GC::Ref<WebIDL::Promise> sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource data_parameter);
-    GC::Ref<WebIDL::Promise> verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSource signature, WebIDL::BufferSource data_parameter);
+    GC::Ref<WebIDL::Promise> encrypt(JS::Realm&, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& data_parameter);
+    GC::Ref<WebIDL::Promise> decrypt(JS::Realm&, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& data_parameter);
+    GC::Ref<WebIDL::Promise> sign(JS::Realm&, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& data_parameter);
+    GC::Ref<WebIDL::Promise> verify(JS::Realm&, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& signature, WebIDL::BufferSourceVariant const& data_parameter);
 
-    GC::Ref<WebIDL::Promise> digest(AlgorithmIdentifier const& algorithm, WebIDL::BufferSource data);
+    GC::Ref<WebIDL::Promise> digest(JS::Realm&, AlgorithmIdentifier const& algorithm, WebIDL::BufferSourceVariant const& data);
 
-    GC::Ref<WebIDL::Promise> generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
-    GC::Ref<WebIDL::Promise> derive_bits(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, Optional<u32> length_optional);
-    GC::Ref<WebIDL::Promise> derive_key(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    GC::Ref<WebIDL::Promise> generate_key(JS::Realm&, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    GC::Ref<WebIDL::Promise> derive_bits(JS::Realm&, AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, Optional<u32> length_optional);
+    GC::Ref<WebIDL::Promise> derive_key(JS::Realm&, AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages);
 
-    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> import_key(Bindings::KeyFormat format, ImportKeyData key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
-    GC::Ref<WebIDL::Promise> export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key);
+    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> import_key(JS::Realm&, Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    GC::Ref<WebIDL::Promise> export_key(JS::Realm&, Bindings::KeyFormat format, GC::Ref<CryptoKey> key);
 
-    GC::Ref<WebIDL::Promise> wrap_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier wrap_algorithm);
-    GC::Ref<WebIDL::Promise> unwrap_key(Bindings::KeyFormat format, WebIDL::BufferSource wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier unwrap_algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    GC::Ref<WebIDL::Promise> wrap_key(JS::Realm&, Bindings::KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier wrap_algorithm);
+    GC::Ref<WebIDL::Promise> unwrap_key(JS::Realm&, Bindings::KeyFormat format, WebIDL::BufferSourceVariant wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier unwrap_algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
 
-    GC::Ref<WebIDL::Promise> encapsulate_key(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
-    GC::Ref<WebIDL::Promise> encapsulate_bits(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key);
+    GC::Ref<WebIDL::Promise> encapsulate_key(JS::Realm&, AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    GC::Ref<WebIDL::Promise> encapsulate_bits(JS::Realm&, AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key);
 
-    GC::Ref<WebIDL::Promise> decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSource ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages);
-    GC::Ref<WebIDL::Promise> decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSource ciphertext);
+    GC::Ref<WebIDL::Promise> decapsulate_key(JS::Realm&, AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSourceVariant const& ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages);
+    GC::Ref<WebIDL::Promise> decapsulate_bits(JS::Realm&, AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSourceVariant const& ciphertext);
 
 private:
-    explicit SubtleCrypto(JS::Realm&);
+    SubtleCrypto();
 };
 
 struct NormalizedAlgorithmAndParameter {

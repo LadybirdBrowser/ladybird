@@ -19,8 +19,9 @@ class OscillatorNode : public AudioScheduledSourceNode {
 public:
     virtual ~OscillatorNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::OscillatorOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::OscillatorOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create(GC::Ref<BaseAudioContext>, Bindings::OscillatorOptions const& = {});
+    static WebIDL::ExceptionOr<void> validate_options(Bindings::OscillatorOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::OscillatorOptions const& = {});
 
     Bindings::OscillatorType type() const;
     WebIDL::ExceptionOr<void> set_type(Bindings::OscillatorType);
@@ -34,9 +35,7 @@ public:
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
 protected:
-    OscillatorNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::OscillatorOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    OscillatorNode(GC::Ref<BaseAudioContext>, Bindings::OscillatorOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

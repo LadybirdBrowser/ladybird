@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -15,8 +16,6 @@
 #include <LibWeb/HTML/CustomElements/CustomElementName.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
@@ -25,16 +24,23 @@ GC_DEFINE_ALLOCATOR(CustomElementRegistry);
 GC_DEFINE_ALLOCATOR(CustomElementDefinition);
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry
-GC::Ref<CustomElementRegistry> CustomElementRegistry::construct_impl(JS::Realm& realm)
+GC::Ref<CustomElementRegistry> CustomElementRegistry::construct_impl()
 {
     // The new CustomElementRegistry() constructor steps are to set this's is scoped to true.
-    auto registry = realm.create<CustomElementRegistry>(realm);
+    auto registry = GC::Heap::the().allocate<CustomElementRegistry>();
     registry->m_is_scoped = true;
     return registry;
 }
 
-CustomElementRegistry::CustomElementRegistry(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+GC::Ref<CustomElementRegistry> CustomElementRegistry::create_global(DOM::Document& document)
+{
+    auto registry = GC::Heap::the().allocate<CustomElementRegistry>();
+    registry->m_global_document = document;
+    return registry;
+}
+
+CustomElementRegistry::CustomElementRegistry()
+    : Bindings::Wrappable()
 {
 }
 
@@ -43,6 +49,7 @@ CustomElementRegistry::~CustomElementRegistry() = default;
 void CustomElementRegistry::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_global_document);
     visitor.visit(m_custom_element_definitions);
     visitor.visit(m_when_defined_promise_map);
 }
@@ -57,7 +64,7 @@ static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_cal
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, value);
 
     // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent realm as the callback context.
-    return vm.heap().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_realm());
+    return GC::Heap::the().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_realm());
 }
 
 // https://webidl.spec.whatwg.org/#es-sequence
@@ -117,9 +124,8 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-define
-JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const& options)
+JS::ThrowCompletionOr<void> CustomElementRegistry::define(JS::Realm& realm, String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const& options)
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. If IsConstructor(constructor) is false, then throw a TypeError.
@@ -128,7 +134,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 2. If name is not a valid custom element name, then throw a "SyntaxError" DOMException.
     if (!is_valid_custom_element_name(name))
-        return throw_completion(WebIDL::SyntaxError::create(realm, Utf16String::formatted("'{}' is not a valid custom element name", name)));
+        return throw_completion(realm, WebIDL::SyntaxError::create(realm, Utf16String::formatted("'{}' is not a valid custom element name", name)));
 
     // 3. If this's custom element definition set contains an item with name name, then throw a "NotSupportedError"
     //    DOMException.
@@ -137,7 +143,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     });
 
     if (existing_definition_with_name_iterator != m_custom_element_definitions.end())
-        return throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("A custom element with name '{}' is already defined", name)));
+        return throw_completion(realm, WebIDL::NotSupportedError::create(realm, Utf16String::formatted("A custom element with name '{}' is already defined", name)));
 
     // 4. If this's custom element definition set contains an item with constructor constructor, then throw a
     //    "NotSupportedError" DOMException.
@@ -146,7 +152,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     });
 
     if (existing_definition_with_constructor_iterator != m_custom_element_definitions.end())
-        return throw_completion(WebIDL::NotSupportedError::create(realm, "The given constructor is already in use by another custom element"_utf16));
+        return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "The given constructor is already in use by another custom element"_utf16));
 
     // 5. Let localName be name.
     String local_name = name;
@@ -158,16 +164,16 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     if (extends.has_value()) {
         // 1. If this's is scoped is true, then throw a "NotSupportedError" DOMException.
         if (m_is_scoped)
-            return throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot define a custom element that extends another in a scoped registry"_utf16));
+            return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Cannot define a custom element that extends another in a scoped registry"_utf16));
 
         // 2. If extends is a valid custom element name, then throw a "NotSupportedError" DOMException.
         if (is_valid_custom_element_name(extends.value()))
-            return throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is a custom element name, only non-custom elements can be extended", extends.value())));
+            return throw_completion(realm, WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is a custom element name, only non-custom elements can be extended", extends.value())));
 
         // 3. If the element interface for extends and the HTML namespace is HTMLUnknownElement (e.g., if extends does
         //    not indicate an element definition in this specification), then throw a "NotSupportedError" DOMException.
         if (DOM::is_unknown_html_element(extends.value()))
-            return throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is an unknown HTML element", extends.value())));
+            return throw_completion(realm, WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is an unknown HTML element", extends.value())));
 
         // 4. Set localName to extends.
         local_name = extends.value();
@@ -175,7 +181,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 8. If this's element definition is running is true, then throw a "NotSupportedError" DOMException.
     if (m_element_definition_is_running)
-        return throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot recursively define custom elements"_utf16));
+        return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Cannot recursively define custom elements"_utf16));
 
     // 9. Set this's element definition is running to true.
     m_element_definition_is_running = true;
@@ -292,7 +298,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     // 15. Let definition be a new custom element definition with name name, local name localName, constructor
     //     constructor, observed attributes observedAttributes, lifecycle callbacks lifecycleCallbacks, form-associated
     //     formAssociated, disable internals disableInternals, and disable shadow disableShadow.
-    auto definition = CustomElementDefinition::create(realm, name, local_name, *constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
+    auto definition = CustomElementDefinition::create(name, local_name, *constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
 
     // 16. Append definition to this's custom element definition set.
     m_custom_element_definitions.append(definition);
@@ -306,15 +312,16 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     // 18. Otherwise, upgrade particular elements within a document given this, this's relevant global object's
     //     associated Document, definition, localName, and name.
     else {
-        auto& document = relevant_window(*this).associated_document();
-        document.upgrade_particular_elements(*this, definition, local_name, name);
+        VERIFY(m_global_document);
+        m_global_document->upgrade_particular_elements(*this, definition, local_name, name);
     }
 
     // 19. If this's when-defined promise map[name] exists:
     auto promise_when_defined_iterator = m_when_defined_promise_map.find(name);
     if (promise_when_defined_iterator != m_when_defined_promise_map.end()) {
         // 1. Resolve this's when-defined promise map[name] with constructor.
-        WebIDL::resolve_promise(realm, promise_when_defined_iterator->value, constructor->callback);
+        auto& promise_realm = WebIDL::promise_realm(promise_when_defined_iterator->value);
+        WebIDL::resolve_promise(promise_realm, promise_when_defined_iterator->value, constructor->callback);
 
         // 2. Remove this's when-defined promise map[name].
         m_when_defined_promise_map.remove(name);
@@ -354,10 +361,8 @@ Optional<String> CustomElementRegistry::get_name(GC::Ref<WebIDL::CallbackType> c
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-whendefined
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> CustomElementRegistry::when_defined(String const& name)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> CustomElementRegistry::when_defined(JS::Realm& realm, String const& name)
 {
-    auto& realm = this->realm();
-
     // 1. If name is not a valid custom element name, then return a promise rejected with a "SyntaxError" DOMException.
     if (!is_valid_custom_element_name(name))
         return WebIDL::create_rejected_promise(realm, WebIDL::SyntaxError::create(realm, Utf16String::formatted("'{}' is not a valid custom element name", name)));
@@ -406,12 +411,12 @@ void CustomElementRegistry::upgrade(GC::Ref<DOM::Node> root) const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-initialize
-WebIDL::ExceptionOr<void> CustomElementRegistry::initialize_for_bindings(GC::Ref<DOM::Node> root)
+WebIDL::ExceptionOr<void> CustomElementRegistry::initialize_for_bindings(JS::Realm& realm, GC::Ref<DOM::Node> root)
 {
     // 1. If this's is scoped is false and either root is a Document node or root's node document's custom element
     //    registry is not this, then throw a "NotSupportedError" DOMException.
     if (!is_scoped() && (root->is_document() || root->document().custom_element_registry() != this))
-        return WebIDL::NotSupportedError::create(realm(), "CustomElementRegistry must either be scoped or the document's custom element registry."_utf16);
+        return WebIDL::NotSupportedError::create(realm, "CustomElementRegistry must either be scoped or the document's custom element registry."_utf16);
 
     // 2. If root is a Document node whose custom element registry is null, then set root's custom element registry to
     //    this.

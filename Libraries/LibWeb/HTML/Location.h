@@ -22,44 +22,46 @@ class Location final : public Bindings::Wrappable {
 public:
     virtual ~Location() override;
 
-    WebIDL::ExceptionOr<String> href() const;
-    WebIDL::ExceptionOr<void> set_href(String const&);
+    WebIDL::ExceptionOr<String> href(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_href(JS::Realm&, String const&);
 
-    WebIDL::ExceptionOr<String> origin() const;
+    WebIDL::ExceptionOr<String> origin(JS::Realm&) const;
 
-    WebIDL::ExceptionOr<String> protocol() const;
-    WebIDL::ExceptionOr<void> set_protocol(String const&);
+    WebIDL::ExceptionOr<String> protocol(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_protocol(JS::Realm&, String const&);
 
-    WebIDL::ExceptionOr<String> host() const;
-    WebIDL::ExceptionOr<void> set_host(String const&);
+    WebIDL::ExceptionOr<String> host(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_host(JS::Realm&, String const&);
 
-    WebIDL::ExceptionOr<String> hostname() const;
-    WebIDL::ExceptionOr<void> set_hostname(String const&);
+    WebIDL::ExceptionOr<String> hostname(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_hostname(JS::Realm&, String const&);
 
-    WebIDL::ExceptionOr<String> port() const;
-    WebIDL::ExceptionOr<void> set_port(String const&);
+    WebIDL::ExceptionOr<String> port(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_port(JS::Realm&, String const&);
 
-    WebIDL::ExceptionOr<String> pathname() const;
-    WebIDL::ExceptionOr<void> set_pathname(String const&);
+    WebIDL::ExceptionOr<String> pathname(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_pathname(JS::Realm&, String const&);
 
-    WebIDL::ExceptionOr<String> search() const;
-    WebIDL::ExceptionOr<void> set_search(String const&);
+    WebIDL::ExceptionOr<String> search(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_search(JS::Realm&, String const&);
 
-    WebIDL::ExceptionOr<String> hash() const;
-    WebIDL::ExceptionOr<void> set_hash(StringView);
+    WebIDL::ExceptionOr<String> hash(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_hash(JS::Realm&, StringView);
 
-    WebIDL::ExceptionOr<void> replace(String const& url);
+    WebIDL::ExceptionOr<void> replace(JS::Realm&, String const& url);
     void reload() const;
-    WebIDL::ExceptionOr<void> assign(String const& url);
+    WebIDL::ExceptionOr<void> assign(JS::Realm&, String const& url);
 
 private:
-    explicit Location(JS::Realm&);
+    explicit Location(Window&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<DOM::Document> relevant_document() const;
     URL::URL url() const;
     WebIDL::ExceptionOr<void> navigate(URL::URL, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
+
+    GC::Ref<Window> m_window;
 };
 
 }

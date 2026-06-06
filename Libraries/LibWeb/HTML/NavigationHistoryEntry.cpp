@@ -22,23 +22,29 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationHistoryEntry);
 
-GC::Ref<NavigationHistoryEntry> NavigationHistoryEntry::create(JS::Realm& realm, NonnullRefPtr<SessionHistoryEntry> she)
+GC::Ref<NavigationHistoryEntry> NavigationHistoryEntry::create(Window& window, NonnullRefPtr<SessionHistoryEntry> she)
 {
-    return realm.create<NavigationHistoryEntry>(realm, she);
+    return GC::Heap::the().allocate<NavigationHistoryEntry>(window, she);
 }
 
-NavigationHistoryEntry::NavigationHistoryEntry(JS::Realm& realm, NonnullRefPtr<SessionHistoryEntry> she)
-    : DOM::EventTarget(realm)
+NavigationHistoryEntry::NavigationHistoryEntry(GC::Ref<Window> window, NonnullRefPtr<SessionHistoryEntry> she)
+    : DOM::EventTarget()
     , m_session_history_entry(she)
+    , m_window(window)
 {
 }
 
 NavigationHistoryEntry::~NavigationHistoryEntry() = default;
 
-void NavigationHistoryEntry::initialize(JS::Realm& realm)
+void NavigationHistoryEntry::visit_edges(Cell::Visitor& visitor)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationHistoryEntry);
-    Base::initialize(realm);
+    Base::visit_edges(visitor);
+    visitor.visit(m_window);
+}
+
+Window& NavigationHistoryEntry::window() const
+{
+    return m_window;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationhistoryentry-url
@@ -46,7 +52,7 @@ Optional<String> NavigationHistoryEntry::url() const
 {
     // The url getter steps are:
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = relevant_window(*this).associated_document();
+    auto& document = window().associated_document();
 
     // 2. If document is not fully active, then return the empty string.
     if (!document.is_fully_active())
@@ -71,7 +77,7 @@ String NavigationHistoryEntry::key() const
 {
     // The key of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return the empty string.
-    auto& associated_document = relevant_window(*this).associated_document();
+    auto& associated_document = window().associated_document();
     if (!associated_document.is_fully_active())
         return {};
 
@@ -84,7 +90,7 @@ String NavigationHistoryEntry::id() const
 {
     // The ID of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return the empty string.
-    auto& associated_document = relevant_window(*this).associated_document();
+    auto& associated_document = window().associated_document();
     if (!associated_document.is_fully_active())
         return {};
 
@@ -97,7 +103,7 @@ i64 NavigationHistoryEntry::index() const
 {
     // The index of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return −1.
-    auto& this_relevant_global_object = relevant_window(*this);
+    auto& this_relevant_global_object = window();
     if (!this_relevant_global_object.associated_document().is_fully_active())
         return -1;
 
@@ -111,7 +117,7 @@ bool NavigationHistoryEntry::same_document() const
 {
     // The sameDocument getter steps are:
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = relevant_window(*this).associated_document();
+    auto& document = window().associated_document();
 
     // 2. If document is not fully active, then return false.
     if (!document.is_fully_active())
@@ -126,14 +132,14 @@ WebIDL::ExceptionOr<JS::Value> NavigationHistoryEntry::get_state()
 {
     // The getState() method steps are:
     // 1. If this's relevant global object's associated Document is not fully active, then return undefined.
-    auto& associated_document = relevant_window(*this).associated_document();
+    auto& associated_document = window().associated_document();
     if (!associated_document.is_fully_active())
         return JS::js_undefined();
 
     // 2. Return StructuredDeserialize(this's session history entry's navigation API state). Rethrow any exceptions.
     //    NOTE: This can in theory throw an exception, if attempting to deserialize a large ArrayBuffer
     //          when not enough memory is available.
-    return structured_deserialize(vm(), m_session_history_entry->navigation_api_state(), realm());
+    return structured_deserialize(vm(), m_session_history_entry->navigation_api_state(), HTML::relevant_realm(window()));
 }
 
 void NavigationHistoryEntry::set_ondispose(WebIDL::CallbackType* event_handler)

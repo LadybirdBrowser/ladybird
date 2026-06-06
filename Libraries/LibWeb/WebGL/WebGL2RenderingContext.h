@@ -22,10 +22,11 @@ class WebGL2RenderingContext final : public WebGL2RenderingContextOverloads {
     GC_DECLARE_ALLOCATOR(WebGL2RenderingContext);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
+    static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(HTML::HTMLCanvasElement& canvas_element, JS::Value options);
 
     virtual ~WebGL2RenderingContext() override;
 
+    virtual JS::Object& relevant_global_object() const override;
     void present() override;
     void needs_to_present() override;
 
@@ -43,7 +44,7 @@ public:
     WebIDL::Long drawing_buffer_height() const;
 
 private:
-    WebGL2RenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
+    WebGL2RenderingContext(HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

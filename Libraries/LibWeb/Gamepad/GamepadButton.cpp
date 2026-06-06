@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Gamepad/GamepadButton.h>
 
 #include <SDL3/SDL_gamepad.h>
@@ -12,8 +13,13 @@ namespace Web::Gamepad {
 
 GC_DEFINE_ALLOCATOR(GamepadButton);
 
-GamepadButton::GamepadButton(JS::Realm& realm)
-    : Wrappable(realm)
+GC::Ref<GamepadButton> GamepadButton::create()
+{
+    return GC::Heap::the().allocate<GamepadButton>();
+}
+
+GamepadButton::GamepadButton()
+    : Bindings::Wrappable()
 {
 }
 

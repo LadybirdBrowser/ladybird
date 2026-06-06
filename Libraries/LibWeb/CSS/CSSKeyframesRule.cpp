@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
@@ -15,13 +16,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframesRule);
 
-GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, FlyString name, GC::Ref<CSSRuleList> css_rules)
+GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(FlyString name, GC::Ref<CSSRuleList> css_rules)
 {
-    return realm.create<CSSKeyframesRule>(realm, move(name), move(css_rules));
+    return GC::Heap::the().allocate<CSSKeyframesRule>(move(name), move(css_rules));
 }
 
-CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, GC::Ref<CSSRuleList> keyframes)
-    : CSSRule(realm, Type::Keyframes)
+CSSKeyframesRule::CSSKeyframesRule(FlyString name, GC::Ref<CSSRuleList> keyframes)
+    : CSSRule(Type::Keyframes)
     , m_name(move(name))
     , m_rules(move(keyframes))
 {

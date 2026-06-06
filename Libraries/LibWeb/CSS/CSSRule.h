@@ -76,7 +76,7 @@ public:
     MUST_UPCALL virtual void clear_caches();
 
 protected:
-    CSSRule(JS::Realm&, Type);
+    CSSRule(Type);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -15,8 +15,8 @@
 
 namespace Web::CSS {
 
-CSSRule::CSSRule(JS::Realm& realm, Type type)
-    : Bindings::Wrappable(realm)
+CSSRule::CSSRule(Type type)
+    : Bindings::Wrappable()
     , m_type(type)
 {
 }

@@ -497,13 +497,13 @@ public:
     }
 
 protected:
-    Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
 
     void set_document(Document&);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
+    virtual JS::Realm& wrapper_realm(Bindings::WrapperWorld const&, JS::Realm& preferred_realm) const override;
     virtual size_t external_memory_size() const override;
 
     GC::Ptr<Document> m_document;

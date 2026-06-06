@@ -5,10 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/ImageData.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -23,9 +26,14 @@ GC_DEFINE_ALLOCATOR(ImageData);
     return Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(width, height), width * sizeof(u32), data.data().data());
 }
 
-GC::Ref<ImageData> ImageData::create(JS::Realm& realm)
+GC::Ref<ImageData> ImageData::create()
 {
-    return realm.create<ImageData>(realm);
+    return GC::Heap::the().allocate<ImageData>();
+}
+
+GC::Ref<ImageData> ImageData::create(NonnullRefPtr<Gfx::Bitmap> bitmap, GC::Ref<JS::Uint8ClampedArray> data, Bindings::PredefinedColorSpace color_space)
+{
+    return GC::Heap::the().allocate<ImageData>(move(bitmap), data, color_space);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata
@@ -40,9 +48,9 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 
     return initialize(realm, sh, sw, settings);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, u32 sw, u32 sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
-    return ImageData::create(realm, sw, sh, settings);
+    return ImageData::create(HTML::relevant_realm(global_scope), sw, sh, settings);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata-with-data
@@ -76,9 +84,9 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::
     return initialize(realm, height, sw, settings, *uint8_clamped_array_data);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh, Optional<Bindings::ImageDataSettings> const& settings)
 {
-    return ImageData::create(realm, data, sw, move(sh), settings);
+    return ImageData::create(HTML::relevant_realm(global_scope), data, sw, move(sh), settings);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
@@ -121,17 +129,15 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::initialize(JS::Realm& realm, 
     else
         color_space = Bindings::PredefinedColorSpace::Srgb;
 
-    return realm.create<ImageData>(realm, move(bitmap), data, color_space);
+    return ImageData::create(move(bitmap), data, color_space);
 }
 
-ImageData::ImageData(JS::Realm& realm)
-    : Wrappable(realm)
+ImageData::ImageData()
 {
 }
 
-ImageData::ImageData(JS::Realm& realm, NonnullRefPtr<Gfx::Bitmap> bitmap, GC::Ref<JS::Uint8ClampedArray> data, Bindings::PredefinedColorSpace color_space)
-    : Wrappable(realm)
-    , m_bitmap(move(bitmap))
+ImageData::ImageData(NonnullRefPtr<Gfx::Bitmap> bitmap, GC::Ref<JS::Uint8ClampedArray> data, Bindings::PredefinedColorSpace color_space)
+    : m_bitmap(move(bitmap))
     , m_color_space(color_space)
     , m_data(move(data))
 {
@@ -166,12 +172,10 @@ JS::Uint8ClampedArray const* ImageData::data() const
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:serialization-steps
-WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> ImageData::serialization_steps(JS::Realm& realm, HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
-    auto& vm = realm().vm();
-
     // 1. Set serialized.[[Data]] to the sub-serialization of the value of value's data attribute.
-    auto serialized_data = TRY(structured_serialize_internal(vm, m_data, for_storage, memory));
+    auto serialized_data = TRY(structured_serialize_internal(realm, m_data, for_storage, memory));
     serialized.append(move(serialized_data));
 
     // 2. Set serialized.[[Width]] to the value of value's width attribute.
@@ -189,9 +193,8 @@ WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncod
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:deserialization-steps
-WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<void> ImageData::deserialization_steps(JS::Realm& realm, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Initialize value's data attribute to the sub-deserialization of serialized.[[Data]].

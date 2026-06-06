@@ -17,6 +17,7 @@ class SVGAnimatedRect final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedRect);
 
 public:
+    [[nodiscard]] static GC::Ref<SVGAnimatedRect> create();
     virtual ~SVGAnimatedRect();
 
     GC::Ptr<Geometry::DOMRect> base_val() const;
@@ -30,7 +31,7 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    explicit SVGAnimatedRect(JS::Realm&);
+    SVGAnimatedRect();
 
     GC::Ptr<Geometry::DOMRect> m_base_val;
     GC::Ptr<Geometry::DOMRect> m_anim_val;

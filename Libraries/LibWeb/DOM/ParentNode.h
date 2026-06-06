@@ -49,11 +49,6 @@ public:
     void set_has_child_affected_by_backward_positional_pseudo_class(bool value) { m_has_child_affected_by_backward_positional_pseudo_class = value; }
 
 protected:
-    ParentNode(JS::Realm& realm, Document& document, NodeType type)
-        : Node(realm, document, type)
-    {
-    }
-
     ParentNode(Document& document, NodeType type)
         : Node(document, type)
     {

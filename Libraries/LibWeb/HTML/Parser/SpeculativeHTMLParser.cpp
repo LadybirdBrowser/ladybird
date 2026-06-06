@@ -6,6 +6,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/FFIHelpers.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -22,9 +23,11 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SpeculativeHTMLParser);
 
-GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(JS::Realm& realm, GC::Ref<DOM::Document> document, String pending_input, URL::URL base_url)
+GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(GC::Ref<DOM::Document> document, String pending_input, URL::URL base_url)
 {
-    return realm.create<SpeculativeHTMLParser>(document, move(pending_input), move(base_url));
+    auto parser = GC::Heap::the().allocate<SpeculativeHTMLParser>(document, move(pending_input), move(base_url));
+    parser->initialize(document->relevant_settings_object().realm());
+    return parser;
 }
 
 SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, String pending_input, URL::URL base_url)
@@ -106,12 +109,11 @@ CORSSettingAttribute cors_setting_from_preload_scanner(RustFfiPreloadScannerCors
 
 void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL url, Optional<Fetch::Infrastructure::Request::Destination> destination, CORSSettingAttribute cors_setting)
 {
-    auto& vm = realm.vm();
-    auto request = create_potential_CORS_request(vm, url, destination, cors_setting);
+    auto request = create_potential_CORS_request(url, destination, cors_setting);
     request->set_client(&document.relevant_settings_object());
 
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    auto algorithms = Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input));
+    auto algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
 
     // The fetch stays alive via ResourceLoader's GC::Root callbacks for the duration of the
     // network request, so we don't need to retain the FetchController.
@@ -160,7 +162,7 @@ void SpeculativeHTMLParser::process_preload_scanner_entry(RustFfiPreloadScannerE
     // 4. Otherwise, fetch url as if the element was processed normally, and add url to the list of
     //    speculative fetch URLs.
     m_document->add_speculative_fetch_url(*url);
-    issue_speculative_fetch(m_document->realm(), *m_document, *url, destination_from_preload_scanner(entry.destination), cors_setting_from_preload_scanner(entry.cors_setting));
+    issue_speculative_fetch(m_document->relevant_settings_object().realm(), *m_document, *url, destination_from_preload_scanner(entry.destination), cors_setting_from_preload_scanner(entry.cors_setting));
 }
 
 }

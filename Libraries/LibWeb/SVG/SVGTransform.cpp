@@ -5,20 +5,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/SVGTransform.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGTransform);
 
-GC::Ref<SVGTransform> SVGTransform::create(JS::Realm& realm)
+GC::Ref<SVGTransform> SVGTransform::create()
 {
-    return realm.create<SVGTransform>(realm);
+    return GC::Heap::the().allocate<SVGTransform>();
 }
 
-SVGTransform::SVGTransform(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+SVGTransform::SVGTransform()
+    : Bindings::Wrappable()
 {
 }
 

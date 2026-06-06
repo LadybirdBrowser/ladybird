@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -12,9 +13,14 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/TextDecoder.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Encoding/TextDecoderStream.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
+#include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -89,8 +95,11 @@ static size_t find_utf8_safe_decode_boundary(ReadonlyBytes bytes)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoderstream
-WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, FlyString label, Bindings::TextDecoderOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, FlyString label, Bindings::TextDecoderOptions const& options)
 {
+    auto& realm = HTML::relevant_realm(global_scope);
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+
     // 1. Let encoding be the result of getting an encoding from label.
     auto encoding = TextCodec::get_standardized_encoding(label);
 
@@ -115,29 +124,30 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
     //     stream from the transform/flush algorithms.
 
     // 9. Let transformStream be a new TransformStream.
-    auto transform_stream = realm.create<Streams::TransformStream>(realm);
+    auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
+    (void)Bindings::wrap(wrapper_world, realm, transform_stream);
 
-    auto stream = realm.create<TextDecoderStream>(realm, transform_stream, *decoder, lowercase_encoding_name, error_mode, ignore_bom);
+    auto stream = GC::Heap::the().allocate<TextDecoderStream>(transform_stream, *decoder, lowercase_encoding_name, error_mode, ignore_bom);
 
     // 7. Let transformAlgorithm be an algorithm which takes a chunk argument and runs the decode and enqueue a chunk
     //    algorithm with this and chunk.
-    auto transform_algorithm = GC::create_function(realm.heap(), [stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        if (auto result = stream->decode_and_enqueue_chunk(chunk); result.is_error())
+    auto transform_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+        if (auto result = stream->decode_and_enqueue_chunk(realm, chunk); result.is_error())
             return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 8. Let flushAlgorithm be an algorithm which takes no arguments and runs the flush and enqueue algorithm with this.
-    auto flush_algorithm = GC::create_function(realm.heap(), [stream]() -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        if (auto result = stream->flush_and_enqueue(); result.is_error())
+    auto flush_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)]() -> GC::Ref<WebIDL::Promise> {
+        if (auto result = stream->flush_and_enqueue(realm); result.is_error())
             return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 10. Set up transformStream with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
-    transform_stream->set_up(transform_algorithm, flush_algorithm);
+    transform_stream->set_up(realm, transform_algorithm, flush_algorithm);
+    (void)Bindings::wrap(wrapper_world, realm, transform_stream->readable());
+    (void)Bindings::wrap(wrapper_world, realm, transform_stream->writable());
 
     // 11. Set this’s transform to transformStream.
     // NB: Done via the GenericTransformStreamMixin constructor above.
@@ -145,8 +155,8 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
     return stream;
 }
 
-TextDecoderStream::TextDecoderStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
-    : Wrappable(realm)
+TextDecoderStream::TextDecoderStream(GC::Ref<Streams::TransformStream> transform, TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
+    : Bindings::Wrappable()
     , Streams::GenericTransformStreamMixin(transform)
     , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
 {
@@ -161,9 +171,8 @@ void TextDecoderStream::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://encoding.spec.whatwg.org/#decode-and-enqueue-a-chunk
-WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value chunk)
+WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Realm& realm, JS::Value chunk)
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Let bufferSource be the result of converting chunk to an AllowSharedBufferSource.
@@ -196,11 +205,11 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value 
 
     // 3-4. Run "processing an item" until the input is exhausted, accumulating the output, then enqueue any non-empty
     //      result. If processing returns error, throw a TypeError.
-    return enqueue_decoded_output(decoded);
+    return enqueue_decoded_output(realm, decoded);
 }
 
 // https://encoding.spec.whatwg.org/#flush-and-enqueue
-WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
+WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue(JS::Realm& realm)
 {
     // 1-3. Drain decoder's I/O queue and run "processing an item" to completion.
 
@@ -214,12 +223,11 @@ WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
         m_io_queue.clear();
     }
 
-    return enqueue_decoded_output(decoded);
+    return enqueue_decoded_output(realm, decoded);
 }
 
-WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(String const& decoded)
+WebIDL::ExceptionOr<void> TextDecoderStream::enqueue_decoded_output(JS::Realm& realm, String const& decoded)
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // https://encoding.spec.whatwg.org/#concept-td-serialize

@@ -22,27 +22,25 @@ class WEB_API CookieStore final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(CookieStore);
 
 public:
-    GC::Ref<WebIDL::Promise> get(String name);
-    GC::Ref<WebIDL::Promise> get(Bindings::CookieStoreGetOptions const&);
+    GC::Ref<WebIDL::Promise> get(JS::Realm&, String name);
+    GC::Ref<WebIDL::Promise> get(JS::Realm&, Bindings::CookieStoreGetOptions const&);
 
-    GC::Ref<WebIDL::Promise> get_all(String name);
-    GC::Ref<WebIDL::Promise> get_all(Bindings::CookieStoreGetOptions const&);
+    GC::Ref<WebIDL::Promise> get_all(JS::Realm&, String name);
+    GC::Ref<WebIDL::Promise> get_all(JS::Realm&, Bindings::CookieStoreGetOptions const&);
 
-    GC::Ref<WebIDL::Promise> set(String name, String value);
-    GC::Ref<WebIDL::Promise> set(Bindings::CookieInit const&);
+    GC::Ref<WebIDL::Promise> set(JS::Realm&, String name, String value);
+    GC::Ref<WebIDL::Promise> set(JS::Realm&, Bindings::CookieInit const&);
 
-    GC::Ref<WebIDL::Promise> delete_(String name);
-    GC::Ref<WebIDL::Promise> delete_(Bindings::CookieStoreDeleteOptions const&);
+    GC::Ref<WebIDL::Promise> delete_(JS::Realm&, String name);
+    GC::Ref<WebIDL::Promise> delete_(JS::Realm&, Bindings::CookieStoreDeleteOptions const&);
 
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();
 
-    void process_cookie_changes(Vector<HTTP::Cookie::Cookie>);
+    void process_cookie_changes(JS::Object&, Vector<HTTP::Cookie::Cookie>);
 
 private:
-    CookieStore(JS::Realm&, PageClient&);
-
-    virtual void initialize(JS::Realm&) override;
+    CookieStore(PageClient&);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<PageClient> m_client;

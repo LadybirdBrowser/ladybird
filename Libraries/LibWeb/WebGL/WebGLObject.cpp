@@ -13,8 +13,8 @@
 
 namespace Web::WebGL {
 
-WebGLObject::WebGLObject(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : Bindings::Wrappable(realm)
+WebGLObject::WebGLObject(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : Bindings::Wrappable()
     , m_context(context)
     , m_handle(handle)
 {

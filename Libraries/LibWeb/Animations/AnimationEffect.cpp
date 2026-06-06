@@ -112,7 +112,7 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     //       If duration is the string auto, this attribute will return the current calculated value of the intrinsic
     //       iteration duration, which may be a expressed as a double representing the duration in milliseconds or a
     //       percentage when the effect is associated with a progress-based timeline.
-    auto duration = m_iteration_duration.as_css_numberish(realm());
+    auto duration = m_iteration_duration.as_css_numberish();
 
     //     - fill: likewise, while getTiming() may return the string auto, getComputedTiming() must return the specific
     //       FillMode used for timing calculations as defined in the description of the fill member of the EffectTiming
@@ -130,10 +130,10 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     computed_timing.duration = duration;
     computed_timing.direction = m_playback_direction;
     computed_timing.easing = m_timing_function.to_string();
-    computed_timing.active_duration = active_duration().as_css_numberish(realm());
+    computed_timing.active_duration = active_duration().as_css_numberish();
     computed_timing.current_iteration = current_iteration();
-    computed_timing.end_time = end_time().as_css_numberish(realm());
-    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(realm(), local_time());
+    computed_timing.end_time = end_time().as_css_numberish();
+    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(local_time());
     computed_timing.progress = transformed_progress();
     return computed_timing;
 }
@@ -769,8 +769,8 @@ Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView va
     return {};
 }
 
-AnimationEffect::AnimationEffect(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+AnimationEffect::AnimationEffect()
+    : Bindings::Wrappable()
 {
 }
 

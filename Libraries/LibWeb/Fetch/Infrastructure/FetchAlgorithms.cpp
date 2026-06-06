@@ -12,15 +12,15 @@ namespace Web::Fetch::Infrastructure {
 
 GC_DEFINE_ALLOCATOR(FetchAlgorithms);
 
-GC::Ref<FetchAlgorithms> FetchAlgorithms::create(JS::VM& vm, Input input)
+GC::Ref<FetchAlgorithms> FetchAlgorithms::create(Input input)
 {
-    auto process_request_body_chunk_length = GC::create_function(vm.heap(), move(input.process_request_body_chunk_length));
-    auto process_request_end_of_body = GC::create_function(vm.heap(), move(input.process_request_end_of_body));
-    auto process_early_hints_response = GC::create_function(vm.heap(), move(input.process_early_hints_response));
-    auto process_response = GC::create_function(vm.heap(), move(input.process_response));
-    auto process_response_end_of_body = GC::create_function(vm.heap(), move(input.process_response_end_of_body));
-    auto process_response_consume_body = GC::create_function(vm.heap(), move(input.process_response_consume_body));
-    return vm.heap().allocate<FetchAlgorithms>(
+    auto process_request_body_chunk_length = GC::create_function(GC::Heap::the(), move(input.process_request_body_chunk_length));
+    auto process_request_end_of_body = GC::create_function(GC::Heap::the(), move(input.process_request_end_of_body));
+    auto process_early_hints_response = GC::create_function(GC::Heap::the(), move(input.process_early_hints_response));
+    auto process_response = GC::create_function(GC::Heap::the(), move(input.process_response));
+    auto process_response_end_of_body = GC::create_function(GC::Heap::the(), move(input.process_response_end_of_body));
+    auto process_response_consume_body = GC::create_function(GC::Heap::the(), move(input.process_response_consume_body));
+    return GC::Heap::the().allocate<FetchAlgorithms>(
         process_request_body_chunk_length,
         process_request_end_of_body,
         process_early_hints_response,

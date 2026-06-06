@@ -16,7 +16,7 @@ class NodeFilter final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(NodeFilter);
 
 public:
-    [[nodiscard]] static GC::Ref<NodeFilter> create(JS::Realm&, GC::Ref<WebIDL::CallbackType>);
+    [[nodiscard]] static GC::Ref<NodeFilter> create(GC::Ref<WebIDL::CallbackType>);
 
     virtual ~NodeFilter() = default;
 
@@ -43,7 +43,7 @@ public:
     };
 
 private:
-    NodeFilter(JS::Realm&, GC::Ref<WebIDL::CallbackType>);
+    NodeFilter(GC::Ref<WebIDL::CallbackType>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

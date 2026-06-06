@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
@@ -14,16 +15,16 @@ namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMRectList);
 
-GC::Ref<DOMRectList> DOMRectList::create(JS::Realm& realm, Vector<GC::Root<DOMRect>> rect_handles)
+GC::Ref<DOMRectList> DOMRectList::create(Vector<GC::Root<DOMRect>> rect_handles)
 {
     Vector<GC::Ref<DOMRect>> rects;
     for (auto& rect : rect_handles)
         rects.append(*rect);
-    return realm.create<DOMRectList>(realm, move(rects));
+    return GC::Heap::the().allocate<DOMRectList>(move(rects));
 }
 
-DOMRectList::DOMRectList(JS::Realm& realm, Vector<GC::Ref<DOMRect>> rects)
-    : Wrappable(realm)
+DOMRectList::DOMRectList(Vector<GC::Ref<DOMRect>> rects)
+    : Bindings::Wrappable()
     , m_rects(move(rects))
 {
 }
@@ -53,12 +54,12 @@ DOMRect const* DOMRectList::item(u32 index) const
     return m_rects[index];
 }
 
-Optional<JS::Value> DOMRectList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> DOMRectList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     if (index >= m_rects.size())
         return {};
 
-    return Bindings::wrap(realm, m_rects[index]);
+    return Bindings::wrap(wrapper_world, realm, m_rects[index]);
 }
 
 }

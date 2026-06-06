@@ -24,43 +24,40 @@ namespace Web::HighResolutionTime {
 
 GC_DEFINE_ALLOCATOR(Performance);
 
-Performance::Performance(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+Performance::Performance(GC::Ref<DOM::EventTarget> relevant_global_object)
+    : DOM::EventTarget()
+    , m_global_object(relevant_global_object)
 {
 }
 
 Performance::~Performance() = default;
-
-void Performance::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Performance);
-    Base::initialize(realm);
-}
 
 void Performance::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_navigation);
     visitor.visit(m_timing);
+    visitor.visit(m_global_object);
 }
 
 GC::Ptr<NavigationTiming::PerformanceTiming> Performance::timing()
 {
-    auto& realm = this->realm();
-    if (!m_timing)
-        m_timing = realm.create<NavigationTiming::PerformanceTiming>(realm);
+    if (!m_timing) {
+        auto* window = HTML::window_from_global_object(relevant_global_object());
+        VERIFY(window);
+        m_timing = NavigationTiming::PerformanceTiming::create(*window);
+    }
     return m_timing;
 }
 
 GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 {
-    auto& realm = this->realm();
     if (!m_navigation) {
         // FIXME: actually determine values for these
         u16 type = 0;
         u16 redirect_count = 0;
 
-        m_navigation = realm.create<NavigationTiming::PerformanceNavigation>(realm, type, redirect_count);
+        m_navigation = NavigationTiming::PerformanceNavigation::create(type, redirect_count);
     }
     return m_navigation;
 }
@@ -69,23 +66,21 @@ GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 double Performance::time_origin() const
 {
     // The timeOrigin attribute MUST return the number of milliseconds in the duration returned by get time origin timestamp for the relevant global object of this.
-    return get_time_origin_timestamp(HTML::relevant_global_object(*this));
+    return get_time_origin_timestamp(relevant_global_object());
 }
 
 // https://w3c.github.io/hr-time/#now-method
 double Performance::now() const
 {
     // The now() method MUST return the number of milliseconds in the current high resolution time given this's relevant global object (a duration).
-    return current_high_resolution_time(HTML::relevant_global_object(*this));
+    return current_high_resolution_time(relevant_global_object());
 }
 
 // https://w3c.github.io/user-timing/#mark-method
 WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
 {
-    auto& realm = this->realm();
-
     // 1. Run the PerformanceMark constructor and let entry be the newly created object.
-    auto entry = TRY(UserTiming::PerformanceMark::construct_impl(realm, mark_name, mark_options));
+    auto entry = TRY(UserTiming::PerformanceMark::construct_impl(window_or_worker(), mark_name, mark_options));
 
     // 2. Queue entry.
     window_or_worker().queue_performance_entry(entry);
@@ -190,7 +185,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 // https://w3c.github.io/user-timing/#dom-performance-measure
 WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measure(String const& measure_name, Variant<String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
     auto& vm = this->vm();
 
     // 1. If startOrMeasureOptions is a PerformanceMeasureOptions object and at least one of start, end, duration, and detail
@@ -295,7 +290,7 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
     // 1. If startOrMeasureOptions is a PerformanceMeasureOptions object and startOrMeasureOptions's detail member is present:
     if (start_or_measure_options_dictionary_object && start_or_measure_options_dictionary_object->detail.has_value()) {
         // 1. Let record be the result of calling the StructuredSerialize algorithm on startOrMeasureOptions's detail.
-        auto record = TRY(HTML::structured_serialize(vm, *start_or_measure_options_dictionary_object->detail));
+        auto record = TRY(HTML::structured_serialize(realm, *start_or_measure_options_dictionary_object->detail));
 
         // 2. Set entry's detail to the result of calling the StructuredDeserialize algorithm on record and the current realm.
         detail = TRY(HTML::structured_deserialize(vm, record, realm));
@@ -304,8 +299,8 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
     // 2. Otherwise, set it to null.
     // NOTE: Already the default value of `detail`.
 
-    // 4. Create a new PerformanceMeasure object (entry) with this's relevant realm.
-    auto entry = realm.create<UserTiming::PerformanceMeasure>(realm, measure_name, start_time, duration, detail);
+    // 4. Create a new PerformanceMeasure object (entry).
+    auto entry = UserTiming::PerformanceMeasure::create(measure_name, start_time, duration, detail);
 
     // 10. Queue entry.
     window_or_worker().queue_performance_entry(entry);
@@ -394,7 +389,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 
 HTML::WindowOrWorkerGlobalScopeMixin& Performance::window_or_worker()
 {
-    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm().global_object());
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(relevant_global_object());
     VERIFY(global_scope);
     return *global_scope;
 }
@@ -402,6 +397,11 @@ HTML::WindowOrWorkerGlobalScopeMixin& Performance::window_or_worker()
 HTML::WindowOrWorkerGlobalScopeMixin const& Performance::window_or_worker() const
 {
     return const_cast<Performance*>(this)->window_or_worker();
+}
+
+JS::Object& Performance::relevant_global_object() const
+{
+    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
 }
 
 }

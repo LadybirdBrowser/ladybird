@@ -20,7 +20,7 @@ class EditingHostManager
     GC_DECLARE_ALLOCATOR(EditingHostManager);
 
 public:
-    [[nodiscard]] static GC::Ref<EditingHostManager> create(JS::Realm&, GC::Ref<Document>);
+    [[nodiscard]] static GC::Ref<EditingHostManager> create(GC::Ref<Document>);
 
     virtual void handle_insert(FlyString const& input_type, Utf16String const&) override;
     virtual void handle_delete(FlyString const& input_type) override;

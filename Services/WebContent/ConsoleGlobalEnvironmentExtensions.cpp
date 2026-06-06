@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -52,12 +53,13 @@ static JS::ThrowCompletionOr<ConsoleGlobalEnvironmentExtensions*> get_console(JS
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$0_getter)
 {
     auto* console_global_object = TRY(get_console(vm));
+    auto& realm = console_global_object->shape().realm();
     auto& window = *console_global_object->m_window_object;
     auto inspected_node = window.associated_document().inspected_node();
     if (!inspected_node)
         return JS::js_undefined();
 
-    return Web::Bindings::wrap(*vm.current_realm(), GC::Ref { const_cast<Web::DOM::Node&>(*inspected_node) });
+    return Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { const_cast<Web::DOM::Node&>(*inspected_node) });
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$__getter)
@@ -69,6 +71,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$__getter)
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
 {
     auto* console_global_object = TRY(get_console(vm));
+    auto& realm = console_global_object->shape().realm();
     auto& window = *console_global_object->m_window_object;
 
     auto selector = TRY(vm.argument(0).to_string(vm));
@@ -78,25 +81,26 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
         if (!node)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Node");
 
-        auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
+        auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, realm, [&]() {
             return node->query_selector(selector);
         }));
         if (!element)
             return JS::js_null();
-        return Web::Bindings::wrap(*vm.current_realm(), element);
+        return Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, element);
     }
 
-    auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
+    auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, realm, [&]() {
         return window.associated_document().query_selector(selector);
     }));
     if (!element)
         return JS::js_null();
-    return Web::Bindings::wrap(*vm.current_realm(), element);
+    return Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, element);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
 {
     auto* console_global_object = TRY(get_console(vm));
+    auto& realm = console_global_object->shape().realm();
     auto& window = *console_global_object->m_window_object;
 
     auto selector = TRY(vm.argument(0).to_string(vm));
@@ -110,15 +114,15 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
         element = node;
     }
 
-    auto node_list = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
+    auto node_list = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, realm, [&]() {
         return element->query_selector_all(selector);
     }));
 
-    auto array = TRY(JS::Array::create(*vm.current_realm(), node_list->length()));
+    auto array = TRY(JS::Array::create(realm, node_list->length()));
     for (auto i = 0u; i < node_list->length(); ++i) {
         auto* node = node_list->item(i);
         VERIFY(node);
-        auto wrapped_node = Web::Bindings::wrap(*vm.current_realm(), GC::Ref { const_cast<Web::DOM::Node&>(*node) });
+        auto wrapped_node = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { const_cast<Web::DOM::Node&>(*node) });
         TRY(array->create_data_property_or_throw(i, wrapped_node));
     }
 

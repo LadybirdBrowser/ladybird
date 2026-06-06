@@ -32,15 +32,17 @@ enum class NamedPropertyDeletionResult : u8 {
     DidFail,
 };
 
-WEB_API GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm&, GC::Ref<Wrappable>, WrapperWorldType = WrapperWorldType::Main);
-WEB_API GC::Ref<PlatformObject> wrap(JS::Realm&, GC::Ref<Wrappable>);
+// The realm passed to these helpers is the preferred realm for wrapper allocation.
+// Wrapper identity is keyed by the caller's WrapperWorld.
+WEB_API GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
 
 #ifndef WEB_WRAPPABLE
 #    define WEB_WRAPPABLE(class_, base_class)                           \
         GC_CELL(class_, base_class)                                     \
     protected:                                                          \
         virtual GC::Ref<Bindings::PlatformObject> create_wrapper(       \
-            JS::Realm&) override;                                       \
+            JS::Realm& wrapper_realm) override;                         \
                                                                         \
     public:                                                             \
         virtual Bindings::InterfaceName interface_name() const override \
@@ -70,8 +72,6 @@ public:
 
     virtual ~Wrappable() override;
 
-    JS::Realm& realm() const { return *m_realm; }
-
     [[nodiscard]] virtual Bindings::InterfaceName interface_name() const { VERIFY_NOT_REACHED(); }
     [[nodiscard]] virtual bool implements_interface(String const&) const { return false; }
 
@@ -80,34 +80,40 @@ public:
     virtual Optional<URL::Origin> extract_an_origin() const;
 
     // Wrappers forward legacy platform object indexed and named property hooks here.
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const;
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const;
     virtual Vector<FlyString> supported_property_names() const;
     virtual bool is_supported_property_name(FlyString const& name) const;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(String const&, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(String const&, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(String const&, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value);
-    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value);
-    virtual WebIDL::ExceptionOr<NamedPropertyDeletionResult> delete_value(String const&);
+    virtual JS::Realm& wrapper_realm(WrapperWorld const&, JS::Realm& preferred_realm) const;
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(JS::Realm&, String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(JS::Realm&, String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm&, String const&, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value);
+    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(JS::Realm&, u32, JS::Value);
+    virtual WebIDL::ExceptionOr<NamedPropertyDeletionResult> delete_value(JS::Realm&, String const&);
 
 protected:
-    explicit Wrappable(JS::Realm&);
+    Wrappable();
 
-    virtual GC::Ref<PlatformObject> create_wrapper(JS::Realm&) = 0;
+    [[nodiscard]] GC::Ptr<PlatformObject> cached_main_world_wrapper() const { return m_main_world_wrapper.ptr(); }
+
+    virtual GC::Ref<PlatformObject> create_wrapper(JS::Realm& wrapper_realm) = 0;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     friend class WrapperWorld;
-    friend GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm&, GC::Ref<Wrappable>, WrapperWorldType);
-    friend GC::Ref<PlatformObject> wrap(JS::Realm&, GC::Ref<Wrappable>);
+    friend GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+    friend GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
 
-    [[nodiscard]] GC::Ptr<PlatformObject> cached_main_world_wrapper() const { return m_main_world_wrapper.ptr(); }
     void set_cached_main_world_wrapper(PlatformObject&);
     void clear_cached_main_world_wrapper(PlatformObject const&);
 
-    GC::Ref<JS::Realm> m_realm;
+    // Wrappables are implementation objects, so they do not get a
+    // realm-specific initialization hook. They still upcall JS::Cell while they
+    // are allocated on the GC heap.
+    virtual void initialize(JS::Realm&) final override;
+
     GC::Weak<PlatformObject> m_main_world_wrapper;
 };
 
@@ -119,25 +125,25 @@ static_assert(!IsConstructible<JS::Value, GC::Root<Wrappable> const&>);
 
 template<typename T>
 requires(IsBaseOf<Wrappable, T> && !IsSameIgnoringCV<T, Wrappable>)
-[[nodiscard]] GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& realm, GC::Ref<T> wrappable, WrapperWorldType wrapper_world_type = WrapperWorldType::Main)
+[[nodiscard]] GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<T> wrappable)
 {
-    return create_global_object_wrapper(realm, GC::Ref<Wrappable> { wrappable }, wrapper_world_type);
+    return create_global_object_wrapper(wrapper_realm, GC::Ref<Wrappable> { wrappable });
 }
 
-WEB_API GC::Ptr<PlatformObject> wrap(JS::Realm&, GC::Ptr<Wrappable>);
+WEB_API GC::Ptr<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ptr<Wrappable>);
 
 template<typename T>
 requires(IsBaseOf<Wrappable, T> && !IsSameIgnoringCV<T, Wrappable>)
-[[nodiscard]] GC::Ref<PlatformObject> wrap(JS::Realm& realm, GC::Ref<T> wrappable)
+[[nodiscard]] GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<T> wrappable)
 {
-    return wrap(realm, GC::Ref<Wrappable> { wrappable });
+    return wrap(wrapper_world, preferred_realm, GC::Ref<Wrappable> { wrappable });
 }
 
 template<typename T>
 requires(IsBaseOf<Wrappable, T> && !IsSameIgnoringCV<T, Wrappable>)
-[[nodiscard]] GC::Ptr<PlatformObject> wrap(JS::Realm& realm, GC::Ptr<T> wrappable)
+[[nodiscard]] GC::Ptr<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ptr<T> wrappable)
 {
-    return wrap(realm, GC::Ptr<Wrappable> { wrappable });
+    return wrap(wrapper_world, preferred_realm, GC::Ptr<Wrappable> { wrappable });
 }
 
 WEB_API void cache_global_object_wrapper(JS::Realm&);

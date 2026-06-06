@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/UserActivation.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -16,14 +17,18 @@ class UserActivation final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(UserActivation);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<UserActivation>> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<UserActivation> create(Window&);
     virtual ~UserActivation() override = default;
 
     bool has_been_active() const;
     bool is_active() const;
 
 private:
-    UserActivation(JS::Realm&);
+    explicit UserActivation(Window&);
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<Window> m_window;
 };
 
 }

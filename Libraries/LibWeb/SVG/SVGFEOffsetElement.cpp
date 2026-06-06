@@ -16,12 +16,6 @@ SVGFEOffsetElement::SVGFEOffsetElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-void SVGFEOffsetElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEOffsetElement);
-    Base::initialize(realm);
-}
-
 void SVGFEOffsetElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -35,7 +29,7 @@ void SVGFEOffsetElement::visit_edges(Cell::Visitor& visitor)
 GC::Ref<SVGAnimatedString> SVGFEOffsetElement::in1()
 {
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
+        m_in1 = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
 
     return *m_in1;
 }
@@ -44,7 +38,7 @@ GC::Ref<SVGAnimatedString> SVGFEOffsetElement::in1()
 GC::Ref<SVGAnimatedNumber> SVGFEOffsetElement::dx()
 {
     if (!m_dx) {
-        m_dx = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::dx, OptionalNone {}, OptionalNone {} }, 0.f,
+        m_dx = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::dx, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::First);
     }
     return *m_dx;
@@ -54,7 +48,7 @@ GC::Ref<SVGAnimatedNumber> SVGFEOffsetElement::dx()
 GC::Ref<SVGAnimatedNumber> SVGFEOffsetElement::dy()
 {
     if (!m_dy) {
-        m_dy = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::dy, OptionalNone {}, OptionalNone {} }, 0.f,
+        m_dy = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::dy, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::Second);
     }
     return *m_dy;

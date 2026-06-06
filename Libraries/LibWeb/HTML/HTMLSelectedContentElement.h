@@ -31,8 +31,6 @@ public:
 private:
     HTMLSelectedContentElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
     virtual void post_connection() override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
 

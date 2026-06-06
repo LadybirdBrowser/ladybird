@@ -5,29 +5,30 @@
  */
 
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebAudio/AudioListener.h>
 
 namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioListener);
 
-AudioListener::AudioListener(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
-    : Bindings::Wrappable(realm)
-    , m_forward_x(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_forward_y(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_forward_z(AudioParam::create(realm, context, -1.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_position_x(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_position_y(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_position_z(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_up_x(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_up_y(AudioParam::create(realm, context, 1.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_up_z(AudioParam::create(realm, context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+AudioListener::AudioListener(GC::Ref<BaseAudioContext> context)
+    : Bindings::Wrappable()
+    , m_forward_x(AudioParam::create(context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_forward_y(AudioParam::create(context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_forward_z(AudioParam::create(context, -1.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_position_x(AudioParam::create(context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_position_y(AudioParam::create(context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_position_z(AudioParam::create(context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_up_x(AudioParam::create(context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_up_y(AudioParam::create(context, 1.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_up_z(AudioParam::create(context, 0.f, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
 {
 }
 
-GC::Ref<AudioListener> AudioListener::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
+GC::Ref<AudioListener> AudioListener::create(GC::Ref<BaseAudioContext> context)
 {
-    return realm.create<AudioListener>(realm, context);
+    return GC::Heap::the().allocate<AudioListener>(context);
 }
 
 AudioListener::~AudioListener() = default;

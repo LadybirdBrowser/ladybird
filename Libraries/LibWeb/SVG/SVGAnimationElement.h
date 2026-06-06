@@ -27,8 +27,6 @@ class SVGAnimationElement final : public SVGElement {
 
 private:
     SVGAnimationElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

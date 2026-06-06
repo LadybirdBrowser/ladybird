@@ -7,11 +7,15 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::HTML {
 
 class BroadcastChannelRepository;
+class WindowOrWorkerGlobalScopeMixin;
 
 class BroadcastChannel final : public DOM::EventTarget {
     WEB_WRAPPABLE(BroadcastChannel, DOM::EventTarget);
@@ -20,7 +24,7 @@ class BroadcastChannel final : public DOM::EventTarget {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<BroadcastChannel> construct_impl(JS::Realm&, FlyString const& name);
+    [[nodiscard]] static GC::Ref<BroadcastChannel> construct_impl(WindowOrWorkerGlobalScopeMixin&, FlyString const& name);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-name
     FlyString const& name() const
@@ -29,7 +33,7 @@ public:
         return m_channel_name;
     }
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message);
 
     void close();
 
@@ -43,14 +47,18 @@ public:
 private:
     friend class BroadcastChannelRepository;
 
-    BroadcastChannel(JS::Realm&, FlyString const& name);
-
-    virtual void initialize(JS::Realm&) override;
+    BroadcastChannel(GC::Ref<DOM::EventTarget> relevant_global_object, FlyString const& name, URL::Origin,
+        StorageAPI::StorageKey);
     virtual void finalize() override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
+    JS::Object& relevant_global_object() const;
     bool is_eligible_for_messaging() const;
 
     FlyString m_channel_name;
+    URL::Origin m_origin;
+    StorageAPI::StorageKey m_storage_key;
+    GC::Ref<DOM::EventTarget> m_global_object;
     u64 m_channel_id { 0 };
     bool m_closed_flag { false };
 };

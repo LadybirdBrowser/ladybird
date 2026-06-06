@@ -84,13 +84,16 @@ struct DeserializedTransferRecord {
 };
 
 WebIDL::ExceptionOr<SerializationRecord> structured_serialize(JS::VM&, JS::Value);
+WebIDL::ExceptionOr<SerializationRecord> structured_serialize(JS::Realm&, JS::Value);
 WebIDL::ExceptionOr<SerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
+WebIDL::ExceptionOr<SerializationRecord> structured_serialize_for_storage(JS::Realm&, JS::Value);
+WebIDL::ExceptionOr<SerializationRecord> structured_serialize_internal(JS::Realm&, JS::Value, bool for_storage, SerializationMemory&);
 WebIDL::ExceptionOr<SerializationRecord> structured_serialize_internal(JS::VM&, JS::Value, bool for_storage, SerializationMemory&);
 
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, SerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
 WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, TransferDataDecoder&, JS::Realm&, DeserializationMemory&);
 
-WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM&, JS::Value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list);
+WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::Realm&, JS::Value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list);
 WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder&, JS::Realm&);
 

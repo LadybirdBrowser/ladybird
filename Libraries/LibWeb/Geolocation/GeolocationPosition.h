@@ -24,7 +24,7 @@ public:
     bool is_high_accuracy() const { return m_is_high_accuracy; }
 
 private:
-    GeolocationPosition(JS::Realm&, GC::Ref<GeolocationCoordinates>, HighResolutionTime::EpochTimeStamp, bool is_high_accuracy);
+    GeolocationPosition(GC::Ref<GeolocationCoordinates>, HighResolutionTime::EpochTimeStamp, bool is_high_accuracy);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

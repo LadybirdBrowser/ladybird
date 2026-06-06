@@ -5,10 +5,12 @@
  */
 
 #include <AK/AnyOf.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBDatabase.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -17,10 +19,11 @@ namespace Web::IndexedDB {
 
 GC_DEFINE_ALLOCATOR(IDBDatabase);
 
-IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
-    : EventTarget(realm)
+IDBDatabase::IDBDatabase(GC::Ref<DOM::EventTarget> relevant_global_object, Database& db)
+    : EventTarget()
     , m_name(db.name())
     , m_associated_database(db)
+    , m_global_object(relevant_global_object)
     , m_uuid(Crypto::generate_random_uuid())
 {
     db.associate(*this);
@@ -41,15 +44,9 @@ void IDBDatabase::finalize()
     });
 }
 
-GC::Ref<IDBDatabase> IDBDatabase::create(JS::Realm& realm, Database& db)
+GC::Ref<IDBDatabase> IDBDatabase::create(GC::Ref<DOM::EventTarget> relevant_global_object, Database& db)
 {
-    return realm.create<IDBDatabase>(realm, db);
-}
-
-void IDBDatabase::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBDatabase);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<IDBDatabase>(relevant_global_object, db);
 }
 
 void IDBDatabase::visit_edges(Visitor& visitor)
@@ -57,12 +54,23 @@ void IDBDatabase::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_object_store_set);
     visitor.visit(m_associated_database);
+    visitor.visit(m_global_object);
     visitor.visit(m_transactions);
 
     for (auto& wait : m_pending_transaction_waits) {
         visitor.visit(wait.transactions);
         visitor.visit(wait.callback);
     }
+}
+
+HTML::WindowOrWorkerGlobalScopeMixin& IDBDatabase::relevant_global_scope() const
+{
+    return HTML::relevant_window_or_worker_global_scope(*m_global_object);
+}
+
+JS::Object& IDBDatabase::relevant_global_object() const
+{
+    return HTML::relevant_global_object(relevant_global_scope());
 }
 
 void IDBDatabase::set_onabort(WebIDL::CallbackType* event_handler)
@@ -115,7 +123,7 @@ void IDBDatabase::close()
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-createobjectstore
 WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(String const& name, Bindings::IDBObjectStoreParameters const& options)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let database be this's associated database.
     auto database = associated_database();
@@ -156,7 +164,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBDatabase::create_object_store(St
     //    Set the created object store's name to name.
     //    If autoIncrement is true, then the created object store uses a key generator.
     //    If keyPath is not null, set the created object store's key path to keyPath.
-    auto object_store = ObjectStore::create(realm, database, name, auto_increment, key_path);
+    auto object_store = ObjectStore::create(database, name, auto_increment, key_path);
 
     // AD-HOC: Add newly created object store to this's object store set.
     add_to_object_store_set(object_store);
@@ -178,13 +186,13 @@ GC::Ref<HTML::DOMStringList> IDBDatabase::object_store_names()
         names.append(object_store->name());
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-    return create_a_sorted_name_list(realm(), names);
+    return create_a_sorted_name_list(names);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-deleteobjectstore
 WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let database be this's associated database.
     auto database = associated_database();
@@ -231,7 +239,7 @@ WebIDL::ExceptionOr<void> IDBDatabase::delete_object_store(String const& name)
 // https://w3c.github.io/IndexedDB/#dom-idbdatabase-transaction
 WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<String, Vector<String>> store_names, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionOptions options)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. If a live upgrade transaction is associated with the connection, throw an "InvalidStateError" DOMException.
     auto database = associated_database();
@@ -271,12 +279,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBTransaction>> IDBDatabase::transaction(Variant<St
         scope_stores.append(*store);
     }
 
-    auto transaction = IDBTransaction::create(realm, *this, mode, options.durability, scope_stores);
+    auto transaction = IDBTransaction::create(*this, mode, options.durability, scope_stores);
 
     // 8. Set transaction’s cleanup event loop to the current event loop.
     transaction->set_cleanup_event_loop(HTML::main_thread_event_loop());
 
-    block_on_conflicting_transactions(transaction);
+    block_on_conflicting_transactions(realm, transaction);
 
     // 9. Return an IDBTransaction object representing transaction.
     return transaction;
@@ -331,7 +339,7 @@ void IDBDatabase::check_pending_transaction_waits()
 }
 
 // https://w3c.github.io/IndexedDB/#transaction-scheduling
-void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> transaction)
+void IDBDatabase::block_on_conflicting_transactions(JS::Realm& realm, GC::Ref<IDBTransaction> transaction)
 {
     // The following constraints define when a transaction can be started:
 
@@ -369,7 +377,7 @@ void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> tran
     }
 
     transaction->request_list().block_execution();
-    wait_for_transactions_to_finish(blocking, GC::create_function(realm().heap(), [transaction] {
+    wait_for_transactions_to_finish(blocking, GC::create_function(GC::Heap::the(), [&realm, transaction] {
         VERIFY(transaction->state() != IDBTransaction::TransactionState::Active);
         if (transaction->request_list().is_empty()) {
             // https://w3c.github.io/IndexedDB/#transaction-commit
@@ -383,7 +391,7 @@ void IDBDatabase::block_on_conflicting_transactions(GC::Ref<IDBTransaction> tran
 
             // FIXME: Update if this becomes explicit:
             //        https://github.com/w3c/IndexedDB/issues/489#issuecomment-3994928473
-            commit_a_transaction(transaction->realm(), transaction);
+            commit_a_transaction(realm, transaction);
             return;
         }
         if (!transaction->is_readonly())

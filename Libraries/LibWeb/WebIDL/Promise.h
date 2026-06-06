@@ -25,6 +25,7 @@ WEB_API GC::Ref<Promise> create_promise(JS::Realm&);
 WEB_API GC::Ref<Promise> create_resolved_promise(JS::Realm&, JS::Value);
 WEB_API GC::Ref<Promise> create_rejected_promise(JS::Realm&, JS::Value);
 WEB_API GC::Ref<Promise> create_rejected_promise(JS::Realm&, GC::Ref<DOMException>);
+WEB_API JS::Realm& promise_realm(Promise const&);
 WEB_API void resolve_promise(JS::Realm&, Promise const&, JS::Value = JS::js_undefined());
 WEB_API void reject_promise(JS::Realm&, Promise const&, JS::Value);
 WEB_API void reject_promise(JS::Realm&, Promise const&, GC::Ref<DOMException>);

@@ -46,6 +46,7 @@ public:
     using Uint32List = Variant<GC::Ref<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
 
     virtual OpenGLContext& context() = 0;
+    virtual JS::Object& relevant_global_object() const = 0;
 
     bool is_context_lost() const;
 
@@ -56,12 +57,12 @@ public:
     GC::Ref<WebIDL::Promise> make_xr_compatible();
 
     Optional<Vector<String>> get_supported_extensions();
-    JS::Object* get_extension(String const& name);
+    JS::Object* get_extension(JS::Realm&, String const& name);
 
     void enable_compressed_texture_format(WebIDL::UnsignedLong format);
 
 protected:
-    WebGLRenderingContextBase(JS::Realm&);
+    WebGLRenderingContextBase();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

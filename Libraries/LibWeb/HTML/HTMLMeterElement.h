@@ -53,8 +53,6 @@ public:
 
 private:
     HTMLMeterElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     void create_shadow_tree_if_needed();

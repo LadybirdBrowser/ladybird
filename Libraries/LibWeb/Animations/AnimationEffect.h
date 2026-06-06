@@ -130,7 +130,7 @@ public:
     virtual void update_computed_properties(AnimationUpdateContext&) = 0;
 
 protected:
-    AnimationEffect(JS::Realm&);
+    AnimationEffect();
     virtual ~AnimationEffect() = default;
 
     void invalidate_effect();

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
@@ -52,10 +53,10 @@ JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> WebAssemblyModule::parse(ByteB
     // 3. If module is error, throw a CompileError exception.
     // NOTE:  When integrating with the JS String Builtins proposal, builtinSetNames should be passed in the following
     //        step as « "js-string" » and importedStringModule as null.
-    auto module = TRY(Detail::compile_a_webassembly_module(vm, stable_bytes));
+    auto module = TRY(Detail::compile_a_webassembly_module(realm, stable_bytes));
 
     // 4. Construct a WebAssembly module object from module and bytes, and let module be the result.
-    auto module_object = realm.create<WebAssembly::Module>(realm, module);
+    auto module_object = GC::Heap::the().allocate<WebAssembly::Module>(module);
 
     // 5. Let requestedModules be a set.
     HashTable<ByteString> requested_modules;
@@ -172,7 +173,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::initialize_environment(JS::VM& vm
     auto* record = this;
 
     // 2. Let env be NewModuleEnvironment(null).
-    auto env = vm.heap().allocate<JS::ModuleEnvironment>(nullptr);
+    auto env = GC::Heap::the().allocate<JS::ModuleEnvironment>(nullptr);
 
     // 3. Set record.[[Environment]] to env.
     record->set_environment(env);
@@ -189,13 +190,13 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::initialize_environment(JS::VM& vm
 // https://webassembly.github.io/esm-integration/js-api/index.html#module-execution
 JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Ptr<JS::PromiseCapability> capability)
 {
-    auto& cache = Detail::get_cache(*vm.current_realm());
-
     // 1. Assert: promiseCapability was not provided.
     VERIFY(!capability);
 
     // 2. Let record be this WebAssembly Module Record.
     auto* record = this;
+    auto& realm = record->realm();
+    auto cache = Detail::get_cache(realm);
 
     // 3. Let module be record.[[ModuleSource]].[[Module]].
     auto module = record->m_module_source->compiled_module();
@@ -253,7 +254,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
             // 9. If importtype is not an extern subtype of externtype, throw a LinkError exception.
             // https://webassembly.github.io/spec/core/valid/types.html#match-externtype
-            auto& store = cache.abstract_machine().store();
+            auto& store = cache->abstract_machine().store();
             auto invalid = entry.description().visit(
                 [&](Wasm::MemoryType const& mem_type) -> Optional<ByteString> {
                     if (!externtype.has<Wasm::MemoryIndex>())
@@ -355,9 +356,9 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
                 // 3. Otherwise,
                 else {
                     // 1. Create a host function from v and functype, and let funcaddr be the result.
-                    cache.add_imported_object(function);
-                    auto host_function = Detail::create_host_function(vm, function, functype, ByteString::formatted("func{}", imports.size()));
-                    funcaddr = cache.abstract_machine().store().allocate(move(host_function));
+                    cache->add_imported_object(function);
+                    auto host_function = Detail::create_host_function(realm, function, functype, ByteString::formatted("func{}", imports.size()));
+                    funcaddr = cache->abstract_machine().store().allocate(move(host_function));
 
                     // FIXME: 2. Let index be the number of external functions in imports, defining the index of the host function funcaddr.
                 }
@@ -374,7 +375,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
                 auto valtype = entry.description().get<Wasm::GlobalType>();
 
                 // 1. Let store be the surrounding agent’s associated store.
-                auto& store = cache.abstract_machine().store();
+                auto& store = cache->abstract_machine().store();
 
                 // 2. If v implements Global,
                 Optional<Wasm::GlobalAddress> globaladdr;
@@ -415,11 +416,11 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
                     }
 
                     // 3. Let value be ?ToWebAssemblyValue(v, valtype).
-                    auto value = TRY(Detail::to_webassembly_value(vm, v, valtype.type()));
+                    auto value = TRY(Detail::to_webassembly_value(realm, v, valtype.type()));
 
                     // 4. Let(store, globaladdr) be global_alloc(store, mut valtype, value).
                     // 5. Set the surrounding agent’s associated store to store.
-                    globaladdr = cache.abstract_machine().store().allocate(valtype, value);
+                    globaladdr = cache->abstract_machine().store().allocate(valtype, value);
                 }
 
                 // 4. Let externglobal be global globaladdr.
@@ -466,7 +467,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
     // 6. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     // https://webassembly.github.io/spec/js-api/index.html#instantiate-the-core-of-a-webassembly-module
-    auto instantiation_result = cache.abstract_machine().instantiate(module->module, imports);
+    auto instantiation_result = cache->abstract_machine().instantiate(module->module, imports);
     if (instantiation_result.is_error()) {
         auto instantiation_error = instantiation_result.release_error();
         switch (instantiation_error.source) {
@@ -479,7 +480,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
     }
 
     // 7. Set record.[[Instance]] to instance.
-    record->m_instance = Instance::create(*vm.current_realm(), instantiation_result.release_value());
+    record->m_instance = Instance::create(cache, instantiation_result.release_value());
 
     // 8. For each (name, externtype) of module_exports(module),
     for (auto const& entry : module->module->export_section().entries()) {
@@ -489,7 +490,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
             // 2. Let global globaladdr be externval.
             // 3. Let global_value be global_read(store, globaladdr).
             auto globaladdr = Wasm::GlobalAddress { entry.description().get<Wasm::GlobalIndex>().value() };
-            auto* global_value = cache.abstract_machine().store().get(globaladdr);
+            auto* global_value = cache->abstract_machine().store().get(globaladdr);
             VERIFY(global_value);
 
             // 4. If globaltype is not v128,
@@ -501,7 +502,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
                 // 1. Perform !record.[[Environment]].InitializeBinding(name, ToJSValue(global_value)).
                 auto value = global_value->value();
-                MUST(record->environment()->initialize_binding(vm, Utf16FlyString::from_utf8(entry.name()), Detail::to_js_value(vm, value, type.type()), JS::Environment::InitializeBindingHint::Normal));
+                MUST(record->environment()->initialize_binding(vm, Utf16FlyString::from_utf8(entry.name()), Detail::to_js_value(realm, value, type.type()), JS::Environment::InitializeBindingHint::Normal));
 
                 // FIXME: 2. If mut is var, then associate all future mutations of globaladdr with the ECMA-262 binding record
                 //        for name in record.[[Environment]], such that record.[[Environment]].GetBindingValue(resolution.[[BindingName]], true)
@@ -513,7 +514,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
         else {
             // 1. Perform !record.[[Environment]].InitializeBinding(name, !Get(instance.[[Exports]], name)).
             auto name = Utf16FlyString::from_utf8(entry.name());
-            auto* exports = record->m_instance->exports();
+            auto* exports = record->m_instance->exports(realm);
             VERIFY(exports);
             MUST(record->environment()->initialize_binding(vm, name, MUST(exports->get(JS::PropertyKey { name })), JS::Environment::InitializeBindingHint::Normal));
         }

@@ -19,7 +19,7 @@ class CSSAnimation : public Animations::Animation {
     GC_DECLARE_ALLOCATOR(CSSAnimation);
 
 public:
-    static GC::Ref<CSSAnimation> create(JS::Realm&);
+    static GC::Ref<CSSAnimation> create(HTML::EnvironmentSettingsObject&);
 
     FlyString const& animation_name() const { return m_animation_name; }
     void set_animation_name(FlyString const& animation_name) { m_animation_name = animation_name; }
@@ -34,9 +34,7 @@ public:
     virtual void set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeline> timeline) override;
 
 private:
-    explicit CSSAnimation(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit CSSAnimation(HTML::EnvironmentSettingsObject&);
 
     virtual bool is_css_animation() const override { return true; }
 

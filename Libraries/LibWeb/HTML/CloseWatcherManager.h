@@ -20,7 +20,7 @@ class CloseWatcherManager final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(CloseWatcherManager);
 
 public:
-    [[nodiscard]] static GC::Ref<CloseWatcherManager> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CloseWatcherManager> create();
 
     void add(GC::Ref<CloseWatcher>);
     void remove(CloseWatcher const&);
@@ -31,7 +31,7 @@ public:
     bool can_prevent_close();
 
 private:
-    explicit CloseWatcherManager(JS::Realm&);
+    explicit CloseWatcherManager();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

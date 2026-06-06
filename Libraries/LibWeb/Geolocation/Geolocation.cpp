@@ -5,7 +5,9 @@
  */
 
 #include <AK/Time.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Permissions.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/Geolocation/Geolocation.h>
@@ -28,14 +30,20 @@ static WebIDL::UnsignedLong s_next_watch_id = 0;
 
 GC_DEFINE_ALLOCATOR(Geolocation);
 
-Geolocation::Geolocation(JS::Realm& realm)
-    : Wrappable(realm)
+GC::Ref<Geolocation> Geolocation::create(HTML::Window& window)
+{
+    return GC::Heap::the().allocate<Geolocation>(window);
+}
+
+Geolocation::Geolocation(HTML::Window& window)
+    : m_window(window)
 {
 }
 
 void Geolocation::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_window);
     visitor.visit(m_cached_position);
     visitor.visit(m_timeout_timers);
 }
@@ -45,8 +53,7 @@ void Geolocation::get_current_position(GC::Ref<WebIDL::CallbackType> success_cal
     GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options)
 {
     // 1. If this's relevant global object's associated Document is not fully active:
-    auto& window = HTML::relevant_window(*this);
-    if (!window.associated_document().is_fully_active()) {
+    if (!window().associated_document().is_fully_active()) {
         // 1. Call back with error errorCallback and POSITION_UNAVAILABLE.
         call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::PositionUnavailable);
 
@@ -63,8 +70,7 @@ WebIDL::Long Geolocation::watch_position(GC::Ref<WebIDL::CallbackType> success_c
     GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options)
 {
     // 1. If this's relevant global object's associated Document is not fully active:
-    auto& window = HTML::relevant_window(*this);
-    if (!window.associated_document().is_fully_active()) {
+    if (!window().associated_document().is_fully_active()) {
         // 1. Call back with error passing errorCallback and POSITION_UNAVAILABLE.
         call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::PositionUnavailable);
 
@@ -143,16 +149,16 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
 
                     // 2. Let position be a new GeolocationPosition passing emulatedPositionData, acquisitionTime and
                     //    options.enableHighAccuracy.
-                    auto position = realm().create<GeolocationPosition>(realm(),
+                    auto position = GC::Heap::the().allocate<GeolocationPosition>(
                         emulated_position_data.get<GC::Ref<GeolocationCoordinates>>(),
                         acquisition_time,
                         options.enable_high_accuracy);
 
                     // 3. Queue a task on the geolocation task source with a step that invokes successCallback with
                     //    « position » and "report".
-                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] {
+                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(GC::Heap::the(), [success_callback, position] {
                         auto& callback_realm = success_callback->callback->shape().realm();
-                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(callback_realm, position) } });
+                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, position) } });
                     }));
 
                     // 4. Terminate this algorithm.
@@ -174,9 +180,9 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
                     && cached_position->is_high_accuracy() == options.enable_high_accuracy) {
                     // 1. Queue a task on the geolocation task source with a step that invokes successCallback with
                     //    « cachedPosition » and "report".
-                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, cached_position] {
+                    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(GC::Heap::the(), [success_callback, cached_position] {
                         auto& callback_realm = success_callback->callback->shape().realm();
-                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(callback_realm, GC::Ref { *cached_position }) } });
+                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, GC::Ref { *cached_position }) } });
                     }));
 
                     // 2. Terminate this algorithm.
@@ -221,11 +227,11 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
                 //        A double? that represents the heading in degrees, or null if not available or the device is
                 //        stationary. Heading measures the direction in which the device is moving relative to true
                 //        north.
-                GC::Ref<GeolocationCoordinates> position_data = realm().create<GeolocationCoordinates>(realm());
+                GC::Ref<GeolocationCoordinates> position_data = GC::Heap::the().allocate<GeolocationCoordinates>();
 
                 // 2. Set position to a new GeolocationPosition passing positionData, acquisitionTime and
                 //    options.enableHighAccuracy.
-                position = realm().create<GeolocationPosition>(realm(), position_data, acquisition_time, options.enable_high_accuracy);
+                position = GC::Heap::the().allocate<GeolocationPosition>(position_data, acquisition_time, options.enable_high_accuracy);
 
                 // 3. Set this's [[cachedPosition]] to position.
                 m_cached_position = *position;
@@ -235,9 +241,9 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
 
             // 8. Queue a task on the geolocation task source with a step that invokes successCallback with « position »
             //    and "report".
-            HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] {
+            HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(GC::Heap::the(), [success_callback, position] {
                 auto& callback_realm = success_callback->callback->shape().realm();
-                (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(callback_realm, GC::Ref { *position }) } });
+                (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, GC::Ref { *position }) } });
             }));
         }
     }
@@ -251,13 +257,13 @@ void Geolocation::call_back_with_error(GC::Ptr<WebIDL::CallbackType> callback, G
         return;
 
     // 2. Let error be a newly created GeolocationPositionError instance whose code attribute is initialized to code.
-    auto error = realm().create<GeolocationPositionError>(realm(), code);
+    auto error = GC::Heap::the().allocate<GeolocationPositionError>(code);
 
     // 3. Queue a task on the geolocation task source with a step that invokes callback with « error » and "report".
-    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [callback, error] {
+    HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(GC::Heap::the(), [callback, error] {
         auto& callback_realm = callback->callback->shape().realm();
         (void)WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report,
-            { { Bindings::wrap(callback_realm, error) } });
+            { { Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, error) } });
     }));
 }
 
@@ -265,7 +271,7 @@ void Geolocation::call_back_with_error(GC::Ptr<WebIDL::CallbackType> callback, G
 EmulatedPositionData Geolocation::get_emulated_position_data() const
 {
     // 1. Let navigable be geolocation's relevant global object's associated Document's node navigable.
-    auto navigable = HTML::relevant_window(*this).navigable();
+    auto navigable = window().navigable();
 
     // 2. If navigable is null, return null.
     if (!navigable)
@@ -289,7 +295,7 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
     // 1. Let watchIDs be geolocation's [[watchIDs]].
 
     // 2. Let document be the geolocation's relevant global object's associated Document.
-    [[maybe_unused]] auto& document = HTML::relevant_window(*this).associated_document();
+    [[maybe_unused]] auto& document = window().associated_document();
 
     // FIXME: 3. If document is not allowed to use the "geolocation" feature:
     if (false) {
@@ -305,7 +311,7 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
     }
 
     // 4. If geolocation's environment settings object is a non-secure context:
-    if (is_non_secure_context(HTML::relevant_settings_object(*this))) {
+    if (is_non_secure_context(window().associated_document().relevant_settings_object())) {
         // 1. If watchId was passed, remove watchId from watchIDs.
         if (watch_id.has_value())
             m_watch_ids.remove(watch_id.value());
@@ -318,7 +324,7 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
     }
 
     // 5. If document's visibility state is "hidden", wait for the following page visibility change steps to run:
-    run_in_parallel_when_document_is_visible(document, GC::create_function(heap(), [this, watch_id, success_callback, error_callback, options] {
+    run_in_parallel_when_document_is_visible(document, GC::create_function(GC::Heap::the(), [this, watch_id, success_callback, error_callback, options] {
         // 1. Assert: document's visibility state is "visible".
         // 2. Continue to the next steps below.
         // AD-HOC: This is implemented by run_in_parallel_when_document_is_visible().
@@ -372,8 +378,8 @@ void Geolocation::run_in_parallel_when_document_is_visible(DOM::Document& docume
 {
     // Run callback in parallel if the document is already visible.
     if (document.visibility_state_value() == HTML::VisibilityState::Visible) {
-        auto callback_with_context = GC::create_function(heap(), [this, callback] {
-            HTML::TemporaryExecutionContext execution_context { realm() };
+        auto callback_with_context = GC::create_function(GC::Heap::the(), [this, callback] {
+            HTML::TemporaryExecutionContext execution_context { window().relevant_settings_object() };
             callback->function()();
         });
         Platform::EventLoopPlugin::the().deferred_invoke(callback_with_context);
@@ -381,15 +387,15 @@ void Geolocation::run_in_parallel_when_document_is_visible(DOM::Document& docume
     }
 
     // Run the callback as soon as the document becomes visible. If we time out, do not run the callback at all.
-    auto document_observer = realm().create<DOM::DocumentObserver>(realm(), document);
-    auto timeout_timer = Platform::Timer::create_single_shot(heap(), VISIBILITY_STATE_TIMEOUT_MS, {});
+    auto document_observer = DOM::DocumentObserver::create(document);
+    auto timeout_timer = Platform::Timer::create_single_shot(GC::Heap::the(), VISIBILITY_STATE_TIMEOUT_MS, {});
     m_timeout_timers.append(timeout_timer);
     auto clear_observer_and_timer = [this, document_observer, timeout_timer] {
         document_observer->set_document_visibility_state_observer({});
         timeout_timer->stop();
         m_timeout_timers.remove_first_matching([&](auto timer) { return timer == timeout_timer; });
     };
-    timeout_timer->on_timeout = GC::create_function(heap(), [clear_observer_and_timer] {
+    timeout_timer->on_timeout = GC::create_function(GC::Heap::the(), [clear_observer_and_timer] {
         dbgln("Geolocation: Waiting for visibility state update timed out");
         clear_observer_and_timer();
     });
@@ -397,7 +403,7 @@ void Geolocation::run_in_parallel_when_document_is_visible(DOM::Document& docume
     document_observer->set_document_visibility_state_observer([this, clear_observer_and_timer, callback](HTML::VisibilityState state) {
         if (state == HTML::VisibilityState::Visible) {
             clear_observer_and_timer();
-            HTML::TemporaryExecutionContext execution_context { realm() };
+            HTML::TemporaryExecutionContext execution_context { window().relevant_settings_object() };
             callback->function()();
         }
     });

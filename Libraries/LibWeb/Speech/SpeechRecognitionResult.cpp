@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Speech/SpeechRecognitionResult.h>
 
@@ -11,13 +12,13 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognitionResult);
 
-GC::Ref<SpeechRecognitionResult> SpeechRecognitionResult::create(JS::Realm& realm)
+GC::Ref<SpeechRecognitionResult> SpeechRecognitionResult::create()
 {
-    return realm.create<SpeechRecognitionResult>(realm);
+    return GC::Heap::the().allocate<SpeechRecognitionResult>();
 }
 
-SpeechRecognitionResult::SpeechRecognitionResult(JS::Realm& realm)
-    : Wrappable(realm)
+SpeechRecognitionResult::SpeechRecognitionResult()
+    : Bindings::Wrappable()
 {
 }
 

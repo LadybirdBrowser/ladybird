@@ -17,13 +17,13 @@ class OESElementIndexUint : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(OESElementIndexUint);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    OESElementIndexUint(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    OESElementIndexUint(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

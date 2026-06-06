@@ -27,7 +27,7 @@ interface Notification : EventTarget {
     readonly attribute boolean renotify;
     readonly attribute boolean? silent;
     readonly attribute boolean requireInteraction;
-    [SameObject] readonly attribute any data;
+    [SameObject, NeedsThisObjectRealm] readonly attribute any data;
     [SameObject] readonly attribute FrozenArray<NotificationAction> actions;
 
     [FIXME] undefined close();

@@ -5,6 +5,7 @@
  */
 
 #include "CSSTranslate.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSTranslate.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
@@ -17,13 +18,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSTranslate);
 
-GC::Ref<CSSTranslate> CSSTranslate::create(JS::Realm& realm, Is2D is_2d, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z)
+GC::Ref<CSSTranslate> CSSTranslate::create(Is2D is_2d, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z)
 {
-    return realm.create<CSSTranslate>(realm, is_2d, x, y, z);
+    return GC::Heap::the().allocate<CSSTranslate>(is_2d, x, y, z);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstranslate-csstranslate
-WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> CSSTranslate::construct_impl(JS::Realm& realm, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z)
+WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> CSSTranslate::construct_impl(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z)
 {
     // The CSSTranslate(x, y, z) constructor must, when invoked, perform the following steps:
 
@@ -44,16 +45,16 @@ WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> CSSTranslate::construct_impl(JS::Real
     Is2D is_2d = Is2D::No;
     if (!z) {
         is_2d = Is2D::Yes;
-        z = CSSUnitValue::create(realm, 0, "px"_fly_string);
+        z = CSSUnitValue::create(0, "px"_fly_string);
     }
-    auto this_ = realm.create<CSSTranslate>(realm, is_2d, x, y, z.as_nonnull());
+    auto this_ = CSSTranslate::create(is_2d, x, y, z.as_nonnull());
 
     // 6. Return this.
     return this_;
 }
 
-CSSTranslate::CSSTranslate(JS::Realm& realm, Is2D is_2d, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z)
-    : CSSTransformComponent(realm, is_2d)
+CSSTranslate::CSSTranslate(Is2D is_2d, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z)
+    : CSSTransformComponent(is_2d)
     , m_x(x)
     , m_y(y)
     , m_z(z)
@@ -121,7 +122,7 @@ WebIDL::ExceptionOr<Utf16String> CSSTranslate::to_string() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csstransformcomponent-tomatrix
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix() const
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix(JS::Realm& realm) const
 {
     // 1. Let matrix be a new DOMMatrix object, initialized to this’s equivalent 4x4 transform matrix, as defined in
     //    CSS Transforms 1 § 12. Mathematical Description of Transform Functions, and with its is2D internal slot set
@@ -131,13 +132,13 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix() cons
     //    As the entries of such a matrix are defined relative to the px unit, if any <length>s in this involved in
     //    generating the matrix are not compatible units with px (such as relative lengths or percentages), throw a
     //    TypeError.
-    auto matrix = Geometry::DOMMatrix::create(realm());
+    auto matrix = Geometry::DOMMatrix::create();
 
     // NB: to() throws a TypeError if the conversion can't be done.
-    matrix->set_m41(TRY(m_x->to("px"_fly_string))->value());
-    matrix->set_m42(TRY(m_y->to("px"_fly_string))->value());
+    matrix->set_m41(TRY(m_x->to(realm, "px"_fly_string))->value());
+    matrix->set_m42(TRY(m_y->to(realm, "px"_fly_string))->value());
     if (!is_2d())
-        matrix->set_m43(TRY(m_z->to("px"_fly_string))->value());
+        matrix->set_m43(TRY(m_z->to(realm, "px"_fly_string))->value());
 
     // 2. Return matrix.
     return matrix;

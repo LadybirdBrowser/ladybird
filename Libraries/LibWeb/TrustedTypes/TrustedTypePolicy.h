@@ -44,18 +44,18 @@ public:
 
     Utf16String const& name() const { return m_name; }
 
-    WebIDL::ExceptionOr<GC::Ref<TrustedHTML>> create_html(Utf16String const&, GC::RootVector<JS::Value> const&);
-    WebIDL::ExceptionOr<GC::Ref<TrustedScript>> create_script(Utf16String const&, GC::RootVector<JS::Value> const&);
-    WebIDL::ExceptionOr<GC::Ref<TrustedScriptURL>> create_script_url(Utf16String const&, GC::RootVector<JS::Value> const&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedHTML>> create_html(JS::Realm&, Utf16String const&, GC::RootVector<JS::Value> const&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedScript>> create_script(JS::Realm&, Utf16String const&, GC::RootVector<JS::Value> const&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedScriptURL>> create_script_url(JS::Realm&, Utf16String const&, GC::RootVector<JS::Value> const&);
 
-    WebIDL::ExceptionOr<JS::Value> get_trusted_type_policy_value(TrustedTypeName, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing);
+    WebIDL::ExceptionOr<JS::Value> get_trusted_type_policy_value(JS::Realm&, TrustedTypeName, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    explicit TrustedTypePolicy(JS::Realm&, Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
+    explicit TrustedTypePolicy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
 
-    TrustedTypesVariants create_a_trusted_type(TrustedTypeName, Utf16String const&, GC::RootVector<JS::Value> const& values);
+    TrustedTypesVariants create_a_trusted_type(JS::Realm&, TrustedTypeName, Utf16String const&, GC::RootVector<JS::Value> const& values);
 
     Utf16String const m_name;
     GC::Ptr<WebIDL::CallbackType> const m_create_html;

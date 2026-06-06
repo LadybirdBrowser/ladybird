@@ -9,19 +9,24 @@
 
 #include <AK/FlyString.h>
 #include <LibGC/Root.h>
+#include <LibJS/Forward.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
 
 class PromiseRejectionEvent final : public DOM::Event {
     WEB_WRAPPABLE(PromiseRejectionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PromiseRejectionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(JS::Realm&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const&);
-    static WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const&);
+    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::PromiseRejectionEventInit const&);
+    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(FlyString const& event_name, Bindings::PromiseRejectionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> construct_impl(WindowOrWorkerGlobalScopeMixin&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const&);
 
     virtual ~PromiseRejectionEvent() override;
 
@@ -30,7 +35,7 @@ public:
     JS::Value reason() const { return m_reason; }
 
 private:
-    PromiseRejectionEvent(JS::Realm&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init);
+    PromiseRejectionEvent(FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBCursor.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBCursorWithValue.h>
@@ -17,8 +20,8 @@ GC_DEFINE_ALLOCATOR(IDBCursor);
 
 IDBCursor::~IDBCursor() = default;
 
-IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
-    : Bindings::Wrappable(realm)
+IDBCursor::IDBCursor(CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
+    : Bindings::Wrappable()
     , m_value(value)
     , m_position(position)
     , m_direction(direction)
@@ -30,13 +33,13 @@ IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr
 {
 }
 
-GC::Ref<IDBCursor> IDBCursor::create(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
+GC::Ref<IDBCursor> IDBCursor::create(CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
 {
     // A cursor that has its key only flag set to false implements the IDBCursorWithValue interface as well.
     if (key_only == KeyOnly::No)
-        return realm.create<IDBCursorWithValue>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
+        return GC::Heap::the().allocate<IDBCursorWithValue>(source_handle, position, direction, got_value, key, value, range, key_only);
 
-    return realm.create<IDBCursor>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
+    return GC::Heap::the().allocate<IDBCursor>(source_handle, position, direction, got_value, key, value, range, key_only);
 }
 
 void IDBCursor::visit_edges(GC::Cell::Visitor& visitor)
@@ -59,8 +62,8 @@ GC_DEFINE_ALLOCATOR(IDBCursorWithValue);
 
 IDBCursorWithValue::~IDBCursorWithValue() = default;
 
-IDBCursorWithValue::IDBCursorWithValue(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
-    : IDBCursor(realm, source_handle, position, direction, got_value, key, value, range, key_only)
+IDBCursorWithValue::IDBCursorWithValue(CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
+    : IDBCursor(source_handle, position, direction, got_value, key, value, range, key_only)
 {
 }
 
@@ -84,6 +87,13 @@ GC::Ref<IDBTransaction> IDBCursor::transaction()
         [](GC::Ref<IDBIndex> index) { return index->transaction(); });
 }
 
+JS::Object& IDBCursor::relevant_global_object() const
+{
+    return m_source_handle.visit([](auto const& source) -> JS::Object& {
+        return source->relevant_global_object();
+    });
+}
+
 // https://w3c.github.io/IndexedDB/#cursor-source
 CursorSource IDBCursor::internal_source()
 {
@@ -100,13 +110,13 @@ JS::Value IDBCursor::key()
     if (!m_key)
         return JS::js_undefined();
 
-    return convert_a_key_to_a_value(realm(), *m_key);
+    return convert_a_key_to_a_value(HTML::relevant_realm(relevant_global_object()), *m_key);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-continue
 WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this's transaction.
     auto transaction = this->transaction();
@@ -160,11 +170,11 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
     request->set_done(false);
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and key (if given).
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key_value] -> WebIDL::ExceptionOr<JS::Value> {
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, key_value] -> WebIDL::ExceptionOr<JS::Value> {
         auto result = iterate_a_cursor(realm, *this, key_value);
         if (!result)
             return JS::js_null();
-        return Bindings::wrap(realm, result);
+        return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result);
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -192,13 +202,13 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 JS::Value IDBCursor::primary_key() const
 {
     // The primaryKey getter steps are to return the result of converting a key to a value with the cursor’s current effective key.
-    return convert_a_key_to_a_value(realm(), effective_key());
+    return convert_a_key_to_a_value(HTML::relevant_realm(relevant_global_object()), effective_key());
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-advance
 WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. If count is 0 (zero), throw a TypeError.
     if (count == 0)
@@ -232,11 +242,11 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
     request->set_done(false);
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and count.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, count] -> WebIDL::ExceptionOr<JS::Value> {
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, count] -> WebIDL::ExceptionOr<JS::Value> {
         auto result = iterate_a_cursor(realm, *this, nullptr, nullptr, count);
         if (!result)
             return JS::js_null();
-        return Bindings::wrap(realm, result);
+        return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result);
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -249,7 +259,7 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-continueprimarykey
 WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, JS::Value primary_key_param)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
@@ -323,11 +333,11 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
     request->set_done(false);
 
     // 21. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, key, and primaryKey.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key, primary_key] -> WebIDL::ExceptionOr<JS::Value> {
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, key, primary_key] -> WebIDL::ExceptionOr<JS::Value> {
         auto result = iterate_a_cursor(realm, *this, key, primary_key);
         if (!result)
             return JS::js_null();
-        return Bindings::wrap(realm, result);
+        return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result);
     });
 
     // 22. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -354,7 +364,7 @@ GC::Ref<ObjectStore> IDBCursor::effective_object_store() const
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-update
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
@@ -404,7 +414,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
     }
 
     // 10. Let operation be an algorithm to run store a record into an object store with this’s effective object store, clone, this’s effective key, and false.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, clone] -> WebIDL::ExceptionOr<JS::Value> {
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this, &realm, clone] -> WebIDL::ExceptionOr<JS::Value> {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         auto optional_key = TRY(store_a_record_into_an_object_store(realm, *this->effective_object_store(), clone, this->effective_key(), false));
 
@@ -423,7 +433,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::update(JS::Value value)
 // https://w3c.github.io/IndexedDB/#dom-idbcursor-update
 WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::delete_()
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let transaction be this’s transaction.
     auto transaction = this->transaction();
@@ -449,9 +459,9 @@ WebIDL::ExceptionOr<GC::Ref<IDBRequest>> IDBCursor::delete_()
         return WebIDL::InvalidStateError::create(realm, "Cursor is key-only while deleting"_utf16);
 
     // 7. Let operation be an algorithm to run delete records from an object store with this’s effective object store and this’s effective key.
-    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm] -> WebIDL::ExceptionOr<JS::Value> {
+    auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(GC::Heap::the(), [this] -> WebIDL::ExceptionOr<JS::Value> {
         auto effective_key = this->effective_key();
-        auto range = IDBKeyRange::create(realm, effective_key, effective_key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
+        auto range = IDBKeyRange::create(effective_key, effective_key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
         return delete_records_from_an_object_store(*this->effective_object_store(), range);
     });
 

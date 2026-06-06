@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/MediaError.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
@@ -25,11 +24,13 @@ public:
         SrcNotSupported = 4,
     };
 
+    [[nodiscard]] static GC::Ref<MediaError> create(Code, String message);
+
     Code code() const { return m_code; }
     String const& message() const { return m_message; }
 
 private:
-    MediaError(JS::Realm&, Code code, String message);
+    MediaError(Code code, String message);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-mediaerror-code
     Code m_code;

@@ -25,13 +25,13 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     readonly attribute unsigned short readyState;
 
     // request
-    undefined open(DOMString method, DOMString url);
-    undefined open(ByteString method, USVString url, boolean async, optional USVString? username = null, optional USVString? password = null);
-    undefined setRequestHeader(ByteString name, ByteString value);
-    attribute unsigned long timeout;
-    attribute boolean withCredentials;
+    [NeedsThisObjectRealm] undefined open(DOMString method, DOMString url);
+    [NeedsThisObjectRealm] undefined open(ByteString method, USVString url, boolean async, optional USVString? username = null, optional USVString? password = null);
+    [NeedsThisObjectRealm] undefined setRequestHeader(ByteString name, ByteString value);
+    [NeedsThisObjectRealmForSetter] attribute unsigned long timeout;
+    [NeedsThisObjectRealmForSetter] attribute boolean withCredentials;
     [SameObject] readonly attribute XMLHttpRequestUpload upload;
-    undefined send(optional (Document or XMLHttpRequestBodyInit)? body = null);
+    [NeedsThisObjectRealm] undefined send(optional (Document or XMLHttpRequestBodyInit)? body = null);
     undefined abort();
 
     // response
@@ -40,10 +40,10 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     readonly attribute ByteString statusText;
     ByteString? getResponseHeader(ByteString name);
     ByteString getAllResponseHeaders();
-    undefined overrideMimeType(DOMString mime);
-    attribute XMLHttpRequestResponseType responseType;
-    readonly attribute any response;
-    readonly attribute DOMString responseText;
-    [Exposed=Window] readonly attribute Document? responseXML;
+    [NeedsThisObjectRealm] undefined overrideMimeType(DOMString mime);
+    [NeedsThisObjectRealmForSetter] attribute XMLHttpRequestResponseType responseType;
+    [NeedsThisObjectRealm] readonly attribute any response;
+    [NeedsThisObjectRealm] readonly attribute DOMString responseText;
+    [Exposed=Window, NeedsThisObjectRealm] readonly attribute Document? responseXML;
 
 };

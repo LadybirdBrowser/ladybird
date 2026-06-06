@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -29,14 +30,14 @@ public:
     virtual size_t length() const = 0;
     virtual String item(size_t index) const = 0;
 
-    virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property_name, StringView css_text, StringView priority) = 0;
-    virtual WebIDL::ExceptionOr<String> remove_property(Utf16FlyString const& property_name) = 0;
+    virtual WebIDL::ExceptionOr<void> set_property(JS::Realm&, Utf16FlyString const& property_name, StringView css_text, StringView priority) = 0;
+    virtual WebIDL::ExceptionOr<String> remove_property(JS::Realm&, Utf16FlyString const& property_name) = 0;
 
     virtual String get_property_value(Utf16FlyString const& property_name) const = 0;
     virtual StringView get_property_priority(Utf16FlyString const& property_name) const = 0;
 
     String css_text() const;
-    virtual WebIDL::ExceptionOr<void> set_css_text(StringView) = 0;
+    virtual WebIDL::ExceptionOr<void> set_css_text(JS::Realm&, StringView) = 0;
 
     virtual String serialized() const = 0;
 
@@ -60,7 +61,7 @@ public:
 
     virtual bool has_property(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
     virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
-    virtual WebIDL::ExceptionOr<void> set_property_style_value(PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) { VERIFY_NOT_REACHED(); }
+    virtual WebIDL::ExceptionOr<void> set_property_style_value(JS::Realm&, PropertyNameAndID const&, NonnullRefPtr<StyleValue const>) { VERIFY_NOT_REACHED(); }
 
 protected:
     enum class Computed : u8 {
@@ -71,14 +72,14 @@ protected:
         No,
         Yes,
     };
-    explicit CSSStyleDeclaration(JS::Realm&, Computed, Readonly);
+    explicit CSSStyleDeclaration(Computed, Readonly);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void update_style_attribute();
 
 private:
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
     GC::Ptr<CSSRule> m_parent_rule { nullptr };

@@ -19,8 +19,9 @@ class ChannelMergerNode final : public AudioNode {
 public:
     virtual ~ChannelMergerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create(GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
+    static WebIDL::ExceptionOr<void> validate_options(Bindings::ChannelMergerOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return m_number_of_inputs; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -30,7 +31,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
 
 private:
-    ChannelMergerNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const&);
+    ChannelMergerNode(GC::Ref<BaseAudioContext>, Bindings::ChannelMergerOptions const&);
 
     WebIDL::UnsignedLong m_number_of_inputs;
 };

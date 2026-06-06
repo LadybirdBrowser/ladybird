@@ -17,25 +17,25 @@ class CSSTransformValue final : public CSSStyleValue {
     GC_DECLARE_ALLOCATOR(CSSTransformValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSTransformValue> create(JS::Realm&, ReadonlySpan<GC::Ref<CSSTransformComponent>>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> construct_impl(JS::Realm&, ReadonlySpan<GC::Ref<CSSTransformComponent>> const&);
+    [[nodiscard]] static GC::Ref<CSSTransformValue> create(ReadonlySpan<GC::Ref<CSSTransformComponent>>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSTransformValue>> construct_impl(ReadonlySpan<GC::Ref<CSSTransformComponent>> const&);
 
     virtual ~CSSTransformValue() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value) override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value) override;
 
     bool is_2d() const;
-    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const;
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const;
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSTransformValue(JS::Realm&, Vector<GC::Ref<CSSTransformComponent>>);
+    explicit CSSTransformValue(Vector<GC::Ref<CSSTransformComponent>>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<GC::Ref<CSSTransformComponent>> m_transforms;

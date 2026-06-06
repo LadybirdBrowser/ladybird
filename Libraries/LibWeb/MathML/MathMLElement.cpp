@@ -47,12 +47,6 @@ void MathMLElement::inserted()
     HTMLOrSVGOrMathMLElement::inserted();
 }
 
-void MathMLElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MathMLElement);
-    Base::initialize(realm);
-}
-
 Optional<ARIA::Role> MathMLElement::default_role() const
 {
     // https://www.w3.org/TR/html-aria/#el-math

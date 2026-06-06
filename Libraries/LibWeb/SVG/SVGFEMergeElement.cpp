@@ -16,12 +16,6 @@ SVGFEMergeElement::SVGFEMergeElement(DOM::Document& document, DOM::QualifiedName
 {
 }
 
-void SVGFEMergeElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEMergeElement);
-    Base::initialize(realm);
-}
-
 void SVGFEMergeElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

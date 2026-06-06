@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaStream.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/Bindings/MediaStreamTrackEvent.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaCapture/MediaStreamTrackEvent.h>
 
@@ -17,25 +20,25 @@ namespace Web::MediaCapture {
 
 GC_DEFINE_ALLOCATOR(MediaStream);
 
-MediaStream::MediaStream(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+MediaStream::MediaStream()
+    : DOM::EventTarget()
 {
 }
 
-GC::Ref<MediaStream> MediaStream::create(JS::Realm& realm)
+GC::Ref<MediaStream> MediaStream::create()
 {
-    auto stream = realm.create<MediaStream>(realm);
+    auto stream = GC::Heap::the().allocate<MediaStream>();
     // https://w3c.github.io/mediacapture-main/#dom-mediastream-id
     stream->m_id = Crypto::generate_random_uuid();
     return stream;
 }
 
 // https://w3c.github.io/mediacapture-main/#mediastream
-GC::Ref<MediaStream> MediaStream::construct_impl(JS::Realm& realm, ReadonlySpan<GC::Ref<MediaStreamTrack>> const& tracks)
+GC::Ref<MediaStream> MediaStream::construct_impl(ReadonlySpan<GC::Ref<MediaStreamTrack>> const& tracks)
 {
     // 1. Let stream be a newly constructed MediaStream object.
     // 2. Initialize stream.id attribute to a newly generated value.
-    auto stream = create(realm);
+    auto stream = create();
 
     // 3. If the constructor's argument is present, run the following steps:
     // 3.1. Construct a set of tracks tracks based on the type of argument.
@@ -48,12 +51,6 @@ GC::Ref<MediaStream> MediaStream::construct_impl(JS::Realm& realm, ReadonlySpan<
 
     // 4. Return stream.
     return stream;
-}
-
-void MediaStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaStream);
-    Base::initialize(realm);
 }
 
 void MediaStream::visit_edges(Cell::Visitor& visitor)
@@ -108,6 +105,11 @@ GC::Ptr<MediaStreamTrack> MediaStream::get_track_by_id(String const& track_id) c
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-addtrack
 void MediaStream::add_track(GC::Ref<MediaStreamTrack> track)
 {
+    add_track(HTML::current_global_object(), track);
+}
+
+void MediaStream::add_track(JS::Object& global_object, GC::Ref<MediaStreamTrack> track)
+{
     // 1. Let track be the methods argument and stream the MediaStream object on which the method was called.
     for (auto const& existing_track : m_tracks) {
 
@@ -121,12 +123,27 @@ void MediaStream::add_track(GC::Ref<MediaStreamTrack> track)
 
     // 4. Fire a track event named addtrack with track at stream.
     Bindings::MediaStreamTrackEventInit event_init { Bindings::EventInit {}, track };
-    auto event = MediaStreamTrackEvent::create(realm(), HTML::EventNames::addtrack, event_init);
+    auto event = MediaStreamTrackEvent::create(HTML::EventNames::addtrack, event_init,
+        HighResolutionTime::current_high_resolution_time(global_object));
     dispatch_event(event);
+}
+
+void MediaStream::append_track(GC::Ref<MediaStreamTrack> track)
+{
+    for (auto const& existing_track : m_tracks) {
+        if (existing_track.ptr() == track.ptr())
+            return;
+    }
+    m_tracks.append(track);
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-removetrack
 void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
+{
+    remove_track(HTML::current_global_object(), track);
+}
+
+void MediaStream::remove_track(JS::Object& global_object, GC::Ref<MediaStreamTrack> track)
 {
     // 1. Let track be the methods argument and stream the MediaStream object on which the method was called.
     // 2. If track is not in stream's track set, then abort these steps.
@@ -139,7 +156,8 @@ void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
 
     // 4. Fire a track event named removetrack with track at stream.
     Bindings::MediaStreamTrackEventInit event_init { Bindings::EventInit {}, track };
-    auto event = MediaStreamTrackEvent::create(realm(), HTML::EventNames::removetrack, event_init);
+    auto event = MediaStreamTrackEvent::create(HTML::EventNames::removetrack, event_init,
+        HighResolutionTime::current_high_resolution_time(global_object));
     dispatch_event(event);
 }
 
@@ -147,11 +165,11 @@ void MediaStream::remove_track(GC::Ref<MediaStreamTrack> track)
 GC::Ref<MediaStream> MediaStream::clone() const
 {
     // 1. Let streamClone be a newly constructed MediaStream object.
-    auto stream_clone = create(realm());
+    auto stream_clone = create();
 
     // 3. Clone each track in this MediaStream object and add the result to streamClone's track set.
     for (auto const& track : m_tracks)
-        stream_clone->add_track(track->clone());
+        stream_clone->append_track(track->clone());
 
     // 4. Return streamClone.
     return stream_clone;

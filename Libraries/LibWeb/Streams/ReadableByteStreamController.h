@@ -113,7 +113,7 @@ public:
     virtual ~ReadableByteStreamController() override = default;
 
     // IDL getter, returns current [[byobRequest]] (if any), and otherwise the [[byobRequest]] for the next pending pull into request
-    GC::Ptr<ReadableStreamBYOBRequest> byob_request();
+    GC::Ptr<ReadableStreamBYOBRequest> byob_request(JS::Realm&);
 
     void set_byob_request(GC::Ptr<ReadableStreamBYOBRequest> request) { m_byob_request = request; }
 
@@ -122,9 +122,9 @@ public:
     GC::Ptr<ReadableStreamBYOBRequest> raw_byob_request() { return m_byob_request; }
 
     Optional<double> desired_size() const;
-    WebIDL::ExceptionOr<void> close();
+    WebIDL::ExceptionOr<void> close(JS::Realm&);
     void error(Optional<JS::Value> error);
-    WebIDL::ExceptionOr<void> enqueue(WebIDL::ArrayBufferView);
+    WebIDL::ExceptionOr<void> enqueue(JS::Realm&, WebIDL::ArrayBufferViewVariant const&);
 
     Optional<u64> const& auto_allocate_chunk_size() { return m_auto_allocate_chunk_size; }
     void set_auto_allocate_chunk_size(Optional<u64> value) { m_auto_allocate_chunk_size = value; }
@@ -163,11 +163,11 @@ public:
     void set_stream(GC::Ptr<ReadableStream> stream) { m_stream = stream; }
 
     GC::Ref<WebIDL::Promise> cancel_steps(JS::Value reason);
-    void pull_steps(GC::Ref<ReadRequest>);
+    void pull_steps(JS::Realm&, GC::Ref<ReadRequest>);
     void release_steps();
 
 private:
-    explicit ReadableByteStreamController(JS::Realm&);
+    ReadableByteStreamController() = default;
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

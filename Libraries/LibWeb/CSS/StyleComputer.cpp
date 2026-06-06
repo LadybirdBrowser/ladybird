@@ -21,6 +21,7 @@
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
@@ -1112,11 +1113,11 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
         // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
         // animation-name property and the animation uses a valid @keyframes rule
-        auto animation = CSSAnimation::create(document.realm());
+        auto animation = CSSAnimation::create(document.relevant_settings_object());
         animation->set_animation_name(animation_properties.name);
         animation->set_owning_element(abstract_element);
 
-        auto effect = Animations::KeyframeEffect::create(document.realm());
+        auto effect = Animations::KeyframeEffect::create();
         animation->set_effect(effect);
 
         animation->apply_css_properties(animation_properties);
@@ -2931,6 +2932,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     process_animation_definitions(computed_style, cascaded_properties, abstract_element);
 
     auto animations = abstract_element.element().get_animations_internal(
+        abstract_element.element().document().relevant_settings_object().realm(),
         Animations::Animatable::GetAnimationsSorted::Yes,
         Bindings::GetAnimationsOptions { .subtree = false });
     if (animations.is_exception()) {

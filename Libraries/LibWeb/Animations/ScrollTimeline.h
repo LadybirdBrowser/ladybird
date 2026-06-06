@@ -9,6 +9,12 @@
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/ScrollTimeline.h>
 
+namespace Web::HTML {
+
+class Window;
+
+}
+
 namespace Web::Animations {
 
 // https://drafts.csswg.org/scroll-animations-1/#scrolltimeline
@@ -26,8 +32,8 @@ public:
 
     using Source = Variant<GC::Ptr<DOM::Element const>, AnonymousSource>;
 
-    static GC::Ref<ScrollTimeline> create(JS::Realm&, DOM::Document&, Source source, Bindings::ScrollAxis axis);
-    static GC::Ref<ScrollTimeline> construct_impl(JS::Realm&, Bindings::ScrollTimelineOptions options = {});
+    static GC::Ref<ScrollTimeline> create(DOM::Document&, Source source, Bindings::ScrollAxis axis);
+    static GC::Ref<ScrollTimeline> construct_impl(HTML::Window&, Bindings::ScrollTimelineOptions options = {});
 
     virtual Optional<TimeValue> duration() const override { return TimeValue { TimeValue::Type::Percentage, 100 }; }
 
@@ -43,7 +49,7 @@ public:
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return false; }
 
 private:
-    ScrollTimeline(JS::Realm&, DOM::Document&, Source source, Bindings::ScrollAxis axis);
+    ScrollTimeline(DOM::Document&, Source source, Bindings::ScrollAxis axis);
     virtual ~ScrollTimeline() override = default;
 
     virtual void visit_edges(GC::Cell::Visitor&) override;

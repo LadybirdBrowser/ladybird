@@ -20,11 +20,9 @@ SVGViewElement::SVGViewElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-void SVGViewElement::initialize(JS::Realm& realm)
+void SVGViewElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGViewElement);
-    Base::initialize(realm);
-    SVGFitToViewBox::initialize(realm);
+    SVGFitToViewBox::initialize_fit_to_view_box();
 }
 
 void SVGViewElement::visit_edges(Visitor& visitor)

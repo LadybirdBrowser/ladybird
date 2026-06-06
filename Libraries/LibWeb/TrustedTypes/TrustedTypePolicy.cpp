@@ -6,6 +6,7 @@
 
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
+#include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
@@ -28,8 +29,8 @@ namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedTypePolicy);
 
-TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, Utf16String const& name, Bindings::TrustedTypePolicyOptions const& options)
-    : Wrappable(realm)
+TrustedTypePolicy::TrustedTypePolicy(Utf16String const& name, Bindings::TrustedTypePolicyOptions const& options)
+    : Bindings::Wrappable()
     , m_name(name)
     , m_create_html(options.create_html)
     , m_create_script(options.create_script)
@@ -59,7 +60,7 @@ Utf16String to_string(TrustedTypeName trusted_type_name)
     }
 }
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createhtml
-WebIDL::ExceptionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_html(Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
+WebIDL::ExceptionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_html(JS::Realm& realm, Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
     // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
     //    policy
@@ -70,12 +71,12 @@ WebIDL::ExceptionOr<GC::Ref<TrustedHTML>> TrustedTypePolicy::create_html(Utf16St
     //      input
     //    arguments
     //      arguments
-    auto const trusted_type = TRY(create_a_trusted_type(TrustedTypeName::TrustedHTML, input, arguments));
+    auto const trusted_type = TRY(create_a_trusted_type(realm, TrustedTypeName::TrustedHTML, input, arguments));
     return trusted_type.get<GC::Ref<TrustedHTML>>();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscript
-WebIDL::ExceptionOr<GC::Ref<TrustedScript>> TrustedTypePolicy::create_script(Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
+WebIDL::ExceptionOr<GC::Ref<TrustedScript>> TrustedTypePolicy::create_script(JS::Realm& realm, Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
     // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
     //    policy
@@ -86,12 +87,12 @@ WebIDL::ExceptionOr<GC::Ref<TrustedScript>> TrustedTypePolicy::create_script(Utf
     //      input
     //    arguments
     //      arguments
-    auto const trusted_type = TRY(create_a_trusted_type(TrustedTypeName::TrustedScript, input, arguments));
+    auto const trusted_type = TRY(create_a_trusted_type(realm, TrustedTypeName::TrustedScript, input, arguments));
     return trusted_type.get<GC::Ref<TrustedScript>>();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscripturl
-WebIDL::ExceptionOr<GC::Ref<TrustedScriptURL>> TrustedTypePolicy::create_script_url(Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
+WebIDL::ExceptionOr<GC::Ref<TrustedScriptURL>> TrustedTypePolicy::create_script_url(JS::Realm& realm, Utf16String const& input, GC::RootVector<JS::Value> const& arguments)
 {
     // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
     //    policy
@@ -102,20 +103,19 @@ WebIDL::ExceptionOr<GC::Ref<TrustedScriptURL>> TrustedTypePolicy::create_script_
     //      input
     //    arguments
     //      arguments
-    auto const trusted_type = TRY(create_a_trusted_type(TrustedTypeName::TrustedScriptURL, input, arguments));
+    auto const trusted_type = TRY(create_a_trusted_type(realm, TrustedTypeName::TrustedScriptURL, input, arguments));
     return trusted_type.get<GC::Ref<TrustedScriptURL>>();
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
-TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& arguments)
+TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(JS::Realm& realm, TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& arguments)
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Let policyValue be the result of executing Get Trusted Type policy value with the same arguments
     // as this algorithm and additionally true as throwIfMissing.
     // 2. If the algorithm threw an error, rethrow the error and abort the following steps.
-    auto const policy_value = TRY(get_trusted_type_policy_value(trusted_type_name, value, arguments, ThrowIfCallbackMissing::Yes));
+    auto const policy_value = TRY(get_trusted_type_policy_value(realm, trusted_type_name, value, arguments, ThrowIfCallbackMissing::Yes));
 
     // 3. Let dataString be the result of stringifying policyValue.
     Utf16String data_string;
@@ -138,20 +138,20 @@ TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName tr
     // 5. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
     switch (trusted_type_name) {
     case TrustedTypeName::TrustedHTML:
-        return TrustedType { realm.create<TrustedHTML>(realm, move(data_string)) };
+        return TrustedType { GC::Heap::the().allocate<TrustedHTML>(move(data_string)) };
     case TrustedTypeName::TrustedScript:
-        return TrustedType { realm.create<TrustedScript>(realm, move(data_string)) };
+        return TrustedType { GC::Heap::the().allocate<TrustedScript>(move(data_string)) };
     case TrustedTypeName::TrustedScriptURL:
-        return TrustedType { realm.create<TrustedScriptURL>(realm, move(data_string)) };
+        return TrustedType { GC::Heap::the().allocate<TrustedScriptURL>(move(data_string)) };
     default:
         VERIFY_NOT_REACHED();
     }
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-policy-value
-WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing)
+WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(JS::Realm& realm, TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing)
 {
-    auto& vm = this->realm().vm();
+    auto& vm = realm.vm();
 
     // 1. Let functionName be a function name for the given trustedTypeName, based on the following table:
     // 2. Let function be policy’s options[functionName].
@@ -227,6 +227,7 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
     arguments.append(JS::PrimitiveString::create(vm, to_string(trusted_type_name)));
     arguments.append(JS::PrimitiveString::create(vm, to_string(sink)));
     auto policy_value = TRY(default_policy->get_trusted_type_policy_value(
+        realm,
         trusted_type_name,
         input.visit(
             [](auto& value) { return value->to_string(); },
@@ -255,11 +256,11 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
     //  6. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
     switch (trusted_type_name) {
     case TrustedTypeName::TrustedHTML:
-        return TrustedType { realm.create<TrustedHTML>(realm, move(data_string)) };
+        return TrustedType { GC::Heap::the().allocate<TrustedHTML>(move(data_string)) };
     case TrustedTypeName::TrustedScript:
-        return TrustedType { realm.create<TrustedScript>(realm, move(data_string)) };
+        return TrustedType { GC::Heap::the().allocate<TrustedScript>(move(data_string)) };
     case TrustedTypeName::TrustedScriptURL:
-        return TrustedType { realm.create<TrustedScriptURL>(realm, move(data_string)) };
+        return TrustedType { GC::Heap::the().allocate<TrustedScriptURL>(move(data_string)) };
     }
     VERIFY_NOT_REACHED();
 }

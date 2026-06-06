@@ -41,7 +41,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
-    JS::Realm& realm() const { return m_source->realm(); }
+    JS::Realm& promise_realm() const;
 
     void read_chunk();
     void write_chunk();

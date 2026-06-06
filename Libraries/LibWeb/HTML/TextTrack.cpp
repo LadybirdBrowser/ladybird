@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/HTML/TextTrackObserver.h>
@@ -14,23 +13,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TextTrack);
 
-GC::Ref<TextTrack> TextTrack::create(JS::Realm& realm)
+GC::Ref<TextTrack> TextTrack::create()
 {
-    return realm.create<TextTrack>(realm);
+    return GC::Heap::the().allocate<TextTrack>();
 }
 
-TextTrack::TextTrack(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+TextTrack::TextTrack()
+    : DOM::EventTarget()
 {
 }
 
 TextTrack::~TextTrack() = default;
-
-void TextTrack::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextTrack);
-    Base::initialize(realm);
-}
 
 void TextTrack::visit_edges(Cell::Visitor& visitor)
 {

@@ -5,26 +5,28 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/HashChangeEvent.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HashChangeEvent);
 
-[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
+[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(FlyString const& event_name, Bindings::HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<HashChangeEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<HashChangeEvent>(event_name, event_init, time_stamp);
 }
 
-GC::Ref<HashChangeEvent> HashChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
+GC::Ref<HashChangeEvent> HashChangeEvent::construct_impl(Window& window, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
 {
-    return realm.create<HashChangeEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<HashChangeEvent>(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(window)));
 }
 
-HashChangeEvent::HashChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+HashChangeEvent::HashChangeEvent(FlyString const& event_name, Bindings::HashChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_old_url(event_init.old_url)
     , m_new_url(event_init.new_url)
 {

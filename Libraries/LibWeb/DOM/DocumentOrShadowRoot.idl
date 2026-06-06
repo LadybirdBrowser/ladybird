@@ -10,5 +10,5 @@ interface mixin DocumentOrShadowRoot {
     attribute any adoptedStyleSheets;
 
     // https://drafts.csswg.org/web-animations-1/#extensions-to-the-documentorshadowroot-interface-mixin
-    sequence<Animation> getAnimations();
+    [NeedsThisObjectRealm] sequence<Animation> getAnimations();
 };

@@ -12,17 +12,11 @@ namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(XMLHttpRequestUpload);
 
-XMLHttpRequestUpload::XMLHttpRequestUpload(JS::Realm& realm)
-    : XMLHttpRequestEventTarget(realm)
+XMLHttpRequestUpload::XMLHttpRequestUpload()
+    : XMLHttpRequestEventTarget()
 {
 }
 
 XMLHttpRequestUpload::~XMLHttpRequestUpload() = default;
-
-void XMLHttpRequestUpload::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XMLHttpRequestUpload);
-    Base::initialize(realm);
-}
 
 }

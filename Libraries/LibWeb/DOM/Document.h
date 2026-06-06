@@ -224,9 +224,9 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ref<Document>> create_and_initialize(Type, String content_type, HTML::NavigationParams const&);
 
-    [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
-    [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(JS::Realm&);
-    static GC::Ref<Document> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Document> create(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url = URL::about_blank());
+    [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(Page&, GC::Ref<EventTarget> relevant_global_event_target);
+    static GC::Ref<Document> construct_impl(HTML::Window&);
     virtual ~Document() override;
 
     // AD-HOC: This number increments whenever a node is added or removed from the document, or an element attribute changes.
@@ -372,6 +372,7 @@ public:
 
     Page& page();
     Page const& page() const;
+    GC::Ref<EventTarget> relevant_global_event_target() const { return m_relevant_global_event_target; }
 
     Color background_color() const;
     Color canvas_background_color() const;
@@ -759,8 +760,8 @@ public:
     WebIDL::ExceptionOr<bool> query_command_supported(FlyString const& command);
     WebIDL::ExceptionOr<String> query_command_value(FlyString const& command);
 
-    WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr);
-    WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> create_expression(JS::Realm&, String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> evaluate(JS::Realm&, String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver = nullptr, WebIDL::UnsignedShort type = 0, GC::Ptr<XPath::XPathResult> result = nullptr);
     GC::Ref<DOM::Node> create_ns_resolver(GC::Ref<DOM::Node> node_resolver); // legacy
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
@@ -847,7 +848,7 @@ public:
     void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
     void remove_replaced_animations();
 
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations(JS::Realm&);
     HashTable<GC::Ref<Animations::AnimationTimeline>> const& associated_animation_timelines() const { return m_associated_animation_timelines; }
 
     bool ready_to_run_scripts() const { return m_ready_to_run_scripts; }
@@ -912,7 +913,7 @@ public:
     void set_needs_accumulated_visual_contexts_update(bool value) { m_needs_accumulated_visual_contexts_update = value; }
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
 
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
 
@@ -971,8 +972,8 @@ public:
 
     Vector<GC::Root<Range>> find_matching_text(String const&, CaseSensitivity);
 
-    void parse_html_from_a_string(StringView);
-    static WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::VM&, TrustedTypes::TrustedHTMLOrString const&);
+    void parse_html_from_a_string(JS::Realm&, StringView);
+    static WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::Realm&, TrustedTypes::TrustedHTMLOrString const&);
 
     void set_console_client(GC::Ptr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     GC::Ptr<JS::ConsoleClient> console_client() const { return m_console_client; }
@@ -1145,10 +1146,10 @@ public:
     void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, String local_name, Optional<String> name = {});
 
 protected:
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
+    Document(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
+    void initialize_document();
 
 private:
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
@@ -1223,6 +1224,7 @@ private:
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     GC::Ptr<HTML::Window> m_window;
+    GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 
     RefPtr<Layout::Viewport> m_layout_root;
 

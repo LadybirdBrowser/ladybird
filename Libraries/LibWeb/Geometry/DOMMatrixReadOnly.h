@@ -16,6 +16,12 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
+
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dommatrixreadonly
@@ -26,16 +32,16 @@ class DOMMatrixReadOnly
     GC_DECLARE_ALLOCATOR(DOMMatrixReadOnly);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> construct_impl(JS::Realm&, Optional<Variant<String, Vector<double>>> const& init);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_2d_init(JS::Realm&, Bindings::DOMMatrix2DInit& init);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_init(JS::Realm&, Bindings::DOMMatrixInit& init);
-    static GC::Ref<DOMMatrixReadOnly> create(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Optional<Variant<String, Vector<double>>> const& init);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_2d_init(Bindings::DOMMatrix2DInit& init);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_init(Bindings::DOMMatrixInit& init);
+    static GC::Ref<DOMMatrixReadOnly> create();
 
     virtual ~DOMMatrixReadOnly() override;
 
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_matrix(JS::VM&, Bindings::DOMMatrixInit& other);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float32_array(JS::VM&, GC::Ref<JS::Float32Array>);
-    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float64_array(JS::VM&, GC::Ref<JS::Float64Array>);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float32_array(JS::VM&, GC::Root<JS::Float32Array> const&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float64_array(JS::VM&, GC::Root<JS::Float64Array> const&);
 
     // https://drafts.fxtf.org/geometry/#dommatrix-attributes
     double m11() const { return m_matrix[0, 0]; }
@@ -81,19 +87,20 @@ public:
 
     GC::Ref<DOMPoint> transform_point(Bindings::DOMPointInit const&) const;
     GC::Ref<DOMPoint> transform_point(DOMPointReadOnly const&) const;
-    GC::Ref<JS::Float32Array> to_float32_array() const;
-    GC::Ref<JS::Float64Array> to_float64_array() const;
+    GC::Ref<JS::Float32Array> to_float32_array(JS::Realm&) const;
+    GC::Ref<JS::Float64Array> to_float64_array(JS::Realm&) const;
 
     WebIDL::ExceptionOr<String> to_string() const;
+    WebIDL::ExceptionOr<String> to_string(JS::Realm&) const;
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 protected:
-    DOMMatrixReadOnly(JS::Realm&, double m11, double m12, double m21, double m22, double m41, double m42);
-    DOMMatrixReadOnly(JS::Realm&, double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
-    DOMMatrixReadOnly(JS::Realm&, DOMMatrixReadOnly const& other);
-    explicit DOMMatrixReadOnly(JS::Realm&);
+    DOMMatrixReadOnly(double m11, double m12, double m21, double m22, double m41, double m42);
+    DOMMatrixReadOnly(double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
+    DOMMatrixReadOnly(DOMMatrixReadOnly const& other);
+    DOMMatrixReadOnly();
 
     // NOTE: The matrix used in the spec is column-major (https://drafts.fxtf.org/geometry/#4x4-abstract-matrix) but Gfx::Matrix4x4 is row-major so we need to transpose the values.
     Gfx::DoubleMatrix4x4 m_matrix { Gfx::DoubleMatrix4x4::identity() };
@@ -113,6 +120,6 @@ struct ParsedMatrix {
     bool is_2d_transform;
 };
 
-WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm, StringView transform_list);
+WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(StringView transform_list);
 
 }

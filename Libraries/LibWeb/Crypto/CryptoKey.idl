@@ -8,6 +8,6 @@ enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits
 interface CryptoKey {
     readonly attribute KeyType type;
     readonly attribute boolean extractable;
-    readonly attribute object algorithm;
-    readonly attribute object usages;
+    [NeedsCallerRealmForGetter] readonly attribute object algorithm;
+    [NeedsCallerRealmForGetter] readonly attribute object usages;
 };

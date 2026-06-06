@@ -9,6 +9,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Math.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
@@ -36,7 +37,9 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PaintConfig.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
@@ -708,7 +711,7 @@ EventResult EventHandler::dispatch_wheel_event(Painting::Paintable& paintable, C
     auto scroll_offset = document->navigable()->viewport_scroll_offset();
     auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
     auto cancelability = is_cancelable ? UIEvents::WheelEventIsCancelable::Yes : UIEvents::WheelEventIsCancelable::No;
-    auto event = UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers, cancelability).release_value_but_fixme_should_propagate_errors();
+    auto event = UIEvents::WheelEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers, cancelability).release_value_but_fixme_should_propagate_errors();
     return node->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
@@ -1177,13 +1180,13 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
 
     switch (type) {
     case DragEvent::Type::DragStart:
-        return m_drag_and_drop_event_handler->handle_drag_start(document.realm(), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
+        return m_drag_and_drop_event_handler->handle_drag_start(document.relevant_settings_object().realm(), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
     case DragEvent::Type::DragMove:
-        return m_drag_and_drop_event_handler->handle_drag_move(document.realm(), *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
+        return m_drag_and_drop_event_handler->handle_drag_move(document.relevant_settings_object().realm(), *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::DragEnd:
-        return m_drag_and_drop_event_handler->handle_drag_leave(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
+        return m_drag_and_drop_event_handler->handle_drag_leave(document.relevant_settings_object().realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::Drop:
-        return m_drag_and_drop_event_handler->handle_drop(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
+        return m_drag_and_drop_event_handler->handle_drop(document.relevant_settings_object().realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     }
 
     VERIFY_NOT_REACHED();
@@ -1199,7 +1202,7 @@ EventResult EventHandler::cancel_drag_and_drop_event(CSSPixelPoint visual_viewpo
 
     auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
-    auto result = m_drag_and_drop_event_handler->handle_drag_cancel(document->realm(), screen_position, page_offset, viewport_position, {}, button, buttons, modifiers);
+    auto result = m_drag_and_drop_event_handler->handle_drag_cancel(HTML::relevant_realm(*document), screen_position, page_offset, viewport_position, {}, button, buttons, modifiers);
     set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Arrow);
     clear_mousedown_tracking();
     stop_updating_selection();
@@ -1318,7 +1321,7 @@ static GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges_for_input_event(D
     GC::RootVector<GC::Ref<DOM::StaticRange>> target_ranges;
     if (auto selection = document.get_selection(); selection && !selection->is_collapsed()) {
         if (auto range = selection->range()) {
-            auto static_range = document.realm().create<DOM::StaticRange>(range->start_container(), range->start_offset(), range->end_container(), range->end_offset());
+            auto static_range = GC::Heap::the().allocate<DOM::StaticRange>(range->start_container(), range->start_offset(), range->end_container(), range->end_offset());
             target_ranges.append(static_range);
         }
     }
@@ -1340,12 +1343,12 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
                 return fire_keyboard_event(event_name, *navigable_container.content_navigable(), key, modifiers, code_point, repeat);
         }
 
-        auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
+        auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
         return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
 
     // FIXME: De-duplicate this. This is just to prevent wasting a KeyboardEvent allocation when recursing into an (i)frame.
-    auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
+    auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
 
     GC::Ptr target = document->body() ?: &document->root();
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
@@ -1379,11 +1382,11 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
                 return input_event(event_name, input_type, *navigable_container.content_navigable(), move(code_point_or_string));
         }
 
-        auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init, target_ranges_for_input_event(*document));
+        auto event = UIEvents::InputEvent::create_from_platform_event(event_name, input_event_init, target_ranges_for_input_event(*document), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
         return focused_area->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
 
-    auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init, target_ranges_for_input_event(*document));
+    auto event = UIEvents::InputEvent::create_from_platform_event(event_name, input_event_init, target_ranges_for_input_event(*document), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
 
     if (auto* body = document->body())
         return body->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
@@ -1466,16 +1469,16 @@ bool EventHandler::fire_click_events(GC::Ref<DOM::Node> node, MouseEventCoordina
 
     if (button == UIEvents::MouseButton::Primary) {
         // https://w3c.github.io/pointerevents/#click
-        run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::click, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
+        run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), UIEvents::EventNames::click, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
 
         // https://w3c.github.io/uievents/#event-type-dblclick
         // This event type MUST be dispatched after the event type click if a click and
         // double click occur simultaneously, and after the event type mouseup otherwise.
         if (click_count == 2)
-            node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::dblclick, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
+            node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), UIEvents::EventNames::dblclick, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
     } else {
         // https://w3c.github.io/pointerevents/#auxclick
-        run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::auxclick, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
+        run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), UIEvents::EventNames::auxclick, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
     }
 
     return run_activation_behavior;
@@ -1658,7 +1661,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
     if ((modifiers & UIEvents::Mod_Shift) == 0) {
         // 1. Let menuevent = create a PointerEvent with "contextmenu", target
         // 2. If native is valid, then set MouseEvent attributes from native.
-        auto menuevent = UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::contextmenu, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, UIEvents::MouseButton::Secondary, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
+        auto menuevent = UIEvents::MouseEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), UIEvents::EventNames::contextmenu, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, UIEvents::MouseButton::Secondary, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
 
         // 3. Let result = dispatch menuevent at target.
         bool result = node->dispatch_event(menuevent);
@@ -2251,7 +2254,7 @@ static void set_node_and_ancestors_being_activated(DOM::Node* node, bool activat
 bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType type, GC::Ptr<DOM::Node> node, RefPtr<Painting::ChromeWidget> chrome_widget, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
 {
     auto& document = *m_navigable->active_document();
-    auto& realm = document.realm();
+    auto& relevant_global_object = HTML::relevant_global_object(document);
 
     auto pointer_event_name = [&] {
         switch (type) {
@@ -2266,7 +2269,7 @@ bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(Poi
         }
         VERIFY_NOT_REACHED();
     }();
-    auto pointer_event = MUST(UIEvents::PointerEvent::create_from_platform_event(realm, m_navigable->active_window_proxy(), pointer_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers));
+    auto pointer_event = MUST(UIEvents::PointerEvent::create_from_platform_event(relevant_global_object, m_navigable->active_window_proxy(), pointer_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers));
 
     // FIXME: 1. If the isPrimary property for the pointer event to be dispatched is false then dispatch the
     //           pointer event and terminate these steps.
@@ -2336,7 +2339,7 @@ bool EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(Poi
             }
             VERIFY_NOT_REACHED();
         }();
-        run_default_activation_behavior = mouse_event_target->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), mouse_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
+        run_default_activation_behavior = mouse_event_target->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), mouse_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
     }
 
     // 6. If the pointer event dispatched was pointerup or pointercancel, clear the PREVENT MOUSE EVENT flag for this

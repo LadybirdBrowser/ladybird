@@ -5,8 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/AudioDestinationNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebAudio/AudioContext.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
@@ -17,8 +19,8 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioDestinationNode);
 
-AudioDestinationNode::AudioDestinationNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
-    : AudioNode(realm, context, channel_count)
+AudioDestinationNode::AudioDestinationNode(GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
+    : AudioNode(context, channel_count)
 {
 }
 
@@ -31,9 +33,9 @@ WebIDL::UnsignedLong AudioDestinationNode::max_channel_count()
     return 2;
 }
 
-WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> AudioDestinationNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
+WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> AudioDestinationNode::construct_impl(GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
 {
-    auto node = realm.create<AudioDestinationNode>(realm, context, channel_count);
+    auto node = GC::Heap::the().allocate<AudioDestinationNode>(context, channel_count);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#AudioDestinationNode
@@ -46,12 +48,6 @@ WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> AudioDestinationNode::constru
     TRY(node->initialize_audio_node_options({}, default_options));
 
     return node;
-}
-
-void AudioDestinationNode::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioDestinationNode);
-    Base::initialize(realm);
 }
 
 void AudioDestinationNode::visit_edges(Cell::Visitor& visitor)
@@ -72,13 +68,13 @@ WebIDL::ExceptionOr<void> AudioDestinationNode::set_channel_count(WebIDL::Unsign
     // exception MUST be thrown for any attempt to set the count outside this range.
     if (is<AudioContext>(*context())) {
         if (channel_count < 1 || channel_count > max_channel_count())
-            return WebIDL::IndexSizeError::create(realm(), "Channel index is out of range"_utf16);
+            return WebIDL::IndexSizeError::create(HTML::relevant_realm(relevant_global_object()), "Channel index is out of range"_utf16);
     }
 
     // OfflineAudioContext: The channel count cannot be changed. An InvalidStateError exception MUST
     // be thrown for any attempt to change the value.
     if (is<OfflineAudioContext>(*context()))
-        return WebIDL::InvalidStateError::create(realm(), "Cannot change channel count in an OfflineAudioContext"_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(relevant_global_object()), "Cannot change channel count in an OfflineAudioContext"_utf16);
 
     return AudioNode::set_channel_count(channel_count);
 }

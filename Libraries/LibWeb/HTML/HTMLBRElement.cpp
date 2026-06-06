@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/HTMLBRElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -22,12 +23,6 @@ HTMLBRElement::HTMLBRElement(DOM::Document& document, DOM::QualifiedName qualifi
 }
 
 HTMLBRElement::~HTMLBRElement() = default;
-
-void HTMLBRElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBRElement);
-    Base::initialize(realm);
-}
 
 RefPtr<Layout::Node> HTMLBRElement::create_layout_node(CSS::ComputedProperties const& style)
 {

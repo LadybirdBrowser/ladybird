@@ -9,7 +9,6 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGC/Root.h>
-#include <LibGC/WeakInlines.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Set.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -18,6 +17,7 @@
 #include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -38,37 +39,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(FontFaceSet);
 
-static void prune_live_set_entries(Vector<GC::Weak<JS::Set>>& live_set_entries)
-{
-    live_set_entries.remove_all_matching([](auto const& set_entries) { return !set_entries; });
-}
-
-template<typename Callback>
-static void for_each_live_set_entries(GC::Weak<JS::Set> const& relevant_realm_set_entries, Vector<GC::Weak<JS::Set>>& live_set_entries, Callback callback)
-{
-    if (relevant_realm_set_entries) {
-        auto set_entries = GC::make_root(*relevant_realm_set_entries);
-        callback(*set_entries);
-    }
-
-    prune_live_set_entries(live_set_entries);
-    for (auto const& weak_set_entries : live_set_entries) {
-        auto set_entries = GC::make_root(*weak_set_entries);
-        callback(*set_entries);
-    }
-}
-
 static void add_font_face_to_set(JS::Set& set_entries, GC::Ref<FontFace> font_face)
 {
-    auto& realm = set_entries.shape().realm();
-    auto wrapper = GC::make_root(Bindings::wrap(realm, font_face));
+    auto& realm = HTML::relevant_realm(set_entries);
+    auto wrapper = GC::make_root(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, font_face));
     set_entries.set_add(JS::Value { wrapper.ptr() });
 }
 
 static void remove_font_face_from_set(JS::Set& set_entries, GC::Ref<FontFace> font_face)
 {
-    auto& realm = set_entries.shape().realm();
-    auto wrapper = GC::make_root(Bindings::wrap(realm, font_face));
+    auto& realm = HTML::relevant_realm(set_entries);
+    auto wrapper = GC::make_root(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, font_face));
     set_entries.set_remove(JS::Value { wrapper.ptr() });
 }
 
@@ -80,26 +61,13 @@ static GC::Root<JS::Set> create_set_entries(JS::Realm& realm, Vector<GC::Ref<Fon
     return set_entries;
 }
 
-GC::Ref<JS::Set> FontFaceSet::set_entries_for_realm(JS::Realm& realm) const
+GC::Ref<JS::Set> FontFaceSet::set_entries(JS::Realm& realm, Bindings::WrapperWorld const& wrapper_world) const
 {
-    if (&realm == &this->realm()) {
-        if (m_relevant_realm_set_entries)
-            return GC::Ref { *m_relevant_realm_set_entries };
-
-        auto set_entries = create_set_entries(realm, m_font_faces);
-        m_relevant_realm_set_entries = GC::Ref { *set_entries };
-        return GC::Ref { *set_entries };
-    }
-
-    prune_live_set_entries(m_live_set_entries);
-    for (auto const& weak_set_entries : m_live_set_entries) {
-        auto set_entries = GC::make_root(*weak_set_entries);
-        if (&set_entries->shape().realm() == &realm)
-            return GC::Ref { *set_entries };
-    }
+    if (auto set_entries = m_set_entries.get(wrapper_world))
+        return *set_entries;
 
     auto set_entries = create_set_entries(realm, m_font_faces);
-    m_live_set_entries.append(GC::Ref { *set_entries });
+    m_set_entries.set(wrapper_world, set_entries.ptr());
     return GC::Ref { *set_entries };
 }
 
@@ -110,28 +78,26 @@ bool FontFaceSet::set_has(JS::Value value) const
     return m_font_faces.contains([&](auto const& entry) { return entry.ptr() == font_face; });
 }
 
-GC::Ref<FontFaceSet> FontFaceSet::create(JS::Realm& realm)
+GC::Ref<FontFaceSet> FontFaceSet::create(HTML::EnvironmentSettingsObject& environment)
 {
+    auto& realm = environment.realm();
     HTML::TemporaryExecutionContext temporary_execution_context { realm };
-    return realm.create<FontFaceSet>(realm);
+    auto font_face_set = GC::Heap::the().allocate<FontFaceSet>(environment);
+    return font_face_set;
 }
 
-FontFaceSet::FontFaceSet(JS::Realm& realm)
-    : DOM::EventTarget(realm)
-    , m_ready_promise(WebIDL::create_promise(realm))
+FontFaceSet::FontFaceSet(HTML::EnvironmentSettingsObject& environment)
+    : DOM::EventTarget()
+    , m_environment(environment)
+    , m_ready_promise(WebIDL::create_promise(environment.realm()))
 {
-}
-
-void FontFaceSet::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFaceSet);
-    Base::initialize(realm);
 }
 
 void FontFaceSet::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_font_faces);
+    visitor.visit(m_environment);
     visitor.visit(m_ready_promise);
     visitor.visit(m_loading_fonts);
     visitor.visit(m_loaded_fonts);
@@ -147,7 +113,7 @@ WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> FontFaceSet::add(GC::Ref<FontFace> fac
 
     // 2. If font is CSS-connected, throw an InvalidModificationError exception and exit this algorithm immediately.
     if (face->is_css_connected()) {
-        return WebIDL::InvalidModificationError::create(realm(), "Cannot add a CSS-connected FontFace to a FontFaceSet"_utf16);
+        return WebIDL::InvalidModificationError::create(relevant_settings_object().realm(), "Cannot add a CSS-connected FontFace to a FontFaceSet"_utf16);
     }
 
     // NB: This method implements steps 3 and 4.
@@ -165,13 +131,13 @@ void FontFaceSet::add_css_connected_font(GC::Ref<FontFace> face)
         return;
 
     m_font_faces.append(face);
-    for_each_live_set_entries(m_relevant_realm_set_entries, m_live_set_entries, [&](auto& set_entries) {
+    m_set_entries.for_each([&](auto& set_entries) {
         add_font_face_to_set(set_entries, face);
     });
     face->add_to_set(*this);
 
     if (face->should_be_registered_with_font_computer()) {
-        auto& global = HTML::relevant_global_object(*this);
+        auto& global = relevant_settings_object().global_object();
         if (auto* window = HTML::window_from_global_object(global))
             window->associated_document().font_computer().register_font_face(face);
     }
@@ -197,7 +163,7 @@ bool FontFaceSet::delete_(GC::Ref<FontFace> face)
     }
 
     if (face->should_be_registered_with_font_computer()) {
-        auto& global = HTML::relevant_global_object(*this);
+        auto& global = relevant_settings_object().global_object();
         if (auto* window = HTML::window_from_global_object(global))
             window->associated_document().font_computer().unregister_font_face(*face);
     }
@@ -205,7 +171,7 @@ bool FontFaceSet::delete_(GC::Ref<FontFace> face)
     // 2. Let deleted be the result of removing font from the FontFaceSet’s set entries.
     bool deleted = m_font_faces.remove_first_matching([&](auto const& entry) { return entry.ptr() == face.ptr(); });
     if (deleted) {
-        for_each_live_set_entries(m_relevant_realm_set_entries, m_live_set_entries, [&](auto& set_entries) {
+        m_set_entries.for_each([&](auto& set_entries) {
             remove_font_face_from_set(set_entries, GC::Ref { *face });
         });
         face->remove_from_set(*this);
@@ -229,13 +195,13 @@ void FontFaceSet::clear()
 {
     // 1. Remove all non-CSS-connected items from the FontFaceSet's set entries,
     //    its [[LoadedFonts]] list, and its [[FailedFonts]] list.
-    auto* window = HTML::window_from_global_object(HTML::relevant_global_object(*this));
+    auto* window = HTML::window_from_global_object(relevant_settings_object().global_object());
     for (auto& font_face : m_font_faces) {
         if (font_face->is_css_connected())
             continue;
         if (window && font_face->should_be_registered_with_font_computer())
             window->associated_document().font_computer().unregister_font_face(font_face);
-        for_each_live_set_entries(m_relevant_realm_set_entries, m_live_set_entries, [&](auto& set_entries) {
+        m_set_entries.for_each([&](auto& set_entries) {
             remove_font_face_from_set(set_entries, font_face);
         });
         font_face->remove_from_set(*this);
@@ -310,7 +276,7 @@ static WebIDL::ExceptionOr<GC::Ref<GC::HeapVector<GC::Ref<FontFace>>>> find_matc
     auto const& font_family_list = property->as_shorthand().longhand(PropertyID::FontFamily)->as_value_list();
 
     // 5. Let matched font faces initially be an empty list.
-    auto matched_font_faces = realm.heap().allocate<GC::HeapVector<GC::Ref<FontFace>>>();
+    auto matched_font_faces = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<FontFace>>>();
 
     // 6. For each family in font family list, use the font matching rules to select the font faces from available font
     //    faces that match the font style, and add them to matched font faces. The use of the unicodeRange attribute means
@@ -358,27 +324,27 @@ static WebIDL::ExceptionOr<GC::Ref<GC::HeapVector<GC::Ref<FontFace>>>> find_matc
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load
 JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& font, String const& text)
 {
-    auto& realm = this->realm();
+    auto& realm = relevant_settings_object().realm();
 
     // 1. Let font face set be the FontFaceSet object this method was called on. Let promise be a newly-created promise object.
     GC::Ref font_face_set = *this;
     auto promise = WebIDL::create_promise(realm);
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, font_face_set, promise, font, text]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, font_face_set, promise, font, text]() mutable {
         // 3. Find the matching font faces from font face set using the font and text arguments passed to the function,
         //    and let font face list be the return value (ignoring the found faces flag). If a syntax error was returned,
         //    reject promise with a SyntaxError exception and terminate these steps.
         auto result = find_matching_font_faces(realm, font_face_set, font, text);
         if (result.is_error()) {
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result.release_error()).release_value());
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), realm, result.release_error()).release_value());
             return;
         }
 
         auto matched_font_faces = result.release_value();
 
         // 4. Queue a task to run the following steps synchronously:
-        HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, matched_font_faces] {
+        HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, matched_font_faces] {
             GC::RootVector<GC::Ref<WebIDL::Promise>> promises;
 
             // 1. For all of the font faces in the font face list, call their load() method.
@@ -416,7 +382,7 @@ WebIDL::ExceptionOr<bool> FontFaceSet::check(String const& font, String const& t
     // 1. Let font face set be the FontFaceSet object this method was called on.
     GC::Ref font_face_set = *this;
 
-    auto& realm = this->realm();
+    auto& realm = relevant_settings_object().realm();
 
     // 2. Find the matching font faces from font face set using the font and text arguments passed to the function, and
     //    including system fonts, and let font face list be the returned list of font faces, and found faces be the
@@ -456,7 +422,7 @@ void FontFaceSet::fire_a_font_load_event(FlyString name, Vector<GC::Ref<FontFace
         if (m_font_faces.contains_slow(font_face))
             load_event_init.fontfaces.append(font_face);
     }
-    dispatch_event(FontFaceSetLoadEvent::create(realm(), move(name), move(load_event_init)));
+    dispatch_event(FontFaceSetLoadEvent::create(move(name), move(load_event_init), HighResolutionTime::current_high_resolution_time(relevant_settings_object().global_object())));
 }
 
 // https://drafts.csswg.org/css-font-loading/#ref-for-fontfaceset-pending-on-the-environment%E2%91%A1
@@ -496,10 +462,10 @@ void FontFaceSet::switch_to_loading()
     // 3. If font face set’s [[ReadyPromise]] slot currently holds a fulfilled promise, replace it with a fresh pending
     //    promise.
     if (WebIDL::is_promise_fulfilled(m_ready_promise))
-        m_ready_promise = WebIDL::create_promise(realm());
+        m_ready_promise = WebIDL::create_promise(relevant_settings_object().realm());
 
     // 4. Queue a task to fire a font load event named loading at font face set.
-    HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm().heap(), [this] {
+    HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
         fire_a_font_load_event("loading"_fly_string);
     }));
 }
@@ -518,10 +484,11 @@ void FontFaceSet::switch_to_loaded()
     m_status = Bindings::FontFaceSetLoadStatus::Loaded;
 
     // 4. Fulfill font face set’s [[ReadyPromise]] attribute’s value with font face set.
-    WebIDL::resolve_promise(realm(), m_ready_promise, Bindings::wrap(realm(), GC::Ref { *this }));
+    auto& realm = relevant_settings_object().realm();
+    WebIDL::resolve_promise(realm, m_ready_promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this }));
 
     // 5. Queue a task to perform the following steps synchronously:
-    HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm().heap(), [this] {
+    HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
         // 1. Let loaded fonts be the (possibly empty) contents of font face set’s [[LoadedFonts]] slot.
         // 2. Let failed fonts be the (possibly empty) contents of font face set’s [[FailedFonts]] slot.
         // 3. Reset the [[LoadedFonts]] and [[FailedFonts]] slots to empty lists.

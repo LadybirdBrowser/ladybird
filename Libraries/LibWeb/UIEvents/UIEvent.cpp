@@ -4,31 +4,40 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/UIEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(UIEvent);
 
-GC::Ref<UIEvent> UIEvent::create(JS::Realm& realm, FlyString const& event_name)
+static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
 {
-    return realm.create<UIEvent>(realm, event_name);
+    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
 }
 
-WebIDL::ExceptionOr<GC::Ref<UIEvent>> UIEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::UIEventInit const& event_init)
+GC::Ref<UIEvent> UIEvent::create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<UIEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<UIEvent>(event_name, time_stamp);
 }
 
-UIEvent::UIEvent(JS::Realm& realm, FlyString const& event_name)
-    : Event(realm, event_name)
+WebIDL::ExceptionOr<GC::Ref<UIEvent>> UIEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::UIEventInit const& event_init)
+{
+    return GC::Heap::the().allocate<UIEvent>(event_name, event_init, event_time_stamp(window));
+}
+
+UIEvent::UIEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : Event(event_name, time_stamp)
 {
 }
 
-UIEvent::UIEvent(JS::Realm& realm, FlyString const& event_name, Bindings::UIEventInit const& event_init)
-    : Event(realm, event_name, event_init)
+UIEvent::UIEvent(FlyString const& event_name, Bindings::UIEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : Event(event_name, event_init, time_stamp)
     , m_view(event_init.view)
     , m_detail(event_init.detail)
 {

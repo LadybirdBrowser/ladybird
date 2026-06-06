@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLTrackElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -19,8 +20,10 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLTrackElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/HTML/TextTrackObserver.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
@@ -34,13 +37,10 @@ HTMLTrackElement::HTMLTrackElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLTrackElement::~HTMLTrackElement() = default;
 
-void HTMLTrackElement::initialize(JS::Realm& realm)
+void HTMLTrackElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTrackElement);
-    Base::initialize(realm);
-
-    m_track = TextTrack::create(realm);
-    m_track_observer = realm.create<TextTrackObserver>(realm, *m_track);
+    m_track = TextTrack::create();
+    m_track_observer = TextTrackObserver::create(*m_track);
 }
 
 void HTMLTrackElement::visit_edges(Cell::Visitor& visitor)
@@ -142,7 +142,7 @@ void HTMLTrackElement::set_track_url(String track_url)
     // https://html.spec.whatwg.org/multipage/media.html#start-the-track-processing-model
     if (m_loading && m_fetch_controller && track_is_hidden_or_showing) {
         m_loading = false;
-        m_fetch_controller->abort(realm(), {});
+        m_fetch_controller->abort(HTML::relevant_realm(*this), {});
     }
 
     // https://html.spec.whatwg.org/multipage/media.html#start-the-track-processing-model
@@ -157,8 +157,6 @@ void HTMLTrackElement::set_track_url(String track_url)
 // https://html.spec.whatwg.org/multipage/media.html#start-the-track-processing-model
 void HTMLTrackElement::start_the_track_processing_model()
 {
-    auto& realm = this->realm();
-
     // 1. If another occurrence of this algorithm is already running for this text track and its track element, return,
     //    letting that other algorithm take care of this element.
     if (m_loading)
@@ -175,14 +173,14 @@ void HTMLTrackElement::start_the_track_processing_model()
     m_loading = true;
 
     // 4. Run the remainder of these steps in parallel, allowing whatever caused these steps to run to continue.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this]() {
         start_the_track_processing_model_parallel_steps();
     }));
 }
 
 void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(*this);
 
     // 5. Top: Await a stable state. The synchronous section consists of the following steps.
 
@@ -207,7 +205,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
         // and with the same-origin fallback flag set.
         auto parsed_url = URL::Parser::basic_parse(url);
         VERIFY(parsed_url.has_value());
-        auto request = create_potential_CORS_request(realm.vm(), parsed_url.release_value(), Fetch::Infrastructure::Request::Destination::Track, cors_attribute_state, SameOriginFallbackFlag::Yes);
+        auto request = create_potential_CORS_request(parsed_url.release_value(), Fetch::Infrastructure::Request::Destination::Track, cors_attribute_state, SameOriginFallbackFlag::Yes);
 
         // 2. Set request's client to the track element's node document's relevant settings object.
         request->set_client(&document().relevant_settings_object());
@@ -216,7 +214,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Track);
 
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-        fetch_algorithms_input.process_response_consume_body = [this, &realm](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = [this](auto response, auto body_bytes) {
             m_loading = false;
 
             // If fetching fails for any reason (network error, the server returns an error code, CORS fails, etc.),
@@ -238,15 +236,16 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
             // after it has finished parsing the data, must change the text track readiness state to loaded, and fire an event named load at the track element.
             // FIXME: Enable this once we support processing track files
             if (false) {
-                queue_an_element_task(Task::Source::Networking, [this, &realm]() {
+                queue_an_element_task(Task::Source::Networking, [this]() {
                     m_track->set_readiness_state(TextTrack::ReadinessState::Loaded);
-                    dispatch_event(DOM::Event::create(realm, HTML::EventNames::load));
+                    dispatch_event(DOM::Event::create(HTML::EventNames::load,
+                        HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
                 });
             }
         };
 
         // 4. Fetch request.
-        m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input));
+        m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
         m_fetch_controller = Fetch::Fetching::fetch(realm, request, *m_fetch_algorithms);
     } else {
         track_failed_to_load();
@@ -275,10 +274,9 @@ void HTMLTrackElement::track_became_ready()
 void HTMLTrackElement::track_failed_to_load()
 {
     queue_an_element_task(Task::Source::DOMManipulation, [this]() {
-        auto& realm = this->realm();
-
         m_track->set_readiness_state(TextTrack::ReadinessState::FailedToLoad);
-        dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+        dispatch_event(DOM::Event::create(HTML::EventNames::error,
+            HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
     });
 }
 

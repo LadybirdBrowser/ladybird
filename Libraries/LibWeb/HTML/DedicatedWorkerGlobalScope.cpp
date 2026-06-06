@@ -17,8 +17,8 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
-DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
-    : WorkerGlobalScope(realm, page)
+DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(GC::Ref<Web::Page> page)
+    : WorkerGlobalScope(page)
 {
 }
 
@@ -50,21 +50,21 @@ void DedicatedWorkerGlobalScope::finalize()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage-options
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
-    return m_internal_port->post_message(message, options);
+    return m_internal_port->post_message(realm, message, options);
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
-    return m_internal_port->post_message(message, transfer);
+    return m_internal_port->post_message(realm, message, transfer);
 }
 
 WebIDL::CallbackType* DedicatedWorkerGlobalScope::onmessage()

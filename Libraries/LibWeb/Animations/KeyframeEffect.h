@@ -13,6 +13,12 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
+
 namespace Web::Animations {
 
 using EasingValue = Variant<String, CSS::EasingFunction>;
@@ -71,22 +77,27 @@ public:
 
     static int composite_order(GC::Ref<KeyframeEffect>, GC::Ref<KeyframeEffect>);
 
-    static GC::Ref<KeyframeEffect> create(JS::Realm&);
+    static GC::Ref<KeyframeEffect> create();
 
     static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(
+        HTML::WindowOrWorkerGlobalScopeMixin&,
+        GC::Ptr<DOM::Element> target,
+        GC::Ptr<JS::Object> keyframes,
+        Variant<double, Bindings::KeyframeEffectOptions> options = Bindings::KeyframeEffectOptions {});
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl_for_realm(
         JS::Realm&,
         GC::Ptr<DOM::Element> target,
         GC::Ptr<JS::Object> keyframes,
         Variant<double, Bindings::KeyframeEffectOptions> options = Bindings::KeyframeEffectOptions {});
 
-    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(JS::Realm&, GC::Ref<KeyframeEffect> source);
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(GC::Ref<KeyframeEffect> source);
 
     DOM::Element* target() const override { return m_target_element; }
     void set_target(DOM::Element* target);
 
     // JS bindings
     Optional<String> pseudo_element() const;
-    WebIDL::ExceptionOr<void> set_pseudo_element(Optional<String>);
+    WebIDL::ExceptionOr<void> set_pseudo_element(JS::Realm&, Optional<String>);
 
     Optional<DOM::AbstractElement> target_abstract_element() const;
     void set_target(DOM::AbstractElement);
@@ -97,8 +108,8 @@ public:
     Bindings::CompositeOperation composite() const { return m_composite; }
     void set_composite(Bindings::CompositeOperation value);
 
-    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes();
-    WebIDL::ExceptionOr<void> set_keyframes(GC::Ptr<JS::Object>);
+    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes(JS::Realm&);
+    WebIDL::ExceptionOr<void> set_keyframes(JS::Realm&, GC::Ptr<JS::Object>);
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }
@@ -108,7 +119,7 @@ public:
     virtual void update_computed_properties(AnimationUpdateContext&) override;
 
 private:
-    KeyframeEffect(JS::Realm&);
+    KeyframeEffect();
     virtual ~KeyframeEffect() override = default;
 
     void invalidate_effect();

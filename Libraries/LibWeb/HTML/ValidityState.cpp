@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/ValidityState.h>
 
@@ -11,13 +12,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ValidityState);
 
-GC::Ref<ValidityState> ValidityState::create(JS::Realm& realm, FormAssociatedElement const& control)
+GC::Ref<ValidityState> ValidityState::create(FormAssociatedElement const& control)
 {
-    return realm.create<ValidityState>(realm, control);
+    return GC::Heap::the().allocate<ValidityState>(control);
 }
 
-ValidityState::ValidityState(JS::Realm& realm, FormAssociatedElement const& control)
-    : Wrappable(realm)
+ValidityState::ValidityState(FormAssociatedElement const& control)
+    : Bindings::Wrappable()
     , m_control(control)
 {
 }

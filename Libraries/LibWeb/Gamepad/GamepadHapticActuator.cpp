@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/Gamepad/Gamepad.h>
@@ -26,13 +27,12 @@ GC_DEFINE_ALLOCATOR(GamepadHapticActuator);
 static constexpr u64 MAX_VIBRATION_DURATION = 5000;
 
 // https://w3c.github.io/gamepad/#dfn-constructing-a-gamepadhapticactuator
-GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(JS::Realm& realm, GC::Ref<Gamepad> gamepad)
+GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(HTML::Window& window, GC::Ref<Gamepad> gamepad)
 {
-    auto& window = HTML::relevant_window(realm.global_object());
-    auto document_became_hidden_observer = realm.create<DOM::DocumentObserver>(realm, window.associated_document());
+    auto document_became_hidden_observer = DOM::DocumentObserver::create(window.associated_document());
 
     // 1. Let gamepadHapticActuator be a newly created GamepadHapticActuator instance.
-    auto gamepad_haptic_actuator = realm.create<GamepadHapticActuator>(realm, gamepad, document_became_hidden_observer);
+    auto gamepad_haptic_actuator = GC::Heap::the().allocate<GamepadHapticActuator>(window, gamepad, document_became_hidden_observer);
 
     // 2. Let supportedEffectsList be an empty list.
     Vector<Bindings::GamepadHapticEffectType> supported_effects_list;
@@ -53,9 +53,10 @@ GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(JS::Realm& realm, G
     return gamepad_haptic_actuator;
 }
 
-GamepadHapticActuator::GamepadHapticActuator(JS::Realm& realm, GC::Ref<Gamepad> gamepad, GC::Ref<DOM::DocumentObserver> document_became_hidden_observer)
-    : Wrappable(realm)
+GamepadHapticActuator::GamepadHapticActuator(HTML::Window& window, GC::Ref<Gamepad> gamepad, GC::Ref<DOM::DocumentObserver> document_became_hidden_observer)
+    : Bindings::Wrappable()
     , m_gamepad(gamepad)
+    , m_window(window)
     , m_document_became_hidden_observer(document_became_hidden_observer)
 {
     m_document_became_hidden_observer->set_document_visibility_state_observer([this](HTML::VisibilityState visibility_state) {
@@ -70,6 +71,7 @@ void GamepadHapticActuator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_gamepad);
+    visitor.visit(m_window);
     visitor.visit(m_document_became_hidden_observer);
     visitor.visit(m_playing_effect_promise);
     visitor.visit(m_playing_effect_timer);
@@ -131,11 +133,21 @@ static bool is_valid_effect(Bindings::GamepadHapticEffectType type, Bindings::Ga
     VERIFY_NOT_REACHED();
 }
 
-// https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-playeffect
-GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params)
+static JS::Realm& promise_realm(WebIDL::Promise const& promise)
 {
-    auto& realm = this->realm();
+    return WebIDL::promise_realm(promise);
+}
 
+static void resolve_haptics_promise(WebIDL::Promise const& promise, Bindings::GamepadHapticsResult result)
+{
+    auto& realm = promise_realm(promise);
+    auto result_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(result));
+    WebIDL::resolve_promise(realm, promise, result_string);
+}
+
+// https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-playeffect
+GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(JS::Realm& realm, Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params)
+{
     // 1. If params does not describe a valid effect of type type, return a promise rejected with a TypeError.
     if (!is_valid_effect(type, params))
         return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid effect"_string });
@@ -160,11 +172,11 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHap
 
         // 3. Queue a global task on the gamepad task source with the relevant global object of this to resolve
         //    effectPromise with "preempted".
-        HTML::queue_global_task(HTML::Task::Source::Gamepad, HTML::relevant_global_object(*this), GC::create_function(realm.heap(), [effect_promise, &realm] {
+        auto& global = m_window->realm().global_object();
+        HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [effect_promise] {
+            auto& realm = promise_realm(effect_promise);
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-
-            auto preempted_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(Bindings::GamepadHapticsResult::Preempted));
-            WebIDL::resolve_promise(realm, effect_promise, preempted_string);
+            resolve_haptics_promise(effect_promise, Bindings::GamepadHapticsResult::Preempted);
         }));
     }
 
@@ -182,22 +194,23 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHap
     // NOTE: Unused.
 
     // 8. Do the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, type, params] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, type, params] {
         // 1. Issue a haptic effect to the actuator with type, params, and the playEffectTimestamp.
-        issue_haptic_effect(type, params, GC::create_function(realm.heap(), [this, &realm] {
+        issue_haptic_effect(type, params, GC::create_function(GC::Heap::the(), [this] {
             // 2. When the effect completes, if this.[[playingEffectPromise]] is not null, queue a global task on the
             //    gamepad task source with the relevant global object of this to run the following steps:
             if (m_playing_effect_promise) {
-                HTML::queue_global_task(HTML::Task::Source::Gamepad, HTML::relevant_global_object(*this), GC::create_function(realm.heap(), [this, &realm] {
+                auto& global = m_window->realm().global_object();
+                HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [this] {
                     // 1. If this.[[playingEffectPromise]] is null, abort these steps.
                     if (!m_playing_effect_promise)
                         return;
 
+                    auto& realm = promise_realm(*m_playing_effect_promise);
                     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                     // 2. Resolve this.[[playingEffectPromise]] with "complete".
-                    auto complete_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(Bindings::GamepadHapticsResult::Complete));
-                    WebIDL::resolve_promise(realm, *m_playing_effect_promise, complete_string);
+                    resolve_haptics_promise(*m_playing_effect_promise, Bindings::GamepadHapticsResult::Complete);
 
                     // 3. Set this.[[playingEffectPromise]] to null.
                     m_playing_effect_promise = nullptr;
@@ -213,10 +226,8 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHap
 }
 
 // https://w3c.github.io/gamepad/#dom-gamepadhapticactuator-reset
-GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset()
+GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. Let document be the current settings object's relevant global object's associated Document.
     auto& window = HTML::relevant_window(HTML::current_settings_object().global_object());
     auto& document = window.associated_document();
@@ -231,7 +242,7 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset()
 
     // 4. If this.[[playingEffectPromise]] is not null, do the following steps in parallel:
     if (m_playing_effect_promise) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, reset_result_promise] {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, reset_result_promise] {
             // 1. Let effectPromise be this.[[playingEffectPromise]].
             auto effect_promise = m_playing_effect_promise;
 
@@ -250,18 +261,17 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset()
                 // AD-HOC: With doing this in parallel, there is a chance effect_promise is null. Don't try to resolve it
                 //         if so.
                 if (effect_promise) {
-                    HTML::queue_global_task(HTML::Task::Source::Gamepad, HTML::relevant_global_object(*this), GC::create_function(realm.heap(), [&realm, effect_promise = GC::Ref { *effect_promise }] {
+                    auto& global = m_window->realm().global_object();
+                    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [effect_promise = GC::Ref { *effect_promise }] {
+                        auto& realm = promise_realm(effect_promise);
                         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-
-                        auto preempted_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(Bindings::GamepadHapticsResult::Preempted));
-                        WebIDL::resolve_promise(realm, effect_promise, preempted_string);
+                        resolve_haptics_promise(effect_promise, Bindings::GamepadHapticsResult::Preempted);
                     }));
                 }
             }
 
             // 4. Resolve resetResultPromise with "complete"
-            auto complete_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(Bindings::GamepadHapticsResult::Complete));
-            WebIDL::resolve_promise(realm, reset_result_promise, complete_string);
+            resolve_haptics_promise(reset_result_promise, Bindings::GamepadHapticsResult::Complete);
         }));
     }
 
@@ -272,8 +282,6 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset()
 // https://w3c.github.io/gamepad/#handling-visibility-change
 void GamepadHapticActuator::document_became_hidden()
 {
-    auto& realm = this->realm();
-
     // When the document's visibility state becomes "hidden", run these steps for each GamepadHapticActuator actuator:
     // 1. If actuator.[[playingEffectPromise]] is null, abort these steps.
     if (!m_playing_effect_promise)
@@ -281,17 +289,17 @@ void GamepadHapticActuator::document_became_hidden()
 
     // 2. Queue a global task on the gamepad task source with the relevant global object of actuator to run the
     //    following steps:
-    auto& global = HTML::relevant_global_object(*this);
-    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(global.heap(), [this, &realm] {
+    auto& global = m_window->realm().global_object();
+    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [this] {
         // 1. If actuator.[[playingEffectPromise]] is null, abort these steps.
         if (!m_playing_effect_promise)
             return;
 
+        auto& realm = promise_realm(*m_playing_effect_promise);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 2. Resolve actuator.[[playingEffectPromise]] with "preempted".
-        auto preempted_string = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(Bindings::GamepadHapticsResult::Preempted));
-        WebIDL::resolve_promise(realm, *m_playing_effect_promise, preempted_string);
+        resolve_haptics_promise(*m_playing_effect_promise, Bindings::GamepadHapticsResult::Preempted);
 
         // 3. Set actuator.[[playingEffectPromise]] to null.
         m_playing_effect_promise = nullptr;
@@ -305,7 +313,7 @@ void GamepadHapticActuator::document_became_hidden()
 // https://w3c.github.io/gamepad/#dfn-issue-a-haptic-effect
 void GamepadHapticActuator::issue_haptic_effect(Bindings::GamepadHapticEffectType type, Bindings::GamepadEffectParameters const& params, GC::Ref<GC::Function<void()>> on_complete)
 {
-    auto& heap = this->heap();
+    auto& heap = GC::Heap::the();
 
     // To issue a haptic effect on an actuator, the user agent MUST send a command to the device to render an effect
     // of type and try to make it use the provided params. The user agent SHOULD use the provided playEffectTimestamp

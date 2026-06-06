@@ -15,6 +15,7 @@ class ProcessingInstruction final : public CharacterData {
     GC_DECLARE_ALLOCATOR(ProcessingInstruction);
 
 public:
+    [[nodiscard]] static GC::Ref<ProcessingInstruction> create(Document&, Utf16String data, String const& target);
     virtual ~ProcessingInstruction() override = default;
 
     virtual FlyString node_name() const override { return m_target; }
@@ -23,8 +24,6 @@ public:
 
 private:
     ProcessingInstruction(Document&, Utf16String data, String const& target);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_target;
 };

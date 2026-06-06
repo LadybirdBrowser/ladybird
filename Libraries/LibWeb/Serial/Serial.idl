@@ -3,8 +3,8 @@
 interface Serial : EventTarget {
     attribute EventHandler onconnect;
     attribute EventHandler ondisconnect;
-    Promise<sequence<SerialPort>> getPorts();
-    [Exposed=Window] Promise<SerialPort> requestPort(optional SerialPortRequestOptions options = {});
+    [NeedsCallerRealm] Promise<sequence<SerialPort>> getPorts();
+    [Exposed=Window, NeedsCallerRealm] Promise<SerialPort> requestPort(optional SerialPortRequestOptions options = {});
 };
 
 // https://wicg.github.io/serial/#serialportfilter-dictionary

@@ -2,5 +2,5 @@
 [Exposed=(Window,Worker)]
 interface CanvasGradient {
     // opaque object
-    undefined addColorStop(double offset, DOMString color);
+    [NeedsThisObjectRealm] undefined addColorStop(double offset, DOMString color);
 };

@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -17,13 +19,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(MediaList);
 
-GC::Ref<MediaList> MediaList::create(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media)
+GC::Ref<MediaList> MediaList::create(Vector<NonnullRefPtr<MediaQuery>>&& media)
 {
-    return realm.create<MediaList>(realm, move(media));
+    return GC::Heap::the().allocate<MediaList>(move(media));
 }
 
-MediaList::MediaList(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media)
-    : Bindings::Wrappable(realm)
+MediaList::MediaList(Vector<NonnullRefPtr<MediaQuery>>&& media)
+    : Bindings::Wrappable()
     , m_media(move(media))
 {
 }
@@ -55,7 +57,7 @@ void MediaList::set_media_text(StringView text)
     m_media.clear();
     if (text.is_empty())
         return;
-    m_media = parse_media_query_list(Parser::ParsingParams { realm() }, text);
+    m_media = parse_media_query_list(Parser::ParsingParams {}, text);
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-item
@@ -71,7 +73,7 @@ Optional<String> MediaList::item(u32 index) const
 void MediaList::append_medium(StringView medium)
 {
     // 1. Let m be the result of parsing the given value.
-    auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
+    auto m = parse_media_query(Parser::ParsingParams {}, medium);
 
     // 2. If m is null, then return.
     if (!m)
@@ -96,10 +98,10 @@ void MediaList::append_medium(StringView medium)
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
-WebIDL::ExceptionOr<void> MediaList::delete_medium(StringView medium)
+WebIDL::ExceptionOr<void> MediaList::delete_medium(JS::Realm& realm, StringView medium)
 {
     // 1. Let m be the result of parsing the given value.
-    auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
+    auto m = parse_media_query(Parser::ParsingParams {}, medium);
 
     // 2. If m is null, then return.
     if (!m)
@@ -115,7 +117,7 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(StringView medium)
         return m->to_string() == existing->to_string();
     });
     if (!was_removed)
-        return WebIDL::NotFoundError::create(realm(), "Media query not found in list"_utf16);
+        return WebIDL::NotFoundError::create(realm, "Media query not found in list"_utf16);
 
     if (m_associated_style_sheet)
         as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
@@ -143,7 +145,7 @@ bool MediaList::matches() const
     return false;
 }
 
-Optional<JS::Value> MediaList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> MediaList::item_value(Bindings::WrapperWorld&, JS::Realm& realm, size_t index) const
 {
     if (index >= m_media.size())
         return {};

@@ -5,6 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/DOMStringMap.h>
@@ -15,13 +16,11 @@ GC_DEFINE_ALLOCATOR(DOMStringMap);
 
 GC::Ref<DOMStringMap> DOMStringMap::create(DOM::Element& element)
 {
-    auto& realm = element.realm();
-    return realm.create<DOMStringMap>(element);
+    return GC::Heap::the().allocate<DOMStringMap>(element);
 }
 
 DOMStringMap::DOMStringMap(DOM::Element& element)
-    : Bindings::Wrappable(element.realm())
-    , m_associated_element(element)
+    : m_associated_element(element)
 {
 }
 
@@ -112,11 +111,11 @@ String DOMStringMap::determine_value_of_named_property(FlyString const& name) co
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String const& name, JS::Value unconverted_value)
+WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(JS::Realm& realm, String const& name, JS::Value unconverted_value)
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(realm().vm()));
+    auto value = TRY(unconverted_value.to_string(realm.vm()));
 
     StringBuilder builder;
 
@@ -133,7 +132,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
         if (current_character == '-' && character_index + 1 < name_view.length()) {
             auto next_character = name_view[character_index + 1];
             if (is_ascii_lower_alpha(next_character))
-                return WebIDL::SyntaxError::create(realm(), "Name cannot contain a '-' followed by a lowercase character."_utf16);
+                return WebIDL::SyntaxError::create(realm, "Name cannot contain a '-' followed by a lowercase character."_utf16);
         }
 
         // 2. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.
@@ -150,7 +149,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 
     // 4. If name is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!DOM::is_valid_attribute_local_name(data_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Name is not a valid attribute local name."_utf16);
+        return WebIDL::InvalidCharacterError::create(realm, "Name is not a valid attribute local name."_utf16);
 
     // 5. Set an attribute value for the DOMStringMap's associated element using name and value.
     m_associated_element->set_attribute_value(data_name, value);
@@ -159,13 +158,13 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-setitem
-WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_existing_named_property(String const& name, JS::Value value)
+WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_existing_named_property(JS::Realm& realm, String const& name, JS::Value value)
 {
-    return set_value_of_new_named_property(name, value);
+    return set_value_of_new_named_property(realm, name, value);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-removeitem
-WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> DOMStringMap::delete_value(String const& name)
+WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> DOMStringMap::delete_value(JS::Realm&, String const& name)
 {
     StringBuilder builder;
 
@@ -192,7 +191,7 @@ WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> DOMStringMap::delete_
     return Bindings::NamedPropertyDeletionResult::DidNotFail;
 }
 
-JS::Value DOMStringMap::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value DOMStringMap::named_item_value(Bindings::WrapperWorld&, JS::Realm& realm, FlyString const& name) const
 {
     return JS::PrimitiveString::create(realm.vm(), determine_value_of_named_property(name));
 }

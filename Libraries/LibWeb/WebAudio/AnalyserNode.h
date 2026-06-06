@@ -41,19 +41,20 @@ public:
     WebIDL::ExceptionOr<void> set_min_decibels(double);
     WebIDL::ExceptionOr<void> set_smoothing_time_constant(double);
 
-    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> create(GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
+    static WebIDL::ExceptionOr<void> validate_options(Bindings::AnalyserOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
 
 protected:
-    AnalyserNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    AnalyserNode(GC::Ref<BaseAudioContext>, Bindings::AnalyserOptions const& = {});
 
 private:
     unsigned long m_fft_size;
     double m_max_decibels;
     double m_min_decibels;
     double m_smoothing_time_constant;
+
+    void set_fft_size_without_validation(unsigned long);
 
     // https://webaudio.github.io/web-audio-api/#current-frequency-data
     Vector<f32> current_frequency_data();

@@ -17,16 +17,16 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNamespaceRule);
 
-CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
-    : CSSRule(realm, Type::Namespace)
+CSSNamespaceRule::CSSNamespaceRule(Optional<FlyString> prefix, FlyString namespace_uri)
+    : CSSRule(Type::Namespace)
     , m_namespace_uri(move(namespace_uri))
     , m_prefix(prefix.value_or(""_fly_string))
 {
 }
 
-GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
+GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(Optional<FlyString> prefix, FlyString namespace_uri)
 {
-    return realm.create<CSSNamespaceRule>(realm, move(prefix), move(namespace_uri));
+    return GC::Heap::the().allocate<CSSNamespaceRule>(move(prefix), move(namespace_uri));
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule

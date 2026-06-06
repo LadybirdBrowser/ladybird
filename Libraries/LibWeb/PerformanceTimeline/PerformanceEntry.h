@@ -40,7 +40,7 @@ public:
     virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const = 0;
 
 protected:
-    PerformanceEntry(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
+    PerformanceEntry(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
 
 private:
     // https://www.w3.org/TR/performance-timeline/#dom-performanceentry-name

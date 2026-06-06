@@ -23,12 +23,6 @@ HTMLEmbedElement::HTMLEmbedElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLEmbedElement::~HTMLEmbedElement() = default;
 
-void HTMLEmbedElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLEmbedElement);
-    Base::initialize(realm);
-}
-
 bool HTMLEmbedElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

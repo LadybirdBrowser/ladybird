@@ -6,8 +6,16 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
 
 namespace Web::ContentSecurityPolicy {
 
@@ -16,8 +24,8 @@ class SecurityPolicyViolationEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(SecurityPolicyViolationEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SecurityPolicyViolationEvent> create(JS::Realm&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<SecurityPolicyViolationEvent> create(FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
+    static WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init);
 
     virtual ~SecurityPolicyViolationEvent() override;
 
@@ -35,7 +43,7 @@ public:
     u32 column_number() const { return m_column_number; }
 
 private:
-    SecurityPolicyViolationEvent(JS::Realm&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const&);
+    SecurityPolicyViolationEvent(FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_document_uri;
     String m_referrer;

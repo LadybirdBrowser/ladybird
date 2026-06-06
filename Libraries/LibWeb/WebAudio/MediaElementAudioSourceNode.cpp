@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaElementAudioSourceNode.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -14,28 +15,22 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(MediaElementAudioSourceNode);
 
-MediaElementAudioSourceNode::MediaElementAudioSourceNode(JS::Realm& realm, GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
-    : AudioNode(realm, context)
+MediaElementAudioSourceNode::MediaElementAudioSourceNode(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
+    : AudioNode(context)
     , m_media_element(*options.media_element)
 {
 }
 
 MediaElementAudioSourceNode::~MediaElementAudioSourceNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create(JS::Realm& realm, GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::create(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
 {
-    return construct_impl(realm, context, options);
+    return GC::Heap::the().allocate<MediaElementAudioSourceNode>(context, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::construct_impl(JS::Realm& realm, GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> MediaElementAudioSourceNode::construct_impl(GC::Ref<AudioContext> context, Bindings::MediaElementAudioSourceOptions const& options)
 {
-    return realm.create<MediaElementAudioSourceNode>(realm, context, options);
-}
-
-void MediaElementAudioSourceNode::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaElementAudioSourceNode);
-    Base::initialize(realm);
+    return create(context, options);
 }
 
 void MediaElementAudioSourceNode::visit_edges(Cell::Visitor& visitor)

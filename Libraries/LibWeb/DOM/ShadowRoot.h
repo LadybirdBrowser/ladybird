@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/ShadowRoot.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
@@ -23,6 +24,8 @@ class WEB_API ShadowRoot final : public DocumentFragment {
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
+
+    [[nodiscard]] static GC::Ref<ShadowRoot> create(Document&, Element& host, Bindings::ShadowRootMode);
 
     Bindings::ShadowRootMode mode() const { return m_mode; }
 
@@ -76,7 +79,7 @@ public:
     void for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const;
     void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
 
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations(JS::Realm&);
 
     ElementByIdMap& element_by_id() const;
 
@@ -116,7 +119,6 @@ protected:
 
 private:
     ShadowRoot(Document&, Element& host, Bindings::ShadowRootMode);
-    virtual void initialize(JS::Realm&) override;
 
     // ^Node
     virtual FlyString node_name() const override { return "#shadow-root"_fly_string; }

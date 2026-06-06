@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/CSSMathValue.h>
 
 namespace Web::CSS {
@@ -16,9 +17,9 @@ class CSSMathSum final : public CSSMathValue {
     GC_DECLARE_ALLOCATOR(CSSMathSum);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathSum> create(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> construct_impl(JS::Realm&, ReadonlySpan<CSSNumberish>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> add_all_types_into_math_sum(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
+    [[nodiscard]] static GC::Ref<CSSMathSum> create(NumericType, GC::Ref<CSSNumericArray>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> construct_impl(ReadonlySpan<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> add_all_types_into_math_sum(GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathSum() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -32,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathSum(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
+    CSSMathSum(NumericType, GC::Ref<CSSNumericArray>);
     GC::Ref<CSSNumericArray> m_values;
 };
 

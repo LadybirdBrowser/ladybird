@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SpeechRecognition.h>
 #include <LibWeb/Speech/SpeechRecognition.h>
@@ -14,25 +14,23 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognition);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechRecognition>> SpeechRecognition::construct_impl(JS::Realm& realm)
+GC::Ref<SpeechRecognition> SpeechRecognition::create()
 {
-    return realm.create<SpeechRecognition>(realm);
+    return GC::Heap::the().allocate<SpeechRecognition>();
 }
 
-SpeechRecognition::SpeechRecognition(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+WebIDL::ExceptionOr<GC::Ref<SpeechRecognition>> SpeechRecognition::construct_impl()
+{
+    return create();
+}
+
+SpeechRecognition::SpeechRecognition()
+    : DOM::EventTarget()
+    , m_grammars(GC::Heap::the().allocate<SpeechGrammarList>())
 {
 }
 
 SpeechRecognition::~SpeechRecognition() = default;
-
-void SpeechRecognition::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechRecognition);
-    Base::initialize(realm);
-
-    m_grammars = realm.create<SpeechGrammarList>(realm);
-}
 
 void SpeechRecognition::visit_edges(Cell::Visitor& visitor)
 {

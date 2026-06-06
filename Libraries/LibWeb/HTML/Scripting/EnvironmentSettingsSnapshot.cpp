@@ -10,12 +10,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(EnvironmentSettingsSnapshot);
 
-EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(JS::Realm& realm, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& serialized_settings)
+EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& serialized_settings)
     : EnvironmentSettingsObject(move(execution_context))
     , m_url(serialized_settings.api_base_url)
     , m_origin(serialized_settings.origin)
     , m_has_cross_site_ancestor(serialized_settings.has_cross_site_ancestor)
-    , m_policy_container(create_a_policy_container_from_serialized_policy_container(realm.heap(), serialized_settings.policy_container))
+    , m_policy_container(create_a_policy_container_from_serialized_policy_container(serialized_settings.policy_container))
     , m_time_origin(serialized_settings.time_origin)
 {
     // Why can't we put these in the init list? grandparent class members are strange it seems

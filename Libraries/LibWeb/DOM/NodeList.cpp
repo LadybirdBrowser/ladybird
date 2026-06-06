@@ -10,19 +10,19 @@
 
 namespace Web::DOM {
 
-NodeList::NodeList(JS::Realm& realm)
-    : Wrappable(realm)
+NodeList::NodeList()
+    : Bindings::Wrappable()
 {
 }
 
 NodeList::~NodeList() = default;
 
-Optional<JS::Value> NodeList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> NodeList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     auto* node = item(index);
     if (!node)
         return {};
-    return Bindings::wrap(realm, GC::Ref { const_cast<Node&>(*node) }).ptr();
+    return Bindings::wrap(wrapper_world, realm, GC::Ref { const_cast<Node&>(*node) }).ptr();
 }
 
 }

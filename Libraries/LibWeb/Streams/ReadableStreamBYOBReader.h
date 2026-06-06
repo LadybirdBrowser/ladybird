@@ -44,7 +44,7 @@ class ReadableStreamBYOBReader final
     GC_DECLARE_ALLOCATOR(ReadableStreamBYOBReader);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> construct_impl(JS::Realm&, GC::Ref<ReadableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ref<ReadableStream>);
 
     virtual ~ReadableStreamBYOBReader() override = default;
 
@@ -55,10 +55,9 @@ public:
     Vector<GC::Ref<ReadIntoRequest>>& read_into_requests() { return m_read_into_requests; }
 
 private:
-    explicit ReadableStreamBYOBReader(JS::Realm&);
+    ReadableStreamBYOBReader();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual JS::Realm& reader_realm() const override { return realm(); }
 
     // https://streams.spec.whatwg.org/#readablestreambyobreader-readintorequests
     // A list of read-into requests, used when a consumer requests chunks sooner than they are available

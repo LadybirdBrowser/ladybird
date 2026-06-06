@@ -30,11 +30,12 @@ public:
     GC::Ptr<WebIDL::Promise> closed_promise_capability() { return m_closed_promise; }
     void set_closed_promise_capability(GC::Ptr<WebIDL::Promise> promise) { m_closed_promise = promise; }
 
+    JS::Realm& closed_promise_realm() const;
+
 protected:
     ReadableStreamGenericReaderMixin() = default;
 
     void visit_edges(JS::Cell::Visitor&);
-    virtual JS::Realm& reader_realm() const = 0;
 
     // https://streams.spec.whatwg.org/#readablestreamgenericreader-closedpromise
     // A promise returned by the reader's closed getter

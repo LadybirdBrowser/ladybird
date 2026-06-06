@@ -125,7 +125,7 @@ private:
 
     virtual bool is_html_image_element() const override { return true; }
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void finalize() override;
 
     virtual void adopted_from(DOM::Document&) override;

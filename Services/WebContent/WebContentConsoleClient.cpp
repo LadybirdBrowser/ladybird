@@ -20,9 +20,8 @@ namespace WebContent {
 
 GC_DEFINE_ALLOCATOR(WebContentConsoleClient);
 
-WebContentConsoleClient::WebContentConsoleClient(JS::Realm& realm, JS::Console& console, PageClient& client, ConsoleGlobalEnvironmentExtensions& console_global_environment_extensions)
+WebContentConsoleClient::WebContentConsoleClient(JS::Console& console, PageClient& client, ConsoleGlobalEnvironmentExtensions& console_global_environment_extensions)
     : ConsoleClient(console)
-    , m_realm(realm)
     , m_client(client)
     , m_console_global_environment_extensions(console_global_environment_extensions)
 {
@@ -33,7 +32,6 @@ WebContentConsoleClient::~WebContentConsoleClient() = default;
 void WebContentConsoleClient::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_realm);
     visitor.visit(m_client);
     visitor.visit(m_console_global_environment_extensions);
 }

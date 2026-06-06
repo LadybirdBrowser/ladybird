@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -17,14 +17,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLDrawBuffers);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLDrawBuffers::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLDrawBuffers::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<WebGLDrawBuffers>(realm, context);
+    auto extension = GC::Heap::the().allocate<WebGLDrawBuffers>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-WebGLDrawBuffers::WebGLDrawBuffers(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+WebGLDrawBuffers::WebGLDrawBuffers(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
 }

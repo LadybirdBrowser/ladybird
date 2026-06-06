@@ -39,8 +39,8 @@ public:
 
     virtual ~Violation() = default;
 
-    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(JS::Realm& realm, GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive);
-    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const>);
+    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive);
+    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const>);
 
     // https://w3c.github.io/webappsec-csp/#violation-url
     [[nodiscard]] URL::URL url() const;
@@ -81,14 +81,14 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    Violation(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive);
+    Violation(GC::Ptr<DOM::EventTarget> global_scope, GC::Ref<Policy const> policy, String directive);
 
     [[nodiscard]] String obtain_the_blocked_uri_of_resource() const;
     [[nodiscard]] ByteBuffer obtain_the_deprecated_serialization(JS::Realm&) const;
 
     // https://w3c.github.io/webappsec-csp/#violation-global-object
     // Each violation has a global object, which is the global object whose policy has been violated.
-    GC::Ptr<JS::Object> m_global_object;
+    GC::Ptr<DOM::EventTarget> m_global_scope;
 
     // https://w3c.github.io/webappsec-csp/#violation-status
     // Each violation has a status which is a non-negative integer representing the HTTP status code of the resource

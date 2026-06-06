@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/CSSMathValue.h>
 
 namespace Web::CSS {
@@ -16,9 +17,9 @@ class CSSMathProduct final : public CSSMathValue {
     GC_DECLARE_ALLOCATOR(CSSMathProduct);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathProduct> create(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> construct_impl(JS::Realm&, ReadonlySpan<CSSNumberish>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> multiply_all_types_into_math_product(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
+    [[nodiscard]] static GC::Ref<CSSMathProduct> create(NumericType, GC::Ref<CSSNumericArray>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> construct_impl(ReadonlySpan<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> multiply_all_types_into_math_product(GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathProduct() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -32,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathProduct(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
+    CSSMathProduct(NumericType, GC::Ref<CSSNumericArray>);
     GC::Ref<CSSNumericArray> m_values;
 };
 

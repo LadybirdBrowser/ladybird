@@ -46,16 +46,16 @@ class Cache : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Cache);
 
 public:
-    GC::Ref<WebIDL::Promise> match(Fetch::RequestInfo, Bindings::CacheQueryOptions);
-    GC::Ref<WebIDL::Promise> match_all(Optional<Fetch::RequestInfo>, Bindings::CacheQueryOptions);
-    GC::Ref<WebIDL::Promise> add(Fetch::RequestInfo);
-    GC::Ref<WebIDL::Promise> add_all(ReadonlySpan<Fetch::RequestInfo>);
-    GC::Ref<WebIDL::Promise> put(Fetch::RequestInfo, GC::Ref<Fetch::Response>);
-    GC::Ref<WebIDL::Promise> delete_(Fetch::RequestInfo, Bindings::CacheQueryOptions);
-    GC::Ref<WebIDL::Promise> keys(Optional<Fetch::RequestInfo>, Bindings::CacheQueryOptions);
+    GC::Ref<WebIDL::Promise> match(JS::Realm&, Fetch::RequestInfo, Bindings::CacheQueryOptions);
+    GC::Ref<WebIDL::Promise> match_all(JS::Realm&, Optional<Fetch::RequestInfo>, Bindings::CacheQueryOptions);
+    GC::Ref<WebIDL::Promise> add(JS::Realm&, Fetch::RequestInfo);
+    GC::Ref<WebIDL::Promise> add_all(JS::Realm&, ReadonlySpan<Fetch::RequestInfo>);
+    GC::Ref<WebIDL::Promise> put(JS::Realm&, Fetch::RequestInfo, GC::Ref<Fetch::Response>);
+    GC::Ref<WebIDL::Promise> delete_(JS::Realm&, Fetch::RequestInfo, Bindings::CacheQueryOptions);
+    GC::Ref<WebIDL::Promise> keys(JS::Realm&, Optional<Fetch::RequestInfo>, Bindings::CacheQueryOptions);
 
 private:
-    Cache(JS::Realm&, GC::Ref<RequestResponseList>);
+    explicit Cache(GC::Ref<RequestResponseList>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
@@ -63,8 +63,8 @@ private:
         No,
         Yes,
     };
-    GC::Ref<RequestResponseList> query_cache(GC::Ref<Fetch::Infrastructure::Request> request_query, Bindings::CacheQueryOptions options = {}, GC::Ptr<RequestResponseList> = {}, CloneCache = Cache::CloneCache::Yes);
-    WebIDL::ExceptionOr<bool> batch_cache_operations(GC::Ref<GC::HeapVector<GC::Ref<CacheBatchOperation>>>);
+    GC::Ref<RequestResponseList> query_cache(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request> request_query, Bindings::CacheQueryOptions options = {}, GC::Ptr<RequestResponseList> = {}, CloneCache = Cache::CloneCache::Yes);
+    WebIDL::ExceptionOr<bool> batch_cache_operations(JS::Realm&, GC::Ref<GC::HeapVector<GC::Ref<CacheBatchOperation>>>);
 
     GC::Ref<RequestResponseList> m_request_response_list;
 };

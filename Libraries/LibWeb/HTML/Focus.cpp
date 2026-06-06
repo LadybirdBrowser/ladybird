@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
 
 namespace Web::HTML {
@@ -32,9 +33,19 @@ static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC:
     // object, and the composed flag set.
     Bindings::FocusEventInit focus_event_init {};
     focus_event_init.related_target = related_focus_target;
-    focus_event_init.view = relevant_window(*focus_event_target).window();
 
-    auto focus_event = UIEvents::FocusEvent::create(focus_event_target->realm(), event_name, focus_event_init);
+    auto& realm = [&]() -> JS::Realm& {
+        if (auto* node = as_if<DOM::Node>(focus_event_target.ptr()))
+            return node->document().relevant_settings_object().realm();
+        auto* window = as_if<Window>(focus_event_target.ptr());
+        VERIFY(window);
+        return window->realm();
+    }();
+
+    auto& global_object = realm.global_object();
+    focus_event_init.view = relevant_window(global_object).window();
+
+    auto focus_event = UIEvents::FocusEvent::create(event_name, focus_event_init, HighResolutionTime::current_high_resolution_time(global_object));
     // AD-HOC: support bubbling focus events, used for focusin & focusout.
     //         See: https://github.com/whatwg/html/issues/3514
     focus_event->set_bubbles(bubbles);

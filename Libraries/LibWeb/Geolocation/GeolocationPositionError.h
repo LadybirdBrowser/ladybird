@@ -28,7 +28,7 @@ public:
     String message() const;
 
 private:
-    GeolocationPositionError(JS::Realm&, ErrorCode);
+    explicit GeolocationPositionError(ErrorCode);
 
     ErrorCode m_code { 0 };
 };

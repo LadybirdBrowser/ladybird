@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLTableRowElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
@@ -35,12 +36,6 @@ HTMLTableElement::HTMLTableElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLTableElement::~HTMLTableElement() = default;
-
-void HTMLTableElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableElement);
-    Base::initialize(realm);
-}
 
 void HTMLTableElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -229,7 +224,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::set_t_head(HTMLTableSectionElement* 
 {
     // If the new value is neither null nor a thead element, then a "HierarchyRequestError" DOMException must be thrown instead.
     if (thead && thead->local_name() != TagNames::thead)
-        return WebIDL::HierarchyRequestError::create(realm(), "Element is not thead"_utf16);
+        return WebIDL::HierarchyRequestError::create(HTML::relevant_realm(*this), "Element is not thead"_utf16);
 
     // On setting, if the new value is null or a thead element, the first thead element child of the table element,
     // if any, must be removed,
@@ -324,7 +319,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::set_t_foot(HTMLTableSectionElement* 
 {
     // If the new value is neither null nor a tfoot element, then a "HierarchyRequestError" DOMException must be thrown instead.
     if (tfoot && tfoot->local_name() != TagNames::tfoot)
-        return WebIDL::HierarchyRequestError::create(realm(), "Element is not tfoot"_utf16);
+        return WebIDL::HierarchyRequestError::create(HTML::relevant_realm(*this), "Element is not tfoot"_utf16);
 
     // On setting, if the new value is null or a tfoot element, the first tfoot element child of the table element,
     // if any, must be removed,
@@ -451,7 +446,7 @@ WebIDL::ExceptionOr<GC::Ref<HTMLTableRowElement>> HTMLTableElement::insert_row(W
     auto rows_length = rows->length();
 
     if (index < -1 || index > (long)rows_length) {
-        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than the number of rows"_utf16);
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*this), "Index is negative or greater than the number of rows"_utf16);
     }
     auto& tr = static_cast<HTMLTableRowElement&>(*TRY(DOM::create_element(document(), TagNames::tr, Namespace::HTML)));
     if (rows_length == 0 && !has_child_of_type<HTMLTableRowElement>()) {
@@ -478,7 +473,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::delete_row(WebIDL::Long index)
 
     // 1. If index is less than −1 or greater than or equal to the number of elements in the rows collection, then throw an "IndexSizeError" DOMException.
     if (index < -1 || index >= (long)rows_length)
-        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than or equal to the number of rows"_utf16);
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*this), "Index is negative or greater than or equal to the number of rows"_utf16);
 
     // 2. If index is −1, then remove the last element in the rows collection from its parent, or do nothing if the rows collection is empty.
     if (index == -1) {

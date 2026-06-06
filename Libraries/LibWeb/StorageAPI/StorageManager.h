@@ -16,11 +16,11 @@ class StorageManager final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(StorageManager);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<StorageManager>> create(JS::Realm&);
+    static GC::Ref<StorageManager> create();
     virtual ~StorageManager() override = default;
 
 private:
-    StorageManager(JS::Realm&);
+    StorageManager();
 };
 
 }

@@ -49,6 +49,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/Storage.h>
@@ -1402,7 +1403,7 @@ void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID
         return;
     }
 
-    auto text_node = dom_node->realm().create<Web::DOM::Text>(dom_node->document(), "text"_utf16);
+    auto text_node = Web::DOM::Text::create(dom_node->document(), "text"_utf16);
     dom_node->append_child(text_node).release_value_but_fixme_should_propagate_errors();
 
     async_did_finish_editing_dom_node(page_id, text_node->unique_id());
@@ -2002,7 +2003,7 @@ void ConnectionFromClient::cookies_changed(u64 page_id, Vector<HTTP::Cookie::Coo
         if (!window)
             return;
 
-        window->cookie_store()->process_cookie_changes(move(cookies));
+        window->cookie_store()->process_cookie_changes(Web::HTML::relevant_global_object(*window), move(cookies));
     }
 }
 
@@ -2043,7 +2044,7 @@ void ConnectionFromClient::request_close(u64 page_id)
 void ConnectionFromClient::exit_fullscreen(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
-        Web::HTML::TemporaryExecutionContext context(page->page().top_level_browsing_context().active_document()->realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        Web::HTML::TemporaryExecutionContext context(page->page().top_level_browsing_context().active_document()->relevant_settings_object(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         page->page().top_level_browsing_context().active_document()->fully_exit_fullscreen();
     }
 }

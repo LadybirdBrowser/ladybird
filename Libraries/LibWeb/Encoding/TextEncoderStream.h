@@ -20,16 +20,16 @@ class TextEncoderStream final
     GC_DECLARE_ALLOCATOR(TextEncoderStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&);
     virtual ~TextEncoderStream() override;
 
 private:
-    TextEncoderStream(JS::Realm&, GC::Ref<Streams::TransformStream>);
+    TextEncoderStream(GC::Ref<Streams::TransformStream>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> encode_and_enqueue_chunk(JS::Value);
-    WebIDL::ExceptionOr<void> encode_and_flush();
+    WebIDL::ExceptionOr<void> encode_and_enqueue_chunk(JS::Realm&, JS::Value);
+    WebIDL::ExceptionOr<void> encode_and_flush(JS::Realm&);
 
     Optional<u32> convert_code_unit_to_scalar_value(u32 item, Utf8CodePointIterator& code_point_iterator);
 

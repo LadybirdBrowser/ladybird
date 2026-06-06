@@ -17,6 +17,8 @@ class TextTrackList final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(TextTrackList);
 
 public:
+    static GC::Ref<TextTrackList> create();
+
     virtual ~TextTrackList() override;
 
     void add_track(GC::Ref<TextTrack>);
@@ -35,12 +37,11 @@ public:
     WebIDL::CallbackType* onremovetrack();
 
 private:
-    TextTrackList(JS::Realm&);
+    TextTrackList();
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     Vector<GC::Ref<TextTrack>> m_text_tracks;
 };

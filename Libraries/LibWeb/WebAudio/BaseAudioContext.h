@@ -54,8 +54,16 @@ public:
     GC::Ref<AudioDestinationNode> destination() const { return *m_destination; }
     float sample_rate() const { return m_sample_rate; }
     double current_time() const { return m_current_time; }
-    GC::Ref<AudioListener> listener() const { return m_listener; }
+    GC::Ref<AudioListener> listener() const
+    {
+        VERIFY(m_listener);
+        return *m_listener;
+    }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
+    HTML::EnvironmentSettingsObject& relevant_settings_object() const;
+    JS::Object& relevant_global_object() const;
+    GC::Ref<DOM::Event> create_associated_event(FlyString const&) const;
+    HTML::Window& relevant_window() const;
 
     // https://webaudio.github.io/web-audio-api/#--nyquist-frequency
     float nyquist_frequency() const { return m_sample_rate / 2; }
@@ -67,12 +75,12 @@ public:
     void set_control_state(Bindings::AudioContextState state) { m_control_thread_state = state; }
     void set_rendering_state(Bindings::AudioContextState state) { m_rendering_thread_state = state; }
 
-    static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, float sample_rate);
-    static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
+    static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(float sample_rate);
+    static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
     WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> create_analyser();
     WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create_biquad_filter();
-    WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
+    WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create_buffer(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
     WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create_buffer_source();
     WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create_channel_merger(WebIDL::UnsignedLong number_of_inputs);
     WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> create_constant_source();
@@ -96,11 +104,10 @@ public:
     NodeID next_node_id(Badge<AudioNode>) { return ++m_next_node_id; }
 
 protected:
-    explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
+    explicit BaseAudioContext(GC::Ref<DOM::EventTarget> relevant_global_object, float m_sample_rate = 0);
 
     void queue_a_media_element_task(GC::Ref<GC::Function<void()>>);
-
-    virtual void initialize(JS::Realm&) override;
+    void set_listener(GC::Ref<AudioListener> listener) { m_listener = listener; }
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<AudioDestinationNode> m_destination;
@@ -117,7 +124,8 @@ private:
     float m_sample_rate { 0 };
     double m_current_time { 0 };
 
-    GC::Ref<AudioListener> m_listener;
+    GC::Ptr<AudioListener> m_listener;
+    GC::Ref<DOM::EventTarget> m_global_object;
 
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;

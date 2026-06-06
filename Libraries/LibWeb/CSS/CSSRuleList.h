@@ -8,7 +8,9 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/Function.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CSSRuleList.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSRule.h>
@@ -26,7 +28,7 @@ class WEB_API CSSRuleList : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CSSRuleList);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSRuleList> create(JS::Realm&, ReadonlySpan<GC::Ref<CSSRule>> = {});
+    [[nodiscard]] static GC::Ref<CSSRuleList> create(ReadonlySpan<GC::Ref<CSSRule>> = {});
 
     ~CSSRuleList() = default;
 
@@ -52,14 +54,15 @@ public:
     auto end() const { return m_rules.end(); }
     auto end() { return m_rules.end(); }
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
-    WebIDL::ExceptionOr<void> remove_a_css_rule(u32 index);
+    WebIDL::ExceptionOr<void> remove_a_css_rule(JS::Realm&, u32 index);
+    void remove_a_css_rule_without_validation(Badge<CSSStyleSheet>, u32 index);
     enum class Nested {
         No,
         Yes,
     };
-    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(Variant<StringView, CSSRule*>, u32 index, Nested, HashTable<FlyString> const& declared_namespaces);
+    WebIDL::ExceptionOr<unsigned> insert_a_css_rule(JS::Realm&, Variant<StringView, CSSRule*>, u32 index, Nested, HashTable<FlyString> const& declared_namespaces);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.
@@ -72,11 +75,12 @@ public:
     Function<void()> on_change;
 
 private:
-    explicit CSSRuleList(JS::Realm&);
+    explicit CSSRuleList();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
+    void remove_a_css_rule_without_validation(u32 index);
     Vector<Parser::RuleContext> rule_context() const;
 
     Vector<GC::Ref<CSSRule>> m_rules;

@@ -8,8 +8,8 @@ interface NodeIterator {
 
     readonly attribute NodeFilter? filter;
 
-    Node? nextNode();
-    Node? previousNode();
+    [NeedsCallerRealm] Node? nextNode();
+    [NeedsCallerRealm] Node? previousNode();
 
     undefined detach();
 };

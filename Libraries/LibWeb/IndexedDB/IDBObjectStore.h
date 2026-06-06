@@ -24,7 +24,7 @@ class IDBObjectStore : public Bindings::Wrappable {
 
 public:
     virtual ~IDBObjectStore() override;
-    [[nodiscard]] static GC::Ref<IDBObjectStore> create(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
+    [[nodiscard]] static GC::Ref<IDBObjectStore> create(GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
 
     String name() const;
     WebIDL::ExceptionOr<void> set_name(String const& value);
@@ -51,6 +51,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<IDBIndex>> create_index(String const&, KeyPath, Bindings::IDBIndexParameters const&);
     WebIDL::ExceptionOr<void> delete_index(String const&);
 
+    JS::Object& relevant_global_object() const;
     AK::HashMap<String, GC::Ref<Index>>& index_set() { return m_indexes; }
     WebIDL::ExceptionOr<GC::Ref<IDBRequest>> add_or_put(GC::Ref<IDBObjectStore>, JS::Value, Optional<JS::Value> const&, bool);
     GC::Ref<ObjectStore> store() const { return m_store; }
@@ -59,7 +60,7 @@ public:
     void update_index_set() { m_indexes = m_store->index_set(); }
 
 protected:
-    explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
+    explicit IDBObjectStore(GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:

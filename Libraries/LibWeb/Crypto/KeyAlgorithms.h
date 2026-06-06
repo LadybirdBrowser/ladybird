@@ -28,19 +28,15 @@ public:
     String const& name() const { return m_name; }
     void set_name(String name) { m_name = move(name); }
 
-    JS::Realm& realm() const { return m_realm; }
-
 protected:
     KeyAlgorithm(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
 
 private:
     JS_DECLARE_NATIVE_FUNCTION(name_getter);
 
     String m_name;
-    GC::Ref<JS::Realm> m_realm;
 };
 
 // https://w3c.github.io/webcrypto/#RsaKeyAlgorithm-dictionary

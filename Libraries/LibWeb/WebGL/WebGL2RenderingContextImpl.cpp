@@ -18,6 +18,7 @@ extern "C" {
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContextImpl.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
@@ -38,8 +39,8 @@ extern "C" {
 
 namespace Web::WebGL {
 
-WebGL2RenderingContextImpl::WebGL2RenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
-    : WebGLRenderingContextImpl(realm, move(context))
+WebGL2RenderingContextImpl::WebGL2RenderingContextImpl(NonnullOwnPtr<OpenGLContext> context)
+    : WebGLRenderingContextImpl(move(context))
 {
 }
 
@@ -161,8 +162,8 @@ JS::Value WebGL2RenderingContextImpl::get_internalformat_parameter(WebIDL::Unsig
         size_t buffer_size = num_sample_counts * sizeof(GLint);
         auto samples_buffer = MUST(ByteBuffer::create_zeroed(buffer_size));
         glGetInternalformativRobustANGLE(target, internalformat, GL_SAMPLES, buffer_size, nullptr, reinterpret_cast<GLint*>(samples_buffer.data()));
-        auto array_buffer = JS::ArrayBuffer::create(realm(), move(samples_buffer));
-        return JS::Int32Array::create(realm(), num_sample_counts, array_buffer);
+        auto array_buffer = JS::ArrayBuffer::create(HTML::relevant_realm(relevant_global_object()), move(samples_buffer));
+        return JS::Int32Array::create(HTML::relevant_realm(relevant_global_object()), num_sample_counts, array_buffer);
     }
     default:
         dbgln("Unknown WebGL internal format parameter name: {:x}", pname);
@@ -624,7 +625,7 @@ GC::Ref<WebGLQuery> WebGL2RenderingContextImpl::create_query()
 
     GLuint handle = 0;
     glGenQueries(1, &handle);
-    return WebGLQuery::create(realm(), *this, handle);
+    return WebGLQuery::create(*this, handle);
 }
 
 void WebGL2RenderingContextImpl::delete_query(GC::Ptr<WebGLQuery> query)
@@ -739,7 +740,7 @@ GC::Ref<WebGLSampler> WebGL2RenderingContextImpl::create_sampler()
 
     GLuint handle = 0;
     glGenSamplers(1, &handle);
-    return WebGLSampler::create(realm(), *this, handle);
+    return WebGLSampler::create(*this, handle);
 }
 
 void WebGL2RenderingContextImpl::delete_sampler(GC::Ptr<WebGLSampler> sampler)
@@ -854,7 +855,7 @@ GC::Ptr<WebGLSync> WebGL2RenderingContextImpl::fence_sync(WebIDL::UnsignedLong c
     m_context->make_current();
 
     GLsync handle = glFenceSync(condition, flags);
-    return WebGLSync::create(realm(), *this, handle);
+    return WebGLSync::create(*this, handle);
 }
 
 void WebGL2RenderingContextImpl::delete_sync(GC::Ptr<WebGLSync> sync)
@@ -924,7 +925,7 @@ GC::Ref<WebGLTransformFeedback> WebGL2RenderingContextImpl::create_transform_fee
 
     GLuint handle = 0;
     glGenTransformFeedbacks(1, &handle);
-    return WebGLTransformFeedback::create(realm(), *this, handle);
+    return WebGLTransformFeedback::create(*this, handle);
 }
 
 void WebGL2RenderingContextImpl::delete_transform_feedback(GC::Ptr<WebGLTransformFeedback> transform_feedback)
@@ -1124,7 +1125,7 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniforms(GC::Ref<WebGLProgram> 
         }
     }
 
-    return JS::Array::create_from(realm(), params_as_values);
+    return JS::Array::create_from(HTML::relevant_realm(relevant_global_object()), params_as_values);
 }
 
 WebIDL::UnsignedLong WebGL2RenderingContextImpl::get_uniform_block_index(GC::Ref<WebGLProgram> program, String uniform_block_name)
@@ -1167,8 +1168,8 @@ JS::Value WebGL2RenderingContextImpl::get_active_uniform_block_parameter(GC::Ref
         size_t buffer_size = num_active_uniforms * sizeof(GLint);
         auto active_uniform_indices_buffer = MUST(ByteBuffer::create_zeroed(buffer_size));
         glGetActiveUniformBlockivRobustANGLE(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, num_active_uniforms, nullptr, reinterpret_cast<GLint*>(active_uniform_indices_buffer.data()));
-        auto array_buffer = JS::ArrayBuffer::create(realm(), move(active_uniform_indices_buffer));
-        return JS::Uint32Array::create(realm(), num_active_uniforms, array_buffer);
+        auto array_buffer = JS::ArrayBuffer::create(HTML::relevant_realm(relevant_global_object()), move(active_uniform_indices_buffer));
+        return JS::Uint32Array::create(HTML::relevant_realm(relevant_global_object()), num_active_uniforms, array_buffer);
     }
     case GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER:
     case GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER: {
@@ -1223,7 +1224,7 @@ GC::Ref<WebGLVertexArrayObject> WebGL2RenderingContextImpl::create_vertex_array(
 
     GLuint handle = 0;
     glGenVertexArrays(1, &handle);
-    return WebGLVertexArrayObject::create(realm(), *this, handle);
+    return WebGLVertexArrayObject::create(*this, handle);
 }
 
 void WebGL2RenderingContextImpl::delete_vertex_array(GC::Ptr<WebGLVertexArrayObject> vertex_array)

@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -22,17 +24,17 @@ Atomic<u64> MediaStreamTrack::s_next_provider_id { 1 };
 static constexpr auto audio_track_kind = static_cast<Bindings::MediaStreamTrackKind>(0);
 static constexpr auto video_track_kind = static_cast<Bindings::MediaStreamTrackKind>(1);
 
-MediaStreamTrack::MediaStreamTrack(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+MediaStreamTrack::MediaStreamTrack()
+    : DOM::EventTarget()
 {
 }
 
 // https://w3c.github.io/mediacapture-main/#mediastreamtrack
-GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, Bindings::MediaStreamTrackKind kind, Optional<String> label, bool muted)
+GC::Ref<MediaStreamTrack> MediaStreamTrack::create(Bindings::MediaStreamTrackKind kind, Optional<String> label, bool muted)
 {
     // https://w3c.github.io/mediacapture-main/#dfn-create-a-mediastreamtrack
     // 1. Let track be a new object of type source's MediaStreamTrack source type.
-    auto track = realm.create<MediaStreamTrack>(realm);
+    auto track = GC::Heap::the().allocate<MediaStreamTrack>();
 
     // Initialize track with the following internal slots.
     // FIXME: [[Source]], initialized to source.
@@ -71,10 +73,9 @@ void MediaStreamTrack::set_settings(Bindings::MediaTrackSettings settings)
     m_settings = move(settings);
 }
 
-void MediaStreamTrack::initialize(JS::Realm& realm)
+void MediaStreamTrack::visit_edges(Cell::Visitor& visitor)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaStreamTrack);
-    Base::initialize(realm);
+    Base::visit_edges(visitor);
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-stop
@@ -92,7 +93,8 @@ void MediaStreamTrack::stop()
 
     // AD-HOC: Until track sources are modeled, stop() is the only implemented end-of-life path.
     // Preserve the observable ended event instead of dropping it on the floor.
-    dispatch_event(DOM::Event::create(realm(), HTML::EventNames::ended));
+    dispatch_event(DOM::Event::create(HTML::EventNames::ended,
+        HighResolutionTime::current_high_resolution_time(HTML::current_global_object())));
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-clone
@@ -105,7 +107,7 @@ GC::Ref<MediaStreamTrack> MediaStreamTrack::clone() const
     // FIXME: 2. Let source be track's [[Source]].
 
     // 3. Let trackClone be the result of creating a MediaStreamTrack with source and null.
-    auto track_clone = create(realm(), m_kind, m_label, m_muted);
+    auto track_clone = create(m_kind, m_label, m_muted);
 
     // 4. Set trackClone's [[ReadyState]] to track's [[ReadyState]] value.
     track_clone->m_state = m_state;
@@ -174,13 +176,13 @@ Bindings::MediaTrackSettings MediaStreamTrack::get_settings() const
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-applyconstraints
-GC::Ref<WebIDL::Promise> MediaStreamTrack::apply_constraints(Optional<Bindings::MediaTrackConstraints> const& constraints)
+GC::Ref<WebIDL::Promise> MediaStreamTrack::apply_constraints(JS::Realm& realm, Optional<Bindings::MediaTrackConstraints> const& constraints)
 {
     if (constraints.has_value())
         m_constraints = constraints.value();
 
     // FIXME: Apply constraints to the underlying source and update settings.
-    return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+    return WebIDL::create_resolved_promise(realm, JS::js_undefined());
 }
 
 }

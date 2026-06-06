@@ -16,7 +16,7 @@ class CSSCounterStyleRule : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSCounterStyleRule);
 
 public:
-    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
+    static GC::Ref<CSSCounterStyleRule> create(FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
     virtual ~CSSCounterStyleRule() = default;
 
     virtual String serialized() const override;
@@ -74,7 +74,7 @@ public:
     virtual void clear_caches() override;
 
 protected:
-    CSSCounterStyleRule(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
+    CSSCounterStyleRule(FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
 
     FlyString m_name;
     RefPtr<StyleValue const> m_system;

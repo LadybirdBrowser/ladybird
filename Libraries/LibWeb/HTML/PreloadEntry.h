@@ -49,6 +49,8 @@ class PreloadEntry final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(PreloadEntry);
 
 public:
+    static GC::Ref<PreloadEntry> create();
+
     virtual void visit_edges(Cell::Visitor&) override;
 
     // integrity metadata

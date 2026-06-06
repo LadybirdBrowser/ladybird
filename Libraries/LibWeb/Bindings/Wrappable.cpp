@@ -13,10 +13,7 @@
 
 namespace Web::Bindings {
 
-Wrappable::Wrappable(JS::Realm& realm)
-    : m_realm(realm)
-{
-}
+Wrappable::Wrappable() = default;
 
 Wrappable::~Wrappable() = default;
 
@@ -25,12 +22,12 @@ Optional<URL::Origin> Wrappable::extract_an_origin() const
     return {};
 }
 
-Optional<JS::Value> Wrappable::item_value(JS::Realm&, size_t) const
+Optional<JS::Value> Wrappable::item_value(Bindings::WrapperWorld&, JS::Realm&, size_t) const
 {
     return {};
 }
 
-JS::Value Wrappable::named_item_value(JS::Realm&, FlyString const&) const
+JS::Value Wrappable::named_item_value(Bindings::WrapperWorld&, JS::Realm&, FlyString const&) const
 {
     return JS::js_undefined();
 }
@@ -45,45 +42,54 @@ bool Wrappable::is_supported_property_name(FlyString const& name) const
     return supported_property_names().contains_slow(name);
 }
 
-WebIDL::ExceptionOr<void> Wrappable::set_value_of_new_named_property(String const&, JS::Value)
+JS::Realm& Wrappable::wrapper_realm(WrapperWorld const&, JS::Realm& preferred_realm) const
+{
+    return preferred_realm;
+}
+
+WebIDL::ExceptionOr<void> Wrappable::set_value_of_new_named_property(JS::Realm&, String const&, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> Wrappable::set_value_of_existing_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> Wrappable::set_value_of_existing_named_property(JS::Realm&, String const&, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> Wrappable::set_value_of_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> Wrappable::set_value_of_named_property(JS::Realm&, String const&, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> Wrappable::set_value_of_new_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> Wrappable::set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> Wrappable::set_value_of_existing_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> Wrappable::set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> Wrappable::set_value_of_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> Wrappable::set_value_of_indexed_property(JS::Realm&, u32, JS::Value)
 {
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<NamedPropertyDeletionResult> Wrappable::delete_value(String const&)
+WebIDL::ExceptionOr<NamedPropertyDeletionResult> Wrappable::delete_value(JS::Realm&, String const&)
 {
     VERIFY_NOT_REACHED();
+}
+
+void Wrappable::initialize(JS::Realm& realm)
+{
+    Base::initialize(realm);
 }
 
 void Wrappable::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_realm);
 }
 
 void Wrappable::set_cached_main_world_wrapper(PlatformObject& wrapper)
@@ -98,32 +104,28 @@ void Wrappable::clear_cached_main_world_wrapper(PlatformObject const& wrapper)
         m_main_world_wrapper = nullptr;
 }
 
-GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& realm, GC::Ref<Wrappable> wrappable, WrapperWorldType wrapper_world_type)
+GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable> wrappable)
 {
-    VERIFY(!realm.host_defined());
-    if (wrapper_world_type == WrapperWorldType::Main)
-        VERIFY(&wrappable->realm() == &realm);
-    return wrappable->create_wrapper(realm);
+    VERIFY(!wrapper_realm.host_defined());
+    return wrappable->create_wrapper(wrapper_realm);
 }
 
-GC::Ref<PlatformObject> wrap(JS::Realm& realm, GC::Ref<Wrappable> wrappable)
+GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable> wrappable)
 {
-    auto& requested_wrapper_world = host_defined_wrapper_world(realm);
-    auto& wrapper_realm = requested_wrapper_world.is_main_world() ? wrappable->realm() : realm;
-    auto& wrapper_world = host_defined_wrapper_world(wrapper_realm);
     if (auto cached_wrapper = wrapper_world.wrapper_for(wrappable))
         return *cached_wrapper;
 
-    auto wrapper = wrappable->create_wrapper(wrapper_realm);
+    auto& actual_wrapper_realm = wrappable->wrapper_realm(wrapper_world, preferred_realm);
+    auto wrapper = wrappable->create_wrapper(actual_wrapper_realm);
     wrapper_world.set_wrapper(wrappable, wrapper);
     return wrapper;
 }
 
-GC::Ptr<PlatformObject> wrap(JS::Realm& realm, GC::Ptr<Wrappable> wrappable)
+GC::Ptr<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ptr<Wrappable> wrappable)
 {
     if (!wrappable)
         return nullptr;
-    return wrap(realm, GC::Ref { *wrappable });
+    return wrap(wrapper_world, preferred_realm, GC::Ref { *wrappable });
 }
 
 void cache_global_object_wrapper(JS::Realm& realm)

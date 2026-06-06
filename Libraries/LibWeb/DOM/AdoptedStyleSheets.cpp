@@ -26,7 +26,8 @@ static CSS::CSSStyleSheet* css_style_sheet_from_value(JS::Value value)
 
 GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document_or_shadow_root)
 {
-    auto adopted_style_sheets = WebIDL::ObservableArray::create(document_or_shadow_root.realm());
+    auto& realm = document_or_shadow_root.document().relevant_settings_object().realm();
+    auto adopted_style_sheets = WebIDL::ObservableArray::create(realm);
     adopted_style_sheets->set_on_set_an_indexed_value_callback([&document_or_shadow_root](JS::Value& value) -> WebIDL::ExceptionOr<void> {
         auto& vm = document_or_shadow_root.vm();
         auto style_sheet = css_style_sheet_from_value(value);
@@ -36,10 +37,11 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
         // The set an indexed value algorithm for adoptedStyleSheets, given value and index, is the following:
         // 1. If value’s constructed flag is not set, or its constructor document is not equal to this
         //    DocumentOrShadowRoot's node document, throw a "NotAllowedError" DOMException.
+        auto& realm = document_or_shadow_root.document().relevant_settings_object().realm();
         if (!style_sheet->constructed())
-            return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "StyleSheet's constructed flag is not set."_utf16);
+            return WebIDL::NotAllowedError::create(realm, "StyleSheet's constructed flag is not set."_utf16);
         if (!style_sheet->constructed() || style_sheet->constructor_document().ptr() != &document_or_shadow_root.document())
-            return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "Sharing a StyleSheet between documents is not allowed."_utf16);
+            return WebIDL::NotAllowedError::create(realm, "Sharing a StyleSheet between documents is not allowed."_utf16);
 
         CSS::Invalidation::invalidate_style_after_adopting_style_sheet(document_or_shadow_root, *style_sheet);
         return {};

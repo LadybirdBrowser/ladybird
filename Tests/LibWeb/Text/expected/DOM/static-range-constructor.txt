@@ -1,0 +1,2 @@
+true 1 true 4
+InvalidNodeTypeError

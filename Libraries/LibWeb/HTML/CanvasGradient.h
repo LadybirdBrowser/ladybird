@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibGfx/PaintStyle.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CanvasGradient.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
@@ -22,14 +23,14 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear(JS::Realm&, double x0, double y0, double x1, double y1);
     static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic(JS::Realm&, double start_angle, double x, double y);
 
-    WebIDL::ExceptionOr<void> add_color_stop(double offset, StringView color);
+    WebIDL::ExceptionOr<void> add_color_stop(JS::Realm&, double offset, StringView color);
 
     ~CanvasGradient();
 
     NonnullRefPtr<Gfx::PaintStyle> to_gfx_paint_style() { return m_gradient; }
 
 private:
-    CanvasGradient(JS::Realm&, Gfx::GradientPaintStyle& gradient);
+    CanvasGradient(Gfx::GradientPaintStyle& gradient);
 
     NonnullRefPtr<Gfx::GradientPaintStyle> m_gradient;
 };

@@ -1,0 +1,10 @@
+PageSwapEvent is function
+NavigationActivation is function
+[object PageSwapEvent]
+true
+true
+pageswap
+false
+false
+null
+null

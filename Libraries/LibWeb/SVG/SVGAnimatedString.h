@@ -20,14 +20,14 @@ class WEB_API SVGAnimatedString final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedString);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedString> create(JS::Realm&, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute = {}, Optional<FlyString> initial_value = {});
+    [[nodiscard]] static GC::Ref<SVGAnimatedString> create(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute = {}, Optional<FlyString> initial_value = {});
     virtual ~SVGAnimatedString() override;
 
     String base_val() const;
     void set_base_val(String const& base_val);
 
 private:
-    SVGAnimatedString(JS::Realm&, GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value);
+    SVGAnimatedString(GC::Ref<SVGElement> element, DOM::QualifiedName reflected_attribute, Optional<DOM::QualifiedName> deprecated_reflected_attribute, Optional<FlyString> initial_value);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

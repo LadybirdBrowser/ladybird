@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/CSS.h>
@@ -46,16 +47,14 @@ bool supports(JS::VM&, Utf16FlyString const& property_name, StringView value)
 // https://www.w3.org/TR/css-conditional-3/#dom-css-supports
 WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. If conditionText, parsed and evaluated as a <supports-condition>, would return true, return true.
-    if (auto supports = parse_css_supports(Parser::ParsingParams { realm }, condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams {}, condition_text); supports && supports->matches())
         return true;
 
     // 2. Otherwise, If conditionText, wrapped in parentheses and then parsed and evaluated as a <supports-condition>, would return true, return true.
     auto wrapped_condition_text = TRY_OR_THROW_OOM(vm, String::formatted("({})", condition_text));
 
-    if (auto supports = parse_css_supports(Parser::ParsingParams { realm }, wrapped_condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams {}, wrapped_condition_text); supports && supports->matches())
         return true;
 
     // 3. Otherwise, return false.
@@ -63,10 +62,9 @@ WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
 }
 
 // https://www.w3.org/TR/css-properties-values-api-1/#the-registerproperty-function
-WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefinition const& definition)
+WebIDL::ExceptionOr<void> register_property(JS::Realm& realm, Bindings::PropertyDefinition const& definition)
 {
     // 1. Let property set be the value of the current global object’s associated Document’s [[registeredPropertySet]] slot.
-    auto& realm = *vm.current_realm();
     auto& window = Web::HTML::relevant_window(realm.global_object());
     auto& document = window.associated_document();
     auto& property_set = document.registered_property_set();

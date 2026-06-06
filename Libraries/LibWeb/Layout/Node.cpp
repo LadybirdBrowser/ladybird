@@ -7,6 +7,7 @@
  */
 
 #include <AK/Demangle.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>

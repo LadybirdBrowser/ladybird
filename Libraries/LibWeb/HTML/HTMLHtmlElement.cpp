@@ -22,12 +22,6 @@ HTMLHtmlElement::HTMLHtmlElement(DOM::Document& document, DOM::QualifiedName qua
 
 HTMLHtmlElement::~HTMLHtmlElement() = default;
 
-void HTMLHtmlElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLHtmlElement);
-    Base::initialize(realm);
-}
-
 bool HTMLHtmlElement::should_use_body_background_properties() const
 {
     // https://drafts.csswg.org/css-contain-2/#contain-property

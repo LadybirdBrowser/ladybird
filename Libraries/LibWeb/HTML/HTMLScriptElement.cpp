@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
@@ -33,18 +34,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLScriptElement);
 
+static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, FlyString const& event_name)
+{
+    return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
+}
+
 HTMLScriptElement::HTMLScriptElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
 }
 
 HTMLScriptElement::~HTMLScriptElement() = default;
-
-void HTMLScriptElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLScriptElement);
-    Base::initialize(realm);
-}
 
 void HTMLScriptElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -140,7 +140,7 @@ void HTMLScriptElement::execute_script()
     // 3. If el's result is null, then fire an event named error at el, and return.
     if (m_result.has<ResultState::Null>()) {
         dbgln("HTMLScriptElement: Refusing to run script because the element's result is null.");
-        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+        dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
         return;
     }
 
@@ -183,7 +183,7 @@ void HTMLScriptElement::execute_script()
     }
     // -> "importmap"
     else if (m_script_type == ScriptType::ImportMap) {
-        HTML::TemporaryExecutionContext execution_context { realm() };
+        HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object() };
 
         // 1. Register an import map given el's relevant global object and el's result.
         m_result.get<GC::Ref<ImportMapParseResult>>()->register_import_map(relevant_window(*this));
@@ -195,7 +195,7 @@ void HTMLScriptElement::execute_script()
 
     // 8. If el's from an external file is true, then fire an event named load at el.
     if (m_from_an_external_file)
-        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
+        dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#slot-value-verification
@@ -315,7 +315,7 @@ void HTMLScriptElement::prepare_script()
     // 22. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content
     //     Security Policy? algorithm returns "Blocked" when given el, cspType, and source text, then return [CSP]
     if (!has_attribute(AttributeNames::src)
-        && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(realm(), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text_utf8) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(HTML::relevant_realm(*this), *this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text_utf8) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
         return;
     }
@@ -412,7 +412,7 @@ void HTMLScriptElement::prepare_script()
         if (m_script_type == ScriptType::ImportMap) {
             // then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
-                dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+                dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
             });
             return;
         }
@@ -424,7 +424,7 @@ void HTMLScriptElement::prepare_script()
         if (src.is_empty()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src attribute is empty.");
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
-                dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+                dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
             });
             return;
         }
@@ -439,7 +439,7 @@ void HTMLScriptElement::prepare_script()
         if (!url.has_value()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
-                dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+                dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
             });
             return;
         }
@@ -489,7 +489,7 @@ void HTMLScriptElement::prepare_script()
             });
 
             // Fetch an external module script graph given url, settings object, options, and onComplete.
-            fetch_external_module_script_graph(realm(), *url, settings_object, options, on_complete);
+            fetch_external_module_script_graph(HTML::relevant_realm(*this), *url, settings_object, options, on_complete);
         }
     }
 
@@ -526,12 +526,12 @@ void HTMLScriptElement::prepare_script()
 
             // 2. Fetch an inline module script graph, given source text, base URL, settings object, options, and with the following steps given result:
             // FIXME: Pass options
-            fetch_inline_module_script_graph(realm(), m_document->url().to_byte_string(), source_text.to_byte_string(), base_url, document().relevant_settings_object(), steps);
+            fetch_inline_module_script_graph(HTML::relevant_realm(*this), m_document->url().to_byte_string(), source_text.to_byte_string(), base_url, document().relevant_settings_object(), steps);
         }
         // -> "importmap"
         else if (m_script_type == ScriptType::ImportMap) {
             // 1. Let result be the result of creating an import map parse result given source text and base URL.
-            auto result = ImportMapParseResult::create(realm(), source_text.to_byte_string(), base_url);
+            auto result = ImportMapParseResult::parse(HTML::relevant_realm(*this), source_text.to_byte_string(), base_url);
 
             // 2. Mark as ready el given result.
             mark_as_ready(Result(move(result)));

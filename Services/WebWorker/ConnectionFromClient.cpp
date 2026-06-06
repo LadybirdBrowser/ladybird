@@ -53,7 +53,7 @@ void ConnectionFromClient::request_file(Web::FileRequest request)
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
-    , m_page_host(PageHost::create(Web::Bindings::main_thread_vm(), *this))
+    , m_page_host(PageHost::create(*this))
 {
 }
 

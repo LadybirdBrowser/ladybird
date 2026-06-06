@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -22,6 +23,7 @@ WindowEnvironmentSettingsObject::WindowEnvironmentSettingsObject(Window& window,
     : EnvironmentSettingsObject(move(execution_context))
     , m_window(window)
 {
+    m_window->set_environment_settings_object({}, *this);
 }
 
 WindowEnvironmentSettingsObject::~WindowEnvironmentSettingsObject() = default;
@@ -79,7 +81,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
     // 7. Set realm's [[HostDefined]] field to settings object.
     // Non-Standard: We store the ESO next to the web intrinsics in a custom HostDefined object
     auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-    auto wrapper_world = realm->heap().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
+    auto wrapper_world = GC::Heap::the().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
     auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, *wrapper_world, page);
     realm->set_host_defined(move(host_defined));
     Bindings::cache_global_object_wrapper(*realm);

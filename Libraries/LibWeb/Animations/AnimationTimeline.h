@@ -23,7 +23,7 @@ public:
 
     NullableCSSNumberish current_time_for_bindings() const
     {
-        return NullableCSSNumberish::from_optional_css_numberish_time(realm(), current_time());
+        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
     }
     Optional<TimeValue> current_time() const;
 
@@ -47,7 +47,7 @@ public:
     GC::WeakHashSet<Animation> const& associated_animations() const { return m_associated_animations; }
 
 protected:
-    AnimationTimeline(JS::Realm&, GC::Ref<DOM::Document>);
+    explicit AnimationTimeline(GC::Ref<DOM::Document>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;

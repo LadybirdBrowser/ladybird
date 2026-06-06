@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
@@ -14,9 +13,9 @@ namespace WebWorker {
 
 GC_DEFINE_ALLOCATOR(PageHost);
 
-GC::Ref<PageHost> PageHost::create(JS::VM& vm, ConnectionFromClient& client)
+GC::Ref<PageHost> PageHost::create(ConnectionFromClient& client)
 {
-    return vm.heap().allocate<PageHost>(client);
+    return GC::Heap::the().allocate<PageHost>(client);
 }
 
 PageHost::~PageHost() = default;
@@ -140,7 +139,7 @@ void PageHost::did_fail_loading_worker_script()
 
 PageHost::PageHost(ConnectionFromClient& client)
     : m_client(client)
-    , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))
+    , m_page(Web::Page::create(*this))
 {
     setup_palette();
 }

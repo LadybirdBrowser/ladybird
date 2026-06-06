@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 
@@ -13,25 +13,34 @@ namespace Web::NavigationTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceTiming);
 
-PerformanceTiming::PerformanceTiming(JS::Realm& realm)
-    : Wrappable(realm)
+GC::Ref<PerformanceTiming> PerformanceTiming::create(HTML::Window& window)
+{
+    return GC::Heap::the().allocate<PerformanceTiming>(window);
+}
+
+PerformanceTiming::PerformanceTiming(HTML::Window& window)
+    : Bindings::Wrappable()
+    , m_window(window)
 {
 }
 
 PerformanceTiming::~PerformanceTiming() = default;
 
-DOM::DocumentLoadTimingInfo const& PerformanceTiming::document_load_timing_info(JS::Object const& global_object) const
+void PerformanceTiming::visit_edges(GC::Cell::Visitor& visitor)
 {
-    auto const* window = HTML::window_from_global_object(global_object);
-    VERIFY(window);
-    auto document = window->document();
+    Base::visit_edges(visitor);
+    visitor.visit(m_window);
+}
+
+DOM::DocumentLoadTimingInfo const& PerformanceTiming::document_load_timing_info() const
+{
+    auto document = m_window->document();
     return document->load_timing_info();
 }
 
 u64 PerformanceTiming::monotonic_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const
 {
-    auto& global_object = HTML::relevant_global_object(*this);
-    auto timestamp = selector(document_load_timing_info(global_object));
+    auto timestamp = selector(document_load_timing_info());
     if (timestamp == 0)
         return 0;
 
@@ -42,8 +51,7 @@ u64 PerformanceTiming::monotonic_timestamp_to_wall_time_milliseconds(Function<Hi
 
 u64 PerformanceTiming::relative_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const
 {
-    auto& global_object = HTML::relevant_global_object(*this);
-    auto const& load_info = document_load_timing_info(global_object);
+    auto const& load_info = document_load_timing_info();
     auto relative_timestamp = selector(load_info);
     if (relative_timestamp == 0)
         return 0;

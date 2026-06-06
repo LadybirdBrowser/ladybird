@@ -6,9 +6,17 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CookieChangeEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebIDL/CachedAttribute.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::CookieStore {
 
@@ -18,8 +26,8 @@ class CookieChangeEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(CookieChangeEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CookieChangeEvent> create(JS::Realm&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
-    [[nodiscard]] static GC::Ref<CookieChangeEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CookieChangeEvent> create(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<CookieChangeEvent> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
 
     virtual ~CookieChangeEvent() override;
 
@@ -30,7 +38,7 @@ public:
     DEFINE_CACHED_ATTRIBUTE(deleted);
 
 private:
-    CookieChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
+    CookieChangeEvent(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

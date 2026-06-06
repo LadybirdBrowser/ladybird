@@ -6,14 +6,17 @@
  */
 
 #include <AK/QuickSort.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WebSocket.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -28,6 +31,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -42,12 +46,11 @@ namespace Web::WebSockets {
 GC_DEFINE_ALLOCATOR(WebSocket);
 
 // https://websockets.spec.whatwg.org/#dom-websocket-websocket
-WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& realm, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
+WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
 {
-    auto& vm = realm.vm();
-
-    auto web_socket = realm.create<WebSocket>(realm);
-    auto& relevant_settings_object = HTML::relevant_settings_object(*web_socket);
+    auto web_socket = GC::Heap::the().allocate<WebSocket>(global_scope.this_impl());
+    global_scope.register_web_socket({}, web_socket);
+    auto& relevant_settings_object = HTML::relevant_settings_object(global_scope);
 
     // 1. Let baseURL be this's relevant settings object's API base URL.
     auto base_url = relevant_settings_object.api_base_url();
@@ -57,7 +60,7 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
 
     // 3. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!url_record.has_value())
-        return WebIDL::SyntaxError::create(realm, "Invalid URL"_utf16);
+        return WebIDL::SyntaxError::create("Invalid URL"_utf16);
 
     // 4. If urlRecord’s scheme is "http", then set urlRecord’s scheme to "ws".
     if (url_record->scheme() == "http"sv)
@@ -68,11 +71,11 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
 
     // 6. If urlRecord’s scheme is not "ws" or "wss", then throw a "SyntaxError" DOMException.
     if (!url_record->scheme().is_one_of("ws"sv, "wss"sv))
-        return WebIDL::SyntaxError::create(realm, "Invalid protocol"_utf16);
+        return WebIDL::SyntaxError::create("Invalid protocol"_utf16);
 
     // 7. If urlRecord’s fragment is non-null, then throw a "SyntaxError" DOMException.
     if (url_record->fragment().has_value())
-        return WebIDL::SyntaxError::create(realm, "Presence of URL fragment is invalid"_utf16);
+        return WebIDL::SyntaxError::create("Presence of URL fragment is invalid"_utf16);
 
     Vector<String> protocols_sequence;
     // 8. If protocols is a string, set protocols to a sequence consisting of just that string.
@@ -93,12 +96,12 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
         // separator characters as defined in [RFC2616] and MUST all be unique strings.
         auto protocol = sorted_protocols[i];
         if (protocol.is_empty())
-            return WebIDL::SyntaxError::create(realm, "Found empty protocol name"_utf16);
+            return WebIDL::SyntaxError::create("Found empty protocol name"_utf16);
         if (i < sorted_protocols.size() - 1 && protocol == sorted_protocols[i + 1])
-            return WebIDL::SyntaxError::create(realm, "Found a duplicate protocol name in the specified list"_utf16);
+            return WebIDL::SyntaxError::create("Found a duplicate protocol name in the specified list"_utf16);
         for (auto code_point : protocol.code_points()) {
             if (code_point < '\x21' || code_point > '\x7E')
-                return WebIDL::SyntaxError::create(realm, "Found invalid character in subprotocol name"_utf16);
+                return WebIDL::SyntaxError::create("Found invalid character in subprotocol name"_utf16);
         }
     }
 
@@ -107,13 +110,11 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
 
     // 11. Let client be this’s relevant settings object.
     // 12. Run this step in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(vm.heap(), [web_socket, url_record, protocols_sequence = move(protocols_sequence)]() {
-        auto& client = HTML::relevant_settings_object(*web_socket);
-
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [web_socket, url_record, protocols_sequence = move(protocols_sequence), client = GC::Ref { relevant_settings_object }]() {
         // 1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
         // AD-HOC: We don't yet implement this method to spec, so it's possible for the connection to fail before we
         //         make a Requests::WebSocket. If so, we need to manually error and close it.
-        if (web_socket->establish_web_socket_connection(*url_record, protocols_sequence, client).is_error()) {
+        if (web_socket->establish_web_socket_connection(*url_record, protocols_sequence, *client).is_error()) {
             web_socket->on_error();
             web_socket->on_close(to_underlying(::WebSocket::CloseStatusCode::AbnormalClosure), String {}, false);
         }
@@ -122,20 +123,23 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
     return web_socket;
 }
 
-WebSocket::WebSocket(JS::Realm& realm)
-    : EventTarget(realm)
+WebSocket::WebSocket(GC::Ref<DOM::EventTarget> relevant_global_object)
+    : EventTarget()
+    , m_global_object(relevant_global_object)
 {
 }
 
 WebSocket::~WebSocket() = default;
 
-void WebSocket::initialize(JS::Realm& realm)
+JS::Object& WebSocket::relevant_global_object() const
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebSocket);
-    Base::initialize(realm);
+    return HTML::relevant_global_object(relevant_global_scope());
+}
 
-    auto& relevant_global = HTML::relevant_window_or_worker_global_scope(*this);
-    relevant_global.register_web_socket({}, *this);
+void WebSocket::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_global_object);
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
@@ -152,8 +156,7 @@ void WebSocket::finalize()
         m_websocket->close(1000);
     }
 
-    auto& relevant_global = HTML::relevant_window_or_worker_global_scope(*this);
-    relevant_global.unregister_web_socket({}, *this);
+    relevant_global_scope().unregister_web_socket({}, *this);
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
@@ -200,6 +203,11 @@ bool WebSocket::must_survive_garbage_collection() const
     return false;
 }
 
+HTML::WindowOrWorkerGlobalScopeMixin& WebSocket::relevant_global_scope() const
+{
+    return HTML::relevant_window_or_worker_global_scope(*m_global_object);
+}
+
 ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client)
 {
     // FIXME: Integrate properly with FETCH as per https://fetch.spec.whatwg.org/#websocket-opening-handshake
@@ -216,7 +224,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     auto additional_headers = HTTP::HeaderList::create();
 
     auto cookies = ([&] {
-        auto& page = Bindings::principal_host_defined_page(realm());
+        auto& page = Bindings::principal_host_defined_page(HTML::relevant_realm(relevant_global_object()));
         return page.client().page_did_request_cookie(url_record, HTTP::Cookie::Source::Http).cookie;
     })();
 
@@ -269,25 +277,25 @@ String WebSocket::extensions() const
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-protocol
-WebIDL::ExceptionOr<String> WebSocket::protocol() const
+WebIDL::ExceptionOr<String> WebSocket::protocol(JS::Realm& realm) const
 {
     if (!m_websocket)
         return String {};
-    return TRY_OR_THROW_OOM(vm(), String::from_byte_string(m_websocket->subprotocol_in_use()));
+    return TRY_OR_THROW_OOM(realm.vm(), String::from_byte_string(m_websocket->subprotocol_in_use()));
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-close
-WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> reason)
+WebIDL::ExceptionOr<void> WebSocket::close(JS::Realm& realm, Optional<u16> code, Optional<String> reason)
 {
     // 1. If code is present, but is neither an integer equal to 1000 nor an integer in the range 3000 to 4999, inclusive, throw an "InvalidAccessError" DOMException.
     if (code.has_value() && *code != 1000 && (*code < 3000 || *code > 4999))
-        return WebIDL::InvalidAccessError::create(realm(), "The close error code is invalid"_utf16);
+        return WebIDL::InvalidAccessError::create(realm, "The close error code is invalid"_utf16);
     // 2. If reason is present, then run these substeps:
     if (reason.has_value()) {
         // 1. Let reasonBytes be the result of encoding reason.
         // 2. If reasonBytes is longer than 123 bytes, then throw a "SyntaxError" DOMException.
         if (reason->bytes().size() > 123)
-            return WebIDL::SyntaxError::create(realm(), "The close reason is longer than 123 bytes"_utf16);
+            return WebIDL::SyntaxError::create(realm, "The close reason is longer than 123 bytes"_utf16);
     }
     // 3. Run the first matching steps from the following list:
     auto state = ready_state();
@@ -308,18 +316,18 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> 
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-send
-WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
+WebIDL::ExceptionOr<void> WebSocket::send(JS::Realm& realm, SendData const& data)
 {
     auto state = ready_state();
     if (state == Requests::WebSocket::ReadyState::Connecting)
-        return WebIDL::InvalidStateError::create(realm(), "Websocket is still CONNECTING"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Websocket is still CONNECTING"_utf16);
     if (state == Requests::WebSocket::ReadyState::Open) {
         data.visit(
             [this](String const& string) {
                 m_websocket->send(string);
             },
-            [this](WebIDL::BufferSourceVariant buffer_source_variant) {
-                auto buffer_source = WebIDL::BufferSource { buffer_source_variant };
+            [this](auto const& buffer_source_value) {
+                WebIDL::BufferSource buffer_source { WebIDL::BufferSourceVariant { buffer_source_value } };
                 ReadonlyBytes buffer;
 
                 if (auto array_buffer = buffer_source.viewed_array_buffer(); array_buffer && !array_buffer->is_detached())
@@ -340,11 +348,11 @@ WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
 void WebSocket::on_open()
 {
     // When the WebSocket connection is established, the user agent must queue a task to run these steps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
         // 1. Change the readyState attribute's value to OPEN (1).
         // 2. Change the extensions attribute's value to the extensions in use, if it is not the null value. [WSP]
         // 3. Change the protocol attribute's value to the subprotocol in use, if it is not the null value. [WSP]
-        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::open));
+        dispatch_event(DOM::Event::create(HTML::EventNames::open, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
     }));
 }
 
@@ -352,8 +360,8 @@ void WebSocket::on_open()
 void WebSocket::on_error()
 {
     // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this] {
-        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
+        dispatch_event(DOM::Event::create(HTML::EventNames::error, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
     }));
 }
 
@@ -361,14 +369,14 @@ void WebSocket::on_error()
 void WebSocket::on_close(u16 code, String reason, bool was_clean)
 {
     // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this, code, reason = move(reason), was_clean] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, code, reason = move(reason), was_clean] {
         // 1. Change the readyState attribute's value to CLOSED. This is handled by the Protocol's WebSocket
         // 2. If [needed], fire an event named error at the WebSocket object. This is handled by the Protocol's WebSocket
         Bindings::CloseEventInit event_init {};
         event_init.was_clean = was_clean;
         event_init.code = code;
         event_init.reason = reason;
-        dispatch_event(HTML::CloseEvent::create(realm(), HTML::EventNames::close, event_init));
+        dispatch_event(HTML::CloseEvent::create(HTML::EventNames::close, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object())));
     }));
 }
 
@@ -379,26 +387,27 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
         return;
 
     // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this, message = move(message), is_text] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, message = move(message), is_text] {
+        auto& realm = HTML::relevant_realm(relevant_global_object());
         if (is_text) {
             auto text_message = ByteString(ReadonlyBytes(message));
             Bindings::MessageEventInit event_init;
-            event_init.data = JS::PrimitiveString::create(vm(), text_message);
-            dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init, m_url.origin()));
+            event_init.data = JS::PrimitiveString::create(realm.vm(), text_message);
+            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
             return;
         }
 
         if (m_binary_type == "blob") {
             // type indicates that the data is Binary and binaryType is "blob"
             Bindings::MessageEventInit event_init;
-            event_init.data = Bindings::wrap(realm(), FileAPI::Blob::create(realm(), message, "text/plain;charset=utf-8"_string));
-            dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init, m_url.origin()));
+            event_init.data = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(message, "text/plain;charset=utf-8"_string));
+            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
             return;
         } else if (m_binary_type == "arraybuffer") {
             // type indicates that the data is Binary and binaryType is "arraybuffer"
             Bindings::MessageEventInit event_init;
-            event_init.data = JS::ArrayBuffer::create(realm(), message);
-            dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init, m_url.origin()));
+            event_init.data = JS::ArrayBuffer::create(realm, message);
+            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
             return;
         }
 

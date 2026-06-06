@@ -45,12 +45,6 @@ SVGFilterElement::SVGFilterElement(DOM::Document& document, DOM::QualifiedName q
 {
 }
 
-void SVGFilterElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFilterElement);
-    Base::initialize(realm);
-}
-
 void SVGFilterElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -441,13 +435,13 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-filterunits
 GC::Ref<SVGAnimatedEnumeration> SVGFilterElement::filter_units() const
 {
-    return SVGAnimatedEnumeration::create(realm(), to_underlying(m_filter_units.value_or(SVGUnits::ObjectBoundingBox)));
+    return SVGAnimatedEnumeration::create(to_underlying(m_filter_units.value_or(SVGUnits::ObjectBoundingBox)));
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-primitiveunits
 GC::Ref<SVGAnimatedEnumeration> SVGFilterElement::primitive_units() const
 {
-    return SVGAnimatedEnumeration::create(realm(), to_underlying(m_primitive_units.value_or(SVGUnits::UserSpaceOnUse)));
+    return SVGAnimatedEnumeration::create(to_underlying(m_primitive_units.value_or(SVGUnits::UserSpaceOnUse)));
 }
 
 // https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-x

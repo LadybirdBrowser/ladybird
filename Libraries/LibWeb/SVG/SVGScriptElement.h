@@ -39,8 +39,6 @@ public:
 protected:
     SVGScriptElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
 private:
     virtual bool is_svg_script_element() const final { return true; }
 

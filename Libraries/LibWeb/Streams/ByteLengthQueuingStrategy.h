@@ -21,7 +21,7 @@ class ByteLengthQueuingStrategy final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ByteLengthQueuingStrategy);
 
 public:
-    static GC::Ref<ByteLengthQueuingStrategy> construct_impl(JS::Realm&, Bindings::QueuingStrategyInit const&);
+    static GC::Ref<ByteLengthQueuingStrategy> construct_impl(Bindings::QueuingStrategyInit const&);
 
     virtual ~ByteLengthQueuingStrategy() override;
 
@@ -33,10 +33,10 @@ public:
         return m_high_water_mark;
     }
 
-    GC::Ref<WebIDL::CallbackType> size();
+    GC::Ref<WebIDL::CallbackType> size(JS::Realm&);
 
 private:
-    explicit ByteLengthQueuingStrategy(JS::Realm&, double high_water_mark);
+    explicit ByteLengthQueuingStrategy(double high_water_mark);
 
     // https://streams.spec.whatwg.org/#bytelengthqueuingstrategy-highwatermark
     double m_high_water_mark { 0 };

@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
@@ -15,14 +17,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DataTransferItemList);
 
-GC::Ref<DataTransferItemList> DataTransferItemList::create(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer)
+GC::Ref<DataTransferItemList> DataTransferItemList::create(GC::Ref<DataTransfer> data_transfer)
 {
-    return realm.create<DataTransferItemList>(realm, data_transfer);
+    return GC::Heap::the().allocate<DataTransferItemList>(data_transfer);
 }
 
-DataTransferItemList::DataTransferItemList(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer)
-    : Wrappable(realm)
-    , m_data_transfer(data_transfer)
+DataTransferItemList::DataTransferItemList(GC::Ref<DataTransfer> data_transfer)
+    : m_data_transfer(data_transfer)
 {
 }
 
@@ -43,10 +44,8 @@ WebIDL::UnsignedLong DataTransferItemList::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-add
-WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(String const& data, String const& type)
+WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(JS::Realm& realm, String const& data, String const& type)
 {
-    auto& realm = this->realm();
-
     // 1. If the DataTransferItemList object is not in the read/write mode, return null.
     if (m_data_transfer->mode() != DragDataStore::Mode::ReadWrite)
         return nullptr;
@@ -100,11 +99,11 @@ GC::Ptr<DataTransferItem> DataTransferItemList::add(GC::Ref<FileAPI::File> file)
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-remove
-WebIDL::ExceptionOr<void> DataTransferItemList::remove(WebIDL::UnsignedLong index)
+WebIDL::ExceptionOr<void> DataTransferItemList::remove(JS::Realm& realm, WebIDL::UnsignedLong index)
 {
     // 1. If the DataTransferItemList object is not in the read/write mode, throw an "InvalidStateError" DOMException.
     if (m_data_transfer->mode() != DragDataStore::Mode::ReadWrite)
-        return WebIDL::InvalidStateError::create(realm(), "DataTransferItemList is not in read/write mode"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "DataTransferItemList is not in read/write mode"_utf16);
 
     // 2. If the drag data store does not contain an indexth item, then return.
     if (index >= m_data_transfer->length())
@@ -126,14 +125,14 @@ void DataTransferItemList::clear()
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-item
-Optional<JS::Value> DataTransferItemList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> DataTransferItemList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property i of a DataTransferItemList object, the user agent must return a
     // DataTransferItem object representing the ith item in the drag data store. The same object must be returned each
     // time a particular item is obtained from this DataTransferItemList object. The DataTransferItem object must be
     // associated with the same DataTransfer object as the DataTransferItemList object when it is first created.
     if (index < m_data_transfer->length())
-        return Bindings::wrap(realm, m_data_transfer->item(index));
+        return Bindings::wrap(wrapper_world, realm, m_data_transfer->item(index));
     return {};
 }
 

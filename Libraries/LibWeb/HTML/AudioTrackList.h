@@ -19,6 +19,8 @@ class AudioTrackList final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(AudioTrackList);
 
 public:
+    static GC::Ref<AudioTrackList> create();
+
     void add_track(GC::Ref<AudioTrack>);
     void remove_all_tracks();
 
@@ -48,12 +50,11 @@ public:
     WebIDL::CallbackType* onremovetrack();
 
 private:
-    explicit AudioTrackList(JS::Realm&);
+    explicit AudioTrackList();
 
     virtual void visit_edges(Visitor&) override;
 
-    virtual void initialize(JS::Realm&) override;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     Vector<GC::Ref<AudioTrack>> m_audio_tracks;
 };

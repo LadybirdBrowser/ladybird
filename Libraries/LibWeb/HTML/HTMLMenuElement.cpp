@@ -19,10 +19,4 @@ HTMLMenuElement::HTMLMenuElement(DOM::Document& document, DOM::QualifiedName qua
 
 HTMLMenuElement::~HTMLMenuElement() = default;
 
-void HTMLMenuElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMenuElement);
-    Base::initialize(realm);
-}
-
 }

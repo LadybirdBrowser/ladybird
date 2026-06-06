@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Window.h>
@@ -34,6 +35,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Environment);
 
+GC::Ref<Environment> Environment::create(String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url,
+    Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
+{
+    return GC::Heap::the().allocate<Environment>(move(id), move(creation_url), move(top_level_creation_url), move(top_level_origin), move(target_browsing_context));
+}
+
 Environment::~Environment() = default;
 
 void Environment::visit_edges(Cell::Visitor& visitor)
@@ -45,6 +52,13 @@ void Environment::visit_edges(Cell::Visitor& visitor)
 EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> realm_execution_context)
     : m_realm_execution_context(move(realm_execution_context))
 {
+    m_module_map = GC::Heap::the().allocate<ModuleMap>();
+    if (auto* window = window_from_global_object(global_object()))
+        m_universal_global_scope = window;
+    else
+        m_universal_global_scope = Bindings::impl_from<WorkerGlobalScope>(&global_object());
+    VERIFY(m_universal_global_scope);
+
     // Register with the responsible event loop so we can perform step 4 of "perform a microtask checkpoint".
     responsible_event_loop().register_environment_settings_object({}, *this);
 }
@@ -53,17 +67,6 @@ void EnvironmentSettingsObject::finalize()
 {
     responsible_event_loop().unregister_environment_settings_object({}, *this);
     Base::finalize();
-}
-
-void EnvironmentSettingsObject::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    m_module_map = realm.heap().allocate<ModuleMap>();
-    if (auto* window = window_from_global_object(global_object()))
-        m_universal_global_scope = window;
-    else
-        m_universal_global_scope = Bindings::impl_from<WorkerGlobalScope>(&global_object());
-    VERIFY(m_universal_global_scope);
 }
 
 void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
@@ -440,11 +443,30 @@ JS::Realm& relevant_realm(JS::Object const& object)
     return object.shape().realm();
 }
 
-JS::Realm& relevant_realm(Bindings::Wrappable const& wrappable)
+JS::Realm& relevant_realm(DOM::Node const& node)
 {
-    // The relevant Realm for a wrappable implementation object is the Realm
-    // used for its corresponding platform object wrapper.
-    return wrappable.realm();
+    return relevant_settings_object(node).realm();
+}
+
+JS::Realm& relevant_realm(Window const& window)
+{
+    return const_cast<Window&>(window).relevant_settings_object().realm();
+}
+
+JS::Realm& relevant_realm(WorkerGlobalScope const& worker_global_scope)
+{
+    return const_cast<WorkerGlobalScope&>(worker_global_scope).realm();
+}
+
+JS::Realm& relevant_realm(WindowOrWorkerGlobalScopeMixin const& global_scope)
+{
+    auto& event_target = global_scope.this_impl();
+    if (auto* window = as_if<Window>(&event_target))
+        return window->realm();
+
+    auto* worker_global_scope = as_if<WorkerGlobalScope>(&event_target);
+    VERIFY(worker_global_scope);
+    return worker_global_scope->realm();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object
@@ -454,9 +476,19 @@ EnvironmentSettingsObject& relevant_settings_object(JS::Object const& object)
     return Bindings::principal_host_defined_environment_settings_object(relevant_realm(object));
 }
 
-EnvironmentSettingsObject& relevant_settings_object(Bindings::Wrappable const& wrappable)
+EnvironmentSettingsObject& relevant_settings_object(Window const& window)
 {
-    return Bindings::principal_host_defined_environment_settings_object(relevant_realm(wrappable));
+    return const_cast<Window&>(window).relevant_settings_object();
+}
+
+EnvironmentSettingsObject& relevant_settings_object(WorkerGlobalScope const& worker_global_scope)
+{
+    return Bindings::principal_host_defined_environment_settings_object(relevant_realm(worker_global_scope));
+}
+
+EnvironmentSettingsObject& relevant_settings_object(WindowOrWorkerGlobalScopeMixin const& global_scope)
+{
+    return Bindings::principal_host_defined_environment_settings_object(relevant_realm(global_scope));
 }
 
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const& node)
@@ -472,9 +504,24 @@ JS::Object& relevant_global_object(JS::Object const& object)
     return relevant_realm(object).global_object();
 }
 
-JS::Object& relevant_global_object(Bindings::Wrappable const& wrappable)
+JS::Object& relevant_global_object(DOM::Node const& node)
 {
-    return relevant_realm(wrappable).global_object();
+    return relevant_realm(node).global_object();
+}
+
+JS::Object& relevant_global_object(Window const& window)
+{
+    return relevant_realm(window).global_object();
+}
+
+JS::Object& relevant_global_object(WorkerGlobalScope const& worker_global_scope)
+{
+    return relevant_realm(worker_global_scope).global_object();
+}
+
+JS::Object& relevant_global_object(WindowOrWorkerGlobalScopeMixin const& global_scope)
+{
+    return relevant_realm(global_scope).global_object();
 }
 
 Window* window_from_global_object(JS::Object& object)
@@ -508,11 +555,16 @@ Window& relevant_window(JS::Object const& object)
     return *window;
 }
 
-Window& relevant_window(Bindings::Wrappable const& wrappable)
+Window& relevant_window(DOM::Node const& node)
 {
-    auto* window = window_from_global_object(relevant_global_object(wrappable));
+    auto* window = window_from_global_object(relevant_global_object(node));
     VERIFY(window);
     return *window;
+}
+
+Window& relevant_window(Window const& window)
+{
+    return const_cast<Window&>(window);
 }
 
 WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(JS::Object const& object)
@@ -522,11 +574,26 @@ WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(JS::Objec
     return *global_scope;
 }
 
-WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(Bindings::Wrappable const& wrappable)
+WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(DOM::Node const& node)
 {
-    auto* global_scope = window_or_worker_global_scope_from_global_object(relevant_global_object(wrappable));
+    auto* global_scope = window_or_worker_global_scope_from_global_object(relevant_global_object(node));
     VERIFY(global_scope);
     return *global_scope;
+}
+
+WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(DOM::EventTarget const& event_target)
+{
+    if (auto* window = as_if<Window>(const_cast<DOM::EventTarget*>(&event_target)))
+        return *window;
+
+    auto* worker_global_scope = as_if<WorkerGlobalScope>(const_cast<DOM::EventTarget*>(&event_target));
+    VERIFY(worker_global_scope);
+    return *worker_global_scope;
+}
+
+WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(Window const& window)
+{
+    return const_cast<Window&>(window);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-entry-realm
@@ -636,7 +703,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 GC::Ref<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
 {
     if (!m_storage_manager)
-        m_storage_manager = realm().create<StorageAPI::StorageManager>(realm());
+        m_storage_manager = StorageAPI::StorageManager::create();
     return *m_storage_manager;
 }
 
@@ -656,7 +723,7 @@ GC::Ref<ServiceWorker::ServiceWorkerRegistration> EnvironmentSettingsObject::get
         // 3. Set registrationObject’s installing attribute to null.
         // 4. Set registrationObject’s waiting attribute to null.
         // 5. Set registrationObject’s active attribute to null.
-        auto registration_object = ServiceWorker::ServiceWorkerRegistration::create(realm(), registration);
+        auto registration_object = ServiceWorker::ServiceWorkerRegistration::create(registration);
 
         // 6. If registration’s installing worker is not null, then set registrationObject’s installing attribute to the result of getting the service worker object that represents registration’s installing worker in environment.
         if (registration.installing_worker())
@@ -686,7 +753,7 @@ GC::Ref<ServiceWorker::ServiceWorker> EnvironmentSettingsObject::get_service_wor
     // 2. If objectMap[serviceWorker] does not exist, then:
     if (!object_map.contains(service_worker)) {
         // 1. Let serviceWorkerObj be a new ServiceWorker in environment’s Realm, and associate it with serviceWorker.
-        auto service_worker_obj = ServiceWorker::ServiceWorker::create(realm(), service_worker);
+        auto service_worker_obj = ServiceWorker::ServiceWorker::create(service_worker);
 
         // 2. Set serviceWorkerObj’s state to serviceWorker’s state.
         service_worker_obj->set_service_worker_state(service_worker->state);

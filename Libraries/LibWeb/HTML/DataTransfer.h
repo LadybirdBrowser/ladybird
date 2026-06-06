@@ -9,8 +9,8 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/DataTransfer.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/DragDataStore.h>
-#include <LibWeb/WebIDL/CachedAttribute.h>
 
 namespace Web::HTML {
 
@@ -39,8 +39,8 @@ class DataTransfer : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(DataTransfer);
 
 public:
-    static GC::Ref<DataTransfer> create(JS::Realm&, NonnullRefPtr<DragDataStore>);
-    static GC::Ref<DataTransfer> construct_impl(JS::Realm&);
+    static GC::Ref<DataTransfer> create(NonnullRefPtr<DragDataStore>);
+    static GC::Ref<DataTransfer> construct_impl();
     virtual ~DataTransfer() override;
 
     FlyString const& drop_effect() const { return m_drop_effect; }
@@ -55,7 +55,10 @@ public:
     GC::Ref<DataTransferItemList> items();
 
     ReadonlySpan<String> types() const;
-    DEFINE_CACHED_ATTRIBUTE(types);
+    GC::Ptr<JS::Object> cached_types(Bindings::WrapperWorld const&) const;
+    void set_cached_types(Bindings::WrapperWorld const&, GC::Ptr<JS::Object>);
+    void set_cached_types(GC::Ptr<JS::Object>);
+    void clear_cached_types();
     String get_data(String const& format) const;
     void set_data(String const& format_argument, String const& value);
     void clear_data(Optional<String> maybe_format = {});
@@ -72,7 +75,7 @@ public:
     size_t length() const;
 
 private:
-    DataTransfer(JS::Realm&, NonnullRefPtr<DragDataStore>);
+    explicit DataTransfer(NonnullRefPtr<DragDataStore>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
@@ -90,6 +93,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types
     Vector<String> m_types;
+    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_cached_types;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface:drag-data-store-3
     RefPtr<DragDataStore> m_associated_drag_data_store;

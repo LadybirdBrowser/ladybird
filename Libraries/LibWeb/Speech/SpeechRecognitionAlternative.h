@@ -20,7 +20,7 @@ class SpeechRecognitionAlternative final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionAlternative);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechRecognitionAlternative> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SpeechRecognitionAlternative> create();
     virtual ~SpeechRecognitionAlternative() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionalternative-transcript
@@ -30,7 +30,7 @@ public:
     float confidence() const { return m_confidence; }
 
 private:
-    explicit SpeechRecognitionAlternative(JS::Realm&);
+    explicit SpeechRecognitionAlternative();
 
     String m_transcript;
     float m_confidence { 0.f };

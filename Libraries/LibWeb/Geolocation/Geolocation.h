@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/Geolocation.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -23,14 +24,18 @@ class Geolocation : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Geolocation);
 
 public:
+    [[nodiscard]] static GC::Ref<Geolocation> create(HTML::Window&);
+
     void get_current_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&);
     WebIDL::Long watch_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&);
     void clear_watch(WebIDL::Long);
 
 private:
-    Geolocation(JS::Realm&);
+    explicit Geolocation(HTML::Window&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    HTML::Window& window() const { return m_window; }
 
     void acquire_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&, Optional<WebIDL::UnsignedLong>);
     void call_back_with_error(GC::Ptr<WebIDL::CallbackType>, GeolocationPositionError::ErrorCode) const;
@@ -40,6 +45,8 @@ private:
 
     // https://w3c.github.io/geolocation/#dfn-watchids
     HashTable<WebIDL::UnsignedLong> m_watch_ids;
+
+    GC::Ref<HTML::Window> m_window;
 
     // https://w3c.github.io/geolocation/#dfn-cachedposition
     GC::Ptr<GeolocationPosition> m_cached_position;

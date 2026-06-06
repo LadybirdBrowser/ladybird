@@ -16,6 +16,7 @@
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
 #include <LibMedia/Forward.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
@@ -182,7 +183,7 @@ public:
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -281,7 +282,7 @@ private:
     template<typename ErrorType>
     void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, Utf16String message)
     {
-        auto& realm = this->realm();
+        auto& realm = document().relevant_settings_object().realm();
 
         auto error = ErrorType::create(realm, move(message));
         reject_pending_play_promises(promises, error);

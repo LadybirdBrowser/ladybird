@@ -34,8 +34,8 @@ public:
 #undef __ENUMERATE
 
 protected:
-    XMLHttpRequestEventTarget(JS::Realm& realm)
-        : DOM::EventTarget(realm)
+    XMLHttpRequestEventTarget()
+        : DOM::EventTarget()
     {
     }
 };

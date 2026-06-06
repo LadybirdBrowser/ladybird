@@ -159,12 +159,6 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHa
     return {};
 }
 
-void SVGGradientElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGradientElement);
-    Base::initialize(realm);
-}
-
 void SVGGradientElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

@@ -6,6 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CloseWatcher.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HTML {
 
@@ -36,7 +38,7 @@ GC::Ref<CloseWatcher> CloseWatcher::establish(HTML::Window& window, GetEnabledSt
     //    close action: closeAction
     //    is running cancel action: false
     //    get enabled state: getEnabledState
-    auto close_watcher = window.realm().create<CloseWatcher>(window.realm(), move(get_enabled_state));
+    auto close_watcher = GC::Heap::the().allocate<CloseWatcher>(window, move(get_enabled_state));
     // FIXME: cancelAction and closeAction are both set by the caller currently.
 
     // 3. Let manager be window's associated close watcher manager
@@ -50,24 +52,22 @@ GC::Ref<CloseWatcher> CloseWatcher::establish(HTML::Window& window, GetEnabledSt
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-closewatcher
-WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Realm& realm, Bindings::CloseWatcherOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(Window& window, Bindings::CloseWatcherOptions const& options)
 {
-    auto& window = relevant_window(realm.global_object());
-
     // NOTE: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.
     auto navigable = window.navigable();
     if (navigable && navigable->has_been_destroyed())
-        return WebIDL::InvalidStateError::create(realm, "The iframe has been detached"_utf16);
+        return WebIDL::InvalidStateError::create("The iframe has been detached"_utf16);
 
     // 1. If this's relevant global object's associated Document is not fully active, then return an "InvalidStateError" DOMException.
     if (!window.associated_document().is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
+        return WebIDL::InvalidStateError::create("The document is not fully active."_utf16);
 
     // 2. Let closeWatcher be the result of establishing a close watcher given this's relevant global object, with:
     //    - cancelAction given canPreventClose being to return the result of firing an event named cancel at this, with the cancelable attribute initialized to canPreventClose.
     //    - closeAction being to fire an event named close at this.
     //    - getEnabledState being to return true.
-    auto close_watcher = establish(window, GC::create_function(realm.heap(), [] { return true; }));
+    auto close_watcher = establish(window, GC::create_function(GC::Heap::the(), [] { return true; }));
 
     // 3. If options["signal"] exists, then:
     if (auto signal = options.signal) {
@@ -86,9 +86,10 @@ WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Real
     return close_watcher;
 }
 
-CloseWatcher::CloseWatcher(JS::Realm& realm, GetEnabledState get_enabled_state)
-    : DOM::EventTarget(realm)
+CloseWatcher::CloseWatcher(Window& window, GetEnabledState get_enabled_state)
+    : DOM::EventTarget()
     , m_get_enabled_state(move(get_enabled_state))
+    , m_window(window)
 {
 }
 
@@ -115,7 +116,7 @@ bool CloseWatcher::request_close(bool require_history_action_activation)
         return true;
 
     // 4. Let window be closeWatcher's window.
-    auto& window = relevant_window(realm().global_object());
+    auto& window = *m_window;
 
     // 5. If window's associated Document is not fully active, then return true.
     if (!window.associated_document().is_fully_active())
@@ -128,7 +129,8 @@ bool CloseWatcher::request_close(bool require_history_action_activation)
     // 7. Set closeWatcher's is running cancel action to true.
     m_is_running_cancel_action = true;
     // 8. Let shouldContinue be the result of running closeWatcher's cancel action given canPreventClose.
-    bool should_continue = dispatch_event(DOM::Event::create(realm(), HTML::EventNames::cancel, { .cancelable = can_prevent_close }));
+    bool should_continue = dispatch_event(DOM::Event::create(HTML::EventNames::cancel, { .cancelable = can_prevent_close },
+        HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window))));
     // 9. Set closeWatcher's is running cancel action to false.
     m_is_running_cancel_action = false;
     // 10. If shouldContinue is false, then:
@@ -165,32 +167,27 @@ void CloseWatcher::close()
         return;
 
     // 3. If closeWatcher's window's associated Document is not fully active, then return.
-    if (!relevant_window(realm().global_object()).associated_document().is_fully_active())
+    if (!m_window->associated_document().is_fully_active())
         return;
 
     // 4. Destroy closeWatcher.
     destroy();
 
     // 5. Run closeWatcher's close action.
-    dispatch_event(DOM::Event::create(realm(), HTML::EventNames::close));
+    dispatch_event(DOM::Event::create(HTML::EventNames::close,
+        HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*m_window))));
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-destroy
 void CloseWatcher::destroy()
 {
     // 1. Let manager be closeWatcher's window's close watcher manager.
-    auto manager = relevant_window(realm().global_object()).close_watcher_manager();
+    auto manager = m_window->close_watcher_manager();
 
     // 2-3. Moved to CloseWatcherManager::remove
     manager->remove(*this);
 
     m_is_active = false;
-}
-
-void CloseWatcher::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CloseWatcher);
-    Base::initialize(realm);
 }
 
 void CloseWatcher::set_oncancel(WebIDL::CallbackType* event_handler)
@@ -217,6 +214,7 @@ void CloseWatcher::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_get_enabled_state);
+    visitor.visit(m_window);
 }
 
 }

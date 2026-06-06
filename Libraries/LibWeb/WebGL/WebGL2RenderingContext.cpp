@@ -6,11 +6,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/WebGL2RenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
@@ -28,7 +30,7 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGL2RenderingContext);
 
-JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
+JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::create(HTML::HTMLCanvasElement& canvas_element, JS::Value options)
 {
     // We should be coming here from getContext being called on a wrapped <canvas> element.
     auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
@@ -51,11 +53,11 @@ JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::c
 
     context->set_size(canvas_element.bitmap_size_for_canvas(1, 1));
 
-    return realm.create<WebGL2RenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
+    return GC::Heap::the().allocate<WebGL2RenderingContext>(canvas_element, context.release_nonnull(), context_attributes, context_attributes);
 }
 
-WebGL2RenderingContext::WebGL2RenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
-    : WebGL2RenderingContextOverloads(realm, move(context))
+WebGL2RenderingContext::WebGL2RenderingContext(HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
+    : WebGL2RenderingContextOverloads(move(context))
     , m_canvas_element(canvas_element)
     , m_context_creation_parameters(context_creation_parameters)
     , m_actual_context_parameters(actual_context_parameters)
@@ -63,6 +65,11 @@ WebGL2RenderingContext::WebGL2RenderingContext(JS::Realm& realm, HTML::HTMLCanva
 }
 
 WebGL2RenderingContext::~WebGL2RenderingContext() = default;
+
+JS::Object& WebGL2RenderingContext::relevant_global_object() const
+{
+    return HTML::relevant_global_object(*m_canvas_element);
+}
 
 void WebGL2RenderingContext::visit_edges(GC::Cell::Visitor& visitor)
 {

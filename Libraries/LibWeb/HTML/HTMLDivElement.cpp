@@ -47,10 +47,4 @@ void HTMLDivElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prop
     });
 }
 
-void HTMLDivElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDivElement);
-    Base::initialize(realm);
-}
-
 }

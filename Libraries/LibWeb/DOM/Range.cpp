@@ -9,6 +9,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Range.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
@@ -53,19 +54,16 @@ GC::Ref<Range> Range::create(HTML::Window& window)
 
 GC::Ref<Range> Range::create(Document& document)
 {
-    auto& realm = document.realm();
-    return realm.create<Range>(document);
+    return GC::Heap::the().allocate<Range>(document);
 }
 
 GC::Ref<Range> Range::create(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset)
 {
-    auto& realm = start_container->realm();
-    return realm.create<Range>(start_container, start_offset, end_container, end_offset);
+    return GC::Heap::the().allocate<Range>(start_container, start_offset, end_container, end_offset);
 }
 
-WebIDL::ExceptionOr<GC::Ref<Range>> Range::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<Range>> Range::construct_impl(HTML::Window& window)
 {
-    auto& window = HTML::relevant_window(realm.global_object());
     return create(window);
 }
 
@@ -193,11 +191,11 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset
 
     // 1. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*node))
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Node cannot be a DocumentType."_utf16);
 
     // 2. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
     if (offset > node->length())
-        return WebIDL::IndexSizeError::create(realm(), Utf16String::formatted("Node does not contain a child at offset {}", offset));
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*start_container()), Utf16String::formatted("Node does not contain a child at offset {}", offset));
 
     // 3. Let bp be the boundary point (node, offset).
 
@@ -254,7 +252,7 @@ WebIDL::ExceptionOr<void> Range::set_start_before(GC::Ref<Node> node)
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Given node has no parent."_utf16);
 
     // 3. Set the start of this to boundary point (parent, node’s index).
     return set_start_or_end(*parent, node->index(), StartOrEnd::Start);
@@ -268,7 +266,7 @@ WebIDL::ExceptionOr<void> Range::set_start_after(GC::Ref<Node> node)
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Given node has no parent."_utf16);
 
     // 3. Set the start of this to boundary point (parent, node’s index plus 1).
     return set_start_or_end(*parent, node->index() + 1, StartOrEnd::Start);
@@ -282,7 +280,7 @@ WebIDL::ExceptionOr<void> Range::set_end_before(GC::Ref<Node> node)
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Given node has no parent."_utf16);
 
     // 3. Set the end of this to boundary point (parent, node’s index).
     return set_start_or_end(*parent, node->index(), StartOrEnd::End);
@@ -296,7 +294,7 @@ WebIDL::ExceptionOr<void> Range::set_end_after(GC::Ref<Node> node)
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Given node has no parent."_utf16);
 
     // 3. Set the end of this to boundary point (parent, node’s index plus 1).
     return set_start_or_end(*parent, node->index() + 1, StartOrEnd::End);
@@ -312,11 +310,11 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_boundary_points(WebIDL::Unsign
     //      - END_TO_START,
     //    then throw a "NotSupportedError" DOMException.
     if (how != HowToCompareBoundaryPoints::START_TO_START && how != HowToCompareBoundaryPoints::START_TO_END && how != HowToCompareBoundaryPoints::END_TO_END && how != HowToCompareBoundaryPoints::END_TO_START)
-        return WebIDL::NotSupportedError::create(realm(), Utf16String::formatted("Expected 'how' to be one of START_TO_START (0), START_TO_END (1), END_TO_END (2) or END_TO_START (3), got {}", how));
+        return WebIDL::NotSupportedError::create(HTML::relevant_realm(*start_container()), Utf16String::formatted("Expected 'how' to be one of START_TO_START (0), START_TO_END (1), END_TO_END (2) or END_TO_START (3), got {}", how));
 
     // 2. If this’s root is not the same as sourceRange’s root, then throw a "WrongDocumentError" DOMException.
     if (root() != source_range.root())
-        return WebIDL::WrongDocumentError::create(realm(), "This range is not in the same tree as the source range."_utf16);
+        return WebIDL::WrongDocumentError::create(HTML::relevant_realm(*start_container()), "This range is not in the same tree as the source range."_utf16);
 
     GC::Ptr<Node> this_point_node;
     u32 this_point_offset = 0;
@@ -397,7 +395,7 @@ WebIDL::ExceptionOr<void> Range::select(GC::Ref<Node> node)
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Given node has no parent."_utf16);
 
     // 3. Let index be node’s index.
     auto index = node->index();
@@ -440,7 +438,7 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 {
     // 1. If node is a doctype, throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*node))
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Node cannot be a DocumentType."_utf16);
 
     // 2. Let length be the length of node.
     auto length = node->length();
@@ -459,7 +457,7 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 
 GC::Ref<Range> Range::clone_range() const
 {
-    return realm().create<Range>(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
+    return Range::create(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer
@@ -514,11 +512,11 @@ WebIDL::ExceptionOr<bool> Range::is_point_in_range(GC::Ref<Node> node, WebIDL::U
 
     // 2. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*node))
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Node cannot be a DocumentType."_utf16);
 
     // 3. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
     if (offset > node->length())
-        return WebIDL::IndexSizeError::create(realm(), Utf16String::formatted("Node does not contain a child at offset {}", offset));
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*start_container()), Utf16String::formatted("Node does not contain a child at offset {}", offset));
 
     // 4. If (node, offset) is before start or after end, return false.
     auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start());
@@ -535,15 +533,15 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(GC::Ref<Node> node, WebI
 {
     // 1. If node’s root is different from this’s root, then throw a "WrongDocumentError" DOMException.
     if (&node->root() != root().ptr())
-        return WebIDL::WrongDocumentError::create(realm(), "Given node is not in the same document as the range."_utf16);
+        return WebIDL::WrongDocumentError::create(HTML::relevant_realm(*start_container()), "Given node is not in the same document as the range."_utf16);
 
     // 2. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*node))
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Node cannot be a DocumentType."_utf16);
 
     // 3. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
     if (offset > node->length())
-        return WebIDL::IndexSizeError::create(realm(), Utf16String::formatted("Node does not contain a child at offset {}", offset));
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*start_container()), Utf16String::formatted("Node does not contain a child at offset {}", offset));
 
     // 4. If (node, offset) is before start, return −1.
     auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start());
@@ -600,7 +598,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract_contents()
 WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
 {
     // 1. Let fragment be a new DocumentFragment node whose node document is range’s start node’s node document.
-    auto fragment = realm().create<DOM::DocumentFragment>(const_cast<Document&>(start_container()->document()));
+    auto fragment = DOM::DocumentFragment::create(const_cast<Document&>(start_container()->document()));
 
     // 2. If range is collapsed, then return fragment.
     if (collapsed())
@@ -679,7 +677,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
     // 12. If any member of containedChildren is a doctype, then throw a "HierarchyRequestError" DOMException.
     for (auto const& child : contained_children) {
         if (is<DocumentType>(*child))
-            return WebIDL::HierarchyRequestError::create(realm(), "Contained child is a DocumentType"_utf16);
+            return WebIDL::HierarchyRequestError::create(HTML::relevant_realm(*start_container()), "Contained child is a DocumentType"_utf16);
     }
 
     // 13. Let newNode and newOffset be null.
@@ -829,7 +827,7 @@ WebIDL::ExceptionOr<void> Range::insert(GC::Ref<Node> node)
     if ((is<ProcessingInstruction>(*m_start_container) || is<Comment>(*m_start_container))
         || (is<Text>(*m_start_container) && !m_start_container->parent_node())
         || m_start_container.ptr() == node.ptr()) {
-        return WebIDL::HierarchyRequestError::create(realm(), "Range has inappropriate start node for insertion"_utf16);
+        return WebIDL::HierarchyRequestError::create(HTML::relevant_realm(*start_container()), "Range has inappropriate start node for insertion"_utf16);
     }
 
     // 2. Let referenceNode be null.
@@ -852,7 +850,7 @@ WebIDL::ExceptionOr<void> Range::insert(GC::Ref<Node> node)
         parent = reference_node->parent();
 
     // 6. Ensure pre-insertion validity of node into parent before referenceNode.
-    TRY(parent->ensure_pre_insertion_validity(node->realm(), node, reference_node));
+    TRY(parent->ensure_pre_insertion_validity(node->document().relevant_settings_object().realm(), node, reference_node));
 
     // 7. If range’s start node is a Text node, set referenceNode to the result of splitting it with offset range’s start offset.
     if (is<Text>(*m_start_container))
@@ -900,11 +898,11 @@ WebIDL::ExceptionOr<void> Range::surround_contents(GC::Ref<Node> new_parent)
     if (is<Text>(*end_non_text_node))
         end_non_text_node = end_non_text_node->parent_node();
     if (start_non_text_node != end_non_text_node)
-        return WebIDL::InvalidStateError::create(realm(), "Non-Text node is partially contained in range."_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(*start_container()), "Non-Text node is partially contained in range."_utf16);
 
     // 2. If newParent is a Document, DocumentType, or DocumentFragment node, then throw an "InvalidNodeTypeError" DOMException.
     if (is<Document>(*new_parent) || is<DocumentType>(*new_parent) || is<DocumentFragment>(*new_parent))
-        return WebIDL::InvalidNodeTypeError::create(realm(), "Invalid parent node type"_utf16);
+        return WebIDL::InvalidNodeTypeError::create(HTML::relevant_realm(*start_container()), "Invalid parent node type"_utf16);
 
     // 3. Let fragment be the result of extracting this.
     auto fragment = TRY(extract());
@@ -933,7 +931,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_contents()
 WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
 {
     // 1. Let fragment be a new DocumentFragment node whose node document is range’s start node’s node document.
-    auto fragment = realm().create<DOM::DocumentFragment>(const_cast<Document&>(start_container()->document()));
+    auto fragment = DOM::DocumentFragment::create(const_cast<Document&>(start_container()->document()));
 
     // 2. If range is collapsed, then return fragment.
     if (collapsed())
@@ -1008,7 +1006,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
     // 12. If any member of contained children is a doctype, then throw a "HierarchyRequestError" DOMException.
     for (auto const& child : contained_children) {
         if (is<DocumentType>(*child))
-            return WebIDL::HierarchyRequestError::create(realm(), "Contained child is a DocumentType"_utf16);
+            return WebIDL::HierarchyRequestError::create(HTML::relevant_realm(*start_container()), "Contained child is a DocumentType"_utf16);
     }
 
     // 13. If first partially contained child is a CharacterData node, then:
@@ -1168,7 +1166,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
 {
     // 1. return an empty DOMRectList object if the range is not in the document
     if (!start_container()->document().navigable())
-        return Geometry::DOMRectList::create(realm(), {});
+        return Geometry::DOMRectList::create({});
 
     start_container()->document().update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
     Vector<GC::Root<Geometry::DOMRect>> rects;
@@ -1198,10 +1196,10 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
     if (!is<DOM::Text>(*end_node)) {
         // end offset shouldn't be 0
         if (m_end_offset == 0)
-            return Geometry::DOMRectList::create(realm(), {});
+            return Geometry::DOMRectList::create({});
         end_node = end_node->child_at_index(m_end_offset - 1);
         if (!end_node)
-            return Geometry::DOMRectList::create(realm(), {});
+            return Geometry::DOMRectList::create({});
     }
     for (GC::Ptr<Node> node = start_node; node && node != end_node->next_in_pre_order(); node = node->next_in_pre_order()) {
         auto selection_state = Painting::Paintable::SelectionState::Full;
@@ -1224,7 +1222,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
                 auto const& element = static_cast<DOM::Element const&>(*node);
                 auto const element_rects = element.get_client_rects();
                 for (auto& rect : element_rects) {
-                    rects.append(MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height()))));
+                    rects.append(Geometry::DOMRect::create(static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height())));
                 }
             }
         } else if (node_type == NodeType::TEXT_NODE) {
@@ -1259,11 +1257,11 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             }
             mapping.for_each_paintable_fragment_in_dom_range(filter_dom_start, filter_dom_end, [&](Painting::PaintableFragment const& fragment) {
                 auto rect = fragment.range_rect(selection_state, start_offset(), end_offset());
-                rects.append(Geometry::DOMRect::create(realm(), rect.to_type<float>()));
+                rects.append(Geometry::DOMRect::create(rect.to_type<float>()));
             });
         }
     }
-    return Geometry::DOMRectList::create(realm(), move(rects));
+    return Geometry::DOMRectList::create(move(rects));
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-range-getboundingclientrect
@@ -1274,7 +1272,7 @@ GC::Ref<Geometry::DOMRect> Range::get_bounding_client_rect()
 
     // 2. If the list is empty return a DOMRect object whose x, y, width and height members are zero.
     if (list->length() == 0)
-        return Geometry::DOMRect::construct_impl(realm(), 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
+        return Geometry::DOMRect::create(0, 0, 0, 0);
 
     // 3. If all rectangles in list have zero width or height, return the first rectangle in list.
     auto all_rectangle_has_zero_width_or_height = true;
@@ -1298,7 +1296,7 @@ GC::Ref<Geometry::DOMRect> Range::get_bounding_client_rect()
             continue;
         bounding_rect.unite({ rect->x(), rect->y(), rect->width(), rect->height() });
     }
-    return Geometry::DOMRect::create(realm(), bounding_rect.to_type<float>());
+    return Geometry::DOMRect::create(bounding_rect.to_type<float>());
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
@@ -1308,7 +1306,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
     //    TrustedHTML, this's relevant global object, string, "Range createContextualFragment", and "script".
     auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*this),
+        HTML::relevant_global_object(*start_container()),
         string,
         TrustedTypes::InjectionSink::Range_createContextualFragment,
         TrustedTypes::Script.to_string()));

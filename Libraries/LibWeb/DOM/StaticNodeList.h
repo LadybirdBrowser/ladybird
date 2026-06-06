@@ -15,7 +15,7 @@ class StaticNodeList final : public NodeList {
     GC_DECLARE_ALLOCATOR(StaticNodeList);
 
 public:
-    [[nodiscard]] static GC::Ref<NodeList> create(JS::Realm&, Vector<GC::Root<Node>>);
+    [[nodiscard]] static GC::Ref<NodeList> create(Vector<GC::Root<Node>>);
 
     virtual ~StaticNodeList() override;
 
@@ -23,7 +23,7 @@ public:
     virtual Node const* item(u32 index) const override;
 
 private:
-    StaticNodeList(JS::Realm&, Vector<GC::Root<Node>>);
+    StaticNodeList(Vector<GC::Root<Node>>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;

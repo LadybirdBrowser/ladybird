@@ -33,16 +33,16 @@ class DecompressionStream final
     GC_DECLARE_ALLOCATOR(DecompressionStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> construct_impl(JS::Realm&, Bindings::CompressionFormat);
+    static WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Bindings::CompressionFormat);
     virtual ~DecompressionStream() override;
 
 private:
-    DecompressionStream(JS::Realm&, GC::Ref<Streams::TransformStream>, Decompressor, NonnullOwnPtr<AllocatingMemoryStream>);
+    DecompressionStream(GC::Ref<Streams::TransformStream>, Decompressor, NonnullOwnPtr<AllocatingMemoryStream>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> decompress_and_enqueue_chunk(JS::Value);
-    WebIDL::ExceptionOr<void> decompress_flush_and_enqueue();
+    WebIDL::ExceptionOr<void> decompress_and_enqueue_chunk(JS::Realm&, JS::Value);
+    WebIDL::ExceptionOr<void> decompress_flush_and_enqueue(JS::Realm&);
 
     Decompressor m_decompressor;
     NonnullOwnPtr<AllocatingMemoryStream> m_input_stream;

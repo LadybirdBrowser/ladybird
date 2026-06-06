@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Response.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -21,9 +23,8 @@ namespace Web::Fetch {
 
 GC_DEFINE_ALLOCATOR(Response);
 
-Response::Response(JS::Realm& realm, GC::Ref<Infrastructure::Response> response)
-    : Bindings::Wrappable(realm)
-    , m_response(response)
+Response::Response(GC::Ref<Infrastructure::Response> response)
+    : m_response(response)
 {
 }
 
@@ -64,14 +65,19 @@ GC::Ptr<Infrastructure::Body> Response::body_impl()
 }
 
 // https://fetch.spec.whatwg.org/#response-create
-GC::Ref<Response> Response::create(JS::Realm& realm, GC::Ref<Infrastructure::Response> response, Headers::Guard guard)
+GC::Ref<Response> Response::create(GC::Ref<Infrastructure::Response> response)
+{
+    return GC::Heap::the().allocate<Response>(response);
+}
+
+GC::Ref<Response> Response::create(GC::Ref<Infrastructure::Response> response, Headers::Guard guard)
 {
     // 1. Let responseObject be a new Response object with realm.
     // 2. Set responseObject’s response to response.
-    auto response_object = realm.create<Response>(realm, response);
+    auto response_object = create(response);
 
     // 3. Set responseObject’s headers to a new Headers object with realm, whose headers list is response’s headers list and guard is guard.
-    response_object->m_headers = realm.create<Headers>(realm, response->header_list());
+    response_object->m_headers = Headers::create(response->header_list());
     response_object->m_headers->set_guard(guard);
 
     // 4. Return responseObject.
@@ -129,19 +135,22 @@ WebIDL::ExceptionOr<void> Response::initialize_response(Bindings::ResponseInit c
 }
 
 // https://fetch.spec.whatwg.org/#dom-response
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm, NullableBodyInit const& body, Bindings::ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, NullableBodyInit const& body, Bindings::ResponseInit const& init)
 {
-    auto& vm = realm.vm();
+    return construct_impl_for_realm(HTML::relevant_realm(global_scope), body, init);
+}
 
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl_for_realm(JS::Realm& realm, NullableBodyInit const& body, Bindings::ResponseInit const& init)
+{
     // Referred to as 'this' in the spec.
-    auto response_object = realm.create<Response>(realm, Infrastructure::Response::create(vm));
+    auto response_object = create(Infrastructure::Response::create());
 
     // 1. Set this’s response to a new response.
     // NOTE: This is done at the beginning as the 'this' value Response object
     //       cannot exist with a null Infrastructure::Response.
 
     // 2. Set this’s headers to a new Headers object with this’s relevant Realm, whose header list is this’s response’s header list and guard is "response".
-    response_object->m_headers = realm.create<Headers>(realm, response_object->response()->header_list());
+    response_object->m_headers = Headers::create(response_object->response()->header_list());
     response_object->m_headers->set_guard(Headers::Guard::Response);
 
     // 3. Let bodyWithType be null.
@@ -158,18 +167,16 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-error
-GC::Ref<Response> Response::error(JS::VM& vm)
+GC::Ref<Response> Response::error(JS::VM&)
 {
     // The static error() method steps are to return the result of creating a Response object, given a new network error, "immutable", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
-    return Response::create(*vm.current_realm(), Infrastructure::Response::network_error(vm, "Response created via `Response.error()`"_string), Headers::Guard::Immutable);
+    return Response::create(Infrastructure::Response::network_error("Response created via `Response.error()`"_string), Headers::Guard::Immutable);
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-redirect
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String const& url, u16 status)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM&, String const& url, u16 status)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let parsedURL be the result of parsing url with current settings object’s API base URL.
     auto api_base_url = HTML::current_settings_object().api_base_url();
     auto parsed_url = DOMURL::parse(url, api_base_url);
@@ -184,7 +191,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
 
     // 4. Let responseObject be the result of creating a Response object, given a new response, "immutable", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
-    auto response_object = Response::create(realm, Infrastructure::Response::create(vm), Headers::Guard::Immutable);
+    auto response_object = Response::create(Infrastructure::Response::create(), Headers::Guard::Immutable);
 
     // 5. Set responseObject’s response’s status to status.
     response_object->response()->set_status(status);
@@ -201,19 +208,17 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-json
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::VM& vm, JS::Value data, Bindings::ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::Realm& realm, JS::Value data, Bindings::ResponseInit const& init)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let bytes the result of running serialize a JavaScript value to JSON bytes on data.
-    auto bytes = TRY(Infra::serialize_javascript_value_to_json_bytes(vm, data));
+    auto bytes = TRY(Infra::serialize_javascript_value_to_json_bytes(realm, data));
 
     // 2. Let body be the result of extracting bytes.
     auto [body, _] = TRY(extract_body(realm, { bytes.bytes() }));
 
     // 3. Let responseObject be the result of creating a Response object, given a new response, "response", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
-    auto response_object = Response::create(realm, Infrastructure::Response::create(vm), Headers::Guard::Response);
+    auto response_object = Response::create(Infrastructure::Response::create(), Headers::Guard::Response);
 
     // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
     auto body_with_type = Infrastructure::BodyWithType {
@@ -278,10 +283,8 @@ GC::Ref<Headers> Response::headers() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-clone
-WebIDL::ExceptionOr<GC::Ref<Response>> Response::clone() const
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::clone(JS::Realm& realm) const
 {
-    auto& realm = this->realm();
-
     // 1. If this is unusable, then throw a TypeError.
     if (is_unusable())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Response is unusable"sv };
@@ -290,7 +293,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::clone() const
     auto cloned_response = m_response->clone(realm);
 
     // 3. Return the result of creating a Response object, given clonedResponse, this’s headers’s guard, and this’s relevant Realm.
-    return Response::create(HTML::relevant_realm(*this), cloned_response, m_headers->guard());
+    return Response::create(cloned_response, m_headers->guard());
 }
 
 }

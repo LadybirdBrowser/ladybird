@@ -8,11 +8,19 @@
 
 #include <AK/FlyString.h>
 #include <LibGC/Ptr.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/SpeechRecognitionEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/Speech/SpeechRecognitionResultList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::Speech {
 
@@ -21,8 +29,7 @@ class SpeechRecognitionEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechRecognitionEvent> create(JS::Realm&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionevent-resultindex
     WebIDL::UnsignedLong result_index() const { return m_result_index; }
@@ -31,7 +38,7 @@ public:
     GC::Ptr<SpeechRecognitionResultList> results() const { return m_results; }
 
 private:
-    SpeechRecognitionEvent(JS::Realm&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
+    SpeechRecognitionEvent(FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

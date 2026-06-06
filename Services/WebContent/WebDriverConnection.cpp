@@ -20,6 +20,7 @@
 #else
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
+#include <LibGC/Heap.h>
 #include <LibGC/Timer.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -27,6 +28,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -53,6 +55,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/NavigationObserver.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -196,7 +199,12 @@ static bool fire_an_event(FlyString const& name, Optional<Web::DOM::Element&> ta
     if (!target.has_value())
         return false;
 
-    auto event = T::create(target->realm(), name);
+    GC::Ref<T> event = [&] {
+        if constexpr (IsSame<T, Web::UIEvents::MouseEvent>)
+            return T::create(Web::HTML::relevant_global_object(*target), name, {});
+        else
+            return T::create(Web::HTML::relevant_global_object(*target), name);
+    }();
     return target->dispatch_event(event);
 }
 
@@ -379,15 +387,13 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
-        auto& realm = current_top_level_browsing_context()->active_document()->realm();
-
         // 3. Let timeout be session' session timeouts page load timeout.
         auto timeout = m_timeouts_configuration.page_load_timeout;
 
         // 4. Let timer be a new timer.
-        auto timer = realm.heap().allocate<GC::Timer>();
+        auto timer = GC::Heap::the().allocate<GC::Timer>();
 
-        auto on_complete = GC::create_function(realm.heap(), [this, timer]() {
+        auto on_complete = GC::create_function(GC::Heap::the(), [this, timer]() {
             timer->stop();
 
             if (m_document_observer) {
@@ -421,7 +427,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
 
         // 7. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or
         //    timer' timeout fired flag to be set, whichever occurs first.
-        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [this, timer, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
             if (timer->is_timed_out()) {
                 signal->resolve({});
                 return;
@@ -430,10 +436,8 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
             if (auto* document = current_top_level_browsing_context()->active_document(); document->page_showing()) {
                 on_complete->function()();
             } else {
-                auto& realm = document->realm();
-
-                m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
-                m_document_observer->set_document_page_showing_observer([on_complete](auto) {
+                m_document_observer = Web::DOM::DocumentObserver::create(*document);
+                m_document_observer->set_document_page_showing_observer([on_complete](bool) {
                     on_complete->function()();
                 });
             }
@@ -453,15 +457,13 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
 
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
-        auto& realm = current_top_level_browsing_context()->active_document()->realm();
-
         // 3. Let timeout be session' session timeouts page load timeout.
         auto timeout = m_timeouts_configuration.page_load_timeout;
 
         // 4. Let timer be a new timer.
-        auto timer = realm.heap().allocate<GC::Timer>();
+        auto timer = GC::Heap::the().allocate<GC::Timer>();
 
-        auto on_complete = GC::create_function(realm.heap(), [this, timer]() {
+        auto on_complete = GC::create_function(GC::Heap::the(), [this, timer]() {
             timer->stop();
 
             if (m_document_observer) {
@@ -495,7 +497,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
 
         // 7. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or
         //    timer' timeout fired flag to be set, whichever occurs first.
-        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [this, timer, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
             if (timer->is_timed_out()) {
                 signal->resolve({});
                 return;
@@ -504,10 +506,8 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
             if (auto* document = current_top_level_browsing_context()->active_document(); document->page_showing()) {
                 on_complete->function()();
             } else {
-                auto& realm = document->realm();
-
-                m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
-                m_document_observer->set_document_page_showing_observer([on_complete](auto) {
+                m_document_observer = Web::DOM::DocumentObserver::create(*document);
+                m_document_observer->set_document_page_showing_observer([on_complete](bool) {
                     on_complete->function()();
                 });
             }
@@ -649,7 +649,7 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
         auto* active_window = current_browsing_context().active_window();
         VERIFY(active_window);
 
-        Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->realm() };
+        Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->relevant_settings_object() };
         auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
 
         // 6. Let handle be the associated window handle of the newly created window.
@@ -712,7 +712,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 
         // 3. Try to handle any user prompts with session.
         handle_any_user_prompts([this, id = *id_value]() {
-            Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
+            Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->relevant_settings_object() };
 
             // 4. Let window be the associated window of session's current browsing context's active document.
             auto window = current_browsing_context().active_document()->window()->window();
@@ -958,7 +958,7 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
         restore_the_window(GC::create_function(current_top_level_browsing_context()->heap(), [this]() {
             auto* document = current_top_level_browsing_context()->active_document();
 
-            Web::HTML::TemporaryExecutionContext execution_context { document->realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            Web::HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 5. Call fullscreen an element with session's current top-level browsing context's active document's
             //    document element.
@@ -967,7 +967,7 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
             auto promise = document->document_element()->request_fullscreen(Web::DOM::Element::FullscreenRequester::WebDriver);
             ++m_pending_window_rect_requests;
 
-            Web::WebIDL::upon_rejection(promise, GC::create_function(document->heap(), [this, document](JS::Value) -> Web::WebIDL::ExceptionOr<JS::Value> {
+            Web::WebIDL::upon_rejection(promise, GC::create_function(GC::Heap::the(), [this, document](JS::Value) -> Web::WebIDL::ExceptionOr<JS::Value> {
                 async_driver_execution_complete(serialize_rect(compute_window_rect(document->page())));
                 --m_pending_window_rect_requests;
 
@@ -1033,7 +1033,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, location_strategy, selector = move(selector)]() mutable {
-        auto get_start_node = GC::create_function(current_browsing_context().heap(), [this]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        auto get_start_node = GC::create_function(GC::Heap::the(), [this]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
             // 7. Let start node be session's current browsing context's document element.
             auto* start_node = current_browsing_context().active_document();
 
@@ -1045,7 +1045,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
         });
 
         // 9. Let result be the result of trying to Find with session, start node, location strategy, and selector.
-        find(*location_strategy, move(selector), get_start_node, GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        find(*location_strategy, move(selector), get_start_node, GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             // 10. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
             async_driver_execution_complete(extract_first_element(move(result)));
         }));
@@ -1075,7 +1075,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, location_strategy, selector = move(selector)]() mutable {
-        auto get_start_node = GC::create_function(current_browsing_context().heap(), [this]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        auto get_start_node = GC::create_function(GC::Heap::the(), [this]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
             // 7. Let start node be session's current browsing context's document element.
             auto* start_node = current_browsing_context().active_document();
 
@@ -1087,7 +1087,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
         });
 
         // 9. Return the result of trying to Find with session, start node, location strategy, and selector.
-        find(*location_strategy, move(selector), get_start_node, GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        find(*location_strategy, move(selector), get_start_node, GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             async_driver_execution_complete(move(result));
         }));
     });
@@ -1115,13 +1115,13 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id, location_strategy, selector = move(selector)]() mutable {
-        auto get_start_node = GC::create_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        auto get_start_node = GC::create_function(GC::Heap::the(), [this, element_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
             // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
             return Web::WebDriver::get_known_element(current_browsing_context(), element_id);
         });
 
         // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
-        find(*location_strategy, move(selector), get_start_node, GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        find(*location_strategy, move(selector), get_start_node, GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
             async_driver_execution_complete(extract_first_element(move(result)));
         }));
@@ -1150,13 +1150,13 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
 
     // 6. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id, location_strategy, selector = move(selector)]() mutable {
-        auto get_start_node = GC::create_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        auto get_start_node = GC::create_function(GC::Heap::the(), [this, element_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
             // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
             return Web::WebDriver::get_known_element(current_browsing_context(), element_id);
         });
 
         // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
-        find(*location_strategy, move(selector), get_start_node, GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        find(*location_strategy, move(selector), get_start_node, GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             async_driver_execution_complete(move(result));
         }));
     });
@@ -1184,13 +1184,13 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
 
     // 6. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, shadow_id, location_strategy, selector = move(selector)]() mutable {
-        auto get_start_node = GC::create_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        auto get_start_node = GC::create_function(GC::Heap::the(), [this, shadow_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
             // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
             return Web::WebDriver::get_known_shadow_root(current_browsing_context(), shadow_id);
         });
 
         // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
-        find(*location_strategy, move(selector), get_start_node, GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        find(*location_strategy, move(selector), get_start_node, GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
             async_driver_execution_complete(extract_first_element(move(result)));
         }));
@@ -1219,13 +1219,13 @@ Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnectio
 
     // 6. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, shadow_id, location_strategy, selector = move(selector)]() mutable {
-        auto get_start_node = GC::create_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        auto get_start_node = GC::create_function(GC::Heap::the(), [this, shadow_id]() -> ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error> {
             // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
             return Web::WebDriver::get_known_shadow_root(current_browsing_context(), shadow_id);
         });
 
         // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
-        find(*location_strategy, move(selector), get_start_node, GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        find(*location_strategy, move(selector), get_start_node, GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             async_driver_execution_complete(move(result));
         }));
     });
@@ -1376,9 +1376,10 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
 
         // 4. Let name URL variables["name"].
         // 5. Let property be the result of calling the Object.[[GetProperty]](name) on element.
-        Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
+        Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->relevant_settings_object() };
 
-        auto wrapped_element = Web::Bindings::wrap(current_browsing_context().active_document()->realm(), element);
+        auto& realm = Web::HTML::relevant_realm(*current_browsing_context().active_document());
+        auto wrapped_element = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, element);
         if (auto property_or_error = wrapped_element->get(Utf16FlyString::from_utf8(name)); !property_or_error.is_throw_completion()) {
             auto property = property_or_error.release_value();
 
@@ -1628,7 +1629,7 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
     if (Web::WebDriver::is_element_obscured(paint_tree, *element_container))
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementClickIntercepted, "Element is obscured by another element"sv);
 
-    auto on_complete = GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+    auto on_complete = GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
         // 9. Wait until the user agent event loop has spun enough times to process the DOM events generated by the
         //    previous step.
         m_action_executor = nullptr;
@@ -1636,7 +1637,7 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
         // FIXME: 10. Perform implementation-defined steps to allow any navigations triggered by the click to start.
 
         // 11. Try to wait for navigation to complete.
-        wait_for_navigation_to_complete(GC::create_function(current_browsing_context().heap(), [this, result = move(result)](Web::WebDriver::Response navigation_result) mutable {
+        wait_for_navigation_to_complete(GC::create_function(GC::Heap::the(), [this, result = move(result)](Web::WebDriver::Response navigation_result) mutable {
             WEBDRIVER_TRY(navigation_result);
 
             // FIXME: 12. Try to run the post-navigation checks.
@@ -1695,7 +1696,7 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
         // 8. Fire a click event at parent node.
         fire_an_event<Web::UIEvents::MouseEvent>(Web::UIEvents::EventNames::click, parent_node);
 
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_browsing_context().heap(), [on_complete]() {
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [on_complete]() {
             on_complete->function()(JsonValue {});
         }));
     }
@@ -1753,7 +1754,7 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
         Vector actions { move(pointer_move_action), move(pointer_down_action), move(pointer_up_action) };
 
         // 16. Dispatch a list of actions with input state, actions, current browsing context, and actions options.
-        m_action_executor = Web::WebDriver::dispatch_list_of_actions(input_state, move(actions), current_browsing_context(), move(actions_options), GC::create_function(current_browsing_context().heap(), [on_complete, &input_state, input_id = move(input_id)](Web::WebDriver::Response result) {
+        m_action_executor = Web::WebDriver::dispatch_list_of_actions(input_state, move(actions), current_browsing_context(), move(actions_options), GC::create_function(GC::Heap::the(), [on_complete, &input_state, input_id = move(input_id)](Web::WebDriver::Response result) {
             // 17. Remove an input source with input state and input id.
             Web::WebDriver::remove_input_source(input_state, input_id);
 
@@ -1972,7 +1973,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
         //     2. change
         // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we spin
         //       the event loop once before informing the client that the action is complete.
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_browsing_context().heap(), [this]() {
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
             async_driver_execution_complete(JsonValue {});
         }));
 
@@ -2041,7 +2042,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
     Web::WebDriver::add_input_source(input_state, input_id, move(source));
 
     // 13. Dispatch actions for a string with arguments input state, input id, and source, text, and session's current browsing context.
-    m_action_executor = Web::WebDriver::dispatch_actions_for_a_string(input_state, input_id, source, text, current_browsing_context(), GC::create_function(current_browsing_context().heap(), [this, &input_state, input_id](Web::WebDriver::Response result) {
+    m_action_executor = Web::WebDriver::dispatch_actions_for_a_string(input_state, input_id, source, text, current_browsing_context(), GC::create_function(GC::Heap::the(), [this, &input_state, input_id](Web::WebDriver::Response result) {
         m_action_executor = nullptr;
 
         // 14. Remove an input source with input state and input id.
@@ -2101,7 +2102,7 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
         auto timeout_ms = m_timeouts_configuration.script_timeout;
 
         // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-        Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(current_browsing_context().heap(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
+        Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(GC::Heap::the(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
             dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
             handle_script_response(result, script_execution_id);
         }));
@@ -2128,7 +2129,7 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
         auto timeout_ms = m_timeouts_configuration.script_timeout;
 
         // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-        Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(current_browsing_context().heap(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
+        Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(GC::Heap::the(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
             dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
             handle_script_response(result, script_execution_id);
         }));
@@ -2377,7 +2378,7 @@ Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_a
 
         // 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this
         //    results in an error return that error.
-        auto on_complete = GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        auto on_complete = GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             m_action_executor = nullptr;
             async_driver_execution_complete(move(result));
         });
@@ -2420,7 +2421,7 @@ Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_a
         undo_actions.reverse();
 
         // 7. Try to dispatch actions with input state, undo actions, current browsing context, and actions options.
-        auto on_complete = GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        auto on_complete = GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response result) {
             m_action_executor = nullptr;
 
             // 8. Reset the input state with session and session's current top-level browsing context.
@@ -2447,7 +2448,7 @@ Messages::WebDriverClient::DismissAlertResponse WebDriverConnection::dismiss_ale
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
 
     // 3. Dismiss the current user prompt.
-    current_browsing_context().page().dismiss_dialog(GC::create_function(current_browsing_context().heap(), [this]() {
+    current_browsing_context().page().dismiss_dialog(GC::create_function(GC::Heap::the(), [this]() {
         async_driver_execution_complete(JsonValue {});
     }));
 
@@ -2466,7 +2467,7 @@ Messages::WebDriverClient::AcceptAlertResponse WebDriverConnection::accept_alert
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
 
     // 3. Accept the current user prompt.
-    current_browsing_context().page().accept_dialog(GC::create_function(current_browsing_context().heap(), [this]() {
+    current_browsing_context().page().accept_dialog(GC::create_function(GC::Heap::the(), [this]() {
         async_driver_execution_complete(JsonValue {});
     }));
 
@@ -2547,7 +2548,7 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
         auto window = document->window();
 
         // 2. When the user agent is next to run the animation frame callbacks:
-        (void)window->animation_frame_callback_driver().add(GC::create_function(document->heap(), [this, document](double) mutable {
+        (void)window->animation_frame_callback_driver().add(GC::create_function(GC::Heap::the(), [this, document](double) mutable {
             // a. Let root rect be session's current top-level browsing context's document element's rectangle.
             auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
 
@@ -2586,7 +2587,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
         scroll_element_into_view(element);
 
         // 5. When the user agent is next to run the animation frame callbacks:
-        (void)window->animation_frame_callback_driver().add(GC::create_function(document->heap(), [this, element](double) {
+        (void)window->animation_frame_callback_driver().add(GC::create_function(GC::Heap::the(), [this, element](double) {
             // a. Let element rect be element's rectangle.
             auto element_rect = calculate_absolute_rect_of_element(element);
 
@@ -2641,7 +2642,7 @@ void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::Brow
     m_current_top_level_browsing_context = browsing_context;
 
     if (m_current_top_level_browsing_context) {
-        m_current_top_level_browsing_context->page().set_window_rect_observer(GC::create_function(m_current_top_level_browsing_context->heap(), [this](Web::DevicePixelRect rect) {
+        m_current_top_level_browsing_context->page().set_window_rect_observer(GC::create_function(GC::Heap::the(), [this](Web::DevicePixelRect rect) {
             if (m_pending_window_rect_requests > 0 && --m_pending_window_rect_requests == 0)
                 async_driver_execution_complete(serialize_rect(rect.to_type<int>()));
         }));
@@ -2716,7 +2717,6 @@ static Web::WebDriver::Error create_annotated_unexpected_alert_open_error(Option
 void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_closed)
 {
     auto& page = current_browsing_context().page();
-    auto& heap = current_browsing_context().heap();
 
     // 1. If the current browsing context is not blocked by a dialog return success.
     if (!page.has_pending_dialog()) {
@@ -2748,7 +2748,7 @@ void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_clo
     // 3. Let handler be get the prompt handler with type.
     auto handler = get_the_prompt_handler(type);
 
-    auto on_complete = GC::create_function(heap, [this, notify = handler.notify, pending_dialog_text = page.pending_dialog_text(), on_dialog_closed = GC::create_function(heap, move(on_dialog_closed))]() {
+    auto on_complete = GC::create_function(GC::Heap::the(), [this, notify = handler.notify, pending_dialog_text = page.pending_dialog_text(), on_dialog_closed = GC::create_function(GC::Heap::the(), move(on_dialog_closed))]() {
         // 5. If handler's notify is true, return annotated unexpected alert open error.
         if (notify == Web::WebDriver::PromptHandlerConfiguration::Notify::Yes) {
             async_driver_execution_complete(create_annotated_unexpected_alert_open_error(pending_dialog_text));
@@ -2795,7 +2795,6 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
         return;
     }
 
-    auto& realm = current_browsing_context().active_document()->realm();
     auto navigable = current_browsing_context().active_document()->navigable();
 
     if (!navigable || navigable->ongoing_navigation().has<Empty>()) {
@@ -2816,13 +2815,13 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
 
     // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout
     //    in milliseconds, return an error with error code timeout.
-    m_navigation_timer = realm.heap().allocate<GC::Timer>();
+    m_navigation_timer = GC::Heap::the().allocate<GC::Timer>();
 
     // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
     //    navigation to mature.
-    m_navigation_observer = realm.create<Web::HTML::NavigationObserver>(*navigable);
+    m_navigation_observer = Web::HTML::NavigationObserver::create(*navigable);
 
-    m_navigation_observer->set_navigation_complete([this, &realm, reset_observers]() {
+    m_navigation_observer->set_navigation_complete([this, reset_observers]() {
         reset_observers(*this);
 
         // 5. Let readiness target be the document readiness state associated with the current session’s page loading
@@ -2841,7 +2840,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
         // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
         //    or for the session page load timeout to pass, whichever occurs sooner.
         if (auto* document = current_browsing_context().active_document(); document->readiness() != readiness_target) {
-            m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
+            m_document_observer = Web::DOM::DocumentObserver::create(*document);
 
             m_document_observer->set_document_readiness_observer([this, readiness_target](Web::HTML::DocumentReadyState readiness) {
                 if (readiness == readiness_target)
@@ -2852,7 +2851,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
         }
     });
 
-    m_navigation_timer->start(m_timeouts_configuration.page_load_timeout.value_or(300'000), GC::create_function(realm.heap(), [this, on_complete, reset_observers]() {
+    m_navigation_timer->start(m_timeouts_configuration.page_load_timeout.value_or(300'000), GC::create_function(GC::Heap::the(), [this, on_complete, reset_observers]() {
         reset_observers(*this);
 
         auto did_time_out = m_navigation_timer->is_timed_out();
@@ -2927,22 +2926,21 @@ void WebDriverConnection::wait_for_visibility_state(GC::Ref<GC::Function<void()>
     static constexpr auto VISIBILITY_STATE_TIMEOUT_MS = 5'000;
 
     auto* document = current_top_level_browsing_context()->active_document();
-    auto& realm = document->realm();
 
     if (document->visibility_state_value() == target_visibility_state) {
         on_complete->function()();
         return;
     }
 
-    auto timer = realm.heap().allocate<GC::Timer>();
-    m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
+    auto timer = GC::Heap::the().allocate<GC::Timer>();
+    m_document_observer = Web::DOM::DocumentObserver::create(*document);
 
     m_document_observer->set_document_visibility_state_observer([timer, target_visibility_state](Web::HTML::VisibilityState visibility_state) {
         if (visibility_state == target_visibility_state)
             timer->stop_and_fire_timeout_handler();
     });
 
-    timer->start(VISIBILITY_STATE_TIMEOUT_MS, GC::create_function(realm.heap(), [this, on_complete]() {
+    timer->start(VISIBILITY_STATE_TIMEOUT_MS, GC::create_function(GC::Heap::the(), [this, on_complete]() {
         m_document_observer->set_document_visibility_state_observer({});
         m_document_observer = nullptr;
 
@@ -2981,7 +2979,7 @@ public:
         if (m_timer->is_timed_out())
             return;
 
-        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [this]() {
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
             search_for_element();
         }));
     }
@@ -3040,8 +3038,6 @@ GC_DEFINE_ALLOCATOR(ElementLocator);
 // https://w3c.github.io/webdriver/#dfn-find
 void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strategy, String selector, GetStartNode get_start_node, OnFindComplete on_complete)
 {
-    auto& realm = current_browsing_context().active_document()->realm();
-
     // 1. Let location strategy be equal to using.
     // 2. Let selector be equal to value.
 
@@ -3049,9 +3045,9 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
     auto timeout = m_timeouts_configuration.implicit_wait_timeout;
 
     // 4. Let timer be a new timer.
-    auto timer = realm.heap().allocate<GC::Timer>();
+    auto timer = GC::Heap::the().allocate<GC::Timer>();
 
-    auto wrapped_on_complete = GC::create_function(realm.heap(), [this, on_complete, timer](Web::WebDriver::Response result) {
+    auto wrapped_on_complete = GC::create_function(GC::Heap::the(), [this, on_complete, timer](Web::WebDriver::Response result) {
         m_element_locator = nullptr;
         timer->stop();
 
@@ -3061,14 +3057,14 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
     // 5. If timeout is not null:
     if (timeout.has_value()) {
         // 1. Start the timer with timer and timeout.
-        timer->start(*timeout, GC::create_function(realm.heap(), [wrapped_on_complete]() {
+        timer->start(*timeout, GC::create_function(GC::Heap::the(), [wrapped_on_complete]() {
             wrapped_on_complete->function()({ JsonArray {} });
         }));
     }
 
     // 6. Let elements returned be an empty List.
     // 7. While elements returned is empty and timer's timeout fired flag is not set:
-    m_element_locator = realm.create<ElementLocator>(current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
+    m_element_locator = GC::Heap::the().allocate<ElementLocator>(current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
     m_element_locator->search_for_element();
 }
 
@@ -3076,7 +3072,7 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
 ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JsonValue const& payload)
 {
     // Creating JSON objects below requires an execution context.
-    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
+    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->relevant_settings_object() };
 
     // 1. Let script be the result of getting a property named script from the parameters.
     // 2. If script is not a String, return error with error code invalid argument.

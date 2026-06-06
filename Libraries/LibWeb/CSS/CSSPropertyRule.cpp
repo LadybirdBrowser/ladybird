@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -14,13 +15,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(Utf16FlyString name, Utf16FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
 {
-    return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), inherits, move(initial_value));
+    return GC::Heap::the().allocate<CSSPropertyRule>(move(name), move(syntax), inherits, move(initial_value));
 }
 
-CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
-    : CSSRule(realm, Type::Property)
+CSSPropertyRule::CSSPropertyRule(Utf16FlyString name, Utf16FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+    : CSSRule(Type::Property)
     , m_name(move(name))
     , m_syntax(move(syntax))
     , m_inherits(inherits)
@@ -57,7 +58,7 @@ String CSSPropertyRule::serialized() const
 
     // 1. The string "@property" followed by a single SPACE (U+0020).
     // 2. The result of performing serialize an identifier on the rule’s name, followed by a single SPACE (U+0020).
-    builder.appendff("@property {} ", serialize_an_identifier(name().to_utf16_string().to_utf8_but_should_be_ported_to_utf16()));
+    builder.appendff("@property {} ", serialize_an_identifier(name()));
 
     // 3. The string "{ ", i.e., a single LEFT CURLY BRACKET (U+007B), followed by a SPACE (U+0020).
     builder.append("{ "sv);

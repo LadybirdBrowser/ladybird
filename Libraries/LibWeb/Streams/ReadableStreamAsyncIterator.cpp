@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamAsyncIterator.h>
@@ -30,7 +31,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStreamAsyncIte
 {
     // 1. Let reader be ? AcquireReadableStreamDefaultReader(stream).
     // 2. Set iterator’s reader to reader.
-    auto reader = TRY(acquire_readable_stream_default_reader(stream));
+    auto reader = TRY(acquire_readable_stream_default_reader(realm, stream));
 
     // 3. Let preventCancel be args[0]["preventCancel"].
     // 4. Set iterator’s prevent cancel to preventCancel.
@@ -65,9 +66,8 @@ class ReadableStreamAsyncIteratorReadRequest final : public ReadRequest {
     GC_DECLARE_ALLOCATOR(ReadableStreamAsyncIteratorReadRequest);
 
 public:
-    ReadableStreamAsyncIteratorReadRequest(JS::Realm& realm, ReadableStreamDefaultReader& reader, WebIDL::Promise& promise)
-        : m_realm(realm)
-        , m_reader(reader)
+    ReadableStreamAsyncIteratorReadRequest(ReadableStreamDefaultReader& reader, WebIDL::Promise& promise)
+        : m_reader(reader)
         , m_promise(promise)
     {
     }
@@ -76,7 +76,7 @@ public:
     virtual void on_chunk(JS::Value chunk) override
     {
         // 1. Resolve promise with chunk.
-        WebIDL::resolve_promise(m_realm, m_promise, chunk);
+        WebIDL::resolve_promise(promise_realm(), m_promise, chunk);
     }
 
     // close steps
@@ -86,7 +86,7 @@ public:
         readable_stream_default_reader_release(m_reader);
 
         // 2. Resolve promise with end of iteration.
-        WebIDL::resolve_promise(m_realm, m_promise, JS::js_special_empty_value());
+        WebIDL::resolve_promise(promise_realm(), m_promise, JS::js_special_empty_value());
     }
 
     // error steps, given e
@@ -96,19 +96,22 @@ public:
         readable_stream_default_reader_release(m_reader);
 
         // 2. Reject promise with e.
-        WebIDL::reject_promise(m_realm, m_promise, error);
+        WebIDL::reject_promise(promise_realm(), m_promise, error);
     }
 
 private:
+    JS::Realm& promise_realm() const
+    {
+        return WebIDL::promise_realm(m_promise);
+    }
+
     virtual void visit_edges(Visitor& visitor) override
     {
         Base::visit_edges(visitor);
-        visitor.visit(m_realm);
         visitor.visit(m_reader);
         visitor.visit(m_promise);
     }
 
-    GC::Ref<JS::Realm> m_realm;
     GC::Ref<ReadableStreamDefaultReader> m_reader;
     GC::Ref<WebIDL::Promise> m_promise;
 };
@@ -126,7 +129,7 @@ GC::Ref<WebIDL::Promise> ReadableStreamAsyncIterator::next_iteration_result(JS::
     auto promise = WebIDL::create_promise(realm);
 
     // 4. Let readRequest be a new read request with the following items:
-    auto read_request = heap().allocate<ReadableStreamAsyncIteratorReadRequest>(realm, m_reader, promise);
+    auto read_request = GC::Heap::the().allocate<ReadableStreamAsyncIteratorReadRequest>(m_reader, promise);
 
     // 5. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(m_reader, read_request);

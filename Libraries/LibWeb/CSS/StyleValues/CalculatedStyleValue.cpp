@@ -214,16 +214,16 @@ static CalculationNode::NumericValue clamp_and_censor_numeric_value(NumericCalcu
         });
 }
 
-static GC::Ptr<CSSNumericArray> reify_children(JS::Realm& realm, ReadonlySpan<NonnullRefPtr<CalculationNode const>> children)
+static GC::Ptr<CSSNumericArray> reify_children(ReadonlySpan<NonnullRefPtr<CalculationNode const>> children)
 {
     GC::RootVector<GC::Ref<CSSNumericValue>> reified_children;
     for (auto const& child : children) {
-        auto reified_child = child->reify(realm);
+        auto reified_child = child->reify();
         if (!reified_child)
             return nullptr;
         reified_children.append(reified_child.as_nonnull());
     }
-    return CSSNumericArray::create(realm, move(reified_children));
+    return CSSNumericArray::create(move(reified_children));
 }
 
 enum class EmitOuterParentheses {
@@ -854,12 +854,12 @@ bool NumericCalculationNode::is_computationally_independent() const
         [](auto const&) { return true; });
 }
 
-GC::Ptr<CSSNumericValue> NumericCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> NumericCalculationNode::reify() const
 {
     return m_value.visit(
-        [&realm](Number const& number) { return CSSUnitValue::create(realm, number.value(), "number"_fly_string); },
-        [&realm](Percentage const& percentage) { return CSSUnitValue::create(realm, percentage.value(), "percent"_fly_string); },
-        [&realm](auto const& dimension) { return CSSUnitValue::create(realm, dimension.raw_value(), dimension.unit_name()); });
+        [](Number const& number) { return CSSUnitValue::create(number.value(), "number"_fly_string); },
+        [](Percentage const& percentage) { return CSSUnitValue::create(percentage.value(), "percent"_fly_string); },
+        [](auto const& dimension) { return CSSUnitValue::create(dimension.raw_value(), dimension.unit_name()); });
 }
 
 NonnullRefPtr<SumCalculationNode const> SumCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -922,12 +922,12 @@ bool SumCalculationNode::is_computationally_independent() const
     return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
 }
 
-GC::Ptr<CSSNumericValue> SumCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> SumCalculationNode::reify() const
 {
-    auto reified_children = reify_children(realm, m_values);
+    auto reified_children = reify_children(m_values);
     if (!reified_children)
         return nullptr;
-    return CSSMathSum::create(realm, numeric_type().value(), reified_children.as_nonnull());
+    return CSSMathSum::create(numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<ProductCalculationNode const> ProductCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -989,12 +989,12 @@ bool ProductCalculationNode::is_computationally_independent() const
     return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
 }
 
-GC::Ptr<CSSNumericValue> ProductCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> ProductCalculationNode::reify() const
 {
-    auto reified_children = reify_children(realm, m_values);
+    auto reified_children = reify_children(m_values);
     if (!reified_children)
         return nullptr;
-    return CSSMathProduct::create(realm, numeric_type().value(), reified_children.as_nonnull());
+    return CSSMathProduct::create(numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<NegateCalculationNode const> NegateCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1041,12 +1041,12 @@ bool NegateCalculationNode::is_computationally_independent() const
     return m_value->is_computationally_independent();
 }
 
-GC::Ptr<CSSNumericValue> NegateCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> NegateCalculationNode::reify() const
 {
-    auto reified_value = m_value->reify(realm);
+    auto reified_value = m_value->reify();
     if (!reified_value)
         return nullptr;
-    return CSSMathNegate::create(realm, numeric_type().value(), reified_value.as_nonnull());
+    return CSSMathNegate::create(numeric_type().value(), reified_value.as_nonnull());
 }
 
 NonnullRefPtr<InvertCalculationNode const> InvertCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1099,12 +1099,12 @@ bool InvertCalculationNode::is_computationally_independent() const
     return m_value->is_computationally_independent();
 }
 
-GC::Ptr<CSSNumericValue> InvertCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> InvertCalculationNode::reify() const
 {
-    auto reified_value = m_value->reify(realm);
+    auto reified_value = m_value->reify();
     if (!reified_value)
         return nullptr;
-    return CSSMathInvert::create(realm, numeric_type().value(), reified_value.as_nonnull());
+    return CSSMathInvert::create(numeric_type().value(), reified_value.as_nonnull());
 }
 
 NonnullRefPtr<MinCalculationNode const> MinCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -1218,12 +1218,12 @@ bool MinCalculationNode::is_computationally_independent() const
     return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
 }
 
-GC::Ptr<CSSNumericValue> MinCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> MinCalculationNode::reify() const
 {
-    auto reified_children = reify_children(realm, m_values);
+    auto reified_children = reify_children(m_values);
     if (!reified_children)
         return nullptr;
-    return CSSMathMin::create(realm, numeric_type().value(), reified_children.as_nonnull());
+    return CSSMathMin::create(numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<MaxCalculationNode const> MaxCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -1290,12 +1290,12 @@ bool MaxCalculationNode::is_computationally_independent() const
     return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
 }
 
-GC::Ptr<CSSNumericValue> MaxCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> MaxCalculationNode::reify() const
 {
-    auto reified_children = reify_children(realm, m_values);
+    auto reified_children = reify_children(m_values);
     if (!reified_children)
         return nullptr;
-    return CSSMathMax::create(realm, numeric_type().value(), reified_children.as_nonnull());
+    return CSSMathMax::create(numeric_type().value(), reified_children.as_nonnull());
 }
 
 NonnullRefPtr<ClampCalculationNode const> ClampCalculationNode::create(NonnullRefPtr<CalculationNode const> min, NonnullRefPtr<CalculationNode const> center, NonnullRefPtr<CalculationNode const> max)
@@ -1397,15 +1397,15 @@ bool ClampCalculationNode::is_computationally_independent() const
         && m_max_value->is_computationally_independent();
 }
 
-GC::Ptr<CSSNumericValue> ClampCalculationNode::reify(JS::Realm& realm) const
+GC::Ptr<CSSNumericValue> ClampCalculationNode::reify() const
 {
-    auto lower = m_min_value->reify(realm);
-    auto value = m_center_value->reify(realm);
-    auto upper = m_max_value->reify(realm);
+    auto lower = m_min_value->reify();
+    auto value = m_center_value->reify();
+    auto upper = m_max_value->reify();
     if (!lower || !value || !upper)
         return nullptr;
 
-    return CSSMathClamp::create(realm, numeric_type().value(), lower.as_nonnull(), value.as_nonnull(), upper.as_nonnull());
+    return CSSMathClamp::create(numeric_type().value(), lower.as_nonnull(), value.as_nonnull(), upper.as_nonnull());
 }
 
 NonnullRefPtr<AbsCalculationNode const> AbsCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -3210,7 +3210,7 @@ GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyStr
 {
     // NB: This spec algorithm isn't really implementable here - it's incomplete, and assumes we don't already have a
     //     calculation tree. So we have a per-node method instead.
-    if (auto reified = m_calculation->reify(realm))
+    if (auto reified = m_calculation->reify())
         return *reified;
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090

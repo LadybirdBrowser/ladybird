@@ -21,6 +21,8 @@ class PerformanceTiming final : public Bindings::Wrappable {
 public:
     using AllowOwnPtr = TrueType;
 
+    static GC::Ref<PerformanceTiming> create(HTML::Window&);
+
     ~PerformanceTiming();
 
     u64 navigation_start()
@@ -67,11 +69,15 @@ public:
     }
 
 private:
-    explicit PerformanceTiming(JS::Realm&);
+    explicit PerformanceTiming(HTML::Window&);
 
-    DOM::DocumentLoadTimingInfo const& document_load_timing_info(JS::Object const& global_object) const;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    DOM::DocumentLoadTimingInfo const& document_load_timing_info() const;
     u64 monotonic_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const;
     u64 relative_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const;
+
+    GC::Ref<HTML::Window> m_window;
 };
 
 }

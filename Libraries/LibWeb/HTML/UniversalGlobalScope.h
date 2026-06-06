@@ -26,8 +26,8 @@ public:
     virtual DOM::EventTarget& this_impl() = 0;
     virtual DOM::EventTarget const& this_impl() const = 0;
 
-    WebIDL::ExceptionOr<String> btoa(String const& data) const;
-    WebIDL::ExceptionOr<String> atob(String const& data) const;
+    WebIDL::ExceptionOr<String> btoa(JS::Realm&, String const& data) const;
+    WebIDL::ExceptionOr<String> atob(JS::Realm&, String const& data) const;
     void queue_microtask(WebIDL::CallbackType&);
     WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, Bindings::StructuredSerializeOptions const&) const;
 

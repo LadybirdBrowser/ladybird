@@ -9,7 +9,7 @@ dictionary TextEncoderEncodeIntoResult {
 interface TextEncoder {
     constructor();
 
-    [NewObject] Uint8Array encode(optional USVString input = "");
+    [NeedsCallerRealm, NewObject] Uint8Array encode(optional USVString input = "");
     TextEncoderEncodeIntoResult encodeInto(USVString source, [AllowShared] Uint8Array destination);
 };
 

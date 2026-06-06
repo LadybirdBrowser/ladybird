@@ -25,7 +25,7 @@ class TransformStream final
 public:
     virtual ~TransformStream() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> construct_impl(JS::Realm&, GC::Ptr<JS::Object> transformer_object = {}, Bindings::QueuingStrategy const& writable_strategy = {}, Bindings::QueuingStrategy const& readable_strategy = {});
+    static WebIDL::ExceptionOr<GC::Ref<TransformStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ptr<JS::Object> transformer_object = {}, Bindings::QueuingStrategy const& writable_strategy = {}, Bindings::QueuingStrategy const& readable_strategy = {});
 
     // https://streams.spec.whatwg.org/#ts-readable
     GC::Ref<ReadableStream> readable() { return *m_readable; }
@@ -40,20 +40,21 @@ public:
 
     GC::Ptr<WebIDL::Promise> backpressure_change_promise() const { return m_backpressure_change_promise; }
     void set_backpressure_change_promise(GC::Ptr<WebIDL::Promise> value) { m_backpressure_change_promise = value; }
+    JS::Realm& backpressure_change_promise_realm() const;
 
     GC::Ptr<TransformStreamDefaultController> controller() const { return m_controller; }
     void set_controller(GC::Ptr<TransformStreamDefaultController> value) { m_controller = value; }
 
-    void set_up(GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
+    void set_up(JS::Realm&, GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
     void enqueue(JS::Value chunk);
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::TransformStream; }
 
 private:
-    explicit TransformStream(JS::Realm& realm);
+    TransformStream();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

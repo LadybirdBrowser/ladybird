@@ -17,14 +17,14 @@ class CSSMatrixComponent final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSMatrixComponent);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMatrixComponent> create(JS::Realm&, Is2D, GC::Ref<Geometry::DOMMatrix>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> construct_impl(JS::Realm&, GC::Ref<Geometry::DOMMatrixReadOnly>, Optional<Bindings::CSSMatrixComponentOptions> = {});
+    [[nodiscard]] static GC::Ref<CSSMatrixComponent> create(Is2D, GC::Ref<Geometry::DOMMatrix>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> construct_impl(GC::Ref<Geometry::DOMMatrixReadOnly>, Optional<Bindings::CSSMatrixComponentOptions> = {});
 
     virtual ~CSSMatrixComponent() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
 
     GC::Ref<Geometry::DOMMatrix> matrix() const { return m_matrix; }
     WebIDL::ExceptionOr<void> set_matrix(GC::Ref<Geometry::DOMMatrix> matrix);
@@ -32,7 +32,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSMatrixComponent(JS::Realm&, Is2D, GC::Ref<Geometry::DOMMatrix>);
+    explicit CSSMatrixComponent(Is2D, GC::Ref<Geometry::DOMMatrix>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<Geometry::DOMMatrix> m_matrix;

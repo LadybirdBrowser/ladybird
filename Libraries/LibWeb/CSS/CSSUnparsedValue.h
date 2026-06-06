@@ -19,21 +19,21 @@ class CSSUnparsedValue final : public CSSStyleValue {
     GC_DECLARE_ALLOCATOR(CSSUnparsedValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
+    [[nodiscard]] static GC::Ref<CSSUnparsedValue> create(ReadonlySpan<CSSUnparsedSegment>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> construct_impl(ReadonlySpan<CSSUnparsedSegment>);
 
     virtual ~CSSUnparsedValue() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value) override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value) override;
 
     virtual WebIDL::ExceptionOr<String> to_string() const override;
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const override;
 
 private:
-    explicit CSSUnparsedValue(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
+    explicit CSSUnparsedValue(ReadonlySpan<CSSUnparsedSegment>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     bool contains_unparsed_value(CSSUnparsedValue const&) const;

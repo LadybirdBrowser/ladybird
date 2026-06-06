@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -33,7 +32,7 @@ PageClient& PageHost::create_page(u64 page_id)
 {
     VERIFY(page_id > 0);
     VERIFY(!m_pages.contains(page_id));
-    m_pages.set(page_id, PageClient::create(Web::Bindings::main_thread_vm(), *this, page_id));
+    m_pages.set(page_id, PageClient::create(*this, page_id));
     return *m_pages.get(page_id).value();
 }
 

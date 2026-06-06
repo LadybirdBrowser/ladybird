@@ -6,6 +6,7 @@
 
 #include "CSSFontFeatureValuesRule.h"
 #include <AK/QuickSort.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -17,9 +18,9 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFeatureValuesRule);
 
-GC::Ref<CSSFontFeatureValuesRule> CSSFontFeatureValuesRule::create(JS::Realm& realm, Vector<FlyString> font_families)
+GC::Ref<CSSFontFeatureValuesRule> CSSFontFeatureValuesRule::create(Vector<FlyString> font_families)
 {
-    return realm.create<CSSFontFeatureValuesRule>(realm, move(font_families));
+    return GC::Heap::the().allocate<CSSFontFeatureValuesRule>(move(font_families));
 }
 
 bool CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(FlyString const& keyword)
@@ -27,16 +28,16 @@ bool CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(FlyString c
     return first_is_one_of(keyword, "stylistic", "historical-forms", "styleset", "character-variant", "swash", "ornaments", "annotation");
 }
 
-CSSFontFeatureValuesRule::CSSFontFeatureValuesRule(JS::Realm& realm, Vector<FlyString> font_families)
-    : CSSRule(realm, CSSRule::Type::FontFeatureValues)
+CSSFontFeatureValuesRule::CSSFontFeatureValuesRule(Vector<FlyString> font_families)
+    : CSSRule(CSSRule::Type::FontFeatureValues)
     , m_font_families(move(font_families))
-    , m_annotation(realm.create<CSSFontFeatureValuesMap>(realm, 1, *this))
-    , m_ornaments(realm.create<CSSFontFeatureValuesMap>(realm, 1, *this))
-    , m_stylistic(realm.create<CSSFontFeatureValuesMap>(realm, 1, *this))
-    , m_swash(realm.create<CSSFontFeatureValuesMap>(realm, 1, *this))
-    , m_character_variant(realm.create<CSSFontFeatureValuesMap>(realm, 2, *this))
-    , m_styleset(realm.create<CSSFontFeatureValuesMap>(realm, AK::NumericLimits<size_t>::max(), *this))
-    , m_historical_forms(realm.create<CSSFontFeatureValuesMap>(realm, 1, *this))
+    , m_annotation(CSSFontFeatureValuesMap::create(1, *this))
+    , m_ornaments(CSSFontFeatureValuesMap::create(1, *this))
+    , m_stylistic(CSSFontFeatureValuesMap::create(1, *this))
+    , m_swash(CSSFontFeatureValuesMap::create(1, *this))
+    , m_character_variant(CSSFontFeatureValuesMap::create(2, *this))
+    , m_styleset(CSSFontFeatureValuesMap::create(AK::NumericLimits<size_t>::max(), *this))
+    , m_historical_forms(CSSFontFeatureValuesMap::create(1, *this))
 {
 }
 

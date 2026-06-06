@@ -7,9 +7,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
@@ -22,22 +24,17 @@ GC_DEFINE_ALLOCATOR(IDBRequest);
 
 IDBRequest::~IDBRequest() = default;
 
-IDBRequest::IDBRequest(JS::Realm& realm, IDBRequestSource source)
-    : EventTarget(realm)
+IDBRequest::IDBRequest(GC::Ref<DOM::EventTarget> relevant_global_object, IDBRequestSource source)
+    : EventTarget()
     , m_source(source)
+    , m_global_object(relevant_global_object)
     , m_uuid(Crypto::generate_random_uuid())
 {
 }
 
-void IDBRequest::initialize(JS::Realm& realm)
+GC::Ref<IDBRequest> IDBRequest::create(GC::Ref<DOM::EventTarget> relevant_global_object, IDBRequestSource source)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBRequest);
-    Base::initialize(realm);
-}
-
-GC::Ref<IDBRequest> IDBRequest::create(JS::Realm& realm, IDBRequestSource source)
-{
-    return realm.create<IDBRequest>(realm, source);
+    return GC::Heap::the().allocate<IDBRequest>(relevant_global_object, source);
 }
 
 void IDBRequest::visit_edges(Visitor& visitor)
@@ -46,7 +43,18 @@ void IDBRequest::visit_edges(Visitor& visitor)
     visitor.visit(m_result);
     visitor.visit(m_transaction);
     visitor.visit(m_source);
+    visitor.visit(m_global_object);
     visitor.visit(m_error);
+}
+
+JS::Object& IDBRequest::relevant_global_object() const
+{
+    return HTML::relevant_global_object(relevant_global_scope());
+}
+
+HTML::WindowOrWorkerGlobalScopeMixin& IDBRequest::relevant_global_scope() const
+{
+    return HTML::relevant_window_or_worker_global_scope(*m_global_object);
 }
 
 DOM::EventTarget* IDBRequest::get_parent(DOM::Event const&)
@@ -92,7 +100,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
 {
     // 1. If this's done flag is false, then throw an "InvalidStateError" DOMException.
     if (!m_done)
-        return WebIDL::InvalidStateError::create(realm(), "The request is not done"_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(relevant_global_object()), "The request is not done"_utf16);
 
     // 2. Otherwise, return this's error, or null if no error occurred.
     return m_error.value_or(nullptr);
@@ -103,7 +111,7 @@ WebIDL::CallbackType* IDBRequest::onerror()
 {
     // 1. If this's done flag is false, then throw an "InvalidStateError" DOMException.
     if (!m_done)
-        return WebIDL::InvalidStateError::create(realm(), "The request is not done"_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(relevant_global_object()), "The request is not done"_utf16);
 
     // 2. Otherwise, return this's result, or undefined if the request resulted in an error.
     if (m_error.has_value())

@@ -7,12 +7,16 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Event.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
@@ -21,37 +25,52 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(Event);
 
 // https://dom.spec.whatwg.org/#concept-event-create
-GC::Ref<Event> Event::create(JS::Realm& realm, FlyString const& event_name, Bindings::EventInit const& event_init)
+GC::Ref<Event> Event::create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::EventInit const& event_init)
 {
-    auto event = realm.create<Event>(realm, event_name, event_init);
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+// https://dom.spec.whatwg.org/#concept-event-create
+GC::Ref<Event> Event::create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = GC::Heap::the().allocate<Event>(event_name, time_stamp);
     // 4. Initialize event’s isTrusted attribute to true.
     event->m_is_trusted = true;
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<Event>> Event::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::EventInit const& event_init)
+// https://dom.spec.whatwg.org/#concept-event-create
+GC::Ref<Event> Event::create(FlyString const& event_name, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<Event>(realm, event_name, event_init);
+    auto event = GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
+    // 4. Initialize event’s isTrusted attribute to true.
+    event->m_is_trusted = true;
+    return event;
+}
+
+WebIDL::ExceptionOr<GC::Ref<Event>> Event::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope, FlyString const& event_name, Bindings::EventInit const& event_init)
+{
+    return GC::Heap::the().allocate<Event>(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(relevant_global_scope)));
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
-Event::Event(JS::Realm& realm, FlyString const& type)
-    : Wrappable(realm)
+Event::Event(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : Bindings::Wrappable()
     , m_type(type)
     , m_initialized(true)
-    , m_time_stamp(HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)))
+    , m_time_stamp(time_stamp)
 {
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
-Event::Event(JS::Realm& realm, FlyString const& type, Bindings::EventInit const& event_init)
-    : Wrappable(realm)
+Event::Event(FlyString const& type, Bindings::EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : Bindings::Wrappable()
     , m_type(type)
     , m_bubbles(event_init.bubbles)
     , m_cancelable(event_init.cancelable)
     , m_composed(event_init.composed)
     , m_initialized(true)
-    , m_time_stamp(HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)))
+    , m_time_stamp(time_stamp)
 {
 }
 
@@ -262,7 +281,7 @@ GC::Ptr<Bindings::PlatformObject> Event::current_target_wrapper_for_bindings(JS:
 {
     if (auto* window = as_if<HTML::Window>(m_current_target.ptr()))
         return window->window();
-    return Bindings::wrap(realm, m_current_target);
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, m_current_target);
 }
 
 JS::Value Event::current_target_value_for_bindings(JS::Realm& realm) const

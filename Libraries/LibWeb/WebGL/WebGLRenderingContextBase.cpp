@@ -12,9 +12,11 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibGC/Heap.h>
 #include <LibGfx/BitmapExport.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/SkiaUtils.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -22,6 +24,7 @@ extern "C" {
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -101,14 +104,13 @@ static constexpr Optional<Gfx::ExportFormat> determine_export_format(WebIDL::Uns
     return {};
 }
 
-WebGLRenderingContextBase::WebGLRenderingContextBase(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+WebGLRenderingContextBase::WebGLRenderingContextBase()
 {
 }
 
 struct Extension {
     Vector<StringView> required_angle_extensions;
-    JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> (*factory)(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> (*factory)(GC::Ref<WebGLRenderingContextBase>);
     Optional<OpenGLContext::WebGLVersion> only_for_webgl_version { OptionalNone {} };
 };
 
@@ -204,10 +206,8 @@ Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
     return webgl_extensions;
 }
 
-JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
+JS::Object* WebGLRenderingContextBase::get_extension(JS::Realm& wrapper_realm, String const& name)
 {
-    auto& wrapper_realm = *realm().vm().current_realm();
-
     // Returns an object if, and only if, name is an ASCII case-insensitive match [HTML] for one of the names returned
     // from getSupportedExtensions; otherwise, returns null. The object returned from getExtension contains any constants
     // or functions provided by the extension. A returned object may have no constants or functions if the extension does
@@ -222,7 +222,7 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
 
     auto maybe_extension = m_enabled_extensions.get(name);
     if (maybe_extension.has_value())
-        return Bindings::wrap(wrapper_realm, maybe_extension.release_value()).ptr();
+        return Bindings::wrap(Bindings::host_defined_wrapper_world(wrapper_realm), wrapper_realm, maybe_extension.release_value()).ptr();
 
     // If we pass the check above this will always return a value
     auto const& extension_info = available_webgl_extensions().get(name).release_value();
@@ -234,9 +234,9 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
         context().request_extension(null_terminated_string(required_extension).data());
     }
 
-    auto extension = MUST(extension_info.factory(realm(), *this));
+    auto extension = MUST(extension_info.factory(*this));
     m_enabled_extensions.set(name, extension);
-    return Bindings::wrap(wrapper_realm, extension).ptr();
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(wrapper_realm), wrapper_realm, extension).ptr();
 }
 
 void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::UnsignedLong format)
@@ -363,14 +363,14 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
     // FIXME: Implement this.
 
     // 2. Let promise be a new Promise created in the Realm of this WebGLRenderingContextBase.
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Let context be this.
     auto context = this;
 
     // 4. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, context, promise]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, context, promise]() {
         // 1. Let device be the result of ensuring an immersive XR device is selected.
         // FIXME: Implement https://immersive-web.github.io/webxr/#ensure-an-immersive-xr-device-is-selected
 
@@ -379,7 +379,7 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         // -> If context’s WebGL context lost flag is set:
         if (context->is_context_lost()) {
             // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, context]() {
                 context->set_xr_compatible(false);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "The WebGL context has been lost."_utf16));
@@ -388,7 +388,7 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         // -> If device is null:
         else if (false) {
             // Queue a task to set context’s XR compatible boolean to false and reject promise with an InvalidStateError.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, context]() {
                 context->set_xr_compatible(false);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Could not select an immersive XR device."_utf16));
@@ -397,7 +397,7 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         // -> If context’s XR compatible boolean is true:
         else if (context->xr_compatible()) {
             // Queue a task to resolve promise.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise]() {
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::resolve_promise(realm, promise);
             }));
@@ -406,7 +406,7 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         // FIXME: For now we just pretend that this happened, so that we can resolve the promise and proceed running basic WPT tests for this.
         else if (true) {
             // Queue a task to set context’s XR compatible boolean to true and resolve promise.
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, context]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, context]() {
                 context->set_xr_compatible(true);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 WebIDL::resolve_promise(realm, promise);
@@ -415,7 +415,7 @@ GC::Ref<WebIDL::Promise> WebGLRenderingContextBase::make_xr_compatible()
         // -> Otherwise:
         else {
             // Queue a task on the WebGL task source to perform the following steps:
-            HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(realm.heap(), []() {
+            HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(GC::Heap::the(), []() {
                 // 1. Force context to be lost.
 
                 // 2. Handle the context loss as described by the WebGL specification:

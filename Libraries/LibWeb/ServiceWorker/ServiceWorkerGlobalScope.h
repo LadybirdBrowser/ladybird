@@ -36,7 +36,7 @@ public:
     [[nodiscard]] GC::Ref<CookieStore::CookieStore> cookie_store();
 
 protected:
-    explicit ServiceWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
+    explicit ServiceWorkerGlobalScope(GC::Ref<Web::Page>);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

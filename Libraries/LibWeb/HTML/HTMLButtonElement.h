@@ -26,8 +26,6 @@ class HTMLButtonElement final
 
 public:
     virtual ~HTMLButtonElement() override;
-
-    virtual void initialize(JS::Realm&) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     enum class TypeAttributeState {

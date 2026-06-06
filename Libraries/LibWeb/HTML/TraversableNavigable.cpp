@@ -8,9 +8,9 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -41,8 +41,8 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
           page,
           page->client().is_svg_page_client(),
           Compositor::PagePresentationRegistration::Yes)
-    , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
-    , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
+    , m_storage_shed(StorageAPI::StorageShed::create())
+    , m_session_history_traversal_queue(GC::Heap::the().allocate<SessionHistoryTraversalQueue>())
 {
 }
 
@@ -78,7 +78,6 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
 GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
 {
-    auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
 
     // 1. Let document be null.
@@ -112,7 +111,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_trave
     document_state->set_about_base_url(document->about_base_url());
 
     // 5. Let traversable be a new traversable navigable.
-    auto traversable = vm.heap().allocate<TraversableNavigable>(page);
+    auto traversable = GC::Heap::the().allocate<TraversableNavigable>(page);
 
     // 6. Initialize the navigable traversable given documentState.
     traversable->initialize_navigable(document_state, nullptr, *document);
@@ -152,9 +151,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_fresh_top_level_tra
     // FIXME: We should not emulate by default, but ask the user what to do. E.g. disable Geolocation, set an emulated
     //        position, or allow Ladybird to engage with the system's geolocation services. This is completely separate
     //        from the permission model for "powerful features" such as Geolocation.
-    auto& realm = traversable->active_document()->realm();
-    auto emulated_position_coordinates = realm.create<Geolocation::GeolocationCoordinates>(
-        realm,
+    auto emulated_position_coordinates = GC::Heap::the().allocate<Geolocation::GeolocationCoordinates>(
         Geolocation::CoordinatesData {
             .accuracy = 100.0,
             .latitude = 37.7647658,
@@ -170,7 +167,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_fresh_top_level_tra
     //         Skip the initial navigation as well. This matches the behavior of the window open steps.
 
     if (url_matches_about_blank(initial_navigation_url)) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [traversable, initial_navigation_url] {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [traversable, initial_navigation_url] {
             // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
             HTML::HTMLParser::the_end(*traversable->active_document());
 
@@ -478,7 +475,7 @@ public:
         , m_navigation_api_abort_behavior(navigation_api_abort_behavior)
         , m_pending_document(pending_document)
         , m_on_complete(on_complete)
-        , m_timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
+        , m_timeout(Platform::Timer::create_single_shot(GC::Heap::the(), TIMEOUT_MS, GC::create_function(GC::Heap::the(), [this] {
             if (m_phase != Phase::Completed) {
                 dbgln("FIXME: ApplyHistoryStepState timed out in phase {} step={} changing={}/{} completed={}/{} cont={}/{} non_changing={}/{} url={}",
                     to_underlying(m_phase), m_step,
@@ -665,7 +662,7 @@ void ApplyHistoryStepState::start()
         // AD-HOC: Queue with navigable's active Document instead of using queue_global_task(active_window).
         //         During initial about:blank Window reuse, active_window()->associated_document() can already be
         //         the pending Document. This activation task must stay runnable against the current active Document.
-        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(heap(), [this, navigable] {
+        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(GC::Heap::the(), [this, navigable] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
             if (navigable->has_been_destroyed()) {
                 ++m_completed_change_jobs;
@@ -680,7 +677,7 @@ void ApplyHistoryStepState::start()
             auto target_entry = navigable->current_session_history_entry();
 
             // 3. Let changingNavigableContinuation be a changing navigable continuation state with:
-            auto changing_navigable_continuation = heap().allocate<ChangingNavigableContinuationState>();
+            auto changing_navigable_continuation = GC::Heap::the().allocate<ChangingNavigableContinuationState>();
             changing_navigable_continuation->displayed_document = navigable->active_document();
             changing_navigable_continuation->displayed_document_id = navigable->active_document_id();
             changing_navigable_continuation->target_entry = target_entry;
@@ -750,7 +747,7 @@ void ApplyHistoryStepState::start()
                 navigation->fire_a_traverse_navigate_event(*target_entry, m_user_involvement);
             }
 
-            auto after_document_populated = GC::create_function(heap(), [this, old_origin, changing_navigable_continuation, target_entry, navigable](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
+            auto after_document_populated = GC::create_function(GC::Heap::the(), [this, old_origin, changing_navigable_continuation, target_entry, navigable](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
                 changing_navigable_continuation->population_output = output;
                 changing_navigable_continuation->old_origin = old_origin;
 
@@ -826,7 +823,7 @@ void ApplyHistoryStepState::start()
                 //    targetSnapshotParams, userInvolvement, with allowPOST set to allowPOST and completionSteps set to
                 //    queue a global task on the navigation and traversal task source given navigable's active window to
                 //    run afterDocumentPopulated.
-                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated, user_involvement = m_user_involvement] {
+                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated, user_involvement = m_user_involvement] {
                     navigable->populate_session_history_entry_document(
                         move(input_url), move(input_document_resource), move(input_request_referrer),
                         input_request_referrer_policy, move(input_initiator_origin), move(input_origin),
@@ -835,12 +832,12 @@ void ApplyHistoryStepState::start()
                         *potentially_target_specific_source_snapshot_params, target_snapshot_params,
                         user_involvement, {}, Navigable::NullOrError {},
                         ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST,
-                        GC::create_function(this->heap(), [this, after_document_populated, navigable](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                        GC::create_function(GC::Heap::the(), [this, after_document_populated, navigable](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
                             VERIFY(m_traversable->active_window());
                             // AD-HOC: Queue with navigable's active Document instead of using queue_global_task(active_window).
                             //         During initial about:blank Window reuse, active_window()->associated_document() can already be
                             //         the pending Document. This continuation must stay runnable against the current active Document.
-                            queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(heap(), [after_document_populated, output]() {
+                            queue_a_task(Task::Source::NavigationAndTraversal, nullptr, navigable->active_document(), GC::create_function(GC::Heap::the(), [after_document_populated, output]() {
                                 after_document_populated->function()(output);
                             }));
                         }));
@@ -949,7 +946,7 @@ void ApplyHistoryStepState::process_continuations()
         bool const update_only = continuation->update_only;
         RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
         auto const displayed_document_id = continuation->displayed_document_id;
-        auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = m_navigation_type] {
+        auto after_potential_unload = GC::create_function(GC::Heap::the(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = m_navigation_type] {
             if (population_output)
                 population_output->apply_to(*target_entry);
 
@@ -960,8 +957,7 @@ void ApplyHistoryStepState::process_continuations()
                 auto resolved_document = continuation->resolved_document;
                 // 2. If targetEntry's document's origin is not oldOrigin, then set targetEntry's classic history API state to StructuredSerializeForStorage(null).
                 if (resolved_document->origin() != old_origin) {
-                    auto& vm = navigable->vm();
-                    target_entry->set_classic_history_api_state(MUST(structured_serialize_for_storage(vm, JS::js_null())));
+                    target_entry->set_classic_history_api_state(MUST(structured_serialize_for_storage(HTML::relevant_realm(*resolved_document), JS::js_null())));
                 }
 
                 // 3. If all of the following are true:
@@ -1008,7 +1004,7 @@ void ApplyHistoryStepState::process_continuations()
             }
             // 5. Otherwise, queue a global task on the navigation and traversal task source given targetEntry's document's relevant global object to perform updateDocument
             else {
-                queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*resolved_document), GC::create_function(heap(), move(update_document)));
+                queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*resolved_document), GC::create_function(GC::Heap::the(), move(update_document)));
             }
 
             // 6. Increment completedChangeJobs.
@@ -1056,7 +1052,7 @@ void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
         //         In the async state machine, documents can become non-fully-active between
         //         queue time and execution, causing the task to be permanently stuck.
         //         A null-document task is always runnable; we check validity inside.
-        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [this, navigable, script_history_length, script_history_index] {
+        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, navigable, script_history_length, script_history_index] {
             if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()->is_fully_active()) {
                 signal_progress();
                 return;
@@ -1154,7 +1150,7 @@ void TraversableNavigable::apply_the_history_step(
     //    and userInvolvement is not "continue", then return that result.
     if (check_for_cancelation) {
         check_if_unloading_is_canceled(navigables_crossing_documents, *this, target_step, user_involvement,
-            GC::create_function(heap(), [this, step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, pending_document, on_complete](CheckIfUnloadingIsCanceledResult result) mutable {
+            GC::create_function(GC::Heap::the(), [this, step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, pending_document, on_complete](CheckIfUnloadingIsCanceledResult result) mutable {
                 if (result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload) {
                     on_complete->function()(HistoryStepResult::CanceledByBeforeUnload);
                     return;
@@ -1183,7 +1179,7 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
     GC::Ptr<DOM::Document> pending_document,
     GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
-    auto state = heap().allocate<ApplyHistoryStepState>(*this, step, target_step, source_snapshot_params,
+    auto state = GC::Heap::the().allocate<ApplyHistoryStepState>(*this, step, target_step, source_snapshot_params,
         user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, pending_document, on_complete);
 
     VERIFY(!m_apply_history_step_state || m_paused_apply_history_step_state);
@@ -1207,7 +1203,7 @@ public:
         : m_traversable(traversable)
         , m_user_involvement(user_involvement)
         , m_callback(callback)
-        , m_timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
+        , m_timeout(Platform::Timer::create_single_shot(GC::Heap::the(), TIMEOUT_MS, GC::create_function(GC::Heap::the(), [this] {
             if (!m_completed) {
                 dbgln("FIXME: check_if_unloading_is_canceled timed out");
                 finish(Result::Continue);
@@ -1277,7 +1273,7 @@ private:
     {
         // 4. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
         VERIFY(m_traversable->active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*m_traversable->active_window()), GC::create_function(heap(), [this] {
+        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*m_traversable->active_window()), GC::create_function(GC::Heap::the(), [this] {
             // 1. if needsBeforeunload is true, then:
             if (m_needs_beforeunload) {
                 // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.
@@ -1346,7 +1342,7 @@ private:
             //         are only runnable when fully active. In the async state machine, documents can become non
             //         fully-active between queue and execution time, causing the task to be permanently stuck.
             //         A null-document task is always runnable; we check validity inside.
-            queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [this, document] {
+            queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, document] {
                 if (document->has_been_destroyed() || !document->is_fully_active()) {
                     did_complete_phase2_task();
                     return;
@@ -1413,7 +1409,7 @@ void TraversableNavigable::check_if_unloading_is_canceled(
     Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
     GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
 {
-    auto state = heap().allocate<CheckUnloadingCanceledState>(
+    auto state = GC::Heap::the().allocate<CheckUnloadingCanceledState>(
         traversable,
         user_involvement_for_navigate_events,
         callback);
@@ -1572,7 +1568,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
     }
 
     // 4. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
         // 1. Let allSteps be the result of getting all used history steps for traversable.
         auto all_steps = get_all_used_history_steps();
 
@@ -1591,7 +1587,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
         // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
         //    initiatorToCheck, and userInvolvement.
         apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement,
-            GC::create_function(heap(), [signal](HistoryStepResult) {
+            GC::create_function(GC::Heap::the(), [signal](HistoryStepResult) {
                 signal->resolve({});
             }));
     }));
@@ -1668,14 +1664,14 @@ void TraversableNavigable::definitely_close_top_level_traversable()
     auto to_unload = active_document()->inclusive_descendant_navigables();
 
     // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
-    check_if_unloading_is_canceled(move(to_unload), GC::create_function(heap(), [this](CheckIfUnloadingIsCanceledResult result) {
+    check_if_unloading_is_canceled(move(to_unload), GC::create_function(GC::Heap::the(), [this](CheckIfUnloadingIsCanceledResult result) {
         if (result != CheckIfUnloadingIsCanceledResult::Continue)
             return;
 
         // 3. Append the following session history traversal steps to traversable:
-        append_session_history_traversal_steps(GC::create_function(heap(), [this](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [this](NonnullRefPtr<Core::Promise<Empty>> signal) {
             // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
-            auto after_all_unloads = GC::create_function(heap(), [this] {
+            auto after_all_unloads = GC::create_function(GC::Heap::the(), [this] {
                 destroy_top_level_traversable();
             });
 
@@ -1803,7 +1799,7 @@ void TraversableNavigable::set_system_visibility_state(VisibilityState visibilit
 
         // 2. Queue a global task on the user interaction task source given document's relevant global object
         //    to update the visibility state of document with newState.
-        queue_global_task(Task::Source::UserInteraction, relevant_global_object(*document), GC::create_function(heap(), [visibility_state, document] {
+        queue_global_task(Task::Source::UserInteraction, relevant_global_object(*document), GC::create_function(GC::Heap::the(), [visibility_state, document] {
             document->update_the_visibility_state(visibility_state);
         }));
     }

@@ -15,7 +15,7 @@ class XRLayer : public DOM::EventTarget {
     WEB_WRAPPABLE(XRLayer, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(XRLayer);
 
-    XRLayer(JS::Realm&);
+    XRLayer();
 };
 
 }

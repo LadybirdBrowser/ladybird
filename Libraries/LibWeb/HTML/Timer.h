@@ -29,7 +29,7 @@ public:
 
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<Timer> create(JS::Object&, i32 milliseconds, Function<void()> callback, i32 id, Repeating);
+    static GC::Ref<Timer> create(i32 milliseconds, Function<void()> callback, i32 id, Repeating);
 
     void start();
     void stop();
@@ -38,13 +38,12 @@ public:
     void set_interval(i32 milliseconds);
 
 private:
-    Timer(JS::Object& window, i32 milliseconds, Function<void()> callback, i32 id, Repeating);
+    Timer(i32 milliseconds, Function<void()> callback, i32 id, Repeating);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
     RefPtr<Core::Timer> m_timer;
-    GC::Ref<JS::Object> m_window_or_worker_global_scope;
     i32 m_id { 0 };
 };
 

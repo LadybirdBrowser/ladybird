@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/XMLDocument.h>
 #include <LibWeb/DOM/XMLDocument.h>
 
@@ -11,20 +12,16 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(XMLDocument);
 
-GC::Ref<XMLDocument> XMLDocument::create(JS::Realm& realm, URL::URL const& url)
+GC::Ref<XMLDocument> XMLDocument::create(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url)
 {
-    return realm.create<XMLDocument>(realm, url);
+    auto document = GC::Heap::the().allocate<XMLDocument>(page, relevant_global_event_target, url);
+    document->initialize_document();
+    return document;
 }
 
-XMLDocument::XMLDocument(JS::Realm& realm, URL::URL const& url)
-    : Document(realm, url)
+XMLDocument::XMLDocument(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url)
+    : Document(page, relevant_global_event_target, url)
 {
-}
-
-void XMLDocument::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XMLDocument);
-    Base::initialize(realm);
 }
 
 }

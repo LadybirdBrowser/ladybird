@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 
 #include <GLES2/gl2.h>
@@ -16,13 +16,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLUniformLocation);
 
-GC::Ref<WebGLUniformLocation> WebGLUniformLocation::create(JS::Realm& realm, GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
+GC::Ref<WebGLUniformLocation> WebGLUniformLocation::create(GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
 {
-    return realm.create<WebGLUniformLocation>(realm, handle, parent_shader);
+    return GC::Heap::the().allocate<WebGLUniformLocation>(handle, parent_shader);
 }
 
-WebGLUniformLocation::WebGLUniformLocation(JS::Realm& realm, GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
-    : Wrappable(realm)
+WebGLUniformLocation::WebGLUniformLocation(GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
+    : Bindings::Wrappable()
     , m_handle(handle)
     , m_parent_shader(parent_shader)
 {

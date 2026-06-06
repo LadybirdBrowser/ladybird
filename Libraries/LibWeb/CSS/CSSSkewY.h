@@ -16,14 +16,14 @@ class CSSSkewY final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSSkewY);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSSkewY> create(JS::Realm&, GC::Ref<CSSNumericValue> ay);
-    static WebIDL::ExceptionOr<GC::Ref<CSSSkewY>> construct_impl(JS::Realm&, GC::Ref<CSSNumericValue> ay);
+    [[nodiscard]] static GC::Ref<CSSSkewY> create(GC::Ref<CSSNumericValue> ay);
+    static WebIDL::ExceptionOr<GC::Ref<CSSSkewY>> construct_impl(GC::Ref<CSSNumericValue> ay);
 
     virtual ~CSSSkewY() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
 
     GC::Ref<CSSNumericValue> ay() const { return m_ay; }
     WebIDL::ExceptionOr<void> set_ay(GC::Ref<CSSNumericValue> value);
@@ -33,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSSkewY(JS::Realm&, GC::Ref<CSSNumericValue> ay);
+    explicit CSSSkewY(GC::Ref<CSSNumericValue> ay);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_ay;

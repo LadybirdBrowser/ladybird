@@ -32,12 +32,6 @@ HTMLTableCellElement::HTMLTableCellElement(DOM::Document& document, DOM::Qualifi
 
 HTMLTableCellElement::~HTMLTableCellElement() = default;
 
-void HTMLTableCellElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableCellElement);
-    Base::initialize(realm);
-}
-
 bool HTMLTableCellElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

@@ -23,13 +23,13 @@ class ReadableStreamDefaultController : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ReadableStreamDefaultController);
 
 public:
-    explicit ReadableStreamDefaultController(JS::Realm&);
+    ReadableStreamDefaultController();
     virtual ~ReadableStreamDefaultController() override = default;
 
     Optional<double> desired_size();
 
     WebIDL::ExceptionOr<void> close();
-    WebIDL::ExceptionOr<void> enqueue(Optional<JS::Value> chunk);
+    WebIDL::ExceptionOr<void> enqueue(JS::Realm&, Optional<JS::Value> chunk);
     void error(Optional<JS::Value> error);
 
     GC::Ptr<CancelAlgorithm> cancel_algorithm() { return m_cancel_algorithm; }

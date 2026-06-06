@@ -7,19 +7,19 @@
 #pragma once
 
 #include <LibGfx/Rect.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::DOM {
 
-class CaretPosition final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CaretPosition, Bindings::PlatformObject);
+class CaretPosition final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CaretPosition, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CaretPosition);
 
 public:
-    [[nodiscard]] static GC::Ref<CaretPosition> create(JS::Realm&, GC::Ref<Node> offset_node, WebIDL::UnsignedLong offset, Optional<Gfx::FloatRect> client_rect);
+    [[nodiscard]] static GC::Ref<CaretPosition> create(GC::Ref<Node> offset_node, WebIDL::UnsignedLong offset, Optional<Gfx::FloatRect> client_rect);
 
     virtual ~CaretPosition() override;
 
@@ -29,9 +29,8 @@ public:
     GC::Ptr<Geometry::DOMRect> get_client_rect() const;
 
 private:
-    CaretPosition(JS::Realm&, GC::Ref<Node> offset_node, WebIDL::UnsignedLong offset, Optional<Gfx::FloatRect> client_rect);
+    CaretPosition(GC::Ref<Node> offset_node, WebIDL::UnsignedLong offset, Optional<Gfx::FloatRect> client_rect);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<Node> m_offset_node;

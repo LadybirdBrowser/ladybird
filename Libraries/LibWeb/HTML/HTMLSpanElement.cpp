@@ -19,10 +19,4 @@ HTMLSpanElement::HTMLSpanElement(DOM::Document& document, DOM::QualifiedName qua
 
 HTMLSpanElement::~HTMLSpanElement() = default;
 
-void HTMLSpanElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSpanElement);
-    Base::initialize(realm);
-}
-
 }

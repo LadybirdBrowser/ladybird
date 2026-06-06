@@ -6,7 +6,7 @@ interface WritableStream {
 
     readonly attribute boolean locked;
 
-    Promise<undefined> abort(optional any reason);
-    Promise<undefined> close();
-    WritableStreamDefaultWriter getWriter();
+    [NeedsThisObjectRealm] Promise<undefined> abort(optional any reason);
+    [NeedsThisObjectRealm] Promise<undefined> close();
+    [NeedsThisObjectRealm] WritableStreamDefaultWriter getWriter();
 };

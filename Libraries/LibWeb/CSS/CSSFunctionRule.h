@@ -36,7 +36,7 @@ class CSSFunctionRule : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionRule);
 
 public:
-    static GC::Ref<CSSFunctionRule> create(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
+    static GC::Ref<CSSFunctionRule> create(CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
     virtual ~CSSFunctionRule() override = default;
 
     FlyString name() const { return m_name; }
@@ -46,7 +46,7 @@ public:
     String serialized() const override;
 
 private:
-    CSSFunctionRule(JS::Realm&, CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
+    CSSFunctionRule(CSSRuleList&, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type);
 
     FlyString m_name;
     Vector<FunctionParameterInternal> m_parameters;

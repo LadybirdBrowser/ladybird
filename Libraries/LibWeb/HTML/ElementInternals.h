@@ -24,27 +24,27 @@ class ElementInternals final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ElementInternals);
 
 public:
-    static GC::Ref<ElementInternals> create(JS::Realm&, HTMLElement& target_element);
+    static GC::Ref<ElementInternals> create(HTMLElement& target_element);
 
     GC::Ptr<DOM::ShadowRoot> shadow_root() const;
 
     using ElementInternalsFormValue = Variant<GC::Ref<FileAPI::File>, String, GC::Ref<XHR::FormData>, Empty>;
-    WebIDL::ExceptionOr<void> set_form_value(ElementInternalsFormValue value, Optional<ElementInternalsFormValue> state);
+    WebIDL::ExceptionOr<void> set_form_value(JS::Realm&, ElementInternalsFormValue value, Optional<ElementInternalsFormValue> state);
 
-    WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> form() const;
+    WebIDL::ExceptionOr<GC::Ptr<HTMLFormElement>> form(JS::Realm&) const;
 
-    WebIDL::ExceptionOr<void> set_validity(Bindings::ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor);
-    WebIDL::ExceptionOr<bool> will_validate() const;
-    WebIDL::ExceptionOr<GC::Ref<ValidityState const>> validity() const;
-    WebIDL::ExceptionOr<String> validation_message() const;
-    WebIDL::ExceptionOr<bool> check_validity() const;
-    WebIDL::ExceptionOr<bool> report_validity() const;
+    WebIDL::ExceptionOr<void> set_validity(JS::Realm&, Bindings::ValidityStateFlags const& flags, Optional<String> message, GC::Ptr<HTMLElement> anchor);
+    WebIDL::ExceptionOr<bool> will_validate(JS::Realm&) const;
+    WebIDL::ExceptionOr<GC::Ref<ValidityState const>> validity(JS::Realm&) const;
+    WebIDL::ExceptionOr<String> validation_message(JS::Realm&) const;
+    WebIDL::ExceptionOr<bool> check_validity(JS::Realm&) const;
+    WebIDL::ExceptionOr<bool> report_validity(JS::Realm&) const;
 
-    WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> labels();
+    WebIDL::ExceptionOr<GC::Ptr<DOM::NodeList>> labels(JS::Realm&);
     GC::Ptr<CustomStateSet> states();
 
 private:
-    explicit ElementInternals(JS::Realm&, HTMLElement& target_element);
+    explicit ElementInternals(HTMLElement& target_element);
 
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 

@@ -6,6 +6,7 @@
 
 #include "CSSNestedDeclarations.h"
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
@@ -16,21 +17,21 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNestedDeclarations);
 
-GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
+GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
 {
-    auto rule = realm.create<CSSNestedDeclarations>(realm, parser.convert_to_style_declaration(declarations));
+    auto rule = GC::Heap::the().allocate<CSSNestedDeclarations>(parser.convert_to_style_declaration(declarations));
     if (!declarations.is_empty() && declarations.first().source_position.has_value())
         rule->set_source_position(declarations.first().source_position);
     return rule;
 }
 
-GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, CSSStyleProperties& declaration)
+GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(CSSStyleProperties& declaration)
 {
-    return realm.create<CSSNestedDeclarations>(realm, declaration);
+    return GC::Heap::the().allocate<CSSNestedDeclarations>(declaration);
 }
 
-CSSNestedDeclarations::CSSNestedDeclarations(JS::Realm& realm, CSSStyleProperties& declaration)
-    : CSSRule(realm, Type::NestedDeclarations)
+CSSNestedDeclarations::CSSNestedDeclarations(CSSStyleProperties& declaration)
+    : CSSRule(Type::NestedDeclarations)
     , m_declaration(declaration)
 {
     m_declaration->set_parent_rule(*this);

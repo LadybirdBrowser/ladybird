@@ -17,13 +17,13 @@ class WebGLDebugRendererInfo : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(WebGLDebugRendererInfo);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    WebGLDebugRendererInfo(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    WebGLDebugRendererInfo(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLImageElement.h>
 #include <LibWeb/Bindings/ImageConstructor.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -44,16 +45,16 @@ JS::ThrowCompletionOr<JS::Value> ImageConstructor::call()
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
-    auto& realm = *vm.current_realm();
+    auto& realm = *this->realm();
 
     // 1. Let document be the current global object's associated Document.
     auto& window = HTML::current_window();
     auto& document = window.associated_document();
 
     // 2. Let img be the result of creating an element given document, "img", and the HTML namespace.
-    auto image_element = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::img, Namespace::HTML); }));
+    auto image_element = TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&]() { return DOM::create_element(document, HTML::TagNames::img, Namespace::HTML); }));
     auto& html_image_element = as<HTML::HTMLImageElement>(*image_element);
-    auto wrapped_image_element = Bindings::wrap(realm, GC::Ref { html_image_element });
+    auto wrapped_image_element = Bindings::wrap(host_defined_wrapper_world(realm), realm, GC::Ref { html_image_element });
 
     // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
     TRY(WebIDL::set_prototype_from_new_target<HTMLImageElementPrototype>(vm, new_target, "HTMLImageElement"_fly_string, *wrapped_image_element));

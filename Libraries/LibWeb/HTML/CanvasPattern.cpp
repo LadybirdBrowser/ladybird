@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -14,9 +15,8 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CanvasPattern);
 
-CanvasPattern::CanvasPattern(JS::Realm& realm, Gfx::CanvasPatternPaintStyle& pattern)
-    : Wrappable(realm)
-    , m_pattern(pattern)
+CanvasPattern::CanvasPattern(Gfx::CanvasPatternPaintStyle& pattern)
+    : m_pattern(pattern)
 {
 }
 
@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& rea
     };
 
     // 1. Let usability be the result of checking the usability of image.
-    auto usability = TRY(check_usability_of_image(image));
+    auto usability = TRY(check_usability_of_image(realm, image));
 
     // 2. If usability is bad, then return null.
     if (usability == CanvasImageSourceUsability::Bad)
@@ -60,19 +60,18 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& rea
     // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by repetition.
     auto frame = canvas_image_source_frame(image);
     auto paint_style = TRY_OR_THROW_OOM(realm.vm(), Gfx::CanvasPatternPaintStyle::create(frame, *repetition_value));
-    auto pattern = realm.create<CanvasPattern>(realm, *paint_style);
 
     // FIXME: 7. If image is not origin-clean, then mark pattern as not origin-clean.
 
     // 8. Return pattern.
-    return pattern;
+    return GC::Heap::the().allocate<CanvasPattern>(*paint_style);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvaspattern-settransform
 WebIDL::ExceptionOr<void> CanvasPattern::set_transform(Bindings::DOMMatrix2DInit& transform)
 {
     // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-    auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(realm(), transform));
+    auto matrix = TRY(Geometry::DOMMatrix::create_from_dom_matrix_2d_init(transform));
 
     // 2. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
     if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))

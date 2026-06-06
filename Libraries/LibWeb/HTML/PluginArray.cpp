@@ -5,9 +5,9 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/PluginArray.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 
@@ -15,12 +15,24 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PluginArray);
 
-PluginArray::PluginArray(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+GC::Ref<PluginArray> PluginArray::create(Window& window)
+{
+    return GC::Heap::the().allocate<PluginArray>(window);
+}
+
+PluginArray::PluginArray(Window& window)
+    : Bindings::Wrappable()
+    , m_window(window)
 {
 }
 
 PluginArray::~PluginArray() = default;
+
+void PluginArray::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_window);
+}
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-pluginarray-refresh
 void PluginArray::refresh() const
@@ -32,8 +44,7 @@ void PluginArray::refresh() const
 Vector<FlyString> PluginArray::supported_property_names() const
 {
     // The PluginArray interface supports named properties. If the user agent's PDF viewer supported is true, then they are the PDF viewer plugin names. Otherwise, they are the empty list.
-    auto const& window = HTML::relevant_window(*this);
-    if (!window.page().pdf_viewer_supported())
+    if (!m_window->page().pdf_viewer_supported())
         return {};
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-names
@@ -52,16 +63,14 @@ Vector<FlyString> PluginArray::supported_property_names() const
 size_t PluginArray::length() const
 {
     // The PluginArray interface's length getter steps are to return this's relevant global object's PDF viewer plugin objects's size.
-    auto& window = HTML::relevant_window(*this);
-    return window.pdf_viewer_plugin_objects().size();
+    return m_window->pdf_viewer_plugin_objects().size();
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-pluginarray-item
 GC::Ptr<Plugin> PluginArray::item(u32 index) const
 {
     // 1. Let plugins be this's relevant global object's PDF viewer plugin objects.
-    auto& window = HTML::relevant_window(*this);
-    auto plugins = window.pdf_viewer_plugin_objects();
+    auto plugins = m_window->pdf_viewer_plugin_objects();
 
     // 2. If index < plugins's size, then return plugins[index].
     if (index < plugins.size())
@@ -75,8 +84,7 @@ GC::Ptr<Plugin> PluginArray::item(u32 index) const
 GC::Ptr<Plugin> PluginArray::named_item(FlyString const& name) const
 {
     // 1. For each Plugin plugin of this's relevant global object's PDF viewer plugin objects: if plugin's name is name, then return plugin.
-    auto& window = HTML::relevant_window(*this);
-    auto plugins = window.pdf_viewer_plugin_objects();
+    auto plugins = m_window->pdf_viewer_plugin_objects();
 
     for (auto& plugin : plugins) {
         if (plugin->name() == name)
@@ -87,20 +95,20 @@ GC::Ptr<Plugin> PluginArray::named_item(FlyString const& name) const
     return nullptr;
 }
 
-Optional<JS::Value> PluginArray::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> PluginArray::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     auto return_value = item(index);
     if (!return_value)
         return {};
-    return Bindings::wrap(realm, return_value).ptr();
+    return Bindings::wrap(wrapper_world, realm, return_value).ptr();
 }
 
-JS::Value PluginArray::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value PluginArray::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
 {
     auto return_value = named_item(name);
     if (!return_value)
         return JS::js_null();
-    return Bindings::wrap(realm, return_value).ptr();
+    return Bindings::wrap(wrapper_world, realm, return_value).ptr();
 }
 
 }

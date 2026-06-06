@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
@@ -247,51 +248,33 @@ Vector<String> ARIAMixin::parse_id_reference_list(Optional<String> const& id_lis
 ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                   \
-    Optional<Vector<GC::Weak<DOM::Element>> const&> ARIAMixin::attribute() const       \
-    {                                                                                  \
-        if (!m_##attribute)                                                            \
-            return {};                                                                 \
-        return *m_##attribute;                                                         \
-    }                                                                                  \
-                                                                                       \
-    void ARIAMixin::set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>> value)    \
-    {                                                                                  \
-        if (!value.has_value()) {                                                      \
-            m_##attribute.clear();                                                     \
-            return;                                                                    \
-        }                                                                              \
-        m_##attribute = make<Vector<GC::Weak<DOM::Element>>>(value.release_value());   \
-    }                                                                                  \
-                                                                                       \
-    GC::Ptr<JS::Array> ARIAMixin::cached_##attribute(JS::Realm& realm) const           \
-    {                                                                                  \
-        if (&realm == &to_element().realm())                                           \
-            return m_cached_##attribute.ptr();                                         \
-                                                                                       \
-        m_live_cached_##attribute.remove_all_matching([](auto const& value) {          \
-            return !value;                                                             \
-        });                                                                            \
-        for (auto const& value : m_live_cached_##attribute) {                          \
-            if (&value->shape().realm() == &realm)                                     \
-                return value.ptr();                                                    \
-        }                                                                              \
-                                                                                       \
-        return nullptr;                                                                \
-    }                                                                                  \
-                                                                                       \
-    void ARIAMixin::set_cached_##attribute(JS::Realm& realm, GC::Ptr<JS::Array> value) \
-    {                                                                                  \
-        if (&realm == &to_element().realm()) {                                         \
-            m_cached_##attribute = value.ptr();                                        \
-            return;                                                                    \
-        }                                                                              \
-                                                                                       \
-        m_live_cached_##attribute.remove_all_matching([&realm](auto const& value) {    \
-            return !value || &value->shape().realm() == &realm;                        \
-        });                                                                            \
-        if (value)                                                                     \
-            m_live_cached_##attribute.append(value.ptr());                             \
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)                 \
+    Optional<Vector<GC::Weak<DOM::Element>> const&> ARIAMixin::attribute() const     \
+    {                                                                                \
+        if (!m_##attribute)                                                          \
+            return {};                                                               \
+        return *m_##attribute;                                                       \
+    }                                                                                \
+                                                                                     \
+    void ARIAMixin::set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>> value)  \
+    {                                                                                \
+        if (!value.has_value()) {                                                    \
+            m_##attribute.clear();                                                   \
+            return;                                                                  \
+        }                                                                            \
+        m_##attribute = make<Vector<GC::Weak<DOM::Element>>>(value.release_value()); \
+    }                                                                                \
+                                                                                     \
+    GC::Ptr<JS::Array> ARIAMixin::cached_##attribute(                                \
+        Bindings::WrapperWorld const& wrapper_world) const                           \
+    {                                                                                \
+        return m_cached_##attribute.get(wrapper_world);                              \
+    }                                                                                \
+                                                                                     \
+    void ARIAMixin::set_cached_##attribute(                                          \
+        Bindings::WrapperWorld const& wrapper_world, GC::Ptr<JS::Array> value)       \
+    {                                                                                \
+        m_cached_##attribute.set(wrapper_world, value);                              \
     }
 ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE

@@ -11,10 +11,14 @@
 #include <AK/Optional.h>
 #include <AK/Variant.h>
 #include <LibGC/Root.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/TrackEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
+
+class Window;
 
 using NullableTrackType = Variant<GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>, Empty>;
 
@@ -23,14 +27,14 @@ class TrackEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(TrackEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<TrackEvent> create(JS::Realm&, FlyString const& event_name, Bindings::TrackEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<TrackEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::TrackEventInit const&);
+    [[nodiscard]] static GC::Ref<TrackEvent> create(FlyString const& event_name, Bindings::TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<TrackEvent>> construct_impl(Window&, FlyString const& event_name, Bindings::TrackEventInit const&);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-trackevent-track
     NullableTrackType track() const;
 
 private:
-    TrackEvent(JS::Realm&, FlyString const& event_name, Bindings::TrackEventInit const&);
+    TrackEvent(FlyString const& event_name, Bindings::TrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 

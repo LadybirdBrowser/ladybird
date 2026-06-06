@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/Navigation.h>
@@ -18,13 +20,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(History);
 
-GC::Ref<History> History::create(JS::Realm& realm)
+GC::Ref<History> History::create(DOM::Document& document)
 {
-    return realm.create<History>(realm);
+    return GC::Heap::the().allocate<History>(document);
 }
 
-History::History(JS::Realm& realm)
-    : Wrappable(realm)
+History::History(DOM::Document& document)
+    : Bindings::Wrappable()
+    , m_document(document)
 {
 }
 
@@ -33,40 +36,41 @@ History::~History() = default;
 void History::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_document);
     visitor.visit(m_state);
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-history-pushstate
 // The pushState(data, unused, url) method steps are to run the shared history push/replace state steps given this, data, url, and "push".
-WebIDL::ExceptionOr<void> History::push_state(JS::Value data, String const&, Optional<String> const& url)
+WebIDL::ExceptionOr<void> History::push_state(JS::Realm& realm, JS::Value data, String const&, Optional<String> const& url)
 {
-    return shared_history_push_replace_state(data, url, HistoryHandlingBehavior::Push);
+    return shared_history_push_replace_state(realm, data, url, HistoryHandlingBehavior::Push);
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-history-replacestate
 // The replaceState(data, unused, url) method steps are to run the shared history push/replace state steps given this, data, url, and "replace".
-WebIDL::ExceptionOr<void> History::replace_state(JS::Value data, String const&, Optional<String> const& url)
+WebIDL::ExceptionOr<void> History::replace_state(JS::Realm& realm, JS::Value data, String const&, Optional<String> const& url)
 {
-    return shared_history_push_replace_state(data, url, HistoryHandlingBehavior::Replace);
+    return shared_history_push_replace_state(realm, data, url, HistoryHandlingBehavior::Replace);
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-history-length
-WebIDL::ExceptionOr<u64> History::length() const
+WebIDL::ExceptionOr<u64> History::length(JS::Realm& realm) const
 {
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
-    if (!relevant_window(*this).associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform length on a document that isn't fully active."_utf16);
+    if (!m_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm, "Cannot perform length on a document that isn't fully active."_utf16);
 
     // 2. Return this's length.
     return m_length;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-state
-WebIDL::ExceptionOr<JS::Value> History::state() const
+WebIDL::ExceptionOr<JS::Value> History::state(JS::Realm& realm) const
 {
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
-    if (!relevant_window(*this).associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform state on a document that isn't fully active."_utf16);
+    if (!m_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm, "Cannot perform state on a document that isn't fully active."_utf16);
 
     // 2. Return this's state.
     return m_state;
@@ -78,14 +82,14 @@ JS::Value History::unsafe_state() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#delta-traverse
-WebIDL::ExceptionOr<void> History::delta_traverse(WebIDL::Long delta)
+WebIDL::ExceptionOr<void> History::delta_traverse(JS::Realm& realm, WebIDL::Long delta)
 {
     // 1. Let document be history's relevant global object's associated Document.
-    auto& document = relevant_window(*this).associated_document();
+    auto& document = *m_document;
 
     // 2. If document is not fully active, then throw a "SecurityError" DOMException.
     if (!document.is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform go on a document that isn't fully active."_utf16);
+        return WebIDL::SecurityError::create(realm, "Cannot perform go on a document that isn't fully active."_utf16);
 
     // 3. If delta is 0, then reload document's node navigable, and return.
     if (delta == 0) {
@@ -102,24 +106,24 @@ WebIDL::ExceptionOr<void> History::delta_traverse(WebIDL::Long delta)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-history-go
-WebIDL::ExceptionOr<void> History::go(WebIDL::Long delta = 0)
+WebIDL::ExceptionOr<void> History::go(JS::Realm& realm, WebIDL::Long delta = 0)
 {
     // The go(delta) method steps are to delta traverse this given delta.
-    return delta_traverse(delta);
+    return delta_traverse(realm, delta);
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-history-back
-WebIDL::ExceptionOr<void> History::back()
+WebIDL::ExceptionOr<void> History::back(JS::Realm& realm)
 {
     // The back() method steps are to delta traverse this given −1.
-    return delta_traverse(-1);
+    return delta_traverse(realm, -1);
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-history-forward
-WebIDL::ExceptionOr<void> History::forward()
+WebIDL::ExceptionOr<void> History::forward(JS::Realm& realm)
 {
     // The forward() method steps are to delta traverse this given +1.
-    return delta_traverse(1);
+    return delta_traverse(realm, 1);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#can-have-its-url-rewritten
@@ -163,16 +167,14 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#shared-history-push/replace-state-steps
-WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior history_handling)
+WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Realm& realm, JS::Value data, Optional<String> const& url, HistoryHandlingBehavior history_handling)
 {
-    auto& vm = realm().vm();
-
     // 1. Let document be history's relevant global object's associated Document.
-    auto& document = relevant_window(*this).associated_document();
+    auto& document = *m_document;
 
     // 2. If document is not fully active, then throw a "SecurityError" DOMException.
     if (!document.is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot perform pushState or replaceState on a document that isn't fully active."_utf16);
+        return WebIDL::SecurityError::create(realm, "Cannot perform pushState or replaceState on a document that isn't fully active."_utf16);
 
     // 3. Optionally, throw a "SecurityError" DOMException. (For example, the user agent might disallow calls to these
     //    methods that are invoked on a timer, or from event listeners that are not triggered in response to a clear
@@ -181,8 +183,8 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
     // 4. Let serializedData be StructuredSerializeForStorage(data). Rethrow any exceptions.
     //    FIXME: Actually rethrow exceptions here once we start using the serialized data.
     //           Throwing here on data types we don't yet serialize will regress sites that use push/replaceState.
-    auto serialized_data_or_error = structured_serialize_for_storage(vm, data);
-    auto serialized_data = serialized_data_or_error.is_error() ? MUST(structured_serialize_for_storage(vm, JS::js_null())) : serialized_data_or_error.release_value();
+    auto serialized_data_or_error = structured_serialize_for_storage(realm, data);
+    auto serialized_data = serialized_data_or_error.is_error() ? MUST(structured_serialize_for_storage(realm, JS::js_null())) : serialized_data_or_error.release_value();
 
     // 5. Let newURL be document's URL.
     auto new_url = document.url();
@@ -191,22 +193,22 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
     if (url.has_value() && !url->is_empty()) {
 
         // 1. Parse url, relative to the relevant settings object of history.
-        auto parsed_url = relevant_settings_object(*this).parse_url(url->to_byte_string());
+        auto parsed_url = document.relevant_settings_object().parse_url(url->to_byte_string());
 
         // 2. If that fails, then throw a "SecurityError" DOMException.
         if (!parsed_url.has_value())
-            return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_utf16);
+            return WebIDL::SecurityError::create(realm, "Cannot pushState or replaceState to incompatible URL"_utf16);
 
         // 3. Set newURL to the resulting URL record.
         new_url = parsed_url.release_value();
 
         // 4. If document cannot have its URL rewritten to newURL, then throw a "SecurityError" DOMException.
         if (!can_have_its_url_rewritten(document, new_url))
-            return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_utf16);
+            return WebIDL::SecurityError::create(realm, "Cannot pushState or replaceState to incompatible URL"_utf16);
     }
 
     // 7. Let navigation be history's relevant global object's navigation API.
-    auto navigation = relevant_window(*this).navigation();
+    auto navigation = document.window()->navigation();
 
     // 8. Let continue be the result of firing a push/replace/reload navigate event at navigation
     //    with navigationType set to historyHandling, isSameDocument set to true, destinationURL set to newURL,
@@ -225,15 +227,14 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-scroll-restoration
-WebIDL::ExceptionOr<Bindings::ScrollRestoration> History::scroll_restoration() const
+WebIDL::ExceptionOr<Bindings::ScrollRestoration> History::scroll_restoration(JS::Realm& realm) const
 {
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
-    auto& this_relevant_global_object = relevant_window(*this);
-    if (!this_relevant_global_object.associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot obtain scroll restoration mode for a document that isn't fully active."_utf16);
+    if (!m_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm, "Cannot obtain scroll restoration mode for a document that isn't fully active."_utf16);
 
     // 2. Return this's relevant global object's navigable's active session history entry's scroll restoration mode.
-    auto scroll_restoration_mode = this_relevant_global_object.navigable()->active_session_history_entry()->scroll_restoration_mode();
+    auto scroll_restoration_mode = m_document->navigable()->active_session_history_entry()->scroll_restoration_mode();
     switch (scroll_restoration_mode) {
     case ScrollRestorationMode::Auto:
         return Bindings::ScrollRestoration::Auto;
@@ -244,15 +245,14 @@ WebIDL::ExceptionOr<Bindings::ScrollRestoration> History::scroll_restoration() c
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-scroll-restoration
-WebIDL::ExceptionOr<void> History::set_scroll_restoration(Bindings::ScrollRestoration scroll_restoration)
+WebIDL::ExceptionOr<void> History::set_scroll_restoration(JS::Realm& realm, Bindings::ScrollRestoration scroll_restoration)
 {
     // 1. If this's relevant global object's associated Document is not fully active, then throw a "SecurityError" DOMException.
-    auto& this_relevant_global_object = relevant_window(*this);
-    if (!this_relevant_global_object.associated_document().is_fully_active())
-        return WebIDL::SecurityError::create(realm(), "Cannot set scroll restoration mode for a document that isn't fully active."_utf16);
+    if (!m_document->is_fully_active())
+        return WebIDL::SecurityError::create(realm, "Cannot set scroll restoration mode for a document that isn't fully active."_utf16);
 
     // 2. Set this's relevant global object's navigable's active session history entry's scroll restoration mode to the given value.
-    auto active_session_history_entry = this_relevant_global_object.navigable()->active_session_history_entry();
+    auto active_session_history_entry = m_document->navigable()->active_session_history_entry();
     switch (scroll_restoration) {
     case Bindings::ScrollRestoration::Auto:
         active_session_history_entry->set_scroll_restoration_mode(ScrollRestorationMode::Auto);

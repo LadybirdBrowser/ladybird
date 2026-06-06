@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/OESElementIndexUint.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESElementIndexUint);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESElementIndexUint::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESElementIndexUint::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<OESElementIndexUint>(realm, context);
+    auto extension = GC::Heap::the().allocate<OESElementIndexUint>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-OESElementIndexUint::OESElementIndexUint(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+OESElementIndexUint::OESElementIndexUint(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
 }

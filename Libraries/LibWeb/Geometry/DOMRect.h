@@ -17,10 +17,12 @@ class DOMRect final : public DOMRectReadOnly {
     GC_DECLARE_ALLOCATOR(DOMRect);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMRect>> construct_impl(JS::Realm&, double x = 0, double y = 0, double width = 0, double height = 0);
-    [[nodiscard]] static GC::Ref<DOMRect> create(JS::Realm&, Gfx::FloatRect const&);
-    [[nodiscard]] static GC::Ref<DOMRect> create(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMRect>> construct_impl(double x = 0, double y = 0, double width = 0, double height = 0);
+    [[nodiscard]] static GC::Ref<DOMRect> create(double x, double y, double width, double height);
+    [[nodiscard]] static GC::Ref<DOMRect> create(Gfx::FloatRect const&);
+    [[nodiscard]] static GC::Ref<DOMRect> create();
     [[nodiscard]] static GC::Ref<DOMRect> from_rect(JS::VM&, Bindings::DOMRectInit const&);
+    [[nodiscard]] static GC::Ref<DOMRect> from_rect(Bindings::DOMRectInit const&);
 
     virtual ~DOMRect() override;
 
@@ -35,8 +37,8 @@ public:
     void set_height(double height) { m_rect.set_height(height); }
 
 private:
-    DOMRect(JS::Realm&, double x, double y, double width, double height);
-    explicit DOMRect(JS::Realm&);
+    DOMRect(double x, double y, double width, double height);
+    DOMRect();
 };
 
 }

@@ -43,7 +43,7 @@ public:
 private:
     SVGUseElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_svg_use_element() const override { return true; }

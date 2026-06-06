@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/TrustedScript.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
@@ -26,7 +25,7 @@ public:
     Utf16String const& to_json() const;
 
 private:
-    explicit TrustedScript(JS::Realm&, Utf16String);
+    explicit TrustedScript(Utf16String);
 
     Utf16String const m_data;
 };

@@ -6,7 +6,6 @@
  */
 
 #include "CanvasTextDrawingStyles.h"
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -51,7 +50,7 @@ Variant<DOM::Document*, HTML::WorkerGlobalScope*> CanvasTextDrawingStyles<Canvas
         // 2. Otherwise, object's font style source object is an OffscreenCanvas object:
 
         // 1. Let global be object's relevant global object.
-        auto& global_object = HTML::relevant_global_object(font_style_source_object);
+        auto& global_object = font_style_source_object.relevant_global_object();
 
         // 2. If global is a Window object, then return global's associated Document.
         if (auto* window = window_from_global_object(global_object))

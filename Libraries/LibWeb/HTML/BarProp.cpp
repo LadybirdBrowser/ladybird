@@ -4,32 +4,38 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(BarProp);
 
-GC::Ref<BarProp> BarProp::create(JS::Realm& realm)
+GC::Ref<BarProp> BarProp::create(Window& window)
 {
-    return realm.create<BarProp>(realm);
+    return GC::Heap::the().allocate<BarProp>(window);
 }
 
-BarProp::BarProp(JS::Realm& realm)
-    : Wrappable(realm)
+BarProp::BarProp(Window& window)
+    : Bindings::Wrappable()
+    , m_window(window)
 {
+}
+
+void BarProp::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_window);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-barprop-visible
 bool BarProp::visible() const
 {
     // 1. Let browsingContext be this's relevant global object's browsing context.
-    auto browsing_context = relevant_window(*this).associated_document().browsing_context();
+    auto browsing_context = m_window->associated_document().browsing_context();
 
     // 2. If browsingContext is null, then return true.
     if (!browsing_context) {

@@ -30,7 +30,7 @@ private:
 
     virtual bool is_svg_foreign_object_element() const override { return true; }
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVG::SVGAnimatedLength> m_x;

@@ -20,7 +20,7 @@ class CSSFontFaceRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFontFaceRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
+    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(GC::Ref<CSSFontFaceDescriptors>);
 
     virtual ~CSSFontFaceRule() override = default;
 
@@ -36,7 +36,7 @@ public:
     void disconnect_font_face();
 
 private:
-    CSSFontFaceRule(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
+    CSSFontFaceRule(GC::Ref<CSSFontFaceDescriptors>);
     virtual String serialized() const override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

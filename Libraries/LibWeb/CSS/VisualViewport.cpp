@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/VisualViewport.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -20,19 +21,13 @@ GC_DEFINE_ALLOCATOR(VisualViewport);
 
 GC::Ref<VisualViewport> VisualViewport::create(DOM::Document& document)
 {
-    return document.realm().create<VisualViewport>(document);
+    return GC::Heap::the().allocate<VisualViewport>(document);
 }
 
 VisualViewport::VisualViewport(DOM::Document& document)
-    : DOM::EventTarget(document.realm())
+    : DOM::EventTarget()
     , m_document(document)
 {
-}
-
-void VisualViewport::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(VisualViewport);
-    Base::initialize(realm);
 }
 
 void VisualViewport::visit_edges(Cell::Visitor& visitor)

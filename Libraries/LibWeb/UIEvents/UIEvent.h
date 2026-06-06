@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/RefPtr.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Window.h>
@@ -18,8 +19,8 @@ class WEB_API UIEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(UIEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<UIEvent> create(JS::Realm&, FlyString const& type);
-    static WebIDL::ExceptionOr<GC::Ref<UIEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::UIEventInit const&);
+    [[nodiscard]] static GC::Ref<UIEvent> create(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<UIEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::UIEventInit const&);
 
     virtual ~UIEvent() override;
 
@@ -44,8 +45,8 @@ public:
     }
 
 protected:
-    UIEvent(JS::Realm&, FlyString const& event_name);
-    UIEvent(JS::Realm&, FlyString const& event_name, Bindings::UIEventInit const& event_init);
+    UIEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
+    UIEvent(FlyString const& event_name, Bindings::UIEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

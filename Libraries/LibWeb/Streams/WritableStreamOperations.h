@@ -18,16 +18,16 @@
 namespace Web::Streams {
 
 // 5.5.1. Working with writable streams, https://streams.spec.whatwg.org/#ws-abstract-ops
-WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> acquire_writable_stream_default_writer(WritableStream&);
+WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> acquire_writable_stream_default_writer(JS::Realm&, WritableStream&);
 WebIDL::ExceptionOr<GC::Ref<WritableStream>> create_writable_stream(JS::Realm& realm, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<WriteAlgorithm> write_algorithm, GC::Ref<CloseAlgorithm> close_algorithm, GC::Ref<AbortAlgorithm> abort_algorithm, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm);
 void initialize_writable_stream(WritableStream&);
 bool is_writable_stream_locked(WritableStream const&);
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(WritableStreamDefaultWriter&, WritableStream&);
-GC::Ref<WebIDL::Promise> writable_stream_abort(WritableStream&, JS::Value reason);
-GC::Ref<WebIDL::Promise> writable_stream_close(WritableStream&);
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(JS::Realm&, WritableStreamDefaultWriter&, WritableStream&);
+GC::Ref<WebIDL::Promise> writable_stream_abort(JS::Realm&, WritableStream&, JS::Value reason);
+GC::Ref<WebIDL::Promise> writable_stream_close(JS::Realm&, WritableStream&);
 
 // 5.5.2. Interfacing with controllers, https://streams.spec.whatwg.org/#ws-abstract-ops-used-by-controllers
-GC::Ref<WebIDL::Promise> writable_stream_add_write_request(WritableStream&);
+GC::Ref<WebIDL::Promise> writable_stream_add_write_request(JS::Realm&, WritableStream&);
 bool writable_stream_close_queued_or_in_flight(WritableStream const&);
 void writable_stream_deal_with_rejection(WritableStream&, JS::Value error);
 void writable_stream_finish_erroring(WritableStream&);
@@ -53,8 +53,8 @@ void writable_stream_default_writer_release(WritableStreamDefaultWriter&);
 GC::Ref<WebIDL::Promise> writable_stream_default_writer_write(WritableStreamDefaultWriter&, JS::Value chunk);
 
 // 5.5.4. Default controllers, https://streams.spec.whatwg.org/#ws-default-controller-abstract-ops
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(WritableStream&, WritableStreamDefaultController&, GC::Ref<StartAlgorithm>, GC::Ref<WriteAlgorithm>, GC::Ref<CloseAlgorithm>, GC::Ref<AbortAlgorithm>, double high_water_mark, GC::Ref<SizeAlgorithm>);
-WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(WritableStream&, JS::Value underlying_sink_value, Bindings::UnderlyingSink&, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm);
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller(JS::Realm&, WritableStream&, WritableStreamDefaultController&, GC::Ref<StartAlgorithm>, GC::Ref<WriteAlgorithm>, GC::Ref<CloseAlgorithm>, GC::Ref<AbortAlgorithm>, double high_water_mark, GC::Ref<SizeAlgorithm>);
+WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underlying_sink(JS::Realm&, WritableStream&, JS::Value underlying_sink_value, Bindings::UnderlyingSink&, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm);
 void writable_stream_default_controller_advance_queue_if_needed(WritableStreamDefaultController&);
 void writable_stream_default_controller_clear_algorithms(WritableStreamDefaultController&);
 void writable_stream_default_controller_close(WritableStreamDefaultController&);
@@ -65,6 +65,6 @@ JS::Value writable_stream_default_controller_get_chunk_size(WritableStreamDefaul
 double writable_stream_default_controller_get_desired_size(WritableStreamDefaultController const&);
 void writable_stream_default_controller_process_close(WritableStreamDefaultController&);
 void writable_stream_default_controller_process_write(WritableStreamDefaultController&, JS::Value chunk);
-void writable_stream_default_controller_write(WritableStreamDefaultController&, JS::Value chunk, JS::Value chunk_size);
+void writable_stream_default_controller_write(JS::Realm&, WritableStreamDefaultController&, JS::Value chunk, JS::Value chunk_size);
 
 }

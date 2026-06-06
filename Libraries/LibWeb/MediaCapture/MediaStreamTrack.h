@@ -23,7 +23,7 @@ class MediaStreamTrack final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(MediaStreamTrack);
 
 public:
-    static GC::Ref<MediaStreamTrack> create(JS::Realm&, Bindings::MediaStreamTrackKind, Optional<String> label = {}, bool muted = false);
+    static GC::Ref<MediaStreamTrack> create(Bindings::MediaStreamTrackKind, Optional<String> label = {}, bool muted = false);
 
     virtual ~MediaStreamTrack() override = default;
 
@@ -47,7 +47,7 @@ public:
     Bindings::MediaTrackCapabilities get_capabilities() const;
     Bindings::MediaTrackConstraints get_constraints() const;
     Bindings::MediaTrackSettings get_settings() const;
-    GC::Ref<WebIDL::Promise> apply_constraints(Optional<Bindings::MediaTrackConstraints> const& constraints);
+    GC::Ref<WebIDL::Promise> apply_constraints(JS::Realm&, Optional<Bindings::MediaTrackConstraints> const& constraints);
     void set_settings(Bindings::MediaTrackSettings settings);
 
     Optional<String> device_id() const;
@@ -57,9 +57,8 @@ public:
     u64 provider_id() const { return m_provider_id; }
 
 private:
-    explicit MediaStreamTrack(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit MediaStreamTrack();
+    virtual void visit_edges(Cell::Visitor&) override;
 
     static Atomic<u64> s_next_provider_id;
 

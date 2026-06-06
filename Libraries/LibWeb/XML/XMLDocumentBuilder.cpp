@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentType.h>
@@ -115,7 +116,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
 
     auto namespace_ = namespace_for_name(name);
 
-    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), namespace_, FlyString(MUST(String::from_byte_string(name))), DOM::ValidationContext::Element);
+    auto qualified_name_or_error = DOM::validate_and_extract(m_document->relevant_settings_object().realm(), namespace_, FlyString(MUST(String::from_byte_string(name))), DOM::ValidationContext::Element);
 
     if (qualified_name_or_error.is_error()) {
         m_has_error = true;
@@ -153,7 +154,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
         if (attribute.key == "xmlns" || attribute.key.starts_with("xmlns:"sv)) {
             // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
             if (!attribute.key.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
-                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                auto maybe_extracted_qualified_name = validate_and_extract(HTML::relevant_realm(*node), Namespace::XMLNS, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
                     node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
@@ -164,7 +165,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
             m_has_error = true;
         } else if (attribute.key.contains(':')) {
             if (auto namespace_for_key = namespace_for_name(attribute.key); namespace_for_key.has_value()) {
-                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), namespace_for_key, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                auto maybe_extracted_qualified_name = validate_and_extract(HTML::relevant_realm(*node), namespace_for_key, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
                     node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
@@ -173,7 +174,7 @@ void XMLDocumentBuilder::element_start(XML::Name const& name, OrderedHashMap<XML
             }
 
             if (attribute.key.starts_with("xml:"sv)) {
-                auto maybe_extracted_qualified_name = validate_and_extract(node->realm(), Namespace::XML, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
+                auto maybe_extracted_qualified_name = validate_and_extract(HTML::relevant_realm(*node), Namespace::XML, MUST(String::from_byte_string(attribute.key)), DOM::ValidationContext::Element);
                 if (!maybe_extracted_qualified_name.is_error()) {
                     auto extracted_qualified_name = maybe_extracted_qualified_name.release_value();
                     node->set_attribute_value(extracted_qualified_name.local_name(), MUST(String::from_byte_string(attribute.value)), extracted_qualified_name.prefix(), extracted_qualified_name.namespace_());
@@ -216,7 +217,7 @@ void XMLDocumentBuilder::element_end(XML::Name const& name)
 
             // 2. Spin the event loop until the parser's Document has no style sheet that is blocking scripts and the pending parsing-blocking script's "ready to be parser-executed" flag is set.
             if (m_document->has_a_style_sheet_that_is_blocking_scripts() || !pending_parsing_blocking_script->is_ready_to_be_parser_executed()) {
-                HTML::main_thread_event_loop().spin_until(GC::create_function(script_element.heap(), [&] {
+                HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
                     return !m_document->has_a_style_sheet_that_is_blocking_scripts() && pending_parsing_blocking_script->is_ready_to_be_parser_executed();
                 }));
             }
@@ -292,8 +293,6 @@ void XMLDocumentBuilder::processing_instruction(StringView target, StringView da
 
 void XMLDocumentBuilder::document_end()
 {
-    auto& heap = m_document->heap();
-
     // When an XML parser reaches the end of its input, it must stop parsing.
     // If the active speculative HTML parser is not null, then stop the speculative HTML parser and return.
     // NOTE: Noop.
@@ -319,7 +318,7 @@ void XMLDocumentBuilder::document_end()
     while (!m_document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing has its "ready to be parser-executed" flag set
         // and the parser's Document has no style sheet that is blocking scripts.
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
+        HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
             return m_document->scripts_to_execute_when_parsing_has_finished().first()->is_ready_to_be_parser_executed()
                 && !m_document->has_a_style_sheet_that_is_blocking_scripts();
         }));
@@ -331,12 +330,14 @@ void XMLDocumentBuilder::document_end()
         (void)m_document->scripts_to_execute_when_parsing_has_finished().take_first();
     }
     // Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*m_document), GC::create_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), [document = m_document] {
         // Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
         // Fire an event named DOMContentLoaded at the Document object, with its bubbles attribute initialized to true.
-        auto content_loaded_event = DOM::Event::create(document->realm(), HTML::EventNames::DOMContentLoaded);
+        auto content_loaded_event = DOM::Event::create(
+            HTML::EventNames::DOMContentLoaded,
+            HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
         content_loaded_event->set_bubbles(true);
         document->dispatch_event(content_loaded_event);
 
@@ -349,17 +350,17 @@ void XMLDocumentBuilder::document_end()
     }));
 
     // Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts that will execute in order as soon as possible are empty.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
         return m_document->scripts_to_execute_as_soon_as_possible().is_empty();
     }));
 
     // Spin the event loop until there is nothing that delays the load event in the Document.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
         return !m_document->anything_is_delaying_the_load_event();
     }));
 
     // Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*m_document), GC::create_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), [document = m_document] {
         // Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
 
@@ -376,7 +377,9 @@ void XMLDocumentBuilder::document_end()
         // Fire an event named load at window, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         // We should reorganize this so that the flag appears explicitly here instead.
-        window->dispatch_event(DOM::Event::create(document->realm(), HTML::EventNames::load));
+        window->dispatch_event(DOM::Event::create(
+            HTML::EventNames::load,
+            HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window))));
 
         // FIXME: Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "complete", and url is the Document object's URL.
 

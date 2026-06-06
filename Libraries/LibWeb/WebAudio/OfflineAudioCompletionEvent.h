@@ -6,8 +6,16 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::WebAudio {
 
@@ -16,14 +24,15 @@ class OfflineAudioCompletionEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(OfflineAudioCompletionEvent);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
+    static GC::Ref<OfflineAudioCompletionEvent> create(FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioCompletionEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
 
     virtual ~OfflineAudioCompletionEvent() override;
 
     GC::Ptr<AudioBuffer> rendered_buffer() const { return m_rendered_buffer; }
 
 private:
-    OfflineAudioCompletionEvent(JS::Realm&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
+    OfflineAudioCompletionEvent(FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

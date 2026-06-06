@@ -21,7 +21,7 @@ class ResizeObserverEntry : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ResizeObserverEntry);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> create_and_populate(JS::Realm&, DOM::Element& target);
+    static WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> create_and_populate(DOM::Element& target);
 
     GC::Ref<Geometry::DOMRectReadOnly> content_rect() const { return *m_content_rect; }
     GC::Ref<DOM::Element> target() const { return m_target; }
@@ -31,8 +31,8 @@ public:
     Vector<GC::Ref<ResizeObserverSize>> const& device_pixel_content_box_size() const { return m_device_pixel_content_box_size; }
 
 private:
-    explicit ResizeObserverEntry(JS::Realm& realm, DOM::Element& target)
-        : Wrappable(realm)
+    explicit ResizeObserverEntry(DOM::Element& target)
+        : Bindings::Wrappable()
         , m_target(target)
     {
     }

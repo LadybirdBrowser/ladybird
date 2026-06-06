@@ -24,12 +24,6 @@ HTMLSlotElement::HTMLSlotElement(DOM::Document& document, DOM::QualifiedName qua
 
 HTMLSlotElement::~HTMLSlotElement() = default;
 
-void HTMLSlotElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSlotElement);
-    Base::initialize(realm);
-}
-
 void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

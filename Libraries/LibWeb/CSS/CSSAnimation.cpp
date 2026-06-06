@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/CSSAnimation.h>
@@ -17,9 +18,9 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSAnimation);
 
-GC::Ref<CSSAnimation> CSSAnimation::create(JS::Realm& realm)
+GC::Ref<CSSAnimation> CSSAnimation::create(HTML::EnvironmentSettingsObject& environment)
 {
-    return realm.create<CSSAnimation>(realm);
+    return GC::Heap::the().allocate<CSSAnimation>(environment);
 }
 
 // https://www.w3.org/TR/css-animations-2/#animation-composite-order
@@ -94,7 +95,7 @@ void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties 
     auto& effect = as<Animations::KeyframeEffect>(*this->effect());
 
     if (!m_ignored_css_properties.contains(PropertyID::AnimationTimeline) && should_update_timeline(timeline(), animation_properties.timeline)) {
-        HTML::TemporaryExecutionContext context(realm());
+        HTML::TemporaryExecutionContext context(relevant_settings_object());
         set_timeline(animation_properties.timeline);
     }
 
@@ -114,10 +115,10 @@ void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties 
 
     if (animation_properties.play_state != last_css_animation_play_state()) {
         if (animation_properties.play_state == CSS::AnimationPlayState::Running && play_state() != Bindings::AnimationPlayState::Running) {
-            HTML::TemporaryExecutionContext context(realm());
+            HTML::TemporaryExecutionContext context(relevant_settings_object());
             play().release_value_but_fixme_should_propagate_errors();
         } else if (animation_properties.play_state == CSS::AnimationPlayState::Paused && play_state() != Bindings::AnimationPlayState::Paused) {
-            HTML::TemporaryExecutionContext context(realm());
+            HTML::TemporaryExecutionContext context(relevant_settings_object());
             pause().release_value_but_fixme_should_propagate_errors();
         }
 
@@ -133,8 +134,8 @@ void CSSAnimation::set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeli
     set_timeline(timeline);
 }
 
-CSSAnimation::CSSAnimation(JS::Realm& realm)
-    : Animations::Animation(realm)
+CSSAnimation::CSSAnimation(HTML::EnvironmentSettingsObject& environment)
+    : Animations::Animation(environment)
 {
     // FIXME:
     // CSS Animations generated using the markup defined in this specification are not added to the global animation
@@ -142,12 +143,6 @@ CSSAnimation::CSSAnimation(JS::Realm& realm)
     // moment when they transition out of the idle play state after being disassociated from their owning element. CSS
     // Animations that have been disassociated from their owning element but are still idle do not have a defined
     // composite order.
-}
-
-void CSSAnimation::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSAnimation);
-    Base::initialize(realm);
 }
 
 }

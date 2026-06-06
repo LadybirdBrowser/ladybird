@@ -17,14 +17,14 @@ class IdleDeadline final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(IdleDeadline);
 
 public:
-    [[nodiscard]] static GC::Ref<IdleDeadline> create(JS::Realm&, bool did_timeout = false);
+    [[nodiscard]] static GC::Ref<IdleDeadline> create(bool did_timeout = false);
     virtual ~IdleDeadline() override;
 
     double time_remaining() const;
     bool did_timeout() const { return m_did_timeout; }
 
 private:
-    IdleDeadline(JS::Realm&, bool did_timeout);
+    explicit IdleDeadline(bool did_timeout);
 
     bool m_did_timeout { false };
 };

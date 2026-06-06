@@ -6,11 +6,19 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/Animation.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Forward.h>
+
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
 
 namespace Web::Animations {
 
@@ -31,8 +39,8 @@ class Animation : public DOM::EventTarget {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<Animation> create(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
-    static GC::Ref<Animation> construct_impl(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
+    static GC::Ref<Animation> create(HTML::EnvironmentSettingsObject&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
+    static GC::Ref<Animation> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>, size_t argument_count);
 
     FlyString const& id() const { return m_id; }
     void set_id(FlyString value) { m_id = move(value); }
@@ -49,7 +57,7 @@ public:
     // https://drafts.csswg.org/web-animations-2/#dom-animation-starttime
     NullableCSSNumberish start_time_for_bindings() const
     {
-        return NullableCSSNumberish::from_optional_css_numberish_time(realm(), start_time());
+        return NullableCSSNumberish::from_optional_css_numberish_time(start_time());
     }
     Optional<TimeValue> start_time() const { return m_start_time; }
     WebIDL::ExceptionOr<void> set_start_time_for_bindings(NullableCSSNumberish const&);
@@ -59,7 +67,7 @@ public:
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
     NullableCSSNumberish current_time_for_bindings() const
     {
-        return NullableCSSNumberish::from_optional_css_numberish_time(realm(), current_time());
+        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
     }
     Optional<TimeValue> current_time() const;
     WebIDL::ExceptionOr<void> set_current_time_for_bindings(NullableCSSNumberish const&);
@@ -139,9 +147,10 @@ public:
     void set_last_css_animation_play_state(CSS::AnimationPlayState state) { m_last_css_animation_play_state = state; }
 
 protected:
-    Animation(JS::Realm&);
+    Animation(HTML::EnvironmentSettingsObject&);
 
-    virtual void initialize(JS::Realm&) override;
+    HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
+    JS::Object& relevant_global_object() const;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
@@ -186,6 +195,8 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#global-animation-list
     unsigned int m_global_animation_list_order { 0 };
+
+    GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-effect
     GC::Ptr<AnimationEffect> m_effect;

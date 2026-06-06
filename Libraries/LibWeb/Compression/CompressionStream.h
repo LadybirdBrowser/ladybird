@@ -32,16 +32,16 @@ class CompressionStream final
     GC_DECLARE_ALLOCATOR(CompressionStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> construct_impl(JS::Realm&, Bindings::CompressionFormat);
+    static WebIDL::ExceptionOr<GC::Ref<CompressionStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Bindings::CompressionFormat);
     virtual ~CompressionStream() override;
 
 private:
-    CompressionStream(JS::Realm&, GC::Ref<Streams::TransformStream>, Compressor, NonnullOwnPtr<AllocatingMemoryStream>);
+    CompressionStream(GC::Ref<Streams::TransformStream>, Compressor, NonnullOwnPtr<AllocatingMemoryStream>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> compress_and_enqueue_chunk(JS::Value);
-    WebIDL::ExceptionOr<void> compress_flush_and_enqueue();
+    WebIDL::ExceptionOr<void> compress_and_enqueue_chunk(JS::Realm&, JS::Value);
+    WebIDL::ExceptionOr<void> compress_flush_and_enqueue(JS::Realm&);
 
     enum class Finish {
         No,

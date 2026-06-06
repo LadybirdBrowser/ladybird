@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
@@ -95,12 +96,12 @@ void report_content_security_policy_violations_for_request(JS::Realm& realm, GC:
             continue;
 
         // 2. Let violates be the result of executing § 6.7.2.1 Does request violate policy? on request and policy.
-        auto violates = does_request_violate_policy(realm.heap(), request, policy);
+        auto violates = does_request_violate_policy(GC::Heap::the(), request, policy);
 
         // 3. If violates is not "Does Not Violate", then execute § 5.5 Report a violation on the result of executing
         //    § 2.4.2 Create a violation object for request, and policy. on request, and policy.
         if (violates) {
-            auto violation = Violation::create_a_violation_object_for_request_and_policy(realm, request, policy);
+            auto violation = Violation::create_a_violation_object_for_request_and_policy(request, policy);
             violation->report_a_violation(realm);
         }
     }
@@ -122,13 +123,13 @@ Directives::Directive::Result should_request_be_blocked_by_content_security_poli
             continue;
 
         // 2. Let violates be the result of executing § 6.7.2.1 Does request violate policy? on request and policy.
-        auto violates = does_request_violate_policy(realm.heap(), request, policy);
+        auto violates = does_request_violate_policy(GC::Heap::the(), request, policy);
 
         // 3. If violates is not "Does Not Violate", then:
         if (violates) {
             // 1. Execute § 5.5 Report a violation on the result of executing § 2.4.2 Create a violation object for
             //    request, and policy. on request, and policy.
-            auto violation = Violation::create_a_violation_object_for_request_and_policy(realm, request, policy);
+            auto violation = Violation::create_a_violation_object_for_request_and_policy(request, policy);
             violation->report_a_violation(realm);
 
             // 2. Set result to "Blocked".
@@ -216,10 +217,10 @@ Directives::Directive::Result should_response_to_request_be_blocked_by_content_s
         // 1. For each directive of policy:
         for (auto directive : policy->directives()) {
             // 1. If the result of executing directive’s post-request check is "Blocked", then:
-            if (directive->post_request_check(realm.heap(), request, response, policy) == Directives::Directive::Result::Blocked) {
+            if (directive->post_request_check(GC::Heap::the(), request, response, policy) == Directives::Directive::Result::Blocked) {
                 // 1. Execute § 5.5 Report a violation on the result of executing § 2.4.2 Create a violation object for
                 //    request, and policy. on request, and policy.
-                auto violation = Violation::create_a_violation_object_for_request_and_policy(realm, request, policy);
+                auto violation = Violation::create_a_violation_object_for_request_and_policy(request, policy);
                 violation->report_a_violation(realm);
 
                 // 2. If policy’s disposition is "enforce", then set result to "Blocked".
@@ -253,7 +254,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
             // 2. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive on navigation request’s
             //    client’s global object, policy, and directive’s name.
             auto& realm = navigation_request->client()->realm();
-            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, navigation_request->client()->global_object(), policy, directive->name());
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(navigation_request->client()->global_object(), policy, directive->name());
 
             // 3. Set violation’s resource to navigation request’s URL.
             violation->set_resource(navigation_request->url());
@@ -293,12 +294,12 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                 //        spec operation to serialize the URL.
                 auto& realm = navigation_request->client()->realm();
                 auto serialized_url = navigation_request->current_url().to_string();
-                if (directive->inline_check(realm.heap(), nullptr, Directives::Directive::InlineType::Navigation, policy, serialized_url) == Directives::Directive::Result::Allowed)
+                if (directive->inline_check(GC::Heap::the(), nullptr, Directives::Directive::InlineType::Navigation, policy, serialized_url) == Directives::Directive::Result::Allowed)
                     continue;
 
                 // 3. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global,
                 //    policy, and directive on navigation request’s client’s global object, policy, and directive-name.
-                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, navigation_request->client()->global_object(), policy, directive_name.to_string());
+                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(navigation_request->client()->global_object(), policy, directive_name.to_string());
 
                 // 4. Set violation’s resource to navigation request’s URL.
                 violation->set_resource(navigation_request->url());
@@ -348,7 +349,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
             // Spec Note: We use null for the global object, as no global exists: we haven’t processed the navigation to create a Document yet.
             // FIXME: What should the realm be here?
             auto& realm = navigation_request->client()->realm();
-            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, nullptr, policy, directive->name());
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(nullptr, policy, directive->name());
 
             // 3. Set violation’s resource to navigation response’s URL.
             if (navigation_response->url().has_value()) {
@@ -379,7 +380,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
 
             // 2. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive on navigation request’s client’s global object, policy, and directive’s name.
             auto& realm = navigation_request->client()->realm();
-            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, navigation_request->client()->global_object(), policy, directive->name());
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(navigation_request->client()->global_object(), policy, directive->name());
 
             // 3. Set violation’s resource to navigation request’s URL.
             violation->set_resource(navigation_request->url());
@@ -410,7 +411,7 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
     auto result = Directives::Directive::Result::Allowed;
 
     // 3. For each policy of element’s Document's global object’s CSP list:
-    auto& global_object = element->document().realm().global_object();
+    auto& global_object = element->document().relevant_settings_object().global_object();
     auto csp_list = PolicyList::from_object(global_object);
     VERIFY(csp_list);
 
@@ -419,7 +420,7 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
         for (auto const directive : policy->directives()) {
             // 1. If directive’s inline check returns "Allowed" when executed upon element, type, policy and source,
             //    skip to the next directive.
-            if (directive->inline_check(realm.heap(), element, type, policy, source) == Directives::Directive::Result::Allowed)
+            if (directive->inline_check(GC::Heap::the(), element, type, policy, source) == Directives::Directive::Result::Allowed)
                 continue;
 
             // 2. Let directive-name be the result of executing § 6.8.2 Get the effective directive for inline checks
@@ -430,7 +431,7 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
             //   policy, and directive on the current settings object’s global object, policy, and directive-name.
             // FIXME: File spec issue about using "current settings object" here, as it can run outside of a script
             //        context (for example, a just parsed inline script being prepared)
-            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, global_object, policy, directive_name.to_string());
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(global_object, policy, directive_name.to_string());
 
             // 4. Set violation’s resource to "inline".
             violation->set_resource(Violation::Resource::Inline);
@@ -520,7 +521,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
         // 5. Let sourceToValidate be a new TrustedScript object created in realm whose data is set to codeString
         //    if isTrusted is true, and codeString otherwise.
         auto const source_to_validate = is_trusted
-            ? TrustedTypes::TrustedScriptOrString(realm.create<TrustedTypes::TrustedScript>(realm, Utf16String::from_utf8(code_string)))
+            ? TrustedTypes::TrustedScriptOrString(GC::Heap::the().allocate<TrustedTypes::TrustedScript>(Utf16String::from_utf8(code_string)))
             : Utf16String::from_utf8(code_string);
 
         // 6. Let sourceString be the result of executing the Get Trusted Type compliant string algorithm,
@@ -587,7 +588,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
                 // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy,
                 //    and directive on global, policy, and "script-src".
                 auto script_src_string = Directives::Names::ScriptSrc.to_string();
-                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, script_src_string);
+                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, script_src_string);
 
                 // 2. Set violation’s resource to "eval".
                 violation->set_resource(Violation::Resource::Eval);
@@ -671,7 +672,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
                 // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy,
                 //    and directive on global, policy, and "script-src".
                 auto script_src_string = Directives::Names::ScriptSrc.to_string();
-                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, script_src_string);
+                auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, script_src_string);
 
                 // 2. Set violation’s resource to "wasm-eval".
                 violation->set_resource(Violation::Resource::WasmEval);
@@ -698,7 +699,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
 Directives::Directive::Result is_base_allowed_for_document(JS::Realm& realm, URL::URL const& base, GC::Ref<DOM::Document const> document)
 {
     // 1. For each policy of document’s global object’s csp list:
-    auto csp_list = PolicyList::from_object(document->realm().global_object());
+    auto csp_list = PolicyList::from_object(document->relevant_settings_object().global_object());
     VERIFY(csp_list);
     for (auto const policy : csp_list->policies()) {
         // 1. Let source list be null.
@@ -724,7 +725,7 @@ Directives::Directive::Result is_base_allowed_for_document(JS::Realm& realm, URL
             // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and
             //    directive on document’s global object, policy, and "base-uri".
             auto base_uri_string = Directives::Names::BaseUri.to_string();
-            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, HTML::relevant_global_object(*document->window()), policy, base_uri_string);
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(document->relevant_settings_object().global_object(), policy, base_uri_string);
 
             // 2. Set violation’s resource to "inline".
             violation->set_resource(Violation::Resource::Inline);

@@ -4,25 +4,29 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CookieChangeEvent.h>
 #include <LibWeb/CookieStore/CookieChangeEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::CookieStore {
 
 GC_DEFINE_ALLOCATOR(CookieChangeEvent);
 
-GC::Ref<CookieChangeEvent> CookieChangeEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
+GC::Ref<CookieChangeEvent> CookieChangeEvent::create(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<CookieChangeEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<CookieChangeEvent>(event_name, event_init, time_stamp);
 }
 
-GC::Ref<CookieChangeEvent> CookieChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
+GC::Ref<CookieChangeEvent> CookieChangeEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
 }
 
-CookieChangeEvent::CookieChangeEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+CookieChangeEvent::CookieChangeEvent(FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_changed(event_init.changed.value_or({}))
     , m_deleted(event_init.deleted.value_or({}))
 {

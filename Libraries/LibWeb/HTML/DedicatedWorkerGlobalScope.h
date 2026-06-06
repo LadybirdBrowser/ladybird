@@ -24,8 +24,8 @@ public:
 
     virtual ~DedicatedWorkerGlobalScope() override;
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const&);
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Bindings::StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
     void close();
 
@@ -38,7 +38,7 @@ public:
     virtual void finalize() override;
 
 private:
-    DedicatedWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
+    explicit DedicatedWorkerGlobalScope(GC::Ref<Web::Page>);
 
     virtual void initialize_web_interfaces_impl() override;
 };

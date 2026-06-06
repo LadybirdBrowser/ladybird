@@ -5,6 +5,7 @@
  */
 
 #include "PseudoElementParsing.h"
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 
 namespace Web::Animations {
@@ -17,7 +18,7 @@ WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseudo_eleme
     // 2. If value is not null and is an invalid <pseudo-element-selector>,
     Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
     if (value.has_value()) {
-        pseudo_element = parse_pseudo_element_selector(CSS::Parser::ParsingParams { realm }, *value);
+        pseudo_element = parse_pseudo_element_selector(CSS::Parser::ParsingParams {}, *value);
         if (!pseudo_element.has_value()) {
             // 1. Throw a DOMException with error name "SyntaxError".
             // 2. Abort.

@@ -6,6 +6,7 @@
  */
 
 #include <AK/Vector.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WorkerGlobalScope.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
@@ -29,20 +31,24 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(WorkerGlobalScope);
 
-WorkerGlobalScope::WorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
-    : DOM::EventTarget(realm)
+WorkerGlobalScope::WorkerGlobalScope(GC::Ref<Web::Page> page)
+    : DOM::EventTarget()
     , m_page(page)
 {
 }
 
 WorkerGlobalScope::~WorkerGlobalScope() = default;
 
+JS::Realm& WorkerGlobalScope::realm() const
+{
+    auto wrapper = cached_main_world_wrapper();
+    VERIFY(wrapper);
+    return wrapper->realm();
+}
+
 void WorkerGlobalScope::initialize_web_interfaces_impl()
 {
-    auto& realm = this->realm();
-    Base::initialize(realm);
-
-    WindowOrWorkerGlobalScopeMixin::initialize(realm);
+    WindowOrWorkerGlobalScopeMixin::initialize();
 
     m_navigator = WorkerNavigator::create(*this);
 }
@@ -167,15 +173,14 @@ ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(__ENUMERATE)
 GC::Ref<CSS::FontFaceSet> WorkerGlobalScope::fonts()
 {
     if (!m_fonts)
-        m_fonts = CSS::FontFaceSet::create(realm());
+        m_fonts = CSS::FontFaceSet::create(relevant_settings_object(*this));
     return *m_fonts;
 }
 
 GC::Ref<PolicyContainer> WorkerGlobalScope::policy_container() const
 {
-    auto& heap = this->heap();
     if (!m_policy_container) {
-        m_policy_container = heap.allocate<PolicyContainer>(heap);
+        m_policy_container = GC::Heap::the().allocate<PolicyContainer>(GC::Heap::the());
     }
     return *m_policy_container;
 }
@@ -183,8 +188,6 @@ GC::Ref<PolicyContainer> WorkerGlobalScope::policy_container() const
 // https://html.spec.whatwg.org/multipage/browsers.html#initialize-worker-policy-container
 void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment)
 {
-    auto& realm = this->realm();
-
     // 1. If workerGlobalScope's url is local but its scheme is not "blob":
     if (m_url.has_value() && Fetch::Infrastructure::is_local_url(m_url.value()) && m_url->scheme() != "blob"sv) {
         // FIXME: 1. Assert: workerGlobalScope's owner set's size is 1.
@@ -195,7 +198,7 @@ void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructur
 
     // 2. Otherwise, set workerGlobalScope's policy container to the result of creating a policy container from a fetch
     //    response given response and environment.
-    m_policy_container = create_a_policy_container_from_a_fetch_response(realm.heap(), response, environment);
+    m_policy_container = create_a_policy_container_from_a_fetch_response(response, environment);
 }
 
 // https://w3c.github.io/webappsec-csp/#run-global-object-csp-initialization

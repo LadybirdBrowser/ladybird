@@ -27,7 +27,7 @@ public:
     ErrorOr<GLuint> handle(WebGLRenderingContextBase const* context) const;
 
 protected:
-    explicit WebGLObject(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    explicit WebGLObject(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
     void visit_edges(GC::Cell::Visitor&) override;
 
     bool invalidated() const { return m_invalidated; }

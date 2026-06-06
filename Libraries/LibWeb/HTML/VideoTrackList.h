@@ -19,6 +19,8 @@ class VideoTrackList final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(VideoTrackList);
 
 public:
+    static GC::Ref<VideoTrackList> create(GC::Ptr<HTMLMediaElement> = nullptr);
+
     void add_track(GC::Ref<VideoTrack>);
     void remove_all_tracks();
 
@@ -50,12 +52,11 @@ public:
     WebIDL::CallbackType* onremovetrack();
 
 private:
-    explicit VideoTrackList(JS::Realm&, GC::Ptr<HTMLMediaElement> = nullptr);
+    explicit VideoTrackList(GC::Ptr<HTMLMediaElement> = nullptr);
 
     virtual void visit_edges(Visitor&) override;
 
-    virtual void initialize(JS::Realm&) override;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     GC::Ptr<HTMLMediaElement> m_media_element;
 

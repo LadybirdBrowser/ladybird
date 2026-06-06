@@ -5,6 +5,7 @@
  */
 
 #include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
@@ -16,12 +17,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CloseWatcherManager);
 
-GC::Ref<CloseWatcherManager> CloseWatcherManager::create(JS::Realm& realm)
+GC::Ref<CloseWatcherManager> CloseWatcherManager::create()
 {
-    return realm.create<CloseWatcherManager>(realm);
+    return GC::Heap::the().allocate<CloseWatcherManager>();
 }
 
-CloseWatcherManager::CloseWatcherManager(JS::Realm&)
+CloseWatcherManager::CloseWatcherManager()
 {
 }
 

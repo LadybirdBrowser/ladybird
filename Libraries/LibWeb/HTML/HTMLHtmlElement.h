@@ -26,8 +26,6 @@ public:
 
 private:
     HTMLHtmlElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual bool is_html_html_element() const override { return true; }
 };
 

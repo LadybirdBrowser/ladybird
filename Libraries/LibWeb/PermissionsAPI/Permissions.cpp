@@ -4,13 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/PermissionStatus.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
@@ -55,7 +57,7 @@ Bindings::PermissionState request_permission(Bindings::PermissionDescriptor cons
     auto key = permission_key_generation_algorithm(settings.top_level_origin.value(), settings.origin());
 
     // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
-    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(settings.realm().heap(), [descriptor, key, current_state] {
+    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(GC::Heap::the(), [descriptor, key, current_state] {
         PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
     }));
 
@@ -98,22 +100,18 @@ Bindings::PermissionState permission_state(Bindings::PermissionDescriptor descri
 
 GC_DEFINE_ALLOCATOR(Permissions);
 
-GC::Ref<Permissions> Permissions::create(JS::Realm& realm)
+GC::Ref<Permissions> Permissions::create()
 {
-    return realm.create<Permissions>(realm);
+    return GC::Heap::the().allocate<Permissions>();
 }
 
-Permissions::Permissions(JS::Realm& realm)
-    : Wrappable(realm)
-{
-}
+Permissions::Permissions() = default;
 
 // https://w3c.github.io/permissions/#query-method
-GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
+GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Realm& realm, JS::Value permission_desc)
 {
-    auto& realm = this->realm();
-
-    auto& relevant_global_object = HTML::relevant_global_object(*this);
+    auto& vm = realm.vm();
+    auto& relevant_global_object = HTML::current_global_object();
 
     // 1. If this's relevant global object is a Window object, then:
     if (auto* window = HTML::window_from_global_object(relevant_global_object)) {
@@ -126,7 +124,7 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
 
     // 2. Let rootDesc be the object permissionDesc refers to, converted to an IDL value of type PermissionDescriptor.
     // 3. If the conversion throws an exception, return a promise rejected with that exception.
-    auto root_desc_or_error = Bindings::convert_to_idl_value_for_permission_descriptor(realm.vm(), permission_desc);
+    auto root_desc_or_error = Bindings::convert_to_idl_value_for_permission_descriptor(vm, permission_desc);
     if (root_desc_or_error.is_error()) {
         return WebIDL::create_rejected_promise_from_exception(realm, root_desc_or_error.release_error());
     }
@@ -134,7 +132,7 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
 
     // 4. If rootDesc["name"] is not supported, return a promise rejected with a TypeError.
     if (!is_permission_supported(root_desc.name)) {
-        auto error = realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
+        auto error = vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
         return WebIDL::create_rejected_promise_from_exception(realm, error.release_error());
     }
 
@@ -150,7 +148,9 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
     // FIXME: Continue in parallel.
     {
         // 1. Let status be create a PermissionStatus with typedDescriptor.
-        auto status = PermissionStatus::create(realm, typed_descriptor);
+        auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(relevant_global_object);
+        VERIFY(global_scope);
+        auto status = PermissionStatus::create(global_scope->this_impl(), typed_descriptor);
 
         // 2. Let query be status's [[query]] internal slot.
         auto const& query = status->query();
@@ -160,9 +160,10 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
         permission_query_algorithm(query, status);
 
         // 4. Queue a global task on the permissions task source with this's relevant global object to resolve promise with status.
-        HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object, GC::create_function(realm.heap(), [&realm, promise, status]() mutable {
+        HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object, GC::create_function(GC::Heap::the(), [relevant_global_object = GC::Ref(relevant_global_object), promise, status]() mutable {
+            auto& realm = HTML::relevant_realm(relevant_global_object);
             HTML::TemporaryExecutionContext execution_context { realm };
-            WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, status));
+            WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, status));
         }));
     }
 

@@ -2145,7 +2145,7 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(D
                     .target = abstract_element,
                 };
 
-                return Animations::ScrollTimeline::create(abstract_element.element().realm(), abstract_element.document(), source, axis);
+                return Animations::ScrollTimeline::create(abstract_element.document(), source, axis);
             }
 
             //<view()>

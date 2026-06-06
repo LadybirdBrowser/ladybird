@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -30,8 +30,7 @@ HTML::TaskID queue_fetch_task(GC::Ref<FetchController> fetch_controller, TaskDes
 {
     auto fetch_task_id = fetch_controller->next_fetch_task_id();
 
-    auto& heap = fetch_controller->heap();
-    auto html_task_id = queue_fetch_task(task_destination, GC::create_function(heap, [fetch_controller, fetch_task_id, algorithm]() {
+    auto html_task_id = queue_fetch_task(task_destination, GC::create_function(GC::Heap::the(), [fetch_controller, fetch_task_id, algorithm]() {
         fetch_controller->fetch_task_complete(fetch_task_id);
         algorithm->function()();
     }));

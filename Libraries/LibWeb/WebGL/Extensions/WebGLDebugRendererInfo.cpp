@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/WebGLDebugRendererInfo.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
@@ -12,14 +12,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLDebugRendererInfo);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLDebugRendererInfo::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLDebugRendererInfo::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<WebGLDebugRendererInfo>(realm, context);
+    auto extension = GC::Heap::the().allocate<WebGLDebugRendererInfo>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-WebGLDebugRendererInfo::WebGLDebugRendererInfo(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+WebGLDebugRendererInfo::WebGLDebugRendererInfo(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
 }

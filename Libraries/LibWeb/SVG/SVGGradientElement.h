@@ -58,8 +58,6 @@ public:
 
 protected:
     SVGGradientElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGGradientElement const> linked_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;

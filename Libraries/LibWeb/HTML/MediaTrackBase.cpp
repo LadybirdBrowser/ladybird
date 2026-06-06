@@ -10,8 +10,8 @@
 
 namespace Web::HTML {
 
-MediaTrackBase::MediaTrackBase(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
-    : Bindings::Wrappable(realm)
+MediaTrackBase::MediaTrackBase(GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
+    : Bindings::Wrappable()
     , m_media_element(media_element)
     , m_track_in_playback_manager(track)
     , m_id(Utf16String::number(track.identifier()))

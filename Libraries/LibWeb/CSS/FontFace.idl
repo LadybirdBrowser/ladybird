@@ -18,17 +18,17 @@ enum FontFaceLoadStatus { "unloaded", "loading", "loaded", "error" };
 interface FontFace {
     // FIXME: BufferSource usage needs https://github.com/w3c/csswg-drafts/pull/10309
     constructor(CSSOMString family, (CSSOMString or BufferSource) source, optional FontFaceDescriptors descriptors = {});
-    attribute CSSOMString family;
-    attribute CSSOMString style;
-    attribute CSSOMString weight;
-    attribute CSSOMString stretch;
-    attribute CSSOMString unicodeRange;
-    attribute CSSOMString featureSettings;
-    attribute CSSOMString variationSettings;
-    attribute CSSOMString display;
-    attribute CSSOMString ascentOverride;
-    attribute CSSOMString descentOverride;
-    attribute CSSOMString lineGapOverride;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString family;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString style;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString weight;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString stretch;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString unicodeRange;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString featureSettings;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString variationSettings;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString display;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString ascentOverride;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString descentOverride;
+    [NeedsThisObjectRealmForSetter] attribute CSSOMString lineGapOverride;
 
     readonly attribute FontFaceLoadStatus status;
 

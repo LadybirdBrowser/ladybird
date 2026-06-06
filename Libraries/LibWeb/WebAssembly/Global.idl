@@ -19,6 +19,6 @@ dictionary GlobalDescriptor {
 [LegacyNamespace=WebAssembly, Exposed=*]
 interface Global {
     constructor(GlobalDescriptor descriptor, optional any v);
-    any valueOf();
-    attribute any value;
+    [NeedsCallerRealm] any valueOf();
+    [NeedsCallerRealm] attribute any value;
 };

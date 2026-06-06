@@ -21,11 +21,13 @@ class TextTrackObserver final : public GC::Cell {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
+    [[nodiscard]] static GC::Ref<TextTrackObserver> create(TextTrack&);
+
     [[nodiscard]] GC::Ptr<GC::Function<void(TextTrack::ReadinessState)>> track_readiness_observer() const { return m_track_readiness_observer; }
     void set_track_readiness_observer(Function<void(TextTrack::ReadinessState)>);
 
 private:
-    explicit TextTrackObserver(JS::Realm&, TextTrack&);
+    explicit TextTrackObserver(TextTrack&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;

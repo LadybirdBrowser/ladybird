@@ -19,7 +19,7 @@ class SVGViewElement final : public SVGGraphicsElement
 private:
     SVGViewElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Visitor&) override;
 
     virtual bool is_svg_view_element() const override { return true; }

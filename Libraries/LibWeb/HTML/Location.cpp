@@ -29,8 +29,9 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(Location);
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface
-Location::Location(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+Location::Location(Window& window)
+    : Bindings::Wrappable()
+    , m_window(window)
 {
 }
 
@@ -39,6 +40,7 @@ Location::~Location() = default;
 void Location::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_window);
 }
 
 }
@@ -92,7 +94,7 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
     // A Location object has an associated relevant Document, which is this Location object's
     // relevant global object's browsing context's active document, if this Location object's
     // relevant global object's browsing context is non-null, and null otherwise.
-    auto* browsing_context = relevant_window(*this).browsing_context();
+    auto* browsing_context = m_window->browsing_context();
     return browsing_context ? browsing_context->active_document() : nullptr;
 }
 
@@ -100,7 +102,7 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
 WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, Bindings::NavigationHistoryBehavior history_handling)
 {
     // 1. Let navigable be location's relevant global object's navigable.
-    auto navigable = relevant_window(*this).navigable();
+    auto navigable = m_window->navigable();
 
     // 2. Let sourceDocument be the incumbent global object's associated Document.
     auto& source_document = incumbent_window().associated_document();
@@ -129,22 +131,20 @@ URL::URL Location::url() const
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-href
-WebIDL::ExceptionOr<String> Location::href() const
+WebIDL::ExceptionOr<String> Location::href(JS::Realm& realm) const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return this's url, serialized.
     return url().serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface:dom-location-href-2
-WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
+WebIDL::ExceptionOr<void> Location::set_href(JS::Realm& realm, String const& new_href)
 {
-    auto& realm = this->realm();
-
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
     if (!relevant_document)
@@ -164,33 +164,33 @@ WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-origin
-WebIDL::ExceptionOr<String> Location::origin() const
+WebIDL::ExceptionOr<String> Location::origin(JS::Realm& realm) const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return the serialization of this's url's origin.
     return url().origin().serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
-WebIDL::ExceptionOr<String> Location::protocol() const
+WebIDL::ExceptionOr<String> Location::protocol(JS::Realm& realm) const
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return this's url's scheme, followed by ":".
     return TRY_OR_THROW_OOM(vm, String::formatted("{}:", url().scheme()));
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
-WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
+WebIDL::ExceptionOr<void> Location::set_protocol(JS::Realm& realm, String const& value)
 {
     auto relevant_document = this->relevant_document();
 
@@ -200,7 +200,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -210,7 +210,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
 
     // 5. If possibleFailure is failure, then throw a "SyntaxError" DOMException.
     if (!possible_failure.has_value())
-        return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Failed to set protocol. '{}' is an invalid protocol", value));
+        return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Failed to set protocol. '{}' is an invalid protocol", value));
 
     // 6. if copyURL's scheme is not an HTTP(S) scheme, then terminate these steps.
     if (!(copy_url.scheme() == "http"sv || copy_url.scheme() == "https"sv))
@@ -223,14 +223,14 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-host
-WebIDL::ExceptionOr<String> Location::host() const
+WebIDL::ExceptionOr<String> Location::host(JS::Realm& realm) const
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Let url be this's url.
     auto url = this->url();
@@ -248,7 +248,7 @@ WebIDL::ExceptionOr<String> Location::host() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-host
-WebIDL::ExceptionOr<void> Location::set_host(String const& value)
+WebIDL::ExceptionOr<void> Location::set_host(JS::Realm& realm, String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -257,7 +257,7 @@ WebIDL::ExceptionOr<void> Location::set_host(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -276,12 +276,12 @@ WebIDL::ExceptionOr<void> Location::set_host(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hostname
-WebIDL::ExceptionOr<String> Location::hostname() const
+WebIDL::ExceptionOr<String> Location::hostname(JS::Realm& realm) const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -294,7 +294,7 @@ WebIDL::ExceptionOr<String> Location::hostname() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hostname
-WebIDL::ExceptionOr<void> Location::set_hostname(String const& value)
+WebIDL::ExceptionOr<void> Location::set_hostname(JS::Realm& realm, String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -303,7 +303,7 @@ WebIDL::ExceptionOr<void> Location::set_hostname(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -322,12 +322,12 @@ WebIDL::ExceptionOr<void> Location::set_hostname(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-port
-WebIDL::ExceptionOr<String> Location::port() const
+WebIDL::ExceptionOr<String> Location::port(JS::Realm& realm) const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -340,7 +340,7 @@ WebIDL::ExceptionOr<String> Location::port() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-port
-WebIDL::ExceptionOr<void> Location::set_port(String const& value)
+WebIDL::ExceptionOr<void> Location::set_port(JS::Realm& realm, String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -349,7 +349,7 @@ WebIDL::ExceptionOr<void> Location::set_port(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -374,19 +374,19 @@ WebIDL::ExceptionOr<void> Location::set_port(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-pathname
-WebIDL::ExceptionOr<String> Location::pathname() const
+WebIDL::ExceptionOr<String> Location::pathname(JS::Realm& realm) const
 {
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return the result of URL path serializing this Location object's url.
     return url().serialize_path();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
-WebIDL::ExceptionOr<void> Location::set_pathname(String const& value)
+WebIDL::ExceptionOr<void> Location::set_pathname(JS::Realm& realm, String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -395,7 +395,7 @@ WebIDL::ExceptionOr<void> Location::set_pathname(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -417,14 +417,14 @@ WebIDL::ExceptionOr<void> Location::set_pathname(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-search
-WebIDL::ExceptionOr<String> Location::search() const
+WebIDL::ExceptionOr<String> Location::search(JS::Realm& realm) const
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -437,7 +437,7 @@ WebIDL::ExceptionOr<String> Location::search() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
-WebIDL::ExceptionOr<void> Location::set_search(String const& value)
+WebIDL::ExceptionOr<void> Location::set_search(JS::Realm& realm, String const& value)
 {
     // The search setter steps are:
     auto const relevant_document = this->relevant_document();
@@ -448,7 +448,7 @@ WebIDL::ExceptionOr<void> Location::set_search(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -477,14 +477,14 @@ WebIDL::ExceptionOr<void> Location::set_search(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hash
-WebIDL::ExceptionOr<String> Location::hash() const
+WebIDL::ExceptionOr<String> Location::hash(JS::Realm& realm) const
 {
-    auto& vm = realm().vm();
+    auto& vm = realm.vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -497,7 +497,7 @@ WebIDL::ExceptionOr<String> Location::hash() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hash
-WebIDL::ExceptionOr<void> Location::set_hash(StringView value)
+WebIDL::ExceptionOr<void> Location::set_hash(JS::Realm& realm, StringView value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -506,7 +506,7 @@ WebIDL::ExceptionOr<void> Location::set_hash(StringView value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -551,7 +551,7 @@ void Location::reload() const
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-replace
-WebIDL::ExceptionOr<void> Location::replace(String const& url)
+WebIDL::ExceptionOr<void> Location::replace(JS::Realm& realm, String const& url)
 {
     // 1. If this's relevant Document is null, then return.
     if (!relevant_document())
@@ -560,7 +560,7 @@ WebIDL::ExceptionOr<void> Location::replace(String const& url)
     // 2. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
     auto replace_url = entry_settings_object().parse_url(url);
     if (!replace_url.has_value())
-        return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
+        return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid URL '{}'", url));
 
     // 3. Location-object navigate this to the resulting URL record given "replace".
     TRY(navigate(replace_url.release_value(), Bindings::NavigationHistoryBehavior::Replace));
@@ -569,7 +569,7 @@ WebIDL::ExceptionOr<void> Location::replace(String const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-assign
-WebIDL::ExceptionOr<void> Location::assign(String const& url)
+WebIDL::ExceptionOr<void> Location::assign(JS::Realm& realm, String const& url)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -578,12 +578,12 @@ WebIDL::ExceptionOr<void> Location::assign(String const& url)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create(realm, "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
     auto assign_url = entry_settings_object().parse_url(url);
     if (!assign_url.has_value())
-        return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
+        return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid URL '{}'", url));
 
     // 4. Location-object navigate this to the resulting URL record.
     TRY(navigate(assign_url.release_value()));
@@ -675,7 +675,7 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_define_own_property(JS::Pr
     }
 
     // 2. Throw a "SecurityError" DOMException.
-    return throw_completion(WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
+    return throw_completion(realm(), WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
 }
 
 // 7.10.5.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-get
@@ -712,7 +712,7 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_delete(JS::PropertyKey con
         return JS::Object::internal_delete(property_key);
 
     // 2. Throw a "SecurityError" DOMException.
-    return throw_completion(WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
+    return throw_completion(realm(), WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
 }
 
 // 7.10.5.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-ownpropertykeys

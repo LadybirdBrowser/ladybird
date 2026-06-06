@@ -57,7 +57,7 @@ class CanvasRenderingContext2D
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(JS::Realm&, HTMLCanvasElement&, JS::Value options);
+    static JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> create(HTMLCanvasElement&, JS::Value options);
     virtual ~CanvasRenderingContext2D() override;
 
     virtual void fill_rect(float x, float y, float width, float height) override;
@@ -81,7 +81,7 @@ public:
     virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) const override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
-    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::Painter&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
+    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(JS::Realm&, ImageData&, Gfx::Painter&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
 
     virtual void reset_to_default_state() override;
 
@@ -130,16 +130,14 @@ protected:
     [[nodiscard]] Gfx::Painter* painter() override;
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_element; }
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_element; }
-    JS::Realm& my_realm() override { return realm(); }
+    JS::Realm& my_realm() override;
     Gfx::Path& mutable_path() override { return path(); }
 
 private:
-    CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
+    CanvasRenderingContext2D(HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
-    virtual JS::Realm& canvas_path_realm() const override { return realm(); }
-
     struct PreparedText {
         Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
         Gfx::TextAlignment physical_alignment;
@@ -179,7 +177,7 @@ enum class CanvasImageSourceUsability {
     Good,
 };
 
-WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
+WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(JS::Realm&, CanvasImageSource const&);
 bool image_is_not_origin_clean(CanvasImageSource const&);
 
 }

@@ -8,7 +8,6 @@
 
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -36,7 +35,8 @@ class SpeechRecognition final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SpeechRecognition);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognition>> construct_impl(JS::Realm&);
+    static GC::Ref<SpeechRecognition> create();
+    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognition>> construct_impl();
     virtual ~SpeechRecognition() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognition-grammars
@@ -67,9 +67,7 @@ public:
 #undef __ENUMERATE
 
 private:
-    explicit SpeechRecognition(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit SpeechRecognition();
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SpeechGrammarList> m_grammars;

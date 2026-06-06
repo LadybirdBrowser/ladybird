@@ -10,8 +10,15 @@
 #include <LibWeb/Bindings/EventModifier.h>
 #include <LibWeb/Bindings/MouseEvent.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/UIEvent.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::UIEvents {
 
@@ -20,9 +27,16 @@ class WEB_API MouseEvent : public UIEvent {
     GC_DECLARE_ALLOCATOR(MouseEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<MouseEvent> create(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> create_from_platform_event(JS::Realm&, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail = 0);
-    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const&);
+    [[nodiscard]] static GC::Ref<MouseEvent> create(
+        FlyString const& event_name, Bindings::MouseEventInit const&,
+        double page_x, double page_y, double offset_x, double offset_y,
+        HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<MouseEvent> create(
+        JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::MouseEventInit const&,
+        double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static GC::Ref<MouseEvent> create_from_mouse_event(MouseEvent const&, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy>, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail = 0);
+    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::MouseEventInit const&);
 
     virtual ~MouseEvent() override;
 
@@ -69,13 +83,11 @@ public:
 
     void init_mouse_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, DOM::EventTarget* related_target);
 
-    [[nodiscard]] virtual GC::Ref<MouseEvent> clone() const;
-
     void set_offset_x(double offset_x) { m_offset_x = offset_x; }
     void set_offset_y(double offset_y) { m_offset_y = offset_y; }
 
 protected:
-    MouseEvent(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
+    MouseEvent(FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

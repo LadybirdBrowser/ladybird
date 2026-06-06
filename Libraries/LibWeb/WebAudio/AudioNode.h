@@ -80,11 +80,10 @@ public:
     WebIDL::ExceptionOr<void> initialize_audio_node_options(Bindings::AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
 
     NodeID node_id() const { return m_node_id; }
+    JS::Object& relevant_global_object() const;
 
 protected:
-    AudioNode(JS::Realm&, GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count = 2);
-
-    virtual void initialize(JS::Realm&) override;
+    AudioNode(GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count = 2);
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

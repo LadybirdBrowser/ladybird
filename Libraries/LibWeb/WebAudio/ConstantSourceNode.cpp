@@ -5,6 +5,7 @@
  */
 
 #include <AK/NumericLimits.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ConstantSourceNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
@@ -14,28 +15,22 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(ConstantSourceNode);
 
-ConstantSourceNode::ConstantSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
-    : AudioScheduledSourceNode(realm, context)
-    , m_offset(AudioParam::create(realm, context, options.offset, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+ConstantSourceNode::ConstantSourceNode(GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
+    : AudioScheduledSourceNode(context)
+    , m_offset(AudioParam::create(context, options.offset, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
 {
 }
 
 ConstantSourceNode::~ConstantSourceNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::create(GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
 {
-    return construct_impl(realm, context, options);
+    return GC::Heap::the().allocate<ConstantSourceNode>(context, options);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> ConstantSourceNode::construct_impl(GC::Ref<BaseAudioContext> context, Bindings::ConstantSourceOptions const& options)
 {
-    return realm.create<ConstantSourceNode>(realm, context, options);
-}
-
-void ConstantSourceNode::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ConstantSourceNode);
-    Base::initialize(realm);
+    return create(context, options);
 }
 
 void ConstantSourceNode::visit_edges(Cell::Visitor& visitor)

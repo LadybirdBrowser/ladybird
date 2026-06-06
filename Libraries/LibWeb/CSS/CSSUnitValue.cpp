@@ -5,6 +5,7 @@
  */
 
 #include "CSSUnitValue.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -26,16 +27,16 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSUnitValue);
 
-GC::Ref<CSSUnitValue> CSSUnitValue::create(JS::Realm& realm, double value, FlyString unit)
+GC::Ref<CSSUnitValue> CSSUnitValue::create(double value, FlyString unit)
 {
     // The type of a CSSUnitValue is the result of creating a type from its unit internal slot.
     // https://drafts.css-houdini.org/css-typed-om-1/#type-of-a-cssunitvalue
     auto numeric_type = NumericType::create_from_unit(unit);
-    return realm.create<CSSUnitValue>(realm, value, move(unit), numeric_type.release_value());
+    return GC::Heap::the().allocate<CSSUnitValue>(value, move(unit), numeric_type.release_value());
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-a-cssunitvalue-from-a-sum-value-item
-GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(JS::Realm& realm, SumValueItem const& item)
+GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(SumValueItem const& item)
 {
     // 1. If item has more than one entry in its unit map, return failure.
     if (item.unit_map.size() > 1)
@@ -44,7 +45,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(JS::Realm& realm,
     // 2. If item has no entries in its unit map, return a new CSSUnitValue whose unit internal slot is set to
     //    "number", and whose value internal slot is set to item’s value.
     if (item.unit_map.is_empty())
-        return CSSUnitValue::create(realm, item.value, "number"_fly_string);
+        return CSSUnitValue::create(item.value, "number"_fly_string);
 
     // 3. Otherwise, item has a single entry in its unit map. If that entry’s value is anything other than 1, return
     //    failure.
@@ -54,11 +55,11 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::create_from_sum_value_item(JS::Realm& realm,
 
     // 4. Otherwise, return a new CSSUnitValue whose unit internal slot is set to that entry’s key, and whose value
     //    internal slot is set to item’s value.
-    return CSSUnitValue::create(realm, item.value, single_type_entry->key);
+    return CSSUnitValue::create(item.value, single_type_entry->key);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunitvalue-cssunitvalue
-WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Realm& realm, double value, FlyString unit)
+WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(double value, FlyString unit)
 {
     // 1. If creating a type from unit returns failure, throw a TypeError and abort this algorithm.
     auto numeric_type = NumericType::create_from_unit(unit);
@@ -66,11 +67,11 @@ WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> CSSUnitValue::construct_impl(JS::Real
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Cannot create CSSUnitValue with unrecognized unit '{}'", unit)) };
 
     // 2. Return a new CSSUnitValue with its value internal slot set to value and its unit set to unit.
-    return realm.create<CSSUnitValue>(realm, value, move(unit), numeric_type.release_value());
+    return GC::Heap::the().allocate<CSSUnitValue>(value, move(unit), numeric_type.release_value());
 }
 
-CSSUnitValue::CSSUnitValue(JS::Realm& realm, double value, FlyString unit, NumericType type)
-    : CSSNumericValue(realm, move(type))
+CSSUnitValue::CSSUnitValue(double value, FlyString unit, NumericType type)
+    : CSSNumericValue(move(type))
     , m_value(value)
     // AD-HOC: WPT expects the unit to be lowercase but this doesn't seem to be specified anywhere.
     , m_unit(unit.to_ascii_lowercase())
@@ -127,8 +128,7 @@ void CSSUnitValue::serialize_unit_value(StringBuilder& builder, Optional<double>
     // 5. Return s.
 }
 
-// https://drafts.css-houdini.org/css-typed-om-1/#convert-a-cssunitvalue
-GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) const
+Optional<double> CSSUnitValue::converted_value_to_unit(FlyString const& unit) const
 {
     // 1. Let old unit be the value of this’s unit internal slot, and old value be the value of this’s value internal
     //    slot.
@@ -143,14 +143,14 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) con
         auto old_dimension_type = dimension_for_unit(old_unit);
         auto new_dimension_type = dimension_for_unit(unit);
         if (!new_dimension_type.has_value() || old_dimension_type != new_dimension_type)
-            return {};
+            return OptionalNone {};
 
         switch (*new_dimension_type) {
         case DimensionType::Angle: {
             auto from = string_to_angle_unit(old_unit).release_value();
             auto to = string_to_angle_unit(unit).release_value();
             if (!units_are_compatible(from, to))
-                return {};
+                return OptionalNone {};
             ratio = ratio_between_units(from, to);
             break;
         }
@@ -158,7 +158,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) con
             auto from = string_to_angle_unit(old_unit).release_value();
             auto to = string_to_angle_unit(unit).release_value();
             if (!units_are_compatible(from, to))
-                return {};
+                return OptionalNone {};
             ratio = ratio_between_units(from, to);
             break;
         }
@@ -166,7 +166,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) con
             auto from = string_to_frequency_unit(old_unit).release_value();
             auto to = string_to_frequency_unit(unit).release_value();
             if (!units_are_compatible(from, to))
-                return {};
+                return OptionalNone {};
             ratio = ratio_between_units(from, to);
             break;
         }
@@ -174,7 +174,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) con
             auto from = string_to_length_unit(old_unit).release_value();
             auto to = string_to_length_unit(unit).release_value();
             if (!units_are_compatible(from, to))
-                return {};
+                return OptionalNone {};
             ratio = ratio_between_units(from, to);
             break;
         }
@@ -182,7 +182,7 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) con
             auto from = string_to_resolution_unit(old_unit).release_value();
             auto to = string_to_resolution_unit(unit).release_value();
             if (!units_are_compatible(from, to))
-                return {};
+                return OptionalNone {};
             ratio = ratio_between_units(from, to);
             break;
         }
@@ -190,16 +190,26 @@ GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(FlyString const& unit) con
             auto from = string_to_time_unit(old_unit).release_value();
             auto to = string_to_time_unit(unit).release_value();
             if (!units_are_compatible(from, to))
-                return {};
+                return OptionalNone {};
             ratio = ratio_between_units(from, to);
             break;
         }
         }
     }
 
+    return old_value * ratio;
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#convert-a-cssunitvalue
+GC::Ptr<CSSUnitValue> CSSUnitValue::converted_to_unit(JS::Realm&, FlyString const& unit) const
+{
+    auto converted_value = converted_value_to_unit(unit);
+    if (!converted_value.has_value())
+        return {};
+
     // 3. Return a new CSSUnitValue whose unit internal slot is set to unit, and whose value internal slot is set to
     //    old value multiplied by the conversation ratio between old unit and unit.
-    return CSSUnitValue::create(realm(), old_value * ratio, unit);
+    return CSSUnitValue::create(converted_value.value(), unit);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#equal-numeric-value

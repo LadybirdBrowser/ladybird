@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 
@@ -12,31 +13,36 @@ namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMPoint);
 
-GC::Ref<DOMPoint> DOMPoint::construct_impl(JS::Realm& realm, double x, double y, double z, double w)
+GC::Ref<DOMPoint> DOMPoint::construct_impl(double x, double y, double z, double w)
 {
-    return realm.create<DOMPoint>(realm, x, y, z, w);
+    return create(x, y, z, w);
 }
 
-GC::Ref<DOMPoint> DOMPoint::create(JS::Realm& realm)
+GC::Ref<DOMPoint> DOMPoint::create(double x, double y, double z, double w)
 {
-    return realm.create<DOMPoint>(realm);
+    return GC::Heap::the().allocate<DOMPoint>(x, y, z, w);
 }
 
-DOMPoint::DOMPoint(JS::Realm& realm, double x, double y, double z, double w)
-    : DOMPointReadOnly(realm, x, y, z, w)
+GC::Ref<DOMPoint> DOMPoint::create()
+{
+    return GC::Heap::the().allocate<DOMPoint>();
+}
+
+DOMPoint::DOMPoint(double x, double y, double z, double w)
+    : DOMPointReadOnly(x, y, z, w)
 {
 }
 
-DOMPoint::DOMPoint(JS::Realm& realm)
-    : DOMPointReadOnly(realm)
+DOMPoint::DOMPoint()
+    : DOMPointReadOnly()
 {
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dompoint-frompoint
-GC::Ref<DOMPoint> DOMPoint::from_point(JS::VM& vm, Bindings::DOMPointInit const& other)
+GC::Ref<DOMPoint> DOMPoint::from_point(JS::VM&, Bindings::DOMPointInit const& other)
 {
     // The fromPoint(other) static method on DOMPoint must create a DOMPoint from the dictionary other.
-    return construct_impl(*vm.current_realm(), other.x, other.y, other.z, other.w);
+    return GC::Heap::the().allocate<DOMPoint>(other.x, other.y, other.z, other.w);
 }
 
 DOMPoint::~DOMPoint() = default;

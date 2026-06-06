@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/WritableStreamDefaultWriter.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
 #include <LibWeb/Streams/WritableStreamOperations.h>
@@ -15,12 +18,13 @@ namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(WritableStreamDefaultWriter);
 
-WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStreamDefaultWriter::construct_impl(JS::Realm& realm, GC::Ref<WritableStream> stream)
+WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStreamDefaultWriter::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, GC::Ref<WritableStream> stream)
 {
-    auto writer = realm.create<WritableStreamDefaultWriter>(realm);
+    auto& realm = HTML::relevant_realm(global_scope);
+    auto writer = GC::Heap::the().allocate<WritableStreamDefaultWriter>();
 
     // 1. Perform ? SetUpWritableStreamDefaultWriter(this, stream).
-    TRY(set_up_writable_stream_default_writer(*writer, stream));
+    TRY(set_up_writable_stream_default_writer(realm, *writer, stream));
 
     return writer;
 }
@@ -53,7 +57,7 @@ GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::ready()
 // https://streams.spec.whatwg.org/#default-writer-abort
 GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::abort(Optional<JS::Value> reason)
 {
-    auto& realm = this->realm();
+    auto& realm = closed_promise_realm();
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
@@ -68,7 +72,7 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::abort(Optional<JS::Value> 
 // https://streams.spec.whatwg.org/#default-writer-close
 GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::close()
 {
-    auto& realm = this->realm();
+    auto& realm = closed_promise_realm();
 
     // 1. Let stream be this.[[stream]].
 
@@ -107,7 +111,7 @@ void WritableStreamDefaultWriter::release_lock()
 // https://streams.spec.whatwg.org/#default-writer-write
 GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(Optional<JS::Value> chunk)
 {
-    auto& realm = this->realm();
+    auto& realm = ready_promise_realm();
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
@@ -119,9 +123,20 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(Optional<JS::Value> 
     return writable_stream_default_writer_write(*this, chunk.value_or(JS::js_undefined()));
 }
 
-WritableStreamDefaultWriter::WritableStreamDefaultWriter(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+WritableStreamDefaultWriter::WritableStreamDefaultWriter()
 {
+}
+
+JS::Realm& WritableStreamDefaultWriter::closed_promise_realm() const
+{
+    VERIFY(m_closed_promise);
+    return WebIDL::promise_realm(*m_closed_promise);
+}
+
+JS::Realm& WritableStreamDefaultWriter::ready_promise_realm() const
+{
+    VERIFY(m_ready_promise);
+    return WebIDL::promise_realm(*m_ready_promise);
 }
 
 void WritableStreamDefaultWriter::visit_edges(GC::Cell::Visitor& visitor)

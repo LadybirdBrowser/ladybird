@@ -5,20 +5,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/WebGLVertexArrayObjectOES.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLVertexArrayObjectOES);
 
-GC::Ref<WebGLVertexArrayObjectOES> WebGLVertexArrayObjectOES::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+GC::Ref<WebGLVertexArrayObjectOES> WebGLVertexArrayObjectOES::create(WebGLRenderingContextBase& context, GLuint handle)
 {
-    return realm.create<WebGLVertexArrayObjectOES>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLVertexArrayObjectOES>(context, handle);
 }
 
-WebGLVertexArrayObjectOES::WebGLVertexArrayObjectOES(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLVertexArrayObjectOES::WebGLVertexArrayObjectOES(WebGLRenderingContextBase& context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 

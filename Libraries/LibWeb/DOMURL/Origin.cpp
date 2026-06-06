@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/DOMURL/Origin.h>
 #include <LibWeb/HTML/Window.h>
@@ -13,32 +14,35 @@ namespace Web::DOMURL {
 
 GC_DEFINE_ALLOCATOR(Origin);
 
-Origin::Origin(JS::Realm& realm, URL::Origin origin)
-    : Wrappable(realm)
+Origin::Origin(URL::Origin origin)
+    : Bindings::Wrappable()
     , m_origin(move(origin))
 {
 }
 
 Origin::~Origin() = default;
 
+GC::Ref<Origin> Origin::create(URL::Origin origin)
+{
+    return GC::Heap::the().allocate<Origin>(move(origin));
+}
+
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-constructor
-GC::Ref<Origin> Origin::construct_impl(JS::Realm& realm)
+GC::Ref<Origin> Origin::construct_impl()
 {
     // The new Origin() constructor steps are to set this's origin to a unique opaque origin.
-    return realm.create<Origin>(realm, URL::Origin::create_opaque());
+    return create(URL::Origin::create_opaque());
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-from
-WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
+WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM&, JS::Value value)
 {
-    auto& realm = *vm.current_realm();
-
     // NB: IDL only ever sees HTML::WindowProxy but we want to use HTML::Window.
     if (auto window_proxy = value.as_if<HTML::WindowProxy>()) {
         if (auto window = window_proxy->window()) {
             auto origin = window->extract_an_origin();
             if (origin.has_value())
-                return realm.create<Origin>(realm, origin.release_value());
+                return create(origin.release_value());
         }
     }
 
@@ -49,7 +53,7 @@ WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
 
         // 2. If origin is not null, then return a new Origin object whose origin is origin.
         if (origin.has_value())
-            return realm.create<Origin>(realm, origin.release_value());
+            return create(origin.release_value());
     }
     // 2. If value is a string:
     else if (value.is_string()) {
@@ -60,7 +64,7 @@ WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
 
         // 2. If parsedURL is not failure, then return a new Origin object whose origin is set to parsedURL's origin.
         if (parsed_url.has_value())
-            return realm.create<Origin>(realm, parsed_url->origin());
+            return create(parsed_url->origin());
     }
 
     // 3. Throw a TypeError.

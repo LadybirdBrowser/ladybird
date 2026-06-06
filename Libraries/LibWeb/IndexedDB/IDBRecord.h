@@ -50,15 +50,15 @@ class IDBRecord : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(IDBRecord);
 
 public:
-    [[nodiscard]] static GC::Ref<IDBRecord> create(JS::Realm& realm, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
+    [[nodiscard]] static GC::Ref<IDBRecord> create(GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
     virtual ~IDBRecord();
 
     JS::Value value() const { return m_value; }
-    WebIDL::ExceptionOr<JS::Value> key() const;
-    WebIDL::ExceptionOr<JS::Value> primary_key() const;
+    WebIDL::ExceptionOr<JS::Value> key(JS::Realm&) const;
+    WebIDL::ExceptionOr<JS::Value> primary_key(JS::Realm&) const;
 
 protected:
-    explicit IDBRecord(JS::Realm&, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
+    explicit IDBRecord(GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:

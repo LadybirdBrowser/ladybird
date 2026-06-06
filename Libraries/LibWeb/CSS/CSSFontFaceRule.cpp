@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/Bindings/CSSFontFaceRule.h>
@@ -21,13 +22,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFaceRule);
 
-GC::Ref<CSSFontFaceRule> CSSFontFaceRule::create(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptors> style)
+GC::Ref<CSSFontFaceRule> CSSFontFaceRule::create(GC::Ref<CSSFontFaceDescriptors> style)
 {
-    return realm.create<CSSFontFaceRule>(realm, style);
+    return GC::Heap::the().allocate<CSSFontFaceRule>(style);
 }
 
-CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptors> style)
-    : CSSRule(realm, Type::FontFace)
+CSSFontFaceRule::CSSFontFaceRule(GC::Ref<CSSFontFaceDescriptors> style)
+    : CSSRule(Type::FontFace)
     , m_style(style)
 {
     m_style->set_parent_rule(*this);
@@ -186,7 +187,7 @@ void CSSFontFaceRule::handle_src_descriptor_change()
     if (!document)
         return;
 
-    auto new_font_face = FontFace::create_css_connected(realm(), *this);
+    auto new_font_face = FontFace::create_css_connected(document->relevant_settings_object(), *this);
     document->fonts()->add_css_connected_font(new_font_face);
 }
 

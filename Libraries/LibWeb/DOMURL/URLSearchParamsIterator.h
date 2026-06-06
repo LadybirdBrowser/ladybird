@@ -16,14 +16,14 @@ class URLSearchParamsIterator : public JS::Object {
     GC_DECLARE_ALLOCATOR(URLSearchParamsIterator);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> create(URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
+    static WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> create(JS::Realm&, URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
 
     virtual ~URLSearchParamsIterator() override;
 
     JS::Object* next();
 
 private:
-    URLSearchParamsIterator(URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
+    URLSearchParamsIterator(JS::Realm&, URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(GC::Cell::Visitor&) override;

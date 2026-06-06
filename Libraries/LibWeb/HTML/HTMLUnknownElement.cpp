@@ -19,10 +19,4 @@ HTMLUnknownElement::HTMLUnknownElement(DOM::Document& document, DOM::QualifiedNa
 
 HTMLUnknownElement::~HTMLUnknownElement() = default;
 
-void HTMLUnknownElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLUnknownElement);
-    Base::initialize(realm);
-}
-
 }

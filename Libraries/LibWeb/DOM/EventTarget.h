@@ -25,7 +25,7 @@ class WEB_API EventTarget : public Bindings::Wrappable {
 public:
     virtual ~EventTarget() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<EventTarget>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<EventTarget>> construct_impl();
 
     virtual bool is_focusable() const { return false; }
 
@@ -37,7 +37,7 @@ public:
     void remove_event_listener_without_options(FlyString const& type, IDLEventListener& callback);
 
     virtual bool dispatch_event(Event&);
-    WebIDL::ExceptionOr<bool> dispatch_event_binding(Event&);
+    WebIDL::ExceptionOr<bool> dispatch_event_binding(JS::Realm&, Event&);
 
     virtual EventTarget* get_parent(Event const&) { return nullptr; }
 
@@ -64,7 +64,7 @@ public:
     virtual bool is_universal_global_scope_mixin() const { return false; }
 
 protected:
-    explicit EventTarget(JS::Realm&);
+    EventTarget();
 
     void element_event_handler_attribute_changed(FlyString const& local_name, Optional<String> const& value);
 

@@ -18,7 +18,7 @@ class ANGLEInstancedArrays : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(ANGLEInstancedArrays);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
     void draw_arrays_instanced_angle(GLenum mode, GLint first, GLsizei count, GLsizei primcount);
     void draw_elements_instanced_angle(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei primcount);
@@ -28,7 +28,7 @@ protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    ANGLEInstancedArrays(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    ANGLEInstancedArrays(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

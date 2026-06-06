@@ -19,8 +19,9 @@ class PannerNode final : public AudioNode {
 public:
     virtual ~PannerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> create(GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
+    static WebIDL::ExceptionOr<void> validate_options(Bindings::PannerOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<PannerNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -64,9 +65,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
 
 protected:
-    PannerNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    PannerNode(GC::Ref<BaseAudioContext>, Bindings::PannerOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

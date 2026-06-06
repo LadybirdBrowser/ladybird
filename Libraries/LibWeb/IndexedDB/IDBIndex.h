@@ -21,7 +21,7 @@ class IDBIndex : public Bindings::Wrappable {
 
 public:
     virtual ~IDBIndex() override;
-    [[nodiscard]] static GC::Ref<IDBIndex> create(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
+    [[nodiscard]] static GC::Ref<IDBIndex> create(GC::Ref<Index>, GC::Ref<IDBObjectStore>);
 
     WebIDL::ExceptionOr<void> set_name(String const& value);
     String name() const { return m_name; }
@@ -41,12 +41,13 @@ public:
 
     // The transaction of an index handle is the transaction of its associated object store handle.
     GC::Ref<IDBTransaction> transaction() { return m_object_store_handle->transaction(); }
+    JS::Object& relevant_global_object() const;
     GC::Ref<Index> index() { return m_index; }
 
     void update_name() { m_name = m_index->name(); }
 
 protected:
-    explicit IDBIndex(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
+    explicit IDBIndex(GC::Ref<Index>, GC::Ref<IDBObjectStore>);
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:

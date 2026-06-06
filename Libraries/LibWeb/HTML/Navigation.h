@@ -46,7 +46,7 @@ class Navigation : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(Navigation);
 
 public:
-    [[nodiscard]] static GC::Ref<Navigation> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Navigation> create(Window&);
 
     // IDL properties and methods
     Vector<GC::Ref<NavigationHistoryEntry>> entries() const;
@@ -110,9 +110,10 @@ public:
     void set_was_initial_about_blank_opened(bool b) { m_was_initial_about_blank_opened = b; }
 
 private:
-    explicit Navigation(JS::Realm&);
+    explicit Navigation(Window&);
 
-    virtual void initialize(JS::Realm&) override;
+    Window& window() const;
+
     virtual void visit_edges(Visitor&) override;
 
     using AnyException = decltype(declval<WebIDL::ExceptionOr<void>>().exception());
@@ -153,6 +154,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#ongoing-navigate-event
     GC::Ptr<NavigateEvent> m_ongoing_navigate_event { nullptr };
+
+    GC::Ref<Window> m_window;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#focus-changed-during-ongoing-navigation
     bool m_focus_changed_during_ongoing_navigation { false };

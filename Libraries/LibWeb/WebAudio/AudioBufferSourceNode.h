@@ -36,13 +36,11 @@ public:
 
     WebIDL::ExceptionOr<void> start(Optional<double>, Optional<double>, Optional<double>);
 
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
 
 protected:
-    AudioBufferSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    AudioBufferSourceNode(GC::Ref<BaseAudioContext>, Bindings::AudioBufferSourceOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

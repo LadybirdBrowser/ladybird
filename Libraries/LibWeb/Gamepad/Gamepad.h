@@ -22,12 +22,14 @@ class Gamepad final : public Bindings::Wrappable {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<Gamepad> create(JS::Realm&, SDL_JoystickID);
+    static GC::Ref<Gamepad> create(HTML::Window&, SDL_JoystickID);
 
     SDL_JoystickID sdl_joystick_id() const { return m_sdl_joystick_id; }
     SDL_Gamepad* sdl_gamepad() const { return m_sdl_gamepad; }
 
     Utf16String const& id() const { return m_id; }
+
+    HTML::Window& window() const { return m_window; }
 
     size_t index() const { return m_index; }
 
@@ -50,7 +52,7 @@ public:
     void update_gamepad_state(Badge<NavigatorGamepadPartial>);
 
 private:
-    explicit Gamepad(JS::Realm&, SDL_JoystickID);
+    explicit Gamepad(HTML::Window&, SDL_JoystickID);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
@@ -150,6 +152,7 @@ private:
     // indicate that a mapping is in use by setting mapping to the corresponding GamepadMappingType value.
     Bindings::GamepadMappingType m_mapping { Bindings::GamepadMappingType::Standard };
 
+    GC::Ref<HTML::Window> m_window;
     SDL_JoystickID m_sdl_joystick_id { 0 };
     SDL_Gamepad* m_sdl_gamepad { nullptr };
 };

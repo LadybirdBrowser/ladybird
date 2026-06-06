@@ -27,16 +27,17 @@ class TextEncoder final
     GC_DECLARE_ALLOCATOR(TextEncoder);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextEncoder>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<TextEncoder>> construct_impl();
+    [[nodiscard]] static GC::Ref<TextEncoder> create();
 
     virtual ~TextEncoder() override;
 
-    GC::Ref<JS::Uint8Array> encode(String const& input) const;
-    Bindings::TextEncoderEncodeIntoResult encode_into(String const& source, GC::Ref<JS::Uint8Array> destination) const;
+    GC::Ref<JS::Uint8Array> encode(JS::Realm&, String const& input) const;
+    Bindings::TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const;
 
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder
-    explicit TextEncoder(JS::Realm&);
+    explicit TextEncoder();
 };
 
 }

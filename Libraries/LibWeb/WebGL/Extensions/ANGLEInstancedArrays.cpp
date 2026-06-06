@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -17,14 +17,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(ANGLEInstancedArrays);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> ANGLEInstancedArrays::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> ANGLEInstancedArrays::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<ANGLEInstancedArrays>(realm, context);
+    auto extension = GC::Heap::the().allocate<ANGLEInstancedArrays>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-ANGLEInstancedArrays::ANGLEInstancedArrays(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+ANGLEInstancedArrays::ANGLEInstancedArrays(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
 }

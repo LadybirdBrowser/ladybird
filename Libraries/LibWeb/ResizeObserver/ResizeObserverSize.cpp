@@ -49,10 +49,10 @@ ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& t
     return size;
 }
 
-GC::Ref<ResizeObserverSize> ResizeObserverSize::calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+GC::Ref<ResizeObserverSize> ResizeObserverSize::calculate_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
 {
     auto raw = compute_box_size(target, observed_box);
-    auto computed_size = realm.create<ResizeObserverSize>(realm);
+    auto computed_size = GC::Heap::the().allocate<ResizeObserverSize>();
     computed_size->set_inline_size(raw.inline_size);
     computed_size->set_block_size(raw.block_size);
     return computed_size;

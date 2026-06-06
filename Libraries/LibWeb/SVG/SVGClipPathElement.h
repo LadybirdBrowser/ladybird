@@ -38,7 +38,6 @@ public:
 
 private:
     SVGClipPathElement(DOM::Document&, DOM::QualifiedName);
-    virtual void initialize(JS::Realm&) override;
 
     Optional<ClipPathUnits> m_clip_path_units = {};
 };

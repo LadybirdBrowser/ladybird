@@ -21,7 +21,7 @@ interface mixin WindowOrWorkerGlobalScope {
     Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, long sx, long sy, long sw, long sh, optional ImageBitmapOptions options = {});
 
     // https://fetch.spec.whatwg.org/#fetch-method
-    [NewObject] Promise<Response> fetch(RequestInfo input, optional RequestInit init = {});
+    [NeedsCallerRealm, NewObject] Promise<Response> fetch(RequestInfo input, optional RequestInit init = {});
 
     // https://w3c.github.io/hr-time/#the-performance-attribute
     [Replaceable] readonly attribute Performance performance;

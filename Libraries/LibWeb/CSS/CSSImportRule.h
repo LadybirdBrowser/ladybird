@@ -29,7 +29,7 @@ public:
         Optional<SelectorList> end_selectors;
     };
 
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports>, GC::Ref<MediaList>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual ~CSSImportRule() override;
 
@@ -55,7 +55,7 @@ public:
     Optional<FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
 
 private:
-    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, Optional<ImportScope>&&, RefPtr<Supports>, GC::Ref<MediaList>);
+    CSSImportRule(URL, GC::Ptr<DOM::Document>, Optional<FlyString>, Optional<ImportScope>&&, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;

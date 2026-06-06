@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSSupportsRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -13,13 +14,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSSupportsRule);
 
-GC::Ref<CSSSupportsRule> CSSSupportsRule::create(JS::Realm& realm, NonnullRefPtr<Supports>&& supports, CSSRuleList& rules)
+GC::Ref<CSSSupportsRule> CSSSupportsRule::create(NonnullRefPtr<Supports>&& supports, CSSRuleList& rules)
 {
-    return realm.create<CSSSupportsRule>(realm, move(supports), rules);
+    return GC::Heap::the().allocate<CSSSupportsRule>(move(supports), rules);
 }
 
-CSSSupportsRule::CSSSupportsRule(JS::Realm& realm, NonnullRefPtr<Supports>&& supports, CSSRuleList& rules)
-    : CSSConditionRule(realm, rules, Type::Supports)
+CSSSupportsRule::CSSSupportsRule(NonnullRefPtr<Supports>&& supports, CSSRuleList& rules)
+    : CSSConditionRule(rules, Type::Supports)
     , m_supports(move(supports))
 {
 }

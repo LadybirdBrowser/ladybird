@@ -22,6 +22,7 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
+#include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibGC/Timer.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -44,10 +45,12 @@
 #include <LibWeb/Bindings/IntersectionObserverEntry.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/MessageEvent.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -176,6 +179,7 @@
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -373,7 +377,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             Bindings::main_thread_vm(),
             [&](JS::Realm& realm) -> JS::Object* {
                 // - For the global object, create a new Window object.
-                window = HTML::Window::create(realm);
+                window = HTML::Window::create();
                 return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
             },
             [&](JS::Realm&) -> JS::Object* {
@@ -441,8 +445,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    about base URL: navigationParams's about base URL
     //    allow declarative shadow roots: true
     //    custom element registry: A new CustomElementRegistry object.
-    auto& realm = window->realm();
-    auto document = HTML::HTMLDocument::create(realm);
+    auto document = HTML::HTMLDocument::create(browsing_context->page(), *window);
+    document->set_window(*window);
     document->m_type = type;
     document->m_content_type = move(content_type);
     document->set_origin(navigation_params.origin);
@@ -455,9 +459,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->set_url(*creation_url);
     document->m_readiness = HTML::DocumentReadyState::Loading;
     document->set_allow_declarative_shadow_roots(true);
-    document->set_custom_element_registry(realm.create<HTML::CustomElementRegistry>(realm));
-
-    document->m_window = window;
+    document->set_custom_element_registry(HTML::CustomElementRegistry::create_global(*document));
 
     // NOTE: Non-standard: Pull out the Last-Modified header for use in the lastModified property.
     if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"sv); maybe_last_modified.has_value()) {
@@ -517,35 +519,40 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 }
 
 // https://dom.spec.whatwg.org/#dom-document-document
-GC::Ref<Document> Document::construct_impl(JS::Realm& realm)
+GC::Ref<Document> Document::construct_impl(HTML::Window& window)
 {
     // The new Document() constructor steps are to set this’s origin to the origin of current global object’s associated Document. [HTML]
-    auto document = Document::create(realm);
-    document->set_origin(HTML::current_window().associated_document().origin());
+    auto document = Document::create(window.page(), window);
+    document->set_origin(window.associated_document().origin());
     return document;
 }
 
-GC::Ref<Document> Document::create(JS::Realm& realm, URL::URL const& url)
+GC::Ref<Document> Document::create(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url)
 {
-    return realm.create<Document>(realm, url);
+    auto document = GC::Heap::the().allocate<Document>(page, relevant_global_event_target, url);
+    document->initialize_document();
+    return document;
 }
 
-GC::Ref<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
+GC::Ref<Document> Document::create_for_fragment_parsing(Page& page, GC::Ref<EventTarget> relevant_global_event_target)
 {
-    return realm.create<Document>(realm, URL::about_blank(), TemporaryDocumentForFragmentParsing::Yes);
+    auto document = GC::Heap::the().allocate<Document>(page, relevant_global_event_target, URL::about_blank(), TemporaryDocumentForFragmentParsing::Yes);
+    document->initialize_document();
+    return document;
 }
 
-Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
-    : ParentNode(realm, *this, NodeType::DOCUMENT_NODE)
-    , m_page(Bindings::principal_host_defined_page(realm))
-    , m_style_computer(realm.heap().allocate<CSS::StyleComputer>(*this))
-    , m_font_computer(realm.heap().allocate<CSS::FontComputer>(*this))
+Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
+    : ParentNode(*this, NodeType::DOCUMENT_NODE)
+    , m_page(page)
+    , m_style_computer(GC::Heap::the().allocate<CSS::StyleComputer>(*this))
+    , m_font_computer(GC::Heap::the().allocate<CSS::FontComputer>(*this))
     , m_url(url)
-    , m_fonts(CSS::FontFaceSet::create(realm))
+    , m_relevant_global_event_target(relevant_global_event_target)
+    , m_fonts(CSS::FontFaceSet::create(relevant_settings_object()))
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing)
-    , m_editing_host_manager(EditingHostManager::create(realm, *this))
-    , m_dynamic_view_transition_style_sheet(parse_css_stylesheet(CSS::Parser::ParsingParams(realm), ""sv, {}))
-    , m_style_invalidator(realm.heap().allocate<CSS::Invalidation::StyleInvalidator>())
+    , m_editing_host_manager(EditingHostManager::create(*this))
+    , m_dynamic_view_transition_style_sheet(parse_css_stylesheet(CSS::Parser::ParsingParams {}, ""sv, {}))
+    , m_style_invalidator(GC::Heap::the().allocate<CSS::Invalidation::StyleInvalidator>())
     , m_style_scope(*this)
 {
     // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-parsing-algorithm
@@ -558,8 +565,8 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
 
     m_is_decoded_svg = m_page->client().is_svg_page_client();
 
-    m_cursor_blink_timer = heap().allocate<GC::Timer>();
-    m_cursor_blink_timer->start_repeating(500, GC::create_function(heap(), [this] {
+    m_cursor_blink_timer = GC::Heap::the().allocate<GC::Timer>();
+    m_cursor_blink_timer->start_repeating(500, GC::create_function(GC::Heap::the(), [this] {
         auto cursor_position = this->cursor_position();
         if (!cursor_position)
             return;
@@ -625,14 +632,11 @@ void Document::finalize()
     HTML::main_thread_event_loop().unregister_document({}, *this);
 }
 
-void Document::initialize(JS::Realm& realm)
+void Document::initialize_document()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Document);
-    Base::initialize(realm);
+    m_selection = Selection::Selection::create(*this);
 
-    m_selection = realm.create<Selection::Selection>(realm, *this);
-
-    m_list_of_available_images = realm.create<HTML::ListOfAvailableImages>();
+    m_list_of_available_images = HTML::ListOfAvailableImages::create();
 
     page().client().page_did_create_new_document(*this);
 
@@ -670,6 +674,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_pending_css_import_rules);
     visitor.visit(m_page);
     visitor.visit(m_window);
+    visitor.visit(m_relevant_global_event_target);
     visitor.visit(m_style_sheets);
     visitor.visit(m_hovered_node);
     visitor.visit(m_inspected_node);
@@ -920,11 +925,11 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
 
     // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "write() called on XML document."_utf16);
+        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "write() called on XML document."_utf16);
 
     // 7. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 8. If document's active parser was aborted is true, then return.
     if (m_active_parser_was_aborted)
@@ -958,11 +963,11 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_utf16);
+        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "open() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. Let entryDocument be the entry global object's associated Document.
     auto* entry_window = HTML::window_from_global_object(HTML::entry_global_object());
@@ -971,7 +976,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 
     // 4. If document's origin is not same origin to entryDocument's origin, then throw a "SecurityError" DOMException.
     if (origin() != entry_document.origin())
-        return WebIDL::SecurityError::create(realm(), "Document.origin() not the same as entryDocument's."_utf16);
+        return WebIDL::SecurityError::create(relevant_settings_object().realm(), "Document.origin() not the same as entryDocument's."_utf16);
 
     // 5. If document has an active parser whose script nesting level is greater than 0, then return document.
     if (m_parser && m_parser->script_nesting_level() > 0)
@@ -1052,7 +1057,7 @@ WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(StringView url, S
 {
     // 1. If this is not fully active, then throw an "InvalidAccessError" DOMException.
     if (!is_fully_active())
-        return WebIDL::InvalidAccessError::create(realm(), "Cannot perform open on a document that isn't fully active."_utf16);
+        return WebIDL::InvalidAccessError::create(relevant_settings_object().realm(), "Cannot perform open on a document that isn't fully active."_utf16);
 
     // 2. Return the result of running the window open steps with url, name, and features.
     return window()->window_open_steps(url, name, features);
@@ -1063,11 +1068,11 @@ WebIDL::ExceptionOr<void> Document::close()
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException exception.
     if (m_type == Type::XML)
-        return WebIDL::InvalidStateError::create(realm(), "close() called on XML document."_utf16);
+        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "close() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
-        return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
+        return WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. If there is no script-created parser associated with the document, then return.
     if (!m_parser || !m_parser->is_script_created())
@@ -1240,7 +1245,7 @@ HTML::HTMLElement* Document::body()
 WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 {
     if (!is<HTML::HTMLBodyElement>(new_body) && !is<HTML::HTMLFrameSetElement>(new_body))
-        return WebIDL::HierarchyRequestError::create(realm(), "Invalid document body element, must be 'body' or 'frameset'"_utf16);
+        return WebIDL::HierarchyRequestError::create(relevant_settings_object().realm(), "Invalid document body element, must be 'body' or 'frameset'"_utf16);
 
     auto* existing_body = body();
     if (existing_body) {
@@ -1250,7 +1255,7 @@ WebIDL::ExceptionOr<void> Document::set_body(HTML::HTMLElement* new_body)
 
     auto* document_element = this->document_element();
     if (!document_element)
-        return WebIDL::HierarchyRequestError::create(realm(), "Missing document element"_utf16);
+        return WebIDL::HierarchyRequestError::create(relevant_settings_object().realm(), "Missing document element"_utf16);
 
     (void)TRY(document_element->append_child(*new_body));
     return {};
@@ -2926,6 +2931,24 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 
     m_hovered_node = node;
 
+    auto current_event_time_stamp = [&] {
+        return HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
+    };
+    auto create_pointer_event = [&](FlyString const& event_name, Bindings::PointerEventInit const& event_init, CSSPixelPoint offset) {
+        return UIEvents::PointerEvent::create(
+            event_name, event_init,
+            page_offset.x().to_double(), page_offset.y().to_double(),
+            offset.x().to_double(), offset.y().to_double(),
+            current_event_time_stamp());
+    };
+    auto create_mouse_event = [&](FlyString const& event_name, Bindings::MouseEventInit const& event_init, CSSPixelPoint offset) {
+        return UIEvents::MouseEvent::create(
+            event_name, event_init,
+            page_offset.x().to_double(), page_offset.y().to_double(),
+            offset.x().to_double(), offset.y().to_double(),
+            current_event_time_stamp());
+    };
+
     // https://w3c.github.io/pointerevents/#the-pointerout-event
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
         Bindings::PointerEventInit pointer_event_init;
@@ -2939,7 +2962,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
         auto offset = *old_hovered_node_offset;
-        auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerout, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+        auto event = create_pointer_event(UIEvents::EventNames::pointerout, pointer_event_init, offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
     }
@@ -2955,7 +2978,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
         auto offset = *old_hovered_node_offset;
-        auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseout, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+        auto event = create_mouse_event(UIEvents::EventNames::mouseout, mouse_event_init, offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         old_hovered_node->dispatch_event(event);
     }
@@ -2971,7 +2994,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
             auto offset = target.offset;
-            auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerleave, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+            auto event = create_pointer_event(UIEvents::EventNames::pointerleave, pointer_event_init, offset);
             mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target.node->dispatch_event(event);
         }
@@ -2985,7 +3008,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
             auto offset = target.offset;
-            auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseleave, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+            auto event = create_mouse_event(UIEvents::EventNames::mouseleave, mouse_event_init, offset);
             mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
             target.node->dispatch_event(event);
         }
@@ -3004,7 +3027,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
         auto offset = *hovered_node_offset;
-        auto event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerover, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+        auto event = create_pointer_event(UIEvents::EventNames::pointerover, pointer_event_init, offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         m_hovered_node->dispatch_event(event);
     }
@@ -3020,7 +3043,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         if (hover_event_data.has_value())
             populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
         auto offset = *hovered_node_offset;
-        auto event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseover, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+        auto event = create_mouse_event(UIEvents::EventNames::mouseover, mouse_event_init, offset);
         mark_mouse_transition_event_as_trusted_if_needed(event, hover_event_data);
         m_hovered_node->dispatch_event(event);
     }
@@ -3039,14 +3062,14 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(pointer_event_init, *hover_event_data, window_proxy);
             auto offset = target.offset;
-            auto pointer_event = UIEvents::PointerEvent::create(realm(), UIEvents::EventNames::pointerenter, pointer_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+            auto pointer_event = create_pointer_event(UIEvents::EventNames::pointerenter, pointer_event_init, offset);
             mark_mouse_transition_event_as_trusted_if_needed(pointer_event, hover_event_data);
             target.node->dispatch_event(pointer_event);
             Bindings::MouseEventInit mouse_event_init {};
             mouse_event_init.related_target = old_hovered_node;
             if (hover_event_data.has_value())
                 populate_mouse_event_init_from_hover_event_data(mouse_event_init, *hover_event_data, window_proxy);
-            auto mouse_event = UIEvents::MouseEvent::create(realm(), UIEvents::EventNames::mouseenter, mouse_event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double());
+            auto mouse_event = create_mouse_event(UIEvents::EventNames::mouseenter, mouse_event_init, offset);
             mark_mouse_transition_event_as_trusted_if_needed(mouse_event, hover_event_data);
             target.node->dispatch_event(mouse_event);
         }
@@ -3056,7 +3079,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-getelementsbyname
 GC::Ref<NodeList> Document::get_elements_by_name(FlyString const& name)
 {
-    return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
+    return LiveNodeList::create(*this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
         if (!is<HTML::HTMLElement>(node))
             return false;
         return as<HTML::HTMLElement>(node).name() == name;
@@ -3197,8 +3220,8 @@ Optional<Color> Document::visited_link_color() const
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object
 HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 {
-    // Then, the relevant settings object for a platform object o is the environment settings object of the relevant Realm for o.
-    return Bindings::principal_host_defined_environment_settings_object(realm());
+    auto& global_scope = HTML::relevant_window_or_worker_global_scope(*m_relevant_global_event_target);
+    return HTML::relevant_settings_object(global_scope);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
@@ -3206,7 +3229,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& loc
 {
     // 1. If localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_element_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in tag name."_utf16);
+        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "Invalid character in tag name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     auto local_name_lower = document_type() == Type::HTML
@@ -3232,7 +3255,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlySt
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName
     //    given "element".
-    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Element));
+    auto extracted_qualified_name = TRY(validate_and_extract(relevant_settings_object().realm(), namespace_, qualified_name, ValidationContext::Element));
 
     // 2. Let registry and is be the result of flattening element creation options given options and this.
     auto [registry, is_value] = TRY(flatten_element_creation_options(options));
@@ -3243,12 +3266,12 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element_ns(Optional<FlySt
 
 GC::Ref<DocumentFragment> Document::create_document_fragment()
 {
-    return realm().create<DocumentFragment>(*this);
+    return DocumentFragment::create(*this);
 }
 
 GC::Ref<Text> Document::create_text_node(Utf16String data)
 {
-    return realm().create<Text>(*this, move(data));
+    return Text::create(*this, move(data));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createcdatasection
@@ -3256,19 +3279,19 @@ WebIDL::ExceptionOr<GC::Ref<CDATASection>> Document::create_cdata_section(Utf16S
 {
     // 1. If this is an HTML document, then throw a "NotSupportedError" DOMException.
     if (is_html_document())
-        return WebIDL::NotSupportedError::create(realm(), "This operation is not supported for HTML documents"_utf16);
+        return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "This operation is not supported for HTML documents"_utf16);
 
     // 2. If data contains the string "]]>", then throw an "InvalidCharacterError" DOMException.
     if (data.contains("]]>"sv))
-        return WebIDL::InvalidCharacterError::create(realm(), "String may not contain ']]>'"_utf16);
+        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "String may not contain ']]>'"_utf16);
 
     // 3. Return a new CDATASection node with its data set to data and node document set to this.
-    return realm().create<CDATASection>(*this, move(data));
+    return CDATASection::create(*this, move(data));
 }
 
 GC::Ref<Comment> Document::create_comment(Utf16String data)
 {
-    return realm().create<Comment>(*this, move(data));
+    return Comment::create(*this, move(data));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createprocessinginstruction
@@ -3276,14 +3299,14 @@ WebIDL::ExceptionOr<GC::Ref<ProcessingInstruction>> Document::create_processing_
 {
     // 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_name(target))
-        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in target name."_utf16);
+        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "Invalid character in target name."_utf16);
 
     // 2. If data contains the string "?>", then throw an "InvalidCharacterError" DOMException.
     if (data.contains("?>"sv))
-        return WebIDL::InvalidCharacterError::create(realm(), "String may not contain '?>'"_utf16);
+        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "String may not contain '?>'"_utf16);
 
     // 3. Return a new ProcessingInstruction node, with target set to target, data set to data, and node document set to this.
-    return realm().create<ProcessingInstruction>(*this, move(data), target);
+    return ProcessingInstruction::create(*this, move(data), target);
 }
 
 GC::Ref<Range> Document::create_range()
@@ -3294,7 +3317,8 @@ GC::Ref<Range> Document::create_range()
 // https://dom.spec.whatwg.org/#dom-document-createevent
 WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
 {
-    auto& realm = this->realm();
+    auto& realm = relevant_settings_object().realm();
+    auto time_stamp = HighResolutionTime::current_high_resolution_time(realm.global_object());
 
     // NOTE: This is named event here, since we do step 5 and 6 as soon as possible for each case.
     // 1. Let constructor be null.
@@ -3303,44 +3327,44 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Document::create_event(StringView interface)
     // 2. If interface is an ASCII case-insensitive match for any of the strings in the first column in the following table,
     //      then set constructor to the interface in the second column on the same row as the matching string:
     if (interface.equals_ignoring_ascii_case("beforeunloadevent"sv)) {
-        event = HTML::BeforeUnloadEvent::create(realm, FlyString {});
+        event = HTML::BeforeUnloadEvent::create(FlyString {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("compositionevent"sv)) {
-        event = UIEvents::CompositionEvent::create(realm, String {});
+        event = UIEvents::CompositionEvent::create(String {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("customevent"sv)) {
-        event = CustomEvent::create(realm, FlyString {});
+        event = CustomEvent::create(FlyString {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("devicemotionevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create DeviceMotionEvent
+        event = Event::create(FlyString {}, time_stamp); // FIXME: Create DeviceMotionEvent
     } else if (interface.equals_ignoring_ascii_case("deviceorientationevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create DeviceOrientationEvent
+        event = Event::create(FlyString {}, time_stamp); // FIXME: Create DeviceOrientationEvent
     } else if (interface.equals_ignoring_ascii_case("dragevent"sv)) {
-        event = HTML::DragEvent::create(realm, FlyString {});
+        event = HTML::DragEvent::create(FlyString {}, {}, 0, 0, 0, 0, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("event"sv)
         || interface.equals_ignoring_ascii_case("events"sv)) {
-        event = Event::create(realm, FlyString {});
+        event = Event::create(FlyString {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("focusevent"sv)) {
-        event = UIEvents::FocusEvent::create(realm, FlyString {});
+        event = UIEvents::FocusEvent::create(FlyString {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("hashchangeevent"sv)) {
-        event = HTML::HashChangeEvent::create(realm, FlyString {}, {});
+        event = HTML::HashChangeEvent::create(FlyString {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("htmlevents"sv)) {
-        event = Event::create(realm, FlyString {});
+        event = Event::create(FlyString {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("keyboardevent"sv)) {
-        event = UIEvents::KeyboardEvent::create(realm, String {});
+        event = UIEvents::KeyboardEvent::create(String {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("messageevent"sv)) {
-        event = HTML::MessageEvent::create(realm, FlyString {}, Bindings::MessageEventInit {});
+        event = HTML::MessageEvent::create(realm.global_object(), FlyString {}, Bindings::MessageEventInit {});
     } else if (interface.equals_ignoring_ascii_case("mouseevent"sv)
         || interface.equals_ignoring_ascii_case("mouseevents"sv)) {
-        event = UIEvents::MouseEvent::create(realm, FlyString {});
+        event = UIEvents::MouseEvent::create(FlyString {}, {}, 0, 0, 0, 0, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("storageevent"sv)) {
-        event = HTML::StorageEvent::create(realm, FlyString {});
+        event = HTML::StorageEvent::create(FlyString {}, {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("svgevents"sv)) {
-        event = Event::create(realm, FlyString {});
+        event = Event::create(FlyString {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("textevent"sv)) {
-        event = UIEvents::TextEvent::create(realm, FlyString {});
+        event = UIEvents::TextEvent::create(FlyString {}, time_stamp);
     } else if (interface.equals_ignoring_ascii_case("touchevent"sv)) {
-        event = Event::create(realm, FlyString {}); // FIXME: Create TouchEvent
+        event = Event::create(FlyString {}, time_stamp); // FIXME: Create TouchEvent
     } else if (interface.equals_ignoring_ascii_case("uievent"sv)
         || interface.equals_ignoring_ascii_case("uievents"sv)) {
-        event = UIEvents::UIEvent::create(realm, FlyString {});
+        event = UIEvents::UIEvent::create(FlyString {}, time_stamp);
     }
 
     // 3. If constructor is null, then throw a "NotSupportedError" DOMException.
@@ -3402,7 +3426,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Var
 {
     // 1. If node is a document or shadow root, then throw a "NotSupportedError" DOMException.
     if (is<Document>(*node) || is<ShadowRoot>(*node))
-        return WebIDL::NotSupportedError::create(realm(), "Cannot import a document or shadow root."_utf16);
+        return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "Cannot import a document or shadow root."_utf16);
 
     // 2. Let subtree be false.
     bool subtree = false;
@@ -3428,7 +3452,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Var
             // 3. If registry’s is scoped is false and registry is not this’s custom element registry, then throw a
             //    "NotSupportedError" DOMException.
             if (registry && !registry->is_scoped() && registry != custom_element_registry())
-                return WebIDL::NotSupportedError::create(realm(), "'customElementRegistry' in ImportNodeOptions must either be scoped or the document's custom element registry."_utf16);
+                return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "'customElementRegistry' in ImportNodeOptions must either be scoped or the document's custom element registry."_utf16);
             return {};
         }));
 
@@ -3496,8 +3520,10 @@ void Document::adopt_node(Node& node)
         node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
             if (auto* element = as_if<Element>(inclusive_descendant); element && element->is_custom()) {
                 GC::RootVector<JS::Value> arguments;
-                arguments.append(Bindings::wrap(old_document.realm(), GC::Ref { old_document }));
-                arguments.append(Bindings::wrap(realm(), GC::Ref { *this }));
+                auto& old_document_realm = old_document.relevant_settings_object().realm();
+                auto& new_document_realm = relevant_settings_object().realm();
+                arguments.append(Bindings::wrap(Bindings::host_defined_wrapper_world(old_document_realm), old_document_realm, GC::Ref { old_document }));
+                arguments.append(Bindings::wrap(Bindings::host_defined_wrapper_world(new_document_realm), new_document_realm, GC::Ref { *this }));
 
                 element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::adoptedCallback, move(arguments));
             }
@@ -3531,10 +3557,10 @@ void Document::adopt_node(Node& node)
 WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node_binding(GC::Ref<Node> node)
 {
     if (is<Document>(*node))
-        return WebIDL::NotSupportedError::create(realm(), "Cannot adopt a document into a document"_utf16);
+        return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "Cannot adopt a document into a document"_utf16);
 
     if (is<ShadowRoot>(*node))
-        return WebIDL::HierarchyRequestError::create(realm(), "Cannot adopt a shadow root into a document"_utf16);
+        return WebIDL::HierarchyRequestError::create(relevant_settings_object().realm(), "Cannot adopt a shadow root into a document"_utf16);
 
     if (auto* fragment = as_if<DocumentFragment>(*node); fragment && fragment->host())
         return node;
@@ -3885,9 +3911,9 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 
         append_pending_animation_event({
             .event = CSS::TransitionEvent::create(
-                transition->owning_element()->element().realm(),
                 type,
-                event_init),
+                event_init,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(transition->owning_element()->element().document()))),
             .animation = transition,
             .target = transition->owning_element()->element(),
             .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
@@ -3993,9 +4019,9 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
         append_pending_animation_event({
             .event = CSS::AnimationEvent::create(
-                owning_element->element().realm(),
                 name,
-                event_init),
+                event_init,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(owning_element->element().document()))),
             .animation = css_animation,
             .target = owning_element->element(),
             .scheduled_event_time = timeline && timeline->can_convert_a_timeline_time_to_an_origin_relative_time()
@@ -4186,7 +4212,9 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
     }
 
     // 4. Fire an event named readystatechange at document.
-    dispatch_event(Event::create(realm(), HTML::EventNames::readystatechange));
+    dispatch_event(Event::create(
+        HTML::EventNames::readystatechange,
+        HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
 
     if (readiness_value == HTML::DocumentReadyState::Complete) {
         auto navigable = this->navigable();
@@ -4307,7 +4335,7 @@ void Document::completely_finish_loading()
     // 5. Otherwise, if container is non-null, then queue an element task on the DOM manipulation task source given container to fire an event named load at container.
     else if (container) {
         container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [container] {
-            container->dispatch_event(DOM::Event::create(container->realm(), HTML::EventNames::load));
+            container->dispatch_event(DOM::Event::create(HTML::EventNames::load, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*container))));
         });
     }
 
@@ -4325,7 +4353,7 @@ WebIDL::ExceptionOr<String> Document::cookie()
 
     // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
     if (origin().is_opaque())
-        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_utf16);
+        return WebIDL::SecurityError::create(relevant_settings_object().realm(), "Document origin is opaque"_utf16);
 
     // Otherwise, the user agent must return the cookie-string for the document's URL for a "non-HTTP" API, decoded using
     // UTF-8 decode without BOM.
@@ -4353,7 +4381,7 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string)
 
     // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
     if (origin().is_opaque())
-        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_utf16);
+        return WebIDL::SecurityError::create(relevant_settings_object().realm(), "Document origin is opaque"_utf16);
 
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
@@ -4571,7 +4599,9 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
         m_visibility_state);
 
     // 7. Fire an event named visibilitychange at document, with its bubbles attribute initialized to true.
-    auto event = DOM::Event::create(realm(), HTML::EventNames::visibilitychange);
+    auto event = DOM::Event::create(
+        HTML::EventNames::visibilitychange,
+        HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
     event->set_bubbles(true);
     dispatch_event(event);
 
@@ -4605,13 +4635,17 @@ void Document::run_the_resize_steps()
 
     if (!is_initial_size) {
         if (viewport_size_changed) {
-            auto window_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
+            auto window_resize_event = DOM::Event::create(
+                UIEvents::EventNames::resize,
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
             window_resize_event->set_is_trusted(true);
             window()->dispatch_event(window_resize_event);
         }
 
         if (visual_viewport_state_changed) {
-            auto visual_viewport_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
+            auto visual_viewport_resize_event = DOM::Event::create(
+                UIEvents::EventNames::resize,
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
             visual_viewport_resize_event->set_is_trusted(true);
             visual_viewport.dispatch_event(visual_viewport_resize_event);
         }
@@ -4635,7 +4669,9 @@ void Document::run_the_scroll_steps()
     for (auto const& [target, type] : pending_scroll_events) {
         // 1. If target is a Document, and type is "scroll" or "scrollend", fire an event named type that bubbles at target.
         if (is<Document>(*target) && (type == HTML::EventNames::scroll || type == HTML::EventNames::scrollend)) {
-            auto event = DOM::Event::create(realm(), type);
+            auto event = DOM::Event::create(
+                type,
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
             event->set_bubbles(true);
             target->dispatch_event(event);
         }
@@ -4643,7 +4679,9 @@ void Document::run_the_scroll_steps()
         // FIXME: 3. Otherwise, if type is "scrollsnapchanging", then:
         // 4. Otherwise, fire an event named type at target.
         else {
-            auto event = DOM::Event::create(realm(), type);
+            auto event = DOM::Event::create(
+                type,
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
             target->dispatch_event(event);
         }
     }
@@ -4692,7 +4730,10 @@ void Document::evaluate_media_queries_and_report_changes()
             Bindings::MediaQueryListEventInit init;
             init.media = media_query_list->media();
             init.matches = now_matches;
-            auto event = CSS::MediaQueryListEvent::create(realm(), HTML::EventNames::change, init);
+            auto event = CSS::MediaQueryListEvent::create(
+                HTML::EventNames::change,
+                init,
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
             event->set_is_trusted(true);
             media_query_list->dispatch_event(*event);
         }
@@ -4842,13 +4883,13 @@ bool Document::is_valid_name(String const& name)
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
 GC::Ref<NodeIterator> Document::create_node_iterator(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
-    return NodeIterator::create(realm(), root, what_to_show, filter);
+    return NodeIterator::create(root, what_to_show, filter);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker
 GC::Ref<TreeWalker> Document::create_tree_walker(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
-    return TreeWalker::create(realm(), root, what_to_show, filter);
+    return TreeWalker::create(root, what_to_show, filter);
 }
 
 void Document::register_node_iterator(Badge<NodeIterator>, NodeIterator& node_iterator)
@@ -5025,7 +5066,7 @@ CSS::StyleSheetList const& Document::style_sheets() const
 GC::Ref<HTML::History> Document::history()
 {
     if (!m_history)
-        m_history = HTML::History::create(realm());
+        m_history = HTML::History::create(*this);
     return *m_history;
 }
 
@@ -5100,7 +5141,7 @@ bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_str
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-document-domain
 WebIDL::ExceptionOr<void> Document::set_domain(String const& domain)
 {
-    auto& realm = this->realm();
+    auto& realm = relevant_settings_object().realm();
 
     // 1. If this's browsing context is null, then throw a "SecurityError" DOMException.
     if (!m_browsing_context)
@@ -5141,9 +5182,8 @@ void Document::set_active_sandboxing_flag_set(HTML::SandboxingFlagSet sandboxing
 
 GC::Ref<HTML::PolicyContainer> Document::policy_container() const
 {
-    auto& heap = this->heap();
     if (!m_policy_container) {
-        m_policy_container = heap.allocate<HTML::PolicyContainer>(heap);
+        m_policy_container = GC::Heap::the().allocate<HTML::PolicyContainer>(GC::Heap::the());
     }
     return *m_policy_container;
 }
@@ -5157,7 +5197,7 @@ void Document::set_policy_container(GC::Ref<HTML::PolicyContainer> policy_contai
 GC::Ref<HTML::SourceSnapshotParams> Document::snapshot_source_snapshot_params() const
 {
     // To snapshot source snapshot params given a Document sourceDocument, return a new source snapshot params with
-    return heap().allocate<HTML::SourceSnapshotParams>(
+    return GC::Heap::the().allocate<HTML::SourceSnapshotParams>(
         // has transient activation
         //    true if sourceDocument's relevant global object has transient activation; otherwise false
         HTML::relevant_window(*this).has_transient_activation(),
@@ -5379,7 +5419,7 @@ void Document::destroy()
     // 4. Let ports be the list of MessagePorts whose relevant global object's associated Document is document.
     // 5. For each port in ports, disentangle port.
     HTML::MessagePort::for_each_message_port([&](HTML::MessagePort& port) {
-        auto& global = HTML::relevant_global_object(port);
+        auto& global = port.relevant_global_object();
         auto* window = HTML::window_from_global_object(global);
         if (!window)
             return;
@@ -5447,7 +5487,7 @@ struct DocumentLifecycleState : public GC::Cell {
         : remaining_children(remaining)
         , document(document)
         , finish_callback(finish_callback)
-        , timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
+        , timeout(Platform::Timer::create_single_shot(GC::Heap::the(), TIMEOUT_MS, GC::create_function(GC::Heap::the(), [this] {
             if (remaining_children > 0)
                 dbgln("FIXME: Document unload/destruction timed out with {} remaining children", remaining_children);
         })))
@@ -5501,7 +5541,7 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
 
     // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to
     //    perform the following steps:
-    auto finish_callback = GC::create_function(heap(), [document = this, after_all_destruction] {
+    auto finish_callback = GC::create_function(GC::Heap::the(), [document = this, after_all_destruction] {
         // 1. Destroy document.
         document->destroy();
 
@@ -5517,15 +5557,15 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     }
 
     // 3. Let numberDestroyed be 0.
-    auto destruction_state = heap().allocate<DocumentLifecycleState>(*this, child_navigables.size(), finish_callback);
+    auto destruction_state = GC::Heap::the().allocate<DocumentLifecycleState>(*this, child_navigables.size(), finish_callback);
 
     // 4. For each childNavigable of childNavigables, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
         queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*child_navigable->active_window()),
-            GC::create_function(heap(), [&heap = heap(), destruction_state, child_navigable] {
+            GC::create_function(GC::Heap::the(), [destruction_state, child_navigable] {
                 // 1. Let incrementDestroyed be an algorithm step which increments numberDestroyed.
-                auto increment_destroyed = GC::create_function(heap, [destruction_state] { destruction_state->did_process_child(); });
+                auto increment_destroyed = GC::create_function(GC::Heap::the(), [destruction_state] { destruction_state->did_process_child(); });
 
                 // 2. Destroy a document and its descendants given childNavigable's active document and incrementDestroyed.
                 child_navigable->active_document()->destroy_a_document_and_its_descendants(increment_destroyed);
@@ -5580,7 +5620,7 @@ void Document::abort_a_document_and_its_descendants()
 
     // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
     for (auto& descendant_navigable : descendant_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable->active_window()), GC::create_function(heap(), [this, descendant_navigable = descendant_navigable.ptr()] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable->active_window()), GC::create_function(GC::Heap::the(), [this, descendant_navigable = descendant_navigable.ptr()] {
             // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
             //       See https://github.com/whatwg/html/issues/9711
             descendant_navigable->set_ongoing_navigation({});
@@ -5667,7 +5707,9 @@ void Document::unload(GC::Ptr<Document>)
         // then fire an event named unload at document's relevant global object, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
-        auto event = DOM::Event::create(realm(), HTML::EventNames::unload);
+        auto event = DOM::Event::create(
+            HTML::EventNames::unload,
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         HTML::relevant_window(*this).dispatch_event(event);
     }
 
@@ -5713,7 +5755,7 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
 
     // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to
     //    perform the following steps:
-    auto finish_callback = GC::create_function(heap(), [document = this, new_document, after_all_unloads] {
+    auto finish_callback = GC::create_function(GC::Heap::the(), [document = this, new_document, after_all_unloads] {
         // FIXME: 1. If firePageSwapSteps is given, then run firePageSwapSteps.
 
         // 2. Unload document, passing along newDocument if it is not null.
@@ -5733,15 +5775,15 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
     }
 
     // 3. Let numberUnloaded be 0.
-    auto unload_state = heap().allocate<DocumentLifecycleState>(*this, child_navigables.size(), finish_callback);
+    auto unload_state = GC::Heap::the().allocate<DocumentLifecycleState>(*this, child_navigables.size(), finish_callback);
 
     // 4. For each childNavigable of childNavigables [[ in what order? ]], queue a global task on the navigation and
     //    traversal task source given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
         HTML::queue_a_task(HTML::Task::Source::NavigationAndTraversal, nullptr, nullptr,
-            GC::create_function(heap(), [&heap = heap(), unload_state, child_navigable = child_navigable.ptr()] {
+            GC::create_function(GC::Heap::the(), [unload_state, child_navigable = child_navigable.ptr()] {
                 // 1. Let incrementUnloaded be an algorithm step which increments numberUnloaded.
-                auto increment_unloaded = GC::create_function(heap, [unload_state] { unload_state->did_process_child(); });
+                auto increment_unloaded = GC::create_function(GC::Heap::the(), [unload_state] { unload_state->did_process_child(); });
 
                 // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
                 if (auto active_document = child_navigable->active_document())
@@ -5834,7 +5876,7 @@ GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
         if (!m_associated_inert_template_document) {
             // 1. Let newDocument be a new Document (whose browsing context is null). This is "a Document created by
             //    this algorithm" for the purposes of the step above.
-            auto new_document = HTML::HTMLDocument::create(realm());
+            auto new_document = HTML::HTMLDocument::create(page(), *m_relevant_global_event_target);
             new_document->m_created_for_appropriate_template_contents = true;
 
             // 2. If document is an HTML document, then mark newDocument as an HTML document also.
@@ -5861,7 +5903,7 @@ String Document::dump_accessibility_tree_as_json()
     update_layout(UpdateLayoutReason::InspectAccessibilityTree);
 
     StringBuilder builder;
-    auto accessibility_tree = AccessibilityTreeNode::create(this, nullptr);
+    auto accessibility_tree = AccessibilityTreeNode::create(nullptr);
     build_accessibility_tree(*&accessibility_tree);
     auto json = MUST(JsonObjectSerializer<>::try_create(builder));
 
@@ -5882,7 +5924,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& loca
 {
     // 1. If localName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(local_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in attribute name."_utf16);
+        return WebIDL::InvalidCharacterError::create(relevant_settings_object().realm(), "Invalid character in attribute name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
     // 3. Return a new attribute whose local name is localName and node document is this.
@@ -5893,7 +5935,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute(String const& loca
 WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<FlyString> const& namespace_, String const& qualified_name)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
-    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Attribute));
+    auto extracted_qualified_name = TRY(validate_and_extract(relevant_settings_object().realm(), namespace_, qualified_name, ValidationContext::Attribute));
 
     // 2. Return a new attribute whose namespace is namespace, namespace prefix is prefix, local name is localName, and node document is this.
     return Attr::create(*this, extracted_qualified_name);
@@ -6032,7 +6074,7 @@ void Document::queue_intersection_observer_task()
     m_intersection_observer_task_queued = true;
 
     // 3. Queue a task on the IntersectionObserver task source associated with the document's event loop to notify intersection observers.
-    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, HTML::relevant_global_object(*window), GC::create_function(heap(), [this]() {
+    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, HTML::relevant_global_object(*window), GC::create_function(GC::Heap::the(), [this]() {
         // https://www.w3.org/TR/intersection-observer/#notify-intersection-observers
         // 1. Set document’s IntersectionObserverTaskQueued flag to false.
         m_intersection_observer_task_queued = false;
@@ -6056,17 +6098,18 @@ void Document::queue_intersection_observer_task()
             auto& callback_realm = callback.callback_context->realm();
 
             auto wrapped_queue = MUST(JS::Array::create(callback_realm, 0));
+            auto& wrapper_world = Bindings::host_defined_wrapper_world(callback_realm);
             for (size_t i = 0; i < queue.size(); ++i) {
                 auto& record = queue.at(i);
                 auto property_index = JS::PropertyKey { i };
-                MUST(wrapped_queue->create_data_property(property_index, Bindings::wrap(callback_realm, GC::Ref { *record })));
+                MUST(wrapped_queue->create_data_property(property_index, Bindings::wrap(wrapper_world, callback_realm, GC::Ref { *record })));
             }
 
             // 4. Let callback be the value of observer’s internal [[callback]] slot.
 
             // 5. Invoke callback with queue as the first argument, observer as the second argument, and observer as the callback this value. If this throws an exception, report the exception.
             // NOTE: This does not follow the spec as written precisely, but this is the same thing we do elsewhere and there is a WPT test that relies on this.
-            auto wrapped_observer = Bindings::wrap(callback_realm, observer);
+            auto wrapped_observer = Bindings::wrap(wrapper_world, callback_realm, observer);
             (void)WebIDL::invoke_callback(callback, wrapped_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_queue, wrapped_observer } });
         }
     }));
@@ -6075,10 +6118,8 @@ void Document::queue_intersection_observer_task()
 // https://www.w3.org/TR/intersection-observer/#queue-an-intersectionobserverentry
 void Document::queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver& observer, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target)
 {
-    auto& realm = this->realm();
-
     // 1. Construct an IntersectionObserverEntry, passing in time, rootBounds, boundingClientRect, intersectionRect, isIntersecting, and target.
-    auto entry = realm.create<IntersectionObserver::IntersectionObserverEntry>(realm, time, root_bounds, bounding_client_rect, intersection_rect, is_intersecting, intersection_ratio, target);
+    auto entry = IntersectionObserver::IntersectionObserverEntry::create(time, root_bounds, bounding_client_rect, intersection_rect, is_intersecting, intersection_ratio, target);
 
     // 2. Append it to observer’s internal [[QueuedEntries]] slot.
     observer.queue_entry({}, entry);
@@ -6150,8 +6191,6 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
 // https://www.w3.org/TR/intersection-observer/#run-the-update-intersection-observations-steps
 void Document::run_the_update_intersection_observations_steps(HighResolutionTime::DOMHighResTimeStamp time)
 {
-    auto& realm = this->realm();
-
     // 1. Let observer list be a list of all IntersectionObservers whose root is in the DOM tree of document.
     //    For the top-level browsing context, this includes implicit root observers.
     // 2. For each observer in observer list:
@@ -6259,11 +6298,11 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             //     previousIsIntersecting, queue an IntersectionObserverEntry, passing in observer, time,
             //     rootBounds, targetRect, intersectionRect, isIntersecting, and target.
             if (threshold_index != previous_threshold_index || is_intersecting != previous_is_intersecting) {
-                auto root_bounds_as_dom_rect = Geometry::DOMRectReadOnly::construct_impl(realm, static_cast<double>(root_bounds.x()), static_cast<double>(root_bounds.y()), static_cast<double>(root_bounds.width()), static_cast<double>(root_bounds.height())).release_value_but_fixme_should_propagate_errors();
+                auto root_bounds_as_dom_rect = Geometry::DOMRectReadOnly::create(static_cast<double>(root_bounds.x()), static_cast<double>(root_bounds.y()), static_cast<double>(root_bounds.width()), static_cast<double>(root_bounds.height()));
 
                 // SPEC ISSUE: It doesn't pass in intersectionRatio, but it's required.
-                auto target_dom_rect = MUST(Geometry::DOMRectReadOnly::construct_impl(realm, static_cast<double>(target_rect.x()), static_cast<double>(target_rect.y()), static_cast<double>(target_rect.width()), static_cast<double>(target_rect.height())));
-                auto intersection_dom_rect = MUST(Geometry::DOMRectReadOnly::construct_impl(realm, static_cast<double>(intersection_rect.x()), static_cast<double>(intersection_rect.y()), static_cast<double>(intersection_rect.width()), static_cast<double>(intersection_rect.height())));
+                auto target_dom_rect = Geometry::DOMRectReadOnly::create(static_cast<double>(target_rect.x()), static_cast<double>(target_rect.y()), static_cast<double>(target_rect.width()), static_cast<double>(target_rect.height()));
+                auto intersection_dom_rect = Geometry::DOMRectReadOnly::create(static_cast<double>(intersection_rect.x()), static_cast<double>(intersection_rect.y()), static_cast<double>(intersection_rect.width()), static_cast<double>(intersection_rect.height()));
                 queue_an_intersection_observer_entry(observer, time, root_bounds_as_dom_rect, target_dom_rect, intersection_dom_rect, is_intersecting, intersection_ratio, target);
             }
 
@@ -6281,7 +6320,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
 {
     VERIFY(element.is_lazy_loading());
 
-    auto& realm = this->realm();
+    auto& realm = relevant_settings_object().realm();
 
     // 1. Let doc be element's node document.
     VERIFY(&element.document() == this);
@@ -6335,8 +6374,8 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
         // Spec Note: This allows for fetching the image during scrolling, when it does not yet — but is about to — intersect the viewport.
         auto options = Bindings::IntersectionObserverInit {};
 
-        auto wrapped_callback = realm.heap().allocate<WebIDL::CallbackType>(callback, realm);
-        m_lazy_load_intersection_observer = IntersectionObserver::IntersectionObserver::construct_impl(realm, wrapped_callback, options).release_value_but_fixme_should_propagate_errors();
+        auto wrapped_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(callback, realm);
+        m_lazy_load_intersection_observer = IntersectionObserver::IntersectionObserver::create_with_implicit_root_document(wrapped_callback, options, *this).release_value_but_fixme_should_propagate_errors();
     }
 
     // 3. Call doc's lazy load intersection observer's observe method with element as the argument.
@@ -6620,7 +6659,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             popstate_event_init.state = history()->unsafe_state();
             auto& relevant_global_object = HTML::relevant_global_object(*this);
             auto& window = HTML::relevant_window(*this);
-            auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
+            auto pop_state_event = HTML::PopStateEvent::create("popstate"_fly_string, popstate_event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
             window.dispatch_event(pop_state_event);
 
             // FIXME: 4. Restore persisted state given entry.
@@ -6633,8 +6672,8 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
                 Bindings::HashChangeEventInit hashchange_event_init;
                 hashchange_event_init.old_url = old_url.serialize();
                 hashchange_event_init.new_url = entry->url().serialize();
-                auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_fly_string, hashchange_event_init);
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(heap(), [hashchange_event, &window]() {
+                auto hashchange_event = HTML::HashChangeEvent::create("hashchange"_fly_string, hashchange_event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), [hashchange_event, &window]() {
                     window.dispatch_event(hashchange_event);
                 }));
             }
@@ -6837,7 +6876,7 @@ GC::Ref<Animations::DocumentTimeline> Document::timeline()
     // The DocumentTimeline object representing the default document timeline. The default document timeline has an
     // origin time of zero.
     if (!m_default_timeline)
-        m_default_timeline = Animations::DocumentTimeline::create(realm(), *this, 0.0);
+        m_default_timeline = Animations::DocumentTimeline::create(*this, 0.0);
     return *m_default_timeline;
 }
 
@@ -6873,7 +6912,7 @@ void Document::update_animations_and_send_events(double timestamp)
     auto timelines_to_update = GC::RootVector { m_associated_animation_timelines.values() };
 
     {
-        HTML::TemporaryExecutionContext temporary_execution_context { realm() };
+        HTML::TemporaryExecutionContext temporary_execution_context { relevant_settings_object() };
         // 1. Update the current time of all timelines associated with doc passing now as the timestamp.
         for (auto const& timeline : timelines_to_update)
             timeline->update_current_time(timestamp);
@@ -7005,9 +7044,9 @@ void Document::remove_replaced_animations()
             // - Set removeEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //   associated.
             Bindings::AnimationPlaybackEventInit init;
-            init.current_time = animation->current_time().has_value() ? Animations::NullableCSSNumberish { animation->current_time()->as_css_numberish(realm()) } : Animations::NullableCSSNumberish { Empty {} };
-            init.timeline_time = animation->timeline()->current_time().has_value() ? Animations::NullableCSSNumberish { animation->timeline()->current_time()->as_css_numberish(realm()) } : Animations::NullableCSSNumberish { Empty {} };
-            auto remove_event = Animations::AnimationPlaybackEvent::create(realm(), HTML::EventNames::remove, init);
+            init.current_time = animation->current_time().has_value() ? Animations::NullableCSSNumberish { animation->current_time()->as_css_numberish() } : Animations::NullableCSSNumberish { Empty {} };
+            init.timeline_time = animation->timeline()->current_time().has_value() ? Animations::NullableCSSNumberish { animation->timeline()->current_time()->as_css_numberish() } : Animations::NullableCSSNumberish { Empty {} };
+            auto remove_event = Animations::AnimationPlaybackEvent::create(HTML::EventNames::remove, init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
 
             // - If animation has a document for timing, then append removeEvent to its document for timing's pending
             //   animation event queue along with its target, animation. For the scheduled event time, use the result of
@@ -7025,7 +7064,7 @@ void Document::remove_replaced_animations()
             //   Otherwise, queue a task to dispatch removeEvent at animation. The task source for this task is the DOM
             //   manipulation task source.
             else {
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm().global_object(), GC::create_function(heap(), [animation, remove_event]() {
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_settings_object().realm().global_object(), GC::create_function(GC::Heap::the(), [animation, remove_event]() {
                     animation->dispatch_event(remove_event);
                 }));
             }
@@ -7033,10 +7072,10 @@ void Document::remove_replaced_animations()
     }
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> Document::get_animations()
+WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> Document::get_animations(JS::Realm& realm)
 {
     update_style();
-    return calculate_get_animations(*this);
+    return calculate_get_animations(realm, *this);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem-filter
@@ -7348,7 +7387,7 @@ GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, B
         shadow_root = as_if<ShadowRoot>(start_node->root());
     }
 
-    return CaretPosition::create(realm(), start_node, start_offset, caret_position->debug_rect.map([](auto const& rect) {
+    return CaretPosition::create(start_node, start_offset, caret_position->debug_rect.map([](auto const& rect) {
         return rect.template to_type<float>();
     }));
 }
@@ -7470,7 +7509,7 @@ static Vector<GC::Ref<DOM::Element>> named_elements_with_name(Document const& do
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
-JS::Value Document::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value Document::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
 {
     // 1. Let elements be the list of named elements with the name name that are in a document tree with the Document as their root.
     // NOTE: There will be at least one such element, since the algorithm would otherwise not have been invoked by Web IDL.
@@ -7486,13 +7525,13 @@ JS::Value Document::named_item_value(JS::Realm& realm, FlyString const& name) co
 
     // 3. Otherwise, if elements has only one element, return that element.
     if (elements.size() == 1)
-        return Bindings::wrap(realm, elements.first()).ptr();
+        return Bindings::wrap(wrapper_world, realm, elements.first()).ptr();
 
     // 4. Otherwise return an HTMLCollection rooted at the Document node, whose filter matches only named elements with the name name.
     auto collection = HTMLCollection::create(*const_cast<Document*>(this), HTMLCollection::Scope::Descendants, [name](auto& element) {
         return is_named_element_with_name(element, name);
     });
-    return Bindings::wrap(realm, collection);
+    return Bindings::wrap(wrapper_world, realm, collection);
 }
 
 // https://drafts.csswg.org/resize-observer-1/#calculate-depth-for-node
@@ -7584,7 +7623,7 @@ size_t Document::broadcast_active_resize_observations()
                 continue;
 
             // 1. Let entry be the result of running create and populate a ResizeObserverEntry given observation.target.
-            auto entry = ResizeObserver::ResizeObserverEntry::create_and_populate(realm(), *target).release_value_but_fixme_should_propagate_errors();
+            auto entry = ResizeObserver::ResizeObserverEntry::create_and_populate(*target).release_value_but_fixme_should_propagate_errors();
 
             // 2. Add entry to entries.
             entries.append(entry);
@@ -8040,10 +8079,16 @@ void Document::run_fullscreen_steps()
         // 2. Fire an event named type, with its bubbles and composed attributes set to true, at target.
         switch (type) {
         case PendingFullscreenEvent::Type::Change:
-            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenchange, Bindings::EventInit { .bubbles = true, .composed = true }));
+            target->dispatch_event(Event::create(
+                HTML::EventNames::fullscreenchange,
+                Bindings::EventInit { .bubbles = true, .composed = true },
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
             break;
         case PendingFullscreenEvent::Type::Error:
-            target->dispatch_event(Event::create(realm(), HTML::EventNames::fullscreenerror, Bindings::EventInit { .bubbles = true, .composed = true }));
+            target->dispatch_event(Event::create(
+                HTML::EventNames::fullscreenerror,
+                Bindings::EventInit { .bubbles = true, .composed = true },
+                HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
             break;
         }
     }
@@ -8160,14 +8205,14 @@ void Document::fully_exit_fullscreen()
         unfullscreen_element(element);
 
     // 3. Exit fullscreen document.
-    HTML::TemporaryExecutionContext context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext context { relevant_settings_object(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
     exit_fullscreen();
 }
 
 // https://fullscreen.spec.whatwg.org/#exit-fullscreen
 GC::Ref<WebIDL::Promise> Document::exit_fullscreen()
 {
-    auto& realm = this->realm();
+    auto& realm = relevant_settings_object().realm();
 
     // 1. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);
@@ -8216,7 +8261,7 @@ void Document::unfullscreen()
     // To unfullscreen a document, unfullscreen all elements, within document’s top layer, whose fullscreen flag is set.
     // NB: This has to be a copy of the list of those elements, since unfullscreen an element immediately removes it
     //     from the top layer, invalidating iterators.
-    auto fullscreen_elements = heap().allocate<GC::HeapVector<GC::Ref<Element>>>();
+    auto fullscreen_elements = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<Element>>>();
     for (auto el : top_layer_elements()) {
         if (el->is_fullscreen_element())
             fullscreen_elements->elements().append(el);
@@ -8245,7 +8290,7 @@ bool Document::is_simple_fullscreen_document() const
 GC::Ref<GC::HeapVector<GC::Ref<Document>>> Document::collect_documents_to_unfullscreen()
 {
     // 1. Let docs be an ordered set consisting of doc.
-    auto docs = heap().allocate<GC::HeapVector<GC::Ref<Document>>>();
+    auto docs = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<Document>>>();
     docs->elements().append(*this);
 
     // 2. While true:
@@ -8299,8 +8344,10 @@ void Document::set_allow_declarative_shadow_roots(bool allow)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#parse-html-from-a-string
-void Document::parse_html_from_a_string(StringView html)
+void Document::parse_html_from_a_string(JS::Realm& realm, StringView html)
 {
+    [[maybe_unused]] auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
+
     // 1. Set document's type to "html".
     set_document_type(DOM::Document::Type::HTML);
 
@@ -8311,14 +8358,12 @@ void Document::parse_html_from_a_string(StringView html)
     auto parser = HTML::HTMLParser::create_for_decoded_string(*this, html, scripting_mode, "UTF-8"sv);
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
-    parser->run(HTML::relevant_window(*this).associated_document().url());
+    parser->run(url());
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
-WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM& vm, TrustedTypes::TrustedHTMLOrString const& html)
+WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::Realm& realm, TrustedTypes::TrustedHTMLOrString const& html)
 {
-    auto& realm = *vm.current_realm();
-
     // FIXME: update description once https://github.com/whatwg/html/issues/11778 gets solved
     // 1. Let compliantHTML to the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
@@ -8329,19 +8374,20 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
         TrustedTypes::InjectionSink::Document_parseHTMLUnsafe,
         TrustedTypes::Script.to_string()));
 
+    // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
+    auto* window = HTML::window_from_global_object(realm.global_object());
+    VERIFY(window);
+
     // 2. Let document be a new Document, whose content type is "text/html".
-    auto document = Document::create_for_fragment_parsing(realm);
+    auto document = Document::create_for_fragment_parsing(window->page(), *window);
     document->set_content_type("text/html"_string);
 
     // 3. Set document's allow declarative shadow roots to true.
     document->set_allow_declarative_shadow_roots(true);
 
     // 4. Parse HTML from a string given document and compliantHTML.
-    document->parse_html_from_a_string(compliant_html.to_utf8_but_should_be_ported_to_utf16());
+    document->parse_html_from_a_string(realm, compliant_html.to_utf8_but_should_be_ported_to_utf16());
 
-    // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
-    auto* window = HTML::window_from_global_object(realm.global_object());
-    VERIFY(window);
     auto& associated_document = window->associated_document();
     document->set_origin(associated_document.origin());
 
@@ -8762,7 +8808,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
     // 4. Let eventFiringResult be the result of firing an event named beforeunload at document's relevant global object,
     //    using BeforeUnloadEvent, with the cancelable attribute initialized to true.
     auto& window = HTML::relevant_window(*this);
-    auto beforeunload_event = HTML::BeforeUnloadEvent::create(realm(), HTML::EventNames::beforeunload);
+    auto beforeunload_event = HTML::BeforeUnloadEvent::create(HTML::EventNames::beforeunload, {}, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
     beforeunload_event->set_cancelable(true);
     auto event_firing_result = window.dispatch_event(*beforeunload_event);
 
@@ -8828,7 +8874,7 @@ WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_
         if (dictionary->custom_element_registry.has_value()) {
             // 1. If is is non-null, then throw a "NotSupportedError" DOMException.
             if (is.has_value())
-                return WebIDL::NotSupportedError::create(realm(), "Cannot specify both 'is' and 'customElementRegistry' in ElementCreationOptions."_utf16);
+                return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "Cannot specify both 'is' and 'customElementRegistry' in ElementCreationOptions."_utf16);
 
             // 2. Set registry to options["customElementRegistry"].
             registry = dictionary->custom_element_registry.value();
@@ -8837,7 +8883,7 @@ WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_
         // 3. If registry is non-null, registry’s is scoped is false, and registry is not document’s custom element
         //    registry, then throw a "NotSupportedError" DOMException.
         if (registry && !registry->is_scoped() && registry != custom_element_registry())
-            return WebIDL::NotSupportedError::create(realm(), "'customElementRegistry' in ElementCreationOptions must either be scoped or the document's custom element registry."_utf16);
+            return WebIDL::NotSupportedError::create(relevant_settings_object().realm(), "'customElementRegistry' in ElementCreationOptions must either be scoped or the document's custom element registry."_utf16);
     }
 
     // 4. Return registry and is.
@@ -8890,8 +8936,9 @@ GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(GC::Ptr<
     // The method steps for startViewTransition(updateCallback) are as follows:
 
     // 1. Let transition be a new ViewTransition object in this’s relevant Realm.
-    auto& realm = this->realm();
-    auto transition = ViewTransition::ViewTransition::create(realm);
+    auto& realm = relevant_settings_object().realm();
+    auto transition = ViewTransition::ViewTransition::create(GC::Ref { *this },
+        WebIDL::create_promise(realm), WebIDL::create_promise(realm), WebIDL::create_promise(realm));
 
     // 2. If updateCallback is provided, set transition’s update callback to updateCallback.
     if (update_callback != nullptr)
@@ -8969,14 +9016,14 @@ void Document::view_transition_page_visibility_change_steps()
 
     // 1. Queue a global task on the DOM manipulation task source, given document’s relevant global object, to
     //    perform the following steps:
-    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(realm().heap(), [&] {
-        HTML::TemporaryExecutionContext context(realm());
+    HTML::queue_global_task(HTML::Task::Source::DOMManipulation, HTML::relevant_global_object(*this), GC::create_function(GC::Heap::the(), [&] {
+        HTML::TemporaryExecutionContext context(relevant_settings_object());
         // 1. If document’s visibility state is "hidden", then:
         if (m_visibility_state == HTML::VisibilityState::Hidden) {
             // 1. If document’s active view transition is not null, then skip document’s active view transition with an
             //    "InvalidStateError" DOMException.
             if (m_active_view_transition) {
-                m_active_view_transition->skip_the_view_transition(WebIDL::InvalidStateError::create(realm(), "The document's visibility state is \"hidden\"."_utf16));
+                m_active_view_transition->skip_the_view_transition(WebIDL::InvalidStateError::create(relevant_settings_object().realm(), "The document's visibility state is \"hidden\"."_utf16));
             }
         }
         // 2. Otherwise, assert: active view transition is null.
@@ -9209,15 +9256,13 @@ HashMap<Utf16FlyString, CSS::CustomPropertyRegistration>& Document::registered_p
     return m_registered_property_set;
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver)
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathExpression>> Document::create_expression(JS::Realm&, String const& expression, GC::Ptr<XPath::XPathNSResolver> resolver)
 {
-    auto& realm = this->realm();
-    return XPath::create_expression(realm, expression, resolver);
+    return XPath::create_expression(expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
+WebIDL::ExceptionOr<GC::Ref<XPath::XPathResult>> Document::evaluate(JS::Realm& realm, String const& expression, DOM::Node const& context_node, GC::Ptr<XPath::XPathNSResolver> resolver, WebIDL::UnsignedShort type, GC::Ptr<XPath::XPathResult> result)
 {
-    auto& realm = this->realm();
     return XPath::evaluate(realm, expression, context_node, resolver, type, result);
 }
 

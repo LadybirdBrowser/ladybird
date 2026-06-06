@@ -10,8 +10,8 @@
 
 namespace Web::CSS {
 
-CSSConditionRule::CSSConditionRule(JS::Realm& realm, CSSRuleList& rules, Type type)
-    : CSSGroupingRule(realm, rules, type)
+CSSConditionRule::CSSConditionRule(CSSRuleList& rules, Type type)
+    : CSSGroupingRule(rules, type)
 {
 }
 

@@ -60,27 +60,27 @@ dictionary EncapsulatedBits {
 // https://w3c.github.io/webcrypto/#subtlecrypto-interface
 [SecureContext,Exposed=(Window,Worker)]
 interface SubtleCrypto {
-    Promise<any> encrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
-    Promise<any> decrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
-    Promise<any> sign(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
-    Promise<any> verify(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource signature, BufferSource data);
+    [NeedsCallerRealm] Promise<any> encrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
+    [NeedsCallerRealm] Promise<any> decrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
+    [NeedsCallerRealm] Promise<any> sign(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
+    [NeedsCallerRealm] Promise<any> verify(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource signature, BufferSource data);
 
-    Promise<any> digest(AlgorithmIdentifier algorithm, BufferSource data);
+    [NeedsCallerRealm] Promise<any> digest(AlgorithmIdentifier algorithm, BufferSource data);
 
-    Promise<any> generateKey(AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
-    Promise<any> deriveKey(AlgorithmIdentifier algorithm, CryptoKey baseKey, AlgorithmIdentifier derivedKeyType, boolean extractable, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] Promise<any> generateKey(AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] Promise<any> deriveKey(AlgorithmIdentifier algorithm, CryptoKey baseKey, AlgorithmIdentifier derivedKeyType, boolean extractable, sequence<KeyUsage> keyUsages);
     // FIXME: Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional unsigned long? length = null);
-    Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional unsigned long? length);
+    [NeedsCallerRealm] Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional unsigned long? length);
 
-    Promise<CryptoKey> importKey(KeyFormat format, (BufferSource or JsonWebKey) keyData,  AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
-    Promise<any> exportKey(KeyFormat format, CryptoKey key);
+    [NeedsCallerRealm] Promise<CryptoKey> importKey(KeyFormat format, (BufferSource or JsonWebKey) keyData,  AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] Promise<any> exportKey(KeyFormat format, CryptoKey key);
 
-    Promise<any> wrapKey(KeyFormat format, CryptoKey key, CryptoKey wrappingKey, AlgorithmIdentifier wrapAlgorithm);
-    Promise<CryptoKey> unwrapKey(KeyFormat format, BufferSource wrappedKey, CryptoKey unwrappingKey, AlgorithmIdentifier unwrapAlgorithm, AlgorithmIdentifier unwrappedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] Promise<any> wrapKey(KeyFormat format, CryptoKey key, CryptoKey wrappingKey, AlgorithmIdentifier wrapAlgorithm);
+    [NeedsCallerRealm] Promise<CryptoKey> unwrapKey(KeyFormat format, BufferSource wrappedKey, CryptoKey unwrappingKey, AlgorithmIdentifier unwrapAlgorithm, AlgorithmIdentifier unwrappedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
 
     // https://wicg.github.io/webcrypto-modern-algos/#partial-subtlecrypto-interface
-    Promise<EncapsulatedKey> encapsulateKey(AlgorithmIdentifier encapsulationAlgorithm, CryptoKey encapsulationKey, AlgorithmIdentifier sharedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
-    Promise<EncapsulatedBits> encapsulateBits(AlgorithmIdentifier encapsulationAlgorithm, CryptoKey encapsulationKey);
-    Promise<CryptoKey> decapsulateKey(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext, AlgorithmIdentifier sharedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
-    Promise<ArrayBuffer> decapsulateBits(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext);
+    [NeedsCallerRealm] Promise<EncapsulatedKey> encapsulateKey(AlgorithmIdentifier encapsulationAlgorithm, CryptoKey encapsulationKey, AlgorithmIdentifier sharedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] Promise<EncapsulatedBits> encapsulateBits(AlgorithmIdentifier encapsulationAlgorithm, CryptoKey encapsulationKey);
+    [NeedsCallerRealm] Promise<CryptoKey> decapsulateKey(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext, AlgorithmIdentifier sharedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] Promise<ArrayBuffer> decapsulateBits(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext);
 };

@@ -12,19 +12,13 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
 
-namespace Web::Bindings {
-
-class Wrappable;
-
-}
-
 namespace Web::HTML {
 
 Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> const&);
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const&);
 JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS::VM&, JS::PropertyKey const&);
 bool is_platform_object_same_origin(JS::Object const&);
-bool is_platform_object_same_origin(Bindings::Wrappable const&);
+bool is_platform_object_same_origin(Window const&);
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object&, HTML::Location const&, CrossOriginPropertyDescriptorMap&,
     JS::PropertyKey const&);
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(HTML::Window&, JS::PropertyKey const&);

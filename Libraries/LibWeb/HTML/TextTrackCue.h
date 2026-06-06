@@ -41,9 +41,7 @@ public:
     void set_onexit(WebIDL::CallbackType*);
 
 protected:
-    TextTrackCue(JS::Realm&, GC::Ptr<TextTrack>);
-
-    virtual void initialize(JS::Realm&) override;
+    TextTrackCue(GC::Ptr<TextTrack>);
     virtual void visit_edges(Visitor&) override;
 
     GC::Ptr<TextTrack> m_track;

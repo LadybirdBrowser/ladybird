@@ -10,6 +10,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Navigator.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Bindings/XRSystem.h>
 #include <LibWeb/Bindings/XRTest.h>
 #include <LibWeb/Clipboard/Clipboard.h>
@@ -30,26 +31,31 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Navigator);
 
-GC::Ref<Navigator> Navigator::create(JS::Realm& realm)
+GC::Ref<Navigator> Navigator::create(Window& window)
 {
-    return realm.create<Navigator>(realm);
+    return GC::Heap::the().allocate<Navigator>(window);
 }
 
-Navigator::Navigator(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+Navigator::Navigator(Window& window)
+    : Bindings::Wrappable()
+    , m_window(window)
 {
     NavigatorGamepadPartial::check_for_connected_gamepads();
 }
 
 Navigator::~Navigator() = default;
 
+EnvironmentSettingsObject& Navigator::navigator_storage_settings_object() const
+{
+    return relevant_settings_object(*m_window);
+}
+
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-pdfviewerenabled
 bool Navigator::pdf_viewer_enabled() const
 {
     // The NavigatorPlugins mixin's pdfViewerEnabled getter steps are to return the user agent's PDF viewer supported.
     // NOTE: The NavigatorPlugins mixin should only be exposed on the Window object.
-    auto const& window = HTML::current_window();
-    return window.page().pdf_viewer_supported();
+    return m_window->page().pdf_viewer_supported();
 }
 
 // https://w3c.github.io/webdriver/#dfn-webdriver
@@ -58,14 +64,14 @@ bool Navigator::webdriver() const
     // Returns true if webdriver-active flag is set, false otherwise.
 
     // NOTE: The NavigatorAutomationInformation interface should not be exposed on WorkerNavigator.
-    auto const& window = HTML::current_window();
-    return window.page().is_webdriver_active();
+    return m_window->page().is_webdriver_active();
 }
 
 void Navigator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     NavigatorGamepadPartial::visit_edges(visitor);
+    visitor.visit(m_window);
     visitor.visit(m_mime_type_array);
     visitor.visit(m_plugin_array);
     visitor.visit(m_clipboard);
@@ -84,59 +90,61 @@ void Navigator::visit_edges(GC::Cell::Visitor& visitor)
 GC::Ref<MimeTypeArray> Navigator::mime_types()
 {
     if (!m_mime_type_array)
-        m_mime_type_array = realm().create<MimeTypeArray>(realm());
+        m_mime_type_array = MimeTypeArray::create(*m_window);
     return *m_mime_type_array;
 }
 
 GC::Ref<PluginArray> Navigator::plugins()
 {
     if (!m_plugin_array)
-        m_plugin_array = realm().create<PluginArray>(realm());
+        m_plugin_array = PluginArray::create(*m_window);
     return *m_plugin_array;
 }
 
 GC::Ref<Clipboard::Clipboard> Navigator::clipboard()
 {
     if (!m_clipboard)
-        m_clipboard = realm().create<Clipboard::Clipboard>(realm());
+        m_clipboard = Clipboard::Clipboard::create();
     return *m_clipboard;
 }
 
 GC::Ref<Geolocation::Geolocation> Navigator::geolocation()
 {
     if (!m_geolocation)
-        m_geolocation = realm().create<Geolocation::Geolocation>(realm());
+        m_geolocation = Geolocation::Geolocation::create(*m_window);
     return *m_geolocation;
 }
 
 GC::Ref<Serial::Serial> Navigator::serial()
 {
     if (!m_serial)
-        m_serial = realm().create<Serial::Serial>(realm());
+        m_serial = Serial::Serial::create();
     return *m_serial;
 }
 
 GC::Ref<UserActivation> Navigator::user_activation()
 {
     if (!m_user_activation)
-        m_user_activation = realm().create<UserActivation>(realm());
+        m_user_activation = UserActivation::create(*m_window);
     return *m_user_activation;
 }
 
 GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
 {
     if (!m_credentials)
-        m_credentials = realm().create<CredentialManagement::CredentialsContainer>(realm());
+        m_credentials = CredentialManagement::CredentialsContainer::create();
     return *m_credentials;
 }
 
 GC::Ref<WebXR::XRSystem> Navigator::xr()
 {
     if (!m_xr) {
-        auto& realm = this->realm();
-        m_xr = realm.create<WebXR::XRSystem>(realm);
-        if (Window::is_internals_object_exposed())
-            Bindings::wrap(realm, m_xr)->define_direct_property("test"_utf16_fly_string, Bindings::wrap(realm, realm.create<Internals::XRTest>(realm)), JS::default_attributes);
+        auto& realm = m_window->realm();
+        m_xr = WebXR::XRSystem::create(*m_window);
+        if (Window::is_internals_object_exposed()) {
+            auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+            Bindings::wrap(wrapper_world, realm, m_xr)->define_direct_property("test"_utf16_fly_string, Bindings::wrap(wrapper_world, realm, Internals::XRTest::create(*m_window)), JS::default_attributes);
+        }
     }
     return *m_xr;
 }
@@ -151,28 +159,28 @@ WebIDL::Long Navigator::max_touch_points()
 GC::Ref<ServiceWorker::ServiceWorkerContainer> Navigator::service_worker()
 {
     if (!m_service_worker_container)
-        m_service_worker_container = realm().create<ServiceWorker::ServiceWorkerContainer>(realm());
+        m_service_worker_container = ServiceWorker::ServiceWorkerContainer::create(relevant_settings_object(*m_window));
     return *m_service_worker_container;
 }
 
 GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
 {
     if (!m_media_capabilities)
-        m_media_capabilities = realm().create<MediaCapabilitiesAPI::MediaCapabilities>(realm());
+        m_media_capabilities = MediaCapabilitiesAPI::MediaCapabilities::create();
     return *m_media_capabilities;
 }
 
 GC::Ref<MediaCapture::MediaDevices> Navigator::media_devices()
 {
     if (!m_media_devices)
-        m_media_devices = realm().create<MediaCapture::MediaDevices>(realm());
+        m_media_devices = MediaCapture::MediaDevices::create(*m_window);
     return *m_media_devices;
 }
 
 // https://w3c.github.io/battery/#the-getbattery-method
 GC::Ref<WebIDL::Promise> Navigator::get_battery()
 {
-    auto& realm = this->realm();
+    auto& realm = m_window->realm();
 
     // 1. If this.[[BatteryPromise]] is null, then set it to a new promise in this's relevant realm.
     if (!m_battery_promise)
@@ -197,7 +205,7 @@ GC::Ref<WebIDL::Promise> Navigator::get_battery()
 GC::Ref<PermissionsAPI::Permissions> Navigator::permissions()
 {
     if (!m_permissions)
-        m_permissions = realm().create<PermissionsAPI::Permissions>(realm());
+        m_permissions = PermissionsAPI::Permissions::create();
     return *m_permissions;
 }
 

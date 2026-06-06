@@ -22,19 +22,19 @@ class FileReaderSync : public Bindings::Wrappable {
 public:
     virtual ~FileReaderSync() override;
 
-    [[nodiscard]] static GC::Ref<FileReaderSync> create(JS::Realm&);
-    static GC::Ref<FileReaderSync> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FileReaderSync> create();
+    static GC::Ref<FileReaderSync> construct_impl();
 
-    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> read_as_array_buffer(Blob&);
-    WebIDL::ExceptionOr<String> read_as_binary_string(Blob&);
-    WebIDL::ExceptionOr<String> read_as_text(Blob&, Optional<String> const& encoding = {});
-    WebIDL::ExceptionOr<String> read_as_data_url(Blob&);
+    WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> read_as_array_buffer(JS::Realm&, Blob&);
+    WebIDL::ExceptionOr<String> read_as_binary_string(JS::Realm&, Blob&);
+    WebIDL::ExceptionOr<String> read_as_text(JS::Realm&, Blob&, Optional<String> const& encoding = {});
+    WebIDL::ExceptionOr<String> read_as_data_url(JS::Realm&, Blob&);
 
 private:
-    explicit FileReaderSync(JS::Realm&);
+    explicit FileReaderSync();
 
     template<typename Result>
-    WebIDL::ExceptionOr<Result> read_as(Blob&, FileReader::Type, Optional<String> const& encoding = {});
+    WebIDL::ExceptionOr<Result> read_as(JS::Realm&, Blob&, FileReader::Type, Optional<String> const& encoding = {});
 };
 
 }

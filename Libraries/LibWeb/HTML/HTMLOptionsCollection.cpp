@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/HTMLOptionsCollection.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -11,6 +12,7 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -20,7 +22,7 @@ GC_DEFINE_ALLOCATOR(HTMLOptionsCollection);
 
 GC::Ref<HTMLOptionsCollection> HTMLOptionsCollection::create(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
 {
-    return root.realm().create<HTMLOptionsCollection>(root, move(filter));
+    return GC::Heap::the().allocate<HTMLOptionsCollection>(root, move(filter));
 }
 
 HTMLOptionsCollection::HTMLOptionsCollection(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
@@ -65,18 +67,18 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_length(WebIDL::UnsignedLong
     return {};
 }
 
-WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_new_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_new_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    return set_value_of_indexed_property(index, value);
+    return set_value_of_indexed_property(realm, index, value);
 }
 
-WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_existing_indexed_property(u32 index, JS::Value value)
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_existing_indexed_property(JS::Realm& realm, u32 index, JS::Value value)
 {
-    return set_value_of_indexed_property(index, value);
+    return set_value_of_indexed_property(realm, index, value);
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-setter
-WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u32 index, JS::Value unconverted_option)
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(JS::Realm& realm, u32 index, JS::Value unconverted_option)
 {
     // The spec doesn't seem to require this, but it's consistent with length handling and other browsers
     if (index >= 100'000) {
@@ -93,7 +95,7 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
     if (unconverted_option.is_object())
         option = Bindings::impl_from<DOM::Element>(&unconverted_option.as_object());
     if (!option)
-        return WebIDL::TypeMismatchError::create(realm(), "The value provided is not an HTMLOptionElement"_utf16);
+        return WebIDL::TypeMismatchError::create(realm, "The value provided is not an HTMLOptionElement"_utf16);
 
     // 2. Let length be the number of nodes represented by the collection.
     auto length = this->length();
@@ -136,11 +138,11 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement
 
     // 1. If element is an ancestor of the select element on which the HTMLOptionsCollection is rooted, then throw a "HierarchyRequestError" DOMException.
     if (resolved_element->is_ancestor_of(root()))
-        return WebIDL::HierarchyRequestError::create(realm(), "The provided element is an ancestor of the root select element."_utf16);
+        return WebIDL::HierarchyRequestError::create(HTML::relevant_realm(*root()), "The provided element is an ancestor of the root select element."_utf16);
 
     // 2. If before is an element, but that element isn't a descendant of the select element on which the HTMLOptionsCollection is rooted, then throw a "NotFoundError" DOMException.
     if (before_element && !before_element->is_descendant_of(root()))
-        return WebIDL::NotFoundError::create(realm(), "The 'before' element is not a descendant of the root select element."_utf16);
+        return WebIDL::NotFoundError::create(HTML::relevant_realm(*root()), "The 'before' element is not a descendant of the root select element."_utf16);
 
     // 3. If element and before are the same element, then return.
     if (before_element && (resolved_element.ptr() == before_element.ptr()))

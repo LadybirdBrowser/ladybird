@@ -16,10 +16,4 @@ SVGFEFuncBElement::SVGFEFuncBElement(DOM::Document& document, DOM::QualifiedName
 {
 }
 
-void SVGFEFuncBElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEFuncBElement);
-    Base::initialize(realm);
-}
-
 }

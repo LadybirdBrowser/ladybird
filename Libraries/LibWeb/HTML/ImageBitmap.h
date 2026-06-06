@@ -35,16 +35,16 @@ class ImageBitmap final
     GC_DECLARE_ALLOCATOR(ImageBitmap);
 
 public:
-    static GC::Ref<ImageBitmap> create(JS::Realm&);
+    static GC::Ref<ImageBitmap> create();
     virtual ~ImageBitmap() override;
 
     // ^Web::Bindings::Serializable
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
     // ^Web::Bindings::Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override;
 
     WebIDL::UnsignedLong width() const;
@@ -57,7 +57,7 @@ public:
     Gfx::Bitmap* bitmap() const;
 
 private:
-    explicit ImageBitmap(JS::Realm&);
+    ImageBitmap();
 
     // FIXME: We don't implement this flag yet:
     // An ImageBitmap object's bitmap has an origin-clean flag, which indicates whether the bitmap is tainted by content

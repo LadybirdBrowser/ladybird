@@ -18,7 +18,7 @@ class SVGAnimatedTransformList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedTransformList);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedTransformList> create(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
+    [[nodiscard]] static GC::Ref<SVGAnimatedTransformList> create(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
     virtual ~SVGAnimatedTransformList() override = default;
 
     GC::Ref<SVGTransformList> base_val() const
@@ -32,7 +32,7 @@ public:
     }
 
 private:
-    SVGAnimatedTransformList(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
+    SVGAnimatedTransformList(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 

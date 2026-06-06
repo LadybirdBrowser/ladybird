@@ -19,8 +19,8 @@ class StereoPannerNode : public AudioNode {
 public:
     virtual ~StereoPannerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create(GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -31,9 +31,7 @@ public:
     GC::Ref<AudioParam const> pan() const { return m_pan; }
 
 protected:
-    StereoPannerNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    StereoPannerNode(GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

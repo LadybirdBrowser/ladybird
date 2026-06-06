@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
@@ -15,14 +16,14 @@ GC_DEFINE_ALLOCATOR(MutationObserver);
 GC_DEFINE_ALLOCATOR(RegisteredObserver);
 GC_DEFINE_ALLOCATOR(TransientRegisteredObserver);
 
-WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
+WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::construct_impl(GC::Ptr<WebIDL::CallbackType> callback)
 {
-    return realm.create<MutationObserver>(realm, callback);
+    return GC::Heap::the().allocate<MutationObserver>(callback);
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-mutationobserver
-MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
-    : Wrappable(realm)
+MutationObserver::MutationObserver(GC::Ptr<WebIDL::CallbackType> callback)
+    : Bindings::Wrappable()
     , m_callback(move(callback))
 {
     // The new MutationObserver(callback) constructor steps are to set this’s callback to callback.
@@ -146,7 +147,7 @@ Vector<GC::Root<MutationRecord>> MutationObserver::take_records()
 
 GC::Ref<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, Bindings::MutationObserverInit const& options)
 {
-    return observer.heap().allocate<RegisteredObserver>(observer, options);
+    return GC::Heap::the().allocate<RegisteredObserver>(observer, options);
 }
 
 RegisteredObserver::RegisteredObserver(MutationObserver& observer, Bindings::MutationObserverInit const& options)
@@ -165,7 +166,7 @@ void RegisteredObserver::visit_edges(Cell::Visitor& visitor)
 
 GC::Ref<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, Bindings::MutationObserverInit const& options, RegisteredObserver& source)
 {
-    return observer.heap().allocate<TransientRegisteredObserver>(observer, options, source);
+    return GC::Heap::the().allocate<TransientRegisteredObserver>(observer, options, source);
 }
 
 TransientRegisteredObserver::TransientRegisteredObserver(MutationObserver& observer, Bindings::MutationObserverInit const& options, RegisteredObserver& source)

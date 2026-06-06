@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 
 #include "XPathNSResolver.h"
 
@@ -12,9 +12,9 @@ namespace Web::XPath {
 
 GC_DEFINE_ALLOCATOR(XPathNSResolver);
 
-GC::Ref<XPathNSResolver> XPathNSResolver::create(JS::Realm& realm, GC::Ref<WebIDL::CallbackType> callback)
+GC::Ref<XPathNSResolver> XPathNSResolver::create(GC::Ref<WebIDL::CallbackType> callback)
 {
-    return realm.create<XPathNSResolver>(move(callback));
+    return GC::Heap::the().allocate<XPathNSResolver>(move(callback));
 }
 
 XPathNSResolver::XPathNSResolver(GC::Ref<WebIDL::CallbackType> callback)

@@ -4,20 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/TextEvent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(TextEvent);
 
-GC::Ref<TextEvent> TextEvent::create(JS::Realm& realm, FlyString const& event_name)
+GC::Ref<TextEvent> TextEvent::create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<TextEvent>(realm, event_name);
+    return GC::Heap::the().allocate<TextEvent>(event_name, time_stamp);
 }
 
-TextEvent::TextEvent(JS::Realm& realm, FlyString const& event_name)
-    : UIEvent(realm, event_name)
+TextEvent::TextEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, time_stamp)
 {
 }
 

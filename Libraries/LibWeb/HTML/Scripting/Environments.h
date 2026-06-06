@@ -31,6 +31,9 @@ struct WEB_API Environment : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Environment);
 
 public:
+    static GC::Ref<Environment> create(String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url,
+        Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context);
+
     virtual ~Environment() override;
 
     // An id https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-id
@@ -86,7 +89,6 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     virtual void finalize() override;
-    virtual void initialize(JS::Realm&) override;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
     JS::ExecutionContext& realm_execution_context();
@@ -227,22 +229,33 @@ WEB_API JS::Object& current_global_object();
 WEB_API Window& current_window();
 
 WEB_API JS::Realm& relevant_realm(JS::Object const&);
-WEB_API JS::Realm& relevant_realm(Bindings::Wrappable const&);
+WEB_API JS::Realm& relevant_realm(DOM::Node const&);
+WEB_API JS::Realm& relevant_realm(Window const&);
+WEB_API JS::Realm& relevant_realm(WorkerGlobalScope const&);
+WEB_API JS::Realm& relevant_realm(WindowOrWorkerGlobalScopeMixin const&);
 
 WEB_API EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const&);
-EnvironmentSettingsObject& relevant_settings_object(Bindings::Wrappable const&);
+EnvironmentSettingsObject& relevant_settings_object(Window const&);
+WEB_API EnvironmentSettingsObject& relevant_settings_object(WorkerGlobalScope const&);
+WEB_API EnvironmentSettingsObject& relevant_settings_object(WindowOrWorkerGlobalScopeMixin const&);
 
 WEB_API JS::Object& relevant_global_object(JS::Object const&);
-WEB_API JS::Object& relevant_global_object(Bindings::Wrappable const&);
+WEB_API JS::Object& relevant_global_object(DOM::Node const&);
+WEB_API JS::Object& relevant_global_object(Window const&);
+WEB_API JS::Object& relevant_global_object(WorkerGlobalScope const&);
+WEB_API JS::Object& relevant_global_object(WindowOrWorkerGlobalScopeMixin const&);
 WEB_API Window* window_from_global_object(JS::Object&);
 WEB_API Window const* window_from_global_object(JS::Object const&);
 WEB_API WindowOrWorkerGlobalScopeMixin* window_or_worker_global_scope_from_global_object(JS::Object&);
 WEB_API WindowOrWorkerGlobalScopeMixin const* window_or_worker_global_scope_from_global_object(JS::Object const&);
 WEB_API Window& relevant_window(JS::Object const&);
-WEB_API Window& relevant_window(Bindings::Wrappable const&);
+WEB_API Window& relevant_window(DOM::Node const&);
+WEB_API Window& relevant_window(Window const&);
 WEB_API WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(JS::Object const&);
-WEB_API WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(Bindings::Wrappable const&);
+WEB_API WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(DOM::Node const&);
+WEB_API WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(DOM::EventTarget const&);
+WEB_API WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(Window const&);
 
 JS::Realm& entry_realm();
 EnvironmentSettingsObject& entry_settings_object();

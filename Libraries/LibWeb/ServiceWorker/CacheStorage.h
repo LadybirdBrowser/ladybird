@@ -20,14 +20,14 @@ class CacheStorage : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CacheStorage);
 
 public:
-    GC::Ref<WebIDL::Promise> match(Fetch::RequestInfo, Bindings::MultiCacheQueryOptions);
-    GC::Ref<WebIDL::Promise> has(String const& cache_name);
-    GC::Ref<WebIDL::Promise> open(String const& cache_name);
-    GC::Ref<WebIDL::Promise> delete_(String const& cache_name);
-    GC::Ref<WebIDL::Promise> keys();
+    GC::Ref<WebIDL::Promise> match(JS::Realm&, Fetch::RequestInfo, Bindings::MultiCacheQueryOptions);
+    GC::Ref<WebIDL::Promise> has(JS::Realm&, String const& cache_name);
+    GC::Ref<WebIDL::Promise> open(JS::Realm&, String const& cache_name);
+    GC::Ref<WebIDL::Promise> delete_(JS::Realm&, String const& cache_name);
+    GC::Ref<WebIDL::Promise> keys(JS::Realm&);
 
 private:
-    explicit CacheStorage(JS::Realm&);
+    CacheStorage();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

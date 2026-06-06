@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/MimeTypeArray.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -17,6 +18,8 @@ class MimeTypeArray : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MimeTypeArray);
 
 public:
+    [[nodiscard]] static GC::Ref<MimeTypeArray> create(Window&);
+
     virtual ~MimeTypeArray() override;
 
     size_t length() const;
@@ -24,12 +27,16 @@ public:
     GC::Ptr<MimeType> named_item(FlyString const& name) const;
 
 private:
-    MimeTypeArray(JS::Realm&);
+    MimeTypeArray(Window&);
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<Window> m_window;
 
     // ^Bindings::Wrappable
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override;
 };
 
 }

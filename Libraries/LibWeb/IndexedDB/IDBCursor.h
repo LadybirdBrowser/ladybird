@@ -38,7 +38,7 @@ class IDBCursor : public Bindings::Wrappable {
 
 public:
     virtual ~IDBCursor() override;
-    [[nodiscard]] static GC::Ref<IDBCursor> create(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
+    [[nodiscard]] static GC::Ref<IDBCursor> create(CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
 
     [[nodiscard]] CursorSourceHandle source_handle() { return m_source_handle; }
     [[nodiscard]] Bindings::IDBCursorDirection direction() { return m_direction; }
@@ -61,6 +61,7 @@ public:
     [[nodiscard]] bool key_only() const { return m_key_only; }
     [[nodiscard]] bool got_value() const { return m_got_value; }
     [[nodiscard]] GC::Ref<IDBTransaction> transaction();
+    [[nodiscard]] JS::Object& relevant_global_object() const;
     [[nodiscard]] CursorSource internal_source();
     [[nodiscard]] GC::Ref<Key> effective_key() const;
     [[nodiscard]] GC::Ref<ObjectStore> effective_object_store() const;
@@ -73,7 +74,7 @@ public:
     void set_object_store_position(GC::Ptr<Key> object_store_position) { m_object_store_position = object_store_position; }
 
 protected:
-    explicit IDBCursor(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
+    explicit IDBCursor(CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
     // A cursor has a value which represent the value of the last iterated record.

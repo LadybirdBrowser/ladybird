@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/TextMetrics.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -11,13 +12,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TextMetrics);
 
-GC::Ref<TextMetrics> TextMetrics::create(JS::Realm& realm)
+GC::Ref<TextMetrics> TextMetrics::create()
 {
-    return realm.create<TextMetrics>(realm);
+    return GC::Heap::the().allocate<TextMetrics>();
 }
 
-TextMetrics::TextMetrics(JS::Realm& realm)
-    : Wrappable(realm)
+TextMetrics::TextMetrics()
+    : Bindings::Wrappable()
 {
 }
 

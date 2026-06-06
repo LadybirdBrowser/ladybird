@@ -16,8 +16,8 @@ class CSSMathNegate final : public CSSMathValue {
     GC_DECLARE_ALLOCATOR(CSSMathNegate);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathNegate> create(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
-    static GC::Ref<CSSMathNegate> construct_impl(JS::Realm&, CSSNumberish);
+    [[nodiscard]] static GC::Ref<CSSMathNegate> create(NumericType, GC::Ref<CSSNumericValue>);
+    static GC::Ref<CSSMathNegate> construct_impl(CSSNumberish);
 
     virtual ~CSSMathNegate() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -31,7 +31,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathNegate(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
+    CSSMathNegate(NumericType, GC::Ref<CSSNumericValue>);
     GC::Ref<CSSNumericValue> m_value;
 };
 

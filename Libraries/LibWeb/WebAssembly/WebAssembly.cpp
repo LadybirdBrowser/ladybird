@@ -12,6 +12,7 @@
 #include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibGC/Heap.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -31,6 +32,7 @@
 #include <LibWeb/Bindings/Module.h>
 #include <LibWeb/Bindings/Response.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
@@ -50,22 +52,35 @@
 
 namespace Web::WebAssembly {
 
-static GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM&, ByteBuffer, HTML::Task::Source = HTML::Task::Source::Unspecified);
-static GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM&, GC::Ref<WebIDL::Promise>, GC::Ptr<JS::Object> import_object);
-static GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM&, GC::Ref<Module>, GC::Ptr<JS::Object> import_object);
-static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM&, GC::Ref<WebIDL::Promise>);
+static GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm&, ByteBuffer, HTML::Task::Source = HTML::Task::Source::Unspecified);
+static GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::Realm&, GC::Ref<WebIDL::Promise>, GC::Ptr<JS::Object> import_object);
+static GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm&, GC::Ref<Module>, GC::Ptr<JS::Object> import_object);
+static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm&, GC::Ref<WebIDL::Promise>);
 
 namespace Detail {
 
-static GC::WeakHashMap<JS::Object, WebAssemblyCache>& caches()
+HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>> s_caches;
+
+NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm& realm)
 {
-    static NeverDestroyed<GC::WeakHashMap<JS::Object, WebAssemblyCache>> caches;
-    return *caches;
+    return s_caches.ensure(realm.global_object(), [] {
+        return make_ref_counted<WebAssemblyCache>();
+    });
 }
 
-WebAssemblyCache& get_cache(JS::Realm& realm)
+void WebAssemblyCache::visit_edges(JS::Cell::Visitor& visitor)
 {
-    return caches().ensure(realm.global_object());
+    visitor.visit(m_function_instances);
+    visitor.visit(m_imported_objects);
+    visitor.visit(m_extern_values);
+    visitor.visit(m_inverse_extern_values);
+    visitor.visit(m_global_instances);
+    visitor.visit(m_memory_instances);
+    visitor.visit(m_table_instances);
+    abstract_machine().visit_external_resources({ .visit_trap = [&visitor](Wasm::ExternallyManagedTrap const& trap) {
+        auto& completion = trap.unsafe_external_object_as<JS::Completion>();
+        visitor.visit(completion.value());
+    } });
 }
 
 }
@@ -73,25 +88,16 @@ WebAssemblyCache& get_cache(JS::Realm& realm)
 void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
 {
     auto& global_object = HTML::relevant_global_object(object);
-    if (auto maybe_cache = Detail::caches().get(global_object); maybe_cache.has_value()) {
-        auto& cache = maybe_cache.value();
-        visitor.visit(cache.function_instances());
-        visitor.visit(cache.imported_objects());
-        visitor.visit(cache.extern_values());
-        visitor.visit(cache.global_instances());
-        visitor.visit(cache.memory_instances());
-        visitor.visit(cache.table_instances());
-        cache.abstract_machine().visit_external_resources({ .visit_trap = [&visitor](Wasm::ExternallyManagedTrap const& trap) {
-            auto& completion = trap.unsafe_external_object_as<JS::Completion>();
-            visitor.visit(completion.value());
-        } });
+    if (auto maybe_cache = Detail::s_caches.get(global_object); maybe_cache.has_value()) {
+        auto& cache = *maybe_cache.release_value();
+        cache.visit_edges(visitor);
     }
 }
 
 void finalize(JS::Object& object)
 {
     auto& global_object = HTML::relevant_global_object(object);
-    Detail::caches().remove(global_object);
+    Detail::s_caches.remove(global_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#error-objects
@@ -114,7 +120,7 @@ void initialize(JS::Object& self, JS::Realm&)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-validate
-bool validate(JS::VM& vm, WebIDL::BufferSource bytes)
+bool validate(JS::Realm& realm, WebIDL::BufferSource bytes)
 {
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
     auto stable_bytes = WebIDL::get_buffer_source_copy(bytes);
@@ -133,8 +139,8 @@ bool validate(JS::VM& vm, WebIDL::BufferSource bytes)
     if (module_or_error.is_error())
         return false;
 
-    auto& cache = Detail::get_cache(*vm.current_realm());
-    auto validation_result = cache.abstract_machine().validate(module_or_error.value(), {}, Wasm::CompileToNative::No);
+    auto cache = Detail::get_cache(realm);
+    auto validation_result = cache->abstract_machine().validate(module_or_error.value(), {}, Wasm::CompileToNative::No);
     if (validation_result.is_error())
         return false;
 
@@ -143,9 +149,9 @@ bool validate(JS::VM& vm, WebIDL::BufferSource bytes)
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-compile
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM& vm, WebIDL::BufferSource bytes)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::Realm& realm, WebIDL::BufferSource bytes)
 {
-    auto& realm = *vm.current_realm();
+    auto& vm = realm.vm();
 
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
     auto stable_bytes = WebIDL::get_buffer_source_copy(bytes);
@@ -155,21 +161,21 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM& vm, WebIDL::Buffer
     }
 
     // 2. Asynchronously compile a WebAssembly module from stableBytes and return the result.
-    return asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
+    return asynchronously_compile_webassembly_module(realm, stable_bytes.release_value());
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-compilestreaming
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM& vm, GC::Ref<WebIDL::Promise> source)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::Realm& realm, GC::Ref<WebIDL::Promise> source)
 {
     //  The compileStreaming(source) method, when invoked, returns the result of compiling a potential WebAssembly response with source.
-    return compile_potential_webassembly_response(vm, source);
+    return compile_potential_webassembly_response(realm, source);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
 // https://webassembly.github.io/content-security-policy/js-api/#dom-webassembly-instantiate
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm& realm, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object)
 {
-    auto& realm = *vm.current_realm();
+    auto& vm = realm.vm();
 
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
     auto stable_bytes = WebIDL::get_buffer_source_copy(bytes);
@@ -179,32 +185,32 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, WebIDL::Bu
     }
 
     // 2. Perform HostEnsureCanCompileWasmBytes()
-    TRY(Detail::host_ensure_can_compile_wasm_bytes(vm));
+    TRY(Detail::host_ensure_can_compile_wasm_bytes(realm));
 
     // 3. Asynchronously compile a WebAssembly module from stableBytes and let promiseOfModule be the result.
-    auto promise_of_module = asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
+    auto promise_of_module = asynchronously_compile_webassembly_module(realm, stable_bytes.release_value());
 
     // 4. Instantiate promiseOfModule with imports importObject and return the result.
-    return instantiate_promise_of_module(vm, promise_of_module, import_object);
+    return instantiate_promise_of_module(realm, promise_of_module, import_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate-moduleobject-importobject
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM& vm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm& realm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object)
 {
     // 1. Asynchronously instantiate the WebAssembly module moduleObject importing importObject, and return the result.
-    return asynchronously_instantiate_webassembly_module(vm, module_object, import_object);
+    return asynchronously_instantiate_webassembly_module(realm, module_object, import_object);
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-instantiatestreaming
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM& vm, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::Realm& realm, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object)
 {
     // The instantiateStreaming(source, importObject) method, when invoked, performs the following steps:
 
     // 1. Let promiseOfModule be the result of compiling a potential WebAssembly response with source.
-    auto promise_of_module = compile_potential_webassembly_response(vm, source);
+    auto promise_of_module = compile_potential_webassembly_response(realm, source);
 
     // 2. Return the result of instantiating the promise of a module promiseOfModule with imports importObject.
-    return instantiate_promise_of_module(vm, promise_of_module, import_object);
+    return instantiate_promise_of_module(realm, promise_of_module, import_object);
 }
 
 namespace Detail {
@@ -235,14 +241,15 @@ namespace Detail {
         _temporary_result.release_value();                                                                                                              \
     })
 
-Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function, Wasm::FunctionType const& type, ByteString const& name)
+Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& function, Wasm::FunctionType const& type, ByteString const& name)
 {
     return Wasm::HostFunction {
-        [&](auto&, auto arguments) -> Wasm::Result {
+        [&realm, &function, &type](auto&, auto arguments) -> Wasm::Result {
+            auto& vm = realm.vm();
             GC::RootVector<JS::Value> argument_values;
             size_t index = 0;
             for (auto& entry : arguments) {
-                argument_values.append(to_js_value(vm, entry, type.parameters()[index]));
+                argument_values.append(to_js_value(realm, entry, type.parameters()[index]));
                 ++index;
             }
 
@@ -251,7 +258,7 @@ Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function
                 return Wasm::Result { Vector<Wasm::Value> {} };
 
             if (type.results().size() == 1)
-                return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(vm, result, type.results().first())) } };
+                return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(realm, result, type.results().first())) } };
 
             auto method = TRY_OR_RETURN_TRAP(result.get_method(vm, vm.names.iterator));
             if (!method)
@@ -267,7 +274,7 @@ Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function
 
             size_t i = 0;
             for (auto& value : values)
-                wasm_values.append(TRY_OR_RETURN_TRAP(to_webassembly_value(vm, value, type.results()[i++])));
+                wasm_values.append(TRY_OR_RETURN_TRAP(to_webassembly_value(realm, value, type.results()[i++])));
 
             return Wasm::Result { move(wasm_values) };
         },
@@ -276,10 +283,11 @@ Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function
     };
 }
 
-JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
+JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::Realm& realm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
 {
+    auto& vm = realm.vm();
     Wasm::Linker linker { module };
-    auto& cache = get_cache(*vm.current_realm());
+    auto cache = get_cache(realm);
     // https://webassembly.github.io/spec/js-api/index.html#read-the-imports
     // 1. If module.imports is not empty, and importObject is undefined, throw a TypeError exception.
     if (!module.import_section().imports().is_empty() && !import_object) {
@@ -328,9 +336,9 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     // 3.4.3. Otherwise,
                     else {
                         // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
-                        cache.add_imported_object(function);
-                        auto host_function = create_host_function(vm, function, function_type, ByteString::formatted("func{}", resolved_imports.size()));
-                        address = cache.abstract_machine().store().allocate(move(host_function));
+                        cache->add_imported_object(function);
+                        auto host_function = create_host_function(realm, function, function_type, ByteString::formatted("func{}", resolved_imports.size()));
+                        address = cache->abstract_machine().store().allocate(move(host_function));
                         // FIXME: 3.4.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
                         //        'index' doesn't seem to be used anywhere?
                     }
@@ -364,11 +372,11 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                             return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number or BigInt to a V128"sv);
                         }
                         // 3.5.1.4. Let value be ToWebAssemblyValue(v, valtype).
-                        auto cast_value = TRY(to_webassembly_value(vm, import_, type.type()));
+                        auto cast_value = TRY(to_webassembly_value(realm, import_, type.type()));
                         // 3.5.1.5. Let store be the surrounding agent's associated store.
                         // 3.5.1.6. Let (store, globaladdr) be global_alloc(store, const valtype, value).
                         // 3.5.1.7. Set the surrounding agent's associated store to store.
-                        address = cache.abstract_machine().store().allocate({ type.type(), false }, cast_value);
+                        address = cache->abstract_machine().store().allocate({ type.type(), false }, cast_value);
                     }
                     // 3.5.2. Otherwise, if v implements Global,
                     else if (import_.is_object()) {
@@ -433,7 +441,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
     }
 
     // https://webassembly.github.io/spec/js-api/index.html#instantiate-the-core-of-a-webassembly-module
-    auto instance_result = cache.abstract_machine().instantiate(module, link_result.release_value());
+    auto instance_result = cache->abstract_machine().instantiate(module, link_result.release_value());
     if (instance_result.is_error()) {
         auto instantiation_error = instance_result.release_error();
         switch (instantiation_error.source) {
@@ -450,9 +458,10 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
 // https://webassembly.github.io/spec/js-api/#compile-a-webassembly-module
 // https://webassembly.github.io/content-security-policy/js-api/#compile-a-webassembly-module
-JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::VM& vm, ByteBuffer data)
+JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm& realm, ByteBuffer data)
 {
-    TRY(host_ensure_can_compile_wasm_bytes(vm));
+    auto& vm = realm.vm();
+    TRY(host_ensure_can_compile_wasm_bytes(realm));
 
     Wasm::ModuleStats stats;
     stats.input_size_bytes = data.size();
@@ -511,9 +520,9 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
 
     constexpr auto compile_to_native = Wasm::CompileToNative::No;
 
-    auto& cache = get_cache(*vm.current_realm());
+    auto cache = get_cache(realm);
     auto validate_start = MonotonicTime::now();
-    auto validation_result = cache.abstract_machine().validate(module_result.value(), {}, compile_to_native);
+    auto validation_result = cache->abstract_machine().validate(module_result.value(), {}, compile_to_native);
     stats.validate_time = MonotonicTime::now() - validate_start;
 
     if (validation_result.is_error()) {
@@ -521,7 +530,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     }
 
     auto compiled_module = make_ref_counted<CompiledWebAssemblyModule>(module_result.release_value());
-    cache.add_compiled_module(compiled_module);
+    cache->add_compiled_module(compiled_module);
     if (wasm_cache_config.has_value())
         compiled_module->module->set_cranelift_cache_config(wasm_cache_config.release_value());
     compiled_module->module->set_compile_stats(move(stats));
@@ -541,7 +550,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
         bool seen = false;
         for (auto& cache_entry : s_caches) {
             auto& cache = cache_entry.value;
-            auto const& map = cache.memory_instances();
+            auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {
                 auto memory = entry.value;
@@ -568,7 +577,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
 
                     // 5. Grow the memory buffer associated with memaddr by delta.
                     // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                    TRY(memory->grow(delta));
+                    TRY(memory->grow(buffer.shape().realm(), delta));
                 }
             }
         }
@@ -596,7 +605,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
         bool seen = false;
         for (auto& cache_entry : s_caches) {
             auto& cache = cache_entry.value;
-            auto const& map = cache.memory_instances();
+            auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {
                 auto memory = entry.value;
@@ -623,7 +632,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
 
                     // 5. Grow the memory buffer associated with memaddr by delta.
                     // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                    TRY(memory->grow(delta));
+                    TRY(memory->grow(buffer.shape().realm(), delta));
                 }
             }
         }
@@ -683,31 +692,29 @@ JS::ThrowCompletionOr<JS::Value> ExportedWasmFunction::call()
     return m_behavior(vm());
 }
 
-JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, Utf16FlyString name, Instance* instance)
+JS::NativeFunction* create_native_function(JS::Realm& realm, Wasm::FunctionAddress address, Utf16FlyString name, Instance* instance)
 {
-    auto& realm = *vm.current_realm();
     Optional<Wasm::FunctionType> type;
-    auto& cache = get_cache(realm);
-    cache.abstract_machine().store().get(address)->visit([&](auto const& value) { type = value.type(); });
-    if (auto entry = cache.get_function_instance(address); entry.has_value())
+    auto cache = get_cache(realm);
+    cache->abstract_machine().store().get(address)->visit([&](auto const& value) { type = value.type(); });
+    if (auto entry = cache->get_function_instance(address); entry.has_value())
         return *entry;
 
     auto function = ExportedWasmFunction::create(
         realm,
         move(name),
-        [address, type = type.release_value(), instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        [address, type = type.release_value(), instance, realm = GC::Ref(realm)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             (void)instance;
-            auto& realm = *vm.current_realm();
             Vector<Wasm::Value> values;
             values.ensure_capacity(type.parameters().size());
 
             // Grab as many values as needed and convert them.
             size_t index = 0;
             for (auto& type : type.parameters())
-                values.append(TRY(to_webassembly_value(vm, vm.argument(index++), type)));
+                values.append(TRY(to_webassembly_value(realm, vm.argument(index++), type)));
 
-            auto& cache = get_cache(realm);
-            auto result = cache.abstract_machine().invoke(address, move(values));
+            auto cache = get_cache(realm);
+            auto result = cache->abstract_machine().invoke(address, move(values));
             // FIXME: Use the convoluted mapping of errors defined in the spec.
             if (result.is_trap()) {
                 if (auto ptr = result.trap().data.get_pointer<Wasm::ExternallyManagedTrap>())
@@ -724,7 +731,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
                 return JS::js_undefined();
 
             if (result.values().size() == 1)
-                return to_js_value(vm, result.values().first(), type.results().first());
+                return to_js_value(realm, result.values().first(), type.results().first());
 
             // Put result values into a JS::Array in reverse order.
             GC::RootVector<JS::Value> js_result_values;
@@ -732,20 +739,21 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
 
             for (size_t i = result.values().size(); i > 0; i--) {
                 // Safety: ensure_capacity is called just before this.
-                js_result_values.unchecked_append(to_js_value(vm, result.values().at(i - 1), type.results().at(i - 1)));
+                js_result_values.unchecked_append(to_js_value(realm, result.values().at(i - 1), type.results().at(i - 1)));
             }
 
             return JS::Value(JS::Array::create_from(realm, js_result_values));
         },
         address);
 
-    cache.add_function_instance(address, function);
+    cache->add_function_instance(address, function);
     return function;
 }
 
-JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value value, Wasm::ValueType const& type)
+JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::Realm& realm, JS::Value value, Wasm::ValueType const& type)
 {
-    static auto& two_64 = *new ::Crypto::SignedBigInteger(TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64)));
+    auto& vm = realm.vm();
+    static ::Crypto::SignedBigInteger two_64 = TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64));
 
     switch (type.kind()) {
     case Wasm::ValueType::I64: {
@@ -775,10 +783,10 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
 
         if (value.is_function()) {
             auto& function = value.as_function();
-            auto& cache = get_cache(*vm.current_realm());
-            for (auto& entry : cache.function_instances()) {
+            auto cache = get_cache(realm);
+            for (auto& entry : cache->function_instances()) {
                 if (entry.value == &function)
-                    return Wasm::Value { Wasm::Reference { Wasm::Reference::Func { entry.key, cache.abstract_machine().store().get_module_for(entry.key) } } };
+                    return Wasm::Value { Wasm::Reference { Wasm::Reference::Func { entry.key, cache->abstract_machine().store().get_module_for(entry.key) } } };
             }
         }
 
@@ -787,11 +795,11 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
     case Wasm::ValueType::ExternReference: {
         if (value.is_null())
             return Wasm::Value(Wasm::ValueType { Wasm::ValueType::Kind::ExternReference });
-        auto& cache = get_cache(*vm.current_realm());
-        if (auto entry = cache.inverse_extern_values().get(value); entry.has_value())
+        auto cache = get_cache(realm);
+        if (auto entry = cache->inverse_extern_values().get(value); entry.has_value())
             return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { *entry } } };
-        Wasm::ExternAddress extern_addr = cache.extern_values().size();
-        cache.add_extern_value(extern_addr, value);
+        Wasm::ExternAddress extern_addr = cache->extern_values().size();
+        cache->add_extern_value(extern_addr, value);
         return Wasm::Value { Wasm::Reference { Wasm::Reference::Extern { extern_addr } } };
     }
     case Wasm::ValueType::ExceptionReference:
@@ -806,7 +814,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM& vm, JS::Value va
     VERIFY_NOT_REACHED();
 }
 
-Wasm::Value default_webassembly_value(JS::VM& vm, Wasm::ValueType type)
+Wasm::Value default_webassembly_value(JS::Realm& realm, Wasm::ValueType type)
 {
     switch (type.kind()) {
     case Wasm::ValueType::I32:
@@ -817,7 +825,7 @@ Wasm::Value default_webassembly_value(JS::VM& vm, Wasm::ValueType type)
     case Wasm::ValueType::FunctionReference:
         return Wasm::Value(type);
     case Wasm::ValueType::ExternReference:
-        return MUST(to_webassembly_value(vm, JS::js_undefined(), type));
+        return MUST(to_webassembly_value(realm, JS::js_undefined(), type));
     case Wasm::ValueType::ExceptionReference:
         return Wasm::Value(type);
     case Wasm::ValueType::TypeUseReference:
@@ -829,9 +837,8 @@ Wasm::Value default_webassembly_value(JS::VM& vm, Wasm::ValueType type)
 }
 
 // https://webassembly.github.io/spec/js-api/#tojsvalue
-JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
+JS::Value to_js_value(JS::Realm& realm, Wasm::Value& wasm_value, Wasm::ValueType type)
 {
-    auto& realm = *vm.current_realm();
     switch (type.kind()) {
     case Wasm::ValueType::I64:
         return realm.create<JS::BigInt>(::Crypto::SignedBigInteger { wasm_value.to<i64>() });
@@ -846,8 +853,8 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
         if (ref_.ref().has<Wasm::Reference::Null>())
             return JS::js_null();
         auto address = ref_.ref().get<Wasm::Reference::Func>().address;
-        auto& cache = get_cache(realm);
-        auto* function = cache.abstract_machine().store().get(address);
+        auto cache = get_cache(realm);
+        auto* function = cache->abstract_machine().store().get(address);
         auto name = function->visit(
             [&](Wasm::WasmFunction& wasm_function) {
                 auto index = *wasm_function.module().functions().find_first_index(address);
@@ -856,15 +863,15 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
             [](Wasm::HostFunction& host_function) {
                 return host_function.name();
             });
-        return create_native_function(vm, address, Utf16FlyString::from_utf8(name));
+        return create_native_function(realm, address, Utf16FlyString::from_utf8(name));
     }
     case Wasm::ValueType::ExternReference: {
         auto ref_ = wasm_value.to<Wasm::Reference>();
         if (ref_.ref().has<Wasm::Reference::Null>())
             return JS::js_null();
         auto address = ref_.ref().get<Wasm::Reference::Extern>().address;
-        auto& cache = get_cache(realm);
-        auto value = cache.get_extern_value(address);
+        auto cache = get_cache(realm);
+        auto value = cache->get_extern_value(address);
         return value.release_value();
     }
     case Wasm::ValueType::V128:
@@ -877,11 +884,8 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
 }
 
 // https://webassembly.github.io/content-security-policy/js-api/#abstract-opdef-hostensurecancompilewasmbytes
-JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::VM& vm)
+JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::Realm& realm)
 {
-    // 1. Let realm be the current Realm.
-    auto& realm = *vm.current_realm();
-
     // 2. Perform EnsureCSPDoesNotBlockWasmByteCompilation(realm)
     // This algorithm does not return a value, but raises a CompileError exception if the operation cannot complete
     // successfully.
@@ -891,21 +895,19 @@ JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::VM& vm)
 }
 
 // https://webassembly.github.io/spec/js-api/#asynchronously-compile-a-webassembly-module
-GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, ByteBuffer bytes, HTML::Task::Source task_source)
+GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& realm, ByteBuffer bytes, HTML::Task::Source task_source)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(vm.heap(), [&vm, &realm, bytes = move(bytes), promise, task_source]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, bytes = move(bytes), promise, task_source]() mutable {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1. Compile the WebAssembly module bytes and store the result as module.
-        auto module_or_error = Detail::compile_a_webassembly_module(vm, move(bytes));
+        auto module_or_error = Detail::compile_a_webassembly_module(realm, move(bytes));
 
         // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
-        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(vm.heap(), [&realm, promise, module_or_error = move(module_or_error)]() mutable {
+        HTML::queue_a_task(task_source, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, module_or_error = move(module_or_error)]() mutable {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto& realm = HTML::relevant_realm(*promise->promise());
 
@@ -918,10 +920,10 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, B
             else {
                 // 1. Construct a WebAssembly module object from module and bytes, and let moduleObject be the result.
                 // FIXME: Save bytes to the Module instance instead of moving into compile_a_webassembly_module
-                auto module_object = realm.create<Module>(realm, module_or_error.release_value());
+                auto module_object = GC::Heap::the().allocate<Module>(module_or_error.release_value());
 
                 // 2. Resolve promise with moduleObject.
-                WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, module_object));
+                WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, module_object));
             }
         }));
     }));
@@ -931,10 +933,8 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, B
 }
 
 // https://webassembly.github.io/spec/js-api/#asynchronously-instantiate-a-webassembly-module
-GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& vm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object)
+GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm& realm, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);
 
@@ -947,13 +947,13 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
 
     // 4. Run the following steps in parallel:
     //   1. Queue a task to perform the following steps: Note: Implementation-specific work may be performed here.
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(vm.heap(), [&vm, &realm, promise, module, import_object]() {
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&realm, promise, module, import_object]() {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         auto& realm = HTML::relevant_realm(*promise->promise());
 
         // 1. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
         //    If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
-        auto result = Detail::instantiate_module(vm, module->module, import_object);
+        auto result = Detail::instantiate_module(realm, module->module, import_object);
         if (result.is_error()) {
             WebIDL::reject_promise(realm, promise, result.error_value());
             return;
@@ -963,10 +963,10 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
         // 2. Let instanceObject be a new Instance.
         // 3. Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
         // FIXME: Investigate whether we are doing all the proper steps for "initialize an instance object"
-        auto instance_object = Instance::create(realm, move(instance));
+        auto instance_object = Instance::create(Detail::get_cache(realm), move(instance));
 
         // 4. Resolve promise with instanceObject.
-        WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, instance_object));
+        WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, instance_object));
     }));
 
     // 5. Return promise.
@@ -974,34 +974,33 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
 }
 
 // https://webassembly.github.io/spec/js-api/#instantiate-a-promise-of-a-module
-GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebIDL::Promise> promise_of_module, GC::Ptr<JS::Object> import_object)
+GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise_of_module, GC::Ptr<JS::Object> import_object)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
     // FIXME: Spec should use react to promise here instead of separate upon fulfillment and upon rejection steps
 
     // 2. Upon fulfillment of promiseOfModule with value module:
-    auto fulfillment_steps = GC::create_function(vm.heap(), [&vm, promise, import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto fulfillment_steps = GC::create_function(GC::Heap::the(), [promise, import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
         auto* module = module_value.is_object() ? Bindings::impl_from<Module>(&module_value.as_object()) : nullptr;
         VERIFY(module);
         auto module_object = GC::Ref { *module };
 
         // 1. Instantiate the WebAssembly module module importing importObject, and let innerPromise be the result.
-        auto inner_promise = asynchronously_instantiate_webassembly_module(vm, module_object, import_object);
+        auto& realm = HTML::relevant_realm(*promise->promise());
+        auto inner_promise = asynchronously_instantiate_webassembly_module(realm, module_object, import_object);
 
         // 2. Upon fulfillment of innerPromise with value instance.
-        auto instantiate_fulfillment_steps = GC::create_function(vm.heap(), [promise, module_object](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
+        auto instantiate_fulfillment_steps = GC::create_function(GC::Heap::the(), [promise, module_object](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
             auto& realm = HTML::relevant_realm(*promise->promise());
             auto* instance = instance_value.is_object() ? Bindings::impl_from<Instance>(&instance_value.as_object()) : nullptr;
             VERIFY(instance);
 
             // 1. Let result be the WebAssemblyInstantiatedSource value «[ "module" → module, "instance" → instance ]».
             auto result = JS::Object::create(realm, nullptr);
-            result->define_direct_property("module"_utf16_fly_string, Bindings::wrap(realm, module_object), JS::default_attributes);
-            result->define_direct_property("instance"_utf16_fly_string, Bindings::wrap(realm, GC::Ref { *instance }), JS::default_attributes);
+            result->define_direct_property("module"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, module_object), JS::default_attributes);
+            result->define_direct_property("instance"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *instance }), JS::default_attributes);
 
             // 2. Resolve promise with result.
             WebIDL::resolve_promise(realm, promise, result);
@@ -1010,7 +1009,7 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
         });
 
         // 3. Upon rejection of innerPromise with reason reason.
-        auto instantiate_rejection_steps = GC::create_function(vm.heap(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        auto instantiate_rejection_steps = GC::create_function(GC::Heap::the(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             auto& realm = HTML::relevant_realm(*promise->promise());
 
             // 1. Reject promise with reason.
@@ -1025,7 +1024,7 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
     });
 
     // 3. Upon rejection of promiseOfModule with reason reason:
-    auto rejection_steps = GC::create_function(vm.heap(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+    auto rejection_steps = GC::create_function(GC::Heap::the(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
         auto& realm = HTML::relevant_realm(*promise->promise());
 
         // 1. Reject promise with reason.
@@ -1041,9 +1040,9 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
 }
 
 // https://webassembly.github.io/spec/web-api/index.html#compile-a-potential-webassembly-response
-GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::Ref<WebIDL::Promise> source)
+GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm& realm, GC::Ref<WebIDL::Promise> source)
 {
-    auto& realm = *vm.current_realm();
+    auto& vm = realm.vm();
 
     // Note: This algorithm accepts a Response object, or a promise for one, and compiles and instantiates the resulting bytes of the response.
     //       This compilation can be performed in the background and in a streaming manner.
@@ -1055,7 +1054,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
     auto return_value = WebIDL::create_promise(realm);
 
     // 2. Upon fulfillment of source with value unwrappedSource:
-    auto fulfillment_steps = GC::create_function(vm.heap(), [&vm, return_value](JS::Value unwrapped_source) -> WebIDL::ExceptionOr<JS::Value> {
+    auto fulfillment_steps = GC::create_function(GC::Heap::the(), [&vm, return_value](JS::Value unwrapped_source) -> WebIDL::ExceptionOr<JS::Value> {
         auto& realm = HTML::relevant_realm(*return_value->promise());
 
         // 1. Let response be unwrappedSource’s response.
@@ -1090,16 +1089,16 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         }
 
         // 8. Consume response’s body as an ArrayBuffer, and let bodyPromise be the result.
-        auto body_promise_or_error = response_object->array_buffer();
+        auto body_promise_or_error = response_object->array_buffer(realm);
         if (body_promise_or_error.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), body_promise_or_error.release_error());
+            auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), realm, body_promise_or_error.release_error());
             WebIDL::reject_promise(realm, return_value, throw_completion.value());
             return JS::js_undefined();
         }
         auto body_promise = body_promise_or_error.release_value();
 
         // 9. Upon fulfillment of bodyPromise with value bodyArrayBuffer:
-        auto body_fulfillment_steps = GC::create_function(vm.heap(), [&vm, return_value](JS::Value body_array_buffer) -> WebIDL::ExceptionOr<JS::Value> {
+        auto body_fulfillment_steps = GC::create_function(GC::Heap::the(), [&vm, return_value](JS::Value body_array_buffer) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Let stableBytes be a copy of the bytes held by the buffer bodyArrayBuffer.
             VERIFY(body_array_buffer.is_object());
             auto stable_bytes = WebIDL::get_buffer_source_copy(body_array_buffer.as_object());
@@ -1110,7 +1109,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
             }
 
             // 2. Asynchronously compile the WebAssembly module stableBytes using the networking task source and resolve returnValue with the result.
-            auto result = asynchronously_compile_webassembly_module(vm, stable_bytes.release_value(), HTML::Task::Source::Networking);
+            auto result = asynchronously_compile_webassembly_module(HTML::relevant_realm(*return_value->promise()), stable_bytes.release_value(), HTML::Task::Source::Networking);
 
             // Need to manually convert WebIDL promise to an ECMAScript value here to resolve
             WebIDL::resolve_promise(HTML::relevant_realm(*return_value->promise()), return_value, result->promise());
@@ -1119,7 +1118,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         });
 
         // 10. Upon rejection of bodyPromise with reason reason:
-        auto body_rejection_steps = GC::create_function(vm.heap(), [return_value](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        auto body_rejection_steps = GC::create_function(GC::Heap::the(), [return_value](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Reject returnValue with reason.
             WebIDL::reject_promise(HTML::relevant_realm(*return_value->promise()), return_value, reason);
             return JS::js_undefined();
@@ -1131,7 +1130,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
     });
 
     // 3. Upon rejection of source with reason reason:
-    auto rejection_steps = GC::create_function(vm.heap(), [return_value](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+    auto rejection_steps = GC::create_function(GC::Heap::the(), [return_value](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
         // 1. Reject returnValue with reason.
         WebIDL::reject_promise(HTML::relevant_realm(*return_value->promise()), return_value, reason);
 

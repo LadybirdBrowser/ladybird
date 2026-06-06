@@ -20,7 +20,7 @@ class CSSSupportsRule final : public CSSConditionRule {
     GC_DECLARE_ALLOCATOR(CSSSupportsRule);
 
 public:
-    static GC::Ref<CSSSupportsRule> create(JS::Realm&, NonnullRefPtr<Supports>&&, CSSRuleList&);
+    static GC::Ref<CSSSupportsRule> create(NonnullRefPtr<Supports>&&, CSSRuleList&);
 
     virtual ~CSSSupportsRule() = default;
 
@@ -32,7 +32,7 @@ public:
     Supports const& supports() const { return m_supports; }
 
 private:
-    CSSSupportsRule(JS::Realm&, NonnullRefPtr<Supports>&&, CSSRuleList&);
+    CSSSupportsRule(NonnullRefPtr<Supports>&&, CSSRuleList&);
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

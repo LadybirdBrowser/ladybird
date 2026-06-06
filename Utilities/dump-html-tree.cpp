@@ -280,15 +280,15 @@ static void dump_tree(Web::DOM::Node const& node, size_t indent)
     }
 }
 
-static GC::Ref<Web::DOM::Document> parse_html(JS::Realm& realm, Web::DOM::Document const& origin_document, StringView input)
+static GC::Ref<Web::DOM::Document> parse_html(Web::Page& page, Web::DOM::Document const& origin_document, StringView input)
 {
-    auto document = Web::DOM::Document::create(realm, URL::about_blank());
+    auto document = Web::DOM::Document::create(page, origin_document.relevant_global_event_target(), URL::about_blank());
     document->set_document_type(Web::DOM::Document::Type::HTML);
     document->set_content_type("text/html"_string);
     document->set_origin(origin_document.origin());
     document->set_ready_to_run_scripts();
     document->set_allow_declarative_shadow_roots(true);
-    document->set_custom_element_registry(realm.create<Web::HTML::CustomElementRegistry>(realm));
+    document->set_custom_element_registry(Web::HTML::CustomElementRegistry::create_global(*document));
 
     auto parser = Web::HTML::HTMLParser::create(document, input, Web::HTML::ParserScriptingMode::Disabled, "UTF-8"sv);
     parser->run(URL::about_blank());
@@ -336,17 +336,16 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto& vm = Web::Bindings::main_thread_vm();
     auto page_client = DumpHTMLTreePageClient::create(vm);
-    auto page = Web::Page::create(vm, page_client);
+    auto page = Web::Page::create(page_client);
     page->set_is_scripting_enabled(false);
     page_client->set_page(page);
     page->set_top_level_traversable(Web::HTML::TraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
     auto& origin_document = *page->top_level_traversable()->active_document();
-    auto& realm = origin_document.realm();
 
     auto timer = Core::ElapsedTimer::start_new();
 
     for (int i = 0; i < iterations; i++) {
-        auto document = parse_html(realm, origin_document, input);
+        auto document = parse_html(page, origin_document, input);
         if (!silent && i == 0)
             dump_tree(document);
     }

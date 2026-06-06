@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/EXTTextureFilterAnisotropic.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -13,14 +13,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTTextureFilterAnisotropic);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> EXTTextureFilterAnisotropic::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> EXTTextureFilterAnisotropic::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<EXTTextureFilterAnisotropic>(realm, context);
+    auto extension = GC::Heap::the().allocate<EXTTextureFilterAnisotropic>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
 }

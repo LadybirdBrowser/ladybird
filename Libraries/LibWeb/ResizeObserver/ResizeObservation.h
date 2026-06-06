@@ -18,7 +18,7 @@ class ResizeObservation : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ResizeObservation);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> create(JS::Realm&, DOM::Element&, Bindings::ResizeObserverBoxOptions);
+    static WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> create(DOM::Element&, Bindings::ResizeObserverBoxOptions);
 
     bool is_active();
 

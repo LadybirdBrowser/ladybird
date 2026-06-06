@@ -20,12 +20,6 @@ HTMLOptGroupElement::HTMLOptGroupElement(DOM::Document& document, DOM::Qualified
 
 HTMLOptGroupElement::~HTMLOptGroupElement() = default;
 
-void HTMLOptGroupElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptGroupElement);
-    Base::initialize(realm);
-}
-
 void HTMLOptGroupElement::inserted()
 {
     Base::inserted();

@@ -36,7 +36,8 @@ public:
         GC::Ref<WebIDL::Promise> data; // The actual data for this representation.
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> construct_impl(JS::Realm&, GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options = {});
+    static GC::Ref<ClipboardItem> create();
+    static WebIDL::ExceptionOr<GC::Ref<ClipboardItem>> construct_impl(GC::OrderedRootHashMap<String, GC::Ref<WebIDL::Promise>> const& items, Bindings::ClipboardItemOptions const& options = {});
 
     virtual ~ClipboardItem() override;
 
@@ -47,12 +48,12 @@ public:
     Vector<Representation> const& representations() const { return m_representations; }
     void append_representation(Representation);
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> get_type(String const& type);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> get_type(JS::Realm&, String const& type);
 
     static bool supports(JS::VM&, String const& type);
 
 private:
-    ClipboardItem(JS::Realm&);
+    ClipboardItem();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

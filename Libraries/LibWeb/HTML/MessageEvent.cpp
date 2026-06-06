@@ -6,50 +6,59 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/WeakInlines.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/MessagePort.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(MessageEvent);
 
-static void prune_live_ports_arrays(Vector<GC::Weak<JS::Array>>& live_ports_arrays)
+GC::Ref<MessageEvent> MessageEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
 {
-    live_ports_arrays.remove_all_matching([](auto const& ports_array) { return !ports_array; });
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
-GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
+GC::Ref<MessageEvent> MessageEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin)
 {
-    return realm.create<MessageEvent>(realm, event_name, event_init);
+    return create(event_name, event_init, origin, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
-GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin)
+GC::Ref<MessageEvent> MessageEvent::create(FlyString const& event_name, Bindings::MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<MessageEvent>(realm, event_name, event_init, origin);
+    return GC::Heap::the().allocate<MessageEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
+GC::Ref<MessageEvent> MessageEvent::create(FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return create(realm, event_name, event_init);
+    return GC::Heap::the().allocate<MessageEvent>(event_name, event_init, origin, time_stamp);
 }
 
-MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
-    : MessageEvent(realm, event_name, event_init, String { event_init.origin })
+WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(WindowOrWorkerGlobalScopeMixin& global_scope, FlyString const& event_name, Bindings::MessageEventInit const& event_init)
+{
+    return create(relevant_global_object(global_scope), event_name, event_init);
+}
+
+MessageEvent::MessageEvent(FlyString const& event_name, Bindings::MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MessageEvent(event_name, event_init, String { event_init.origin }, time_stamp)
 {
 }
 
-MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin)
-    : MessageEvent(realm, event_name, event_init, Variant<URL::Origin, String, Empty> { origin })
+MessageEvent::MessageEvent(FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MessageEvent(event_name, event_init, Variant<URL::Origin, String, Empty> { origin }, time_stamp)
 {
 }
 
-MessageEvent::MessageEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, String, Empty> origin)
-    : DOM::Event(realm, event_name, event_init)
+MessageEvent::MessageEvent(FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, String, Empty> origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_data(event_init.data)
     , m_origin(move(origin))
     , m_last_event_id(event_init.last_event_id)
@@ -95,30 +104,21 @@ NullableMessageEventSource MessageEvent::source() const
     return m_source;
 }
 
-GC::Ref<JS::Object> MessageEvent::ports() const
+GC::Ref<JS::Object> MessageEvent::ports(JS::Realm& realm) const
 {
-    auto& realm = *vm().current_realm();
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
 
-    if (&realm == &this->realm() && m_ports_array)
-        return *m_ports_array;
-
-    prune_live_ports_arrays(m_live_ports_arrays);
-    for (auto const& ports_array : m_live_ports_arrays) {
-        if (&ports_array->shape().realm() == &realm)
-            return *ports_array;
-    }
+    if (auto ports_array = m_ports_arrays.get(wrapper_world))
+        return *ports_array;
 
     GC::RootVector<JS::Value> port_vector;
     for (auto const& port : m_ports)
-        port_vector.append(Bindings::wrap(realm, port));
+        port_vector.append(Bindings::wrap(wrapper_world, realm, port));
 
     auto ports_array = JS::Array::create_from(realm, port_vector);
     MUST(ports_array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
 
-    if (&realm == &this->realm())
-        m_ports_array = ports_array;
-    else
-        m_live_ports_arrays.append(ports_array);
+    m_ports_arrays.set(wrapper_world, ports_array);
 
     return ports_array;
 }
@@ -142,8 +142,7 @@ void MessageEvent::init_message_event(String const& type, bool bubbles, bool can
     m_last_event_id = last_event_id;
     m_source = source;
 
-    m_ports_array = nullptr;
-    m_live_ports_arrays.clear();
+    m_ports_arrays.clear();
     m_ports.clear();
     m_ports.ensure_capacity(ports.size());
     for (auto const& port : ports) {

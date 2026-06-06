@@ -48,8 +48,6 @@ public:
 protected:
     SVGComponentTransferFunctionElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 

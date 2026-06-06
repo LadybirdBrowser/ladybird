@@ -19,26 +19,28 @@
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/XHR/FormData.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigateEvent);
 
-GC::Ref<NavigateEvent> NavigateEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::create(Window& relevant_window, FlyString const& event_name, Bindings::NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    auto event = realm.create<NavigateEvent>(realm, event_name, event_init);
+    auto event = GC::Heap::the().allocate<NavigateEvent>(relevant_window, event_name, event_init, time_stamp);
     event->set_is_trusted(true);
     return event;
 }
 
-GC::Ref<NavigateEvent> NavigateEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
+GC::Ref<NavigateEvent> NavigateEvent::construct_impl(Window& window, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
 {
-    return realm.create<NavigateEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<NavigateEvent>(window, event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(window)));
 }
 
-NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, Bindings::NavigateEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+NavigateEvent::NavigateEvent(Window& relevant_window, FlyString const& event_name, Bindings::NavigateEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
+    , m_relevant_window(relevant_window)
     , m_navigation_type(event_init.navigation_type)
     , m_destination(*event_init.destination)
     , m_can_intercept(event_init.can_intercept)
@@ -65,17 +67,17 @@ void NavigateEvent::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_form_data);
     visitor.visit(m_info);
     visitor.visit(m_source_element);
+    visitor.visit(m_relevant_window);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-intercept
-WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationInterceptOptions const& options)
+WebIDL::ExceptionOr<void> NavigateEvent::intercept(JS::Realm& realm, Bindings::NavigationInterceptOptions const& options)
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
     // The intercept(options) method steps are:
 
     // 1. Perform shared checks given this.
-    TRY(perform_shared_checks());
+    TRY(perform_shared_checks(realm));
 
     // 2. If this's canIntercept attribute was initialized to false, then throw a "SecurityError" DOMException.
     if (!m_can_intercept)
@@ -129,15 +131,15 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationIntercept
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-scroll
-WebIDL::ExceptionOr<void> NavigateEvent::scroll()
+WebIDL::ExceptionOr<void> NavigateEvent::scroll(JS::Realm& realm)
 {
     // The scroll() method steps are:
     // 1. Perform shared checks given this.
-    TRY(perform_shared_checks());
+    TRY(perform_shared_checks(realm));
 
     // 2. If this's interception state is not "committed", then throw an "InvalidStateError" DOMException.
     if (m_interception_state != InterceptionState::Committed)
-        return WebIDL::InvalidStateError::create(realm(), "Cannot scroll NavigationEvent that is not committed"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Cannot scroll NavigationEvent that is not committed"_utf16);
 
     // 3. Process scroll behavior given this.
     process_scroll_behavior();
@@ -146,23 +148,23 @@ WebIDL::ExceptionOr<void> NavigateEvent::scroll()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigateevent-perform-shared-checks
-WebIDL::ExceptionOr<void> NavigateEvent::perform_shared_checks()
+WebIDL::ExceptionOr<void> NavigateEvent::perform_shared_checks(JS::Realm& realm)
 {
     // To perform shared checks for a NavigateEvent event:
 
     // 1. If event's relevant global object's associated Document is not fully active,
     //    then throw an "InvalidStateError" DOMException.
-    auto& associated_document = relevant_window(*this).associated_document();
+    auto& associated_document = m_relevant_window->associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16);
 
     // 2. If event's isTrusted attribute was initialized to false, then throw a "SecurityError" DOMException.
     if (!this->is_trusted())
-        return WebIDL::SecurityError::create(realm(), "NavigateEvent is not trusted"_utf16);
+        return WebIDL::SecurityError::create(realm, "NavigateEvent is not trusted"_utf16);
 
     // 3. If event's canceled flag is set, then throw an "InvalidStateError" DOMException.
     if (this->cancelled())
-        return WebIDL::InvalidStateError::create(realm(), "NavigateEvent already cancelled"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "NavigateEvent already cancelled"_utf16);
 
     return {};
 }
@@ -187,7 +189,7 @@ void NavigateEvent::process_scroll_behavior()
     // 4. Otherwise:
     else {
         // 1. Let document be event's relevant global object's associated Document.
-        auto& document = relevant_window(*this).associated_document();
+        auto& document = m_relevant_window->associated_document();
 
         // 2. If document's indicated part is null, then scroll to the beginning of the document given document. [CSSOMVIEW]
         auto indicated_part = document.determine_the_indicated_part();
@@ -229,7 +231,7 @@ void NavigateEvent::potentially_reset_the_focus()
     VERIFY(m_interception_state == InterceptionState::Committed || m_interception_state == InterceptionState::Scrolled);
 
     // 2. Let navigation be event's relevant global object's navigation API.
-    auto& window = HTML::relevant_window(*this);
+    auto& window = *m_relevant_window;
     auto navigation = window.navigation();
 
     // 3. Let focusChanged be navigation's focus changed during ongoing navigation.

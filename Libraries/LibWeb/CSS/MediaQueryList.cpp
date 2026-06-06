@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryList.h>
@@ -20,21 +21,15 @@ GC_DEFINE_ALLOCATOR(MediaQueryList);
 
 GC::Ref<MediaQueryList> MediaQueryList::create(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
 {
-    return document.realm().create<MediaQueryList>(document, move(media));
+    return GC::Heap::the().allocate<MediaQueryList>(document, move(media));
 }
 
 MediaQueryList::MediaQueryList(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
-    : DOM::EventTarget(document.realm())
+    : DOM::EventTarget()
     , m_document(document)
     , m_media(move(media))
 {
     evaluate();
-}
-
-void MediaQueryList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaQueryList);
-    Base::initialize(realm);
 }
 
 void MediaQueryList::visit_edges(Cell::Visitor& visitor)

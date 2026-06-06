@@ -19,7 +19,7 @@ class Credential : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Credential);
 
 public:
-    static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::VM&);
+    static GC::Ref<WebIDL::Promise> is_conditional_mediation_available(JS::Realm&);
 
     virtual ~Credential() override;
 
@@ -28,8 +28,8 @@ public:
     virtual String type() const = 0;
 
 protected:
-    explicit Credential(JS::Realm&);
-    Credential(JS::Realm&, String id);
+    explicit Credential();
+    Credential(String id);
 
     String m_id;
 };

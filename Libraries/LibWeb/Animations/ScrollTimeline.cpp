@@ -5,9 +5,9 @@
  */
 
 #include "ScrollTimeline.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -16,9 +16,9 @@ namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(ScrollTimeline);
 
-GC::Ref<ScrollTimeline> ScrollTimeline::create(JS::Realm& realm, DOM::Document& document, Source source, Bindings::ScrollAxis axis)
+GC::Ref<ScrollTimeline> ScrollTimeline::create(DOM::Document& document, Source source, Bindings::ScrollAxis axis)
 {
-    auto timeline = realm.create<ScrollTimeline>(realm, document, source, axis);
+    auto timeline = GC::Heap::the().allocate<ScrollTimeline>(document, source, axis);
 
     // NB: The passed timestamp is ignored for ScrollTimelines so we can just pass 0 here.
     timeline->update_current_time(0);
@@ -27,9 +27,9 @@ GC::Ref<ScrollTimeline> ScrollTimeline::create(JS::Realm& realm, DOM::Document& 
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-scrolltimeline
-GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, Bindings::ScrollTimelineOptions options)
+GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(HTML::Window& window, Bindings::ScrollTimelineOptions options)
 {
-    auto& document = HTML::relevant_window(realm.global_object()).associated_document();
+    auto& document = window.associated_document();
 
     // 1. Let timeline be the new ScrollTimeline object.
     // 2. Set the source of timeline to:
@@ -48,7 +48,7 @@ GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, Binding
     }();
 
     // 3. Set the axis property of timeline to the corresponding value from options.
-    return create(realm, document, source, options.axis);
+    return create(document, source, options.axis);
 }
 
 GC::Ptr<DOM::Element const> ScrollTimeline::source() const
@@ -214,8 +214,8 @@ void ScrollTimeline::update_current_time(double)
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }
 
-ScrollTimeline::ScrollTimeline(JS::Realm& realm, DOM::Document& document, Source source, Bindings::ScrollAxis axis)
-    : AnimationTimeline(realm, document)
+ScrollTimeline::ScrollTimeline(DOM::Document& document, Source source, Bindings::ScrollAxis axis)
+    : AnimationTimeline(document)
     , m_source(source)
     , m_axis(axis)
 {

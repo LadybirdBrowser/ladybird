@@ -5,6 +5,7 @@
  */
 
 #include "CSSImageValue.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSImageValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -14,13 +15,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImageValue);
 
-GC::Ref<CSSImageValue> CSSImageValue::create(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
+GC::Ref<CSSImageValue> CSSImageValue::create(NonnullRefPtr<StyleValue const> source_value)
 {
-    return realm.create<CSSImageValue>(realm, move(source_value));
+    return GC::Heap::the().allocate<CSSImageValue>(move(source_value));
 }
 
-CSSImageValue::CSSImageValue(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
-    : CSSStyleValue(realm, move(source_value))
+CSSImageValue::CSSImageValue(NonnullRefPtr<StyleValue const> source_value)
+    : CSSStyleValue(move(source_value))
 {
 }
 

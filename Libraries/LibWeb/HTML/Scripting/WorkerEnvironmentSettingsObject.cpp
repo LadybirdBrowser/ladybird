@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -59,7 +60,7 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
 
     // 8. Set realm's [[HostDefined]] field to settings object.
     auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-    auto wrapper_world = realm->heap().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
+    auto wrapper_world = GC::Heap::the().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
     auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, *wrapper_world, page);
     realm->set_host_defined(move(host_defined));
     Bindings::cache_global_object_wrapper(*realm);

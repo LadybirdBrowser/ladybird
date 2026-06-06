@@ -5,7 +5,9 @@
  */
 
 #include <AK/HashTable.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -16,7 +18,6 @@
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
@@ -24,15 +25,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ImageRequest);
 
-GC::Ref<ImageRequest> ImageRequest::create(JS::Realm& realm, GC::Ref<Page> page)
+GC::Ref<ImageRequest> ImageRequest::create()
 {
-    return realm.create<ImageRequest>(page);
+    return GC::Heap::the().allocate<ImageRequest>();
 }
 
-ImageRequest::ImageRequest(GC::Ref<Page> page)
-    : m_page(page)
-{
-}
+ImageRequest::ImageRequest() = default;
 
 ImageRequest::~ImageRequest()
 {
@@ -42,7 +40,6 @@ void ImageRequest::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_shared_resource_request);
-    visitor.visit(m_page);
     visitor.visit(m_image_data);
 }
 
@@ -68,12 +65,12 @@ void ImageRequest::set_state(State state)
     m_state = state;
 }
 
-void ImageRequest::set_current_url(JS::Realm& realm, String url)
+void ImageRequest::set_current_url(DOM::Document& document, String url)
 {
     m_current_url = move(url);
 
     if (auto parsed_url = DOMURL::parse(m_current_url); parsed_url.has_value())
-        m_shared_resource_request = SharedResourceRequest::get_or_create(realm, m_page, parsed_url.release_value());
+        m_shared_resource_request = SharedResourceRequest::get_or_create(document, parsed_url.release_value());
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request

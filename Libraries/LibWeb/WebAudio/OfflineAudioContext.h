@@ -12,6 +12,12 @@
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
+
 namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
@@ -20,9 +26,9 @@ class OfflineAudioContext final : public BaseAudioContext {
     GC_DECLARE_ALLOCATOR(OfflineAudioContext);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(JS::Realm&, Bindings::OfflineAudioContextOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, Bindings::OfflineAudioContextOptions const&);
     static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(
-        JS::Realm&,
+        HTML::WindowOrWorkerGlobalScopeMixin&,
         WebIDL::UnsignedLong number_of_channels,
         WebIDL::UnsignedLong length,
         float sample_rate);
@@ -39,9 +45,7 @@ public:
     void set_oncomplete(GC::Ptr<WebIDL::CallbackType>);
 
 private:
-    OfflineAudioContext(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
-
-    virtual void initialize(JS::Realm&) override;
+    OfflineAudioContext(GC::Ref<DOM::EventTarget> relevant_global_object, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
     virtual void visit_edges(Cell::Visitor&) override;
 
     WebIDL::UnsignedLong m_length {};

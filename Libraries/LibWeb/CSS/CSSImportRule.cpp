@@ -9,6 +9,7 @@
 
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <LibGC/Heap.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/CSSImportRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -28,13 +29,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports> supports, GC::Ref<MediaList> media)
+GC::Ref<CSSImportRule> CSSImportRule::create(URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports> supports, GC::Ref<MediaList> media)
 {
-    return realm.create<CSSImportRule>(realm, move(url), document, move(layer), move(scope), move(supports), move(media));
+    return GC::Heap::the().allocate<CSSImportRule>(move(url), document, move(layer), move(scope), move(supports), move(media));
 }
 
-CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports> supports, GC::Ref<MediaList> media)
-    : CSSRule(realm, Type::Import)
+CSSImportRule::CSSImportRule(URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports> supports, GC::Ref<MediaList> media)
+    : CSSRule(Type::Import)
     , m_url(move(url))
     , m_document(document)
     , m_layer(move(layer))
@@ -161,7 +162,7 @@ void CSSImportRule::fetch()
     // 3. Fetch a style resource from rule’s URL, with ruleOrDeclaration rule, destination "style", CORS mode "no-cors", and
     //    processResponse being the following steps given response response and byte stream, null or failure byteStream:
     RuleOrDeclaration rule_or_declaration {
-        .environment_settings_object = HTML::relevant_settings_object(parent_style_sheet),
+        .environment_settings_object = HTML::relevant_settings_object(*m_document),
         .value = RuleOrDeclaration::Rule {
             .parent_style_sheet = &parent_style_sheet,
         },

@@ -41,7 +41,7 @@ class IDBTransaction : public DOM::EventTarget {
 public:
     virtual ~IDBTransaction() override;
 
-    [[nodiscard]] static GC::Ref<IDBTransaction> create(JS::Realm&, GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
+    [[nodiscard]] static GC::Ref<IDBTransaction> create(GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
     [[nodiscard]] Bindings::IDBTransactionMode mode() const { return m_mode; }
     [[nodiscard]] TransactionState state() const { return m_state; }
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
@@ -49,6 +49,8 @@ public:
     [[nodiscard]] Bindings::IDBTransactionDurability durability() const { return m_durability; }
     [[nodiscard]] GC::Ptr<IDBRequest> associated_request() const { return m_associated_request; }
     [[nodiscard]] bool aborted() const { return m_aborted; }
+    [[nodiscard]] HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
+    [[nodiscard]] JS::Object& relevant_global_object() const;
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
     [[nodiscard]] RequestList& request_list() { return m_request_list; }
     [[nodiscard]] ReadonlySpan<GC::Ref<ObjectStore>> scope() const { return m_scope; }
@@ -109,8 +111,7 @@ public:
     WebIDL::CallbackType* onerror();
 
 protected:
-    explicit IDBTransaction(JS::Realm&, GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
-    virtual void initialize(JS::Realm&) override;
+    IDBTransaction(GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
     virtual void visit_edges(Visitor& visitor) override;
     virtual EventTarget* get_parent(DOM::Event const&) override;
 

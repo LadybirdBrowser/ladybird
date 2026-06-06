@@ -7,12 +7,13 @@
 
 #pragma once
 
-#include <LibGC/Weak.h>
 #include <LibJS/Runtime/Set.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/FontFaceSet.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
@@ -21,11 +22,11 @@ class FontFaceSet final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(FontFaceSet);
 
 public:
-    [[nodiscard]] static GC::Ref<FontFaceSet> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FontFaceSet> create(HTML::EnvironmentSettingsObject&);
     virtual ~FontFaceSet() override = default;
 
     size_t set_size() const { return m_font_faces.size(); }
-    GC::Ref<JS::Set> set_entries_for_realm(JS::Realm&) const;
+    GC::Ref<JS::Set> set_entries(JS::Realm&, Bindings::WrapperWorld const&) const;
     bool set_has(JS::Value) const;
     Vector<GC::Ref<FontFace>> const& font_faces() const { return m_font_faces; }
 
@@ -50,6 +51,7 @@ public:
     Vector<GC::Ref<FontFace>>& failed_fonts() { return m_failed_fonts; }
 
     GC::Ref<WebIDL::Promise> ready() const;
+    HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
     Bindings::FontFaceSetLoadStatus status() const { return m_status; }
 
     void on_set_modified_from_js(Badge<Bindings::FontFaceSetPrototype>) { }
@@ -61,14 +63,12 @@ public:
     void switch_to_loaded();
 
 private:
-    explicit FontFaceSet(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit FontFaceSet(HTML::EnvironmentSettingsObject&);
     virtual void visit_edges(Cell::Visitor&) override;
 
     Vector<GC::Ref<FontFace>> m_font_faces;
-    mutable GC::Weak<JS::Set> m_relevant_realm_set_entries;
-    mutable Vector<GC::Weak<JS::Set>> m_live_set_entries;
+    mutable Bindings::WrapperWorldWeakValueCache<JS::Set> m_set_entries;
+    GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
     GC::Ref<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
 
     Vector<GC::Ref<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]

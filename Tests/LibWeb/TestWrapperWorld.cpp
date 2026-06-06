@@ -26,8 +26,8 @@ class TestWrappable final : public Web::Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(TestWrappable);
 
 public:
-    explicit TestWrappable(JS::Realm& realm)
-        : Wrappable(realm)
+    explicit TestWrappable(JS::Realm&)
+        : Web::Bindings::Wrappable()
     {
     }
 
@@ -42,14 +42,15 @@ public:
     void set_indexed_value(GC::Ref<TestWrappable> indexed_value) { m_indexed_value = indexed_value; }
     void set_named_value(GC::Ref<TestWrappable> named_value) { m_named_value = named_value; }
     void set_origin(URL::Origin const& origin) { m_origin = origin; }
+    JS::Realm* last_setter_realm() const { return m_last_setter_realm.ptr(); }
 
     virtual Optional<URL::Origin> extract_an_origin() const override { return m_origin; }
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override
+    virtual Optional<JS::Value> item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override
     {
         if (index != 0 || !m_indexed_value)
             return {};
-        return Web::Bindings::wrap(realm, GC::Ref { *m_indexed_value }).ptr();
+        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *m_indexed_value }).ptr();
     }
 
     virtual Vector<FlyString> supported_property_names() const override
@@ -59,11 +60,23 @@ public:
         return { "child"_fly_string };
     }
 
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override
+    virtual JS::Value named_item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override
     {
         if (name != "child"_fly_string || !m_named_value)
             return JS::js_undefined();
-        return Web::Bindings::wrap(realm, GC::Ref { *m_named_value }).ptr();
+        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *m_named_value }).ptr();
+    }
+
+    virtual Web::WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm& realm, u32, JS::Value) override
+    {
+        m_last_setter_realm = &realm;
+        return {};
+    }
+
+    virtual Web::WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm& realm, String const&, JS::Value) override
+    {
+        m_last_setter_realm = &realm;
+        return {};
     }
 
 protected:
@@ -74,11 +87,13 @@ protected:
         Base::visit_edges(visitor);
         visitor.visit(m_indexed_value);
         visitor.visit(m_named_value);
+        visitor.visit(m_last_setter_realm);
     }
 
 private:
     GC::Ptr<TestWrappable> m_indexed_value;
     GC::Ptr<TestWrappable> m_named_value;
+    GC::Ptr<JS::Realm> m_last_setter_realm;
     Optional<URL::Origin> m_origin;
 };
 
@@ -87,7 +102,10 @@ class TestWrapperObject final : public Web::Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(TestWrapperObject);
 
 public:
-    TestWrapperObject(JS::Realm& realm, GC::Ref<TestWrappable> impl)
+    using PlatformObject::set_value_of_named_property;
+    using PlatformObject::set_value_of_new_indexed_property;
+
+    TestWrapperObject(JS::Realm& realm, GC::Ref<Web::Bindings::Wrappable> impl)
         : PlatformObject(realm)
         , m_impl(impl)
     {
@@ -107,7 +125,7 @@ private:
         visitor.visit(m_impl);
     }
 
-    GC::Ref<TestWrappable> m_impl;
+    GC::Ref<Web::Bindings::Wrappable> m_impl;
 };
 
 static_assert(!IsConstructible<JS::Value, TestWrappable*>);
@@ -147,12 +165,12 @@ GC::Ref<Web::Bindings::PlatformObject> TestWrappable::create_wrapper(JS::Realm& 
 
 GC::Ref<Web::Bindings::PlatformObject> wrap_test_wrappable(JS::Realm& realm, GC::Ref<TestWrappable> wrappable)
 {
-    return Web::Bindings::wrap(realm, wrappable);
+    return Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, wrappable);
 }
 
-GC::Ptr<Web::Bindings::PlatformObject> cached_wrapper_for(JS::Realm& realm, TestWrappable const& wrappable)
+GC::Ptr<Web::Bindings::PlatformObject> cached_wrapper_for(JS::Realm& realm, Web::Bindings::Wrappable const& wrappable)
 {
-    return Web::Bindings::host_defined_wrapper_world(realm).wrapper_for(wrappable);
+    return Web::Bindings::host_defined_wrapper_world(realm).wrapper_for(wrappable, realm);
 }
 
 void install_test_host_defined(JS::Realm& realm, Web::Bindings::WrapperWorld::Type wrapper_world_type)
@@ -184,13 +202,13 @@ TEST_CASE(main_world_uses_inline_wrapper_cache)
     auto wrappable = realm.realm().create<TestWrappable>(realm.realm());
     auto wrapper = realm.realm().create<TestWrapperObject>(realm.realm(), wrappable);
 
-    EXPECT(!wrapper_world->wrapper_for(*wrappable));
+    EXPECT(!cached_wrapper_for(realm.realm(), *wrappable));
 
     wrapper_world->set_wrapper(*wrappable, *wrapper);
-    EXPECT(wrapper.ptr() == wrapper_world->wrapper_for(*wrappable).ptr());
+    EXPECT(wrapper.ptr() == cached_wrapper_for(realm.realm(), *wrappable).ptr());
 
     wrapper_world->clear_wrapper(*wrappable, *wrapper);
-    EXPECT(!wrapper_world->wrapper_for(*wrappable));
+    EXPECT(!cached_wrapper_for(realm.realm(), *wrappable));
 
     vm->pop_execution_context();
 }
@@ -235,32 +253,33 @@ TEST_CASE(wrapper_forwards_identity_and_origin_to_wrappable)
     vm->pop_execution_context();
 }
 
-TEST_CASE(main_world_wrap_uses_wrappable_realm)
+TEST_CASE(first_main_world_wrap_chooses_wrapper_realm)
 {
     auto vm = JS::VM::create();
-    TestRealm implementation_realm { *vm };
+    TestRealm allocation_realm { *vm };
     TestRealm caller_realm { *vm };
-    auto wrappable = implementation_realm.realm().create<TestWrappable>(implementation_realm.realm());
+    auto wrappable = allocation_realm.realm().create<TestWrappable>(allocation_realm.realm());
 
     auto wrapper = wrap_test_wrappable(caller_realm.realm(), wrappable);
 
-    EXPECT(&wrapper->realm() == &implementation_realm.realm());
-    EXPECT(wrapper.ptr() == cached_wrapper_for(implementation_realm.realm(), *wrappable).ptr());
-    EXPECT(wrapper.ptr() == wrap_test_wrappable(implementation_realm.realm(), wrappable).ptr());
+    EXPECT(&wrapper->realm() == &caller_realm.realm());
+    EXPECT(wrapper.ptr() == cached_wrapper_for(caller_realm.realm(), *wrappable).ptr());
+    EXPECT(wrapper.ptr() == cached_wrapper_for(allocation_realm.realm(), *wrappable).ptr());
+    EXPECT(wrapper.ptr() == wrap_test_wrappable(allocation_realm.realm(), wrappable).ptr());
 
     vm->pop_execution_context();
     vm->pop_execution_context();
 }
 
-TEST_CASE(non_main_global_wrapper_can_use_a_different_wrappable_realm)
+TEST_CASE(global_wrapper_uses_requested_realm)
 {
     auto vm = JS::VM::create();
-    TestRealm implementation_realm { *vm };
-    auto wrappable = implementation_realm.realm().create<TestWrappable>(implementation_realm.realm());
+    TestRealm allocation_realm { *vm };
+    auto wrappable = allocation_realm.realm().create<TestWrappable>(allocation_realm.realm());
     auto extension_execution_context = MUST(JS::Realm::initialize_host_defined_realm(*vm, nullptr, nullptr));
     auto& extension_realm = *extension_execution_context->realm;
 
-    auto wrapper = Web::Bindings::create_global_object_wrapper(extension_realm, wrappable, Web::Bindings::WrapperWorld::Type::Extension);
+    auto wrapper = Web::Bindings::create_global_object_wrapper(extension_realm, wrappable);
 
     EXPECT(&wrapper->realm() == &extension_realm);
     EXPECT(Web::Bindings::impl_from<TestWrappable>(wrapper.ptr()) == wrappable.ptr());
@@ -285,12 +304,12 @@ TEST_CASE(extension_world_uses_per_world_wrapper_cache)
 
     EXPECT(extension_wrapper.ptr() != main_wrapper.ptr());
     EXPECT(&extension_wrapper->realm() == &extension_realm.realm());
-    EXPECT(main_world_cache->wrapper_for(*wrappable).ptr() == main_wrapper.ptr());
-    EXPECT(extension_world_cache->wrapper_for(*wrappable).ptr() == extension_wrapper.ptr());
+    EXPECT(cached_wrapper_for(main_world.realm(), *wrappable).ptr() == main_wrapper.ptr());
+    EXPECT(cached_wrapper_for(extension_realm.realm(), *wrappable).ptr() == extension_wrapper.ptr());
 
     extension_world_cache->clear_wrapper(*wrappable, *extension_wrapper);
-    EXPECT(!extension_world_cache->wrapper_for(*wrappable));
-    EXPECT(main_world_cache->wrapper_for(*wrappable).ptr() == main_wrapper.ptr());
+    EXPECT(!cached_wrapper_for(extension_realm.realm(), *wrappable));
+    EXPECT(cached_wrapper_for(main_world.realm(), *wrappable).ptr() == main_wrapper.ptr());
 
     vm->pop_execution_context();
     vm->pop_execution_context();
@@ -319,7 +338,7 @@ TEST_CASE(extension_first_wrap_does_not_fill_main_world_cache)
     vm->pop_execution_context();
 }
 
-TEST_CASE(extension_global_wrapper_can_use_existing_impl)
+TEST_CASE(global_wrapper_cache_uses_realm_wrapper_world)
 {
     auto vm = JS::VM::create();
     TestRealm main_world { *vm };
@@ -328,7 +347,7 @@ TEST_CASE(extension_global_wrapper_can_use_existing_impl)
     auto extension_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         *vm,
         [&](JS::Realm& realm) -> JS::Object* {
-            return Web::Bindings::create_global_object_wrapper(realm, wrappable, Web::Bindings::WrapperWorld::Type::Extension).ptr();
+            return Web::Bindings::create_global_object_wrapper(realm, wrappable).ptr();
         },
         nullptr));
     auto& extension_realm = *extension_execution_context->realm;
@@ -407,6 +426,14 @@ TEST_CASE(legacy_property_getters_use_wrapper_realm)
     EXPECT(named_child_extension_wrapper);
     EXPECT(&named_child_extension_wrapper->realm() == &extension_realm.realm());
     EXPECT(named_child_extension_wrapper.ptr() == child_extension_wrapper.ptr());
+
+    auto* main_test_wrapper = as<TestWrapperObject>(main_wrapper.ptr());
+    MUST(main_test_wrapper->set_value_of_new_indexed_property(main_world.realm(), 0, JS::js_undefined()));
+    EXPECT(parent->last_setter_realm() == &main_world.realm());
+
+    auto* extension_test_wrapper = as<TestWrapperObject>(extension_wrapper.ptr());
+    MUST(extension_test_wrapper->set_value_of_named_property(extension_realm.realm(), "child"_string, JS::js_undefined()));
+    EXPECT(parent->last_setter_realm() == &extension_realm.realm());
 
     vm->pop_execution_context();
     vm->pop_execution_context();

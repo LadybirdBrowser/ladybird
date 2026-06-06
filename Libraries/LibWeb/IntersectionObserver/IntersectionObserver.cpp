@@ -5,6 +5,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -22,7 +23,14 @@ namespace Web::IntersectionObserver {
 GC_DEFINE_ALLOCATOR(IntersectionObserver);
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-intersectionobserver
-WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, Bindings::IntersectionObserverInit const& options)
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::construct_impl(HTML::Window& window, GC::Ptr<WebIDL::CallbackType> callback, Bindings::IntersectionObserverInit const& options)
+{
+    auto implicit_root_document = window.page().top_level_browsing_context().active_document();
+    VERIFY(implicit_root_document);
+    return create_with_implicit_root_document(callback, options, *implicit_root_document);
+}
+
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_with_implicit_root_document(GC::Ptr<WebIDL::CallbackType> callback, Bindings::IntersectionObserverInit const& options, DOM::Document& implicit_root_document)
 {
     // https://w3c.github.io/IntersectionObserver/#initialize-a-new-intersectionobserver
     // 1. Let this be a new IntersectionObserver object
@@ -30,15 +38,15 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
     // NOTE: Steps 1 and 2 are handled by creating the IntersectionObserver at the very end of this function.
 
     // 3. Attempt to parse a margin from options.rootMargin. If a list is returned, set this’s internal [[rootMargin]] slot to that. Otherwise, throw a SyntaxError exception.
-    auto root_margin = parse_a_margin(realm, options.root_margin);
+    auto root_margin = parse_a_margin(options.root_margin);
     if (!root_margin.has_value()) {
-        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse root margin as a margin."_utf16);
+        return WebIDL::SyntaxError::create("IntersectionObserver: Cannot parse root margin as a margin."_utf16);
     }
 
     // 4. Attempt to parse a margin from options.scrollMargin. If a list is returned, set this’s internal [[scrollMargin]] slot to that. Otherwise, throw a SyntaxError exception.
-    auto scroll_margin = parse_a_margin(realm, options.scroll_margin);
+    auto scroll_margin = parse_a_margin(options.scroll_margin);
     if (!scroll_margin.has_value()) {
-        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse scroll margin as a margin."_utf16);
+        return WebIDL::SyntaxError::create("IntersectionObserver: Cannot parse scroll margin as a margin."_utf16);
     }
 
     // 5. Let thresholds be a list equal to options.threshold.
@@ -80,11 +88,11 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
     // 12. Set this’s internal [[delay]] slot to options.delay to delay.
     // 13. Set this’s internal [[trackVisibility]] slot to options.trackVisibility.
     // 14. Return this.
-    return realm.create<IntersectionObserver>(realm, callback, options.root, move(root_margin.value()), move(scroll_margin.value()), move(thresholds), move(delay), move(options.track_visibility));
+    return GC::Heap::the().allocate<IntersectionObserver>(callback, options.root, implicit_root_document, move(root_margin.value()), move(scroll_margin.value()), move(thresholds), move(delay), move(options.track_visibility));
 }
 
-IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
-    : Wrappable(realm)
+IntersectionObserver::IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, GC::Ref<DOM::Document> implicit_root_document, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
+    : Bindings::Wrappable()
     , m_callback(callback)
     , m_root_margin(root_margin)
     , m_scroll_margin(scroll_margin)
@@ -93,9 +101,13 @@ IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::Cal
     , m_track_visibility(track_visibility)
 {
     m_root = root.has<Empty>() ? nullptr : root.visit([](GC::Ref<DOM::Element> const& value) -> GC::Ptr<DOM::Node> { return value; }, [](GC::Ref<DOM::Document> const& value) -> GC::Ptr<DOM::Node> { return value; }, [](Empty) -> GC::Ptr<DOM::Node> { return nullptr; });
-    intersection_root().visit([this](auto& node) {
-        m_document = node->document();
-    });
+
+    if (m_root)
+        m_document = m_root->document();
+    else
+        m_document = implicit_root_document;
+
+    VERIFY(m_document);
     m_document->register_intersection_observer({}, *this);
 }
 
@@ -258,7 +270,8 @@ GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
         return *m_root;
 
     // The implicit root is the top-level browsing context’s document node.
-    return *HTML::relevant_window(*this).page().top_level_browsing_context().active_document();
+    VERIFY(m_document);
+    return *m_document->page().top_level_browsing_context().active_document();
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
@@ -323,10 +336,10 @@ void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<Intersectio
 }
 
 // https://w3c.github.io/IntersectionObserver/#parse-a-margin
-Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS::Realm& realm, String margin_string)
+Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(String margin_string)
 {
     // 1. Parse a list of component values marginString, storing the result as tokens.
-    auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { realm }, margin_string).parse_as_list_of_component_values();
+    auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingParams {}, margin_string).parse_as_list_of_component_values();
 
     // 2. Remove all whitespace tokens from tokens.
     tokens.remove_all_matching([](auto componentValue) { return componentValue.is(CSS::Parser::Token::Type::Whitespace); });

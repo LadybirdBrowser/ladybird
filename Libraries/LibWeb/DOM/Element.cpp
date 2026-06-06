@@ -14,6 +14,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -24,6 +25,7 @@
 #include <LibWeb/Bindings/Element.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -174,12 +176,6 @@ void Element::set_affected_by_backward_positional_pseudo_class(bool value)
     }
 }
 
-void Element::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Element);
-    Base::initialize(realm);
-}
-
 void Element::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -194,6 +190,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_part_list);
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_custom_element_definition);
+    visitor.visit(m_custom_element_wrapper);
     visitor.visit(m_custom_state_set);
     visitor.visit(m_computed_style_map_cache);
     visitor.visit(m_attribute_style_map);
@@ -404,7 +401,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute_for_bindings(FlyString qualifie
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(qualified_name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
+        return WebIDL::InvalidCharacterError::create(document().relevant_settings_object().realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to
     //    qualifiedName in ASCII lowercase.
@@ -557,7 +554,7 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
 WebIDL::ExceptionOr<void> Element::set_attribute_ns_for_bindings(Optional<FlyString> const& namespace_, FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
     // 1. Let (namespace, prefix, localName) be the result of validating and extracting namespace and qualifiedName given "attribute".
-    auto extracted_qualified_name = TRY(validate_and_extract(realm(), namespace_, qualified_name, ValidationContext::Attribute));
+    auto extracted_qualified_name = TRY(validate_and_extract(document().relevant_settings_object().realm(), namespace_, qualified_name, ValidationContext::Attribute));
 
     // 2. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value
     //    with localName, namespace, this, and value.
@@ -672,7 +669,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
 {
     // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_attribute_local_name(name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
+        return WebIDL::InvalidCharacterError::create(document().relevant_settings_object().realm(), "Attribute name must not be empty or contain invalid characters"_utf16);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
     bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
@@ -1235,11 +1232,11 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 {
     // 1. If element’s namespace is not the HTML namespace, then throw a "NotSupportedError" DOMException.
     if (namespace_uri() != Namespace::HTML)
-        return WebIDL::NotSupportedError::create(realm(), "Element's namespace is not the HTML namespace"_utf16);
+        return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Element's namespace is not the HTML namespace"_utf16);
 
     // 2. If element’s local name is not a valid shadow host name, then throw a "NotSupportedError" DOMException.
     if (!is_valid_shadow_host_name(local_name()))
-        return WebIDL::NotSupportedError::create(realm(), "Element's local name is not a valid shadow host name"_utf16);
+        return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Element's local name is not a valid shadow host name"_utf16);
 
     // 3. If element’s local name is a valid custom element name, or element’s is value is not null:
     if (HTML::is_valid_custom_element_name(local_name()) || m_is_value.has_value()) {
@@ -1250,7 +1247,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
         // 2. If definition is non-null and definition’s disable shadow is true, then throw a "NotSupportedError"
         //    DOMException.
         if (definition && definition->disable_shadow())
-            return WebIDL::NotSupportedError::create(realm(), "Cannot attach a shadow root to a custom element that has disabled shadow roots"_utf16);
+            return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Cannot attach a shadow root to a custom element that has disabled shadow roots"_utf16);
     }
 
     // 4. If element is a shadow host:
@@ -1263,7 +1260,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
         // - currentShadowRoot’s mode is not mode,
         // then throw a "NotSupportedError" DOMException.
         if (!current_shadow_root->declarative() || current_shadow_root->mode() != mode) {
-            return WebIDL::NotSupportedError::create(realm(), "Element already is a shadow host"_utf16);
+            return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "Element already is a shadow host"_utf16);
         }
 
         // 3. Otherwise:
@@ -1279,7 +1276,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 
     // 5. Let shadow be a new shadow root whose node document is element’s node document, host is this, and mode is
     //    mode.
-    auto shadow = realm().create<ShadowRoot>(document(), *this, mode);
+    auto shadow = ShadowRoot::create(document(), *this, mode);
 
     // 6. Set shadow’s delegates focus to delegatesFocus.
     shadow->set_delegates_focus(delegates_focus);
@@ -1322,7 +1319,7 @@ WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(Bindings::Shadow
     // 3. If registry is non-null, registry’s is scoped is false, and registry is not this’s node document’s custom
     //    element registry, then throw a "NotSupportedError" DOMException.
     if (registry && !registry->is_scoped() && registry != document().custom_element_registry())
-        return WebIDL::NotSupportedError::create(realm(), "'customElementRegistry' in ShadowRootInit must either be scoped or the document's custom element registry."_utf16);
+        return WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "'customElementRegistry' in ShadowRootInit must either be scoped or the document's custom element registry."_utf16);
 
     // 4. Run attach a shadow root with this, init["mode"], init["clonable"], init["serializable"],
     //    init["delegatesFocus"], init["slotAssignment"], and registry.
@@ -1354,7 +1351,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_utf16);
+        return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), "Failed to parse selector"_utf16);
 
     // 3. If the result of match a selector against an element, using s, this, and scoping root this, returns success, then return true; otherwise, return false.
     for (auto const& s : maybe_selectors.value()) {
@@ -1373,7 +1370,7 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_utf16);
+        return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), "Failed to parse selector"_utf16);
 
     auto matches_selectors = [this](CSS::SelectorList const& selector_list, Element const* element) {
         // 4. For each element in elements, if match a selector against an element, using s, element, and scoping root this, returns success, return element.
@@ -1517,7 +1514,7 @@ GC::Ref<CSS::CSSStyleProperties> Element::style_for_bindings()
 GC::Ref<CSS::StylePropertyMap> Element::attribute_style_map()
 {
     if (!m_attribute_style_map)
-        m_attribute_style_map = CSS::StylePropertyMap::create(realm(), style_for_bindings());
+        m_attribute_style_map = CSS::StylePropertyMap::create(style_for_bindings());
     return *m_attribute_style_map;
 }
 
@@ -1541,7 +1538,7 @@ FlyString Element::make_html_uppercased_qualified_name() const
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-an-element-task
 HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, Function<void()> steps)
 {
-    return queue_a_task(source, HTML::main_thread_event_loop(), document(), GC::create_function(heap(), move(steps)));
+    return queue_a_task(source, HTML::main_thread_event_loop(), document(), GC::create_function(GC::Heap::the(), move(steps)));
 }
 
 // https://html.spec.whatwg.org/multipage/syntax.html#void-elements
@@ -1560,7 +1557,7 @@ bool Element::serializes_as_void() const
 GC::Ref<Geometry::DOMRect> Element::get_bounding_client_rect_for_bindings() const
 {
     auto rect = get_bounding_client_rect();
-    return MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height())));
+    return Geometry::DOMRect::create(static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height()));
 }
 
 static CSSPixelRect bounding_rect_from_client_rects(Vector<CSSPixelRect> const& list)
@@ -1605,9 +1602,9 @@ GC::Ref<Geometry::DOMRectList> Element::get_client_rects_for_bindings() const
 {
     Vector<GC::Root<Geometry::DOMRect>> rects;
     for (auto const& rect : get_client_rects()) {
-        rects.append(MUST(Geometry::DOMRect::construct_impl(realm(), static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height()))));
+        rects.append(Geometry::DOMRect::create(static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height())));
     }
-    return Geometry::DOMRectList::create(realm(), move(rects));
+    return Geometry::DOMRectList::create(move(rects));
 }
 
 static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element const& element)
@@ -2516,7 +2513,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Stri
     }
 
     // 5. Let fragment be a new DocumentFragment whose node document is context's node document.
-    auto fragment = realm().create<DOM::DocumentFragment>(document());
+    auto fragment = DOM::DocumentFragment::create(document());
 
     // 6. For each node of newChildren, in tree order: append node to fragment.
     for (auto& child : new_children)
@@ -2553,7 +2550,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(TrustedTypes::TrustedHTMLOrStr
 
     // 4. If parent is a Document, throw a "NoModificationAllowedError" DOMException.
     if (parent->is_document())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot set outer HTML on document"_utf16);
+        return WebIDL::NoModificationAllowedError::create(document().relevant_settings_object().realm(), "Cannot set outer HTML on document"_utf16);
 
     // 5. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, "body", and the HTML namespace.
     if (parent->is_document_fragment())
@@ -2593,7 +2590,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 
         // 2. If context is null or a Document, throw a "NoModificationAllowedError" DOMException.
         if (!context || context->is_document())
-            return WebIDL::NoModificationAllowedError::create(realm(), "insertAdjacentHTML: context is null or a Document"_utf16);
+            return WebIDL::NoModificationAllowedError::create(document().relevant_settings_object().realm(), "insertAdjacentHTML: context is null or a Document"_utf16);
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
@@ -2605,7 +2602,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // Otherwise
     else {
         // Throw a "SyntaxError" DOMException.
-        return WebIDL::SyntaxError::create(realm(), "insertAdjacentHTML: invalid position argument"_utf16);
+        return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), "insertAdjacentHTML: invalid position argument"_utf16);
     }
 
     // 4. If context is not an Element or the following are all true:
@@ -2654,7 +2651,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
 GC::Ref<WebIDL::Promise> Element::request_fullscreen(FullscreenRequester fullscreen_requester)
 {
-    auto& realm = this->realm();
+    auto& realm = document().relevant_settings_object().realm();
 
     // 1. Let pendingDoc be this’s node document.
     auto pending_doc = m_document;
@@ -2828,7 +2825,7 @@ WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC
 
     // -> Otherwise
     // Throw a "SyntaxError" DOMException.
-    return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Unknown position '{}'. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'", where));
+    return WebIDL::SyntaxError::create(document().relevant_settings_object().realm(), Utf16String::formatted("Unknown position '{}'. Must be one of 'beforebegin', 'afterbegin', 'beforeend' or 'afterend'", where));
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacentelement
@@ -2845,7 +2842,7 @@ WebIDL::ExceptionOr<GC::Ptr<Element>> Element::insert_adjacent_element(String co
 WebIDL::ExceptionOr<void> Element::insert_adjacent_text(String const& where, Utf16String const& data)
 {
     // 1. Let text be a new Text node whose data is data and node document is this’s node document.
-    auto text = realm().create<DOM::Text>(document(), data);
+    auto text = DOM::Text::create(document(), data);
 
     // 2. Run insert adjacent, given this, where, and text.
     // Spec Note: This method returns nothing because it existed before we had a chance to design it.
@@ -3102,12 +3099,13 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
     }
 
     // 3. Let scrollPromise be a new Promise.
-    auto scroll_promise = WebIDL::create_promise(target.realm());
+    auto& target_realm = target.document().relevant_settings_object().realm();
+    auto scroll_promise = WebIDL::create_promise(target_realm);
 
     // 4. Return scrollPromise, and run the remaining steps in parallel.
     // 5. Resolve scrollPromise when all Promises in ancestorPromises have settled.
     // FIXME: Actually wait for those promises.
-    WebIDL::resolve_promise(target.realm(), scroll_promise);
+    WebIDL::resolve_promise(target_realm, scroll_promise);
 
     return scroll_promise;
 }
@@ -3152,9 +3150,9 @@ GC::Ref<WebIDL::Promise> Element::scroll_into_view(Optional<Variant<bool, Bindin
     // 7. If the element does not have any associated box, or is not available to user-agent features, then return a
     //    resolved Promise and abort the remaining steps.
     document().update_layout(UpdateLayoutReason::ElementScrollIntoView);
-    HTML::TemporaryExecutionContext temporary_execution_context { realm() };
+    HTML::TemporaryExecutionContext temporary_execution_context { document().relevant_settings_object() };
     if (!layout_node())
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+        return WebIDL::create_resolved_promise(document().relevant_settings_object().realm(), JS::js_undefined());
 
     // 8. Scroll the element into view with behavior, block, inline, and container. Let scrollPromise be the Promise
     //    returned from this step.
@@ -3310,7 +3308,7 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
 
         // 4. Queue a microtask to perform the following steps:
         // NOTE: `this` is protected by GC::Function
-        HTML::queue_a_microtask(&document(), GC::create_function(heap(), [this]() {
+        HTML::queue_a_microtask(&document(), GC::create_function(GC::Heap::the(), [this]() {
             auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*this).custom_element_reactions_stack;
 
             // 1. Invoke custom element reactions in reactionsStack's backup element queue.
@@ -3365,23 +3363,25 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
             return;
 
         // 4. Set callback to the following steps:
-        auto steps = JS::NativeFunction::create(realm(), [this, disconnected_callback, connected_callback](JS::VM&) {
+        auto steps = JS::NativeFunction::create(document().relevant_settings_object().realm(), [this, disconnected_callback, connected_callback](JS::VM&) {
             GC::RootVector<JS::Value> no_arguments;
 
             // 1. If disconnectedCallback is not null, then call disconnectedCallback with no arguments.
             if (disconnected_callback) {
-                auto this_value = Bindings::wrap(disconnected_callback->callback->shape().realm(), GC::Ref { *this });
+                auto& realm = disconnected_callback->callback->shape().realm();
+                auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
                 (void)WebIDL::invoke_callback(*disconnected_callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, no_arguments);
             }
 
             // 2. If connectedCallback is not null, then call connectedCallback with no arguments.
             if (connected_callback) {
-                auto this_value = Bindings::wrap(connected_callback->callback->shape().realm(), GC::Ref { *this });
+                auto& realm = connected_callback->callback->shape().realm();
+                auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
                 (void)WebIDL::invoke_callback(*connected_callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, no_arguments);
             }
 
-            return JS::js_undefined(); }, 0, Utf16FlyString {}, &realm());
-        callback = realm().heap().allocate<WebIDL::CallbackType>(steps, realm());
+            return JS::js_undefined(); }, 0, Utf16FlyString {}, &document().relevant_settings_object().realm());
+        callback = GC::Heap::the().allocate<WebIDL::CallbackType>(steps, document().relevant_settings_object().realm());
     }
 
     // 3. If callback is null, then return.
@@ -3411,7 +3411,7 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
 // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-upgrade-an-element
 JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElementDefinition> custom_element_definition)
 {
-    auto& realm = this->realm();
+    auto& realm = document().relevant_settings_object().realm();
     auto& vm = this->vm();
 
     // 1. If element's custom element state is not "undefined" or "uncustomized", then return.
@@ -3464,7 +3464,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         // 1. If definition's disable shadow is true and element's shadow root is non-null, then throw a
         //    "NotSupportedError" DOMException.
         if (custom_element_definition->disable_shadow() && shadow_root())
-            return throw_completion(WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_utf16));
+            return throw_completion(realm, WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_utf16));
 
         // 2. Set element's custom element state to "precustomized".
         set_custom_element_state(CustomElementState::Precustomized);
@@ -3473,10 +3473,11 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         auto construct_result = TRY(WebIDL::construct(constructor, {}));
 
         // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
-        auto this_value = Bindings::wrap(realm, GC::Ref { *this });
+        auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
         if (!JS::same_value(construct_result, this_value.ptr()))
             return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"sv);
 
+        m_custom_element_wrapper = this_value;
         return {};
     };
 
@@ -3565,6 +3566,9 @@ void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinitio
 
     // 7.8. Set element's is value to is value.
     m_is_value = is_value;
+
+    auto& realm = document().relevant_settings_object().realm();
+    m_custom_element_wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *this });
 }
 
 void Element::set_prefix(Optional<FlyString> value)
@@ -3734,7 +3738,7 @@ void Element::register_element_reference_pseudo_element(CSS::PseudoElement type,
     if (!m_pseudo_element_data)
         m_pseudo_element_data = make<PseudoElementData>();
 
-    m_pseudo_element_data->set(type, heap().allocate<ElementReferencePseudoElement>(element));
+    m_pseudo_element_data->set(type, GC::Heap::the().allocate<ElementReferencePseudoElement>(element));
 }
 
 void Element::clear_element_reference_pseudo_elements()
@@ -3755,9 +3759,9 @@ SyntheticPseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElem
 
     if (!m_pseudo_element_data->get(type).has_value()) {
         if (is_pseudo_element_root(type))
-            m_pseudo_element_data->set(type, heap().allocate<SyntheticPseudoElementTreeNode>());
+            m_pseudo_element_data->set(type, GC::Heap::the().allocate<SyntheticPseudoElementTreeNode>());
         else
-            m_pseudo_element_data->set(type, heap().allocate<SyntheticPseudoElement>());
+            m_pseudo_element_data->set(type, GC::Heap::the().allocate<SyntheticPseudoElement>());
     }
 
     return as<SyntheticPseudoElement>(*m_pseudo_element_data->get(type).value());
@@ -3841,7 +3845,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 
     // 4. If document is not the active document, return a resolved Promise and abort the remaining steps.
     if (!document.is_active())
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
 
     // 5. Let window be the value of document’s defaultView attribute.
     // FIXME: The specification expects defaultView to be a Window object, but defaultView actually returns a WindowProxy object.
@@ -3849,12 +3853,12 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 
     // 6. If window is null, return a resolved Promise and abort the remaining steps.
     if (!window)
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
 
     // 7. If the element is the root element and document is in quirks mode, return a resolved Promise and abort the
     //    remaining steps.
     if (document.document_element() == this && document.in_quirks_mode())
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
 
     // OPTIMIZATION: Scrolling an unscrolled element to (0, 0) is a no-op as long
     //               as the element is not eligible to be the Document.scrollingElement.
@@ -3863,7 +3867,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
         && scroll_offset({}).is_zero()
         && this != document.body()
         && this != document.document_element()) {
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
     }
 
     // NB: Ensure that layout is up-to-date before looking at metrics.
@@ -3884,7 +3888,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
     //     has no overflow, return a resolved Promise and abort the remaining steps.
     // FIXME: or the element has no overflow
     if (!paintable_box())
-        return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+        return WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
 
     // 11. Scroll the element to x,y, with the scroll behavior being the value of the behavior dictionary member of
     //     options. Let scrollPromise be the Promise returned from this step.
@@ -3893,7 +3897,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
     scroll_offset.set_x(CSSPixels::nearest_value_for(x));
     scroll_offset.set_y(CSSPixels::nearest_value_for(y));
     paintable_box()->set_scroll_offset(scroll_offset);
-    auto scroll_promise = WebIDL::create_resolved_promise(realm(), JS::js_undefined());
+    auto scroll_promise = WebIDL::create_resolved_promise(document.relevant_settings_object().realm(), JS::js_undefined());
 
     // 12. Return scrollPromise.
     return scroll_promise;
@@ -4662,7 +4666,7 @@ auto Element::ensure_custom_element_reaction_queue() -> CustomElementReactionQue
 HTML::CustomStateSet& Element::ensure_custom_state_set()
 {
     if (!m_custom_state_set)
-        m_custom_state_set = HTML::CustomStateSet::create(realm(), *this);
+        m_custom_state_set = HTML::CustomStateSet::create(*this);
     return *m_custom_state_set;
 }
 
@@ -4955,10 +4959,10 @@ void Element::play_or_cancel_animations_after_display_property_change()
                 auto play_state = animation->last_css_animation_play_state().value();
 
                 if (play_state == CSS::AnimationPlayState::Running) {
-                    HTML::TemporaryExecutionContext context(realm());
+                    HTML::TemporaryExecutionContext context(document().relevant_settings_object());
                     animation->play().release_value_but_fixme_should_propagate_errors();
                 } else if (play_state == CSS::AnimationPlayState::Paused) {
-                    HTML::TemporaryExecutionContext context(realm());
+                    HTML::TemporaryExecutionContext context(document().relevant_settings_object());
                     animation->pause().release_value_but_fixme_should_propagate_errors();
                 }
             }
@@ -5038,7 +5042,7 @@ GC::Ref<CSS::StylePropertyMapReadOnly> Element::computed_style_map()
     // NOTE: In practice, since the values are "hidden" behind a .get() method call, UAs can delay computing anything
     //    until a given property is actually requested.
     if (m_computed_style_map_cache == nullptr) {
-        m_computed_style_map_cache = CSS::StylePropertyMapReadOnly::create_computed_style(realm(), AbstractElement { *this });
+        m_computed_style_map_cache = CSS::StylePropertyMapReadOnly::create_computed_style(AbstractElement { *this });
     }
 
     // 2. Return this’s [[computedStyleMapCache]] internal slot.
@@ -5061,9 +5065,9 @@ double Element::ensure_css_random_base_value(CSS::RandomCachingKey const& random
 GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<Bindings::PointerLockOptions>)
 {
     dbgln("FIXME: request_pointer_lock()");
-    auto promise = WebIDL::create_promise(realm());
-    auto error = WebIDL::NotSupportedError::create(realm(), "request_pointer_lock() is not implemented"_utf16);
-    WebIDL::reject_promise(realm(), promise, error);
+    auto promise = WebIDL::create_promise(document().relevant_settings_object().realm());
+    auto error = WebIDL::NotSupportedError::create(document().relevant_settings_object().realm(), "request_pointer_lock() is not implemented"_utf16);
+    WebIDL::reject_promise(document().relevant_settings_object().realm(), promise, error);
     return promise;
 }
 

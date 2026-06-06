@@ -109,13 +109,11 @@ private:
     HTMLFormElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_form_element() const override { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^PlatformObject
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override;
     virtual bool is_supported_property_name(FlyString const&) const override;
     virtual Vector<FlyString> supported_property_names() const override;
 

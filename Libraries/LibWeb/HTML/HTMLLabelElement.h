@@ -27,8 +27,6 @@ public:
 private:
     HTMLLabelElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
 

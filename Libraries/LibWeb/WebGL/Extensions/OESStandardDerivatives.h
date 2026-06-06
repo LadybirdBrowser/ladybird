@@ -17,13 +17,13 @@ class OESStandardDerivatives : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(OESStandardDerivatives);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    OESStandardDerivatives(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    OESStandardDerivatives(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

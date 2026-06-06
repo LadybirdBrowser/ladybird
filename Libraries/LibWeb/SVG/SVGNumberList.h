@@ -21,19 +21,18 @@ class SVGNumberList final
     GC_DECLARE_ALLOCATOR(SVGNumberList);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGNumberList> create(JS::Realm&, Vector<GC::Ref<SVGNumber>>, ReadOnlyList);
-    [[nodiscard]] static GC::Ref<SVGNumberList> create(JS::Realm&, ReadOnlyList);
+    [[nodiscard]] static GC::Ref<SVGNumberList> create(Vector<GC::Ref<SVGNumber>>, ReadOnlyList);
+    [[nodiscard]] static GC::Ref<SVGNumberList> create(ReadOnlyList);
     virtual ~SVGNumberList() override = default;
 
 private:
-    SVGNumberList(JS::Realm&, Vector<GC::Ref<SVGNumber>>, ReadOnlyList);
-    SVGNumberList(JS::Realm&, ReadOnlyList);
+    SVGNumberList(Vector<GC::Ref<SVGNumber>>, ReadOnlyList);
+    explicit SVGNumberList(ReadOnlyList);
 
-    virtual JS::Realm& svg_list_realm() const override { return realm(); }
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
-    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value) override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm&, u32, JS::Value) override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(JS::Realm&, u32, JS::Value) override;
+    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(JS::Realm&, u32, JS::Value) override;
     virtual void visit_edges(Visitor&) override;
 };
 

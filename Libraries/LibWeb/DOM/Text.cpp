@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Text.h>
@@ -28,10 +29,9 @@ Text::Text(Document& document, NodeType type, Utf16String data)
 {
 }
 
-void Text::initialize(JS::Realm& realm)
+GC::Ref<Text> Text::create(Document& document, Utf16String data)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Text);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<Text>(document, move(data));
 }
 
 void Text::visit_edges(Cell::Visitor& visitor)
@@ -41,11 +41,10 @@ void Text::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-text-text
-WebIDL::ExceptionOr<GC::Ref<Text>> Text::construct_impl(JS::Realm& realm, Utf16String data)
+WebIDL::ExceptionOr<GC::Ref<Text>> Text::construct_impl(HTML::Window& window, Utf16String data)
 {
     // The new Text(data) constructor steps are to set this’s data to data and this’s node document to current global object’s associated Document.
-    auto& window = HTML::current_window();
-    return realm.create<Text>(window.associated_document(), move(data));
+    return create(window.associated_document(), move(data));
 }
 
 // https://dom.spec.whatwg.org/#dom-text-splittext
@@ -57,7 +56,7 @@ WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Split offset is greater than length"_utf16);
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*this), "Split offset is greater than length"_utf16);
 
     // 3. Let count be length minus offset.
     auto count = length - offset;
@@ -66,7 +65,7 @@ WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
     auto new_data = TRY(substring_data(offset, count));
 
     // 5. Let new node be a new Text node, with the same node document as node. Set new node’s data to new data.
-    auto new_node = realm().create<Text>(document(), new_data);
+    auto new_node = create(document(), new_data);
 
     // 6. Let parent be node’s parent.
     GC::Ptr<Node> parent = this->parent();

@@ -9,10 +9,14 @@
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <LibGC/Ptr.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/StorageEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
+
+class Window;
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageevent
 class StorageEvent : public DOM::Event {
@@ -20,8 +24,8 @@ class StorageEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(StorageEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<StorageEvent> create(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init = {});
-    static GC::Ref<StorageEvent> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<StorageEvent> create(FlyString const& event_name, Bindings::StorageEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static GC::Ref<StorageEvent> construct_impl(Window&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);
 
     virtual ~StorageEvent() override;
 
@@ -44,7 +48,7 @@ protected:
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
-    StorageEvent(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);
+    StorageEvent(FlyString const& event_name, Bindings::StorageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     Optional<String> m_key;
     Optional<String> m_old_value;

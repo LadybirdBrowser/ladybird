@@ -27,12 +27,10 @@ public:
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
     WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
 
-    static WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count = 2);
+    static WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> construct_impl(GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count = 2);
 
 protected:
-    AudioDestinationNode(JS::Realm&, GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count);
-
-    virtual void initialize(JS::Realm&) override;
+    AudioDestinationNode(GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count);
     virtual void visit_edges(Cell::Visitor&) override;
 };
 

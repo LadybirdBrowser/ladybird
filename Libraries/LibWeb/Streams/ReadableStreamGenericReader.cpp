@@ -26,11 +26,17 @@ GC::Ref<WebIDL::Promise> ReadableStreamGenericReaderMixin::cancel(Optional<JS::V
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
         WebIDL::SimpleException exception { WebIDL::SimpleExceptionType::TypeError, "No stream present to cancel"sv };
-        return WebIDL::create_rejected_promise_from_exception(reader_realm(), move(exception));
+        return WebIDL::create_rejected_promise_from_exception(closed_promise_realm(), move(exception));
     }
 
     // 2. Return ! ReadableStreamReaderGenericCancel(this, reason).
     return readable_stream_reader_generic_cancel(*this, reason.value_or(JS::js_undefined()));
+}
+
+JS::Realm& ReadableStreamGenericReaderMixin::closed_promise_realm() const
+{
+    VERIFY(m_closed_promise);
+    return WebIDL::promise_realm(*m_closed_promise);
 }
 
 void ReadableStreamGenericReaderMixin::visit_edges(JS::Cell::Visitor& visitor)

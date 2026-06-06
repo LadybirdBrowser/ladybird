@@ -17,13 +17,13 @@ class EXTBlendMinMax : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(EXTBlendMinMax);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    EXTBlendMinMax(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    EXTBlendMinMax(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

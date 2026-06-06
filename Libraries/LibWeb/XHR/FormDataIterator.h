@@ -16,14 +16,14 @@ class FormDataIterator : public JS::Object {
     GC_DECLARE_ALLOCATOR(FormDataIterator);
 
 public:
-    [[nodiscard]] static GC::Ref<FormDataIterator> create(FormData const&, JS::Object::PropertyKind iterator_kind);
+    [[nodiscard]] static GC::Ref<FormDataIterator> create(JS::Realm&, FormData const&, JS::Object::PropertyKind iterator_kind);
 
     virtual ~FormDataIterator() override;
 
     JS::Object* next();
 
 private:
-    FormDataIterator(FormData const&, JS::Object::PropertyKind iterator_kind);
+    FormDataIterator(JS::Realm&, FormData const&, JS::Object::PropertyKind iterator_kind);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(GC::Cell::Visitor&) override;

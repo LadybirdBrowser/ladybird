@@ -24,14 +24,14 @@ public:
         Descendants,
     };
 
-    [[nodiscard]] static GC::Ref<NodeList> create(JS::Realm&, Node const& root, Scope, ESCAPING Function<bool(Node const&)> filter);
+    [[nodiscard]] static GC::Ref<NodeList> create(Node const& root, Scope, ESCAPING Function<bool(Node const&)> filter);
     virtual ~LiveNodeList() override;
 
     virtual u32 length() const override;
     virtual Node const* item(u32 index) const override;
 
 protected:
-    LiveNodeList(JS::Realm&, Node const& root, Scope, ESCAPING Function<bool(Node const&)> filter);
+    LiveNodeList(Node const& root, Scope, ESCAPING Function<bool(Node const&)> filter);
 
     Node* first_matching(Function<bool(Node const&)> const& filter) const;
 

@@ -19,6 +19,8 @@ class VideoTrack final : public MediaTrackBase {
     GC_DECLARE_ALLOCATOR(VideoTrack);
 
 public:
+    static GC::Ref<VideoTrack> create(GC::Ref<HTMLMediaElement>, Media::Track const&);
+
     virtual ~VideoTrack() override;
 
     void set_video_track_list(Badge<VideoTrackList>, GC::Ptr<VideoTrackList> video_track_list) { m_video_track_list = video_track_list; }
@@ -27,7 +29,7 @@ public:
     void set_selected(bool selected);
 
 private:
-    VideoTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, Media::Track const& track);
+    VideoTrack(GC::Ref<HTMLMediaElement>, Media::Track const& track);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

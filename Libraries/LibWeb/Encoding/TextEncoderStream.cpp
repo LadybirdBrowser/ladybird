@@ -5,13 +5,18 @@
  */
 
 #include <AK/UnicodeUtils.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Encoding/TextEncoderStream.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
+#include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Encoding {
@@ -19,26 +24,29 @@ namespace Web::Encoding {
 GC_DEFINE_ALLOCATOR(TextEncoderStream);
 
 // https://encoding.spec.whatwg.org/#dom-textencoderstream
-WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope)
 {
+    auto& realm = HTML::relevant_realm(global_scope);
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+
     // 1. Set this’s encoder to an instance of the UTF-8 encoder.
     // NOTE: No-op, as AK::String is already in UTF-8 format.
 
     // NOTE: We do these steps first so that we may store it as nonnull in the GenericTransformStream.
     // 4. Let transformStream be a new TransformStream.
-    auto transform_stream = realm.create<Streams::TransformStream>(realm);
+    auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
+    (void)Bindings::wrap(wrapper_world, realm, transform_stream);
 
     // 6. Set this's transform to a new TransformStream.
-    auto stream = realm.create<TextEncoderStream>(realm, transform_stream);
+    auto stream = GC::Heap::the().allocate<TextEncoderStream>(transform_stream);
 
     // 2. Let transformAlgorithm be an algorithm which takes a chunk argument and runs the encode and enqueue a chunk
     //    algorithm with this and chunk.
-    auto transform_algorithm = GC::create_function(realm.heap(), [stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        auto& vm = realm.vm();
+    auto transform_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+        auto& vm = realm->vm();
 
-        if (auto result = stream->encode_and_enqueue_chunk(chunk); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
+        if (auto result = stream->encode_and_enqueue_chunk(realm, chunk); result.is_error()) {
+            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
             return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
@@ -46,12 +54,11 @@ WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_imp
     });
 
     // 3. Let flushAlgorithm be an algorithm which runs the encode and flush algorithm with this.
-    auto flush_algorithm = GC::create_function(realm.heap(), [stream]() -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        auto& vm = realm.vm();
+    auto flush_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)]() -> GC::Ref<WebIDL::Promise> {
+        auto& vm = realm->vm();
 
-        if (auto result = stream->encode_and_flush(); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
+        if (auto result = stream->encode_and_flush(realm); result.is_error()) {
+            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
             return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
@@ -59,13 +66,15 @@ WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_imp
     });
 
     // 5. Set up transformStream with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
-    transform_stream->set_up(transform_algorithm, flush_algorithm);
+    transform_stream->set_up(realm, transform_algorithm, flush_algorithm);
+    (void)Bindings::wrap(wrapper_world, realm, transform_stream->readable());
+    (void)Bindings::wrap(wrapper_world, realm, transform_stream->writable());
 
     return stream;
 }
 
-TextEncoderStream::TextEncoderStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform)
-    : Wrappable(realm)
+TextEncoderStream::TextEncoderStream(GC::Ref<Streams::TransformStream> transform)
+    : Bindings::Wrappable()
     , Streams::GenericTransformStreamMixin(transform)
 {
 }
@@ -79,12 +88,11 @@ void TextEncoderStream::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://encoding.spec.whatwg.org/#encode-and-enqueue-a-chunk
-WebIDL::ExceptionOr<void> TextEncoderStream::encode_and_enqueue_chunk(JS::Value chunk)
+WebIDL::ExceptionOr<void> TextEncoderStream::encode_and_enqueue_chunk(JS::Realm& realm, JS::Value chunk)
 {
     // Spec Note: This is equivalent to the "convert a string into a scalar value string" algorithm from the Infra
     //            Standard, but allows for surrogate pairs that are split between strings. [INFRA]
 
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Let input be the result of converting chunk to a DOMString.
@@ -139,10 +147,8 @@ WebIDL::ExceptionOr<void> TextEncoderStream::encode_and_enqueue_chunk(JS::Value 
 }
 
 // https://encoding.spec.whatwg.org/#encode-and-flush
-WebIDL::ExceptionOr<void> TextEncoderStream::encode_and_flush()
+WebIDL::ExceptionOr<void> TextEncoderStream::encode_and_flush(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. If encoder’s leading surrogate is non-null, then:
     if (m_leading_surrogate.has_value()) {
         // 1. Let chunk be a Uint8Array object wrapping an ArrayBuffer containing 0xEF 0xBF 0xBD.

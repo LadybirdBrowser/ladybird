@@ -48,8 +48,6 @@ public:
 
 protected:
     SVGImageElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     void process_the_url(Optional<String> const& href);

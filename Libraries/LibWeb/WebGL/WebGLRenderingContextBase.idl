@@ -33,7 +33,7 @@ interface mixin WebGLRenderingContextBase {
     boolean isContextLost();
 
     sequence<DOMString>? getSupportedExtensions();
-    object? getExtension(DOMString name);
+    [NeedsCallerRealm] object? getExtension(DOMString name);
 
     undefined activeTexture(GLenum texture);
     undefined attachShader(WebGLProgram program, WebGLShader shader);

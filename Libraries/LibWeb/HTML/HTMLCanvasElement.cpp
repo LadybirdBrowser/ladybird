@@ -6,11 +6,13 @@
 
 #include <AK/Base64.h>
 #include <AK/Checked.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SharedImage.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLCanvasElement.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -24,7 +26,9 @@
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -46,10 +50,8 @@ HTMLCanvasElement::HTMLCanvasElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLCanvasElement::~HTMLCanvasElement() = default;
 
-void HTMLCanvasElement::initialize(JS::Realm& realm)
+void HTMLCanvasElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLCanvasElement);
-    Base::initialize(realm);
     document().page().register_canvas_element({}, unique_id());
 }
 
@@ -257,7 +259,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<CanvasRenderingContext2D>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    m_context = TRY(CanvasRenderingContext2D::create(realm(), *this, options));
+    m_context = TRY(CanvasRenderingContext2D::create(*this, options));
     return HasOrCreatedContext::Yes;
 }
 
@@ -267,7 +269,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    auto maybe_context = TRY(ContextType::create(realm(), *this, options));
+    auto maybe_context = TRY(ContextType::create(*this, options));
     if (!maybe_context)
         return HasOrCreatedContext::No;
 
@@ -382,7 +384,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
 
     // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type, quality] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, callback, bitmap_result, type, quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result) {
@@ -392,19 +394,21 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
 
         // 2. Queue an element task on the canvas blob serialization task source given the canvas element to run these steps:
         queue_an_element_task(Task::Source::CanvasBlobSerializationTask, [this, callback, file_result = move(file_result)] {
-            auto maybe_error = Bindings::throw_dom_exception_if_needed(vm(), [&]() -> WebIDL::ExceptionOr<void> {
+            TemporaryExecutionContext execution_context { document().relevant_settings_object(), TemporaryExecutionContext::CallbacksEnabled::Yes };
+            auto& realm = HTML::relevant_realm(*this);
+            auto maybe_error = Bindings::throw_dom_exception_if_needed(vm(), realm, [&]() -> WebIDL::ExceptionOr<void> {
                 // 1. If result is non-null, then set result to a new Blob object, created in the relevant realm of this canvas element, representing result. [FILEAPI]
                 GC::Ptr<FileAPI::Blob> blob_result;
                 if (file_result.has_value())
-                    blob_result = FileAPI::Blob::create(realm(), file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_utf8(file_result->mime_type)));
+                    blob_result = FileAPI::Blob::create(file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_utf8(file_result->mime_type)));
 
                 // 2. Invoke callback with « result » and "report".
-                auto callback_argument = blob_result ? JS::Value { Bindings::wrap(realm(), GC::Ref { *blob_result }) } : JS::js_null();
+                auto callback_argument = blob_result ? JS::Value { Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *blob_result }) } : JS::js_null();
                 TRY(WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report, { { callback_argument } }));
                 return {};
             });
             if (maybe_error.is_throw_completion())
-                report_exception(maybe_error.throw_completion(), realm());
+                report_exception(maybe_error.throw_completion(), HTML::relevant_realm(*this));
         });
     }));
     return {};

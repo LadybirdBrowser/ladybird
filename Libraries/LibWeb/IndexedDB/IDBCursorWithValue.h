@@ -22,7 +22,7 @@ public:
     [[nodiscard]] JS::Value value() { return m_value.value_or(JS::js_undefined()); }
 
 private:
-    explicit IDBCursorWithValue(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
+    explicit IDBCursorWithValue(CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
 };
 
 }

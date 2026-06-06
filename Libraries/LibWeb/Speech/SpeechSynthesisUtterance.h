@@ -30,7 +30,7 @@ class SpeechSynthesisUtterance final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SpeechSynthesisUtterance);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<SpeechSynthesisUtterance>> construct_impl(JS::Realm&, String const& text = {});
+    static WebIDL::ExceptionOr<GC::Ref<SpeechSynthesisUtterance>> construct_impl(String const& text = {});
     virtual ~SpeechSynthesisUtterance() override;
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisutterance-text
@@ -65,9 +65,8 @@ public:
 #undef __ENUMERATE
 
 private:
-    SpeechSynthesisUtterance(JS::Realm&, String const& text);
+    explicit SpeechSynthesisUtterance(String const& text);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     String m_text;

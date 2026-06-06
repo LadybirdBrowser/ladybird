@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/SVGAElement.h>
 #include <LibWeb/CSS/Invalidation/LinkInvalidator.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -24,12 +25,6 @@ SVGAElement::SVGAElement(DOM::Document& document, DOM::QualifiedName qualified_n
 }
 
 SVGAElement::~SVGAElement() = default;
-
-void SVGAElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAElement);
-    Base::initialize(realm);
-}
 
 void SVGAElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -62,7 +57,7 @@ i32 SVGAElement::default_tab_index_value() const
 GC::Ref<SVGAnimatedString> SVGAElement::target()
 {
     if (!m_target)
-        m_target = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { HTML::AttributeNames::target, OptionalNone {}, OptionalNone {} });
+        m_target = SVGAnimatedString::create(*this, DOM::QualifiedName { HTML::AttributeNames::target, OptionalNone {}, OptionalNone {} });
     return *m_target;
 }
 

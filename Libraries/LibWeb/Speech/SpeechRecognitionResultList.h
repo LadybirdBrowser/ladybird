@@ -21,7 +21,7 @@ class SpeechRecognitionResultList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionResultList);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechRecognitionResultList> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SpeechRecognitionResultList> create();
     virtual ~SpeechRecognitionResultList() override;
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionresultlist-length
@@ -31,7 +31,7 @@ public:
     GC::Ptr<SpeechRecognitionResult> item(size_t index) const;
 
 private:
-    explicit SpeechRecognitionResultList(JS::Realm&);
+    explicit SpeechRecognitionResultList();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -15,7 +15,7 @@ class TextEvent final : public UIEvent {
     GC_DECLARE_ALLOCATOR(TextEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<TextEvent> create(JS::Realm&, FlyString const& event_name);
+    [[nodiscard]] static GC::Ref<TextEvent> create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~TextEvent() override;
 
@@ -25,7 +25,7 @@ public:
     void init_text_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data);
 
 private:
-    TextEvent(JS::Realm&, FlyString const& event_name);
+    TextEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_data;
 };

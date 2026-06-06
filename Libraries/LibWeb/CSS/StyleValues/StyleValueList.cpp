@@ -118,7 +118,7 @@ static GC::Ptr<CSSStyleValue> reify_a_transform_list(JS::Realm& realm, StyleValu
         // NB: Not all transform functions are reifiable, in which case we give up reifying as a transform list.
         transform_components.append(reified_transform.as_nonnull());
     }
-    return CSSTransformValue::create(realm, move(transform_components));
+    return CSSTransformValue::create(move(transform_components));
 }
 
 GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const

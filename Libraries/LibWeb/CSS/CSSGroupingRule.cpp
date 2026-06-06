@@ -14,8 +14,8 @@
 
 namespace Web::CSS {
 
-CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules, Type type)
-    : CSSRule(realm, type)
+CSSGroupingRule::CSSGroupingRule(CSSRuleList& rules, Type type)
+    : CSSRule(type)
     , m_rules(rules)
 {
     m_rules->set_owner_rule(*this);
@@ -37,14 +37,14 @@ void CSSGroupingRule::clear_caches()
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssgroupingrule-insertrule
-WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index)
+WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(JS::Realm& realm, StringView rule, u32 index)
 {
     // The insertRule(rule, index) method must return the result of invoking insert a CSS rule rule into the child CSS
     // rules at index, with the nested flag set.
     HashTable<FlyString> declared_namespaces;
     if (auto* sheet = parent_style_sheet())
         declared_namespaces = sheet->declared_namespaces();
-    TRY(m_rules->insert_a_css_rule(rule, index, CSSRuleList::Nested::Yes, declared_namespaces));
+    TRY(m_rules->insert_a_css_rule(realm, rule, index, CSSRuleList::Nested::Yes, declared_namespaces));
 
     // AD-HOC: The spec doesn't say where to set the parent rule, so we'll do it here.
     m_rules->item(index)->set_parent_rule(this);
@@ -53,9 +53,9 @@ WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index
     return index;
 }
 
-WebIDL::ExceptionOr<void> CSSGroupingRule::delete_rule(u32 index)
+WebIDL::ExceptionOr<void> CSSGroupingRule::delete_rule(JS::Realm& realm, u32 index)
 {
-    TRY(m_rules->remove_a_css_rule(index));
+    TRY(m_rules->remove_a_css_rule(realm, index));
     if (auto* sheet = parent_style_sheet())
         sheet->invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule);
     return {};

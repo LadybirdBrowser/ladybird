@@ -34,8 +34,6 @@ protected:
 
 private:
     virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

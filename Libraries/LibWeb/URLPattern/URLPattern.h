@@ -24,9 +24,9 @@ class URLPattern : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(URLPattern);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(JS::Realm&, URLPatternInput const&, Optional<String> const& base_url, URLPatternOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, String const& base_url, URLPatternOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, URLPatternOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> create(URLPatternInput const&, Optional<String> const& base_url, URLPatternOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(URLPatternInput const&, String const& base_url, URLPatternOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(URLPatternInput const&, URLPatternOptions const& = {});
 
     WebIDL::ExceptionOr<bool> test(URLPatternInput const&, Optional<String> const& base_url) const;
     WebIDL::ExceptionOr<Optional<URLPatternResult>> exec(URLPatternInput const&, Optional<String> const& base_url) const;
@@ -45,7 +45,7 @@ public:
     virtual ~URLPattern() override;
 
 protected:
-    explicit URLPattern(JS::Realm&, URL::RustIntegration::URLPattern);
+    explicit URLPattern(URL::RustIntegration::URLPattern);
 
 private:
     // https://urlpattern.spec.whatwg.org/#ref-for-url-pattern%E2%91%A0

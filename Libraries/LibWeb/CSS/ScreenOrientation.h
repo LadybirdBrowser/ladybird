@@ -17,9 +17,9 @@ class ScreenOrientation final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(ScreenOrientation);
 
 public:
-    [[nodiscard]] static GC::Ref<ScreenOrientation> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<ScreenOrientation> create();
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(Bindings::OrientationLockType);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(JS::Realm&, Bindings::OrientationLockType);
     void unlock();
     Bindings::OrientationType type() const;
     WebIDL::UnsignedShort angle() const;
@@ -28,9 +28,7 @@ public:
     GC::Ptr<WebIDL::CallbackType> onchange();
 
 private:
-    explicit ScreenOrientation(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    ScreenOrientation();
 };
 
 }

@@ -22,7 +22,7 @@ class TrustedTypePolicyFactory final : public Bindings::Wrappable {
 public:
     virtual ~TrustedTypePolicyFactory() override { }
 
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_policy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_policy(JS::Realm&, Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
 
     bool is_html(JS::Value);
     bool is_script(JS::Value);
@@ -40,12 +40,12 @@ public:
     }
 
 private:
-    explicit TrustedTypePolicyFactory(JS::Realm&);
+    TrustedTypePolicyFactory();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(Utf16String const&, Bindings::TrustedTypePolicyOptions const&, JS::Object&);
-    ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object&, Utf16String const&, Vector<Utf16String> const&);
+    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(JS::Realm&, Utf16String const&, Bindings::TrustedTypePolicyOptions const&, JS::Object&);
+    ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Realm&, JS::Object&, Utf16String const&, Vector<Utf16String> const&);
 
     // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory-created-policy-names
     Vector<Utf16String> m_created_policy_names;

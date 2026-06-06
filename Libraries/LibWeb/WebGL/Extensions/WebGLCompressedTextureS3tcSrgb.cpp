@@ -7,7 +7,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -16,14 +16,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
-JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLCompressedTextureS3tcSrgb::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> WebGLCompressedTextureS3tcSrgb::create(GC::Ref<WebGLRenderingContextBase> context)
 {
-    auto extension = realm.create<WebGLCompressedTextureS3tcSrgb>(realm, context);
+    auto extension = GC::Heap::the().allocate<WebGLCompressedTextureS3tcSrgb>(context);
     return GC::Ref<Bindings::Wrappable> { extension };
 }
 
-WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : Wrappable(realm)
+WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(GC::Ref<WebGLRenderingContextBase> context)
+    : Bindings::Wrappable()
     , m_context(context)
 {
     m_context->enable_compressed_texture_format(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);

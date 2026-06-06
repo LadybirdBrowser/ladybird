@@ -23,14 +23,14 @@ class CSSPerspective final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSPerspective);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSPerspective> create(JS::Realm&, CSSPerspectiveValueInternal);
-    static WebIDL::ExceptionOr<GC::Ref<CSSPerspective>> construct_impl(JS::Realm&, CSSPerspectiveValue);
+    [[nodiscard]] static GC::Ref<CSSPerspective> create(CSSPerspectiveValueInternal);
+    static WebIDL::ExceptionOr<GC::Ref<CSSPerspective>> construct_impl(CSSPerspectiveValue);
 
     virtual ~CSSPerspective() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
 
     CSSPerspectiveValue length() const;
     WebIDL::ExceptionOr<void> set_length(CSSPerspectiveValue value);
@@ -40,7 +40,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSPerspective(JS::Realm&, CSSPerspectiveValueInternal);
+    explicit CSSPerspective(CSSPerspectiveValueInternal);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     CSSPerspectiveValueInternal m_length;

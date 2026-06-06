@@ -30,12 +30,6 @@ HTMLProgressElement::HTMLProgressElement(DOM::Document& document, DOM::Qualified
 
 HTMLProgressElement::~HTMLProgressElement() = default;
 
-void HTMLProgressElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLProgressElement);
-    Base::initialize(realm);
-}
-
 void HTMLProgressElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -107,7 +101,7 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 

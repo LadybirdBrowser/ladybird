@@ -30,7 +30,6 @@ public:
     };
 
     [[nodiscard]] static GC::Ref<SVGAnimatedInteger> create(
-        JS::Realm&,
         GC::Ref<SVGElement>,
         DOM::QualifiedName reflected_attribute,
         WebIDL::Long initial_value,
@@ -44,7 +43,7 @@ public:
     WebIDL::Long anim_val() const;
 
 private:
-    SVGAnimatedInteger(JS::Realm&, GC::Ref<SVGElement>, DOM::QualifiedName, WebIDL::Long, SupportsSecondValue, ValueRepresented);
+    SVGAnimatedInteger(GC::Ref<SVGElement>, DOM::QualifiedName, WebIDL::Long, SupportsSecondValue, ValueRepresented);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

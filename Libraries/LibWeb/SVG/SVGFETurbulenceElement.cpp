@@ -17,12 +17,6 @@ SVGFETurbulenceElement::SVGFETurbulenceElement(DOM::Document& document, DOM::Qua
 {
 }
 
-void SVGFETurbulenceElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFETurbulenceElement);
-    Base::initialize(realm);
-}
-
 void SVGFETurbulenceElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -39,7 +33,7 @@ void SVGFETurbulenceElement::visit_edges(Cell::Visitor& visitor)
 GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::base_frequency_x()
 {
     if (!m_base_frequency_x) {
-        m_base_frequency_x = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::baseFrequency, OptionalNone {}, OptionalNone {} }, 0.f,
+        m_base_frequency_x = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::baseFrequency, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::First);
     }
     return *m_base_frequency_x;
@@ -49,7 +43,7 @@ GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::base_frequency_x()
 GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::base_frequency_y()
 {
     if (!m_base_frequency_y) {
-        m_base_frequency_y = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::baseFrequency, OptionalNone {}, OptionalNone {} }, 0.f,
+        m_base_frequency_y = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::baseFrequency, OptionalNone {}, OptionalNone {} }, 0.f,
             SVGAnimatedNumber::SupportsSecondValue::Yes, SVGAnimatedNumber::ValueRepresented::Second);
     }
     return *m_base_frequency_y;
@@ -59,7 +53,7 @@ GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::base_frequency_y()
 GC::Ref<SVGAnimatedInteger> SVGFETurbulenceElement::num_octaves()
 {
     if (!m_num_octaves)
-        m_num_octaves = SVGAnimatedInteger::create(realm(), *this, DOM::QualifiedName { AttributeNames::numOctaves, OptionalNone {}, OptionalNone {} }, 1);
+        m_num_octaves = SVGAnimatedInteger::create(*this, DOM::QualifiedName { AttributeNames::numOctaves, OptionalNone {}, OptionalNone {} }, 1);
 
     return *m_num_octaves;
 }
@@ -68,7 +62,7 @@ GC::Ref<SVGAnimatedInteger> SVGFETurbulenceElement::num_octaves()
 GC::Ref<SVGAnimatedNumber> SVGFETurbulenceElement::seed()
 {
     if (!m_seed)
-        m_seed = SVGAnimatedNumber::create(realm(), *this, DOM::QualifiedName { AttributeNames::seed, OptionalNone {}, OptionalNone {} }, 0);
+        m_seed = SVGAnimatedNumber::create(*this, DOM::QualifiedName { AttributeNames::seed, OptionalNone {}, OptionalNone {} }, 0);
 
     return *m_seed;
 }
@@ -90,7 +84,7 @@ GC::Ref<SVGAnimatedEnumeration> SVGFETurbulenceElement::stitch_tiles()
 {
     // FIXME: Support reflection, don't return a new object every time.
     auto stitch_tiles = parse_stitch_tiles(get_attribute_value(AttributeNames::stitchTiles));
-    return SVGAnimatedEnumeration::create(realm(), to_underlying(stitch_tiles));
+    return SVGAnimatedEnumeration::create(to_underlying(stitch_tiles));
 }
 
 // https://drafts.csswg.org/filter-effects/#element-attrdef-feturbulence-type
@@ -110,7 +104,7 @@ GC::Ref<SVGAnimatedEnumeration> SVGFETurbulenceElement::type()
 {
     // FIXME: Support reflection, don't return a new object every time.
     auto turbulence_type = parse_turbulence_type(get_attribute_value(AttributeNames::type));
-    return SVGAnimatedEnumeration::create(realm(), to_underlying(turbulence_type));
+    return SVGAnimatedEnumeration::create(to_underlying(turbulence_type));
 }
 
 }

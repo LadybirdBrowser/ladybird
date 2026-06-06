@@ -21,7 +21,7 @@ class CountQueuingStrategy final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CountQueuingStrategy);
 
 public:
-    static GC::Ref<CountQueuingStrategy> construct_impl(JS::Realm&, Bindings::QueuingStrategyInit const&);
+    static GC::Ref<CountQueuingStrategy> construct_impl(Bindings::QueuingStrategyInit const&);
 
     virtual ~CountQueuingStrategy() override;
 
@@ -33,10 +33,10 @@ public:
         return m_high_water_mark;
     }
 
-    GC::Ref<WebIDL::CallbackType> size();
+    GC::Ref<WebIDL::CallbackType> size(JS::Realm&);
 
 private:
-    explicit CountQueuingStrategy(JS::Realm&, double high_water_mark);
+    explicit CountQueuingStrategy(double high_water_mark);
 
     // https://streams.spec.whatwg.org/#countqueuingstrategy-highwatermark
     double m_high_water_mark { 0 };

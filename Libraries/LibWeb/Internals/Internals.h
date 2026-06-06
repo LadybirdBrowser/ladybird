@@ -123,7 +123,7 @@ public:
     void set_highlighted_node(GC::Ptr<DOM::Node> node);
 
     void clear_element(HTML::HTMLElement&);
-    void set_environments_top_level_url(StringView url);
+    void set_environments_top_level_url(JS::Realm&, StringView url);
 
     JS::Object* get_style_invalidation_counters();
     void reset_style_invalidation_counters();
@@ -140,7 +140,7 @@ public:
     String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y);
 
 private:
-    explicit Internals(JS::Realm&);
+    explicit Internals(HTML::Window&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

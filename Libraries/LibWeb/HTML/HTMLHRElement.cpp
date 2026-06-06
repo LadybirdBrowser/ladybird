@@ -26,12 +26,6 @@ HTMLHRElement::HTMLHRElement(DOM::Document& document, DOM::QualifiedName qualifi
 
 HTMLHRElement::~HTMLHRElement() = default;
 
-void HTMLHRElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLHRElement);
-    Base::initialize(realm);
-}
-
 bool HTMLHRElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

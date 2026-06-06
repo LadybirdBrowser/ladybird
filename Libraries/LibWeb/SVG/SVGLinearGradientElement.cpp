@@ -22,12 +22,6 @@ SVGLinearGradientElement::SVGLinearGradientElement(DOM::Document& document, DOM:
 {
 }
 
-void SVGLinearGradientElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGLinearGradientElement);
-    Base::initialize(realm);
-}
-
 void SVGLinearGradientElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

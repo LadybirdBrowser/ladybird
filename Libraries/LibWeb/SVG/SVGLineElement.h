@@ -30,8 +30,6 @@ public:
 private:
     SVGLineElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
     Optional<NumberPercentage> m_x1;
     Optional<NumberPercentage> m_y1;
     Optional<NumberPercentage> m_x2;

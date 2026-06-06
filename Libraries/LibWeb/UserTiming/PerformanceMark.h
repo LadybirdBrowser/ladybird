@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PerformanceMark.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 
@@ -19,7 +20,8 @@ class PerformanceMark final : public PerformanceTimeline::PerformanceEntry {
 public:
     virtual ~PerformanceMark();
 
-    static WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> construct_impl(JS::Realm&, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
+    [[nodiscard]] static GC::Ref<PerformanceMark> create(String const& mark_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
+    static WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options = {});
 
     // NOTE: These three functions are answered by the registry for the given entry type.
     // https://w3c.github.io/timing-entrytypes-registry/#registry
@@ -39,7 +41,7 @@ public:
     JS::Value detail() const { return m_detail; }
 
 private:
-    PerformanceMark(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
+    PerformanceMark(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

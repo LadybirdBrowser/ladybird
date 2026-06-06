@@ -5,25 +5,25 @@
  */
 
 #include "CSSFontFeatureValuesMap.h"
+#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
-#include <LibGC/WeakInlines.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFeatureValuesMap);
 
-GC::Ref<CSSFontFeatureValuesMap> CSSFontFeatureValuesMap::create(JS::Realm& realm, size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule)
+GC::Ref<CSSFontFeatureValuesMap> CSSFontFeatureValuesMap::create(size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule)
 {
-    return realm.create<CSSFontFeatureValuesMap>(realm, max_value_count, parent_rule);
+    return GC::Heap::the().allocate<CSSFontFeatureValuesMap>(max_value_count, parent_rule);
 }
 
-CSSFontFeatureValuesMap::CSSFontFeatureValuesMap(JS::Realm& realm, size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule)
-    : Bindings::Wrappable(realm)
-    , m_max_value_count(max_value_count)
+CSSFontFeatureValuesMap::CSSFontFeatureValuesMap(size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule)
+    : m_max_value_count(max_value_count)
     , m_parent_rule(parent_rule)
 {
 }
@@ -38,7 +38,7 @@ static Vector<u32> feature_values_from_map_value(JS::Value value)
 {
     VERIFY(value.is_object());
     auto const& array = as<JS::Array>(value.as_object());
-    auto& vm = array.shape().realm().vm();
+    auto& vm = HTML::relevant_realm(array).vm();
     auto array_length = MUST(MUST(array.get(vm.names.length)).to_length(vm));
 
     Vector<u32> values;
@@ -63,7 +63,7 @@ static GC::Ref<JS::Array> create_map_value(JS::Realm& realm, Vector<u32> const& 
 
 static void set_map_entry(JS::Map& map_entries, FlyString const& feature_value_name, Vector<u32> const& feature_values)
 {
-    auto& map_realm = map_entries.shape().realm();
+    auto& map_realm = HTML::relevant_realm(map_entries);
     auto key = GC::make_root(JS::PrimitiveString::create(map_realm.vm(), feature_value_name));
     auto value = GC::make_root(create_map_value(map_realm, feature_values));
     map_entries.map_set(JS::Value { key.ptr() }, JS::Value { value.ptr() });
@@ -71,29 +71,9 @@ static void set_map_entry(JS::Map& map_entries, FlyString const& feature_value_n
 
 static void remove_map_entry(JS::Map& map_entries, FlyString const& feature_value_name)
 {
-    auto& map_realm = map_entries.shape().realm();
+    auto& map_realm = HTML::relevant_realm(map_entries);
     auto key = GC::make_root(JS::PrimitiveString::create(map_realm.vm(), feature_value_name));
     map_entries.map_remove(JS::Value { key.ptr() });
-}
-
-static void prune_live_map_entries(Vector<GC::Weak<JS::Map>>& live_map_entries)
-{
-    live_map_entries.remove_all_matching([](auto const& map_entries) { return !map_entries; });
-}
-
-template<typename Callback>
-static void for_each_live_map_entries(GC::Weak<JS::Map> const& relevant_realm_map_entries, Vector<GC::Weak<JS::Map>>& live_map_entries, Callback callback)
-{
-    if (relevant_realm_map_entries) {
-        auto map_entries = GC::make_root(*relevant_realm_map_entries);
-        callback(*map_entries);
-    }
-
-    prune_live_map_entries(live_map_entries);
-    for (auto const& weak_map_entries : live_map_entries) {
-        auto map_entries = GC::make_root(*weak_map_entries);
-        callback(*map_entries);
-    }
 }
 
 static GC::Root<JS::Map> create_map_entries(JS::Realm& realm, OrderedHashMap<FlyString, Vector<u32>> const& entries)
@@ -104,26 +84,13 @@ static GC::Root<JS::Map> create_map_entries(JS::Realm& realm, OrderedHashMap<Fly
     return map_entries;
 }
 
-GC::Ref<JS::Map> CSSFontFeatureValuesMap::map_entries_for_realm(JS::Realm& realm) const
+GC::Ref<JS::Map> CSSFontFeatureValuesMap::map_entries(JS::Realm& realm, Bindings::WrapperWorld const& wrapper_world) const
 {
-    if (&realm == &this->realm()) {
-        if (m_relevant_realm_map_entries)
-            return GC::Ref { *m_relevant_realm_map_entries };
-
-        auto map_entries = create_map_entries(realm, m_entries);
-        m_relevant_realm_map_entries = GC::Ref { *map_entries };
-        return GC::Ref { *map_entries };
-    }
-
-    prune_live_map_entries(m_live_map_entries);
-    for (auto const& weak_map_entries : m_live_map_entries) {
-        auto map_entries = GC::make_root(*weak_map_entries);
-        if (&map_entries->shape().realm() == &realm)
-            return GC::Ref { *map_entries };
-    }
+    if (auto map_entries = m_map_entries.get(wrapper_world))
+        return *map_entries;
 
     auto map_entries = create_map_entries(realm, m_entries);
-    m_live_map_entries.append(GC::Ref { *map_entries });
+    m_map_entries.set(wrapper_world, map_entries.ptr());
     return GC::Ref { *map_entries };
 }
 
@@ -148,7 +115,7 @@ void CSSFontFeatureValuesMap::map_set(JS::Value key, JS::Value value)
 
     m_entries.set(feature_value_name, feature_values);
 
-    for_each_live_map_entries(m_relevant_realm_map_entries, m_live_map_entries, [&](auto& map_entries) {
+    m_map_entries.for_each([&](auto& map_entries) {
         set_map_entry(map_entries, feature_value_name, feature_values);
     });
 }
@@ -159,7 +126,7 @@ bool CSSFontFeatureValuesMap::map_remove(JS::Value key)
     auto removed = m_entries.remove(feature_value_name);
 
     if (removed) {
-        for_each_live_map_entries(m_relevant_realm_map_entries, m_live_map_entries, [&](auto& map_entries) {
+        m_map_entries.for_each([&](auto& map_entries) {
             remove_map_entry(map_entries, feature_value_name);
         });
     }
@@ -171,12 +138,12 @@ void CSSFontFeatureValuesMap::map_clear()
 {
     m_entries.clear();
 
-    for_each_live_map_entries(m_relevant_realm_map_entries, m_live_map_entries, [&](auto& map_entries) {
+    m_map_entries.for_each([&](auto& map_entries) {
         map_entries.map_clear();
     });
 }
 
-WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(String const& feature_value_name, Variant<u32, Vector<u32>> const& values)
+WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(JS::Realm& realm, String const& feature_value_name, Variant<u32, Vector<u32>> const& values)
 {
     // https://drafts.csswg.org/css-fonts-4/#cssfontfeaturevaluesmap
     // The CSSFontFeatureValuesMap interface uses the default map class methods but the set method has different
@@ -190,23 +157,33 @@ WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(String const& feature_val
 
     // The method throws an exception if an invalid number of values is passed in.
     if (value_vector.is_empty())
-        return WebIDL::InvalidAccessError::create(realm(), "CSSFontFeatureValuesMap.set requires at least one value."_utf16);
+        return WebIDL::InvalidAccessError::create(realm, "CSSFontFeatureValuesMap.set requires at least one value."_utf16);
 
     // If the associated feature value block only allows a limited number of values, the set method throws an
     // InvalidAccessError exception when the input sequence to set contains more than the limited number of values. See
     // the description of multi-valued feature value definitions for details on the maximum number of values allowed for
     // a given type of feature value block.
     if (value_vector.size() > m_max_value_count)
-        return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("CSSFontFeatureValuesMap.set only allows a maximum of {} values for the associated feature", m_max_value_count));
+        return WebIDL::InvalidAccessError::create(realm, Utf16String::formatted("CSSFontFeatureValuesMap.set only allows a maximum of {} values for the associated feature", m_max_value_count));
 
     m_entries.set(FlyString { feature_value_name }, value_vector);
-    for_each_live_map_entries(m_relevant_realm_map_entries, m_live_map_entries, [&](auto& map_entries) {
+    m_map_entries.for_each([&](auto& map_entries) {
         set_map_entry(map_entries, FlyString { feature_value_name }, value_vector);
     });
 
     m_parent_rule->clear_caches();
 
     return {};
+}
+
+void CSSFontFeatureValuesMap::set_from_parser(FlyString const& feature_value_name, Vector<u32> values)
+{
+    m_entries.set(feature_value_name, values);
+    m_map_entries.for_each([&](auto& map_entries) {
+        set_map_entry(map_entries, feature_value_name, values);
+    });
+
+    m_parent_rule->clear_caches();
 }
 
 void CSSFontFeatureValuesMap::on_map_modified_from_js(Badge<Bindings::CSSFontFeatureValuesMapPrototype>)

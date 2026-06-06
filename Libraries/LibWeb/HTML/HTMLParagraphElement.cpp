@@ -21,12 +21,6 @@ HTMLParagraphElement::HTMLParagraphElement(DOM::Document& document, DOM::Qualifi
 
 HTMLParagraphElement::~HTMLParagraphElement() = default;
 
-void HTMLParagraphElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLParagraphElement);
-    Base::initialize(realm);
-}
-
 bool HTMLParagraphElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))

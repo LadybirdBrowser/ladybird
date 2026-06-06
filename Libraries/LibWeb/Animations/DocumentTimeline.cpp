@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Bindings/DocumentTimeline.h>
 #include <LibWeb/DOM/Document.h>
@@ -19,26 +18,25 @@ namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(DocumentTimeline);
 
-GC::Ref<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DOM::Document& document, HighResolutionTime::DOMHighResTimeStamp origin_time)
+GC::Ref<DocumentTimeline> DocumentTimeline::create(DOM::Document& document, HighResolutionTime::DOMHighResTimeStamp origin_time)
 {
-    auto timeline = realm.create<DocumentTimeline>(realm, document, origin_time);
+    auto timeline = GC::Heap::the().allocate<DocumentTimeline>(document, origin_time);
     auto current_time = document.last_animation_frame_timestamp();
     if (!current_time.has_value()) {
         // The document hasn't processed an animation frame yet, we use the navigation start time, which is either the time
         // that the previous document started to be unloaded or the creation time of the current document.
-        current_time = HighResolutionTime::relative_high_resolution_time(document.load_timing_info().navigation_start_time, realm.global_object());
+        current_time = HighResolutionTime::relative_high_resolution_time(document.load_timing_info().navigation_start_time, document.relevant_settings_object().global_object());
     }
     timeline->update_current_time(current_time.value());
     return timeline;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-documenttimeline-documenttimeline
-WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(JS::Realm& realm, Bindings::DocumentTimelineOptions options)
+WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(HTML::Window& window, Bindings::DocumentTimelineOptions options)
 {
     // Creates a new DocumentTimeline. The Document with which the timeline is associated is the Document associated
     // with the Window that is the current global object.
-    auto& window = HTML::relevant_window(realm.global_object());
-    return create(realm, window.associated_document(), options.origin_time);
+    return create(window.associated_document(), options.origin_time);
 }
 
 // https://www.w3.org/TR/web-animations-1/#ref-for-timeline-time-to-origin-relative-time
@@ -79,8 +77,8 @@ bool DocumentTimeline::is_inactive() const
     return Base::is_inactive() || !associated_document()->is_active();
 }
 
-DocumentTimeline::DocumentTimeline(JS::Realm& realm, DOM::Document& document, HighResolutionTime::DOMHighResTimeStamp origin_time)
-    : AnimationTimeline(realm, document)
+DocumentTimeline::DocumentTimeline(DOM::Document& document, HighResolutionTime::DOMHighResTimeStamp origin_time)
+    : AnimationTimeline(document)
     , m_origin_time(origin_time)
 {
 }

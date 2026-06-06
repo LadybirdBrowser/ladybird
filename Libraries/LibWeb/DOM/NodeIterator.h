@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeFilter.h>
 
@@ -19,7 +20,7 @@ class NodeIterator final : public Bindings::Wrappable {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<NodeIterator> create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
+    static GC::Ref<NodeIterator> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~NodeIterator() override;
 
@@ -30,15 +31,15 @@ public:
 
     GC::Ptr<NodeFilter> filter() const;
 
-    JS::ThrowCompletionOr<GC::Ptr<Node>> next_node();
-    JS::ThrowCompletionOr<GC::Ptr<Node>> previous_node();
+    JS::ThrowCompletionOr<GC::Ptr<Node>> next_node(JS::Realm&);
+    JS::ThrowCompletionOr<GC::Ptr<Node>> previous_node(JS::Realm&);
 
     void detach();
 
     void run_pre_removing_steps(Node&);
 
 private:
-    explicit NodeIterator(JS::Realm&, Node& root);
+    explicit NodeIterator(Node& root);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
@@ -48,9 +49,9 @@ private:
         Previous,
     };
 
-    JS::ThrowCompletionOr<GC::Ptr<Node>> traverse(Direction);
+    JS::ThrowCompletionOr<GC::Ptr<Node>> traverse(JS::Realm&, Direction);
 
-    JS::ThrowCompletionOr<NodeFilter::Result> filter(Node&);
+    JS::ThrowCompletionOr<NodeFilter::Result> filter(JS::Realm&, Node&);
 
     // https://dom.spec.whatwg.org/#concept-traversal-root
     GC::Ref<Node> m_root;

@@ -7,6 +7,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
@@ -75,7 +76,7 @@ void NavigableContainer::create_new_child_navigable()
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
     auto& page = document().page();
-    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, this->document(), *this, *group);
+    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, this->document(), *this);
 
     // 4. Let targetName be null.
     Optional<String> target_name;
@@ -98,7 +99,7 @@ void NavigableContainer::create_new_child_navigable()
     document_state->set_about_base_url(document->about_base_url());
 
     // 7. Let navigable be a new navigable.
-    GC::Ref<Navigable> navigable = *heap().allocate<Navigable>(page, false);
+    GC::Ref<Navigable> navigable = *GC::Heap::the().allocate<Navigable>(page, false);
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     navigable->initialize_navigable(document_state, parent_navigable, *document);
@@ -113,7 +114,7 @@ void NavigableContainer::create_new_child_navigable()
     auto traversable = parent_navigable->traversable_navigable();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this, navigable, parent_navigable, history_entry, traversable](NonnullRefPtr<Core::Promise<Empty>> signal) mutable {
+    traversable->append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [this, navigable, parent_navigable, history_entry, traversable](NonnullRefPtr<Core::Promise<Empty>> signal) mutable {
         if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
             signal->resolve({});
             return;
@@ -143,11 +144,11 @@ void NavigableContainer::create_new_child_navigable()
         parent_doc_state->nested_histories().append(move(nested_history));
 
         // 7. Update for navigable creation/destruction given traversable
-        traversable->update_for_navigable_creation_or_destruction(GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
+        traversable->update_for_navigable_creation_or_destruction(GC::create_function(GC::Heap::the(), [signal](HistoryStepResult) {
             signal->resolve({});
         }));
 
-        traversable->append_session_history_traversal_steps(GC::create_function(traversable->heap(), [this, navigable](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        traversable->append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [this, navigable](NonnullRefPtr<Core::Promise<Empty>> signal) {
             if (navigable->has_been_destroyed() || content_navigable() != navigable) {
                 signal->resolve({});
                 return;
@@ -331,7 +332,7 @@ void NavigableContainer::destroy_the_child_navigable()
     // 4. Inform the navigation API about child navigable destruction given navigable.
     navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
-    auto after_document_destruction = GC::create_function(heap(), [this, navigable] {
+    auto after_document_destruction = GC::create_function(GC::Heap::the(), [this, navigable] {
         // 3. Set container's content navigable to null.
         m_content_navigable = nullptr;
         document().schedule_html_parser_end_check();
@@ -351,9 +352,9 @@ void NavigableContainer::destroy_the_child_navigable()
         auto traversable = this->navigable()->traversable_navigable();
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        traversable->append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [traversable](NonnullRefPtr<Core::Promise<Empty>> signal) {
             // 1. Update for navigable creation/destruction given traversable.
-            traversable->update_for_navigable_creation_or_destruction(GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
+            traversable->update_for_navigable_creation_or_destruction(GC::create_function(GC::Heap::the(), [signal](HistoryStepResult) {
                 signal->resolve({});
             }));
         }));

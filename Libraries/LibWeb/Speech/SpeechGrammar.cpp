@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Speech/SpeechGrammar.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -12,13 +12,13 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechGrammar);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechGrammar>> SpeechGrammar::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<SpeechGrammar>> SpeechGrammar::construct_impl()
 {
-    return realm.create<SpeechGrammar>(realm);
+    return GC::Heap::the().allocate<SpeechGrammar>();
 }
 
-SpeechGrammar::SpeechGrammar(JS::Realm& realm)
-    : Wrappable(realm)
+SpeechGrammar::SpeechGrammar()
+    : Bindings::Wrappable()
 {
 }
 

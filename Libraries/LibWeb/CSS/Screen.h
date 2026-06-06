@@ -35,8 +35,6 @@ public:
 
 private:
     explicit Screen(HTML::Window&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     HTML::Window const& window() const { return *m_window; }

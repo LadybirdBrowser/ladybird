@@ -20,10 +20,15 @@ class BarProp : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(BarProp);
 
 public:
-    BarProp(JS::Realm&);
-    static GC::Ref<BarProp> create(JS::Realm&);
+    BarProp(Window&);
+    static GC::Ref<BarProp> create(Window&);
 
     [[nodiscard]] bool visible() const;
+
+private:
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<Window> m_window;
 };
 
 }

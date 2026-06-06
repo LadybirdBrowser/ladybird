@@ -19,8 +19,8 @@ class GainNode : public AudioNode {
 public:
     virtual ~GainNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<GainNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<GainNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<GainNode>> create(GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<GainNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -28,9 +28,7 @@ public:
     GC::Ref<AudioParam const> gain() const { return m_gain; }
 
 protected:
-    GainNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    GainNode(GC::Ref<BaseAudioContext>, Bindings::GainOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

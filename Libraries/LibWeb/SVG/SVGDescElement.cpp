@@ -20,12 +20,6 @@ SVGDescElement::SVGDescElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-void SVGDescElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGDescElement);
-    Base::initialize(realm);
-}
-
 RefPtr<Layout::Node> SVGDescElement::create_layout_node(CSS::ComputedProperties const&)
 {
     return nullptr;

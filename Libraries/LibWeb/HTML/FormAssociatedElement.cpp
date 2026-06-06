@@ -9,6 +9,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/HTMLFormElement.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
@@ -29,7 +30,9 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/ValidityState.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -97,8 +100,7 @@ void FormAssociatedElement::set_form(HTMLFormElement* form)
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
 GC::Ref<ValidityState const> FormAssociatedElement::validity() const
 {
-    auto& realm = form_associated_element_to_html_element().realm();
-    return realm.create<ValidityState>(realm, *this);
+    return ValidityState::create(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
@@ -260,10 +262,12 @@ void FormAssociatedElement::reset_form_owner()
     // See the AD-HOC comment above.
     if (m_form != old_form && html_element.is_form_associated_custom_element()) {
         GC::RootVector<JS::Value> arguments;
-        if (m_form)
-            arguments.append(Bindings::wrap(m_form->realm(), GC::Ref { *m_form }));
-        else
+        if (m_form) {
+            auto& realm = HTML::relevant_realm(*m_form);
+            arguments.append(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *m_form }));
+        } else {
             arguments.append(JS::js_null());
+        }
         html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formAssociatedCallback, move(arguments));
     }
 }
@@ -392,7 +396,10 @@ bool FormAssociatedElement::check_validity_steps()
     if (is_candidate_for_constraint_validation() && !satisfies_its_constraints()) {
         auto& element = form_associated_element_to_html_element();
         // 1. Fire an event named invalid at element, with the cancelable attribute initialized to true
-        element.dispatch_event(DOM::Event::create(element.realm(), EventNames::invalid, { .cancelable = true }));
+        element.dispatch_event(DOM::Event::create(
+            EventNames::invalid,
+            { .cancelable = true },
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(element))));
         // 2. Return false.
         return false;
     }
@@ -406,7 +413,10 @@ bool FormAssociatedElement::report_validity_steps()
     if (is_candidate_for_constraint_validation() && !satisfies_its_constraints()) {
         auto& element = form_associated_element_to_html_element();
         // 1. Let report be the result of firing an event named invalid at element, with the cancelable attribute initialized to true.
-        auto report = element.dispatch_event(DOM::Event::create(element.realm(), EventNames::invalid, { .cancelable = true }));
+        auto report = element.dispatch_event(DOM::Event::create(
+            EventNames::invalid,
+            { .cancelable = true },
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(element))));
 
         // 2. If report is true, then report the problems with the constraints of this element to the user. When reporting the problem with the constraints to the user,
         //    the user agent may run the focusing steps for element, and may change the scrolling position of the document, or perform some other action that brings
@@ -724,7 +734,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start_
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
-            return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionStart does not apply to this input type"_utf16);
+            return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setSelectionStart does not apply to this input type"_utf16);
     }
 
     // 2. Let end be the value of this element's selectionEnd attribute.
@@ -777,7 +787,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end_bi
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
-            return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionEnd does not apply to this input type"_utf16);
+            return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setSelectionEnd does not apply to this input type"_utf16);
     }
 
     // 2. Set the selection range with the value of this element's selectionStart attribute, the
@@ -830,7 +840,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
     if (is<HTMLInputElement>(html_element)) {
         auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
         if (!input_element.selection_direction_applies())
-            return WebIDL::InvalidStateError::create(input_element.realm(), "selectionDirection does not apply to element"_utf16);
+            return WebIDL::InvalidStateError::create(HTML::relevant_realm(input_element), "selectionDirection does not apply to element"_utf16);
     }
 
     set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(direction));
@@ -851,7 +861,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_bindi
     // 1. If this element is an input element, and setRangeText() does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
     if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(html_element.realm(), "setRangeText does not apply to this input type"_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setRangeText does not apply to this input type"_utf16);
 
     return set_range_text(replacement, start, end, selection_mode);
 }
@@ -870,7 +880,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
 
     // 4. If start is greater than end, then throw an "IndexSizeError" DOMException.
     if (start > end)
-        return WebIDL::IndexSizeError::create(html_element.realm(), "The start argument must be less than or equal to the end argument"_utf16);
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(html_element), "The start argument must be less than or equal to the end argument"_utf16);
 
     // 5. If start is greater than the length of the relevant value of the text control, then set it to the length of the relevant value of the text control.
     auto the_relevant_value = relevant_value();
@@ -977,7 +987,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
     //    element, throw an "InvalidStateError" DOMException.
     auto& html_element = text_control_to_html_element();
     if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionRange does not apply to this input type"_utf16);
+        return WebIDL::InvalidStateError::create(HTML::relevant_realm(html_element), "setSelectionRange does not apply to this input type"_utf16);
 
     // 2. Set the selection range with start, end, and direction.
     set_the_selection_range(start, end, string_to_selection_direction(direction));
@@ -1033,7 +1043,10 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
         //         This is not in the spec but matches how other browsers behave.
         if (source == SelectionSource::DOM || m_selection_start != m_selection_end) {
             html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] {
-                auto select_event = DOM::Event::create(html_element.realm(), EventNames::select, { .bubbles = true });
+                auto select_event = DOM::Event::create(
+                    EventNames::select,
+                    { .bubbles = true },
+                    HighResolutionTime::current_high_resolution_time(relevant_global_object(html_element)));
                 static_cast<DOM::EventTarget*>(&html_element)->dispatch_event(select_event);
             });
         }
@@ -1383,7 +1396,7 @@ GC::Ptr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const
         return nullptr;
     if (m_selection_start != m_selection_end)
         return nullptr;
-    return DOM::Position::create(node->realm(), const_cast<DOM::Text&>(*node), m_selection_start);
+    return DOM::Position::create(const_cast<DOM::Text&>(*node), m_selection_start);
 }
 
 GC::Ref<JS::Cell> FormAssociatedTextControlElement::as_cell()

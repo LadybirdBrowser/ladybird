@@ -38,12 +38,6 @@ HTMLOptionElement::HTMLOptionElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLOptionElement::~HTMLOptionElement() = default;
 
-void HTMLOptionElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptionElement);
-    Base::initialize(realm);
-}
-
 void HTMLOptionElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -313,7 +307,7 @@ WebIDL::ExceptionOr<void> HTMLOptionElement::clone_into_selectedcontent(GC::Ref<
     // To clone an option into a selectedcontent, given an option element option and a selectedcontent element selectedcontent:
 
     // 1. Let documentFragment be a new DocumentFragment whose node document is option's node document.
-    auto fragment = realm().create<DOM::DocumentFragment>(document());
+    auto fragment = DOM::DocumentFragment::create(document());
 
     // 2. For each child of option's children:
     for (auto* child = first_child(); child; child = child->next_sibling()) {

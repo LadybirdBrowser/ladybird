@@ -14,7 +14,6 @@
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch {
@@ -48,23 +47,21 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const = 0;
     virtual GC::Ptr<Infrastructure::Body> body_impl() = 0;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const = 0;
-    virtual Bindings::Wrappable& as_wrappable() = 0;
-    virtual Bindings::Wrappable const& as_wrappable() const = 0;
 
     [[nodiscard]] bool is_unusable() const;
     [[nodiscard]] GC::Ptr<Streams::ReadableStream> body() const;
     [[nodiscard]] bool body_used() const;
 
     // JS API functions
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> array_buffer() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> blob() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> bytes() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> form_data() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> json() const;
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> text() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> array_buffer(JS::Realm&) const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> blob(JS::Realm&) const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> bytes(JS::Realm&) const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> form_data(JS::Realm&) const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> json(JS::Realm&) const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> text(JS::Realm&) const;
 };
 
 [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm&, BodyMixin const&, ConvertBytesToJSValueCallback);
-[[nodiscard]] MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multipart_form_data(JS::Realm&, StringView input, MimeSniff::MimeType const& mime_type);
+[[nodiscard]] MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multipart_form_data(StringView input, MimeSniff::MimeType const& mime_type);
 
 }

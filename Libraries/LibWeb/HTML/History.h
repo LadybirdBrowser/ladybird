@@ -20,19 +20,19 @@ class History final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(History);
 
 public:
-    [[nodiscard]] static GC::Ref<History> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<History> create(DOM::Document&);
 
     virtual ~History() override;
 
-    WebIDL::ExceptionOr<void> push_state(JS::Value data, String const& unused, Optional<String> const& url = {});
-    WebIDL::ExceptionOr<void> replace_state(JS::Value data, String const& unused, Optional<String> const& url = {});
-    WebIDL::ExceptionOr<void> go(WebIDL::Long delta);
-    WebIDL::ExceptionOr<void> back();
-    WebIDL::ExceptionOr<void> forward();
-    WebIDL::ExceptionOr<u64> length() const;
-    WebIDL::ExceptionOr<Bindings::ScrollRestoration> scroll_restoration() const;
-    WebIDL::ExceptionOr<void> set_scroll_restoration(Bindings::ScrollRestoration);
-    WebIDL::ExceptionOr<JS::Value> state() const;
+    WebIDL::ExceptionOr<void> push_state(JS::Realm&, JS::Value data, String const& unused, Optional<String> const& url = {});
+    WebIDL::ExceptionOr<void> replace_state(JS::Realm&, JS::Value data, String const& unused, Optional<String> const& url = {});
+    WebIDL::ExceptionOr<void> go(JS::Realm&, WebIDL::Long delta);
+    WebIDL::ExceptionOr<void> back(JS::Realm&);
+    WebIDL::ExceptionOr<void> forward(JS::Realm&);
+    WebIDL::ExceptionOr<u64> length(JS::Realm&) const;
+    WebIDL::ExceptionOr<Bindings::ScrollRestoration> scroll_restoration(JS::Realm&) const;
+    WebIDL::ExceptionOr<void> set_scroll_restoration(JS::Realm&, Bindings::ScrollRestoration);
+    WebIDL::ExceptionOr<JS::Value> state(JS::Realm&) const;
 
     u64 m_index { 0 };
     u64 m_length { 0 };
@@ -41,13 +41,14 @@ public:
     void set_state(JS::Value s) { m_state = s; }
 
 private:
-    History(JS::Realm&);
+    explicit History(DOM::Document&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    WebIDL::ExceptionOr<void> delta_traverse(WebIDL::Long delta);
+    WebIDL::ExceptionOr<void> delta_traverse(JS::Realm&, WebIDL::Long delta);
 
-    WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);
+    WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Realm&, JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);
 
+    GC::Ref<DOM::Document> m_document;
     JS::Value m_state { JS::js_null() };
 };
 

@@ -26,16 +26,13 @@ class Worker
     GC_DECLARE_ALLOCATOR(Worker);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Worker>> create(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options);
-    static WebIDL::ExceptionOr<GC::Ref<Worker>> construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options)
-    {
-        return Worker::create(realm, script_url, options);
-    }
+    static WebIDL::ExceptionOr<GC::Ref<Worker>> create(WindowOrWorkerGlobalScopeMixin&, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options);
+    static WebIDL::ExceptionOr<GC::Ref<Worker>> construct_impl(WindowOrWorkerGlobalScopeMixin&, TrustedTypes::TrustedScriptURLOrString const& script_url, Bindings::WorkerOptions const& options);
 
     WebIDL::ExceptionOr<void> terminate();
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::StructuredSerializeOptions const&);
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Bindings::StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
     virtual ~Worker() = default;
 
@@ -51,13 +48,12 @@ public:
 #undef __ENUMERATE
 
 protected:
-    Worker(JS::Realm&, String const&, Bindings::WorkerOptions const&);
+    Worker(String const&, Bindings::WorkerOptions const&);
 
     // ^AbstractWorker
     virtual DOM::EventTarget& this_event_target() override { return *this; }
 
 private:
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     String m_script_url;

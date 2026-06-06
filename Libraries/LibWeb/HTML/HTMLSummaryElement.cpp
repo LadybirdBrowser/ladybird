@@ -74,9 +74,4 @@ bool HTMLSummaryElement::is_focusable() const
 
 HTMLSummaryElement::~HTMLSummaryElement() = default;
 
-void HTMLSummaryElement::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-}
-
 }

@@ -19,8 +19,8 @@ class ConstantSourceNode final : public AudioScheduledSourceNode {
 public:
     virtual ~ConstantSourceNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> create(GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const& = {});
 
     virtual WebIDL::UnsignedLong number_of_inputs() override { return 0; }
     virtual WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -28,9 +28,7 @@ public:
     GC::Ref<AudioParam const> offset() const { return m_offset; }
 
 private:
-    ConstantSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const&);
-
-    virtual void initialize(JS::Realm&) override;
+    ConstantSourceNode(GC::Ref<BaseAudioContext>, Bindings::ConstantSourceOptions const&);
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://webaudio.github.io/web-audio-api/#dom-constantsourcenode-offset

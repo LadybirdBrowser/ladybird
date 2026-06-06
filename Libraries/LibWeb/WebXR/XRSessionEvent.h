@@ -6,7 +6,15 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::WebXR {
 
@@ -16,15 +24,15 @@ class XRSessionEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(XRSessionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<XRSessionEvent> create(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
-    static GC::Ref<XRSessionEvent> construct_impl(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
+    [[nodiscard]] static GC::Ref<XRSessionEvent> create(FlyString const&, Bindings::XRSessionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static GC::Ref<XRSessionEvent> construct_impl(HTML::Window&, FlyString const&, Bindings::XRSessionEventInit const&);
 
     virtual ~XRSessionEvent() override = default;
 
     GC::Ptr<XRSession> session() const { return m_session; }
 
 private:
-    XRSessionEvent(JS::Realm&, FlyString const&, Bindings::XRSessionEventInit const&);
+    XRSessionEvent(FlyString const&, Bindings::XRSessionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

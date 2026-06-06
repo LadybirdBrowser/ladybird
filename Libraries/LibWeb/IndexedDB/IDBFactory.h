@@ -9,6 +9,7 @@
 
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/IndexedDB/IDBOpenDBRequest.h>
 
 namespace Web::IndexedDB {
@@ -28,7 +29,16 @@ public:
     WebIDL::ExceptionOr<i8> cmp(JS::Value first, JS::Value second);
 
 protected:
-    explicit IDBFactory(JS::Realm&);
+    explicit IDBFactory(HTML::WindowOrWorkerGlobalScopeMixin&);
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+private:
+    HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
+    JS::Object& relevant_global_object() const;
+    HTML::EnvironmentSettingsObject& relevant_settings_object() const;
+
+    GC::Ref<DOM::EventTarget> m_global;
 };
 
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/HTMLFieldSetElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
@@ -26,12 +27,6 @@ HTMLFieldSetElement::HTMLFieldSetElement(DOM::Document& document, DOM::Qualified
 }
 
 HTMLFieldSetElement::~HTMLFieldSetElement() = default;
-
-void HTMLFieldSetElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFieldSetElement);
-    Base::initialize(realm);
-}
 
 void HTMLFieldSetElement::visit_edges(Cell::Visitor& visitor)
 {

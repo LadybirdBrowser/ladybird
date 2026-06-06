@@ -6,6 +6,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -40,8 +41,10 @@
 #include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/PopoverTargetAttributes.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/ToggleEvent.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Box.h>
@@ -65,12 +68,6 @@ HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_n
 }
 
 HTMLElement::~HTMLElement() = default;
-
-void HTMLElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLElement);
-    Base::initialize(realm);
-}
 
 void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -170,7 +167,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
         set_attribute_value(HTML::AttributeNames::contenteditable, "false"_string);
         return {};
     }
-    return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_utf16);
+    return WebIDL::SyntaxError::create(HTML::relevant_realm(*this), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_utf16);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#set-the-inner-text-steps
@@ -208,7 +205,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(Utf16View const& value)
 {
     // 1. If this's parent is null, then throw a "NoModificationAllowedError" DOMException.
     if (!parent())
-        return WebIDL::NoModificationAllowedError::create(realm(), "setOuterText: parent is null"_utf16);
+        return WebIDL::NoModificationAllowedError::create(HTML::relevant_realm(*this), "setOuterText: parent is null"_utf16);
 
     // 2. Let next be this's next sibling.
     auto* next = next_sibling();
@@ -242,7 +239,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(Utf16View const& value)
 GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(Utf16View const& input)
 {
     // 1. Let fragment be a new DocumentFragment whose node document is document.
-    auto fragment = realm().create<DOM::DocumentFragment>(document());
+    auto fragment = DOM::DocumentFragment::create(document());
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     size_t position = 0;
@@ -831,7 +828,7 @@ bool HTMLElement::fire_a_synthetic_pointer_event(FlyString const& type, DOM::Ele
 {
     // 1. Let event be the result of creating an event using PointerEvent.
     // 2. Initialize event's type attribute to e.
-    auto event = UIEvents::PointerEvent::create(realm(), type);
+    auto event = UIEvents::PointerEvent::create(type, {}, 0, 0, 0, 0, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
 
     // 3. Initialize event's bubbles and cancelable attributes to true.
     event->set_bubbles(true);
@@ -867,7 +864,7 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
         return {};
 
     if (!m_labels) {
-        m_labels = DOM::LiveNodeList::create(realm(), root(), DOM::LiveNodeList::Scope::Descendants, [&](auto& node) {
+        m_labels = DOM::LiveNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [&](auto& node) {
             auto* label_element = as_if<HTMLLabelElement>(node);
             return label_element && label_element->control() == this;
         });
@@ -1089,11 +1086,11 @@ Optional<ARIA::Role> HTMLElement::default_role() const
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-attachinternals
-WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
+WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals(JS::Realm& realm)
 {
     // 1. If this's is value is not null, then throw a "NotSupportedError" DOMException.
     if (is_value().has_value())
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized built-in element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "ElementInternals cannot be attached to a customized built-in element"_utf16);
 
     // 2. Let definition be the result of looking up a custom element definition given this's custom element registry,
     //    this's namespace, this's local name, and null.
@@ -1101,22 +1098,22 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
 
     // 3. If definition is null, then throw an "NotSupportedError" DOMException.
     if (!definition)
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to an element that is not a custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "ElementInternals cannot be attached to an element that is not a custom element"_utf16);
 
     // 4. If definition's disable internals is true, then throw a "NotSupportedError" DOMException.
     if (definition->disable_internals())
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals are disabled for this custom element"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "ElementInternals are disabled for this custom element"_utf16);
 
     // 5. If this's attached internals is non-null, then throw an "NotSupportedError" DOMException.
     if (m_attached_internals)
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals already attached"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "ElementInternals already attached"_utf16);
 
     // 6. If this's custom element state is not "precustomized" or "custom", then throw a "NotSupportedError" DOMException.
     if (!first_is_one_of(custom_element_state(), DOM::CustomElementState::Precustomized, DOM::CustomElementState::Custom))
-        return WebIDL::NotSupportedError::create(realm(), "Custom element is in an invalid state to attach ElementInternals"_utf16);
+        return WebIDL::NotSupportedError::create(realm, "Custom element is in an invalid state to attach ElementInternals"_utf16);
 
     // 7. Set this's attached internals to a new ElementInternals instance whose target element is this.
-    auto internals = ElementInternals::create(realm(), *this);
+    auto internals = ElementInternals::create(*this);
 
     m_attached_internals = internals;
 
@@ -1175,7 +1172,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
     if (ignore_dom_state == IgnoreDomState::No && !popover().has_value()) {
         // 1.1. If throwExceptions is true, then throw a "NotSupportedError" DOMException.
         if (throw_exceptions == ThrowExceptions::Yes)
-            return WebIDL::NotSupportedError::create(realm(), "Element is not a popover"_utf16);
+            return WebIDL::NotSupportedError::create(HTML::relevant_realm(*this), "Element is not a popover"_utf16);
         // 1.2. Return false.
         return false;
     }
@@ -1203,7 +1200,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
         || (ignore_dom_state == IgnoreDomState::No && expected_document && &document() != expected_document)
         || (is<HTMLDialogElement>(*this) && as<HTMLDialogElement>(*this).is_modal())) {
         if (throw_exceptions == ThrowExceptions::Yes)
-            return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_utf16);
+            return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "Element is not in a valid state to show a popover"_utf16);
         return false;
     }
 
@@ -1262,7 +1259,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     event_init.new_state = "open"_string;
     event_init.cancelable = true;
     event_init.source = GC::make_root<DOM::Element>(source.ptr());
-    if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)))) {
+    if (!dispatch_event(ToggleEvent::create(HTML::EventNames::beforetoggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))))) {
         cleanup_showing_flag();
         return {};
     }
@@ -1356,7 +1353,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         if (original_type != popover()) {
             // 1. If throwExceptions is true, then throw an "InvalidStateError" DOMException.
             if (throw_exceptions == ThrowExceptions::Yes)
-                return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_utf16);
+                return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "Element is not in a valid state to show a popover"_utf16);
 
             // 2. Return.
             return {};
@@ -1403,18 +1400,18 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         // NB: We simply don't add an event listener for the cancel action.
         // - closeAction being to hide a popover given element, true, true, false, and null.
         auto close_callback_function = JS::NativeFunction::create(
-            realm(), [this](JS::VM&) {
+            HTML::relevant_realm(*this), [this](JS::VM&) {
                 MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, nullptr));
 
                 return JS::js_undefined();
             },
-            0, Utf16FlyString {}, &realm());
-        auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
+            0, Utf16FlyString {}, &HTML::relevant_realm(*this));
+        auto close_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*close_callback_function, HTML::relevant_realm(*this));
         // - getEnabledState being to return true.
-        auto get_enabled_state = GC::create_function(heap(), [] { return true; });
+        auto get_enabled_state = GC::create_function(GC::Heap::the(), [] { return true; });
 
         m_popover_close_watcher = CloseWatcher::establish(*document.window(), move(get_enabled_state));
-        m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
+        m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(close_callback));
     }
     // FIXME: 19. Set element's previously focused element to null.
     // FIXME: 20. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
@@ -1501,7 +1498,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
         event_init.old_state = "open"_string;
         event_init.new_state = "closed"_string;
         event_init.source = GC::make_root<DOM::Element>(source.ptr());
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
+        dispatch_event(ToggleEvent::create(HTML::EventNames::beforetoggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
 
         // 2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not
         //    element, then run hide all popovers until given element, focusPreviousElement, and false.
@@ -1903,7 +1900,7 @@ void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new
         event_init.new_state = move(new_state);
         event_init.source = GC::make_root<DOM::Element>(source.ptr());
 
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init)));
+        dispatch_event(ToggleEvent::create(HTML::EventNames::toggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
 
         // 2. Set element's popover toggle task tracker to null.
         m_popover_toggle_task_tracker = {};

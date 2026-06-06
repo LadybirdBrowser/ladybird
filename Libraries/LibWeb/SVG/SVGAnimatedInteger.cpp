@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedInteger.h>
 
@@ -14,25 +15,23 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGAnimatedInteger);
 
 GC::Ref<SVGAnimatedInteger> SVGAnimatedInteger::create(
-    JS::Realm& realm,
     GC::Ref<SVGElement> element,
     DOM::QualifiedName reflected_attribute,
     WebIDL::Long initial_value,
     SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
 {
-    return realm.create<SVGAnimatedInteger>(realm, element, move(reflected_attribute), initial_value,
+    return GC::Heap::the().allocate<SVGAnimatedInteger>(element, move(reflected_attribute), initial_value,
         supports_second_value, value_represented);
 }
 
 SVGAnimatedInteger::SVGAnimatedInteger(
-    JS::Realm& realm,
     GC::Ref<SVGElement> element,
     DOM::QualifiedName reflected_attribute,
     WebIDL::Long initial_value,
     SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
-    : Bindings::Wrappable(realm)
+    : Bindings::Wrappable()
     , m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_initial_value(initial_value)

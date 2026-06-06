@@ -4,25 +4,34 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CompositionEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(CompositionEvent);
 
-GC::Ref<CompositionEvent> CompositionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
+static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
 {
-    return realm.create<CompositionEvent>(realm, event_name, event_init);
+    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
 }
 
-WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> CompositionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
+GC::Ref<CompositionEvent> CompositionEvent::create(FlyString const& event_name, Bindings::CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<CompositionEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<CompositionEvent>(event_name, event_init, time_stamp);
 }
 
-CompositionEvent::CompositionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
-    : UIEvent(realm, event_name, event_init)
+WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> CompositionEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::CompositionEventInit const& event_init)
+{
+    return GC::Heap::the().allocate<CompositionEvent>(event_name, event_init, event_time_stamp(window));
+}
+
+CompositionEvent::CompositionEvent(FlyString const& event_name, Bindings::CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
     , m_data(event_init.data)
 {
 }

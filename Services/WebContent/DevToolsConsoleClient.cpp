@@ -8,6 +8,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/MemoryStream.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/ErrorData.h>
@@ -28,11 +29,11 @@ GC::Ref<DevToolsConsoleClient> DevToolsConsoleClient::create(JS::Realm& realm, J
     auto& window = Web::HTML::relevant_window(realm.global_object());
     auto console_global_environment_extensions = realm.create<ConsoleGlobalEnvironmentExtensions>(realm, window);
 
-    return realm.heap().allocate<DevToolsConsoleClient>(realm, console, client, console_global_environment_extensions);
+    return GC::Heap::the().allocate<DevToolsConsoleClient>(console, client, console_global_environment_extensions);
 }
 
-DevToolsConsoleClient::DevToolsConsoleClient(JS::Realm& realm, JS::Console& console, PageClient& client, ConsoleGlobalEnvironmentExtensions& console_global_environment_extensions)
-    : WebContentConsoleClient(realm, console, client, console_global_environment_extensions)
+DevToolsConsoleClient::DevToolsConsoleClient(JS::Console& console, PageClient& client, ConsoleGlobalEnvironmentExtensions& console_global_environment_extensions)
+    : WebContentConsoleClient(console, client, console_global_environment_extensions)
 {
 }
 
@@ -98,7 +99,8 @@ static JsonValue serialize_js_value(JS::Realm& realm, JS::Value value)
 
 void DevToolsConsoleClient::handle_result(JS::Value result)
 {
-    m_client->did_execute_js_console_input(serialize_js_value(m_realm, result));
+    auto& settings = Web::HTML::relevant_settings_object(*m_console_global_environment_extensions);
+    m_client->did_execute_js_console_input(serialize_js_value(settings.realm(), result));
 }
 
 void DevToolsConsoleClient::report_exception(String const& name, String const& message, JS::ErrorData const& error_data, bool in_promise)

@@ -16,14 +16,14 @@ class CSSTranslate final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSTranslate);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSTranslate> create(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-    static WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> construct_impl(JS::Realm&, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z = {});
+    [[nodiscard]] static GC::Ref<CSSTranslate> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    static WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> construct_impl(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z = {});
 
     virtual ~CSSTranslate() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
 
     GC::Ref<CSSNumericValue> x() const { return m_x; }
     GC::Ref<CSSNumericValue> y() const { return m_y; }
@@ -35,7 +35,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSTranslate(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    explicit CSSTranslate(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_x;

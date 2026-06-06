@@ -17,12 +17,12 @@ class WebGLVertexArrayObjectOES : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLVertexArrayObjectOES);
 
 public:
-    static GC::Ref<WebGLVertexArrayObjectOES> create(JS::Realm& realm, WebGLRenderingContextBase&, GLuint handle);
+    static GC::Ref<WebGLVertexArrayObjectOES> create(WebGLRenderingContextBase&, GLuint handle);
 
     virtual ~WebGLVertexArrayObjectOES() override;
 
 protected:
-    explicit WebGLVertexArrayObjectOES(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
+    explicit WebGLVertexArrayObjectOES(WebGLRenderingContextBase&, GLuint handle);
 };
 
 }

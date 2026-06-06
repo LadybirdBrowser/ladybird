@@ -16,9 +16,8 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleDeclaration);
 
-CSSStyleDeclaration::CSSStyleDeclaration(JS::Realm& realm, Computed computed, Readonly readonly)
-    : Bindings::Wrappable(realm)
-    , m_computed(computed == Computed::Yes)
+CSSStyleDeclaration::CSSStyleDeclaration(Computed computed, Readonly readonly)
+    : m_computed(computed == Computed::Yes)
     , m_readonly(readonly == Readonly::Yes)
 {
 }
@@ -55,7 +54,7 @@ String CSSStyleDeclaration::css_text() const
     return serialized();
 }
 
-Optional<JS::Value> CSSStyleDeclaration::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> CSSStyleDeclaration::item_value(Bindings::WrapperWorld&, JS::Realm& realm, size_t index) const
 {
     auto value = item(index);
     if (value.is_empty())

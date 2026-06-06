@@ -6,10 +6,12 @@
 
 #include <AK/Math.h>
 #include <AK/Time.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Notification.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
@@ -18,8 +20,8 @@ namespace Web::NotificationsAPI {
 
 GC_DEFINE_ALLOCATOR(Notification);
 
-Notification::Notification(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+Notification::Notification()
+    : DOM::EventTarget()
 {
 }
 
@@ -42,7 +44,7 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification(
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "options[\"tag\"] cannot be the empty string when options[\"renotify\"] is set to true."sv };
 
     // 4. Set notification’s data to StructuredSerializeForStorage(options["data"]).
-    notification.data = TRY(HTML::structured_serialize_for_storage(realm.vm(), options.data));
+    notification.data = TRY(HTML::structured_serialize_for_storage(realm, options.data));
 
     // 5. Set notification’s title to title.
     notification.title = title;
@@ -162,16 +164,15 @@ WebIDL::ExceptionOr<ConceptNotification> Notification::create_a_notification_wit
 
 // https://notifications.spec.whatwg.org/#constructors
 WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
-    JS::Realm& realm,
+    HTML::WindowOrWorkerGlobalScopeMixin& global_scope,
     String const& title,
     Bindings::NotificationOptions const& options)
 {
-    auto this_notification = realm.create<Notification>(realm);
-    auto& relevant_settings_object = HTML::relevant_settings_object(this_notification);
-    auto& relevant_global_object = HTML::relevant_global_object(this_notification);
+    auto& realm = HTML::relevant_realm(global_scope);
+    auto& relevant_settings_object = HTML::relevant_settings_object(global_scope);
 
     // 1. If this’s relevant global object is a ServiceWorkerGlobalScope object, then throw a TypeError.
-    if (Bindings::impl_from<ServiceWorker::ServiceWorkerGlobalScope>(&relevant_global_object))
+    if (is<ServiceWorker::ServiceWorkerGlobalScope>(global_scope.this_impl()))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "This’s relevant global object is a ServiceWorkerGlobalScope object"sv };
 
     // 2. If options["actions"] is not empty, then throw a TypeError.
@@ -182,6 +183,7 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
     ConceptNotification notification = TRY(create_a_notification_with_a_settings_object(realm, title, options, relevant_settings_object));
 
     // 4. Associate this with notification.
+    auto this_notification = GC::Heap::the().allocate<Notification>();
     this_notification->m_notification = notification;
 
     // FIXME: 5. Run these steps in parallel:
@@ -192,12 +194,6 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
     // FIXME: 2. Run the notification show steps for notification.
 
     return this_notification;
-}
-
-void Notification::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Notification);
-    Base::initialize(realm);
 }
 
 // https://notifications.spec.whatwg.org/#dom-notification-actions
@@ -237,11 +233,11 @@ Vector<NotificationAction> Notification::actions() const
 }
 
 // https://notifications.spec.whatwg.org/#dom-notification-data
-JS::Value Notification::data() const
+JS::Value Notification::data(JS::Realm& realm) const
 {
     // The data getter steps are to return StructuredDeserialize(this’s notification’s data, this’s relevant Realm).
     // If this throws an exception, then return null.
-    auto deserialized_data = HTML::structured_deserialize(vm(), m_notification.data, realm());
+    auto deserialized_data = HTML::structured_deserialize(realm.vm(), m_notification.data, realm);
     if (!deserialized_data.is_exception())
         return deserialized_data.release_value();
     return JS::js_null();

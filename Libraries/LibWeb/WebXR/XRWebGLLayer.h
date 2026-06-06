@@ -20,11 +20,11 @@ class XRWebGLLayer : public XRLayer {
 public:
     using XRWebGLRenderingContext = Variant<GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>>;
 
-    [[nodiscard]] static GC::Ref<XRWebGLLayer> create(JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> construct_impl(JS::Realm&, XRSession const& session, XRWebGLRenderingContext const&, Bindings::XRWebGLLayerInit const&);
+    [[nodiscard]] static GC::Ref<XRWebGLLayer> create();
+    static WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> construct_impl(HTML::Window&, XRSession const& session, XRWebGLRenderingContext const&, Bindings::XRWebGLLayerInit const&);
 
 private:
-    XRWebGLLayer(JS::Realm&);
+    XRWebGLLayer();
     virtual void visit_edges(JS::Cell::Visitor&) override;
 };
 

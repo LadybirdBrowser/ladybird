@@ -32,7 +32,7 @@ public:
 
     using LineAndPositionSetting = Variant<double, Bindings::AutoKeyword>;
 
-    static WebIDL::ExceptionOr<GC::Ref<VTTCue>> construct_impl(JS::Realm&, double start_time, double end_time, String const& text);
+    static WebIDL::ExceptionOr<GC::Ref<VTTCue>> construct_impl(double start_time, double end_time, String const& text);
     virtual ~VTTCue() override = default;
 
     GC::Ptr<VTTRegion> region() const { return m_region; }
@@ -71,9 +71,8 @@ protected:
     Bindings::PositionAlignSetting computed_position_alignment();
 
 private:
-    VTTCue(JS::Realm&, GC::Ptr<HTML::TextTrack>);
+    VTTCue(GC::Ptr<HTML::TextTrack>);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     // https://w3c.github.io/webvtt/#cue-text

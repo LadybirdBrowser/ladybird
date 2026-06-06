@@ -18,7 +18,7 @@ class WebGLDrawBuffers : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(WebGLDrawBuffers);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
     void draw_buffers_webgl(Vector<GLenum> buffers);
 
@@ -26,7 +26,7 @@ protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    WebGLDrawBuffers(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    WebGLDrawBuffers(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

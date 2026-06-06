@@ -9,6 +9,8 @@
 #include "Animatable.h"
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -26,11 +28,10 @@ struct Animatable::Transition {
 Animatable::Impl::~Impl() = default;
 
 // https://www.w3.org/TR/web-animations-1/#dom-animatable-animate
-WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(GC::Ptr<JS::Object> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(JS::Realm& realm, GC::Ptr<JS::Object> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options)
 {
     // 1. Let target be the object on which this method was called.
     GC::Ref target { *static_cast<DOM::Element*>(this) };
-    auto& realm = target->realm();
 
     // 2. Construct a new KeyframeEffect object, effect, in the relevant Realm of target by using the same procedure as
     //    the KeyframeEffect(target, keyframes, options) constructor, passing target as the target argument, and the
@@ -38,8 +39,11 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(GC::Ptr<JS::Object> 
     //
     //    If the above procedure causes an exception to be thrown, propagate the exception and abort this procedure.
     auto effect = TRY(options.visit(
-        [&](Empty) { return KeyframeEffect::construct_impl(realm, target, keyframes); },
-        [&](auto const& value) { return KeyframeEffect::construct_impl(realm, target, keyframes, value); }));
+        [&](Empty) { return KeyframeEffect::construct_impl_for_realm(realm, target, keyframes); },
+        [&](auto const& value) { return KeyframeEffect::construct_impl_for_realm(realm, target, keyframes, value); }));
+    // NB: The generated binding wraps the return value in the callee realm.
+    // Populate the main-world cache with target realm wrappers first.
+    (void)Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, effect);
 
     // 3. If options is a KeyframeAnimationOptions object, let timeline be the timeline member of options or, if
     //    timeline member of options is missing, be the default document timeline of the node document of the element
@@ -52,7 +56,8 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(GC::Ptr<JS::Object> 
 
     // 4. Construct a new Animation object, animation, in the relevant Realm of target by using the same procedure as
     //    the Animation() constructor, passing effect and timeline as arguments of the same name.
-    auto animation = Animation::create(realm, effect, move(timeline));
+    auto animation = Animation::create(target->document().relevant_settings_object(), effect, move(timeline));
+    (void)Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, animation);
 
     // 5. If options is a KeyframeAnimationOptions object, assign the value of the id member of options to animation’s
     //    id attribute.
@@ -67,13 +72,13 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(GC::Ptr<JS::Object> 
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-animatable-getanimations
-WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations(Optional<Bindings::GetAnimationsOptions> const& options)
+WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations(JS::Realm& realm, Optional<Bindings::GetAnimationsOptions> const& options)
 {
     as<DOM::Element>(*this).document().update_style();
-    return get_animations_internal(GetAnimationsSorted::Yes, options);
+    return get_animations_internal(realm, GetAnimationsSorted::Yes, options);
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_internal(GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options)
+WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_internal(JS::Realm& realm, GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options)
 {
     // 1. Let object be the object on which this method was called.
 
@@ -81,7 +86,6 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
     // FIXME: Currently only DOM::Element includes Animatable, but that might not always be true.
     Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
     if (options.has_value() && options->pseudo_element.has_value()) {
-        auto& realm = static_cast<DOM::Element&>(*this).realm();
         pseudo_element = TRY(pseudo_element_parsing(realm, options->pseudo_element));
     }
 
@@ -105,7 +109,7 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
     if (options.has_value() && options->subtree) {
         Optional<WebIDL::Exception> exception;
         TRY(target->for_each_child_of_type_fallible<DOM::Element>([&](auto& child) -> WebIDL::ExceptionOr<IterationDecision> {
-            relevant_animations.extend(TRY(child.get_animations_internal(GetAnimationsSorted::No, options)));
+            relevant_animations.extend(TRY(child.get_animations_internal(realm, GetAnimationsSorted::No, options)));
             return IterationDecision::Continue;
         }));
     }

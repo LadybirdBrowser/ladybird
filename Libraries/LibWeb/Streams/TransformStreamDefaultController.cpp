@@ -14,8 +14,8 @@ namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(TransformStreamDefaultController);
 
-TransformStreamDefaultController::TransformStreamDefaultController(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+TransformStreamDefaultController::TransformStreamDefaultController()
+    : Bindings::Wrappable()
 {
 }
 
@@ -44,10 +44,10 @@ Optional<double> TransformStreamDefaultController::desired_size()
 }
 
 // https://streams.spec.whatwg.org/#ts-default-controller-enqueue
-WebIDL::ExceptionOr<void> TransformStreamDefaultController::enqueue(Optional<JS::Value> chunk)
+WebIDL::ExceptionOr<void> TransformStreamDefaultController::enqueue(JS::Realm& realm, Optional<JS::Value> chunk)
 {
     // 1. Perform ? TransformStreamDefaultControllerEnqueue(this, chunk).
-    TRY(transform_stream_default_controller_enqueue(*this, chunk.has_value() ? chunk.value() : JS::js_undefined()));
+    TRY(transform_stream_default_controller_enqueue(realm, *this, chunk.has_value() ? chunk.value() : JS::js_undefined()));
 
     return {};
 }

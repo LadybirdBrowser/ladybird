@@ -9,6 +9,7 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
+#include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/DOMURL.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -19,9 +20,9 @@ namespace Web::DOMURL {
 
 GC_DEFINE_ALLOCATOR(DOMURL);
 
-GC::Ref<DOMURL> DOMURL::create(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
+GC::Ref<DOMURL> DOMURL::create(URL::URL url, GC::Ref<URLSearchParams> query)
 {
-    return realm.create<DOMURL>(realm, move(url), query);
+    return GC::Heap::the().allocate<DOMURL>(move(url), query);
 }
 
 // https://url.spec.whatwg.org/#api-url-parser
@@ -47,17 +48,17 @@ static Optional<URL::URL> parse_api_url(String const& url, Optional<String> cons
 }
 
 // https://url.spec.whatwg.org/#url-initialize
-GC::Ref<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL const& url_record)
+GC::Ref<DOMURL> DOMURL::initialize_a_url(URL::URL const& url_record)
 {
     // 1. Let query be urlRecord’s query, if that is non-null; otherwise the empty string.
     auto query = url_record.query().value_or(String {});
 
     // 2. Set url’s URL to urlRecord.
     // 3. Set url’s query object to a new URLSearchParams object.
-    auto query_object = URLSearchParams::create(realm, query);
+    auto query_object = URLSearchParams::create(query);
 
     // 4. Initialize url’s query object with query.
-    auto result_url = DOMURL::create(realm, url_record, move(query_object));
+    auto result_url = DOMURL::create(url_record, move(query_object));
 
     // 5. Set url’s query object’s URL object to url.
     result_url->m_query->m_url = result_url;
@@ -66,10 +67,8 @@ GC::Ref<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL const& url_r
 }
 
 // https://url.spec.whatwg.org/#dom-url-parse
-GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM& vm, String const& url, Optional<String> const& base)
+GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);
 
@@ -80,11 +79,11 @@ GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM& vm, String const& url, Option
     // 3. Let url be a new URL object.
     // 4. Initialize url with parsedURL.
     // 5. Return url.
-    return initialize_a_url(realm, parsed_url.value());
+    return initialize_a_url(parsed_url.value());
 }
 
 // https://url.spec.whatwg.org/#dom-url-url
-WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, String const& url, Optional<String> const& base)
+WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(String const& url, Optional<String> const& base)
 {
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);
@@ -94,11 +93,11 @@ WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, St
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"sv };
 
     // 3. Initialize this with parsedURL.
-    return initialize_a_url(realm, parsed_url.value());
+    return initialize_a_url(parsed_url.value());
 }
 
-DOMURL::DOMURL(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
-    : Wrappable(realm)
+DOMURL::DOMURL(URL::URL url, GC::Ref<URLSearchParams> query)
+    : Bindings::Wrappable()
     , m_url(move(url))
     , m_query(move(query))
 {

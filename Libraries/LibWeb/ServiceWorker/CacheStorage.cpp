@@ -5,8 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/CacheStorage.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
@@ -16,8 +18,7 @@ namespace Web::ServiceWorker {
 
 GC_DEFINE_ALLOCATOR(CacheStorage);
 
-CacheStorage::CacheStorage(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+CacheStorage::CacheStorage()
 {
 }
 
@@ -28,16 +29,14 @@ void CacheStorage::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-match
-GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, Bindings::MultiCacheQueryOptions options)
+GC::Ref<WebIDL::Promise> CacheStorage::match(JS::Realm& realm, Fetch::RequestInfo request, Bindings::MultiCacheQueryOptions options)
 {
-    auto& realm = HTML::relevant_realm(*this);
-
     // 1. If options["cacheName"] exists, then:
     if (options.cache_name.has_value()) {
         // 1. Return a new promise promise and run the following substeps in parallel:
         auto promise = WebIDL::create_promise(realm);
 
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise, request = move(request), options = move(options)]() mutable {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise, request = move(request), options = move(options)]() mutable {
             HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. For each cacheName → cache of the relevant name to cache map:
@@ -46,8 +45,8 @@ GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, Binding
                 // 1. Resolve promise with the result of running the algorithm specified in match(request, options)
                 //    method of Cache interface with request and options (providing cache as thisArgument to the
                 //    [[Call]] internal method of match(request, options).)
-                auto cache = realm.create<Cache>(realm, result.release_value());
-                auto match = cache->match(move(request), move(options));
+                auto cache = GC::Heap::the().allocate<Cache>(result.release_value());
+                auto match = cache->match(realm, move(request), move(options));
                 WebIDL::resolve_promise(realm, promise, match->promise());
 
                 // 2. Abort these steps.
@@ -69,7 +68,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, Binding
         for (auto const& [cache_name, cache_list] : relevant_name_to_cache_map()) {
             // 1. Set promise to the result of reacting to itself with a fulfillment handler that, when called with
             //    argument response, performs the following substeps:
-            promise = WebIDL::upon_fulfillment(promise, GC::create_function(realm.heap(), [&realm, cache_list, request, options](JS::Value response) mutable -> WebIDL::ExceptionOr<JS::Value> {
+            promise = WebIDL::upon_fulfillment(promise, GC::create_function(GC::Heap::the(), [&realm, cache_list, request, options](JS::Value response) mutable -> WebIDL::ExceptionOr<JS::Value> {
                 HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 // 1. If response is not undefined, return response.
@@ -79,8 +78,8 @@ GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, Binding
                 // 2. Return the result of running the algorithm specified in match(request, options) method of Cache
                 //    interface with request and options as the arguments (providing cache as thisArgument to the
                 //    [[Call]] internal method of match(request, options).)
-                auto cache = realm.create<Cache>(realm, cache_list);
-                auto match = cache->match(move(request), move(options));
+                auto cache = GC::Heap::the().allocate<Cache>(cache_list);
+                auto match = cache->match(realm, move(request), move(options));
                 return match->promise();
             }));
         }
@@ -91,15 +90,13 @@ GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, Binding
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-has
-GC::Ref<WebIDL::Promise> CacheStorage::has(String const& cache_name)
+GC::Ref<WebIDL::Promise> CacheStorage::has(JS::Realm& realm, String const& cache_name)
 {
-    auto& realm = HTML::relevant_realm(*this);
-
     // 1. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise, cache_name]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise, cache_name]() {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. For each key → value of the relevant name to cache map:
@@ -113,15 +110,13 @@ GC::Ref<WebIDL::Promise> CacheStorage::has(String const& cache_name)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-open
-GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
+GC::Ref<WebIDL::Promise> CacheStorage::open(JS::Realm& realm, String const& cache_name)
 {
-    auto& realm = HTML::relevant_realm(*this);
-
     // 1. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise, cache_name]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise, cache_name]() {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         auto& relevant_name_to_cache_map = this->relevant_name_to_cache_map();
 
@@ -129,14 +124,14 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
         //     1. If cacheName matches key, then:
         if (auto value = relevant_name_to_cache_map.get(cache_name); value.has_value()) {
             // 1. Resolve promise with a new Cache object that represents value.
-            WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, realm.create<Cache>(realm, value.release_value())));
+            WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Heap::the().allocate<Cache>(value.release_value())));
 
             // 2. Abort these steps.
             return;
         }
 
         // 2. Let cache be a new request response list.
-        auto cache = realm.heap().allocate<RequestResponseList>();
+        auto cache = GC::Heap::the().allocate<RequestResponseList>();
 
         // 3. Set the relevant name to cache map[cacheName] to cache. If this cache write operation failed due to
         //    exceeding the granted quota limit, reject promise with a QuotaExceededError and abort these steps.
@@ -144,7 +139,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
         relevant_name_to_cache_map.set(cache_name, cache);
 
         // 4. Resolve promise with a new Cache object that represents cache.
-        WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, realm.create<Cache>(realm, cache)));
+        WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Heap::the().allocate<Cache>(cache)));
     }));
 
     // 3. Return promise.
@@ -152,16 +147,14 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-open
-GC::Ref<WebIDL::Promise> CacheStorage::delete_(String const& cache_name)
+GC::Ref<WebIDL::Promise> CacheStorage::delete_(JS::Realm& realm, String const& cache_name)
 {
-    auto& realm = HTML::relevant_realm(*this);
-
     // 1. Let promise be the result of running the algorithm specified in has(cacheName) method with cacheName.
-    auto promise = has(cache_name);
+    auto promise = has(realm, cache_name);
 
     // 2. Return the result of reacting to promise with a fulfillment handler that, when called with argument cacheExists,
     //    performs the following substeps:
-    return WebIDL::upon_fulfillment(promise, GC::create_function(realm.heap(), [this, &realm, cache_name](JS::Value cache_exists) mutable -> WebIDL::ExceptionOr<JS::Value> {
+    return WebIDL::upon_fulfillment(promise, GC::create_function(GC::Heap::the(), [this, &realm, cache_name](JS::Value cache_exists) mutable -> WebIDL::ExceptionOr<JS::Value> {
         // 1. If cacheExists is false, then:
         if (!cache_exists.as_bool()) {
             // 1. Return false.
@@ -174,7 +167,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::delete_(String const& cache_name)
         auto cache_job_promise = WebIDL::create_promise(realm);
 
         // 2. Run the following substeps in parallel:
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, cache_job_promise, cache_name]() {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, cache_job_promise, cache_name]() {
             HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. Remove the relevant name to cache map[cacheName].
@@ -193,15 +186,13 @@ GC::Ref<WebIDL::Promise> CacheStorage::delete_(String const& cache_name)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-keys
-GC::Ref<WebIDL::Promise> CacheStorage::keys()
+GC::Ref<WebIDL::Promise> CacheStorage::keys(JS::Realm& realm)
 {
-    auto& realm = HTML::relevant_realm(*this);
-
     // 1. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, &realm, promise]() {
         HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let cacheKeys be the result of getting the keys of the relevant name to cache map.

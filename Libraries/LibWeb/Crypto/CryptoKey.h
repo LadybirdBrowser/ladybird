@@ -11,11 +11,11 @@
 #include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibGC/Ptr.h>
-#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CryptoKey.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -96,13 +96,13 @@ public:
 
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<CryptoKey> create(JS::Realm&, InternalKeyData);
-    [[nodiscard]] static GC::Ref<CryptoKey> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CryptoKey> create(InternalKeyData);
+    [[nodiscard]] static GC::Ref<CryptoKey> create();
 
     bool extractable() const { return m_extractable; }
     Bindings::KeyType type() const { return m_type; }
-    JS::ThrowCompletionOr<JS::Object const*> algorithm() const;
-    JS::Object const* usages() const;
+    JS::ThrowCompletionOr<JS::Object const*> algorithm(JS::Realm&) const;
+    JS::Object const* usages(JS::Realm&) const;
 
     Vector<Bindings::KeyUsage> internal_usages() const { return m_key_usages; }
     RsaHashedKeyAlgorithmData const& rsa_hashed_algorithm() const { return m_algorithm.get<RsaHashedKeyAlgorithmData>(); }
@@ -111,24 +111,24 @@ public:
 
     void set_extractable(bool extractable) { m_extractable = extractable; }
     void set_type(Bindings::KeyType type) { m_type = type; }
-    void set_algorithm(GC::Ref<JS::Object>);
+    void set_algorithm(InternalAlgorithmData);
     void set_usages(Vector<Bindings::KeyUsage>);
 
     InternalKeyData const& handle() const { return m_key_data; }
     String algorithm_name() const;
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 private:
-    CryptoKey(JS::Realm&, InternalKeyData);
-    explicit CryptoKey(JS::Realm&);
+    explicit CryptoKey(InternalKeyData);
+    CryptoKey();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
-    JS::ThrowCompletionOr<GC::Ref<JS::Object>> algorithm_for_realm(JS::Realm&) const;
-    GC::Ref<JS::Object> usages_for_realm(JS::Realm&) const;
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> algorithm_for_bindings(JS::Realm&, Bindings::WrapperWorld const&) const;
+    GC::Ref<JS::Object> create_usages_object(JS::Realm&) const;
     void clear_cached_algorithm_objects() const;
     void clear_cached_usages_objects() const;
 
@@ -139,10 +139,8 @@ private:
     Vector<Bindings::KeyUsage> m_key_usages;
     InternalKeyData m_key_data; // [[handle]]
 
-    mutable GC::Weak<JS::Object> m_algorithm_object;
-    mutable Vector<GC::Weak<JS::Object>> m_live_algorithm_objects;
-    mutable GC::Weak<JS::Object> m_usages_object;
-    mutable Vector<GC::Weak<JS::Object>> m_live_usages_objects;
+    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_algorithm_objects;
+    mutable Bindings::WrapperWorldWeakValueCache<JS::Object> m_usages_objects;
 };
 
 // https://w3c.github.io/webcrypto/#ref-for-dfn-CryptoKeyPair-2

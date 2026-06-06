@@ -29,7 +29,7 @@ public:
         Optional<FlyString> container_name;
         RefPtr<ContainerQuery> container_query;
     };
-    [[nodiscard]] static GC::Ref<CSSContainerRule> create(JS::Realm&, Vector<Condition>&&, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSContainerRule> create(Vector<Condition>&&, CSSRuleList&);
 
     virtual ~CSSContainerRule() override;
 
@@ -47,7 +47,7 @@ public:
     virtual void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const override;
 
 private:
-    CSSContainerRule(JS::Realm&, Vector<Condition>&&, CSSRuleList&);
+    CSSContainerRule(Vector<Condition>&&, CSSRuleList&);
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual String serialized() const override;

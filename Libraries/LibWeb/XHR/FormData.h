@@ -24,11 +24,11 @@ class FormData : public Bindings::Wrappable {
 public:
     virtual ~FormData() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::Ptr<HTML::HTMLFormElement> form = {}, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
+    static GC::Ref<FormData> create(GC::ConservativeVector<FormDataEntry> entry_list);
+    static GC::Ref<FormData> create(Vector<DOMURL::QueryParam> entry_list);
 
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, Vector<DOMURL::QueryParam> entry_list);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(GC::Ptr<HTML::HTMLFormElement> form = {}, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(GC::ConservativeVector<FormDataEntry> entry_list);
 
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
     WebIDL::ExceptionOr<void> append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
@@ -47,7 +47,7 @@ public:
 private:
     friend class FormDataIterator;
 
-    explicit FormData(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
+    explicit FormData(GC::ConservativeVector<FormDataEntry> entry_list);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

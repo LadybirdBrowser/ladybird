@@ -21,7 +21,7 @@ class WritableStreamDefaultWriter final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(WritableStreamDefaultWriter);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> construct_impl(JS::Realm&, GC::Ref<WritableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ref<WritableStream>);
 
     virtual ~WritableStreamDefaultWriter() override = default;
 
@@ -35,16 +35,18 @@ public:
 
     GC::Ptr<WebIDL::Promise> closed_promise() { return m_closed_promise; }
     void set_closed_promise(GC::Ptr<WebIDL::Promise> value) { m_closed_promise = value; }
+    JS::Realm& closed_promise_realm() const;
 
     GC::Ptr<WebIDL::Promise> ready_promise() { return m_ready_promise; }
     void set_ready_promise(GC::Ptr<WebIDL::Promise> value) { m_ready_promise = value; }
+    JS::Realm& ready_promise_realm() const;
 
     GC::Ptr<WritableStream const> stream() const { return m_stream; }
     GC::Ptr<WritableStream> stream() { return m_stream; }
     void set_stream(GC::Ptr<WritableStream> value) { m_stream = value; }
 
 private:
-    explicit WritableStreamDefaultWriter(JS::Realm&);
+    WritableStreamDefaultWriter();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

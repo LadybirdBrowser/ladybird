@@ -29,7 +29,6 @@ public:
     };
 
     [[nodiscard]] static GC::Ref<SVGAnimatedNumber> create(
-        JS::Realm&,
         GC::Ref<SVGElement>,
         DOM::QualifiedName reflected_attribute,
         float initial_value,
@@ -43,7 +42,7 @@ public:
     float anim_val() const;
 
 private:
-    SVGAnimatedNumber(JS::Realm&, GC::Ref<SVGElement>, DOM::QualifiedName, float, SupportsSecondValue, ValueRepresented);
+    SVGAnimatedNumber(GC::Ref<SVGElement>, DOM::QualifiedName, float, SupportsSecondValue, ValueRepresented);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

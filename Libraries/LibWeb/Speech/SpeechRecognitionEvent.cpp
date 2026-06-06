@@ -4,25 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/SpeechRecognitionEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Speech/SpeechRecognitionEvent.h>
 
 namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognitionEvent);
 
-GC::Ref<SpeechRecognitionEvent> SpeechRecognitionEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> SpeechRecognitionEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init)
 {
-    return realm.create<SpeechRecognitionEvent>(realm, event_name, move(event_init));
+    return GC::Heap::the().allocate<SpeechRecognitionEvent>(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
 }
 
-WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> SpeechRecognitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init)
-{
-    return create(realm, event_name, move(event_init));
-}
-
-SpeechRecognitionEvent::SpeechRecognitionEvent(JS::Realm& realm, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+SpeechRecognitionEvent::SpeechRecognitionEvent(FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_result_index(event_init.result_index)
     , m_results(event_init.results)
 {

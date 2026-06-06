@@ -5,6 +5,7 @@
  */
 
 #include "CSSUnparsedValue.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -15,7 +16,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSUnparsedValue);
 
-GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, ReadonlySpan<CSSUnparsedSegment> value)
+GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(ReadonlySpan<CSSUnparsedSegment> value)
 {
     // NB: Convert our Span into a Vector of Refs.
     Vector<CSSUnparsedSegment> converted_value;
@@ -25,19 +26,19 @@ GC::Ref<CSSUnparsedValue> CSSUnparsedValue::create(JS::Realm& realm, ReadonlySpa
             [&](String const& it) { converted_value.append(it); });
     }
 
-    return realm.create<CSSUnparsedValue>(realm, move(converted_value));
+    return GC::Heap::the().allocate<CSSUnparsedValue>(move(converted_value));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-cssunparsedvalue
-WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> CSSUnparsedValue::construct_impl(JS::Realm& realm, ReadonlySpan<CSSUnparsedSegment> value)
+WebIDL::ExceptionOr<GC::Ref<CSSUnparsedValue>> CSSUnparsedValue::construct_impl(ReadonlySpan<CSSUnparsedSegment> value)
 {
     // AD-HOC: There is no spec for this, see https://github.com/w3c/css-houdini-drafts/issues/1146
 
-    return CSSUnparsedValue::create(realm, move(value));
+    return CSSUnparsedValue::create(move(value));
 }
 
-CSSUnparsedValue::CSSUnparsedValue(JS::Realm& realm, ReadonlySpan<CSSUnparsedSegment> value)
-    : CSSStyleValue(realm)
+CSSUnparsedValue::CSSUnparsedValue(ReadonlySpan<CSSUnparsedSegment> value)
+    : CSSStyleValue()
     , m_tokens(move(value))
 {
 }
@@ -62,7 +63,7 @@ WebIDL::UnsignedLong CSSUnparsedValue::length() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-determine-the-value-of-an-indexed-property
-Optional<JS::Value> CSSUnparsedValue::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> CSSUnparsedValue::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property of a CSSUnparsedValue this and an index n, let tokens be this’s
     // [[tokens]] internal slot, and return tokens[n].
@@ -70,7 +71,7 @@ Optional<JS::Value> CSSUnparsedValue::item_value(JS::Realm& realm, size_t index)
         return {};
     auto value = m_tokens[index];
     return value.visit(
-        [&](GC::Ref<CSSVariableReferenceValue> const& variable) -> JS::Value { return Bindings::wrap(realm, variable); },
+        [&](GC::Ref<CSSVariableReferenceValue> const& variable) -> JS::Value { return Bindings::wrap(wrapper_world, realm, variable); },
         [&](String const& string) -> JS::Value { return JS::PrimitiveString::create(realm.vm(), string); });
 }
 
@@ -84,16 +85,16 @@ static WebIDL::ExceptionOr<CSSUnparsedSegment> unparsed_segment_from_js_value(JS
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-set-the-value-of-an-existing-indexed-property
-WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_existing_indexed_property(u32 n, JS::Value value)
+WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_existing_indexed_property(JS::Realm& realm, u32 n, JS::Value value)
 {
     // To set the value of an existing indexed property of a CSSUnparsedValue this, an index n, and a value new value,
     // let tokens be this’s [[tokens]] internal slot, and set tokens[n] to new value.
-    m_tokens[n] = TRY(unparsed_segment_from_js_value(realm().vm(), value));
+    m_tokens[n] = TRY(unparsed_segment_from_js_value(realm.vm(), value));
     return {};
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-set-the-value-of-a-new-indexed-property
-WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_new_indexed_property(u32 n, JS::Value value)
+WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_new_indexed_property(JS::Realm& realm, u32 n, JS::Value value)
 {
     // To set the value of a new indexed property of a CSSUnparsedValue this, an index n, and a value new value,
     // let tokens be this’s [[tokens]] internal slot. If n is not equal to the size of tokens, throw a RangeError.
@@ -101,7 +102,7 @@ WebIDL::ExceptionOr<void> CSSUnparsedValue::set_value_of_new_indexed_property(u3
     if (n != m_tokens.size())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Index out of range"sv };
 
-    m_tokens.append(TRY(unparsed_segment_from_js_value(realm().vm(), value)));
+    m_tokens.append(TRY(unparsed_segment_from_js_value(realm.vm(), value)));
     return {};
 }
 

@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/Node.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeIterator.h>
@@ -15,8 +18,8 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(NodeIterator);
 
-NodeIterator::NodeIterator(JS::Realm& realm, Node& root)
-    : Wrappable(realm)
+NodeIterator::NodeIterator(Node& root)
+    : Bindings::Wrappable()
     , m_root(root)
     , m_reference({ root })
 {
@@ -43,12 +46,12 @@ void NodeIterator::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
-GC::Ref<NodeIterator> NodeIterator::create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
+GC::Ref<NodeIterator> NodeIterator::create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     // 1. Let iterator be a new NodeIterator object.
     // 2. Set iterator’s root and iterator’s reference to root.
     // 3. Set iterator’s pointer before reference to true.
-    auto iterator = realm.create<NodeIterator>(realm, root);
+    auto iterator = GC::Heap::the().allocate<NodeIterator>(root);
 
     // 4. Set iterator’s whatToShow to whatToShow.
     iterator->m_what_to_show = what_to_show;
@@ -68,7 +71,7 @@ void NodeIterator::detach()
 }
 
 // https://dom.spec.whatwg.org/#concept-nodeiterator-traverse
-JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(Direction direction)
+JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(JS::Realm& realm, Direction direction)
 {
     // 1. Let node be iterator’s reference.
     // 2. Let beforeNode be iterator’s pointer before reference.
@@ -116,7 +119,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(Direction direction)
         candidate = m_traversal_pointer->node;
 
         // 2. Let result be the result of filtering node within iterator.
-        auto result = TRY(filter(*m_traversal_pointer->node));
+        auto result = TRY(filter(realm, *m_traversal_pointer->node));
 
         // 3. If result is FILTER_ACCEPT, then break.
         if (result == NodeFilter::Result::FILTER_ACCEPT)
@@ -138,11 +141,11 @@ GC::Ptr<NodeFilter> NodeIterator::filter() const
 }
 
 // https://dom.spec.whatwg.org/#concept-node-filter
-JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(Node& node)
+JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(JS::Realm& realm, Node& node)
 {
     // 1. If traverser’s active flag is set, then throw an "InvalidStateError" DOMException.
     if (m_active)
-        return throw_completion(WebIDL::InvalidStateError::create(realm(), "NodeIterator is already active"_utf16));
+        return throw_completion(realm, WebIDL::InvalidStateError::create(realm, "NodeIterator is already active"_utf16));
 
     // 2. Let n be node’s nodeType attribute value − 1.
     auto n = node.node_type() - 1;
@@ -161,7 +164,8 @@ JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(Node& node)
     // 6. Let result be the return value of call a user object’s operation with traverser’s filter, "acceptNode", and « node ».
     //    If this throws an exception, then unset traverser’s active flag and rethrow the exception.
     auto& callback = m_filter->callback();
-    auto wrapped_node = Bindings::wrap(callback.callback->shape().realm(), GC::Ref { node });
+    auto& callback_realm = callback.callback->shape().realm();
+    auto wrapped_node = Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, GC::Ref { node });
     auto result = WebIDL::call_user_object_operation(callback, "acceptNode"_utf16_fly_string, {}, { { wrapped_node } });
     if (result.is_abrupt()) {
         m_active = false;
@@ -172,20 +176,20 @@ JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(Node& node)
     m_active = false;
 
     // 8. Return result.
-    auto result_value = TRY(result.value().to_i32(realm().vm()));
+    auto result_value = TRY(result.value().to_i32(realm.vm()));
     return static_cast<NodeFilter::Result>(result_value);
 }
 
 // https://dom.spec.whatwg.org/#dom-nodeiterator-nextnode
-JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::next_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::next_node(JS::Realm& realm)
 {
-    return traverse(Direction::Next);
+    return traverse(realm, Direction::Next);
 }
 
 // https://dom.spec.whatwg.org/#dom-nodeiterator-previousnode
-JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::previous_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::previous_node(JS::Realm& realm)
 {
-    return traverse(Direction::Previous);
+    return traverse(realm, Direction::Previous);
 }
 
 void NodeIterator::run_pre_removing_steps_with_node_pointer(Node& to_be_removed_node, NodePointer& pointer)

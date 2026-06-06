@@ -10,8 +10,8 @@ namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRRenderState);
 
-XRRenderState::XRRenderState(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+XRRenderState::XRRenderState()
+    : Bindings::Wrappable()
 {
 }
 

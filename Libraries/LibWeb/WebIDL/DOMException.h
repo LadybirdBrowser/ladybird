@@ -101,6 +101,8 @@ class WEB_API DOMException
     GC_DECLARE_ALLOCATOR(DOMException);
 
 public:
+    static GC::Ref<DOMException> create(FlyString name, Utf16String const& message);
+    static GC::Ref<DOMException> create();
     static GC::Ref<DOMException> create(JS::Realm& realm, FlyString name, Utf16String const& message);
     static GC::Ref<DOMException> create(JS::Realm& realm);
 
@@ -114,12 +116,12 @@ public:
     Utf16FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 protected:
-    DOMException(JS::Realm&, FlyString name, Utf16String const& message);
-    explicit DOMException(JS::Realm&);
+    DOMException(FlyString name, Utf16String const& message);
+    DOMException();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
@@ -127,13 +129,17 @@ protected:
     Utf16FlyString m_message;
 };
 
-#define __ENUMERATE(ErrorName)                                                            \
-    class ErrorName final {                                                               \
-    public:                                                                               \
-        static GC::Ref<DOMException> create(JS::Realm& realm, Utf16String const& message) \
-        {                                                                                 \
-            return DOMException::create(realm, #ErrorName##_fly_string, message);         \
-        }                                                                                 \
+#define __ENUMERATE(ErrorName)                                                      \
+    class ErrorName final {                                                         \
+    public:                                                                         \
+        static GC::Ref<DOMException> create(Utf16String const& message)             \
+        {                                                                           \
+            return DOMException::create(#ErrorName##_fly_string, message);          \
+        }                                                                           \
+        static GC::Ref<DOMException> create(JS::Realm&, Utf16String const& message) \
+        {                                                                           \
+            return DOMException::create(#ErrorName##_fly_string, message);          \
+        }                                                                           \
     };
 ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 #undef __ENUMERATE
@@ -142,7 +148,7 @@ ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 
 namespace Web {
 
-WEB_API JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception);
+WEB_API JS::Completion throw_completion(JS::Realm&, GC::Ref<WebIDL::DOMException> exception);
 
 }
 

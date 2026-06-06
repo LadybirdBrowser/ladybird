@@ -17,14 +17,14 @@ class CSSScale final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSScale);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSScale> create(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-    static WebIDL::ExceptionOr<GC::Ref<CSSScale>> construct_impl(JS::Realm&, CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z = {});
+    [[nodiscard]] static GC::Ref<CSSScale> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    static WebIDL::ExceptionOr<GC::Ref<CSSScale>> construct_impl(CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z = {});
 
     virtual ~CSSScale() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
 
     CSSNumberish x() const { return m_x; }
     CSSNumberish y() const { return m_y; }
@@ -36,7 +36,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSScale(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    explicit CSSScale(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_x;

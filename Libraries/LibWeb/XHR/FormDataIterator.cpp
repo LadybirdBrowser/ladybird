@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/File.h>
 #include <LibWeb/Bindings/FormData.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/XHR/FormDataIterator.h>
 
@@ -27,13 +28,13 @@ namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(FormDataIterator);
 
-GC::Ref<FormDataIterator> FormDataIterator::create(FormData const& form_data, JS::Object::PropertyKind iterator_kind)
+GC::Ref<FormDataIterator> FormDataIterator::create(JS::Realm& realm, FormData const& form_data, JS::Object::PropertyKind iterator_kind)
 {
-    return form_data.realm().create<FormDataIterator>(form_data, iterator_kind);
+    return realm.create<FormDataIterator>(realm, form_data, iterator_kind);
 }
 
-FormDataIterator::FormDataIterator(Web::XHR::FormData const& form_data, JS::Object::PropertyKind iterator_kind)
-    : JS::Object(form_data.realm(), nullptr)
+FormDataIterator::FormDataIterator(JS::Realm& realm, Web::XHR::FormData const& form_data, JS::Object::PropertyKind iterator_kind)
+    : JS::Object(realm, nullptr)
     , m_form_data(form_data)
     , m_iterator_kind(iterator_kind)
 {
@@ -66,7 +67,8 @@ JS::Object* FormDataIterator::next()
 
     auto entry_value = entry.value.visit(
         [&](GC::Ref<FileAPI::File> file) -> JS::Value {
-            return Bindings::wrap(shape().realm(), file);
+            auto& realm = shape().realm();
+            return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, file);
         },
         [&](String const& string) -> JS::Value {
             return JS::PrimitiveString::create(vm, string);

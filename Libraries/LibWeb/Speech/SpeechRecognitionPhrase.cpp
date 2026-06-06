@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Speech/SpeechRecognitionPhrase.h>
 
 namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechRecognitionPhrase);
 
-WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> SpeechRecognitionPhrase::construct_impl(JS::Realm& realm, String const& phrase, float boost)
+WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> SpeechRecognitionPhrase::construct_impl(String const& phrase, float boost)
 {
-    return realm.create<SpeechRecognitionPhrase>(realm, phrase, boost);
+    return GC::Heap::the().allocate<SpeechRecognitionPhrase>(phrase, boost);
 }
 
-SpeechRecognitionPhrase::SpeechRecognitionPhrase(JS::Realm& realm, String const& phrase, float boost)
-    : Wrappable(realm)
+SpeechRecognitionPhrase::SpeechRecognitionPhrase(String const& phrase, float boost)
+    : Bindings::Wrappable()
     , m_phrase(phrase)
     , m_boost(boost)
 {

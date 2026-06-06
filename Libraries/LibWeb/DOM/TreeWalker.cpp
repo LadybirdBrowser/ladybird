@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/Node.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeFilter.h>
 #include <LibWeb/DOM/TreeWalker.h>
@@ -16,8 +19,8 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(TreeWalker);
 
-TreeWalker::TreeWalker(JS::Realm& realm, Node& root)
-    : Wrappable(realm)
+TreeWalker::TreeWalker(Node& root)
+    : Bindings::Wrappable()
     , m_root(root)
     , m_current(root)
 {
@@ -34,11 +37,11 @@ void TreeWalker::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker
-GC::Ref<TreeWalker> TreeWalker::create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
+GC::Ref<TreeWalker> TreeWalker::create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     // 1. Let walker be a new TreeWalker object.
     // 2. Set walker’s root and walker’s current to root.
-    auto walker = realm.create<TreeWalker>(realm, root);
+    auto walker = GC::Heap::the().allocate<TreeWalker>(root);
 
     // 3. Set walker’s whatToShow to whatToShow.
     walker->m_what_to_show = what_to_show;
@@ -63,7 +66,7 @@ void TreeWalker::set_current_node(Node& node)
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-parentnode
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::parent_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::parent_node(JS::Realm& realm)
 {
     // 1. Let node be this’s current.
     GC::Ptr<Node> node = m_current;
@@ -76,7 +79,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::parent_node()
         // 2. If node is non-null and filtering node within this returns FILTER_ACCEPT,
         //    then set this’s current to node and return node.
         if (node) {
-            auto result = TRY(filter(*node));
+            auto result = TRY(filter(realm, *node));
             if (result == NodeFilter::Result::FILTER_ACCEPT) {
                 m_current = *node;
                 return node;
@@ -88,31 +91,31 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::parent_node()
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-firstchild
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::first_child()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::first_child(JS::Realm& realm)
 {
-    return traverse_children(ChildTraversalType::First);
+    return traverse_children(realm, ChildTraversalType::First);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-lastchild
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::last_child()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::last_child(JS::Realm& realm)
 {
-    return traverse_children(ChildTraversalType::Last);
+    return traverse_children(realm, ChildTraversalType::Last);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-previoussibling
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_sibling()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_sibling(JS::Realm& realm)
 {
-    return traverse_siblings(SiblingTraversalType::Previous);
+    return traverse_siblings(realm, SiblingTraversalType::Previous);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-nextsibling
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_sibling()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_sibling(JS::Realm& realm)
 {
-    return traverse_siblings(SiblingTraversalType::Next);
+    return traverse_siblings(realm, SiblingTraversalType::Next);
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-previousnode
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_node(JS::Realm& realm)
 {
     // 1. Let node be this’s current.
     GC::Ref<Node> node = m_current;
@@ -128,7 +131,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_node()
             node = *sibling;
 
             // 2. Let result be the result of filtering node within this.
-            auto result = TRY(filter(*node));
+            auto result = TRY(filter(realm, *node));
 
             // 3. While result is not FILTER_REJECT and node has a child:
             while (result != NodeFilter::Result::FILTER_REJECT && node->has_children()) {
@@ -136,7 +139,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_node()
                 node = *node->last_child();
 
                 // 2. Set result to the result of filtering node within this.
-                result = TRY(filter(*node));
+                result = TRY(filter(realm, *node));
             }
 
             // 4. If result is FILTER_ACCEPT, then set this’s current to node and return node.
@@ -157,7 +160,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_node()
         node = *node->parent();
 
         // 5. If the return value of filtering node within this is FILTER_ACCEPT, then set this’s current to node and return node.
-        if (TRY(filter(*node)) == NodeFilter::Result::FILTER_ACCEPT) {
+        if (TRY(filter(realm, *node)) == NodeFilter::Result::FILTER_ACCEPT) {
             m_current = node;
             return node;
         }
@@ -167,7 +170,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::previous_node()
 }
 
 // https://dom.spec.whatwg.org/#dom-treewalker-nextnode
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_node(JS::Realm& realm)
 {
     // 1. Let node be this’s current.
     GC::Ref<Node> node = m_current;
@@ -183,7 +186,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_node()
             node = *node->first_child();
 
             // 2. Set result to the result of filtering node within this.
-            result = TRY(filter(*node));
+            result = TRY(filter(realm, *node));
 
             // 3. If result is FILTER_ACCEPT, then set this’s current to node and return node.
             if (result == NodeFilter::Result::FILTER_ACCEPT) {
@@ -225,7 +228,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_node()
         }
 
         // 5. Set result to the result of filtering node within this.
-        result = TRY(filter(*node));
+        result = TRY(filter(realm, *node));
 
         // 6. If result is FILTER_ACCEPT, then set this’s current to node and return node.
         if (result == NodeFilter::Result::FILTER_ACCEPT) {
@@ -242,11 +245,11 @@ GC::Ptr<NodeFilter> TreeWalker::filter() const
 }
 
 // https://dom.spec.whatwg.org/#concept-node-filter
-JS::ThrowCompletionOr<NodeFilter::Result> TreeWalker::filter(Node& node)
+JS::ThrowCompletionOr<NodeFilter::Result> TreeWalker::filter(JS::Realm& realm, Node& node)
 {
     // 1. If traverser’s active flag is set, then throw an "InvalidStateError" DOMException.
     if (m_active)
-        return throw_completion(WebIDL::InvalidStateError::create(realm(), "NodeIterator is already active"_utf16));
+        return throw_completion(realm, WebIDL::InvalidStateError::create(realm, "NodeIterator is already active"_utf16));
 
     // 2. Let n be node’s nodeType attribute value − 1.
     auto n = node.node_type() - 1;
@@ -265,7 +268,8 @@ JS::ThrowCompletionOr<NodeFilter::Result> TreeWalker::filter(Node& node)
     // 6. Let result be the return value of call a user object’s operation with traverser’s filter, "acceptNode", and « node ».
     //    If this throws an exception, then unset traverser’s active flag and rethrow the exception.
     auto& callback = m_filter->callback();
-    auto wrapped_node = Bindings::wrap(callback.callback->shape().realm(), GC::Ref { node });
+    auto& callback_realm = callback.callback->shape().realm();
+    auto wrapped_node = Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, GC::Ref { node });
     auto result = WebIDL::call_user_object_operation(callback, "acceptNode"_utf16_fly_string, {}, { { wrapped_node } });
     if (result.is_abrupt()) {
         m_active = false;
@@ -276,12 +280,12 @@ JS::ThrowCompletionOr<NodeFilter::Result> TreeWalker::filter(Node& node)
     m_active = false;
 
     // 8. Return result.
-    auto result_value = TRY(result.value().to_i32(realm().vm()));
+    auto result_value = TRY(result.value().to_i32(realm.vm()));
     return static_cast<NodeFilter::Result>(result_value);
 }
 
 // https://dom.spec.whatwg.org/#concept-traverse-children
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_children(ChildTraversalType type)
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_children(JS::Realm& realm, ChildTraversalType type)
 {
     // 1. Let node be walker’s current.
     GC::Ptr<Node> node = m_current;
@@ -292,7 +296,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_children(ChildTraversa
     // 3. While node is non-null:
     while (node) {
         // 1. Let result be the result of filtering node within walker.
-        auto result = TRY(filter(*node));
+        auto result = TRY(filter(realm, *node));
 
         // 2. If result is FILTER_ACCEPT, then set walker’s current to node and return node.
         if (result == NodeFilter::Result::FILTER_ACCEPT) {
@@ -340,7 +344,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_children(ChildTraversa
 }
 
 // https://dom.spec.whatwg.org/#concept-traverse-siblings
-JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_siblings(SiblingTraversalType type)
+JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_siblings(JS::Realm& realm, SiblingTraversalType type)
 {
     // 1. Let node be walker’s current.
     GC::Ptr<Node> node = m_current;
@@ -360,7 +364,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_siblings(SiblingTraver
             node = sibling;
 
             // 2. Let result be the result of filtering node within walker.
-            auto result = TRY(filter(*node));
+            auto result = TRY(filter(realm, *node));
 
             // 3. If result is FILTER_ACCEPT, then set walker’s current to node and return node.
             if (result == NodeFilter::Result::FILTER_ACCEPT) {
@@ -384,7 +388,7 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::traverse_siblings(SiblingTraver
             return nullptr;
 
         // 5. If the return value of filtering node within walker is FILTER_ACCEPT, then return null.
-        if (TRY(filter(*node)) == NodeFilter::Result::FILTER_ACCEPT)
+        if (TRY(filter(realm, *node)) == NodeFilter::Result::FILTER_ACCEPT)
             return nullptr;
     }
 }

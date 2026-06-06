@@ -166,7 +166,7 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
             continue;
 
         // 4. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "require-trusted-types-for"
-        auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor.to_string());
+        auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor.to_string());
 
         // 5. Set violation’s resource to "trusted-types-sink".
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesSink);

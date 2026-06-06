@@ -15,7 +15,7 @@
 
 namespace Web::XPath {
 
-WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(JS::Realm& realm, String const& expression, GC::Ptr<XPathNSResolver> resolver);
+WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(String const& expression, GC::Ptr<XPathNSResolver> resolver);
 WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> resolver, unsigned short type, GC::Ptr<XPathResult> result);
 
 }

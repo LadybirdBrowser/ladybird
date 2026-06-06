@@ -27,8 +27,6 @@ public:
 
 private:
     HTMLDetailsElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void inserted() override;

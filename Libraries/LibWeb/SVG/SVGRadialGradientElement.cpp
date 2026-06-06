@@ -19,12 +19,6 @@ SVGRadialGradientElement::SVGRadialGradientElement(DOM::Document& document, DOM:
 {
 }
 
-void SVGRadialGradientElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGRadialGradientElement);
-    Base::initialize(realm);
-}
-
 void SVGRadialGradientElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

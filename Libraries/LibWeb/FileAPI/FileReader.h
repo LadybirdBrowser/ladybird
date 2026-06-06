@@ -24,8 +24,8 @@ public:
 
     virtual ~FileReader() override;
 
-    [[nodiscard]] static GC::Ref<FileReader> create(JS::Realm&);
-    static GC::Ref<FileReader> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FileReader> create(GC::Ref<DOM::EventTarget> relevant_global_object);
+    static GC::Ref<FileReader> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     // async read methods
     WebIDL::ExceptionOr<void> read_as_array_buffer(Blob&);
@@ -89,15 +89,13 @@ public:
     static WebIDL::ExceptionOr<Result> blob_package_data(JS::Realm& realm, ByteBuffer, FileReader::Type type, Optional<String> const&, Optional<String> const& encoding_name = {});
 
 protected:
-    FileReader(JS::Realm&, ByteBuffer);
-
-    virtual void initialize(JS::Realm&) override;
-
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    explicit FileReader(JS::Realm&);
+    explicit FileReader(GC::Ref<DOM::EventTarget> relevant_global_object);
 
+    JS::Object& relevant_global_object() const;
+    GC::Ref<DOM::Event> create_associated_event(FlyString const&) const;
     WebIDL::ExceptionOr<void> read_operation(Blob&, Type, Optional<String> const& encoding_name = {});
 
     void queue_a_task(GC::Ref<GC::Function<void()>>);
@@ -117,6 +115,8 @@ private:
     // A FileReader has an associated error (null or a DOMException). It is initially null.
     // https://w3c.github.io/FileAPI/#filereader-error
     GC::Ptr<WebIDL::DOMException> m_error;
+
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

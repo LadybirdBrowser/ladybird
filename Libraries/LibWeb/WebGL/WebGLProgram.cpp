@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLShader.h>
@@ -15,13 +15,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLProgram);
 
-GC::Ref<WebGLProgram> WebGLProgram::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLProgram> WebGLProgram::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
-    return realm.create<WebGLProgram>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLProgram>(context, handle);
 }
 
-WebGLProgram::WebGLProgram(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLProgram::WebGLProgram(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 

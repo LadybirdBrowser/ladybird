@@ -18,17 +18,17 @@ class XRSession final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(XRSession);
 
 public:
-    static GC::Ref<XRSession> create(JS::Realm&, GC::Ref<XRSystem>);
+    static GC::Ref<XRSession> create(GC::Ref<XRSystem>);
     virtual ~XRSession() override = default;
 
     // https://immersive-web.github.io/webxr/#dom-xrsession-updaterenderstate
     void update_render_state(Bindings::XRRenderStateInit const&);
 
     // https://immersive-web.github.io/webxr/#dom-xrsession-end
-    GC::Ref<WebIDL::Promise> end();
+    GC::Ref<WebIDL::Promise> end(JS::Realm&);
 
     // https://immersive-web.github.io/webxr/#shut-down-the-session
-    void shut_down();
+    void shut_down(JS::Realm&);
 
     GC::Ptr<WebIDL::CallbackType> onend();
     void set_onend(GC::Ptr<WebIDL::CallbackType>);
@@ -42,8 +42,7 @@ public:
     bool is_immersive() const { return m_mode != Bindings::XRSessionMode::Inline; }
 
 private:
-    XRSession(JS::Realm&, XRSystem&);
-    virtual void initialize(JS::Realm&) override;
+    XRSession(XRSystem&);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 

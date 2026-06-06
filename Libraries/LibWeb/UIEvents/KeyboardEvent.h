@@ -9,8 +9,15 @@
 #include <AK/FlyString.h>
 #include <AK/TypeCasts.h>
 #include <LibWeb/Bindings/KeyboardEvent.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/UIEvent.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::UIEvents {
 
@@ -27,9 +34,9 @@ class KeyboardEvent final : public UIEvent {
     GC_DECLARE_ALLOCATOR(KeyboardEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<KeyboardEvent> create(JS::Realm&, FlyString const& event_name, Bindings::KeyboardEventInit const& = {});
-    [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Realm&, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
-    static WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::KeyboardEventInit const&);
+    [[nodiscard]] static GC::Ref<KeyboardEvent> create(FlyString const& event_name, Bindings::KeyboardEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    static WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> construct_impl(HTML::Window&, FlyString const& event_name, Bindings::KeyboardEventInit const&);
 
     virtual ~KeyboardEvent() override;
 
@@ -55,7 +62,7 @@ public:
     void init_keyboard_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key);
 
 private:
-    KeyboardEvent(JS::Realm&, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init);
+    KeyboardEvent(FlyString const& event_name, Bindings::KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     String m_key;
     String m_code;

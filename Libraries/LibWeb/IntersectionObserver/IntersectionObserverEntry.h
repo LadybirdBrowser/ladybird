@@ -18,7 +18,8 @@ class IntersectionObserverEntry final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(IntersectionObserverEntry);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> construct_impl(JS::Realm&, Bindings::IntersectionObserverEntryInit const&);
+    static GC::Ref<IntersectionObserverEntry> create(HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target);
+    static WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> construct_impl(Bindings::IntersectionObserverEntryInit const&);
 
     virtual ~IntersectionObserverEntry() override;
 
@@ -31,7 +32,7 @@ public:
     GC::Ref<DOM::Element> target() const { return m_target; }
 
 private:
-    IntersectionObserverEntry(JS::Realm&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target);
+    IntersectionObserverEntry(HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

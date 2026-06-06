@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/External.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(External);
 
-GC::Ref<External> External::create(JS::Realm& realm)
+GC::Ref<External> External::create()
 {
-    return realm.create<External>(realm);
+    return GC::Heap::the().allocate<External>();
 }
 
-External::External(JS::Realm& realm)
-    : Wrappable(realm)
+External::External()
+    : Bindings::Wrappable()
 {
 }
 

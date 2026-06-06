@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/DOM/DOMImplementation.h>
@@ -21,12 +22,11 @@ GC_DEFINE_ALLOCATOR(DOMImplementation);
 
 GC::Ref<DOMImplementation> DOMImplementation::create(Document& document)
 {
-    auto& realm = document.realm();
-    return realm.create<DOMImplementation>(document);
+    return GC::Heap::the().allocate<DOMImplementation>(document);
 }
 
 DOMImplementation::DOMImplementation(Document& document)
-    : Wrappable(document.realm())
+    : Bindings::Wrappable()
     , m_document(document)
 {
 }
@@ -40,10 +40,12 @@ void DOMImplementation::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocument
-WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Optional<FlyString> const& namespace_, String const& qualified_name, GC::Ptr<DocumentType> doctype) const
+WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Optional<FlyString> const& namespace_, String const& qualified_name, GC::Ptr<DocumentType> doctype)
 {
+    auto& associated_document = document();
+
     // 1. Let document be a new XMLDocument
-    auto xml_document = XMLDocument::create(realm());
+    auto xml_document = XMLDocument::create(associated_document.page(), associated_document.relevant_global_event_target());
 
     xml_document->set_ready_for_post_load_tasks(true);
 
@@ -82,10 +84,12 @@ WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Opt
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createhtmldocument
-GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> const& title) const
+GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> const& title)
 {
+    auto& associated_document = document();
+
     // 1. Let doc be a new document that is an HTML document.
-    auto html_document = HTML::HTMLDocument::create(realm());
+    auto html_document = HTML::HTMLDocument::create(associated_document.page(), associated_document.relevant_global_event_target());
 
     // 2. Set doc’s content type to "text/html".
     html_document->set_content_type("text/html"_string);
@@ -94,7 +98,7 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
     html_document->set_ready_for_post_load_tasks(true);
 
     // 3. Append a new doctype, with "html" as its name and with its node document set to doc, to doc.
-    auto doctype = realm().create<DocumentType>(html_document);
+    auto doctype = DocumentType::create(html_document);
     doctype->set_name("html"_string);
     MUST(html_document->append_child(*doctype));
 
@@ -113,7 +117,7 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
         MUST(head_element->append_child(title_element));
 
         // 2. Append a new Text node, with its data set to title (which could be the empty string) and its node document set to doc, to the title element created earlier.
-        auto text_node = realm().create<Text>(html_document, title.value());
+        auto text_node = Text::create(html_document, title.value());
         MUST(title_element->append_child(*text_node));
     }
 
@@ -131,10 +135,11 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<Utf16String> 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype
 WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(String const& name, String const& public_id, String const& system_id)
 {
+    auto& realm = document().relevant_settings_object().realm();
 
     // 1. If name is not a valid doctype name, then throw an "InvalidCharacterError" DOMException.
     if (!is_valid_doctype_name(name))
-        return WebIDL::InvalidCharacterError::create(realm(), "Invalid doctype name"_utf16);
+        return WebIDL::InvalidCharacterError::create(realm, "Invalid doctype name"_utf16);
 
     // 2. Return a new doctype, with name as its name, publicId as its public ID, and systemId as its system ID, and with its node document set to the associated document of this.
     auto document_type = DocumentType::create(document());

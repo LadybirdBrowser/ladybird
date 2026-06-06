@@ -10,6 +10,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <AK/FFIHelpers.h>
+#include <LibGC/Heap.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -134,11 +135,6 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_speculative_html_parser);
 
     rust_html_parser_visit_edges(m_rust_parser, &visitor);
-}
-
-void HTMLParser::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
 }
 
 void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
@@ -467,13 +463,13 @@ static void perform_pre_progress_microtask_checkpoint()
 
 GC::Ref<HTMLParserEndState> HTMLParserEndState::create(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser)
 {
-    return document->heap().allocate<HTMLParserEndState>(document, parser);
+    return GC::Heap::the().allocate<HTMLParserEndState>(document, parser);
 }
 
 HTMLParserEndState::HTMLParserEndState(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> parser)
     : m_document(document)
     , m_parser(parser)
-    , m_timeout(Platform::Timer::create_single_shot(heap(), THE_END_TIMEOUT_MS, GC::create_function(heap(), [this] {
+    , m_timeout(Platform::Timer::create_single_shot(GC::Heap::the(), THE_END_TIMEOUT_MS, GC::create_function(GC::Heap::the(), [this] {
         if (m_phase != Phase::Completed)
             dbgln("HTMLParserEndState: timed out in phase {}", to_underlying(m_phase));
     })))
@@ -496,7 +492,7 @@ void HTMLParserEndState::schedule_progress_check()
     if (m_check_pending)
         return;
     m_check_pending = true;
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
         perform_pre_progress_microtask_checkpoint();
         check_progress();
         m_check_pending = false;
@@ -568,12 +564,14 @@ void HTMLParserEndState::advance_to_asap_scripts_phase()
     }
 
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), [document = m_document] {
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
         // 2. Fire an event named DOMContentLoaded at the Document object, with its bubbles attribute initialized to true.
-        auto content_loaded_event = DOM::Event::create(document->realm(), HTML::EventNames::DOMContentLoaded);
+        auto content_loaded_event = DOM::Event::create(
+            HTML::EventNames::DOMContentLoaded,
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(*document)));
         content_loaded_event->set_bubbles(true);
         document->dispatch_event(content_loaded_event);
 
@@ -595,7 +593,7 @@ void HTMLParserEndState::complete()
     m_document->set_html_parser_end_state(nullptr);
 
     // 9. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(m_document->heap(), [document = m_document, parser = m_parser] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*m_document), GC::create_function(GC::Heap::the(), [document = m_document, parser = m_parser] {
         // 1. Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
 
@@ -616,7 +614,9 @@ void HTMLParserEndState::complete()
         // 5. Fire an event named load at window, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
-        window.dispatch_event(DOM::Event::create(document->realm(), HTML::EventNames::load));
+        window.dispatch_event(DOM::Event::create(
+            HTML::EventNames::load,
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(window))));
 
         // FIXME: 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "complete", and url is the Document object's URL.
 
@@ -715,7 +715,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // 11. Append each attribute in the given token to element.
     token.for_each_attribute([&](auto const& attribute) {
         DOM::QualifiedName qualified_name { attribute.local_name, attribute.prefix, attribute.namespace_ };
-        auto dom_attribute = realm().create<DOM::Attr>(*document, move(qualified_name), attribute.value, element);
+        auto dom_attribute = DOM::Attr::create(*document, move(qualified_name), attribute.value, element);
         element->append_attribute(dom_attribute);
         return IterationDecision::Continue;
     });
@@ -767,7 +767,7 @@ void HTMLParser::schedule_resume_check()
     if (!m_parser_pause_flag)
         return;
     m_resume_check_pending = true;
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
         m_resume_check_pending = false;
         perform_pre_progress_microtask_checkpoint();
         resume_after_parser_blocking_script();
@@ -901,7 +901,9 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
     // 2. Let document be a Document node whose type is "html".
-    auto temp_document = DOM::Document::create_for_fragment_parsing(context_element.realm());
+    auto temp_document = DOM::Document::create_for_fragment_parsing(
+        context_element.document().page(),
+        context_element.document().relevant_global_event_target());
     temp_document->set_document_type(DOM::Document::Type::HTML);
 
     // AD-HOC: We set the about base URL of the document to the same as the context element's document.
@@ -1045,33 +1047,46 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
 GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes);
+    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes);
+    parser->initialize(document.relevant_settings_object().realm());
+    return parser;
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
+    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
+    parser->initialize(document.relevant_settings_object().realm());
+    return parser;
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    if (document.has_encoding())
-        return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
+    if (document.has_encoding()) {
+        auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
+        parser->initialize(document.relevant_settings_object().realm());
+        return parser;
+    }
     auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, encoding);
+    parser->initialize(document.relevant_settings_object().realm());
+    return parser;
 }
 
 GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, encoding);
+    parser->initialize(document.relevant_settings_object().realm());
+    return parser;
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
-    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding, HTMLTokenizer::InputType::DecodedString);
+    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, encoding, HTMLTokenizer::InputType::DecodedString);
+    parser->initialize(document.relevant_settings_object().realm());
+    return parser;
 }
 
 enum class AttributeMode {
@@ -1672,11 +1687,6 @@ RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(StringView s
     return nullptr;
 }
 
-JS::Realm& HTMLParser::realm()
-{
-    return m_document->realm();
-}
-
 // https://html.spec.whatwg.org/multipage/parsing.html#start-the-speculative-html-parser
 void HTMLParser::start_the_speculative_html_parser()
 {
@@ -1692,7 +1702,7 @@ void HTMLParser::start_the_speculative_html_parser()
     //    speculative mock elements. Let speculativeParser parse into speculativeDoc.
     // NOTE: The Rust preload scanner emits speculative fetch candidates directly, so we do not materialize a
     // speculativeDoc tree or speculative mock elements.
-    auto speculative_parser = SpeculativeHTMLParser::create(realm(), *m_document, m_tokenizer.unparsed_input(), m_document->base_url());
+    auto speculative_parser = SpeculativeHTMLParser::create(*m_document, m_tokenizer.unparsed_input(), m_document->base_url());
 
     // 5. Set parser's active speculative HTML parser to speculativeParser.
     m_active_speculative_html_parser = speculative_parser;
@@ -1886,7 +1896,7 @@ extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, Rust
 extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u8 const* name_ptr, size_t name_len, u8 const* public_id_ptr, size_t public_id_len, u8 const* system_id_ptr, size_t system_id_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
-    auto document_type = html_parser.document().realm().create<DOM::DocumentType>(html_parser.document());
+    auto document_type = DOM::DocumentType::create(html_parser.document());
     document_type->set_name(ffi_string(name_ptr, name_len));
     document_type->set_public_id(ffi_string(public_id_ptr, public_id_len));
     document_type->set_system_id(ffi_string(system_id_ptr, system_id_len));
@@ -1896,7 +1906,7 @@ extern "C" size_t ladybird_html_parser_create_document_type(void* parser, u8 con
 extern "C" size_t ladybird_html_parser_create_comment(void* parser, u8 const* data_ptr, size_t data_len)
 {
     auto& html_parser = parser_from_html_parser_ffi(parser);
-    auto comment = html_parser.document().realm().create<DOM::Comment>(html_parser.document(), Utf16String::from_utf8(ffi_string(data_ptr, data_len)));
+    auto comment = DOM::Comment::create(html_parser.document(), Utf16String::from_utf8(ffi_string(data_ptr, data_len)));
     return reinterpret_cast<size_t>(comment.ptr());
 }
 
@@ -1913,7 +1923,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t before, u
             (void)previous_text->append_data(data);
             return;
         }
-        auto text = parent_node.document().realm().create<DOM::Text>(parent_node.document(), data);
+        auto text = DOM::Text::create(parent_node.document(), data);
         parent_node.insert_before(*text, &before_node);
         return;
     }
@@ -1923,7 +1933,7 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t before, u
         return;
     }
 
-    auto text = parent_node.document().realm().create<DOM::Text>(parent_node.document(), data);
+    auto text = DOM::Text::create(parent_node.document(), data);
     MUST(parent_node.append_child(*text));
 }
 

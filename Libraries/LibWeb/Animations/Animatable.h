@@ -39,9 +39,9 @@ public:
         Yes
     };
 
-    WebIDL::ExceptionOr<GC::Ref<Animation>> animate(GC::Ptr<JS::Object> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options = {});
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Optional<Bindings::GetAnimationsOptions> const& options = {});
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options = {});
+    WebIDL::ExceptionOr<GC::Ref<Animation>> animate(JS::Realm&, GC::Ptr<JS::Object> keyframes, Variant<Empty, double, Bindings::KeyframeAnimationOptions> const& options = {});
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(JS::Realm&, Optional<Bindings::GetAnimationsOptions> const& options = {});
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(JS::Realm&, GetAnimationsSorted sorted, Optional<Bindings::GetAnimationsOptions> const& options = {});
     bool has_relevant_animations() const;
 
     void associate_with_animation(GC::Ref<Animation>);

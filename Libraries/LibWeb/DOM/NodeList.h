@@ -23,10 +23,10 @@ public:
     virtual u32 length() const = 0;
     virtual Node const* item(u32 index) const = 0;
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
 protected:
-    explicit NodeList(JS::Realm&);
+    explicit NodeList();
 };
 
 }

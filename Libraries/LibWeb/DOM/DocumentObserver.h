@@ -24,6 +24,8 @@ class WEB_API DocumentObserver final : public GC::Cell {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
+    static GC::Ref<DocumentObserver> create(Document&);
+
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_active() const { return m_document_became_active; }
     void set_document_became_active(Function<void()>);
 
@@ -46,7 +48,7 @@ public:
     void set_document(GC::Ref<Document>);
 
 private:
-    explicit DocumentObserver(JS::Realm&, Document&);
+    explicit DocumentObserver(Document&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;

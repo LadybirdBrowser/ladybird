@@ -20,16 +20,17 @@ class WEB_API CustomElementRegistry : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CustomElementRegistry);
 
 public:
-    [[nodiscard]] static GC::Ref<CustomElementRegistry> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CustomElementRegistry> construct_impl();
+    [[nodiscard]] static GC::Ref<CustomElementRegistry> create_global(DOM::Document&);
 
     virtual ~CustomElementRegistry() override;
 
-    JS::ThrowCompletionOr<void> define(String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const&);
+    JS::ThrowCompletionOr<void> define(JS::Realm&, String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const&);
     Variant<GC::Ref<WebIDL::CallbackType>, Empty> get(String const& name) const;
     Optional<String> get_name(GC::Ref<WebIDL::CallbackType> constructor) const;
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> when_defined(String const& name);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> when_defined(JS::Realm&, String const& name);
     void upgrade(GC::Ref<DOM::Node> root) const;
-    WebIDL::ExceptionOr<void> initialize_for_bindings(GC::Ref<DOM::Node> root);
+    WebIDL::ExceptionOr<void> initialize_for_bindings(JS::Realm&, GC::Ref<DOM::Node> root);
 
     bool is_scoped() const { return m_is_scoped; }
     void append_scoped_document(GC::Ref<DOM::Document>);
@@ -38,9 +39,11 @@ public:
     GC::Ptr<CustomElementDefinition> get_definition_from_new_target(JS::FunctionObject const& new_target) const;
 
 private:
-    CustomElementRegistry(JS::Realm&);
+    CustomElementRegistry();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ptr<DOM::Document> m_global_document;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#is-scoped
     // Every CustomElementRegistry has an is scoped, a boolean, initially false.

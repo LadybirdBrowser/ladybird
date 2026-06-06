@@ -19,7 +19,7 @@ class SVGTransform final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SVGTransform);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGTransform> create(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<SVGTransform> create();
     virtual ~SVGTransform() override;
 
     enum class Type : u16 {
@@ -42,7 +42,7 @@ public:
     void set_skew_y(float angle);
 
 private:
-    SVGTransform(JS::Realm& realm);
+    SVGTransform();
 };
 
 }

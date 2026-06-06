@@ -16,8 +16,8 @@ class CSSMathClamp final : public CSSMathValue {
     GC_DECLARE_ALLOCATOR(CSSMathClamp);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathClamp> create(JS::Realm&, NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> construct_impl(JS::Realm&, CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
+    [[nodiscard]] static GC::Ref<CSSMathClamp> create(NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> construct_impl(CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
 
     virtual ~CSSMathClamp() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -33,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathClamp(JS::Realm&, NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
+    CSSMathClamp(NumericType, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper);
     GC::Ref<CSSNumericValue> m_lower;
     GC::Ref<CSSNumericValue> m_value;
     GC::Ref<CSSNumericValue> m_upper;

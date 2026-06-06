@@ -23,12 +23,6 @@ HTMLSourceElement::HTMLSourceElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLSourceElement::~HTMLSourceElement() = default;
 
-void HTMLSourceElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSourceElement);
-    Base::initialize(realm);
-}
-
 static void update_image_children_of_picture(DOM::Node& picture)
 {
     for (auto* child = picture.first_child(); child; child = child->next_sibling()) {

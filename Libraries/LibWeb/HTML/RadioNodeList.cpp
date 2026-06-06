@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/RadioNodeList.h>
@@ -12,13 +13,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(RadioNodeList);
 
-GC::Ref<RadioNodeList> RadioNodeList::create(JS::Realm& realm, DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter)
+GC::Ref<RadioNodeList> RadioNodeList::create(DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter)
 {
-    return realm.create<RadioNodeList>(realm, root, scope, move(filter));
+    return GC::Heap::the().allocate<RadioNodeList>(root, scope, move(filter));
 }
 
-RadioNodeList::RadioNodeList(JS::Realm& realm, DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter)
-    : DOM::LiveNodeList(realm, root, scope, move(filter))
+RadioNodeList::RadioNodeList(DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter)
+    : DOM::LiveNodeList(root, scope, move(filter))
 {
 }
 

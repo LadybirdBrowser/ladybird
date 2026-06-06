@@ -34,7 +34,7 @@ public:
     virtual ~IDBDatabase() override;
     virtual void finalize() override;
 
-    [[nodiscard]] static GC::Ref<IDBDatabase> create(JS::Realm&, Database&);
+    [[nodiscard]] static GC::Ref<IDBDatabase> create(GC::Ref<DOM::EventTarget> relevant_global_object, Database&);
 
     void set_version(u64 version) { m_version = version; }
     void set_close_pending(bool close_pending) { m_close_pending = close_pending; }
@@ -56,6 +56,8 @@ public:
     [[nodiscard]] ReadonlySpan<GC::Ref<IDBTransaction>> transactions() { return m_transactions; }
     void add_transaction(GC::Ref<IDBTransaction> transaction) { m_transactions.append(transaction); }
 
+    [[nodiscard]] HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
+    [[nodiscard]] JS::Object& relevant_global_object() const;
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names();
     WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> create_object_store(String const&, Bindings::IDBObjectStoreParameters const&);
     WebIDL::ExceptionOr<void> delete_object_store(String const&);
@@ -75,12 +77,11 @@ public:
 
     void wait_for_transactions_to_finish(ReadonlySpan<GC::Ref<IDBTransaction>>, GC::Ref<GC::Function<void()>> on_complete);
     void check_pending_transaction_waits();
-    void block_on_conflicting_transactions(GC::Ref<IDBTransaction>);
+    void block_on_conflicting_transactions(JS::Realm&, GC::Ref<IDBTransaction>);
 
 protected:
-    explicit IDBDatabase(JS::Realm&, Database&);
+    IDBDatabase(GC::Ref<DOM::EventTarget> relevant_global_object, Database&);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
 
 private:
@@ -107,6 +108,7 @@ private:
     // NOTE: There is an associated database in the spec, but there is no mention where it is assigned, nor where its from
     //       So we stash the one we have when opening a connection.
     GC::Ref<Database> m_associated_database;
+    GC::Ref<DOM::EventTarget> m_global_object;
 
     // NOTE: We need to keep track of what transactions were created by this connection
     Vector<GC::Ref<IDBTransaction>> m_transactions;

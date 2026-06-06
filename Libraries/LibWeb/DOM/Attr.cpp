@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Attr.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Attr.h>
@@ -22,17 +23,17 @@ GC_DEFINE_ALLOCATOR(Attr);
 
 GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, String value, Element* owner_element)
 {
-    return document.realm().create<Attr>(document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
+    return GC::Heap::the().allocate<Attr>(document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
 }
 
 GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
 {
-    return document.realm().create<Attr>(document, move(qualified_name), move(value), owner_element);
+    return GC::Heap::the().allocate<Attr>(document, move(qualified_name), move(value), owner_element);
 }
 
 GC::Ref<Attr> Attr::clone(Document& document) const
 {
-    return realm().create<Attr>(document, m_qualified_name, m_value, nullptr);
+    return GC::Heap::the().allocate<Attr>(document, m_qualified_name, m_value, nullptr);
 }
 
 Attr::Attr(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
@@ -41,12 +42,6 @@ Attr::Attr(Document& document, QualifiedName qualified_name, String value, Eleme
     , m_value(move(value))
     , m_owner_element(owner_element)
 {
-}
-
-void Attr::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Attr);
-    Base::initialize(realm);
 }
 
 void Attr::visit_edges(Cell::Visitor& visitor)

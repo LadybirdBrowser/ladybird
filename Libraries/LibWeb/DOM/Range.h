@@ -37,7 +37,7 @@ public:
     [[nodiscard]] static GC::Ref<Range> create(Document&);
     [[nodiscard]] static GC::Ref<Range> create(HTML::Window&);
     [[nodiscard]] static GC::Ref<Range> create(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
-    static WebIDL::ExceptionOr<GC::Ref<Range>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<Range>> construct_impl(HTML::Window&);
 
     virtual ~Range() override;
 

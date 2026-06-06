@@ -57,11 +57,11 @@ def write_implementation_file(out: TextIO, units_data: dict) -> None:
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
-inline GC::Ref<CSSUnitValue> numeric_factory(JS::VM& vm, WebIDL::Double value, FlyString unit)
+inline GC::Ref<CSSUnitValue> numeric_factory(JS::VM&, WebIDL::Double value, FlyString unit)
 {
     // All of the above methods must, when called with a double value, return a new CSSUnitValue whose value internal
     // slot is set to value and whose unit internal slot is set to the name of the method as defined here.
-    return CSSUnitValue::create(*vm.current_realm(), value, move(unit));
+    return CSSUnitValue::create(value, move(unit));
 }
 
 GC::Ref<CSSUnitValue> number(JS::VM& vm, WebIDL::Double value)

@@ -19,7 +19,8 @@ class Origin : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Origin);
 
 public:
-    static GC::Ref<Origin> construct_impl(JS::Realm&);
+    static GC::Ref<Origin> create(URL::Origin);
+    static GC::Ref<Origin> construct_impl();
     static WebIDL::ExceptionOr<GC::Ref<Origin>> from(JS::VM&, JS::Value);
 
     bool opaque() const;
@@ -30,7 +31,7 @@ public:
     virtual ~Origin() override;
 
 private:
-    Origin(JS::Realm&, URL::Origin);
+    explicit Origin(URL::Origin);
 
     // https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-origin
     // Origin objects have an associated origin, which holds an origin.

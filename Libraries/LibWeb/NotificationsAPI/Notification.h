@@ -68,7 +68,7 @@ class WEB_API Notification final : public DOM::EventTarget {
 
 public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Notification>> construct_impl(
-        JS::Realm& realm,
+        HTML::WindowOrWorkerGlobalScopeMixin&,
         String const& title,
         Bindings::NotificationOptions const& options);
 
@@ -109,12 +109,10 @@ public:
     Optional<bool> silent() const { return m_notification.silent_preference; }
     bool require_interaction() const { return m_notification.require_interaction_preference; }
     Vector<NotificationAction> actions() const;
-    JS::Value data() const;
+    JS::Value data(JS::Realm&) const;
 
 private:
-    Notification(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    Notification();
 
     ConceptNotification m_notification;
 };

@@ -7,8 +7,15 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
 
 namespace Web::XHR {
 
@@ -17,8 +24,9 @@ class ProgressEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(ProgressEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ProgressEvent> create(JS::Realm&, FlyString const& event_name, Bindings::ProgressEventInit const&);
-    static WebIDL::ExceptionOr<GC::Ref<ProgressEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ProgressEventInit const&);
+    [[nodiscard]] static GC::Ref<ProgressEvent> create(FlyString const& event_name, Bindings::ProgressEventInit const&,
+        HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<ProgressEvent>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString const& event_name, Bindings::ProgressEventInit const&);
 
     virtual ~ProgressEvent() override;
 
@@ -27,7 +35,7 @@ public:
     WebIDL::Double total() const { return m_total; }
 
 private:
-    ProgressEvent(JS::Realm&, FlyString const& event_name, Bindings::ProgressEventInit const&);
+    ProgressEvent(FlyString const& event_name, Bindings::ProgressEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     bool m_length_computable { false };
     WebIDL::Double m_loaded { 0 };

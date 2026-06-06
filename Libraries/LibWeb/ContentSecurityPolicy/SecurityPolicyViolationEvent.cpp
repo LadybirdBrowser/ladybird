@@ -4,25 +4,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/ContentSecurityPolicy/SecurityPolicyViolationEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::ContentSecurityPolicy {
 
 GC_DEFINE_ALLOCATOR(SecurityPolicyViolationEvent);
 
-GC::Ref<SecurityPolicyViolationEvent> SecurityPolicyViolationEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init)
+GC::Ref<SecurityPolicyViolationEvent> SecurityPolicyViolationEvent::create(FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<SecurityPolicyViolationEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<SecurityPolicyViolationEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> SecurityPolicyViolationEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> SecurityPolicyViolationEvent::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init)
 {
-    return realm.create<SecurityPolicyViolationEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<SecurityPolicyViolationEvent>(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(global_scope)));
 }
 
-SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(JS::Realm& realm, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init)
-    : Event(realm, event_name, event_init)
+SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : Event(event_name, event_init, time_stamp)
     , m_document_uri(event_init.document_uri)
     , m_referrer(event_init.referrer)
     , m_blocked_uri(event_init.blocked_uri)

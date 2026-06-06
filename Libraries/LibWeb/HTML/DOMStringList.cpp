@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -11,13 +12,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DOMStringList);
 
-GC::Ref<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> list)
+GC::Ref<DOMStringList> DOMStringList::create(Vector<String> list)
 {
-    return realm.create<DOMStringList>(realm, list);
+    return GC::Heap::the().allocate<DOMStringList>(move(list));
 }
 
-DOMStringList::DOMStringList(JS::Realm& realm, Vector<String> list)
-    : Wrappable(realm)
+DOMStringList::DOMStringList(Vector<String> list)
+    : Bindings::Wrappable()
     , m_list(move(list))
 {
 }
@@ -47,7 +48,7 @@ bool DOMStringList::contains(StringView string)
     return m_list.contains_slow(string);
 }
 
-Optional<JS::Value> DOMStringList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> DOMStringList::item_value(Bindings::WrapperWorld&, JS::Realm& realm, size_t index) const
 {
     if (index >= m_list.size())
         return {};

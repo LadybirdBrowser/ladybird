@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGForeignObjectElement.h>
@@ -26,11 +27,8 @@ SVGForeignObjectElement::SVGForeignObjectElement(DOM::Document& document, DOM::Q
 
 SVGForeignObjectElement::~SVGForeignObjectElement() = default;
 
-void SVGForeignObjectElement::initialize(JS::Realm& realm)
+void SVGForeignObjectElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGForeignObjectElement);
-    Base::initialize(realm);
-
     // FIXME: These never actually get updated!
     m_x = fake_animated_length_fixme();
     m_y = fake_animated_length_fixme();

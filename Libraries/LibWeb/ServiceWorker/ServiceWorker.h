@@ -21,7 +21,7 @@ class ServiceWorker : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(ServiceWorker);
 
 public:
-    [[nodiscard]] static GC::Ref<ServiceWorker> create(JS::Realm& realm, ServiceWorkerRecord*);
+    [[nodiscard]] static GC::Ref<ServiceWorker> create(ServiceWorkerRecord*);
 
     virtual ~ServiceWorker() override;
 
@@ -37,9 +37,7 @@ public:
 #undef __ENUMERATE
 
 private:
-    ServiceWorker(JS::Realm&, ServiceWorkerRecord*);
-
-    virtual void initialize(JS::Realm&) override;
+    ServiceWorker(ServiceWorkerRecord*);
 
     Bindings::ServiceWorkerState m_state { Bindings::ServiceWorkerState::Parsed };
     ServiceWorkerRecord* m_service_worker_record;

@@ -18,14 +18,14 @@ class WebGLShader final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLShader);
 
 public:
-    static GC::Ref<WebGLShader> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLuint handle, GLenum type);
+    static GC::Ref<WebGLShader> create(GC::Ref<WebGLRenderingContextBase>, GLuint handle, GLenum type);
 
     virtual ~WebGLShader();
 
     GLenum type() const { return m_type; }
 
 protected:
-    explicit WebGLShader(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle, GLenum type);
+    explicit WebGLShader(GC::Ref<WebGLRenderingContextBase>, GLuint handle, GLenum type);
 
 private:
     GLenum m_type { 0 };

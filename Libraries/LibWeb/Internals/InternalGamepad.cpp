@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 
@@ -46,6 +49,11 @@ static constexpr Array<i32, 2> TRIGGERS {
 
 static constexpr char const* VIRTUAL_GAMEPAD_NAME = "Ladybird Virtual Gamepad";
 
+GC::Ref<InternalGamepad> InternalGamepad::create(GC::Ref<Internals> internals)
+{
+    return GC::Heap::the().allocate<InternalGamepad>(internals);
+}
+
 static SDLCALL bool rumble(void* user_data, u16 low_frequency_rumble, u16 high_frequency_rumble)
 {
     auto* internal_gamepad = static_cast<InternalGamepad*>(user_data);
@@ -60,8 +68,8 @@ static SDLCALL bool rumble_triggers(void* user_data, u16 left_rumble, u16 right_
     return true;
 }
 
-InternalGamepad::InternalGamepad(JS::Realm& realm, GC::Ref<Internals> internals)
-    : Wrappable(realm)
+InternalGamepad::InternalGamepad(GC::Ref<Internals> internals)
+    : Bindings::Wrappable()
     , m_internals(internals)
 {
     SDL_VirtualJoystickDesc virtual_joystick_desc {};
@@ -100,8 +108,6 @@ InternalGamepad::~InternalGamepad() = default;
 void InternalGamepad::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_received_rumble_effects);
-    visitor.visit(m_received_rumble_trigger_effects);
     visitor.visit(m_internals);
 }
 
@@ -136,36 +142,44 @@ void InternalGamepad::set_axis(int axis, short value)
     SDL_SetJoystickVirtualAxis(m_sdl_joystick, axis, value);
 }
 
-GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_effects() const
+GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_effects(JS::Realm& realm) const
 {
     GC::RootVector<JS::Object*> received_rumble_effects;
-    for (auto const received_rumble_effect : m_received_rumble_effects)
-        received_rumble_effects.append(received_rumble_effect);
+    for (auto const& received_rumble_effect : m_received_rumble_effects) {
+        auto object = JS::Object::create(realm, nullptr);
+        object->define_direct_property("lowFrequencyRumble"_utf16, JS::Value(received_rumble_effect.low_frequency_rumble), JS::default_attributes);
+        object->define_direct_property("highFrequencyRumble"_utf16, JS::Value(received_rumble_effect.high_frequency_rumble), JS::default_attributes);
+        received_rumble_effects.append(object);
+    }
     return received_rumble_effects;
 }
 
-GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_trigger_effects() const
+GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_trigger_effects(JS::Realm& realm) const
 {
     GC::RootVector<JS::Object*> received_rumble_trigger_effects {};
-    for (auto const received_rumble_trigger_effect : m_received_rumble_trigger_effects)
-        received_rumble_trigger_effects.append(received_rumble_trigger_effect);
+    for (auto const& received_rumble_trigger_effect : m_received_rumble_trigger_effects) {
+        auto object = JS::Object::create(realm, nullptr);
+        object->define_direct_property("leftRumble"_utf16, JS::Value(received_rumble_trigger_effect.left_rumble), JS::default_attributes);
+        object->define_direct_property("rightRumble"_utf16, JS::Value(received_rumble_trigger_effect.right_rumble), JS::default_attributes);
+        received_rumble_trigger_effects.append(object);
+    }
     return received_rumble_trigger_effects;
 }
 
 void InternalGamepad::received_rumble(u16 low_frequency_rumble, u16 high_frequency_rumble)
 {
-    auto object = JS::Object::create(realm(), nullptr);
-    object->define_direct_property("lowFrequencyRumble"_utf16, JS::Value(low_frequency_rumble), JS::default_attributes);
-    object->define_direct_property("highFrequencyRumble"_utf16, JS::Value(high_frequency_rumble), JS::default_attributes);
-    m_received_rumble_effects.append(object);
+    m_received_rumble_effects.append(ReceivedRumbleEffect {
+        .low_frequency_rumble = low_frequency_rumble,
+        .high_frequency_rumble = high_frequency_rumble,
+    });
 }
 
 void InternalGamepad::received_rumble_triggers(u16 left_rumble, u16 right_rumble)
 {
-    auto object = JS::Object::create(realm(), nullptr);
-    object->define_direct_property("leftRumble"_utf16, JS::Value(left_rumble), JS::default_attributes);
-    object->define_direct_property("rightRumble"_utf16, JS::Value(right_rumble), JS::default_attributes);
-    m_received_rumble_trigger_effects.append(object);
+    m_received_rumble_trigger_effects.append(ReceivedRumbleTriggerEffect {
+        .left_rumble = left_rumble,
+        .right_rumble = right_rumble,
+    });
 }
 
 void InternalGamepad::disconnect()

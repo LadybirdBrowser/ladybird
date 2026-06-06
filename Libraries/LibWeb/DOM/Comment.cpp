@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Comment.h>
 #include <LibWeb/DOM/Comment.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
 
@@ -19,17 +19,15 @@ Comment::Comment(Document& document, Utf16String data)
 {
 }
 
-// https://dom.spec.whatwg.org/#dom-comment-comment
-WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(JS::Realm& realm, Utf16String data)
+GC::Ref<Comment> Comment::create(Document& document, Utf16String data)
 {
-    auto& window = HTML::relevant_window(realm.global_object());
-    return realm.create<Comment>(window.associated_document(), move(data));
+    return GC::Heap::the().allocate<Comment>(document, move(data));
 }
 
-void Comment::initialize(JS::Realm& realm)
+// https://dom.spec.whatwg.org/#dom-comment-comment
+WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(HTML::Window& window, Utf16String data)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Comment);
-    Base::initialize(realm);
+    return create(window.associated_document(), move(data));
 }
 
 }

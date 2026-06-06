@@ -19,7 +19,7 @@ class MediaSourceHandle : public Bindings::Wrappable {
 
 public:
 private:
-    MediaSourceHandle(JS::Realm&);
+    MediaSourceHandle();
 
     virtual ~MediaSourceHandle() override;
 };

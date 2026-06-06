@@ -16,6 +16,8 @@ class GamepadButton final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(GamepadButton);
 
 public:
+    static GC::Ref<GamepadButton> create();
+
     virtual ~GamepadButton() override;
 
     bool pressed() const { return m_pressed; }
@@ -27,7 +29,7 @@ public:
     void set_value(Badge<Gamepad>, double);
 
 private:
-    GamepadButton(JS::Realm&);
+    GamepadButton();
 
     // https://w3c.github.io/gamepad/#dfn-pressed
     // A flag indicating that the button is pressed

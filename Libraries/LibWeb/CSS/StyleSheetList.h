@@ -46,7 +46,7 @@ public:
 
     size_t length() const { return m_sheets.size(); }
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     [[nodiscard]] DOM::Document& document();
     [[nodiscard]] DOM::Document const& document() const;

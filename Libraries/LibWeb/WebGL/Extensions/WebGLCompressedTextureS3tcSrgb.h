@@ -17,13 +17,13 @@ class WebGLCompressedTextureS3tcSrgb : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    WebGLCompressedTextureS3tcSrgb(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    WebGLCompressedTextureS3tcSrgb(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

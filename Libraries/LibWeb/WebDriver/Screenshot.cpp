@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -21,7 +22,7 @@ namespace Web::WebDriver {
 // https://w3c.github.io/webdriver/#dfn-draw-a-bounding-box-from-the-framebuffer
 ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_context, DOM::Element& element, Gfx::IntRect rect)
 {
-    HTML::TemporaryExecutionContext execution_context { element.realm() };
+    HTML::TemporaryExecutionContext execution_context { element.document().relevant_settings_object() };
 
     // 1. If either the initial viewport's width or height is 0 CSS pixels, return error with error code unable to capture screen.
     auto viewport_rect = browsing_context.top_level_traversable()->viewport_rect();
@@ -64,7 +65,7 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     browsing_context.active_document()->navigable()->render_screenshot(painting_surface, paint_config, [&did_paint] {
         did_paint = true;
     });
-    HTML::main_thread_event_loop().spin_until(GC::create_function(HTML::main_thread_event_loop().heap(), [&] {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
         return did_paint;
     }));
 

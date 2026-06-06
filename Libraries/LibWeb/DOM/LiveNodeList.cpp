@@ -14,13 +14,13 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(LiveNodeList);
 
-GC::Ref<NodeList> LiveNodeList::create(JS::Realm& realm, Node const& root, Scope scope, Function<bool(Node const&)> filter)
+GC::Ref<NodeList> LiveNodeList::create(Node const& root, Scope scope, Function<bool(Node const&)> filter)
 {
-    return realm.create<LiveNodeList>(realm, root, scope, move(filter));
+    return GC::Heap::the().allocate<LiveNodeList>(root, scope, move(filter));
 }
 
-LiveNodeList::LiveNodeList(JS::Realm& realm, Node const& root, Scope scope, Function<bool(Node const&)> filter)
-    : NodeList(realm)
+LiveNodeList::LiveNodeList(Node const& root, Scope scope, Function<bool(Node const&)> filter)
+    : NodeList()
     , m_root(root)
     , m_filter(move(filter))
     , m_scope(scope)

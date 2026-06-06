@@ -18,7 +18,7 @@ class CSSPageRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSPageRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSPageRule> create(JS::Realm&, PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSPageRule> create(PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
 
     virtual ~CSSPageRule() override = default;
 
@@ -29,7 +29,7 @@ public:
     GC::Ref<CSSPageDescriptors const> descriptors() const { return m_style; }
 
 private:
-    CSSPageRule(JS::Realm&, PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
+    CSSPageRule(PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
     virtual String serialized() const override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

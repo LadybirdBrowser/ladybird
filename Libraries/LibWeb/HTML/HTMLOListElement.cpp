@@ -25,12 +25,6 @@ HTMLOListElement::HTMLOListElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLOListElement::~HTMLOListElement() = default;
 
-void HTMLOListElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOListElement);
-    Base::initialize(realm);
-}
-
 void HTMLOListElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);

@@ -6,6 +6,7 @@
 
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 
+#include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -122,8 +123,8 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String co
     return expected_type;
 }
 
-TrustedTypePolicyFactory::TrustedTypePolicyFactory(JS::Realm& realm)
-    : Wrappable(realm)
+TrustedTypePolicyFactory::TrustedTypePolicyFactory()
+    : Bindings::Wrappable()
 {
 }
 
@@ -136,14 +137,14 @@ void TrustedTypePolicyFactory::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-createpolicy
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& policy_options)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_policy(JS::Realm& realm, Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& policy_options)
 {
     // 1. Returns the result of executing a Create a Trusted Type Policy algorithm, with the following arguments:
     //      factory: this value
     //      policyName: policyName
     //      options: policyOptions
     //      global: this value’s relevant global object
-    return create_a_trusted_type_policy(policy_name, policy_options, realm().global_object());
+    return create_a_trusted_type_policy(realm, policy_name, policy_options, realm.global_object());
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-ishtml
@@ -169,31 +170,25 @@ bool TrustedTypePolicyFactory::is_script_url(JS::Value value)
 
 GC::Ref<TrustedHTML const> TrustedTypePolicyFactory::empty_html()
 {
-    auto& realm = this->realm();
-
     if (!m_empty_html)
-        m_empty_html = realm.create<TrustedHTML>(realm, ""_utf16);
+        m_empty_html = GC::Heap::the().allocate<TrustedHTML>(""_utf16);
 
     return GC::Ref { *m_empty_html };
 }
 
 GC::Ref<TrustedScript const> TrustedTypePolicyFactory::empty_script()
 {
-    auto& realm = this->realm();
-
     if (!m_empty_script)
-        m_empty_script = realm.create<TrustedScript>(realm, ""_utf16);
+        m_empty_script = GC::Heap::the().allocate<TrustedScript>(""_utf16);
 
     return GC::Ref { *m_empty_script };
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#create-trusted-type-policy-algorithm
-WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& options, JS::Object& global)
+WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create_a_trusted_type_policy(JS::Realm& realm, Utf16String const& policy_name, Bindings::TrustedTypePolicyOptions const& options, JS::Object& global)
 {
-    auto& realm = this->realm();
-
     // 1. Let allowedByCSP be the result of executing Should Trusted Type policy creation be blocked by Content Security Policy? algorithm with global, policyName and factory’s created policy names value.
-    auto const allowed_by_csp = should_trusted_type_policy_be_blocked_by_content_security_policy(global, policy_name, m_created_policy_names);
+    auto const allowed_by_csp = should_trusted_type_policy_be_blocked_by_content_security_policy(realm, global, policy_name, m_created_policy_names);
 
     // 2. If allowedByCSP is "Blocked", throw a TypeError and abort further steps.
     if (allowed_by_csp == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
@@ -206,7 +201,7 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
     // 4. Let policy be a new TrustedTypePolicy object.
     // 5. Set policy’s name property value to policyName.
     // 6. Set policy’s options value to «[ "createHTML" -> options["createHTML", "createScript" -> options["createScript", "createScriptURL" -> options["createScriptURL" ]».
-    auto const policy = realm.create<TrustedTypePolicy>(realm, policy_name, options);
+    auto const policy = GC::Heap::the().allocate<TrustedTypePolicy>(policy_name, options);
 
     // 7. If the policyName is default, set the factory’s default policy value to policy.
     if (policy_name == "default"sv)
@@ -220,10 +215,8 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
 }
 
 // https://www.w3.org/TR/trusted-types/#should-block-create-policy
-ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Object& global, Utf16String const& policy_name, Vector<Utf16String> const& created_policy_names)
+ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Realm& realm, JS::Object& global, Utf16String const& policy_name, Vector<Utf16String> const& created_policy_names)
 {
-    auto& realm = this->realm();
-
     // 1. Let result be "Allowed".
     auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
 
@@ -269,7 +262,7 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
             continue;
 
         // 8. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "trusted-types"
-        auto const violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::TrustedTypes.to_string());
+        auto const violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, ContentSecurityPolicy::Directives::Names::TrustedTypes.to_string());
 
         // 9. Set violation’s resource to "trusted-types-policy".
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesPolicy);

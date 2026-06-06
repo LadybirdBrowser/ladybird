@@ -17,15 +17,15 @@ class CSSRotate final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSRotate);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSRotate> create(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z, GC::Ref<CSSNumericValue> angle);
-    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> construct_impl(JS::Realm&, GC::Ref<CSSNumericValue> angle);
-    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> construct_impl(JS::Realm&, CSSNumberish x, CSSNumberish y, CSSNumberish z, GC::Ref<CSSNumericValue> angle);
+    [[nodiscard]] static GC::Ref<CSSRotate> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z, GC::Ref<CSSNumericValue> angle);
+    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> construct_impl(GC::Ref<CSSNumericValue> angle);
+    static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> construct_impl(CSSNumberish x, CSSNumberish y, CSSNumberish z, GC::Ref<CSSNumericValue> angle);
 
     virtual ~CSSRotate() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const override;
 
-    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix() const override;
+    virtual WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> to_matrix(JS::Realm&) const override;
 
     CSSNumberish x() const { return m_x; }
     CSSNumberish y() const { return m_y; }
@@ -39,7 +39,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSRotate(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z, GC::Ref<CSSNumericValue> angle);
+    explicit CSSRotate(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z, GC::Ref<CSSNumericValue> angle);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_x;

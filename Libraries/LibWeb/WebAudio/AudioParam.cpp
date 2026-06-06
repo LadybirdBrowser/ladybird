@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -12,8 +14,8 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioParam);
 
-AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
-    : Bindings::Wrappable(realm)
+AudioParam::AudioParam(GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+    : Bindings::Wrappable()
     , m_context(context)
     , m_current_value(default_value)
     , m_default_value(default_value)
@@ -24,9 +26,9 @@ AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, floa
 {
 }
 
-GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+GC::Ref<AudioParam> AudioParam::create(GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
 {
-    return realm.create<AudioParam>(realm, context, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
+    return GC::Heap::the().allocate<AudioParam>(context, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
 }
 
 AudioParam::~AudioParam() = default;
@@ -53,10 +55,10 @@ Bindings::AutomationRate AudioParam::automation_rate() const
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-automationrate
-WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(Bindings::AutomationRate automation_rate)
+WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(JS::Realm& realm, Bindings::AutomationRate automation_rate)
 {
     if (automation_rate != m_automation_rate && m_fixed_automation_rate == FixedAutomationRate::Yes)
-        return WebIDL::InvalidStateError::create(realm(), "Automation rate cannot be changed"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "Automation rate cannot be changed"_utf16);
 
     m_automation_rate = automation_rate;
     return {};

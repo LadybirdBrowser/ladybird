@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/Request.h>
@@ -41,9 +42,8 @@ static bool is_empty(Bindings::RequestInit const& request_init)
 
 GC_DEFINE_ALLOCATOR(Request);
 
-Request::Request(JS::Realm& realm, GC::Ref<Infrastructure::Request> request)
-    : Bindings::Wrappable(realm)
-    , m_request(request)
+Request::Request(GC::Ref<Infrastructure::Request> request)
+    : m_request(request)
 {
 }
 
@@ -93,14 +93,19 @@ GC::Ptr<Infrastructure::Body> Request::body_impl()
 }
 
 // https://fetch.spec.whatwg.org/#request-create
-GC::Ref<Request> Request::create(JS::Realm& realm, GC::Ref<Infrastructure::Request> request, Headers::Guard guard, GC::Ref<DOM::AbortSignal> signal)
+GC::Ref<Request> Request::create(GC::Ref<Infrastructure::Request> request)
+{
+    return GC::Heap::the().allocate<Request>(request);
+}
+
+GC::Ref<Request> Request::create(GC::Ref<Infrastructure::Request> request, Headers::Guard guard, GC::Ref<DOM::AbortSignal> signal)
 {
     // 1. Let requestObject be a new Request object with realm.
     // 2. Set requestObject’s request to request.
-    auto request_object = realm.create<Request>(realm, request);
+    auto request_object = create(request);
 
     // 3. Set requestObject’s headers to a new Headers object with realm, whose headers list is request’s headers list and guard is guard.
-    request_object->m_headers = realm.create<Headers>(realm, request->header_list());
+    request_object->m_headers = Headers::create(request->header_list());
     request_object->m_headers->set_guard(guard);
 
     // 4. Set requestObject’s signal to signal.
@@ -111,12 +116,20 @@ GC::Ref<Request> Request::create(JS::Realm& realm, GC::Ref<Infrastructure::Reque
 }
 
 // https://fetch.spec.whatwg.org/#dom-request
-WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, RequestInfo const& input, Bindings::RequestInit const& init)
 {
-    auto& vm = realm.vm();
+    return construct_impl_with_settings(HTML::relevant_settings_object(global_scope), HTML::relevant_realm(global_scope), input, init);
+}
 
+WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_for_realm(JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
+{
+    return construct_impl_with_settings(HTML::principal_realm_settings_object(realm), realm, input, init);
+}
+
+WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl_with_settings(HTML::EnvironmentSettingsObject& relevant_settings_object, JS::Realm& realm, RequestInfo const& input, Bindings::RequestInit const& init)
+{
     // Referred to as 'this' in the spec.
-    auto request_object = realm.create<Request>(realm, Infrastructure::Request::create(vm));
+    auto request_object = create(Infrastructure::Request::create());
 
     // 1. Let request be null.
     GC::Ptr<Infrastructure::Request> input_request;
@@ -125,7 +138,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     Optional<Infrastructure::Request::Mode> fallback_mode;
 
     // 3. Let baseURL be this’s relevant settings object’s API base URL.
-    auto base_url = HTML::relevant_settings_object(*request_object).api_base_url();
+    auto base_url = relevant_settings_object.api_base_url();
 
     // 4. Let signal be null.
     DOM::AbortSignal* input_signal = nullptr;
@@ -144,7 +157,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Input URL must not include credentials"sv };
 
         // 4. Set request to a new request whose URL is parsedURL.
-        input_request = Infrastructure::Request::create(vm);
+        input_request = Infrastructure::Request::create();
         input_request->set_url(parsed_url.release_value());
 
         // 5. Set fallbackMode to "cors".
@@ -163,7 +176,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     }
 
     // 7. Let origin be this’s relevant settings object’s origin.
-    auto const& origin = HTML::relevant_settings_object(*request_object).origin();
+    auto const& origin = relevant_settings_object.origin();
 
     // 8. Let traversableForUserPrompts be "client".
     auto traversable_for_user_prompts = Infrastructure::Request::TraversableForUserPromptsType { Infrastructure::Request::TraversableForUserPrompts::Client };
@@ -210,7 +223,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // client
     //     This’s relevant settings object.
-    request->set_client(&HTML::relevant_settings_object(*request_object));
+    request->set_client(&relevant_settings_object);
 
     // traversable for user prompts
     //     traversableForUserPrompts.
@@ -406,16 +419,15 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     //       cannot exist with a null Infrastructure::Request.
 
     // 29. Let signals be « signal » if signal is non-null; otherwise « ».
-    auto& this_relevant_realm = HTML::relevant_realm(*request_object);
     GC::RootVector<GC::Ref<DOM::AbortSignal>> signals;
     if (input_signal != nullptr)
         signals.append(*input_signal);
 
     // 30. Set this’s signal to the result of creating a dependent abort signal from signals, using AbortSignal and this’s relevant realm.
-    request_object->m_signal = TRY(DOM::AbortSignal::create_dependent_abort_signal(this_relevant_realm, signals));
+    request_object->m_signal = TRY(DOM::AbortSignal::create_dependent_abort_signal(signals));
 
     // 31. Set this’s headers to a new Headers object with this’s relevant Realm, whose header list is request’s header list and guard is "request".
-    request_object->m_headers = realm.create<Headers>(realm, request->header_list());
+    request_object->m_headers = Headers::create(request->header_list());
     request_object->m_headers->set_guard(Headers::Guard::Request);
 
     // 32. If this’s request’s mode is "no-cors", then:
@@ -648,10 +660,8 @@ Bindings::RequestDuplex Request::duplex() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-clone
-WebIDL::ExceptionOr<GC::Ref<Request>> Request::clone() const
+WebIDL::ExceptionOr<GC::Ref<Request>> Request::clone(JS::Realm& realm) const
 {
-    auto& realm = this->realm();
-
     // 1. If this is unusable, then throw a TypeError.
     if (is_unusable())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"sv };
@@ -663,11 +673,10 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::clone() const
     VERIFY(m_signal);
 
     // 4. Let clonedSignal be the result of creating a dependent abort signal from « this’s signal », using AbortSignal and this’s relevant realm.
-    auto& relevant_realm = HTML::relevant_realm(*this);
-    auto cloned_signal = TRY(DOM::AbortSignal::create_dependent_abort_signal(relevant_realm, { { *m_signal } }));
+    auto cloned_signal = TRY(DOM::AbortSignal::create_dependent_abort_signal({ { *m_signal } }));
 
     // 5. Let clonedRequestObject be the result of creating a Request object, given clonedRequest, this’s headers’s guard, clonedSignal and this’s relevant realm.
-    auto cloned_request_object = Request::create(relevant_realm, cloned_request, m_headers->guard(), cloned_signal);
+    auto cloned_request_object = Request::create(cloned_request, m_headers->guard(), cloned_signal);
 
     // 6. Return clonedRequestObject.
     return cloned_request_object;

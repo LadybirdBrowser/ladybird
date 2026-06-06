@@ -19,7 +19,7 @@ class CSSMediaRule final : public CSSConditionRule {
     GC_DECLARE_ALLOCATOR(CSSMediaRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMediaRule> create(JS::Realm&, MediaList& media_queries, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSMediaRule> create(MediaList& media_queries, CSSRuleList&);
 
     virtual ~CSSMediaRule() = default;
 
@@ -39,7 +39,7 @@ public:
     bool did_evaluate() const { return m_did_evaluate; }
 
 private:
-    CSSMediaRule(JS::Realm&, MediaList&, CSSRuleList&);
+    CSSMediaRule(MediaList&, CSSRuleList&);
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

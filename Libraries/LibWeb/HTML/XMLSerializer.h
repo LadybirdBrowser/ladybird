@@ -16,14 +16,14 @@ class XMLSerializer final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(XMLSerializer);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<XMLSerializer>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<XMLSerializer>> construct_impl();
 
     virtual ~XMLSerializer() override;
 
     WebIDL::ExceptionOr<String> serialize_to_string(GC::Ref<DOM::Node const> root);
 
 private:
-    explicit XMLSerializer(JS::Realm&);
+    XMLSerializer();
 };
 
 enum class RequireWellFormed {

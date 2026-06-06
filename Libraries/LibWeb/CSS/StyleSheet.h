@@ -62,7 +62,7 @@ public:
     void set_parent_css_style_sheet(CSSStyleSheet*);
 
 protected:
-    explicit StyleSheet(JS::Realm&, MediaList& media);
+    explicit StyleSheet(MediaList& media);
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 

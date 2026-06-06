@@ -30,8 +30,6 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_css_selector(DOM
 // https://w3c.github.io/webdriver/#link-text
 static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_link_text(DOM::ParentNode& start_node, StringView selector)
 {
-    auto& realm = start_node.realm();
-
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
     //    this throws an exception, return error with error code unknown error.
     auto elements = start_node.query_selector_all("a"sv);
@@ -57,14 +55,12 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_link_text(DOM::P
     }
 
     // 4. Return success with data result.
-    return DOM::StaticNodeList::create(realm, move(result));
+    return DOM::StaticNodeList::create(move(result));
 }
 
 // https://w3c.github.io/webdriver/#partial-link-text
 static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_partial_link_text(DOM::ParentNode& start_node, StringView selector)
 {
-    auto& realm = start_node.realm();
-
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
     //    this throws an exception, return error with error code unknown error.
     auto elements = start_node.query_selector_all("a"sv);
@@ -87,14 +83,12 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_partial_link_tex
     }
 
     // 4. Return success with data result.
-    return DOM::StaticNodeList::create(realm, move(result));
+    return DOM::StaticNodeList::create(move(result));
 }
 
 // https://w3c.github.io/webdriver/#tag-name
 static GC::Ref<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_node, StringView selector)
 {
-    auto& realm = start_node.realm();
-
     // To find a web element with the Tag Name strategy return success with data set to the result of calling
     // getElementsByTagName() with start node as this and selector as the argument.
     auto elements = start_node.get_elements_by_tag_name(MUST(FlyString::from_utf8(selector)));
@@ -107,7 +101,7 @@ static GC::Ref<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_
         result.append(*element);
     }
 
-    return DOM::StaticNodeList::create(realm, move(result));
+    return DOM::StaticNodeList::create(move(result));
 }
 
 // https://w3c.github.io/webdriver/#xpath

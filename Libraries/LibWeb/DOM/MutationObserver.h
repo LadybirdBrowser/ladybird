@@ -22,7 +22,7 @@ class MutationObserver final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MutationObserver);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<MutationObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
+    static WebIDL::ExceptionOr<GC::Ref<MutationObserver>> construct_impl(GC::Ptr<WebIDL::CallbackType>);
     virtual ~MutationObserver() override;
 
     WebIDL::ExceptionOr<void> observe(Node& target, Bindings::MutationObserverInit = {});
@@ -40,7 +40,7 @@ public:
     }
 
 private:
-    MutationObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
+    MutationObserver(GC::Ptr<WebIDL::CallbackType>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -16,7 +16,7 @@ class XRRenderState : public Bindings::Wrappable {
     WEB_WRAPPABLE(XRRenderState, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(XRRenderState);
 
-    XRRenderState(JS::Realm&);
+    XRRenderState();
 };
 
 }

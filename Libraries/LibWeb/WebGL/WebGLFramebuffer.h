@@ -16,12 +16,12 @@ class WebGLFramebuffer final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLFramebuffer);
 
 public:
-    static GC::Ref<WebGLFramebuffer> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    static GC::Ref<WebGLFramebuffer> create(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     virtual ~WebGLFramebuffer();
 
 protected:
-    explicit WebGLFramebuffer(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    explicit WebGLFramebuffer(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 };
 
 }

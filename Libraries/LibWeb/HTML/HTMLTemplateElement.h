@@ -34,7 +34,7 @@ private:
 
     virtual bool is_html_template_element() const final { return true; }
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<DOM::DocumentFragment> m_content;

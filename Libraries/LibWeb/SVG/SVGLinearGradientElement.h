@@ -31,8 +31,6 @@ public:
 protected:
     SVGLinearGradientElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
 private:
     GC::Ptr<SVGLinearGradientElement const> linked_linear_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
     {

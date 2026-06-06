@@ -12,6 +12,7 @@
 #include <AK/Checked.h>
 #include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -35,7 +36,9 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/ImageRequest.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/Path2D.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextMetrics.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -47,14 +50,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
 
-JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element, JS::Value options)
+JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2D::create(HTMLCanvasElement& element, JS::Value options)
 {
-    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(realm.vm(), options));
-    return realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
+    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(element.vm(), options));
+    return GC::Heap::the().allocate<CanvasRenderingContext2D>(element, context_attributes);
 }
 
-CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : Bindings::Wrappable(realm)
+CanvasRenderingContext2D::CanvasRenderingContext2D(HTMLCanvasElement& element, Bindings::CanvasRenderingContext2DSettings context_attributes)
+    : Bindings::Wrappable()
     , CanvasPath(static_cast<CanvasState const&>(*this))
     , m_element(element)
     , m_size(element.bitmap_size_for_canvas())
@@ -92,6 +95,11 @@ size_t CanvasRenderingContext2D::external_memory_size() const
 GC::Ref<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding() const
 {
     return *m_element;
+}
+
+JS::Realm& CanvasRenderingContext2D::my_realm()
+{
+    return HTML::relevant_realm(*m_element);
 }
 
 Gfx::Path CanvasRenderingContext2D::rect_path(float x, float y, float width, float height)
@@ -142,7 +150,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         return {};
 
     // 2. Let usability be the result of checking the usability of image.
-    auto usability = TRY(check_usability_of_image(image));
+    auto usability = TRY(check_usability_of_image(HTML::relevant_realm(*m_element), image));
 
     // 3. If usability is bad, then return (without drawing anything).
     if (usability == CanvasImageSourceUsability::Bad)
@@ -503,14 +511,14 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_d
 {
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_utf16);
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*m_element), "Width and height must not be zero"_utf16);
 
     int abs_width = abs(width);
     int abs_height = abs(height);
 
     // 2. Let newImageData be a new ImageData object.
     // 3. Initialize newImageData given the absolute magnitude of sw, the absolute magnitude of sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
+    auto image_data = TRY(ImageData::create(HTML::relevant_realm(*m_element), abs_width, abs_height, settings));
 
     // 4. Initialize the image data of newImageData to transparent black.
     // ... this is handled by ImageData::create()
@@ -528,7 +536,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_d
     // 3. Initialize the image data of newImageData to transparent black.
     // NOTE: No-op, already done during creation.
     // 4. Return newImageData.
-    return TRY(ImageData::create(realm(), image_data.width(), image_data.height()));
+    return TRY(ImageData::create(HTML::relevant_realm(*m_element), image_data.width(), image_data.height()));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
@@ -536,11 +544,11 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
 {
     // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_utf16);
+        return WebIDL::IndexSizeError::create(HTML::relevant_realm(*m_element), "Width and height must not be zero"_utf16);
 
     // 2. If the CanvasRenderingContext2D's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!m_origin_clean)
-        return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_utf16);
+        return WebIDL::SecurityError::create(HTML::relevant_realm(*m_element), "CanvasRenderingContext2D is not origin-clean"_utf16);
 
     // ImageData initialization requires positive width and height
     // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
@@ -549,7 +557,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
 
     // 3. Let imageData be a new ImageData object.
     // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
+    auto image_data = TRY(ImageData::create(HTML::relevant_realm(*m_element), abs_width, abs_height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
     auto surface = m_element->surface();
@@ -591,7 +599,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_image_data(ImageData& im
     // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
     // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
     if (auto* painter = this->painter())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *painter, dx, dy, 0, 0, image_data.width(), image_data.height()));
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(HTML::relevant_realm(*m_element), image_data, *painter, dx, dy, 0, 0, image_data.width(), image_data.height()));
 
     return {};
 }
@@ -603,20 +611,20 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_image_data(ImageData& im
     // from an ImageData onto a bitmap, given imageData, this's output bitmap, dx, dy, dirtyX, dirtyY, dirtyWidth, and
     // dirtyHeight.
     if (auto* painter = this->painter())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *painter, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(HTML::relevant_realm(*m_element), image_data, *painter, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
 
     return {};
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
-WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Gfx::Painter& painter, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
+WebIDL::ExceptionOr<void> CanvasRenderingContext2D::put_pixels_from_an_image_data_onto_a_bitmap(JS::Realm& realm, ImageData& image_data, Gfx::Painter& painter, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
 {
     // 1. Let buffer be imageData's data attribute value's [[ViewedArrayBuffer]] internal slot.
     auto* buffer = image_data.data()->viewed_array_buffer();
 
     // 2. If IsDetachedBuffer(buffer) is true, then throw an "InvalidStateError" DOMException
     if (buffer->is_detached())
-        return WebIDL::InvalidStateError::create(image_data.realm(), "ImageData's underlying buffer is detached"_utf16);
+        return WebIDL::InvalidStateError::create(realm, "ImageData's underlying buffer is detached"_utf16);
 
     // 3. If dirtyWidth is negative, then let dirtyX be dirtyX+dirtyWidth, and let dirtyWidth be equal to the
     //    absolute magnitude of dirtyWidth.
@@ -715,7 +723,7 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& t
     // TextMetrics object with members behaving as described in the following
     // list:
     auto prepared_text = prepare_text(text);
-    auto metrics = TextMetrics::create(realm());
+    auto metrics = TextMetrics::create();
     // FIXME: Use the font that was used to create the glyphs in prepared_text.
     auto const& font = font_cascade_list()->first();
     auto const& font_pixel_metrics = font.pixel_metrics();
@@ -883,7 +891,7 @@ bool CanvasRenderingContext2D::is_point_in_path(Path2D const& path, double x, do
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
-WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const& image)
+WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(JS::Realm& realm, CanvasImageSource const& image)
 {
     // 1. Switch on image:
     auto usability = TRY(image.visit(
@@ -891,7 +899,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](GC::Ref<HTMLImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
             if (image_element->current_request().state() == HTML::ImageRequest::State::Broken)
-                return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
+                return WebIDL::InvalidStateError::create(HTML::relevant_realm(*image_element), "Image element state is broken"_utf16);
 
             // If image is not fully decodable, then return bad.
             auto current_image_frame = image_element->current_image_frame();
@@ -930,22 +938,22 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](GC::Ref<OffscreenCanvas> offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
-                return WebIDL::InvalidStateError::create(offscreen_canvas->realm(), "OffscreenCanvas width or height is zero"_utf16);
+                return WebIDL::InvalidStateError::create(HTML::relevant_realm(offscreen_canvas->relevant_global_object()), "OffscreenCanvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },
         // HTMLCanvasElement
         [](GC::Ref<HTMLCanvasElement> canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
-                return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_utf16);
+                return WebIDL::InvalidStateError::create(HTML::relevant_realm(*canvas_element), "Canvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },
 
         // ImageBitmap
         // FIXME: VideoFrame
-        [](GC::Ref<ImageBitmap> image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [&](GC::Ref<ImageBitmap> image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             if (image_bitmap->is_detached())
-                return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_utf16);
+                return WebIDL::InvalidStateError::create(realm, "Image bitmap is detached"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         }));
     if (usability.has_value())

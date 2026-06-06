@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/GamepadHapticActuator.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::Gamepad {
 
@@ -16,17 +17,17 @@ class GamepadHapticActuator final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(GamepadHapticActuator);
 
 public:
-    static GC::Ref<GamepadHapticActuator> create(JS::Realm&, GC::Ref<Gamepad>);
+    static GC::Ref<GamepadHapticActuator> create(HTML::Window&, GC::Ref<Gamepad>);
 
     virtual ~GamepadHapticActuator() override;
 
     Vector<Bindings::GamepadHapticEffectType> const& effects() const { return m_effects; }
 
-    GC::Ref<WebIDL::Promise> play_effect(Bindings::GamepadHapticEffectType, Bindings::GamepadEffectParameters const&);
-    GC::Ref<WebIDL::Promise> reset();
+    GC::Ref<WebIDL::Promise> play_effect(JS::Realm&, Bindings::GamepadHapticEffectType, Bindings::GamepadEffectParameters const&);
+    GC::Ref<WebIDL::Promise> reset(JS::Realm&);
 
 private:
-    GamepadHapticActuator(JS::Realm&, GC::Ref<Gamepad>, GC::Ref<DOM::DocumentObserver>);
+    GamepadHapticActuator(HTML::Window&, GC::Ref<Gamepad>, GC::Ref<DOM::DocumentObserver>);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void document_became_hidden();
@@ -35,6 +36,7 @@ private:
     void clear_playing_effect_timers();
 
     GC::Ref<Gamepad> m_gamepad;
+    GC::Ref<HTML::Window> m_window;
     GC::Ref<DOM::DocumentObserver> m_document_became_hidden_observer;
 
     // https://w3c.github.io/gamepad/#dfn-effects

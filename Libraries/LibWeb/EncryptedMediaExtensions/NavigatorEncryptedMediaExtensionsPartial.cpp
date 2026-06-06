@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/EncryptedMediaExtensions/Algorithms.h>
 #include <LibWeb/EncryptedMediaExtensions/MediaKeySystemAccess.h>
@@ -20,10 +22,11 @@ namespace Web::EncryptedMediaExtensions {
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsPartial::request_media_key_system_access(Utf16String key_system, Vector<Bindings::MediaKeySystemConfiguration> supported_configurations)
 {
     auto& navigator = as<HTML::Navigator>(*this);
-    auto& realm = navigator.realm();
+    auto& window = navigator.window();
+    auto& realm = window.realm();
 
     // 1. If this's relevant global object's associated Document is not allowed to use the encrypted-media feature, then throw a "SecurityError" DOMException and abort these steps.
-    auto& associated_document = HTML::relevant_window(navigator).associated_document();
+    auto& associated_document = window.associated_document();
     if (!associated_document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::EncryptedMedia))
         return WebIDL::SecurityError::create(realm, "This document is not allowed to use the encrypted-media feature"_utf16);
 
@@ -46,7 +49,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsP
     auto promise = WebIDL::create_promise(realm);
 
     // 7. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, key_system, supported_configurations, origin, promise]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, key_system, supported_configurations, origin, promise]() {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 1. If keySystem is not one of the Key Systems supported by the user agent, reject promise with a NotSupportedError. String comparison is case-sensitive.
@@ -69,10 +72,10 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsP
                 // 1. Set the keySystem attribute to keySystem.
                 // 2. Let the configuration value be supported configuration.
                 // 3. Let the cdm implementation value be implementation.
-                auto access = MediaKeySystemAccess::create(realm, key_system, *supported_configuration->configuration, move(implementation));
+                auto access = MediaKeySystemAccess::create(key_system, *supported_configuration->configuration, move(implementation));
 
                 // 2. Resolve promise with access and abort the parallel steps of this algorithm.
-                return WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, access));
+                return WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, access));
             }
         }
 

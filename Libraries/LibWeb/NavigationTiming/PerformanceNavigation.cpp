@@ -4,14 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigation.h>
 
 namespace Web::NavigationTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceNavigation);
 
-PerformanceNavigation::PerformanceNavigation(JS::Realm& realm, u16 type, u16 redirect_count)
-    : Wrappable(realm)
+GC::Ref<PerformanceNavigation> PerformanceNavigation::create(u16 type, u16 redirect_count)
+{
+    return GC::Heap::the().allocate<PerformanceNavigation>(type, redirect_count);
+}
+
+PerformanceNavigation::PerformanceNavigation(u16 type, u16 redirect_count)
+    : Bindings::Wrappable()
     , m_type(type)
     , m_redirect_count(redirect_count)
 {

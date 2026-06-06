@@ -16,11 +16,11 @@ class TransformStreamDefaultController : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(TransformStreamDefaultController);
 
 public:
-    explicit TransformStreamDefaultController(JS::Realm&);
+    TransformStreamDefaultController();
     virtual ~TransformStreamDefaultController() override;
 
     Optional<double> desired_size();
-    WebIDL::ExceptionOr<void> enqueue(Optional<JS::Value> chunk);
+    WebIDL::ExceptionOr<void> enqueue(JS::Realm&, Optional<JS::Value> chunk);
     void error(Optional<JS::Value> reason = {});
     void terminate();
 

@@ -47,14 +47,14 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(JS::Realm& realm, GC::Ptr<JS::Object> underlying_sink, Bindings::QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<WritableStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ptr<JS::Object> underlying_sink, Bindings::QueuingStrategy const& = {});
 
     virtual ~WritableStream() = default;
 
     bool locked() const;
-    GC::Ref<WebIDL::Promise> abort(Optional<JS::Value> reason);
-    GC::Ref<WebIDL::Promise> close();
-    WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> get_writer();
+    GC::Ref<WebIDL::Promise> abort(JS::Realm&, Optional<JS::Value> reason);
+    GC::Ref<WebIDL::Promise> close(JS::Realm&);
+    WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> get_writer(JS::Realm&);
 
     bool backpressure() const { return m_backpressure; }
     void set_backpressure(bool value) { m_backpressure = value; }
@@ -89,12 +89,12 @@ public:
     SinglyLinkedList<GC::Ref<WebIDL::Promise>>& write_requests() { return m_write_requests; }
 
     // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::WritableStream; }
 
 private:
-    explicit WritableStream(JS::Realm&);
+    WritableStream();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

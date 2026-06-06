@@ -30,12 +30,6 @@ void HTMLFrameSetElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-void HTMLFrameSetElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFrameSetElement);
-    Base::initialize(realm);
-}
-
 void HTMLFrameSetElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

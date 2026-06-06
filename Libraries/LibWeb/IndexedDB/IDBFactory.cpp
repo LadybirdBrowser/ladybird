@@ -6,13 +6,19 @@
  */
 
 #include <AK/Vector.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/Bindings/IDBFactory.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -25,24 +31,51 @@ namespace Web::IndexedDB {
 
 GC_DEFINE_ALLOCATOR(IDBFactory);
 
-IDBFactory::IDBFactory(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+static auto current_high_resolution_time(HTML::WindowOrWorkerGlobalScopeMixin& global_scope)
+{
+    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(global_scope));
+}
+
+IDBFactory::IDBFactory(HTML::WindowOrWorkerGlobalScopeMixin& global)
+    : Bindings::Wrappable()
+    , m_global(global.this_impl())
 {
 }
 
 IDBFactory::~IDBFactory() = default;
 
+void IDBFactory::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_global);
+}
+
+HTML::WindowOrWorkerGlobalScopeMixin& IDBFactory::relevant_global_scope() const
+{
+    return HTML::relevant_window_or_worker_global_scope(*m_global);
+}
+
+JS::Object& IDBFactory::relevant_global_object() const
+{
+    return HTML::relevant_global_object(relevant_global_scope());
+}
+
+HTML::EnvironmentSettingsObject& IDBFactory::relevant_settings_object() const
+{
+    return HTML::relevant_settings_object(relevant_global_scope());
+}
+
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-open
 WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& name, Optional<u64> version)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. If version is 0 (zero), throw a TypeError.
     if (version.has_value() && version.value() == 0)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "The version provided must not be 0"_string };
 
     // 2. Let environment be this's relevant settings object.
-    auto& environment = HTML::relevant_settings_object(*this);
+    auto& environment = relevant_settings_object();
 
     // 3. Let storageKey be the result of running obtain a storage key given environment.
     //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
@@ -51,19 +84,19 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
         return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16);
 
     // 4. Let request be a new open request.
-    auto request = IDBOpenDBRequest::create(realm);
+    auto request = IDBOpenDBRequest::create(m_global);
 
     // 5. Run these steps in parallel:
     // NB: We could defer these steps, but it wouldn't be observable anyway, since open_a_database_connection() will
     //     put this work into a queue and then process it later in the event loop regardless.
 
     // 1. Let result be the result of opening a database connection, with storageKey, name, version if given and undefined otherwise, and request.
-    open_a_database_connection(realm, storage_key.value(), name, version, request, GC::create_function(realm.heap(), [&realm, request](WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> result) {
+    open_a_database_connection(realm, storage_key.value(), name, version, request, GC::create_function(GC::Heap::the(), [&realm, request](WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> result) {
         // 2. Set request’s processed flag to true.
         request->set_processed(true);
 
         // 3. Queue a database task to run these steps:
-        queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
+        queue_a_database_task(GC::create_function(GC::Heap::the(), [&realm, request, result = move(result)]() mutable {
             // 1. If result is an error, then:
             if (result.is_error()) {
                 // 1. Set request’s result to undefined.
@@ -76,16 +109,20 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
                 request->set_done(true);
 
                 // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
-                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+                request->dispatch_event(DOM::Event::create(
+                    HTML::EventNames::error,
+                    current_high_resolution_time(request->relevant_global_scope())));
             } else {
                 // 1. Set request’s result to result.
-                request->set_result(Bindings::wrap(realm, result.release_value()));
+                request->set_result(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, result.release_value()));
 
                 // 2. Set request’s done flag to true.
                 request->set_done(true);
 
                 // 3. Fire an event named success at request.
-                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::success));
+                request->dispatch_event(DOM::Event::create(
+                    HTML::EventNames::success,
+                    current_high_resolution_time(request->relevant_global_scope())));
             }
         }));
     }));
@@ -98,18 +135,18 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
 WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
 {
     // 1. Let a be the result of converting a value to a key with first. Rethrow any exceptions.
-    auto a = TRY(convert_a_value_to_a_key(realm(), first));
+    auto a = TRY(convert_a_value_to_a_key(HTML::relevant_realm(relevant_global_object()), first));
 
     // 2. If a is invalid, throw a "DataError" DOMException.
     if (a->is_invalid())
-        return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_utf16);
+        return WebIDL::DataError::create(HTML::relevant_realm(relevant_global_object()), "Failed to convert a value to a key"_utf16);
 
     // 3. Let b be the result of converting a value to a key with second. Rethrow any exceptions.
-    auto b = TRY(convert_a_value_to_a_key(realm(), second));
+    auto b = TRY(convert_a_value_to_a_key(HTML::relevant_realm(relevant_global_object()), second));
 
     // 4. If b is invalid, throw a "DataError" DOMException.
     if (b->is_invalid())
-        return WebIDL::DataError::create(realm(), "Failed to convert a value to a key"_utf16);
+        return WebIDL::DataError::create(HTML::relevant_realm(relevant_global_object()), "Failed to convert a value to a key"_utf16);
 
     // 5. Return the results of comparing two keys with a and b.
     return Key::compare_two_keys(a, b);
@@ -118,10 +155,10 @@ WebIDL::ExceptionOr<i8> IDBFactory::cmp(JS::Value first, JS::Value second)
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-deletedatabase
 WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(String const& name)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let environment be this's relevant settings object.
-    auto& environment = HTML::relevant_settings_object(*this);
+    auto& environment = relevant_settings_object();
 
     // 2. Let storageKey be the result of running obtain a storage key given environment.
     //    If failure is returned, then throw a "SecurityError" DOMException and abort these steps.
@@ -130,19 +167,19 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
         return WebIDL::SecurityError::create(realm, "Failed to obtain a storage key"_utf16);
 
     // 3. Let request be a new open request.
-    auto request = IDBOpenDBRequest::create(realm);
+    auto request = IDBOpenDBRequest::create(m_global);
 
     // 4. Run these steps in parallel:
     // NB: We could defer these steps, but it wouldn't be observable anyway, since delete_a_database() will
     //     put this work into a queue and then process it later in the event loop regardless.
 
     // 1. Let result be the result of deleting a database, with storageKey, name, and request.
-    delete_a_database(realm, storage_key.value(), name, request, GC::create_function(realm.heap(), [&realm, request](WebIDL::ExceptionOr<u64> result) {
+    delete_a_database(realm, storage_key.value(), name, request, GC::create_function(GC::Heap::the(), [&realm, request](WebIDL::ExceptionOr<u64> result) {
         // 2. Set request’s processed flag to true.
         request->set_processed(true);
 
         // 3. Queue a database task to run these steps:
-        queue_a_database_task(GC::create_function(realm.heap(), [&realm, request, result = move(result)]() mutable {
+        queue_a_database_task(GC::create_function(GC::Heap::the(), [&realm, request, result = move(result)]() mutable {
             // 1.  If result is an error,
             if (result.is_error()) {
                 // set request’s error to result,
@@ -150,7 +187,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
                 // set request’s done flag to true,
                 request->set_done(true);
                 // and fire an event named error at request with its bubbles and cancelable attributes initialized to true.
-                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error, { .bubbles = true, .cancelable = true }));
+                request->dispatch_event(DOM::Event::create(
+                    HTML::EventNames::error,
+                    { .bubbles = true, .cancelable = true },
+                    current_high_resolution_time(request->relevant_global_scope())));
             }
             // 2. Otherwise,
             else {
@@ -172,10 +212,10 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::delete_database(Strin
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
 GC::Ref<WebIDL::Promise> IDBFactory::databases()
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. Let environment be this's relevant settings object.
-    auto& environment = HTML::relevant_settings_object(*this);
+    auto& environment = relevant_settings_object();
 
     // 2. Let storageKey be the result of running obtain a storage key given environment.
     //    If failure is returned, then return a promise rejected with a "SecurityError" DOMException
@@ -189,7 +229,7 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
     auto p = WebIDL::create_promise(realm);
 
     // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, storage_key, p]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, storage_key, p]() {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 1. Let databases be the set of databases in storageKey.

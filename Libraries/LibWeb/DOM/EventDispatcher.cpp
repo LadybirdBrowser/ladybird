@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibWeb/Bindings/Event.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -104,7 +105,8 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
 
         // 11. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value.
         auto this_value = event.current_target_wrapper_for_bindings(realm);
-        auto wrapped_event = Bindings::wrap(callback.callback->shape().realm(), GC::Ref { event });
+        auto& event_realm = this_value ? this_value->realm() : realm;
+        auto wrapped_event = Bindings::wrap(Bindings::host_defined_wrapper_world(event_realm), event_realm, GC::Ref { event });
         auto result = WebIDL::call_user_object_operation(callback, "handleEvent"_utf16_fly_string, this_value.ptr(), { { wrapped_event } });
 
         // If this throws an exception, then:

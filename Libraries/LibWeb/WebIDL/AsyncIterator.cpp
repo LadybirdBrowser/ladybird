@@ -29,12 +29,12 @@ void AsyncIterator::visit_edges(GC::Cell::Visitor& visitor)
 // https://webidl.spec.whatwg.org/#ref-for-dfn-asynchronous-iterator-prototype-object%E2%91%A2
 JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
 {
-    auto& realm = this->realm();
+    auto& realm = this->promise_realm();
     auto& vm = this->vm();
 
     // 8. Let nextSteps be the following steps:
     auto next_steps = [this](JS::VM& vm) {
-        auto& realm = this->realm();
+        auto& realm = this->promise_realm();
 
         // 1. Let nextPromiseCapability be ! NewPromiseCapability(%Promise%).
         auto next_promise_capability = WebIDL::create_promise(realm);
@@ -142,12 +142,12 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
 // https://webidl.spec.whatwg.org/#ref-for-asynchronous-iterator-return
 JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(GC::Ref<WebIDL::Promise> return_promise_capability, JS::Value value)
 {
-    auto& realm = this->realm();
+    auto& realm = this->promise_realm();
     auto& vm = this->vm();
 
     // 8. Let returnSteps be the following steps:
     auto return_steps = [this, value](JS::VM& vm) {
-        auto& realm = this->realm();
+        auto& realm = this->promise_realm();
 
         // 1. Let returnPromiseCapability be ! NewPromiseCapability(%Promise%).
         auto return_promise_capability = WebIDL::create_promise(realm);

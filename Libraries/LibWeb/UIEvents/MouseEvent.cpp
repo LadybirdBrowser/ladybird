@@ -5,9 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/MouseEvent.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -17,8 +21,13 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(MouseEvent);
 
-MouseEvent::MouseEvent(JS::Realm& realm, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
-    : UIEvent(realm, event_name, event_init)
+static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
+{
+    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
+}
+
+MouseEvent::MouseEvent(FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
     , m_screen_x(event_init.screen_x)
     , m_screen_y(event_init.screen_y)
     , m_page_x(page_x)
@@ -117,52 +126,62 @@ void MouseEvent::init_mouse_event(String const& type, bool bubbles, bool cancela
     m_related_target = related_target;
 }
 
-GC::Ref<MouseEvent> MouseEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
+GC::Ref<MouseEvent> MouseEvent::create(
+    FlyString const& event_name, Bindings::MouseEventInit const& event_init,
+    double page_x, double page_y, double offset_x, double offset_y,
+    HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<MouseEvent>(realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
+    return GC::Heap::the().allocate<MouseEvent>(event_name, event_init, page_x, page_y, offset_x, offset_y, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::MouseEventInit const& event_init)
+GC::Ref<MouseEvent> MouseEvent::create(
+    JS::Object const& relevant_global_object, FlyString const& event_name, Bindings::MouseEventInit const& event_init,
+    double page_x, double page_y, double offset_x, double offset_y)
+{
+    return create(event_name, event_init, page_x, page_y, offset_x, offset_y, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::MouseEventInit const& event_init)
 {
     // https://drafts.csswg.org/cssom-view/#dom-mouseevent-pagex
     // For a newly constructed event, pageX/pageY default to clientX/clientY (scrollX/scrollY are 0).
     // https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
     // For a newly constructed event with no target, offsetX/offsetY default to clientX/clientY.
-    return create(realm, event_name, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y);
+    return create(event_name, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y, event_time_stamp(window));
 }
 
-GC::Ref<MouseEvent> MouseEvent::clone() const
+GC::Ref<MouseEvent> MouseEvent::create_from_mouse_event(MouseEvent const& mouse_event, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
     Bindings::MouseEventInit init {};
-    init.screen_x = m_screen_x;
-    init.screen_y = m_screen_y;
-    init.client_x = m_client_x;
-    init.client_y = m_client_y;
-    init.movement_x = m_movement_x;
-    init.movement_y = m_movement_y;
-    init.button = m_button;
-    init.buttons = m_buttons;
-    init.related_target = m_related_target;
-    init.ctrl_key = m_ctrl_key;
-    init.shift_key = m_shift_key;
-    init.alt_key = m_alt_key;
-    init.meta_key = m_meta_key;
-    init.modifier_alt_graph = m_modifier_alt_graph;
-    init.modifier_caps_lock = m_modifier_caps_lock;
-    init.modifier_fn = m_modifier_fn;
-    init.modifier_fn_lock = m_modifier_fn_lock;
-    init.modifier_hyper = m_modifier_hyper;
-    init.modifier_num_lock = m_modifier_num_lock;
-    init.modifier_scroll_lock = m_modifier_scroll_lock;
-    init.modifier_super = m_modifier_super;
-    init.modifier_symbol = m_modifier_symbol;
-    init.modifier_symbol_lock = m_modifier_symbol_lock;
-    init.view = view();
-    init.detail = detail();
-    return create(realm(), type(), init, m_page_x, m_page_y, m_offset_x, m_offset_y);
+    init.screen_x = mouse_event.m_screen_x;
+    init.screen_y = mouse_event.m_screen_y;
+    init.client_x = mouse_event.m_client_x;
+    init.client_y = mouse_event.m_client_y;
+    init.movement_x = mouse_event.m_movement_x;
+    init.movement_y = mouse_event.m_movement_y;
+    init.button = mouse_event.m_button;
+    init.buttons = mouse_event.m_buttons;
+    init.related_target = mouse_event.m_related_target;
+    init.ctrl_key = mouse_event.m_ctrl_key;
+    init.shift_key = mouse_event.m_shift_key;
+    init.alt_key = mouse_event.m_alt_key;
+    init.meta_key = mouse_event.m_meta_key;
+    init.modifier_alt_graph = mouse_event.m_modifier_alt_graph;
+    init.modifier_caps_lock = mouse_event.m_modifier_caps_lock;
+    init.modifier_fn = mouse_event.m_modifier_fn;
+    init.modifier_fn_lock = mouse_event.m_modifier_fn_lock;
+    init.modifier_hyper = mouse_event.m_modifier_hyper;
+    init.modifier_num_lock = mouse_event.m_modifier_num_lock;
+    init.modifier_scroll_lock = mouse_event.m_modifier_scroll_lock;
+    init.modifier_super = mouse_event.m_modifier_super;
+    init.modifier_symbol = mouse_event.m_modifier_symbol;
+    init.modifier_symbol_lock = mouse_event.m_modifier_symbol_lock;
+    init.view = mouse_event.view();
+    init.detail = mouse_event.detail();
+    return create(mouse_event.type(), init, mouse_event.m_page_x, mouse_event.m_page_y, mouse_event.m_offset_x, mouse_event.m_offset_y, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail)
+WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers, int detail)
 {
     Bindings::MouseEventInit event_init {};
     event_init.detail = detail;
@@ -181,7 +200,7 @@ WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(
     }
     event_init.button = mouse_button_to_button_code(static_cast<MouseButton>(button));
     event_init.buttons = buttons;
-    auto event = MouseEvent::create(realm, event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double());
+    auto event = MouseEvent::create(event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
     event->set_is_trusted(true);
     event->set_bubbles(true);
     event->set_cancelable(true);

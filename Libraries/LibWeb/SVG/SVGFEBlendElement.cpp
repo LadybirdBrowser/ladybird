@@ -21,12 +21,6 @@ SVGFEBlendElement::SVGFEBlendElement(DOM::Document& document, DOM::QualifiedName
 {
 }
 
-void SVGFEBlendElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEBlendElement);
-    Base::initialize(realm);
-}
-
 void SVGFEBlendElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -56,7 +50,7 @@ void SVGFEBlendElement::attribute_changed(FlyString const& name, Optional<String
 GC::Ref<SVGAnimatedString> SVGFEBlendElement::in1()
 {
     if (!m_in1)
-        m_in1 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
+        m_in1 = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::in, OptionalNone {}, OptionalNone {} });
 
     return *m_in1;
 }
@@ -64,7 +58,7 @@ GC::Ref<SVGAnimatedString> SVGFEBlendElement::in1()
 GC::Ref<SVGAnimatedString> SVGFEBlendElement::in2()
 {
     if (!m_in2)
-        m_in2 = SVGAnimatedString::create(realm(), *this, DOM::QualifiedName { AttributeNames::in2, OptionalNone {}, OptionalNone {} });
+        m_in2 = SVGAnimatedString::create(*this, DOM::QualifiedName { AttributeNames::in2, OptionalNone {}, OptionalNone {} });
 
     return *m_in2;
 }
@@ -76,7 +70,7 @@ Gfx::CompositingAndBlendingOperator SVGFEBlendElement::mode() const
 
 GC::Ref<SVGAnimatedEnumeration> SVGFEBlendElement::mode_for_bindings() const
 {
-    return SVGAnimatedEnumeration::create(realm(), to_underlying(mode()));
+    return SVGAnimatedEnumeration::create(to_underlying(mode()));
 }
 
 }

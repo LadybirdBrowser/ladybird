@@ -5,6 +5,7 @@
  */
 
 #include "CSSScopeRule.h"
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -16,13 +17,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSScopeRule);
 
-GC::Ref<CSSScopeRule> CSSScopeRule::create(JS::Realm& realm, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
+GC::Ref<CSSScopeRule> CSSScopeRule::create(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
 {
-    return realm.create<CSSScopeRule>(realm, move(start_selectors), move(end_selectors), rules);
+    return GC::Heap::the().allocate<CSSScopeRule>(move(start_selectors), move(end_selectors), rules);
 }
 
-CSSScopeRule::CSSScopeRule(JS::Realm& realm, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
-    : CSSGroupingRule(realm, rules, Type::Scope)
+CSSScopeRule::CSSScopeRule(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
+    : CSSGroupingRule(rules, Type::Scope)
     , m_start_selectors(move(start_selectors))
     , m_end_selectors(move(end_selectors))
 {

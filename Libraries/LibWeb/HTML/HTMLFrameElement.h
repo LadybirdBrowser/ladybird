@@ -22,8 +22,6 @@ public:
 private:
     HTMLFrameElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
     // ^DOM::Element
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;

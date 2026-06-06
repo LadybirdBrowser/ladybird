@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Node.h>
 
@@ -13,8 +14,13 @@ namespace Web::XPath {
 
 GC_DEFINE_ALLOCATOR(XPathResult);
 
-XPathResult::XPathResult(JS::Realm& realm)
-    : Wrappable(realm)
+GC::Ref<XPathResult> XPathResult::create()
+{
+    return GC::Heap::the().allocate<XPathResult>();
+}
+
+XPathResult::XPathResult()
+    : Bindings::Wrappable()
 {
     m_node_set_iter = m_node_set.end();
 }

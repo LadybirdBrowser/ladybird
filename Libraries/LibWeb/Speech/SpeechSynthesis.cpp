@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/SpeechSynthesis.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Speech/SpeechSynthesis.h>
@@ -15,23 +14,17 @@ namespace Web::Speech {
 
 GC_DEFINE_ALLOCATOR(SpeechSynthesis);
 
-GC::Ref<SpeechSynthesis> SpeechSynthesis::create(JS::Realm& realm)
+GC::Ref<SpeechSynthesis> SpeechSynthesis::create()
 {
-    return realm.create<SpeechSynthesis>(realm);
+    return GC::Heap::the().allocate<SpeechSynthesis>();
 }
 
-SpeechSynthesis::SpeechSynthesis(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+SpeechSynthesis::SpeechSynthesis()
+    : DOM::EventTarget()
 {
 }
 
 SpeechSynthesis::~SpeechSynthesis() = default;
-
-void SpeechSynthesis::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechSynthesis);
-    Base::initialize(realm);
-}
 
 void SpeechSynthesis::visit_edges(Cell::Visitor& visitor)
 {

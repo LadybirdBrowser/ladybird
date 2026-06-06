@@ -22,10 +22,10 @@ dictionary TableDescriptor {
 interface Table {
     constructor(TableDescriptor descriptor, optional any value);
 
-    AddressValue grow(AddressValue delta, optional any value);
+    [NeedsCallerRealm] AddressValue grow(AddressValue delta, optional any value);
 
-    any get(AddressValue index);
-    undefined set(AddressValue index, optional any value);
+    [NeedsCallerRealm] any get(AddressValue index);
+    [NeedsCallerRealm] undefined set(AddressValue index, optional any value);
 
-    readonly attribute AddressValue length;
+    [NeedsCallerRealmForGetter] readonly attribute AddressValue length;
 };

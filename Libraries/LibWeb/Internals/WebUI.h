@@ -24,7 +24,7 @@ public:
     void send_message(String const& name, JS::Value data);
 
 private:
-    explicit WebUI(JS::Realm&);
+    explicit WebUI(HTML::Window&);
 };
 
 }

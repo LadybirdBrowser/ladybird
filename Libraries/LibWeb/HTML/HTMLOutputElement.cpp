@@ -20,12 +20,6 @@ HTMLOutputElement::HTMLOutputElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLOutputElement::~HTMLOutputElement() = default;
 
-void HTMLOutputElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOutputElement);
-    Base::initialize(realm);
-}
-
 void HTMLOutputElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

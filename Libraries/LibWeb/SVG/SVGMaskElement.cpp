@@ -22,12 +22,6 @@ SVGMaskElement::SVGMaskElement(DOM::Document& document, DOM::QualifiedName tag_n
 
 SVGMaskElement::~SVGMaskElement() = default;
 
-void SVGMaskElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMaskElement);
-    Base::initialize(realm);
-}
-
 RefPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::ComputedProperties const&)
 {
     // Masks are handled as a special case in the TreeBuilder.

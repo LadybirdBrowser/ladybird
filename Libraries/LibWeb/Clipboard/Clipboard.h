@@ -21,19 +21,17 @@ class Clipboard final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(Clipboard);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Clipboard>> construct_impl(JS::Realm&);
+    static GC::Ref<Clipboard> create();
     virtual ~Clipboard() override;
 
-    GC::Ref<WebIDL::Promise> read(Bindings::ClipboardUnsanitizedFormats formats = {});
-    GC::Ref<WebIDL::Promise> read_text();
+    GC::Ref<WebIDL::Promise> read(JS::Realm&, Bindings::ClipboardUnsanitizedFormats formats = {});
+    GC::Ref<WebIDL::Promise> read_text(JS::Realm&);
 
-    GC::Ref<WebIDL::Promise> write(GC::RootVector<GC::Ref<ClipboardItem>> const&);
-    GC::Ref<WebIDL::Promise> write_text(String);
+    GC::Ref<WebIDL::Promise> write(JS::Realm&, GC::RootVector<GC::Ref<ClipboardItem>> const&);
+    GC::Ref<WebIDL::Promise> write_text(JS::Realm&, String);
 
 private:
-    Clipboard(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    Clipboard();
 };
 
 }

@@ -19,12 +19,6 @@ SVGTextContentElement::SVGTextContentElement(DOM::Document& document, DOM::Quali
 {
 }
 
-void SVGTextContentElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextContentElement);
-    Base::initialize(realm);
-}
-
 // NB: Called during painting.
 Optional<TextAnchor> SVGTextContentElement::text_anchor() const
 {

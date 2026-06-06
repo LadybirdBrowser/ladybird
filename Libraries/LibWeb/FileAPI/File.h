@@ -16,9 +16,9 @@ class File : public Blob {
     GC_DECLARE_ALLOCATOR(File);
 
 public:
-    static GC::Ref<File> create(JS::Realm& realm);
-    static WebIDL::ExceptionOr<GC::Ref<File>> create(JS::Realm&, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(JS::Realm&, BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
+    static GC::Ref<File> create();
+    static ErrorOr<GC::Ref<File>> create(BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<File>> construct_impl(BlobParts const& file_bits, String const& file_name, Optional<Bindings::FilePropertyBag> const& options = {});
 
     virtual ~File() override;
 
@@ -27,12 +27,12 @@ public:
     // https://w3c.github.io/FileAPI/#dfn-lastModified
     i64 last_modified() const { return m_last_modified; }
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 
 private:
-    File(JS::Realm&, ByteBuffer, String file_name, String type, i64 last_modified);
-    explicit File(JS::Realm&);
+    File(ByteBuffer, String file_name, String type, i64 last_modified);
+    File();
 
     String m_name;
     i64 m_last_modified { 0 };

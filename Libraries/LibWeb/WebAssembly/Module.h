@@ -17,6 +17,12 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
+namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
+
+}
+
 namespace Web::WebAssembly {
 
 class Module : public Bindings::Wrappable {
@@ -24,15 +30,15 @@ class Module : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Module);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Module>> construct_impl(JS::Realm&, WebIDL::BufferSource bytes);
+    static WebIDL::ExceptionOr<GC::Ref<Module>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, WebIDL::BufferSource bytes);
     static WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> imports(JS::VM&, GC::Ref<Module>);
     static WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> exports(JS::VM&, GC::Ref<Module>);
-    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> custom_sections(JS::VM&, GC::Ref<Module>, String section_name);
+    static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::ArrayBuffer>>> custom_sections(JS::Realm&, GC::Ref<Module>, String section_name);
 
     NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module() const { return m_compiled_module; }
 
 private:
-    Module(JS::Realm&, NonnullRefPtr<Detail::CompiledWebAssemblyModule>);
+    explicit Module(NonnullRefPtr<Detail::CompiledWebAssemblyModule>);
 
     NonnullRefPtr<Detail::CompiledWebAssemblyModule> m_compiled_module;
 };

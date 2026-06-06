@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/AudioTrackList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -16,18 +15,17 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(AudioTrackList);
 
-AudioTrackList::AudioTrackList(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+AudioTrackList::AudioTrackList()
+    : DOM::EventTarget()
 {
 }
 
-void AudioTrackList::initialize(JS::Realm& realm)
+GC::Ref<AudioTrackList> AudioTrackList::create()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioTrackList);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<AudioTrackList>();
 }
 
-Optional<JS::Value> AudioTrackList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> AudioTrackList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property for a given index index in an AudioTrackList or VideoTrackList
     // object list, the user agent must return the AudioTrack or VideoTrack object that represents the indexth track
@@ -35,7 +33,7 @@ Optional<JS::Value> AudioTrackList::item_value(JS::Realm& realm, size_t index) c
     if (index >= m_audio_tracks.size())
         return {};
 
-    return Bindings::wrap(realm, m_audio_tracks.at(index));
+    return Bindings::wrap(wrapper_world, realm, m_audio_tracks.at(index));
 }
 
 void AudioTrackList::add_track(GC::Ref<AudioTrack> audio_track)

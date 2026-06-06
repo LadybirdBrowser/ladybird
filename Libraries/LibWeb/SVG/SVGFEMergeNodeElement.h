@@ -23,8 +23,6 @@ public:
 
 private:
     SVGFEMergeNodeElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

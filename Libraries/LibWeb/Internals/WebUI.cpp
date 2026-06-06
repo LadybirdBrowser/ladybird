@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/WebUI.h>
 #include <LibWeb/Page/Page.h>
 
@@ -14,11 +18,12 @@ GC_DEFINE_ALLOCATOR(WebUI);
 
 GC::Ref<Bindings::PlatformObject> WebUI::create(JS::Realm& realm)
 {
-    return Bindings::wrap(realm, realm.create<WebUI>(realm));
+    auto& window = HTML::relevant_window(realm.global_object());
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Heap::the().allocate<WebUI>(window));
 }
 
-WebUI::WebUI(JS::Realm& realm)
-    : InternalsBase(realm)
+WebUI::WebUI(HTML::Window& window)
+    : InternalsBase(window)
 {
 }
 

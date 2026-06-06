@@ -6,14 +6,14 @@
 
 #include "CSSTransformComponent.h"
 #include <LibWeb/Bindings/CSSTransformComponent.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSTransformComponent);
 
-CSSTransformComponent::CSSTransformComponent(JS::Realm& realm, Is2D is_2d)
-    : Bindings::Wrappable(realm)
-    , m_is_2d(is_2d == Is2D::Yes)
+CSSTransformComponent::CSSTransformComponent(Is2D is_2d)
+    : m_is_2d(is_2d == Is2D::Yes)
 {
 }
 

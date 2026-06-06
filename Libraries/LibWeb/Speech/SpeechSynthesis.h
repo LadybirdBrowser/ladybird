@@ -19,7 +19,7 @@ class SpeechSynthesis final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SpeechSynthesis);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechSynthesis> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SpeechSynthesis> create();
     virtual ~SpeechSynthesis() override;
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesis-pending
@@ -39,9 +39,8 @@ public:
     Vector<GC::Ref<SpeechSynthesisVoice>> const& get_voices() const;
 
 private:
-    explicit SpeechSynthesis(JS::Realm&);
+    explicit SpeechSynthesis();
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     bool m_pending { false };

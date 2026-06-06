@@ -20,12 +20,6 @@ SVGMetadataElement::SVGMetadataElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-void SVGMetadataElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMetadataElement);
-    Base::initialize(realm);
-}
-
 RefPtr<Layout::Node> SVGMetadataElement::create_layout_node(CSS::ComputedProperties const&)
 {
     return nullptr;

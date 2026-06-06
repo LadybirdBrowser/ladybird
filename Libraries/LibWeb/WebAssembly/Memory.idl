@@ -10,9 +10,9 @@ dictionary MemoryDescriptor {
 interface Memory {
     constructor(MemoryDescriptor descriptor);
 
-    unsigned long grow([EnforceRange] unsigned long delta);
+    [NeedsCallerRealm] unsigned long grow([EnforceRange] unsigned long delta);
 
-    ArrayBuffer toFixedLengthBuffer();
-    ArrayBuffer toResizableBuffer();
-    readonly attribute ArrayBuffer buffer;
+    [NeedsCallerRealm] ArrayBuffer toFixedLengthBuffer();
+    [NeedsCallerRealm] ArrayBuffer toResizableBuffer();
+    [NeedsCallerRealmForGetter] readonly attribute ArrayBuffer buffer;
 };

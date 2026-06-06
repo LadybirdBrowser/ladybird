@@ -23,18 +23,18 @@ class TextDecoderStream final
     GC_DECLARE_ALLOCATOR(TextDecoderStream);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> construct_impl(JS::Realm&, FlyString label, Bindings::TextDecoderOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, FlyString label, Bindings::TextDecoderOptions const&);
     virtual ~TextDecoderStream() override;
 
 private:
-    TextDecoderStream(JS::Realm&, GC::Ref<Streams::TransformStream>, TextCodec::Decoder&, FlyString encoding, ErrorMode, bool ignore_bom);
+    TextDecoderStream(GC::Ref<Streams::TransformStream>, TextCodec::Decoder&, FlyString encoding, ErrorMode, bool ignore_bom);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<void> decode_and_enqueue_chunk(JS::Value);
-    WebIDL::ExceptionOr<void> flush_and_enqueue();
+    WebIDL::ExceptionOr<void> decode_and_enqueue_chunk(JS::Realm&, JS::Value);
+    WebIDL::ExceptionOr<void> flush_and_enqueue(JS::Realm&);
 
-    WebIDL::ExceptionOr<void> enqueue_decoded_output(String const&);
+    WebIDL::ExceptionOr<void> enqueue_decoded_output(JS::Realm&, String const&);
 
     // https://encoding.spec.whatwg.org/#textdecodercommon-i-o-queue
     // NB: We accumulate input bytes that have been pushed to the I/O queue but not yet decoded, so that a multi-byte

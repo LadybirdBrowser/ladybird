@@ -5,6 +5,7 @@
  */
 
 #include "CSSFunctionRule.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSFunctionRule.h>
 #include <LibWeb/CSS/Serialize.h>
 
@@ -88,13 +89,13 @@ void FunctionParameterInternal::serialize(StringBuilder& builder) const
     }
 }
 
-GC::Ref<CSSFunctionRule> CSSFunctionRule::create(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type)
+GC::Ref<CSSFunctionRule> CSSFunctionRule::create(CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type)
 {
-    return realm.create<CSSFunctionRule>(realm, rules, move(name), move(parameters), move(return_type));
+    return GC::Heap::the().allocate<CSSFunctionRule>(rules, move(name), move(parameters), move(return_type));
 }
 
-CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type)
-    : CSSGroupingRule(realm, rules, Type::Function)
+CSSFunctionRule::CSSFunctionRule(CSSRuleList& rules, FlyString name, Vector<FunctionParameterInternal> parameters, NonnullOwnPtr<Parser::SyntaxNode> return_type)
+    : CSSGroupingRule(rules, Type::Function)
     , m_name(move(name))
     , m_parameters(move(parameters))
     , m_return_type(move(return_type))

@@ -17,7 +17,7 @@ class WEB_API External final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(External);
 
 public:
-    [[nodiscard]] static GC::Ref<External> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<External> create();
 
     virtual ~External() override;
 
@@ -25,7 +25,7 @@ public:
     void is_search_provider_installed();
 
 private:
-    External(JS::Realm&);
+    External();
 };
 
 }

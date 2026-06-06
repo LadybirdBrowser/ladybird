@@ -30,9 +30,14 @@ SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&
     return as<SimilarOriginWindowAgent>(*relevant_realm(object).vm().agent());
 }
 
-SimilarOriginWindowAgent& relevant_similar_origin_window_agent(Bindings::Wrappable const& wrappable)
+SimilarOriginWindowAgent& relevant_similar_origin_window_agent(DOM::Node const& node)
 {
-    return as<SimilarOriginWindowAgent>(*relevant_realm(wrappable).vm().agent());
+    return as<SimilarOriginWindowAgent>(*relevant_realm(node).vm().agent());
+}
+
+SimilarOriginWindowAgent& relevant_similar_origin_window_agent(Window const& window)
+{
+    return as<SimilarOriginWindowAgent>(*relevant_realm(window).vm().agent());
 }
 
 SimilarOriginWindowAgent::SimilarOriginWindowAgent(CanBlock can_block)

@@ -10,8 +10,8 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(WorkletGlobalScope);
 
-WorkletGlobalScope::WorkletGlobalScope(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+WorkletGlobalScope::WorkletGlobalScope()
+    : Bindings::Wrappable()
 {
 }
 

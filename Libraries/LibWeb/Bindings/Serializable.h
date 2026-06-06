@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/IntrinsicDefinitions.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -18,10 +19,10 @@ public:
     virtual ~Serializable() = default;
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#serialization-steps
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) = 0;
+    virtual WebIDL::ExceptionOr<void> serialization_steps(JS::Realm&, HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) = 0;
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#deserialization-steps
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) = 0;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::TransferDataDecoder&, HTML::DeserializationMemory&) = 0;
 };
 
 }

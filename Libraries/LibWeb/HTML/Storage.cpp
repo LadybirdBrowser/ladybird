@@ -7,6 +7,7 @@
  */
 
 #include <AK/String.h>
+#include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Document.h>
@@ -21,13 +22,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Storage);
 
-GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
+GC::Ref<Storage> Storage::create(Window& window, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
 {
-    return realm.create<Storage>(realm, type, move(storage_bottle));
+    return GC::Heap::the().allocate<Storage>(window, type, move(storage_bottle));
 }
 
-Storage::Storage(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
-    : Bindings::Wrappable(realm)
+Storage::Storage(Window& window, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
+    : m_window(window)
     , m_type(type)
     , m_storage_bottle(move(storage_bottle))
 {
@@ -38,6 +39,7 @@ Storage::~Storage() = default;
 void Storage::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_window);
     visitor.visit(m_storage_bottle);
 }
 
@@ -72,7 +74,7 @@ Optional<String> Storage::get_item(String const& key) const
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-setitem
-WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& value)
+WebIDL::ExceptionOr<void> Storage::set_item(JS::Realm& realm, String const& key, String const& value)
 {
     // 1. Let oldValue be null.
     // 2. Let reorder be true.
@@ -88,7 +90,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     auto result = m_storage_bottle->set(key, value);
 
     if (result.has<WebView::StorageOperationError>())
-        return WebIDL::QuotaExceededError::create(realm(), Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
+        return WebIDL::QuotaExceededError::create(realm, Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
 
     auto old_value = result.get<Optional<String>>();
 
@@ -167,11 +169,8 @@ static GC::Ptr<Storage> obtain_storage_for_window(Window& window, Storage::Type 
 // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-broadcast
 void Storage::broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value)
 {
-    auto& realm = this->realm();
-
     // 1. Let thisDocument be storage's relevant global object's associated Document.
-    auto& relevant_global = relevant_global_object(*this);
-    auto const& this_document = relevant_window(*this).associated_document();
+    auto const& this_document = m_window->associated_document();
 
     // 2. Let url be the serialization of thisDocument's URL.
     auto url = this_document.url().serialize();
@@ -195,13 +194,13 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
             return IterationDecision::Continue;
 
         // * relevant settings object's origin is same origin with storage's relevant settings object's origin
-        if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*storage).origin()))
+        if (!relevant_settings_object(*m_window).origin().is_same_origin(relevant_settings_object(*storage->m_window).origin()))
             return IterationDecision::Continue;
 
         // * and, if type is "session", whose relevant settings object's associated Document's node navigable's traversable navigable
         //   is thisDocument's node navigable's traversable navigable.
         if (type() == Type::Session) {
-            auto& storage_document = *relevant_settings_object(*storage).responsible_document();
+            auto& storage_document = storage->m_window->associated_document();
 
             // NB: It is possible the remote storage may have not been fully teared down immediately at the point it's
             //     document is made inactive.
@@ -226,14 +225,15 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
     //    to key, oldValue initialized to oldValue, newValue initialized to newValue, url initialized to url, and storageArea initialized to
     //    remoteStorage.
     for (auto remote_storage : remote_storages) {
-        queue_global_task(Task::Source::DOMManipulation, relevant_global, GC::create_function(heap(), [&realm, key, old_value, new_value, url, remote_storage] {
+        auto& remote_window = remote_storage->m_window;
+        queue_global_task(Task::Source::DOMManipulation, relevant_global_object(*remote_window), GC::create_function(GC::Heap::the(), [key, old_value, new_value, url, remote_storage, remote_window] {
             Bindings::StorageEventInit init;
             init.key = move(key);
             init.old_value = move(old_value);
             init.new_value = move(new_value);
             init.url = move(url);
             init.storage_area = remote_storage;
-            relevant_window(*remote_storage).dispatch_event(StorageEvent::create(realm, EventNames::storage, init));
+            remote_window->dispatch_event(StorageEvent::create(EventNames::storage, init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*remote_window))));
         }));
     }
 }
@@ -249,7 +249,7 @@ Vector<FlyString> Storage::supported_property_names() const
     return names;
 }
 
-JS::Value Storage::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value Storage::named_item_value(Bindings::WrapperWorld&, JS::Realm& realm, FlyString const& name) const
 {
     auto value = get_item(String(name));
     if (!value.has_value())
@@ -259,18 +259,18 @@ JS::Value Storage::named_item_value(JS::Realm& realm, FlyString const& name) con
     return JS::PrimitiveString::create(realm.vm(), value.release_value());
 }
 
-WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> Storage::delete_value(String const& name)
+WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> Storage::delete_value(JS::Realm&, String const& name)
 {
     remove_item(name);
     return Bindings::NamedPropertyDeletionResult::NotRelevant;
 }
 
-WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(String const& key, JS::Value unconverted_value)
+WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(JS::Realm& realm, String const& key, JS::Value unconverted_value)
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(realm().vm()));
-    return set_item(key, value);
+    auto value = TRY(unconverted_value.to_string(realm.vm()));
+    return set_item(realm, key, value);
 }
 
 void Storage::dump() const

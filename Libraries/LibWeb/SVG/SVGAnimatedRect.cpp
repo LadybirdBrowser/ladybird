@@ -4,16 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/SVGAnimatedRect.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedRect);
 
-SVGAnimatedRect::SVGAnimatedRect(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
-    , m_base_val(Geometry::DOMRect::create(realm, { 0, 0, 0, 0 }))
-    , m_anim_val(Geometry::DOMRect::create(realm, { 0, 0, 0, 0 }))
+GC::Ref<SVGAnimatedRect> SVGAnimatedRect::create()
+{
+    return GC::Heap::the().allocate<SVGAnimatedRect>();
+}
+
+SVGAnimatedRect::SVGAnimatedRect()
+    : Bindings::Wrappable()
+    , m_base_val(Geometry::DOMRect::create({ 0, 0, 0, 0 }))
+    , m_anim_val(Geometry::DOMRect::create({ 0, 0, 0, 0 }))
 {
 }
 

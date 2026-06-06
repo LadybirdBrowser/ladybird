@@ -5,6 +5,7 @@
  */
 
 #include <AK/Math.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/BiquadFilterNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -17,13 +18,13 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(BiquadFilterNode);
 
-BiquadFilterNode::BiquadFilterNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
-    : AudioNode(realm, context)
+BiquadFilterNode::BiquadFilterNode(GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
+    : AudioNode(context)
     , m_type(options.type)
-    , m_frequency(AudioParam::create(realm, context, options.frequency, 0, context->nyquist_frequency(), Bindings::AutomationRate::ARate))
-    , m_detune(AudioParam::create(realm, context, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
-    , m_q(AudioParam::create(realm, context, options.q, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_gain(AudioParam::create(realm, context, options.gain, NumericLimits<float>::lowest(), 40 * AK::log10(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_frequency(AudioParam::create(context, options.frequency, 0, context->nyquist_frequency(), Bindings::AutomationRate::ARate))
+    , m_detune(AudioParam::create(context, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_q(AudioParam::create(context, options.q, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_gain(AudioParam::create(context, options.gain, NumericLimits<float>::lowest(), 40 * AK::log10(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
 {
 }
 
@@ -75,17 +76,11 @@ WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(GC::Ref<JS::F
     return {};
 }
 
-WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
-{
-    return construct_impl(realm, context, options);
-}
-
-// https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-biquadfilternode
-WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create(GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
 {
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.
-    auto node = realm.create<BiquadFilterNode>(realm, context, options);
+    auto node = GC::Heap::the().allocate<BiquadFilterNode>(context, options);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
@@ -100,10 +95,10 @@ WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::construct_impl(
     return node;
 }
 
-void BiquadFilterNode::initialize(JS::Realm& realm)
+// https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-biquadfilternode
+WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::construct_impl(GC::Ref<BaseAudioContext> context, Bindings::BiquadFilterOptions const& options)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(BiquadFilterNode);
-    Base::initialize(realm);
+    return create(context, options);
 }
 
 void BiquadFilterNode::visit_edges(Cell::Visitor& visitor)

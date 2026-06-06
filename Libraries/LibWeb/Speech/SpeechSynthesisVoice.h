@@ -20,7 +20,7 @@ class SpeechSynthesisVoice final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(SpeechSynthesisVoice);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechSynthesisVoice> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<SpeechSynthesisVoice> create();
     virtual ~SpeechSynthesisVoice() override;
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesisvoice-voiceuri
@@ -39,7 +39,7 @@ public:
     bool is_default() const { return m_default; }
 
 private:
-    explicit SpeechSynthesisVoice(JS::Realm&);
+    explicit SpeechSynthesisVoice();
 
     String m_voice_uri;
     String m_name;

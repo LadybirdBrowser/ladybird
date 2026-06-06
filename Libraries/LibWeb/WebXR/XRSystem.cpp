@@ -4,11 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Bindings/XRSession.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebXR/XRSession.h>
@@ -18,20 +21,15 @@ namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRSystem);
 
-GC::Ref<XRSystem> XRSystem::create(JS::Realm& realm)
+GC::Ref<XRSystem> XRSystem::create(HTML::Window& window)
 {
-    return realm.create<XRSystem>(realm);
+    return GC::Heap::the().allocate<XRSystem>(window);
 }
 
-XRSystem::XRSystem(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+XRSystem::XRSystem(HTML::Window& window)
+    : DOM::EventTarget()
+    , m_window(window)
 {
-}
-
-void XRSystem::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XRSystem);
-    Base::initialize(realm);
 }
 
 void XRSystem::visit_edges(Cell::Visitor& visitor)
@@ -40,13 +38,18 @@ void XRSystem::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_active_immersive_session);
     visitor.visit(m_list_of_inline_sessions);
+    visitor.visit(m_window);
+}
+
+JS::Object& XRSystem::relevant_global_object() const
+{
+    return HTML::relevant_global_object(*m_window);
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrsystem-issessionsupported
-GC::Ref<WebIDL::Promise> XRSystem::is_session_supported(Bindings::XRSessionMode mode) const
+GC::Ref<WebIDL::Promise> XRSystem::is_session_supported(JS::Realm& realm, Bindings::XRSessionMode mode) const
 {
     // 1. Let promise be a new Promise in the relevant realm of this XRSystem.
-    auto& realm = HTML::relevant_realm(*this);
     auto promise = WebIDL::create_promise(realm);
 
     // 2. If mode is "inline", resolve promise with true and return it.
@@ -79,17 +82,16 @@ GC::Ref<WebIDL::Promise> XRSystem::is_session_supported(Bindings::XRSessionMode 
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrsystem-requestsession
-GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode, Bindings::XRSessionInit const& options)
+GC::Ref<WebIDL::Promise> XRSystem::request_session(JS::Realm& realm, Bindings::XRSessionMode mode, Bindings::XRSessionInit const& options)
 {
     // 1. Let promise be a new Promise in the relevant realm of this XRSystem.
-    auto& realm = HTML::relevant_realm(*this);
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Let immersive be true if mode is an immersive session mode, and false otherwise.
     auto immersive = mode != Bindings::XRSessionMode::Inline;
 
     // 3. Let global object be the relevant Global object for the XRSystem on which this method was invoked.
-    auto& global_object = HTML::relevant_global_object(*this);
+    auto& global_object = relevant_global_object();
 
     // 4. Check whether the session request is allowed as follows:
 
@@ -116,7 +118,7 @@ GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode,
     }
 
     // 5. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise, options, immersive]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, realm = GC::Ref(realm), promise, options, immersive]() {
         // 1. Let requiredFeatures be options’ requiredFeatures.
         auto required_features = options.required_features;
 
@@ -129,7 +131,7 @@ GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode,
         (void)optional_features;
 
         // 4. Queue a task to perform the following steps:
-        HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [this, &realm, promise, immersive]() {
+        HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, realm, promise, immersive]() {
             HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             // 1. If device is null or device’s list of supported modes does not contain mode, run the following steps:
             // AD-HOC: Just reject immersive sessions here until we have devices.
@@ -165,7 +167,7 @@ GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode,
             // 6. Let granted be a set obtained from status’ granted.
 
             // 7. Let session be a new XRSession object in the relevant realm of this XRSystem.
-            auto session = XRSession::create(realm, *this);
+            auto session = XRSession::create(*this);
 
             // 8. Initialize the session with session, mode, granted, and device.
             //    FIXME: Implement https://immersive-web.github.io/webxr/#initialize-the-session
@@ -185,10 +187,10 @@ GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode,
             }
 
             // 10. Resolve promise with session.
-            WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, session));
+            WebIDL::resolve_promise(realm, promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, session));
 
             // 11. Queue a task to perform the following steps:
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [session]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [session]() {
                 // Note: These steps ensure that initial inputsourceschange events occur after the initial session is resolved.
 
                 // 1. Set session’s promise resolved flag to true.

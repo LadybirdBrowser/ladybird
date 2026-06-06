@@ -18,19 +18,19 @@ class CSSNumericArray : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CSSNumericArray);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSNumericArray> create(JS::Realm&, Vector<GC::Ref<CSSNumericValue>>);
+    [[nodiscard]] static GC::Ref<CSSNumericArray> create(Vector<GC::Ref<CSSNumericValue>>);
 
     virtual ~CSSNumericArray() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
     Vector<GC::Ref<CSSNumericValue>> values() { return m_values; }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     bool is_equal_numeric_values(GC::Ref<CSSNumericArray> other) const;
 
 private:
-    CSSNumericArray(JS::Realm&, Vector<GC::Ref<CSSNumericValue>>);
+    CSSNumericArray(Vector<GC::Ref<CSSNumericValue>>);
 
     Vector<GC::Ref<CSSNumericValue>> m_values;
 };

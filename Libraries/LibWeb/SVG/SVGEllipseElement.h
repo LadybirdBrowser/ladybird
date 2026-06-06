@@ -30,8 +30,6 @@ public:
 private:
     SVGEllipseElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
-
     Optional<float> m_center_x;
     Optional<float> m_center_y;
     Optional<float> m_radius_x;

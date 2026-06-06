@@ -29,12 +29,6 @@ CharacterData::CharacterData(Document& document, NodeType type, Utf16String data
 
 CharacterData::~CharacterData() = default;
 
-void CharacterData::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CharacterData);
-    Base::initialize(realm);
-}
-
 size_t CharacterData::external_memory_size() const
 {
     return Node::external_memory_size() + JS::utf16_string_external_memory_size(m_data);
@@ -58,7 +52,7 @@ WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, si
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Substring offset out of range."_utf16);
+        return WebIDL::IndexSizeError::create(document().relevant_settings_object().realm(), "Substring offset out of range."_utf16);
 
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
@@ -77,7 +71,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Replacement offset out of range."_utf16);
+        return WebIDL::IndexSizeError::create(document().relevant_settings_object().realm(), "Replacement offset out of range."_utf16);
 
     // 3. If offset plus count is greater than length, then set count to length minus offset.
     if (offset + count > length)

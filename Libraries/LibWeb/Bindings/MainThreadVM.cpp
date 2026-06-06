@@ -10,6 +10,7 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibGC/DeferGC.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -29,6 +30,7 @@
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
@@ -49,6 +51,7 @@
 #include <LibWeb/HTML/Scripting/WorkerAgent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
@@ -197,7 +200,8 @@ void initialize_main_thread_vm(AgentType type)
             // 4. Queue a global task on the DOM manipulation task source given global to fire an event named rejectionhandled at global, using PromiseRejectionEvent,
             //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
             auto& global_object = settings_object.global_object();
-            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(main_thread_vm_ptr()->heap(), [&global, &promise] {
+            auto& realm = settings_object.realm();
+            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [&global, &promise, &realm] {
                 // FIXME: This currently assumes that global is a WindowObject.
                 auto* window = as_if<HTML::Window>(global);
                 VERIFY(window);
@@ -207,7 +211,7 @@ void initialize_main_thread_vm(AgentType type)
                     /* .promise = */ promise,
                     /* .reason = */ promise.result(),
                 };
-                auto promise_rejection_event = HTML::PromiseRejectionEvent::create(HTML::relevant_realm(global), HTML::EventNames::rejectionhandled, event_init);
+                auto promise_rejection_event = HTML::PromiseRejectionEvent::create(realm.global_object(), HTML::EventNames::rejectionhandled, event_init);
                 window->dispatch_event(promise_rejection_event);
             }));
             break;
@@ -256,7 +260,7 @@ void initialize_main_thread_vm(AgentType type)
         auto& global = finalization_registry.realm().global_object();
 
         // 2. Queue a global task on the JavaScript engine task source given global to perform the following steps:
-        HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, GC::create_function(main_thread_vm_ptr()->heap(), [&finalization_registry] {
+        HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, GC::create_function(GC::Heap::the(), [&finalization_registry] {
             // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
             // AD-HOC: The spec assumes [[Callback]] has a [[Realm]] internal slot, but Proxy and BoundFunction
             //         exotic objects do not. Use GetFunctionRealm to unwrap these exotic objects, falling back to
@@ -302,8 +306,7 @@ void initialize_main_thread_vm(AgentType type)
         // Do note that "implied document" from the spec is handwavy and the spec authors are trying to get rid of it: https://github.com/whatwg/html/issues/4980
         auto* script = active_script();
 
-        auto& heap = realm ? realm->heap() : vm.heap();
-        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(heap, [&vm, job_settings, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(GC::Heap::the(), [&vm, job_settings, job = move(job), script_or_module = move(script_or_module)] {
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
@@ -403,14 +406,14 @@ void initialize_main_thread_vm(AgentType type)
         auto url_string = module_script.base_url()->serialize();
 
         // 4. Let steps be the following steps, given the argument specifier:
-        auto steps = [module_script = GC::Ref { module_script }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto steps = [&realm, module_script = GC::Ref { module_script }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             auto specifier = vm.argument(0);
 
             // 1. Set specifier to ? ToString(specifier).
             auto specifier_string = TRY(specifier.to_string(vm));
 
             // 2. Let url be the result of resolving a module specifier given moduleScript and specifier.
-            auto url = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] {
+            auto url = TRY(Bindings::throw_dom_exception_if_needed(vm, realm, [&] {
                 return HTML::resolve_module_specifier(*module_script, specifier_string);
             }));
 
@@ -512,11 +515,11 @@ void initialize_main_thread_vm(AgentType type)
                     // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
                     if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
                         load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
-                        load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, maybe_exception.exception()).release_value();
+                        load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, settings_object->realm(), maybe_exception.exception()).release_value();
                     }
 
                     // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
-                    auto completion = exception_to_throw_completion(main_thread_vm(), maybe_exception.exception());
+                    auto completion = exception_to_throw_completion(main_thread_vm(), settings_object->realm(), maybe_exception.exception());
                     JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
                     // 3. Return.
@@ -562,12 +565,12 @@ void initialize_main_thread_vm(AgentType type)
             // 1. If loadState is not undefined and loadState.[[ErrorToRethrow]] is null, set loadState.[[ErrorToRethrow]] to resolutionError.
             if (auto* load_state_as_fetch_context = as<HTML::FetchContext>(load_state.ptr());
                 load_state_as_fetch_context && load_state_as_fetch_context->error_to_rethrow.is_null()) {
-                load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, url.exception()).release_value();
+                load_state_as_fetch_context->error_to_rethrow = exception_to_throw_completion(vm, settings_object->realm(), url.exception()).release_value();
             }
 
             // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(resolutionError)).
-            auto completion = exception_to_throw_completion(main_thread_vm(), url.exception());
-            HTML::TemporaryExecutionContext context { settings_object->realm() };
+            auto completion = exception_to_throw_completion(main_thread_vm(), settings_object->realm(), url.exception());
+            HTML::TemporaryExecutionContext context { *settings_object };
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
             // 3. Return.
@@ -701,7 +704,7 @@ void queue_mutation_observer_microtask()
     surrounding_agent.mutation_observer_microtask_queued = true;
 
     // 3. Queue a microtask to notify mutation observers.
-    HTML::queue_a_microtask(nullptr, GC::create_function(vm.heap(), [&surrounding_agent]() {
+    HTML::queue_a_microtask(nullptr, GC::create_function(GC::Heap::the(), [&surrounding_agent]() {
         // https://dom.spec.whatwg.org/#notify-mutation-observers
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
         surrounding_agent.mutation_observer_microtask_queued = false;
@@ -741,14 +744,15 @@ void queue_mutation_observer_microtask()
                 auto& settings = callback.callback_context;
 
                 auto wrapped_records = MUST(JS::Array::create(settings->realm(), 0));
+                auto& wrapper_world = Bindings::host_defined_wrapper_world(settings->realm());
                 for (size_t i = 0; i < records.size(); ++i) {
                     auto& record = records.at(i);
                     auto property_index = JS::PropertyKey { i };
                     MUST(wrapped_records->create_data_property(property_index,
-                        Bindings::wrap(settings->realm(), GC::Ref { *record })));
+                        Bindings::wrap(wrapper_world, settings->realm(), GC::Ref { *record })));
                 }
 
-                auto wrapped_mutation_observer = Bindings::wrap(settings->realm(), mutation_observer);
+                auto wrapped_mutation_observer = Bindings::wrap(wrapper_world, settings->realm(), mutation_observer);
                 (void)WebIDL::invoke_callback(callback, wrapped_mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, wrapped_mutation_observer } });
             }
         }
@@ -757,7 +761,7 @@ void queue_mutation_observer_microtask()
         for (auto& slot : signal_set) {
             Bindings::EventInit event_init;
             event_init.bubbles = true;
-            slot->dispatch_event(DOM::Event::create(slot->realm(), HTML::EventNames::slotchange, event_init));
+            slot->dispatch_event(DOM::Event::create(HTML::EventNames::slotchange, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*slot))));
         }
     }));
 }
@@ -825,7 +829,8 @@ void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_que
                 [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {
                     // -> callback reaction
                     //      Invoke reaction's callback function with reaction's arguments and "report", and callback this value set to element.
-                    auto this_value = Bindings::wrap(custom_element_callback_reaction.callback->callback->shape().realm(), GC::Ref { *element });
+                    auto& realm = custom_element_callback_reaction.callback->callback->shape().realm();
+                    auto this_value = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *element });
                     (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
                 });
         }

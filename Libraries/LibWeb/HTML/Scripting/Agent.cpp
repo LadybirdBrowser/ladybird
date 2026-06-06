@@ -24,9 +24,9 @@ Agent& relevant_agent(JS::Object const& object)
     return *static_cast<Agent*>(relevant_realm(object).vm().agent());
 }
 
-Agent& relevant_agent(Bindings::Wrappable const& wrappable)
+Agent& relevant_agent(DOM::Node const& node)
 {
-    return *static_cast<Agent*>(relevant_realm(wrappable).vm().agent());
+    return *static_cast<Agent*>(relevant_realm(node).vm().agent());
 }
 
 }

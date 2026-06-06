@@ -7,10 +7,14 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 class ErrorEvent final : public DOM::Event {
@@ -18,8 +22,8 @@ class ErrorEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(ErrorEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ErrorEvent> create(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> construct_impl(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<ErrorEvent> create(FlyString const& event_name, Bindings::ErrorEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
+    static WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> construct_impl(WindowOrWorkerGlobalScopeMixin&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
 
     virtual ~ErrorEvent() override;
 
@@ -39,7 +43,7 @@ public:
     JS::Value error() const { return m_error; }
 
 private:
-    ErrorEvent(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
+    ErrorEvent(FlyString const& event_name, Bindings::ErrorEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

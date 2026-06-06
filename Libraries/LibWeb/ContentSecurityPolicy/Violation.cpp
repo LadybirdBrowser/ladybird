@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -20,25 +21,37 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/JSON.h>
 
 namespace Web::ContentSecurityPolicy {
 
 GC_DEFINE_ALLOCATOR(Violation);
 
-Violation::Violation(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive)
-    : m_global_object(global_object)
+Violation::Violation(GC::Ptr<DOM::EventTarget> global_scope, GC::Ref<Policy const> policy, String directive)
+    : m_global_scope(global_scope)
     , m_policy(policy)
     , m_effective_directive(move(directive))
 {
 }
 
+static GC::Ptr<DOM::EventTarget> global_scope_from_global_object(GC::Ptr<JS::Object> global_object)
+{
+    if (!global_object)
+        return nullptr;
+
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(*global_object);
+    if (!global_scope)
+        return nullptr;
+    return global_scope->this_impl();
+}
+
 // https://w3c.github.io/webappsec-csp/#create-violation-for-global
-GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_directive(JS::Realm& realm, GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive)
+GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_directive(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive)
 {
     // 1. Let violation be a new violation whose global object is global, policy is policy, effective directive is
     //    directive, and resource is null.
-    auto violation = realm.create<Violation>(global_object, policy, move(directive));
+    auto violation = GC::Heap::the().allocate<Violation>(global_scope_from_global_object(global_object), policy, move(directive));
 
     // FIXME: 2. If the user agent is currently executing script, and can extract a source file’s URL, line number,
     //           and column number from the global, set violation’s source file, line number, and column number
@@ -59,7 +72,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
 }
 
 // https://w3c.github.io/webappsec-csp/#create-violation-for-request
-GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const> policy)
+GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const> policy)
 {
     // 1. Let directive be the result of executing § 6.8.1 Get the effective directive for request on request.
     auto directive = Directives::get_the_effective_directive_for_request(request);
@@ -70,7 +83,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(J
 
     // 2. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive
     //      on request’s client’s global object, policy, and directive.
-    auto violation = create_a_violation_object_for_global_policy_and_directive(realm, request->client()->global_object(), policy, directive->to_string());
+    auto violation = create_a_violation_object_for_global_policy_and_directive(request->client()->global_object(), policy, directive->to_string());
 
     // 3. Set violation’s resource to request’s url.
     // Spec Note: We use request’s url, and not its current url, as the latter might contain information about redirect
@@ -84,7 +97,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(J
 void Violation::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_global_object);
+    visitor.visit(m_global_scope);
     visitor.visit(m_policy);
     visitor.visit(m_element);
 }
@@ -93,20 +106,17 @@ void Violation::visit_edges(Cell::Visitor& visitor)
 URL::URL Violation::url() const
 {
     // Each violation has a url which is its global object’s URL.
-    if (!m_global_object) {
+    if (!m_global_scope) {
         // FIXME: What do we return here?
         dbgln("FIXME: Figure out URL for violation with null global object.");
         return URL::URL {};
     }
 
-    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(*m_global_object);
-    VERIFY(global_scope);
-
-    if (auto* window = as_if<HTML::Window>(global_scope->this_impl())) {
+    if (auto* window = as_if<HTML::Window>(*m_global_scope)) {
         return window->associated_document().url();
     }
 
-    if (auto* worker = as_if<HTML::WorkerGlobalScope>(global_scope->this_impl())) {
+    if (auto* worker = as_if<HTML::WorkerGlobalScope>(*m_global_scope)) {
         return worker->url();
     }
 
@@ -275,7 +285,7 @@ void Violation::report_a_violation(JS::Realm& realm)
         m_effective_directive);
 
     // 1. Let global be violation’s global object.
-    auto global = m_global_object;
+    auto global_scope = m_global_scope;
 
     // 2. Let target be violation’s element.
     auto target = m_element;
@@ -283,9 +293,7 @@ void Violation::report_a_violation(JS::Realm& realm)
     // 3. Queue a task to run the following steps:
     // Spec Note: We "queue a task" here to ensure that the event targeting and dispatch happens after JavaScript
     //            completes execution of the task responsible for a given violation (which might manipulate the DOM).
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [this, global, target, &realm] {
-        auto& vm = realm.vm();
-
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, global_scope, target, &realm] {
         GC::Ptr<DOM::EventTarget> event_target = target;
 
         // 1. If target is not null, and global is a Window, and target’s shadow-including root is not global’s
@@ -294,8 +302,8 @@ void Violation::report_a_violation(JS::Realm& realm)
         //            If a violation is caused by an element which isn’t connected to that document, we’ll fire the
         //            event at the document rather than the element in order to ensure that the violation is visible
         //            to the document’s listeners.
-        if (target && global) {
-            auto const* window = HTML::window_from_global_object(*global);
+        if (target && global_scope) {
+            auto const* window = as_if<HTML::Window>(*global_scope);
             if (window && &target->shadow_including_root() != &window->associated_document())
                 event_target = nullptr;
         }
@@ -303,16 +311,13 @@ void Violation::report_a_violation(JS::Realm& realm)
         // 2. If target is null:
         if (!event_target) {
             // 1. Set target to violation’s global object.
-            if (global) {
+            if (global_scope) {
                 event_target = [&]() -> GC::Ptr<DOM::EventTarget> {
                     // 2. If target is a Window, set target to target’s associated Document.
-                    if (auto* window = HTML::window_from_global_object(*global))
+                    if (auto* window = as_if<HTML::Window>(*global_scope))
                         return window->associated_document();
 
-                    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(*global);
-                    if (!global_scope)
-                        return nullptr;
-                    return global_scope->this_impl();
+                    return global_scope;
                 }();
             }
         }
@@ -386,7 +391,7 @@ void Violation::report_a_violation(JS::Realm& realm)
             //    violation's sample
             event_init.sample = m_sample;
 
-            auto event = SecurityPolicyViolationEvent::create(realm, HTML::EventNames::securitypolicyviolation, event_init);
+            auto event = SecurityPolicyViolationEvent::create(HTML::EventNames::securitypolicyviolation, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object()));
             event->set_is_trusted(true);
             event_target->dispatch_event(event);
         }
@@ -405,7 +410,7 @@ void Violation::report_a_violation(JS::Realm& realm)
                     // 2. If endpoint is not a valid URL, skip the remaining substeps.
                     if (endpoint.has_value()) {
                         // 3. Let request be a new request, initialized as follows:
-                        auto request = Fetch::Infrastructure::Request::create(vm);
+                        auto request = Fetch::Infrastructure::Request::create();
 
                         // method
                         //    "POST"
@@ -463,7 +468,7 @@ void Violation::report_a_violation(JS::Realm& realm)
                         request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Error);
 
                         // 4. Fetch request. The result will be ignored.
-                        (void)Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, {}));
+                        (void)Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create({}));
                     }
                 }
             }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Serial/SerialPort.h>
@@ -11,15 +12,14 @@
 
 namespace Web::Serial {
 
-SerialPort::SerialPort(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+static GC::Ref<WebIDL::Promise> create_rejected_unknown_error_promise(JS::Realm& realm)
 {
+    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
 }
 
-void SerialPort::initialize(JS::Realm& realm)
+SerialPort::SerialPort()
+    : DOM::EventTarget()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SerialPort);
-    Base::initialize(realm);
 }
 
 // https://wicg.github.io/serial/#getinfo-method
@@ -45,10 +45,8 @@ Bindings::SerialPortInfo SerialPort::get_info() const
 }
 
 // https://wicg.github.io/serial/#open-method
-GC::Ref<WebIDL::Promise> SerialPort::open(Bindings::SerialOptions const&)
+GC::Ref<WebIDL::Promise> SerialPort::open(JS::Realm& realm, Bindings::SerialOptions const&)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Let promise be a new promise.
 
     // FIXME: 2. If this.[[state]] is not "closed", reject promise with an "InvalidStateError" DOMException and return promise.
@@ -78,14 +76,12 @@ GC::Ref<WebIDL::Promise> SerialPort::open(Bindings::SerialOptions const&)
 
     // FIXME: 9. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::open()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
+    return create_rejected_unknown_error_promise(realm);
 }
 
 // https://wicg.github.io/serial/#setsignals-method
-GC::Ref<WebIDL::Promise> SerialPort::set_signals(Bindings::SerialOutputSignals const&)
+GC::Ref<WebIDL::Promise> SerialPort::set_signals(JS::Realm& realm, Bindings::SerialOutputSignals const&)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Let promise be a new promise.
 
     // FIXME: 2. If this.[[state]] is not "opened", reject promise with an "InvalidStateError" DOMException and return promise.
@@ -111,14 +107,12 @@ GC::Ref<WebIDL::Promise> SerialPort::set_signals(Bindings::SerialOutputSignals c
 
     // 5. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::set_signals()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
+    return create_rejected_unknown_error_promise(realm);
 }
 
 // https://wicg.github.io/serial/#getsignals-method
-GC::Ref<WebIDL::Promise> SerialPort::get_signals() const
+GC::Ref<WebIDL::Promise> SerialPort::get_signals(JS::Realm& realm) const
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Let promise be a new promise.
 
     // FIXME: 2. If this.[[state]] is not "opened", reject promise with an "InvalidStateError" DOMException and return promise.
@@ -145,14 +139,12 @@ GC::Ref<WebIDL::Promise> SerialPort::get_signals() const
 
     // 4. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::get_signals()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
+    return create_rejected_unknown_error_promise(realm);
 }
 
 // https://wicg.github.io/serial/#close-method
-GC::Ref<WebIDL::Promise> SerialPort::close()
+GC::Ref<WebIDL::Promise> SerialPort::close(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Let promise be a new promise.
 
     // FIXME: 2. If this.[[state]] is not "opened", reject promise with an "InvalidStateError" DOMException and return promise.
@@ -197,14 +189,12 @@ GC::Ref<WebIDL::Promise> SerialPort::close()
 
     // 11. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::close()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
+    return create_rejected_unknown_error_promise(realm);
 }
 
 // https://wicg.github.io/serial/#forget-method
-GC::Ref<WebIDL::Promise> SerialPort::forget()
+GC::Ref<WebIDL::Promise> SerialPort::forget(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Let promise be a new promise.
 
     // FIXME: 1. If the user agent can't perform this action (e.g. permission was granted by administrator policy), return a promise resolved with undefined.
@@ -222,7 +212,7 @@ GC::Ref<WebIDL::Promise> SerialPort::forget()
 
     // 7. Return promise.
     dbgln("FIXME: Unimplemented SerialPort::forget()");
-    return WebIDL::create_rejected_promise(realm, WebIDL::UnknownError::create(realm, Utf16String {}));
+    return create_rejected_unknown_error_promise(realm);
 }
 
 void SerialPort::visit_edges(Cell::Visitor& visitor)

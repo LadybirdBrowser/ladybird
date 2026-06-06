@@ -36,17 +36,17 @@ public:
     };
     virtual ~CSSNumericValue() override = default;
 
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(JS::Realm&, ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(JS::Realm&, ReadonlySpan<CSSNumberish>);
     WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> mul(ReadonlySpan<CSSNumberish>);
     WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> div(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(ReadonlySpan<CSSNumberish>);
-    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(JS::Realm&, ReadonlySpan<CSSNumberish>);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(JS::Realm&, ReadonlySpan<CSSNumberish>);
 
     bool equals_for_bindings(ReadonlySpan<CSSNumberish>) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
-    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;
+    WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(JS::Realm&, FlyString const& unit) const;
 
     CSSNumberish negate();
     WebIDL::ExceptionOr<CSSNumberish> invert();
@@ -60,16 +60,16 @@ public:
     void serialize(StringBuilder&, SerializationParams const&) const;
     String to_string(SerializationParams const&) const;
 
-    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);
+    static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::Realm&, String const& css_text);
 
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const = 0;
 
 protected:
-    explicit CSSNumericValue(JS::Realm&, NumericType);
+    explicit CSSNumericValue(NumericType);
 
     NumericType m_type;
 };
 
-GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<FlyString> unit = {});
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(CSSNumberish const&, Optional<FlyString> unit = {});
 
 }

@@ -18,14 +18,16 @@ class XRSystem final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(XRSystem);
 
 public:
-    static GC::Ref<XRSystem> create(JS::Realm&);
+    static GC::Ref<XRSystem> create(HTML::Window&);
     virtual ~XRSystem() override = default;
 
     // https://immersive-web.github.io/webxr/#dom-xrsystem-issessionsupported
-    GC::Ref<WebIDL::Promise> is_session_supported(Bindings::XRSessionMode) const;
+    GC::Ref<WebIDL::Promise> is_session_supported(JS::Realm&, Bindings::XRSessionMode) const;
 
     // https://immersive-web.github.io/webxr/#dom-xrsystem-requestsession
-    GC::Ref<WebIDL::Promise> request_session(Bindings::XRSessionMode, Bindings::XRSessionInit const&);
+    GC::Ref<WebIDL::Promise> request_session(JS::Realm&, Bindings::XRSessionMode, Bindings::XRSessionInit const&);
+
+    JS::Object& relevant_global_object() const;
 
     void set_pending_immersive_session(bool pending_immersive_session) { m_pending_immersive_session = pending_immersive_session; }
 
@@ -35,8 +37,7 @@ public:
     void remove_inline_session(GC::Ref<XRSession>);
 
 private:
-    XRSystem(JS::Realm&);
-    virtual void initialize(JS::Realm&) override;
+    XRSystem(HTML::Window&);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -48,6 +49,8 @@ private:
 
     // https://immersive-web.github.io/webxr/#list-of-inline-sessions
     Vector<GC::Ref<XRSession>> m_list_of_inline_sessions {};
+
+    GC::Ref<HTML::Window> m_window;
 };
 
 }

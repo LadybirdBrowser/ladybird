@@ -644,9 +644,10 @@ public:
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const { return m_custom_element_registry; }
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry) { m_custom_element_registry = registry; }
 
+    virtual void initialize_element() { }
+
 protected:
     Element(Document&, DOM::QualifiedName);
-    virtual void initialize(JS::Realm&) override;
 
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
@@ -732,6 +733,9 @@ private:
 
     // https://dom.spec.whatwg.org/#concept-element-custom-element-definition
     GC::Ptr<HTML::CustomElementDefinition> m_custom_element_definition;
+
+    // Custom element wrappers carry observable user-defined prototype state.
+    GC::Ptr<Bindings::PlatformObject> m_custom_element_wrapper;
 
     // https://dom.spec.whatwg.org/#concept-element-is-value
     Optional<String> m_is_value;

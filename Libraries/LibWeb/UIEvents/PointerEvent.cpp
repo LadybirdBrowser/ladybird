@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -16,6 +20,11 @@
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(PointerEvent);
+
+static HighResolutionTime::DOMHighResTimeStamp event_time_stamp(HTML::Window& window)
+{
+    return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window));
+}
 
 // https://w3c.github.io/pointerevents/#dom-pointerevent-screenx
 // For untrusted PointerEvents, coordinates are floored for click, auxclick, and
@@ -39,7 +48,7 @@ double PointerEvent::client_y() const { return should_have_fractional_coordinate
 double PointerEvent::offset_x() const { return should_have_fractional_coordinates() ? m_offset_x : MouseEvent::offset_x(); }
 double PointerEvent::offset_y() const { return should_have_fractional_coordinates() ? m_offset_y : MouseEvent::offset_y(); }
 
-WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Object const& relevant_global_object, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
 {
     Bindings::PointerEventInit event_init;
     event_init.ctrl_key = modifiers & Mod_Ctrl;
@@ -59,7 +68,7 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     }
     event_init.button = mouse_button_to_button_code(static_cast<MouseButton>(button));
     event_init.buttons = buttons;
-    auto event = PointerEvent::create(realm, event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double());
+    auto event = PointerEvent::create(event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
     event->set_is_trusted(true);
     event->set_bubbles(true);
     event->set_cancelable(true);
@@ -67,8 +76,8 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     return event;
 }
 
-PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, Bindings::PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
-    : MouseEvent(realm, type, event_init, page_x, page_y, offset_x, offset_y)
+PointerEvent::PointerEvent(FlyString const& type, Bindings::PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MouseEvent(type, event_init, page_x, page_y, offset_x, offset_y, time_stamp)
     , m_pointer_id(event_init.pointer_id)
     , m_width(event_init.width)
     , m_height(event_init.height)
@@ -101,48 +110,17 @@ void PointerEvent::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_predicted_events);
 }
 
-GC::Ref<MouseEvent> PointerEvent::clone() const
+GC::Ref<PointerEvent> PointerEvent::create(
+    FlyString const& type, Bindings::PointerEventInit const& event_init,
+    double page_x, double page_y, double offset_x, double offset_y,
+    HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    Bindings::PointerEventInit init;
-    init.screen_x = screen_x();
-    init.screen_y = screen_y();
-    init.client_x = client_x();
-    init.client_y = client_y();
-    init.movement_x = movement_x();
-    init.movement_y = movement_y();
-    init.button = button();
-    init.buttons = buttons();
-    init.related_target = related_target();
-    init.ctrl_key = ctrl_key();
-    init.shift_key = shift_key();
-    init.alt_key = alt_key();
-    init.meta_key = meta_key();
-    init.view = view();
-    init.detail = detail();
-    init.pointer_id = m_pointer_id;
-    init.width = m_width;
-    init.height = m_height;
-    init.pressure = m_pressure;
-    init.tangential_pressure = m_tangential_pressure;
-    init.tilt_x = m_tilt_x;
-    init.tilt_y = m_tilt_y;
-    init.twist = m_twist;
-    init.altitude_angle = m_altitude_angle;
-    init.azimuth_angle = m_azimuth_angle;
-    init.pointer_type = m_pointer_type;
-    init.is_primary = m_is_primary;
-    init.persistent_device_id = m_persistent_device_id;
-    return create(realm(), type(), init, page_x(), page_y(), offset_x(), offset_y());
+    return GC::Heap::the().allocate<PointerEvent>(type, event_init, page_x, page_y, offset_x, offset_y, time_stamp);
 }
 
-GC::Ref<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& type, Bindings::PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::construct_impl(HTML::Window& window, FlyString const& type, Bindings::PointerEventInit const& event_init)
 {
-    return realm.create<PointerEvent>(realm, type, event_init, page_x, page_y, offset_x, offset_y);
-}
-
-WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::construct_impl(JS::Realm& realm, FlyString const& type, Bindings::PointerEventInit const& event_init)
-{
-    return create(realm, type, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y);
+    return create(type, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y, event_time_stamp(window));
 }
 
 }

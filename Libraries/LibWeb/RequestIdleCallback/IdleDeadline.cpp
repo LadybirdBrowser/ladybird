@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/RequestIdleCallback/IdleDeadline.h>
@@ -14,14 +16,13 @@ namespace Web::RequestIdleCallback {
 
 GC_DEFINE_ALLOCATOR(IdleDeadline);
 
-GC::Ref<IdleDeadline> IdleDeadline::create(JS::Realm& realm, bool did_timeout)
+GC::Ref<IdleDeadline> IdleDeadline::create(bool did_timeout)
 {
-    return realm.create<IdleDeadline>(realm, did_timeout);
+    return GC::Heap::the().allocate<IdleDeadline>(did_timeout);
 }
 
-IdleDeadline::IdleDeadline(JS::Realm& realm, bool did_timeout)
-    : Wrappable(realm)
-    , m_did_timeout(did_timeout)
+IdleDeadline::IdleDeadline(bool did_timeout)
+    : m_did_timeout(did_timeout)
 {
 }
 
@@ -32,7 +33,7 @@ double IdleDeadline::time_remaining() const
 {
     auto const& event_loop = HTML::main_thread_event_loop();
     // 1. Let now be a DOMHighResTimeStamp representing current high resolution time in milliseconds.
-    auto now = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this));
+    auto now = HighResolutionTime::current_high_resolution_time(HTML::current_global_object());
     // 2. Let deadline be the result of calling IdleDeadline's get deadline time algorithm.
     auto deadline = event_loop.compute_deadline();
     // 3. Let timeRemaining be deadline - now.

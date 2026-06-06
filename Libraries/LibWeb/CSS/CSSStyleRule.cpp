@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
@@ -18,13 +19,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleRule);
 
-GC::Ref<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorList&& selectors, CSSStyleProperties& declaration, CSSRuleList& nested_rules)
+GC::Ref<CSSStyleRule> CSSStyleRule::create(SelectorList&& selectors, CSSStyleProperties& declaration, CSSRuleList& nested_rules)
 {
-    return realm.create<CSSStyleRule>(realm, move(selectors), declaration, nested_rules);
+    return GC::Heap::the().allocate<CSSStyleRule>(move(selectors), declaration, nested_rules);
 }
 
-CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, CSSStyleProperties& declaration, CSSRuleList& nested_rules)
-    : CSSGroupingRule(realm, nested_rules, Type::Style)
+CSSStyleRule::CSSStyleRule(SelectorList&& selectors, CSSStyleProperties& declaration, CSSRuleList& nested_rules)
+    : CSSGroupingRule(nested_rules, Type::Style)
     , m_selectors(move(selectors))
     , m_declaration(declaration)
 {
@@ -48,7 +49,7 @@ GC::Ref<CSSStyleProperties> CSSStyleRule::style()
 GC::Ref<StylePropertyMap> CSSStyleRule::style_map()
 {
     if (!m_style_map)
-        m_style_map = StylePropertyMap::create(realm(), m_declaration);
+        m_style_map = StylePropertyMap::create(m_declaration);
     return *m_style_map;
 }
 
@@ -130,7 +131,7 @@ void CSSStyleRule::set_selector_text(StringView selector_text)
     clear_caches();
 
     // 1. Run the parse a group of selectors algorithm on the given value.
-    Parser::ParsingParams parsing_params { realm() };
+    Parser::ParsingParams parsing_params;
 
     if (m_parent_style_sheet)
         parsing_params.declared_namespaces = m_parent_style_sheet->declared_namespaces();

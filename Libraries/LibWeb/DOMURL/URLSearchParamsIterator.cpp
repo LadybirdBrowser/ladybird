@@ -25,13 +25,13 @@ namespace Web::DOMURL {
 
 GC_DEFINE_ALLOCATOR(URLSearchParamsIterator);
 
-WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> URLSearchParamsIterator::create(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
+WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> URLSearchParamsIterator::create(JS::Realm& realm, URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
 {
-    return url_search_params.realm().create<URLSearchParamsIterator>(url_search_params, iteration_kind);
+    return realm.create<URLSearchParamsIterator>(realm, url_search_params, iteration_kind);
 }
 
-URLSearchParamsIterator::URLSearchParamsIterator(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
-    : JS::Object(url_search_params.realm(), nullptr)
+URLSearchParamsIterator::URLSearchParamsIterator(JS::Realm& realm, URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
+    : JS::Object(realm, nullptr)
     , m_url_search_params(url_search_params)
     , m_iteration_kind(iteration_kind)
 {

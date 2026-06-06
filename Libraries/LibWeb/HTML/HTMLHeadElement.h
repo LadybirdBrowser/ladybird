@@ -21,7 +21,6 @@ private:
     HTMLHeadElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_head_element() const final { return true; }
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

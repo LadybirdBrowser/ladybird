@@ -23,6 +23,8 @@ class SourceBuffer : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SourceBuffer);
 
 public:
+    static GC::Ref<SourceBuffer> create(MediaSource&, GC::Ref<HTML::AudioTrackList>, GC::Ref<HTML::VideoTrackList>, GC::Ref<HTML::TextTrackList>);
+
     void set_onupdatestart(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onupdatestart();
 
@@ -40,38 +42,36 @@ public:
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
     Bindings::AppendMode mode() const;
-    WebIDL::ExceptionOr<void> set_mode(Bindings::AppendMode);
+    WebIDL::ExceptionOr<void> set_mode(JS::Realm&, Bindings::AppendMode);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool updating() const;
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
-    WebIDL::ExceptionOr<GC::Ref<HTML::TimeRanges>> buffered();
+    GC::Ref<HTML::TimeRanges> buffered();
 
     void set_content_type(String const& type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
-    WebIDL::ExceptionOr<void> append_buffer(WebIDL::BufferSource);
+    WebIDL::ExceptionOr<void> append_buffer(JS::Realm&, WebIDL::BufferSourceVariant const&);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
-    WebIDL::ExceptionOr<void> abort();
+    WebIDL::ExceptionOr<void> abort(JS::Realm&);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
-    WebIDL::ExceptionOr<void> change_type(String const& type);
+    WebIDL::ExceptionOr<void> change_type(JS::Realm&, String const& type);
 
     void set_reached_end_of_stream(Badge<MediaSource>);
     void clear_reached_end_of_stream(Badge<MediaSource>);
 
 protected:
-    SourceBuffer(JS::Realm&, MediaSource&);
+    SourceBuffer(MediaSource&, GC::Ref<HTML::AudioTrackList>, GC::Ref<HTML::VideoTrackList>, GC::Ref<HTML::TextTrackList>);
 
     virtual ~SourceBuffer() override;
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    WebIDL::ExceptionOr<void> prepare_append(size_t new_data_size, AK::Duration current_time);
+    WebIDL::ExceptionOr<void> prepare_append(JS::Realm&, size_t new_data_size, AK::Duration current_time);
     void run_buffer_append_algorithm();
     void run_append_error_algorithm();
     void on_first_initialization_segment_processed(InitializationSegmentData const&);

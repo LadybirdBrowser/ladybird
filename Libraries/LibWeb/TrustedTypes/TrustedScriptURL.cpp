@@ -7,14 +7,13 @@
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 
 #include <LibGC/Ptr.h>
-#include <LibJS/Runtime/Realm.h>
 
 namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedScriptURL);
 
-TrustedScriptURL::TrustedScriptURL(JS::Realm& realm, Utf16String data)
-    : Wrappable(realm)
+TrustedScriptURL::TrustedScriptURL(Utf16String data)
+    : Bindings::Wrappable()
     , m_data(move(data))
 {
 }

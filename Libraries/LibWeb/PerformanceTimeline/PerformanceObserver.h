@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PerformanceObserver.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -24,10 +25,10 @@ public:
         Multiple,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<PerformanceObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
+    static WebIDL::ExceptionOr<GC::Ref<PerformanceObserver>> construct_impl(HTML::WindowOrWorkerGlobalScopeMixin&, GC::Ptr<WebIDL::CallbackType>);
     virtual ~PerformanceObserver() override;
 
-    WebIDL::ExceptionOr<void> observe(Bindings::PerformanceObserverInit& options);
+    WebIDL::ExceptionOr<void> observe(JS::Realm&, Bindings::PerformanceObserverInit& options);
     void disconnect();
     Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> take_records();
 
@@ -40,16 +41,20 @@ public:
 
     void append_to_observer_buffer(Badge<HTML::WindowOrWorkerGlobalScopeMixin>, GC::Ref<PerformanceTimeline::PerformanceEntry>);
 
-    static GC::Ref<JS::Object> supported_entry_types(JS::VM&);
+    static GC::Ref<JS::Object> supported_entry_types(JS::Realm&);
 
 private:
-    PerformanceObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
+    PerformanceObserver(GC::Ptr<WebIDL::CallbackType>, HTML::WindowOrWorkerGlobalScopeMixin&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    HTML::WindowOrWorkerGlobalScopeMixin& relevant_global() const;
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-callback
     // A PerformanceObserverCallback observer callback set on creation.
     GC::Ptr<WebIDL::CallbackType> m_callback;
+
+    GC::Ref<DOM::EventTarget> m_relevant_global;
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-buffer
     // A PerformanceEntryList object called the observer buffer that is initially empty.

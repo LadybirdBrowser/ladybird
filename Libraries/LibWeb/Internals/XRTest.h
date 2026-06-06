@@ -17,6 +17,8 @@ class WEB_API XRTest final : public InternalsBase {
     GC_DECLARE_ALLOCATOR(XRTest);
 
 public:
+    static GC::Ref<XRTest> create(HTML::Window&);
+
     virtual ~XRTest() override;
 
     GC::Ref<WebIDL::Promise> simulate_device_connection(Bindings::FakeXRDeviceInit const&) const;
@@ -26,7 +28,7 @@ public:
     GC::Ref<WebIDL::Promise> disconnect_all_devices() const;
 
 private:
-    explicit XRTest(JS::Realm&);
+    explicit XRTest(HTML::Window&);
 };
 
 }

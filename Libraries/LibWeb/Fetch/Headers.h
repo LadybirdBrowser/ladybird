@@ -35,7 +35,8 @@ public:
         None,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<Headers>> construct_impl(JS::Realm& realm, Optional<HeadersInit> const& init);
+    [[nodiscard]] static GC::Ref<Headers> create(NonnullRefPtr<HTTP::HeaderList>);
+    static WebIDL::ExceptionOr<GC::Ref<Headers>> construct_impl(Optional<HeadersInit> const& init);
 
     virtual ~Headers() override;
 
@@ -62,7 +63,7 @@ public:
 private:
     friend class HeadersIterator;
 
-    Headers(JS::Realm&, NonnullRefPtr<HTTP::HeaderList>);
+    explicit Headers(NonnullRefPtr<HTTP::HeaderList>);
 
     WebIDL::ExceptionOr<bool> validate(HTTP::Header const&) const;
     void remove_privileged_no_cors_request_headers();

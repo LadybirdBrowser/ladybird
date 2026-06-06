@@ -8,6 +8,7 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf8View.h>
+#include <LibGC/Heap.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -23,9 +24,12 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/MessageEvent.h>
+#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -64,6 +68,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
@@ -133,15 +138,33 @@ private:
     u32 m_handle { 0 };
 };
 
-GC::Ref<Window> Window::create(JS::Realm& realm)
+GC::Ref<Window> Window::create()
 {
-    return realm.create<Window>(realm);
+    return GC::Heap::the().allocate<Window>();
 }
 
-Window::Window(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+Window::Window()
+    : DOM::EventTarget()
 {
     all_windows().set(*this);
+}
+
+JS::Realm& Window::realm() const
+{
+    if (m_environment_settings_object)
+        return m_environment_settings_object->realm();
+
+    auto wrapper = cached_main_world_wrapper();
+    VERIFY(wrapper);
+    return wrapper->realm();
+}
+
+EnvironmentSettingsObject& Window::relevant_settings_object() const
+{
+    if (m_environment_settings_object)
+        return *m_environment_settings_object;
+
+    return Bindings::principal_host_defined_environment_settings_object(realm());
 }
 
 void Window::visit_edges(JS::Cell::Visitor& visitor)
@@ -151,6 +174,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     UniversalGlobalScopeMixin::visit_edges(visitor);
 
     visitor.visit(m_associated_document);
+    visitor.visit(m_environment_settings_object);
     visitor.visit(m_current_event);
     visitor.visit(m_screen);
     visitor.visit(m_location);
@@ -477,7 +501,7 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
     // with the persisted attribute initialized to persisted,
     Bindings::PageTransitionEventInit event_init {};
     event_init.persisted = persisted;
-    auto event = PageTransitionEvent::create(associated_document().realm(), event_name, event_init);
+    auto event = PageTransitionEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
 
     // ...the cancelable attribute initialized to true,
     event->set_cancelable(true);
@@ -504,9 +528,9 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 
     // 2. Let map be the result of running obtain a local storage bottle map with this's relevant settings object and "localStorage".
     GC::Ptr<StorageAPI::LocalStorageBottle> map;
-    auto storage_key = StorageAPI::obtain_a_storage_key(relevant_settings_object(*this));
+    auto storage_key = StorageAPI::obtain_a_storage_key(this->relevant_settings_object());
     if (storage_key.has_value()) {
-        map = StorageAPI::LocalStorageBottle::create(heap(), page(), storage_key.value(), StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA);
+        map = StorageAPI::LocalStorageBottle::create(page(), storage_key.value(), StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA);
     }
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
@@ -514,7 +538,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
         return WebIDL::SecurityError::create(realm, "localStorage is not available"_utf16);
 
     // 4. Let storage be a new Storage object whose map is map.
-    auto storage = Storage::create(realm, Storage::Type::Local, *map);
+    auto storage = Storage::create(*this, Storage::Type::Local, *map);
 
     // 5. Set this's associated Document's local storage holder to storage.
     associated_document.set_local_storage_holder(storage);
@@ -534,14 +558,14 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
         return GC::Ref { *storage };
 
     // 2. Let map be the result of running obtain a session storage bottle map with this's relevant settings object and "sessionStorage".
-    auto map = StorageAPI::obtain_a_session_storage_bottle_map(relevant_settings_object(*this), StorageAPI::StorageEndpointType::SessionStorage);
+    auto map = StorageAPI::obtain_a_session_storage_bottle_map(this->relevant_settings_object(), StorageAPI::StorageEndpointType::SessionStorage);
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)
         return WebIDL::SecurityError::create(realm, "sessionStorage is not available"_utf16);
 
     // 4. Let storage be a new Storage object whose map is map.
-    auto storage = Storage::create(realm, Storage::Type::Session, *map);
+    auto storage = Storage::create(*this, Storage::Type::Session, *map);
 
     // 5. Set this's associated Document's session storage holder to storage.
     associated_document.set_session_storage_holder(storage);
@@ -670,7 +694,7 @@ void Window::start_an_idle_period()
 
     // 5. Queue a task on the queue associated with the idle-task task source,
     //    which performs the steps defined in the invoke idle callbacks algorithm with window and getDeadline as parameters.
-    queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(heap(), [this] {
+    queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this] {
         invoke_idle_callbacks();
     }));
 }
@@ -687,7 +711,7 @@ void Window::invoke_idle_callbacks()
         // 1. Pop the top callback from window's list of runnable idle callbacks.
         auto callback = m_runnable_idle_callbacks.take_first();
         // 2. Let deadlineArg be a new IdleDeadline whose [get deadline time algorithm] is getDeadline.
-        auto deadline_arg = RequestIdleCallback::IdleDeadline::create(realm());
+        auto deadline_arg = RequestIdleCallback::IdleDeadline::create();
         // 3. Call callback with deadlineArg as its argument. If an uncaught runtime script error occurs, then report the exception.
         auto result = callback->invoke(deadline_arg);
         if (result.is_error())
@@ -695,7 +719,7 @@ void Window::invoke_idle_callbacks()
         // 4. If window's list of runnable idle callbacks is not empty, queue a task which performs the steps
         //    in the invoke idle callbacks algorithm with getDeadline and window as a parameters and return from this algorithm
         if (!m_runnable_idle_callbacks.is_empty()) {
-            queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(heap(), [this] {
+            queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this] {
                 invoke_idle_callbacks();
             }));
         }
@@ -705,6 +729,11 @@ void Window::invoke_idle_callbacks()
 void Window::set_associated_document(DOM::Document& document)
 {
     m_associated_document = &document;
+}
+
+void Window::set_environment_settings_object(Badge<WindowEnvironmentSettingsObject>, WindowEnvironmentSettingsObject& settings_object)
+{
+    m_environment_settings_object = &settings_object;
 }
 
 void Window::set_current_event(DOM::Event* event)
@@ -745,11 +774,11 @@ Vector<GC::Ref<Plugin>> Window::pdf_viewer_plugin_objects()
 
     if (m_pdf_viewer_plugin_objects.is_empty()) {
         // FIXME: Propagate errors.
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chrome PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chromium PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Microsoft Edge PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "WebKit built-in PDF"_string));
+        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "Chrome PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "Chromium PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "Microsoft Edge PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(Plugin::create(*this, "WebKit built-in PDF"_string));
     }
 
     return m_pdf_viewer_plugin_objects;
@@ -767,8 +796,8 @@ Vector<GC::Ref<MimeType>> Window::pdf_viewer_mime_type_objects()
         return {};
 
     if (m_pdf_viewer_mime_type_objects.is_empty()) {
-        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "application/pdf"_string));
-        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "text/pdf"_string));
+        m_pdf_viewer_mime_type_objects.append(MimeType::create(*this, "application/pdf"_string));
+        m_pdf_viewer_mime_type_objects.append(MimeType::create(*this, "text/pdf"_string));
     }
 
     return m_pdf_viewer_mime_type_objects;
@@ -809,10 +838,10 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
 
     Bindings::WindowGlobalMixin::initialize(realm, global_object);
     Bindings::WindowGlobalMixin::define_unforgeable_attributes(realm, global_object);
-    WindowOrWorkerGlobalScopeMixin::initialize(realm);
+    WindowOrWorkerGlobalScopeMixin::initialize();
 
     if (s_internals_object_exposed)
-        global_object.define_direct_property("internals"_utf16_fly_string, Bindings::wrap(realm, realm.create<Internals::Internals>(realm)), JS::default_attributes);
+        global_object.define_direct_property("internals"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Heap::the().allocate<Internals::Internals>(*this)), JS::default_attributes);
 
     return {};
 }
@@ -905,7 +934,7 @@ void Window::close()
         traversable->set_closing(true);
 
         // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(incumbent_global_object), GC::create_function(heap(), [traversable] {
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(incumbent_global_object), GC::create_function(GC::Heap::the(), [traversable] {
             as<TraversableNavigable>(*traversable).definitely_close_top_level_traversable();
         }));
     }
@@ -936,11 +965,9 @@ void Window::set_status(String const& status)
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location
 GC::Ref<Location> Window::location()
 {
-    auto& realm = this->realm();
-
     // The Window object's location getter steps are to return this's Location object.
     if (!m_location)
-        m_location = realm.create<Location>(realm);
+        m_location = GC::Heap::the().allocate<Location>(*this);
     return GC::Ref { *m_location };
 }
 
@@ -996,7 +1023,7 @@ void Window::blur()
 GC::Ref<BarProp const> Window::locationbar()
 {
     if (!m_locationbar)
-        m_locationbar = BarProp::create(realm());
+        m_locationbar = BarProp::create(*this);
 
     return *m_locationbar;
 }
@@ -1005,7 +1032,7 @@ GC::Ref<BarProp const> Window::locationbar()
 GC::Ref<BarProp const> Window::menubar()
 {
     if (!m_menubar)
-        m_menubar = BarProp::create(realm());
+        m_menubar = BarProp::create(*this);
 
     return *m_menubar;
 }
@@ -1014,7 +1041,7 @@ GC::Ref<BarProp const> Window::menubar()
 GC::Ref<BarProp const> Window::personalbar()
 {
     if (!m_personalbar)
-        m_personalbar = BarProp::create(realm());
+        m_personalbar = BarProp::create(*this);
 
     return *m_personalbar;
 }
@@ -1023,7 +1050,7 @@ GC::Ref<BarProp const> Window::personalbar()
 GC::Ref<BarProp const> Window::scrollbars()
 {
     if (!m_scrollbars)
-        m_scrollbars = BarProp::create(realm());
+        m_scrollbars = BarProp::create(*this);
 
     return *m_scrollbars;
 }
@@ -1032,7 +1059,7 @@ GC::Ref<BarProp const> Window::scrollbars()
 GC::Ref<BarProp const> Window::statusbar()
 {
     if (!m_statusbar)
-        m_statusbar = BarProp::create(realm());
+        m_statusbar = BarProp::create(*this);
 
     return *m_statusbar;
 }
@@ -1041,7 +1068,7 @@ GC::Ref<BarProp const> Window::statusbar()
 GC::Ref<BarProp const> Window::toolbar()
 {
     if (!m_toolbar)
-        m_toolbar = BarProp::create(realm());
+        m_toolbar = BarProp::create(*this);
 
     return *m_toolbar;
 }
@@ -1160,32 +1187,26 @@ WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::open(Optional<String> const& u
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator
 GC::Ref<Navigator> Window::navigator()
 {
-    auto& realm = this->realm();
-
     // The navigator and clientInformation getter steps are to return this's associated Navigator.
     if (!m_navigator)
-        m_navigator = realm.create<Navigator>(realm);
+        m_navigator = Navigator::create(*this);
     return GC::Ref { *m_navigator };
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-manager
 GC::Ref<CloseWatcherManager> Window::close_watcher_manager()
 {
-    auto& realm = this->realm();
-
     if (!m_close_watcher_manager)
-        m_close_watcher_manager = realm.create<CloseWatcherManager>(realm);
+        m_close_watcher_manager = CloseWatcherManager::create();
     return GC::Ref { *m_close_watcher_manager };
 }
 
 // https://cookiestore.spec.whatwg.org/#Window
 GC::Ref<CookieStore::CookieStore> Window::cookie_store()
 {
-    auto& realm = this->realm();
-
     // The cookieStore getter steps are to return this’s associated CookieStore.
     if (!m_cookie_store)
-        m_cookie_store = realm.create<CookieStore::CookieStore>(realm, page().client());
+        m_cookie_store = GC::Heap::the().allocate<CookieStore::CookieStore>(page().client());
     return *m_cookie_store;
 }
 
@@ -1193,7 +1214,7 @@ GC::Ref<CookieStore::CookieStore> Window::cookie_store()
 GC::Ref<Speech::SpeechSynthesis> Window::speech_synthesis()
 {
     if (!m_speech_synthesis)
-        m_speech_synthesis = Speech::SpeechSynthesis::create(realm());
+        m_speech_synthesis = Speech::SpeechSynthesis::create();
     return *m_speech_synthesis;
 }
 
@@ -1246,7 +1267,9 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
 
         // 2. If parsedURL is failure, then throw a "SyntaxError" DOMException.
         if (!parsed_url.has_value())
-            return WebIDL::SyntaxError::create(target_realm, Utf16String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin));
+            return Web::throw_completion(
+                target_realm,
+                WebIDL::SyntaxError::create(target_realm, Utf16String::formatted("Invalid URL for targetOrigin: '{}'", options.target_origin)));
 
         // 3. Set targetOrigin to parsedURL's origin.
         target_origin = parsed_url->origin();
@@ -1256,10 +1279,10 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
     auto& transfer = options.transfer;
 
     // 7. Let serializeWithTransferResult be StructuredSerializeWithTransfer(message, transfer). Rethrow any exceptions.
-    auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(target_realm.vm(), message, transfer));
+    auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(target_realm, message, transfer));
 
     // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
-    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result), target_origin = move(target_origin), &incumbent_settings, &target_realm]() mutable {
+    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result), target_origin = move(target_origin), &incumbent_settings, &target_realm]() mutable {
         // 1. If the targetOrigin argument is not a single literal U+002A ASTERISK character (*) and targetWindow's
         //    associated Document's origin is not same origin with targetOrigin, then return.
         // NOTE: Due to step 4 and 5 above, the only time it's not '*' is if target_origin contains an Origin.
@@ -1285,7 +1308,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         if (deserialize_record_or_error.is_exception()) {
             Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, JS::js_null(), String {}, String {}, {}, GC::Ref { source } };
 
-            auto message_error_event = MessageEvent::create(target_realm, EventNames::messageerror, message_event_init, origin);
+            auto message_error_event = MessageEvent::create(target_realm.global_object(), EventNames::messageerror, message_event_init, origin);
             dispatch_event(message_error_event);
             return;
         }
@@ -1309,7 +1332,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         //    attribute initialized to newPorts.
         Bindings::MessageEventInit message_event_init { Bindings::EventInit {}, message_clone, String {}, String {}, move(new_ports), GC::Ref { source } };
 
-        auto message_event = MessageEvent::create(target_realm, EventNames::message, message_event_init, origin);
+        auto message_event = MessageEvent::create(target_realm.global_object(), EventNames::message, message_event_init, origin);
         message_event->set_is_trusted(true);
         dispatch_event(message_event);
     }));
@@ -1396,7 +1419,7 @@ GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& elemen
     //        Null.
     //    owner node
     //        obj.
-    return CSS::CSSStyleProperties::create_resolved_style(element.realm(), move(object));
+    return CSS::CSSStyleProperties::create_resolved_style(move(object));
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-window-matchmedia
@@ -1406,7 +1429,7 @@ WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> Window::match_media(String con
     auto parsed_media_query_list = parse_media_query_list(CSS::Parser::ParsingParams(associated_document()), query);
 
     // 2. Return a new MediaQueryList object, with this's associated Document as the document, with parsed media query list as its associated media query list.
-    auto media_query_list = realm().create<CSS::MediaQueryList>(associated_document(), move(parsed_media_query_list));
+    auto media_query_list = CSS::MediaQueryList::create(associated_document(), move(parsed_media_query_list));
     associated_document().add_media_query_list(media_query_list);
     return media_query_list;
 }
@@ -1416,7 +1439,7 @@ GC::Ref<CSS::Screen> Window::screen()
 {
     // The screen attribute must return the Screen object associated with the Window object.
     if (!m_screen)
-        m_screen = realm().create<CSS::Screen>(*this);
+        m_screen = CSS::Screen::create(*this);
     return GC::Ref { *m_screen };
 }
 
@@ -1602,7 +1625,7 @@ GC::Ref<WebIDL::Promise> Window::scroll(Bindings::ScrollToOptions const& options
     // 10. If position is the same as the viewport’s current scroll position, and the viewport does not have an ongoing
     //     smooth scroll, return a resolved Promise and abort the remaining steps.
     if (position == viewport_rect.location()) {
-        TemporaryExecutionContext temporary_execution_context { realm() };
+        TemporaryExecutionContext temporary_execution_context { relevant_settings_object() };
         return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
     }
 
@@ -1721,7 +1744,7 @@ double Window::device_pixel_ratio() const
 WebIDL::UnsignedLong Window::request_animation_frame(GC::Ref<WebIDL::CallbackType> callback)
 {
     // FIXME: Make this fully spec compliant. Currently implements a mix of 'requestAnimationFrame()' and 'run the animation frame callbacks'.
-    auto handle = animation_frame_callback_driver().add(GC::create_function(heap(), [this, callback](double now) {
+    auto handle = animation_frame_callback_driver().add(GC::create_function(GC::Heap::the(), [this, callback](double now) {
         // 3. Invoke callback, passing now as the only argument, and if an exception is thrown, report the exception.
         auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now) } });
         if (result.is_error())
@@ -1746,7 +1769,7 @@ void Window::cancel_animation_frame(WebIDL::UnsignedLong handle)
 AnimationFrameCallbackDriver& Window::animation_frame_callback_driver()
 {
     if (!m_animation_frame_callback_driver)
-        m_animation_frame_callback_driver = realm().create<AnimationFrameCallbackDriver>();
+        m_animation_frame_callback_driver = AnimationFrameCallbackDriver::create();
     return *m_animation_frame_callback_driver;
 }
 
@@ -1771,7 +1794,7 @@ u32 Window::request_idle_callback(WebIDL::CallbackType& callback, Bindings::Idle
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
     auto handler = [callback = GC::make_root(callback)](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
         auto& callback_realm = callback->callback->shape().realm();
-        return WebIDL::invoke_callback(*callback, {}, { { Bindings::wrap(callback_realm, deadline) } });
+        return WebIDL::invoke_callback(*callback, {}, { { Bindings::wrap(Bindings::host_defined_wrapper_world(callback_realm), callback_realm, deadline) } });
     };
     m_idle_request_callbacks.append(adopt_ref(*new IdleCallback(move(handler), handle)));
 
@@ -1826,7 +1849,7 @@ GC::Ref<External> Window::external()
 {
     // The external attribute of the Window interface must return an instance of the External interface
     if (!m_external)
-        m_external = realm().create<External>(realm());
+        m_external = External::create();
     return *m_external;
 }
 
@@ -1835,10 +1858,8 @@ GC::Ref<Navigation> Window::navigation()
 {
     // Upon creation of the Window object, its navigation API must be set
     // to a new Navigation object created in the Window object's relevant realm.
-    if (!m_navigation) {
-        auto& realm = relevant_realm(*this);
-        m_navigation = realm.create<Navigation>(realm);
-    }
+    if (!m_navigation)
+        m_navigation = Navigation::create(*this);
 
     // The navigation getter steps are to return this's navigation API.
     return *m_navigation;
@@ -1894,7 +1915,7 @@ OrderedHashMap<FlyString, GC::Ref<Navigable>> Window::document_tree_child_naviga
         // 1. Let name be navigable's target name.
         // 2. If navigable's active document's origin is same origin with window's relevant settings object's origin, then append name to names.
         auto document = navigable->active_document();
-        if (document && document->origin().is_same_origin(relevant_settings_object(*this).origin()))
+        if (document && document->origin().is_same_origin(this->relevant_settings_object().origin()))
             names.set(name, *navigable);
     }
 
@@ -1934,7 +1955,7 @@ Vector<FlyString> Window::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
-JS::Value Window::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value Window::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
     auto& mutable_this = const_cast<Window&>(*this);
@@ -1965,7 +1986,7 @@ JS::Value Window::named_item_value(JS::Realm& realm, FlyString const& name) cons
 
     // 3. Otherwise, if objects has only one element, return that element.
     if (objects.elements.size() == 1)
-        return Bindings::wrap(realm, objects.elements[0]);
+        return Bindings::wrap(wrapper_world, realm, objects.elements[0]);
 
     // 4. Otherwise return an HTMLCollection rooted at window's associated Document,
     //    whose filter matches only named objects of window with the name name. (By definition, these will all be elements.)
@@ -1975,7 +1996,7 @@ JS::Value Window::named_item_value(JS::Realm& realm, FlyString const& name) cons
             return true;
         return element.id() == name;
     });
-    return Bindings::wrap(realm, collection);
+    return Bindings::wrap(wrapper_world, realm, collection);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-nameditem-filter

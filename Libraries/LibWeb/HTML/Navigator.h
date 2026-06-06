@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/GPC/GlobalPrivacyControl.h>
 #include <LibWeb/Gamepad/NavigatorGamepad.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
@@ -42,7 +43,7 @@ class Navigator
     GC_DECLARE_ALLOCATOR(Navigator);
 
 public:
-    [[nodiscard]] static GC::Ref<Navigator> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Navigator> create(Window&);
 
     // FIXME: Implement NavigatorContentUtilsMixin
 
@@ -58,6 +59,8 @@ public:
     bool pdf_viewer_enabled() const;
 
     bool webdriver() const;
+
+    Window& window() const { return *m_window; }
 
     [[nodiscard]] GC::Ref<MimeTypeArray> mime_types();
     [[nodiscard]] GC::Ref<PluginArray> plugins();
@@ -83,10 +86,12 @@ protected:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    explicit Navigator(JS::Realm&);
+    explicit Navigator(Window&);
 
     // ^StorageAPI::NavigatorStorage
-    virtual Bindings::Wrappable const& this_navigator_storage_object() const override { return *this; }
+    virtual EnvironmentSettingsObject& navigator_storage_settings_object() const override;
+
+    GC::Ref<Window> m_window;
 
     GC::Ptr<PluginArray> m_plugin_array;
     GC::Ptr<MimeTypeArray> m_mime_type_array;

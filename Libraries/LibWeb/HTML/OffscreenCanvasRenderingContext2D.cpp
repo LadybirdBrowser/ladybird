@@ -5,6 +5,7 @@
  */
 
 #include <AK/OwnPtr.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/HTML/Path2D.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextMetrics.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -32,14 +34,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
 
-JS::ThrowCompletionOr<GC::Ref<OffscreenCanvasRenderingContext2D>> OffscreenCanvasRenderingContext2D::create(JS::Realm& realm, OffscreenCanvas& offscreen_canvas, JS::Value options)
+JS::ThrowCompletionOr<GC::Ref<OffscreenCanvasRenderingContext2D>> OffscreenCanvasRenderingContext2D::create(OffscreenCanvas& offscreen_canvas, JS::Value options)
 {
-    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(realm.vm(), options));
-    return realm.create<OffscreenCanvasRenderingContext2D>(realm, offscreen_canvas, context_attributes);
+    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(offscreen_canvas.vm(), options));
+    return GC::Heap::the().allocate<OffscreenCanvasRenderingContext2D>(offscreen_canvas, context_attributes);
 }
 
-OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(JS::Realm& realm, OffscreenCanvas& offscreen_canvas, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : Bindings::Wrappable(realm)
+OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(OffscreenCanvas& offscreen_canvas, Bindings::CanvasRenderingContext2DSettings context_attributes)
+    : Bindings::Wrappable()
     , CanvasPath(static_cast<CanvasState const&>(*this))
     , m_canvas(offscreen_canvas)
     , m_size(offscreen_canvas.bitmap_size_for_canvas())
@@ -66,6 +68,11 @@ void OffscreenCanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
 GC::Ref<OffscreenCanvas> OffscreenCanvasRenderingContext2D::canvas()
 {
     return m_canvas;
+}
+
+JS::Realm& OffscreenCanvasRenderingContext2D::my_realm()
+{
+    return relevant_realm(m_canvas->relevant_global_object());
 }
 
 void OffscreenCanvasRenderingContext2D::fill_rect(float, float, float, float)
@@ -127,17 +134,20 @@ void OffscreenCanvasRenderingContext2D::fill(Path2D&, StringView)
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
 WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::create_image_data(int, int, Optional<Bindings::ImageDataSettings> const&) const
 {
-    return WebIDL::NotSupportedError::create(realm(), "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(int, int)"_utf16);
+    auto& realm = HTML::relevant_realm(m_canvas->relevant_global_object());
+    return WebIDL::NotSupportedError::create(realm, "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(int, int)"_utf16);
 }
 
 WebIDL::ExceptionOr<GC::Ref<ImageData>> OffscreenCanvasRenderingContext2D::create_image_data(ImageData const&) const
 {
-    return WebIDL::NotSupportedError::create(realm(), "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(ImageData&)"_utf16);
+    auto& realm = HTML::relevant_realm(m_canvas->relevant_global_object());
+    return WebIDL::NotSupportedError::create(realm, "(STUBBED) OffscreenCanvasRenderingContext2D::create_image_data(ImageData&)"_utf16);
 }
 
 WebIDL::ExceptionOr<GC::Ptr<ImageData>> OffscreenCanvasRenderingContext2D::get_image_data(int, int, int, int, Optional<Bindings::ImageDataSettings> const&) const
 {
-    return WebIDL::NotSupportedError::create(realm(), "(STUBBED) OffscreenCanvasRenderingContext2D::get_image_data()"_utf16);
+    auto& realm = HTML::relevant_realm(m_canvas->relevant_global_object());
+    return WebIDL::NotSupportedError::create(realm, "(STUBBED) OffscreenCanvasRenderingContext2D::get_image_data()"_utf16);
 }
 
 WebIDL::ExceptionOr<void> OffscreenCanvasRenderingContext2D::put_image_data(ImageData&, float, float)
@@ -161,7 +171,7 @@ GC::Ref<TextMetrics> OffscreenCanvasRenderingContext2D::measure_text(Utf16String
 {
     dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::measure_text()");
 
-    auto metrics = TextMetrics::create(realm());
+    auto metrics = TextMetrics::create();
     return metrics;
 }
 

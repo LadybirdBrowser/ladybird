@@ -8,7 +8,6 @@
 
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/TextTrack.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -29,7 +28,7 @@ public:
         FailedToLoad,
     };
 
-    static GC::Ref<TextTrack> create(JS::Realm&);
+    static GC::Ref<TextTrack> create();
     virtual ~TextTrack() override;
 
     Bindings::TextTrackKind kind();
@@ -57,9 +56,8 @@ public:
     void unregister_observer(Badge<TextTrackObserver>, TextTrackObserver&);
 
 private:
-    TextTrack(JS::Realm&);
+    TextTrack();
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     Bindings::TextTrackKind m_kind { Bindings::TextTrackKind::Subtitles };

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -17,7 +18,7 @@ GC_DEFINE_ALLOCATOR(HTMLFormControlsCollection);
 
 GC::Ref<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
 {
-    return root.realm().create<HTMLFormControlsCollection>(root, scope, move(filter));
+    return GC::Heap::the().allocate<HTMLFormControlsCollection>(root, scope, move(filter));
 }
 
 HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
@@ -61,7 +62,7 @@ Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCo
     // 4. Otherwise, create a new RadioNodeList object representing a live view of the HTMLFormControlsCollection object, further filtered so that the only nodes in the
     //    RadioNodeList object are those that have either an id attribute or a name attribute equal to name. The nodes in the RadioNodeList object must be sorted in tree
     //    order. Return that RadioNodeList object.
-    return RadioNodeList::create(realm(), root(), DOM::LiveNodeList::Scope::Descendants, [name](auto const& node) {
+    return RadioNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [name](auto const& node) {
         if (!is<DOM::Element>(node))
             return false;
 
@@ -70,12 +71,12 @@ Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCo
     });
 }
 
-JS::Value HTMLFormControlsCollection::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value HTMLFormControlsCollection::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
 {
     return named_item_or_radio_node_list(name).visit(
         [](Empty) -> JS::Value { return JS::js_undefined(); },
-        [&realm](GC::Ref<DOM::Element> const& value) -> JS::Value { return Bindings::wrap(realm, value); },
-        [&realm](GC::Ref<RadioNodeList> const& value) -> JS::Value { return Bindings::wrap(realm, value); });
+        [&wrapper_world, &realm](GC::Ref<DOM::Element> const& value) -> JS::Value { return Bindings::wrap(wrapper_world, realm, value); },
+        [&wrapper_world, &realm](GC::Ref<RadioNodeList> const& value) -> JS::Value { return Bindings::wrap(wrapper_world, realm, value); });
 }
 
 }

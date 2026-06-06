@@ -4,12 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationObserver);
+
+GC::Ref<NavigationObserver> NavigationObserver::create(Navigable& navigable)
+{
+    return GC::Heap::the().allocate<NavigationObserver>(navigable);
+}
 
 NavigationObserver::NavigationObserver(Navigable& navigable)
     : m_navigable(navigable)
@@ -34,7 +40,7 @@ void NavigationObserver::finalize()
 void NavigationObserver::set_navigation_complete(Function<void()> callback)
 {
     if (callback)
-        m_navigation_complete = GC::create_function(heap(), move(callback));
+        m_navigation_complete = GC::create_function(GC::Heap::the(), move(callback));
     else
         m_navigation_complete = nullptr;
 }
@@ -42,7 +48,7 @@ void NavigationObserver::set_navigation_complete(Function<void()> callback)
 void NavigationObserver::set_ongoing_navigation_changed(Function<void()> callback)
 {
     if (callback)
-        m_ongoing_navigation_changed = GC::create_function(heap(), move(callback));
+        m_ongoing_navigation_changed = GC::create_function(GC::Heap::the(), move(callback));
     else
         m_ongoing_navigation_changed = nullptr;
 }

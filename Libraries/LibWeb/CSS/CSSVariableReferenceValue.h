@@ -17,8 +17,8 @@ class CSSVariableReferenceValue : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(CSSVariableReferenceValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSVariableReferenceValue> create(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> construct_impl(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
+    [[nodiscard]] static GC::Ref<CSSVariableReferenceValue> create(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback = nullptr);
+    static WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> construct_impl(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
 
     virtual ~CSSVariableReferenceValue() override;
 
@@ -31,7 +31,7 @@ public:
     WebIDL::ExceptionOr<String> to_string() const;
 
 private:
-    CSSVariableReferenceValue(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
+    CSSVariableReferenceValue(FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

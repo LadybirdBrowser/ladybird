@@ -18,18 +18,18 @@ class OESVertexArrayObject : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(OESVertexArrayObject);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLVertexArrayObjectOES> create_vertex_array_oes();
-    void delete_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object);
-    bool is_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object);
-    void bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectOES> array_object);
+    void delete_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);
+    bool is_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);
+    void bind_vertex_array_oes(GC::Root<WebGLVertexArrayObjectOES> array_object);
 
 protected:
     void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    OESVertexArrayObject(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    explicit OESVertexArrayObject(GC::Ref<WebGLRenderingContextBase>);
 
     GC::Ref<WebGLRenderingContextBase> m_context;
 };

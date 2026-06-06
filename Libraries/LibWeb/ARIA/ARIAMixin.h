@@ -13,6 +13,7 @@
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -69,12 +70,13 @@ public:
     ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)   \
-    Optional<Vector<GC::Weak<DOM::Element>> const&> attribute() const; \
-    void set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>>);    \
-                                                                       \
-    GC::Ptr<JS::Array> cached_##attribute(JS::Realm&) const;           \
-    void set_cached_##attribute(JS::Realm&, GC::Ptr<JS::Array>);
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)            \
+    Optional<Vector<GC::Weak<DOM::Element>> const&> attribute() const;          \
+    void set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>>);             \
+                                                                                \
+    GC::Ptr<JS::Array> cached_##attribute(Bindings::WrapperWorld const&) const; \
+    void set_cached_##attribute(                                                \
+        Bindings::WrapperWorld const&, GC::Ptr<JS::Array>);
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
@@ -93,8 +95,7 @@ private:
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
     OwnPtr<Vector<GC::Weak<DOM::Element>>> m_##attribute;            \
-    mutable GC::Weak<JS::Array> m_cached_##attribute;                \
-    mutable Vector<GC::Weak<JS::Array>> m_live_cached_##attribute;
+    mutable Bindings::WrapperWorldWeakValueCache<JS::Array> m_cached_##attribute;
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 };

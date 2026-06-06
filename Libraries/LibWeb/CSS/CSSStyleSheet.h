@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
@@ -22,6 +23,12 @@
 #include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Web::ViewTransition {
+
+class ViewTransition;
+
+}
 
 namespace Web::CSS {
 
@@ -58,8 +65,9 @@ public:
         LoadingState m_loading_state { LoadingState::Unloaded };
     };
 
-    [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
-    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<Bindings::CSSStyleSheetInit> const& options = {});
+    [[nodiscard]] static GC::Ref<CSSStyleSheet> create(CSSRuleList&, MediaList&, Optional<::URL::URL> location);
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> create_constructed(DOM::Document const&, Optional<Bindings::CSSStyleSheetInit> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(HTML::Window&, Optional<Bindings::CSSStyleSheetInit> const& options = {});
 
     virtual ~CSSStyleSheet() override;
 
@@ -75,13 +83,14 @@ public:
     CSSRuleList* css_rules() { return m_rules; }
     CSSRuleList const* css_rules() const { return m_rules; }
 
-    WebIDL::ExceptionOr<unsigned> insert_rule(StringView rule, unsigned index);
-    WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index);
-    WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index);
-    WebIDL::ExceptionOr<void> delete_rule(unsigned index);
+    WebIDL::ExceptionOr<unsigned> insert_rule(JS::Realm&, StringView rule, unsigned index);
+    WebIDL::ExceptionOr<WebIDL::Long> add_rule(JS::Realm&, Optional<String> selector, Optional<String> style, Optional<WebIDL::UnsignedLong> index);
+    WebIDL::ExceptionOr<void> remove_rule(JS::Realm&, Optional<WebIDL::UnsignedLong> index);
+    WebIDL::ExceptionOr<void> delete_rule(JS::Realm&, unsigned index);
+    void delete_rule_without_validation(Badge<::Web::ViewTransition::ViewTransition>, unsigned index);
 
-    GC::Ref<WebIDL::Promise> replace(String text);
-    WebIDL::ExceptionOr<void> replace_sync(StringView text);
+    GC::Ref<WebIDL::Promise> replace(JS::Realm&, String text);
+    WebIDL::ExceptionOr<void> replace_sync(JS::Realm&, StringView text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
     void for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const;
@@ -131,7 +140,7 @@ public:
     void check_if_loading_completed();
 
 private:
-    CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
+    CSSStyleSheet(CSSRuleList&, MediaList&, Optional<::URL::URL> location);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;

@@ -19,17 +19,17 @@ class PeriodicWave : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(PeriodicWave);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::PeriodicWaveOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::PeriodicWaveOptions const&);
 
-    explicit PeriodicWave(JS::Realm&);
+    PeriodicWave();
     virtual ~PeriodicWave() override;
 
 protected:
-    virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
 private:
-    GC::Ptr<JS::Float32Array> m_real;
-    GC::Ptr<JS::Float32Array> m_imag;
+    Vector<float> m_real;
+    Vector<float> m_imag;
     bool m_normalize { true };
 };
 

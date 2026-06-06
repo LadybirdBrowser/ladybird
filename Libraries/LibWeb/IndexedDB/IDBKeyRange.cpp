@@ -5,6 +5,7 @@
  */
 
 #include <AK/Optional.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
@@ -16,8 +17,8 @@ GC_DEFINE_ALLOCATOR(IDBKeyRange);
 
 IDBKeyRange::~IDBKeyRange() = default;
 
-IDBKeyRange::IDBKeyRange(JS::Realm& realm, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open)
-    : Bindings::Wrappable(realm)
+IDBKeyRange::IDBKeyRange(GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open)
+    : Bindings::Wrappable()
     , m_lower_bound(lower_bound)
     , m_upper_bound(upper_bound)
     , m_lower_open(lower_open == LowerOpen::Yes)
@@ -25,9 +26,9 @@ IDBKeyRange::IDBKeyRange(JS::Realm& realm, GC::Ptr<Key> lower_bound, GC::Ptr<Key
 {
 }
 
-GC::Ref<IDBKeyRange> IDBKeyRange::create(JS::Realm& realm, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open)
+GC::Ref<IDBKeyRange> IDBKeyRange::create(GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open)
 {
-    return realm.create<IDBKeyRange>(realm, lower_bound, upper_bound, lower_open, upper_open);
+    return GC::Heap::the().allocate<IDBKeyRange>(lower_bound, upper_bound, lower_open, upper_open);
 }
 
 void IDBKeyRange::visit_edges(GC::Cell::Visitor& visitor)
@@ -52,10 +53,8 @@ bool IDBKeyRange::is_in_range(GC::Ref<Key> key) const
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbkeyrange-only
-WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::only(JS::VM& vm, JS::Value value)
+WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::only(JS::Realm& realm, JS::Value value)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let key be the result of converting a value to a key with value. Rethrow any exceptions.
     auto key = TRY(convert_a_value_to_a_key(realm, value));
 
@@ -64,14 +63,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::only(JS::VM& vm, JS::Valu
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Create and return a new key range containing only key.
-    return IDBKeyRange::create(realm, key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
+    return IDBKeyRange::create(key, key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbkeyrange-lowerbound
-WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::lower_bound(JS::VM& vm, JS::Value lower, bool open)
+WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::lower_bound(JS::Realm& realm, JS::Value lower, bool open)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let lowerKey be the result of converting a value to a key with lower. Rethrow any exceptions.
     auto key = TRY(convert_a_value_to_a_key(realm, lower));
 
@@ -80,14 +77,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::lower_bound(JS::VM& vm, J
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Create and return a new key range with lower bound set to lowerKey, lower open flag set to open, upper bound set to null, and upper open flag set to true.
-    return IDBKeyRange::create(realm, key, {}, open ? IDBKeyRange::LowerOpen::Yes : IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::Yes);
+    return IDBKeyRange::create(key, {}, open ? IDBKeyRange::LowerOpen::Yes : IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::Yes);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbkeyrange-upperbound
-WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::upper_bound(JS::VM& vm, JS::Value upper, bool open)
+WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::upper_bound(JS::Realm& realm, JS::Value upper, bool open)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let upperKey be the result of converting a value to a key with upper. Rethrow any exceptions.
     auto key = TRY(convert_a_value_to_a_key(realm, upper));
 
@@ -96,14 +91,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::upper_bound(JS::VM& vm, J
         return WebIDL::DataError::create(realm, "Value is invalid"_utf16);
 
     // 3. Create and return a new key range with lower bound set to null, lower open flag set to true, upper bound set to upperKey, and upper open flag set to open.
-    return IDBKeyRange::create(realm, {}, key, IDBKeyRange::LowerOpen::Yes, open ? IDBKeyRange::UpperOpen::Yes : IDBKeyRange::UpperOpen::No);
+    return IDBKeyRange::create({}, key, IDBKeyRange::LowerOpen::Yes, open ? IDBKeyRange::UpperOpen::Yes : IDBKeyRange::UpperOpen::No);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbkeyrange-bound
-WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::bound(JS::VM& vm, JS::Value lower, JS::Value upper, bool lower_open, bool upper_open)
+WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::bound(JS::Realm& realm, JS::Value lower, JS::Value upper, bool lower_open, bool upper_open)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let lowerKey be the result of converting a value to a key with lower. Rethrow any exceptions.
     auto lower_key = TRY(convert_a_value_to_a_key(realm, lower));
 
@@ -123,14 +116,12 @@ WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> IDBKeyRange::bound(JS::VM& vm, JS::Val
         return WebIDL::DataError::create(realm, "Lower key is greater than upper key"_utf16);
 
     // 6. Create and return a new key range with lower bound set to lowerKey, lower open flag set to lowerOpen, upper bound set to upperKey and upper open flag set to upperOpen.
-    return IDBKeyRange::create(realm, lower_key, upper_key, lower_open ? IDBKeyRange::LowerOpen::Yes : IDBKeyRange::LowerOpen::No, upper_open ? IDBKeyRange::UpperOpen::Yes : IDBKeyRange::UpperOpen::No);
+    return IDBKeyRange::create(lower_key, upper_key, lower_open ? IDBKeyRange::LowerOpen::Yes : IDBKeyRange::LowerOpen::No, upper_open ? IDBKeyRange::UpperOpen::Yes : IDBKeyRange::UpperOpen::No);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbkeyrange-includes
-WebIDL::ExceptionOr<bool> IDBKeyRange::includes(JS::Value key)
+WebIDL::ExceptionOr<bool> IDBKeyRange::includes(JS::Realm& realm, JS::Value key)
 {
-    auto& realm = this->realm();
-
     // 1. Let k be the result of converting a value to a key with key. Rethrow any exceptions.
     auto k = TRY(convert_a_value_to_a_key(realm, key));
 
@@ -143,21 +134,21 @@ WebIDL::ExceptionOr<bool> IDBKeyRange::includes(JS::Value key)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbkeyrange-lower
-JS::Value IDBKeyRange::lower() const
+JS::Value IDBKeyRange::lower(JS::Realm& realm) const
 {
     // The lower getter steps are to return the result of converting a key to a value with this's lower bound if it is not null, or undefined otherwise.
     if (m_lower_bound)
-        return convert_a_key_to_a_value(this->realm(), *m_lower_bound);
+        return convert_a_key_to_a_value(realm, *m_lower_bound);
 
     return JS::js_undefined();
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbkeyrange-upper
-JS::Value IDBKeyRange::upper() const
+JS::Value IDBKeyRange::upper(JS::Realm& realm) const
 {
     // The upper getter steps are to return the result of converting a key to a value with this's upper bound if it is not null, or undefined otherwise.
     if (m_upper_bound)
-        return convert_a_key_to_a_value(this->realm(), *m_upper_bound);
+        return convert_a_key_to_a_value(realm, *m_upper_bound);
 
     return JS::js_undefined();
 }

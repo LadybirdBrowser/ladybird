@@ -27,7 +27,7 @@ interface Document : Node {
     [CEReactions] undefined write((TrustedHTML or Utf16DOMString)... text);
     [CEReactions] undefined writeln((TrustedHTML or Utf16DOMString)... text);
 
-    static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
+    [NeedsCallerRealm] static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
 
     attribute DOMString cookie;
 

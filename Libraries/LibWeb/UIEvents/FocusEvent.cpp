@@ -4,25 +4,29 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/FocusEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(FocusEvent);
 
-GC::Ref<FocusEvent> FocusEvent::create(JS::Realm& realm, FlyString const& event_name, Bindings::FocusEventInit const& event_init)
+GC::Ref<FocusEvent> FocusEvent::create(FlyString const& event_name, Bindings::FocusEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<FocusEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<FocusEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<FocusEvent>> FocusEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::FocusEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<FocusEvent>> FocusEvent::construct_impl(HTML::Window& window, FlyString const& event_name, Bindings::FocusEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(window)));
 }
 
-FocusEvent::FocusEvent(JS::Realm& realm, FlyString const& event_name, Bindings::FocusEventInit const& event_init)
-    : UIEvent(realm, event_name, event_init)
+FocusEvent::FocusEvent(FlyString const& event_name, Bindings::FocusEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
 {
     set_related_target(const_cast<DOM::EventTarget*>(event_init.related_target.ptr()));
 }

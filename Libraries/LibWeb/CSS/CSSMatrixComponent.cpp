@@ -5,6 +5,7 @@
  */
 
 #include "CSSMatrixComponent.h"
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/CSSMatrixComponent.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -16,13 +17,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMatrixComponent);
 
-GC::Ref<CSSMatrixComponent> CSSMatrixComponent::create(JS::Realm& realm, Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
+GC::Ref<CSSMatrixComponent> CSSMatrixComponent::create(Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
 {
-    return realm.create<CSSMatrixComponent>(realm, is_2d, matrix);
+    return GC::Heap::the().allocate<CSSMatrixComponent>(is_2d, matrix);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmatrixcomponent-cssmatrixcomponent
-WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_impl(JS::Realm& realm, GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<Bindings::CSSMatrixComponentOptions> options)
+WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_impl(GC::Ref<Geometry::DOMMatrixReadOnly> matrix, Optional<Bindings::CSSMatrixComponentOptions> options)
 {
     // The CSSMatrixComponent(matrix, options) constructor must, when invoked, perform the following steps:
 
@@ -35,14 +36,14 @@ WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> CSSMatrixComponent::construct_i
     if (options.has_value() && options->is2d.has_value())
         is_2d = options->is2d.value() ? Is2D::Yes : Is2D::No;
 
-    auto this_ = CSSMatrixComponent::create(realm, is_2d, Geometry::DOMMatrix::create_from_dom_matrix_read_only(realm, matrix));
+    auto this_ = CSSMatrixComponent::create(is_2d, Geometry::DOMMatrix::create_from_dom_matrix_read_only(matrix));
 
     // 4. Return this.
     return this_;
 }
 
-CSSMatrixComponent::CSSMatrixComponent(JS::Realm& realm, Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
-    : CSSTransformComponent(realm, is_2d)
+CSSMatrixComponent::CSSMatrixComponent(Is2D is_2d, GC::Ref<Geometry::DOMMatrix> matrix)
+    : CSSTransformComponent(is_2d)
     , m_matrix(matrix)
 {
 }
@@ -63,7 +64,7 @@ WebIDL::ExceptionOr<Utf16String> CSSMatrixComponent::to_string() const
     return Utf16String::from_utf8(TRY(m_matrix->to_string()));
 }
 
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSMatrixComponent::to_matrix() const
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSMatrixComponent::to_matrix(JS::Realm&) const
 {
     // AD-HOC: Not specced, but we already have a matrix so use that.
     //          https://github.com/w3c/css-houdini-drafts/issues/1153

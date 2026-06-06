@@ -92,11 +92,9 @@ enum class IsUAStyleSheet {
 struct WEB_API ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(ValueParsingContext);
-    explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(JS::Realm&, IsUAStyleSheet);
+    explicit ParsingParams(IsUAStyleSheet);
     explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
 
-    GC::Ptr<JS::Realm> realm;
     GC::Ptr<DOM::Document const> document;
     ParsingMode mode { ParsingMode::Normal };
     IsUAStyleSheet is_ua_style_sheet { IsUAStyleSheet::No };
@@ -640,12 +638,10 @@ private:
 
     DOM::Document const* document() const;
     HTML::Window const* window() const;
-    JS::Realm& realm() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
 
     GC::Ptr<DOM::Document const> m_document;
-    GC::Ptr<JS::Realm> m_realm;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
     IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
 
@@ -695,7 +691,6 @@ RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, Str
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, StringView);
 RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, StringView);
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const&, StringView);
-GC::Ref<JS::Realm> internal_css_realm();
 ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_custom_ident(FlyString const&, ReadonlySpan<StringView> const& blacklist);
 

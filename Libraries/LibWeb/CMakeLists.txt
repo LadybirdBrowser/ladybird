@@ -632,6 +632,7 @@ set(SOURCES
     HTML/NavigableContainer.cpp
     HTML/NavigateEvent.cpp
     HTML/Navigation.cpp
+    HTML/NavigationActivation.cpp
     HTML/NavigationCurrentEntryChangeEvent.cpp
     HTML/NavigationDestination.cpp
     HTML/NavigationHistoryEntry.cpp
@@ -646,6 +647,7 @@ set(SOURCES
     HTML/Numbers.cpp
     HTML/OffscreenCanvas.cpp
     HTML/OffscreenCanvasRenderingContext2D.cpp
+    HTML/PageSwapEvent.cpp
     HTML/PageTransitionEvent.cpp
     HTML/Parser/Entities.cpp
     HTML/Parser/HTMLEncodingDetection.cpp

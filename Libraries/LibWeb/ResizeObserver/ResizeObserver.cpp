@@ -5,8 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ResizeObserver.h>
 #include <LibWeb/Bindings/ResizeObserverEntry.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -20,16 +22,17 @@ namespace Web::ResizeObserver {
 GC_DEFINE_ALLOCATOR(ResizeObserver);
 
 // https://drafts.csswg.org/resize-observer/#dom-resizeobserver-resizeobserver
-WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> ResizeObserver::construct_impl(JS::Realm& realm, WebIDL::CallbackType* callback)
+WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> ResizeObserver::construct_impl(HTML::Window& window, WebIDL::CallbackType* callback)
 {
-    return realm.create<ResizeObserver>(realm, callback);
+    auto& document = window.associated_document();
+    return GC::Heap::the().allocate<ResizeObserver>(callback, document);
 }
 
-ResizeObserver::ResizeObserver(JS::Realm& realm, WebIDL::CallbackType* callback)
-    : Wrappable(realm)
+ResizeObserver::ResizeObserver(WebIDL::CallbackType* callback, DOM::Document& document)
+    : Bindings::Wrappable()
     , m_callback(callback)
 {
-    m_document = HTML::relevant_window(*this).document().ptr();
+    m_document = document;
 }
 
 ResizeObserver::~ResizeObserver() = default;
@@ -62,7 +65,7 @@ void ResizeObserver::observe(DOM::Element& target, Bindings::ResizeObserverOptio
     auto observed_box = options.box;
 
     // 3. Let resizeObservation be new ResizeObservation(target, observedBox).
-    auto resize_observation = MUST(ResizeObservation::create(realm(), target, observed_box));
+    auto resize_observation = MUST(ResizeObservation::create(target, observed_box));
 
     // 4. Add the resizeObservation to the [[observationTargets]] slot.
     m_observation_targets.append(resize_observation);
@@ -122,15 +125,16 @@ void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> 
     auto& callback = *m_callback;
     auto& settings_object = callback.callback_context;
     auto& callback_realm = settings_object->realm();
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(callback_realm);
 
     auto wrapped_records = MUST(JS::Array::create(callback_realm, 0));
     for (size_t i = 0; i < entries.size(); ++i) {
         auto& record = entries.at(i);
         auto property_index = JS::PropertyKey { i };
-        MUST(wrapped_records->create_data_property(property_index, Bindings::wrap(callback_realm, record)));
+        MUST(wrapped_records->create_data_property(property_index, Bindings::wrap(wrapper_world, callback_realm, record)));
     }
 
-    auto wrapped_observer = Bindings::wrap(callback_realm, GC::Ref { *this });
+    auto wrapped_observer = Bindings::wrap(wrapper_world, callback_realm, GC::Ref { *this });
     (void)WebIDL::invoke_callback(callback, wrapped_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, wrapped_observer } });
 }
 

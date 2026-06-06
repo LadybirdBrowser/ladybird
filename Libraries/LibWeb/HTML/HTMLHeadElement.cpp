@@ -19,10 +19,4 @@ HTMLHeadElement::HTMLHeadElement(DOM::Document& document, DOM::QualifiedName qua
 
 HTMLHeadElement::~HTMLHeadElement() = default;
 
-void HTMLHeadElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLHeadElement);
-    Base::initialize(realm);
-}
-
 }

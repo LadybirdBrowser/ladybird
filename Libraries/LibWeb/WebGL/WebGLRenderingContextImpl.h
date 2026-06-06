@@ -23,7 +23,7 @@ class WebGLRenderingContextImpl : public WebGLRenderingContextBase {
     WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextImpl, WebGLRenderingContextBase);
 
 public:
-    WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
+    WebGLRenderingContextImpl(NonnullOwnPtr<OpenGLContext>);
 
     virtual OpenGLContext& context() override { return *m_context; }
 

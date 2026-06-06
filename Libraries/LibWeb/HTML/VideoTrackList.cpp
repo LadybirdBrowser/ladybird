@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/VideoTrackList.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -17,19 +16,18 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(VideoTrackList);
 
-VideoTrackList::VideoTrackList(JS::Realm& realm, GC::Ptr<HTMLMediaElement> media_element)
-    : DOM::EventTarget(realm)
+VideoTrackList::VideoTrackList(GC::Ptr<HTMLMediaElement> media_element)
+    : DOM::EventTarget()
     , m_media_element(media_element)
 {
 }
 
-void VideoTrackList::initialize(JS::Realm& realm)
+GC::Ref<VideoTrackList> VideoTrackList::create(GC::Ptr<HTMLMediaElement> media_element)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(VideoTrackList);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<VideoTrackList>(media_element);
 }
 
-Optional<JS::Value> VideoTrackList::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> VideoTrackList::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property for a given index index in an AudioTrackList or VideoTrackList
     // object list, the user agent must return the AudioTrack or VideoTrack object that represents the indexth track
@@ -37,7 +35,7 @@ Optional<JS::Value> VideoTrackList::item_value(JS::Realm& realm, size_t index) c
     if (index >= m_video_tracks.size())
         return {};
 
-    return Bindings::wrap(realm, m_video_tracks.at(index));
+    return Bindings::wrap(wrapper_world, realm, m_video_tracks.at(index));
 }
 
 void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)

@@ -24,8 +24,8 @@ class DOMURL : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(DOMURL);
 
 public:
-    [[nodiscard]] static GC::Ref<DOMURL> create(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
-    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(JS::Realm&, String const& url, Optional<String> const& base = {});
+    [[nodiscard]] static GC::Ref<DOMURL> create(URL::URL, GC::Ref<URLSearchParams> query);
+    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(String const& url, Optional<String> const& base = {});
 
     virtual ~DOMURL() override;
 
@@ -85,9 +85,9 @@ public:
     virtual Optional<URL::Origin> extract_an_origin() const override;
 
 private:
-    DOMURL(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
+    DOMURL(URL::URL, GC::Ref<URLSearchParams> query);
 
-    static GC::Ref<DOMURL> initialize_a_url(JS::Realm&, URL::URL const&);
+    static GC::Ref<DOMURL> initialize_a_url(URL::URL const&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

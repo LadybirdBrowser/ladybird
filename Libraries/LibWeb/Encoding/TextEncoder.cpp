@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/TextEncoder.h>
 #include <LibWeb/Encoding/TextEncoder.h>
@@ -13,20 +15,24 @@ namespace Web::Encoding {
 
 GC_DEFINE_ALLOCATOR(TextEncoder);
 
-WebIDL::ExceptionOr<GC::Ref<TextEncoder>> TextEncoder::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<TextEncoder>> TextEncoder::construct_impl()
 {
-    return realm.create<TextEncoder>(realm);
+    return create();
 }
 
-TextEncoder::TextEncoder(JS::Realm& realm)
-    : Wrappable(realm)
+GC::Ref<TextEncoder> TextEncoder::create()
+{
+    return GC::Heap::the().allocate<TextEncoder>();
+}
+
+TextEncoder::TextEncoder()
 {
 }
 
 TextEncoder::~TextEncoder() = default;
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encode
-GC::Ref<JS::Uint8Array> TextEncoder::encode(String const& input) const
+GC::Ref<JS::Uint8Array> TextEncoder::encode(JS::Realm& realm, String const& input) const
 {
     // NOTE: The AK::String is always UTF-8, so most of these steps are no-ops.
     // 1. Convert input to an I/O queue of scalar values.
@@ -39,12 +45,12 @@ GC::Ref<JS::Uint8Array> TextEncoder::encode(String const& input) const
 
     auto byte_buffer = MUST(ByteBuffer::copy(input.bytes()));
     auto array_length = byte_buffer.size();
-    auto array_buffer = JS::ArrayBuffer::create(realm(), move(byte_buffer));
-    return JS::Uint8Array::create(realm(), array_length, *array_buffer);
+    auto array_buffer = JS::ArrayBuffer::create(realm, move(byte_buffer));
+    return JS::Uint8Array::create(realm, array_length, *array_buffer);
 }
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encodeinto
-Bindings::TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Ref<JS::Uint8Array> destination) const
+Bindings::TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<JS::Uint8Array> const& destination) const
 {
     // AD-HOC: Return early if destination is detached. This is not explicitly handled in the spec,
     //         however no bytes are copied as destinations size is always zero in this case.

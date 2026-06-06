@@ -146,7 +146,7 @@ public:
 
     virtual Optional<ARIA::Role> default_role() const override;
 
-    WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
+    WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals(JS::Realm&);
 
     void set_popover(Optional<String> value);
     Optional<String> popover() const;
@@ -192,8 +192,6 @@ public:
 
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;

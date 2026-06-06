@@ -58,7 +58,7 @@ struct ExtractExceptionOrValueType<WebIDL::ExceptionOr<void>> {
 
 }
 
-ALWAYS_INLINE JS::Completion exception_to_throw_completion(JS::VM& vm, auto&& exception)
+ALWAYS_INLINE JS::Completion exception_to_throw_completion(JS::VM& vm, JS::Realm& realm, auto&& exception)
 {
     return exception.visit(
         [&](WebIDL::SimpleException const& exception) {
@@ -76,7 +76,7 @@ ALWAYS_INLINE JS::Completion exception_to_throw_completion(JS::VM& vm, auto&& ex
             }
         },
         [&](GC::Ref<WebIDL::DOMException> const& exception) {
-            return throw_completion(exception);
+            return throw_completion(realm, exception);
         },
         [&](JS::Completion const& completion) {
             return completion;
@@ -91,13 +91,13 @@ using ExtractExceptionOrValueType = typename Detail::ExtractExceptionOrValueType
 // ExceptionOr<T>: JS::ThrowCompletionOr<T>
 // T: JS::ThrowCompletionOr<T>
 template<typename F, typename T = decltype(declval<F>()()), typename Ret = Conditional<!IsExceptionOr<T> && !IsVoid<T> && !IsThrowCompletionOr<T>, T, ExtractExceptionOrValueType<T>>>
-JS::ThrowCompletionOr<Ret> throw_dom_exception_if_needed(JS::VM& vm, F&& fn)
+JS::ThrowCompletionOr<Ret> throw_dom_exception_if_needed(JS::VM& vm, JS::Realm& realm, F&& fn)
 {
     if constexpr (IsExceptionOr<T>) {
         auto&& result = fn();
 
         if (result.is_exception())
-            return exception_to_throw_completion(vm, result.exception());
+            return exception_to_throw_completion(vm, realm, result.exception());
 
         if constexpr (requires(T v) { v.value(); })
             return result.value();

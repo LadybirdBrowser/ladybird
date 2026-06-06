@@ -3,7 +3,7 @@
 interface Crypto {
     [SecureContext] readonly attribute SubtleCrypto subtle;
 
-    ArrayBufferView getRandomValues(ArrayBufferView array);
+    [NeedsCallerRealm] ArrayBufferView getRandomValues(ArrayBufferView array);
 
     [SecureContext] DOMString randomUUID();
 };

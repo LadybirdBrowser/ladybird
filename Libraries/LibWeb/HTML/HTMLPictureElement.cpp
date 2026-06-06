@@ -19,10 +19,4 @@ HTMLPictureElement::HTMLPictureElement(DOM::Document& document, DOM::QualifiedNa
 
 HTMLPictureElement::~HTMLPictureElement() = default;
 
-void HTMLPictureElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLPictureElement);
-    Base::initialize(realm);
-}
-
 }

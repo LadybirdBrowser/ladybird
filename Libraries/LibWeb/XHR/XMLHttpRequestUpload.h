@@ -18,9 +18,7 @@ public:
     virtual ~XMLHttpRequestUpload() override;
 
 private:
-    XMLHttpRequestUpload(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    XMLHttpRequestUpload();
 };
 
 }

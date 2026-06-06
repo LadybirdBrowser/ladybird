@@ -21,7 +21,7 @@ class ImageRequest final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ImageRequest);
 
 public:
-    [[nodiscard]] static GC::Ref<ImageRequest> create(JS::Realm&, GC::Ref<Page>);
+    [[nodiscard]] static GC::Ref<ImageRequest> create();
 
     ~ImageRequest();
 
@@ -40,7 +40,7 @@ public:
     void set_state(State);
 
     String const& current_url() const { return m_current_url; }
-    void set_current_url(JS::Realm&, String);
+    void set_current_url(DOM::Document&, String);
 
     [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
     void set_image_data(GC::Ptr<DecodedImageData>);
@@ -62,9 +62,7 @@ public:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    explicit ImageRequest(GC::Ref<Page>);
-
-    GC::Ref<Page> m_page;
+    ImageRequest();
 
     // https://html.spec.whatwg.org/multipage/images.html#img-req-state
     // An image request's state is initially unavailable.

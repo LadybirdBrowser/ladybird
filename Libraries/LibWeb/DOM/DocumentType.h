@@ -38,8 +38,6 @@ public:
 private:
     explicit DocumentType(Document&);
 
-    virtual void initialize(JS::Realm&) override;
-
     String m_name;
     String m_public_id;
     String m_system_id;

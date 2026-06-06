@@ -14,13 +14,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationDestination);
 
-GC::Ref<NavigationDestination> NavigationDestination::create(JS::Realm& realm)
+GC::Ref<NavigationDestination> NavigationDestination::create()
 {
-    return realm.create<NavigationDestination>(realm);
+    return GC::Heap::the().allocate<NavigationDestination>();
 }
 
-NavigationDestination::NavigationDestination(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+NavigationDestination::NavigationDestination()
 {
 }
 
@@ -77,10 +76,10 @@ bool NavigationDestination::same_document() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationdestination-getstate
-WebIDL::ExceptionOr<JS::Value> NavigationDestination::get_state()
+WebIDL::ExceptionOr<JS::Value> NavigationDestination::get_state(JS::Realm& realm)
 {
     // The getState() method steps are to return StructuredDeserialize(this's state).
-    return structured_deserialize(realm().vm(), m_state, realm());
+    return structured_deserialize(realm.vm(), m_state, realm);
 }
 
 }

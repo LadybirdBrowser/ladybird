@@ -37,7 +37,7 @@ StorageBucket::StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType typ
     // 4. For each endpoint of registered storage endpoints whose types contain type, set bucket’s bottle map[endpoint’s identifier] to a new storage bottle whose quota is endpoint’s quota.
     for (auto const& endpoint : StorageEndpoint::registered_endpoints()) {
         if (endpoint.type == type)
-            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(heap(), page, type, key, endpoint.quota);
+            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(page, type, key, endpoint.quota);
     }
 
     // 5. Return bucket.
@@ -92,11 +92,11 @@ GC::Ptr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSett
     return obtain_a_storage_bottle_map(StorageType::Session, environment, identifier);
 }
 
-GC::Ref<StorageBottle> StorageBottle::create(GC::Heap& heap, GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota)
+GC::Ref<StorageBottle> StorageBottle::create(GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota)
 {
     if (type == StorageType::Local)
-        return LocalStorageBottle::create(heap, page, key, quota);
-    return SessionStorageBottle::create(heap, quota);
+        return LocalStorageBottle::create(page, key, quota);
+    return SessionStorageBottle::create(quota);
 }
 
 void LocalStorageBottle::visit_edges(GC::Cell::Visitor& visitor)

@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/PluginArray.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -17,6 +18,8 @@ class PluginArray : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(PluginArray);
 
 public:
+    [[nodiscard]] static GC::Ref<PluginArray> create(Window&);
+
     virtual ~PluginArray() override;
 
     void refresh() const;
@@ -25,12 +28,16 @@ public:
     GC::Ptr<Plugin> named_item(FlyString const& name) const;
 
 private:
-    PluginArray(JS::Realm&);
+    PluginArray(Window&);
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<Window> m_window;
 
     // ^Bindings::Wrappable
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
-    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
+    virtual JS::Value named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const override;
 };
 
 }

@@ -31,13 +31,11 @@ public:
     GC::Ref<AudioParam> gain() const;
     WebIDL::ExceptionOr<void> get_frequency_response(GC::Ref<JS::Float32Array>, GC::Ref<JS::Float32Array>, GC::Ref<JS::Float32Array>);
 
-    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> construct_impl(GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
 
 protected:
-    BiquadFilterNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    BiquadFilterNode(GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

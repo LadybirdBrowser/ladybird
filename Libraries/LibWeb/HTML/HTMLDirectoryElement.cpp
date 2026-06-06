@@ -19,10 +19,4 @@ HTMLDirectoryElement::HTMLDirectoryElement(DOM::Document& document, DOM::Qualifi
 
 HTMLDirectoryElement::~HTMLDirectoryElement() = default;
 
-void HTMLDirectoryElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDirectoryElement);
-    Base::initialize(realm);
-}
-
 }

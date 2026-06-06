@@ -19,14 +19,14 @@ class NavigationDestination : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(NavigationDestination);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationDestination> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<NavigationDestination> create();
 
     String url() const;
     String key() const;
     String id() const;
     i64 index() const;
     bool same_document() const;
-    WebIDL::ExceptionOr<JS::Value> get_state();
+    WebIDL::ExceptionOr<JS::Value> get_state(JS::Realm&);
 
     // Non-spec'd getter, not exposed to JS
     GC::Ptr<NavigationHistoryEntry> navigation_history_entry() const { return m_entry; }
@@ -42,7 +42,7 @@ public:
     URL::URL const& raw_url() const { return m_url; }
 
 private:
-    NavigationDestination(JS::Realm&);
+    NavigationDestination();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

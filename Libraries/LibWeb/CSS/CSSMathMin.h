@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/CSSMathValue.h>
 
 namespace Web::CSS {
@@ -16,9 +17,9 @@ class CSSMathMin final : public CSSMathValue {
     GC_DECLARE_ALLOCATOR(CSSMathMin);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMathMin> create(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> construct_impl(JS::Realm&, ReadonlySpan<CSSNumberish>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> add_all_types_into_math_min(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
+    [[nodiscard]] static GC::Ref<CSSMathMin> create(NumericType, GC::Ref<CSSNumericArray>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> construct_impl(ReadonlySpan<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> add_all_types_into_math_min(GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathMin() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -32,7 +33,7 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<CalculationNode const>> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    CSSMathMin(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
+    CSSMathMin(NumericType, GC::Ref<CSSNumericArray>);
     GC::Ref<CSSNumericArray> m_values;
 };
 

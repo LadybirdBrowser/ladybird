@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/CSS/ScreenOrientation.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -13,26 +13,20 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(ScreenOrientation);
 
-ScreenOrientation::ScreenOrientation(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+ScreenOrientation::ScreenOrientation()
+    : DOM::EventTarget()
 {
 }
 
-void ScreenOrientation::initialize(JS::Realm& realm)
+GC::Ref<ScreenOrientation> ScreenOrientation::create()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ScreenOrientation);
-    Base::initialize(realm);
-}
-
-GC::Ref<ScreenOrientation> ScreenOrientation::create(JS::Realm& realm)
-{
-    return realm.create<ScreenOrientation>(realm);
+    return GC::Heap::the().allocate<ScreenOrientation>();
 }
 
 // https://w3c.github.io/screen-orientation/#lock-method
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(Bindings::OrientationLockType)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(JS::Realm& realm, Bindings::OrientationLockType)
 {
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: ScreenOrientation::lock() is not implemented"_utf16);
+    return WebIDL::NotSupportedError::create(realm, "FIXME: ScreenOrientation::lock() is not implemented"_utf16);
 }
 
 // https://w3c.github.io/screen-orientation/#unlock-method

@@ -7,8 +7,8 @@ interface InternalGamepad {
     undefined setButton(long button, boolean down);
     undefined setAxis(long axis, short value);
 
-    sequence<object> getReceivedRumbleEffects();
-    sequence<object> getReceivedRumbleTriggerEffects();
+    [NeedsCallerRealm] sequence<object> getReceivedRumbleEffects();
+    [NeedsCallerRealm] sequence<object> getReceivedRumbleTriggerEffects();
 
     undefined disconnect();
 };

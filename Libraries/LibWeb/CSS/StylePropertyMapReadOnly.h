@@ -19,18 +19,18 @@ class StylePropertyMapReadOnly : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(StylePropertyMapReadOnly);
 
 public:
-    [[nodiscard]] static GC::Ref<StylePropertyMapReadOnly> create_computed_style(JS::Realm&, DOM::AbstractElement);
+    [[nodiscard]] static GC::Ref<StylePropertyMapReadOnly> create_computed_style(DOM::AbstractElement);
 
     virtual ~StylePropertyMapReadOnly() override;
 
-    WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> get(Utf16FlyString property);
-    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> get_all(Utf16FlyString property);
-    WebIDL::ExceptionOr<bool> has(Utf16FlyString property);
+    WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> get(JS::Realm&, String property);
+    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> get_all(JS::Realm&, String property);
+    WebIDL::ExceptionOr<bool> has(String property);
     WebIDL::UnsignedLong size() const;
 
 protected:
     using Source = Variant<DOM::AbstractElement, GC::Ref<CSSStyleDeclaration>>;
-    explicit StylePropertyMapReadOnly(JS::Realm&, Source);
+    explicit StylePropertyMapReadOnly(Source);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

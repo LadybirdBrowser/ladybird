@@ -8,8 +8,6 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::StorageAPI {
@@ -21,7 +19,7 @@ public:
     GC::Ref<StorageManager> storage();
 
 protected:
-    virtual Bindings::Wrappable const& this_navigator_storage_object() const = 0;
+    virtual HTML::EnvironmentSettingsObject& navigator_storage_settings_object() const = 0;
 };
 
 }

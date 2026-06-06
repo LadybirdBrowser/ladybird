@@ -44,12 +44,11 @@ public:
     GC::Ptr<NavigationTiming::PerformanceNavigation> navigation();
 
 private:
-    explicit Performance(JS::Realm&);
+    explicit Performance(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     HTML::WindowOrWorkerGlobalScopeMixin& window_or_worker();
     HTML::WindowOrWorkerGlobalScopeMixin const& window_or_worker() const;
-
-    virtual void initialize(JS::Realm&) override;
+    JS::Object& relevant_global_object() const;
     virtual void visit_edges(Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(JS::Realm& realm, String const& name);
@@ -57,6 +56,7 @@ private:
 
     GC::Ptr<NavigationTiming::PerformanceNavigation> m_navigation;
     GC::Ptr<NavigationTiming::PerformanceTiming> m_timing;
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

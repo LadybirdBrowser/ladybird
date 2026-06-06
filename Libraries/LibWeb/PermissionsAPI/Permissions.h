@@ -28,12 +28,12 @@ class WEB_API Permissions : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(Permissions);
 
 public:
-    static GC::Ref<Permissions> create(JS::Realm&);
+    static GC::Ref<Permissions> create();
 
-    GC::Ref<Web::WebIDL::Promise> query(JS::Value permission_desc);
+    GC::Ref<Web::WebIDL::Promise> query(JS::Realm&, JS::Value permission_desc);
 
 private:
-    Permissions(JS::Realm&);
+    Permissions();
 };
 
 void permission_query_algorithm(Bindings::PermissionDescriptor const&, PermissionStatus&);

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
 
@@ -12,13 +12,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLSampler);
 
-GC::Ref<WebGLSampler> WebGLSampler::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLSampler> WebGLSampler::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
-    return realm.create<WebGLSampler>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLSampler>(context, handle);
 }
 
-WebGLSampler::WebGLSampler(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLSampler::WebGLSampler(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 

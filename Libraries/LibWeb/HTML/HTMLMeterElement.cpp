@@ -27,12 +27,6 @@ HTMLMeterElement::HTMLMeterElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLMeterElement::~HTMLMeterElement() = default;
 
-void HTMLMeterElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMeterElement);
-    Base::initialize(realm);
-}
-
 void HTMLMeterElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -182,7 +176,7 @@ void HTMLMeterElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 

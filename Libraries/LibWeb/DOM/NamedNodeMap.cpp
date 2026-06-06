@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
@@ -20,12 +21,11 @@ GC_DEFINE_ALLOCATOR(NamedNodeMap);
 
 GC::Ref<NamedNodeMap> NamedNodeMap::create(Element& element)
 {
-    auto& realm = element.realm();
-    return realm.create<NamedNodeMap>(element);
+    return GC::Heap::the().allocate<NamedNodeMap>(element);
 }
 
 NamedNodeMap::NamedNodeMap(Element& element)
-    : Bindings::Wrappable(element.realm())
+    : Bindings::Wrappable()
     , m_element(element)
 {
 }
@@ -109,7 +109,7 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item(FlyString const
 
     // 2. If attr is null, then throw a "NotFoundError" DOMException.
     if (!attribute)
-        return WebIDL::NotFoundError::create(realm(), Utf16String::formatted("Attribute with name '{}' not found", qualified_name));
+        return WebIDL::NotFoundError::create(associated_element().document().relevant_settings_object().realm(), Utf16String::formatted("Attribute with name '{}' not found", qualified_name));
 
     // 3. Return attr.
     return attribute;
@@ -123,7 +123,7 @@ WebIDL::ExceptionOr<Attr const*> NamedNodeMap::remove_named_item_ns(Optional<Fly
 
     // 2. If attr is null, then throw a "NotFoundError" DOMException.
     if (!attribute)
-        return WebIDL::NotFoundError::create(realm(), Utf16String::formatted("Attribute with namespace '{}' and local name '{}' not found", namespace_, local_name));
+        return WebIDL::NotFoundError::create(associated_element().document().relevant_settings_object().realm(), Utf16String::formatted("Attribute with namespace '{}' and local name '{}' not found", namespace_, local_name));
 
     // 3. Return attr.
     return attribute;
@@ -202,7 +202,7 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 
     // 2. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
-        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_utf16);
+        return WebIDL::InUseAttributeError::create(associated_element().document().relevant_settings_object().realm(), "Attribute must not already be in use"_utf16);
 
     // 3. Let oldAttr be the result of getting an attribute given attr’s namespace, attr’s local name, and element.
     size_t old_attribute_index = 0;
@@ -320,20 +320,20 @@ Attr const* NamedNodeMap::remove_attribute_ns(Optional<FlyString> const& namespa
     return attribute;
 }
 
-Optional<JS::Value> NamedNodeMap::item_value(JS::Realm& realm, size_t index) const
+Optional<JS::Value> NamedNodeMap::item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
 {
     auto const* node = item(index);
     if (!node)
         return {};
-    return Bindings::wrap(realm, GC::Ref { const_cast<Attr&>(*node) }).ptr();
+    return Bindings::wrap(wrapper_world, realm, GC::Ref { const_cast<Attr&>(*node) }).ptr();
 }
 
-JS::Value NamedNodeMap::named_item_value(JS::Realm& realm, FlyString const& name) const
+JS::Value NamedNodeMap::named_item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, FlyString const& name) const
 {
     auto const* node = get_named_item(name);
     if (!node)
         return JS::js_undefined();
-    return Bindings::wrap(realm, GC::Ref { const_cast<Attr&>(*node) }).ptr();
+    return Bindings::wrap(wrapper_world, realm, GC::Ref { const_cast<Attr&>(*node) }).ptr();
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode
@@ -342,7 +342,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> NamedNodeMap::remove_attribute_node(GC::Ref<A
     // 1. If this’s attribute list does not contain attr, then throw a "NotFoundError" DOMException.
     auto index = m_attributes.find_first_index(attr);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_utf16);
+        return WebIDL::NotFoundError::create(associated_element().document().relevant_settings_object().realm(), "Attribute not found"_utf16);
 
     // 2. Remove attr.
     remove_attribute_at_index(index.value());

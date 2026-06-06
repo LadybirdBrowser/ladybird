@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ManagedMediaSource.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
@@ -13,23 +14,17 @@ namespace Web::MediaSourceExtensions {
 
 GC_DEFINE_ALLOCATOR(ManagedMediaSource);
 
-WebIDL::ExceptionOr<GC::Ref<ManagedMediaSource>> ManagedMediaSource::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<ManagedMediaSource>> ManagedMediaSource::construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
-    return realm.create<ManagedMediaSource>(realm);
+    return GC::Heap::the().allocate<ManagedMediaSource>(relevant_global_object);
 }
 
-ManagedMediaSource::ManagedMediaSource(JS::Realm& realm)
-    : MediaSource(realm)
+ManagedMediaSource::ManagedMediaSource(GC::Ref<DOM::EventTarget> relevant_global_object)
+    : MediaSource(relevant_global_object)
 {
 }
 
 ManagedMediaSource::~ManagedMediaSource() = default;
-
-void ManagedMediaSource::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ManagedMediaSource);
-    Base::initialize(realm);
-}
 
 // https://w3c.github.io/media-source/#dom-managedmediasource-onstartstreaming
 void ManagedMediaSource::set_onstartstreaming(GC::Ptr<WebIDL::CallbackType> event_handler)

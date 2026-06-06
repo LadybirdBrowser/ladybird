@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/DOMException.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -12,32 +13,40 @@ namespace Web::WebIDL {
 
 GC_DEFINE_ALLOCATOR(DOMException);
 
-GC::Ref<DOMException> DOMException::create(JS::Realm& realm, FlyString name, Utf16String const& message)
+GC::Ref<DOMException> DOMException::create(FlyString name, Utf16String const& message)
 {
-    return realm.create<DOMException>(realm, move(name), message);
+    return GC::Heap::the().allocate<DOMException>(move(name), message);
 }
 
-GC::Ref<DOMException> DOMException::create(JS::Realm& realm)
+GC::Ref<DOMException> DOMException::create()
 {
-    return realm.create<DOMException>(realm);
+    return GC::Heap::the().allocate<DOMException>();
 }
 
-GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, Utf16String const& message, FlyString name)
+GC::Ref<DOMException> DOMException::create(JS::Realm&, FlyString name, Utf16String const& message)
 {
-    return realm.create<DOMException>(realm, move(name), message);
+    return create(move(name), message);
 }
 
-DOMException::DOMException(JS::Realm& realm, FlyString name, Utf16String const& message)
-    : Wrappable(realm)
-    , ErrorData(realm.vm())
+GC::Ref<DOMException> DOMException::create(JS::Realm&)
+{
+    return create();
+}
+
+GC::Ref<DOMException> DOMException::construct_impl(JS::Realm&, Utf16String const& message, FlyString name)
+{
+    return create(move(name), message);
+}
+
+DOMException::DOMException(FlyString name, Utf16String const& message)
+    : ErrorData(JS::VM::the())
     , m_name(move(name))
     , m_message(message)
 {
 }
 
-DOMException::DOMException(JS::Realm& realm)
-    : Wrappable(realm)
-    , ErrorData(realm.vm())
+DOMException::DOMException()
+    : ErrorData(JS::VM::the())
 {
 }
 
@@ -49,7 +58,7 @@ void DOMException::visit_edges(GC::Cell::Visitor& visitor)
     ErrorData::visit_edges(visitor);
 }
 
-WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> DOMException::serialization_steps(JS::Realm&, HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {
     // 1. Set serialized.[[Name]] to value’s name.
     serialized.encode(m_name.to_string());
@@ -62,7 +71,7 @@ WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::TransferDataEn
     return {};
 }
 
-WebIDL::ExceptionOr<void> DOMException::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> DOMException::deserialization_steps(JS::Realm&, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
     // 1. Set value’s name to serialized.[[Name]].
     m_name = serialized.decode<String>();
@@ -79,9 +88,9 @@ WebIDL::ExceptionOr<void> DOMException::deserialization_steps(HTML::TransferData
 
 namespace Web {
 
-JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception)
+JS::Completion throw_completion(JS::Realm& realm, GC::Ref<WebIDL::DOMException> exception)
 {
-    return JS::throw_completion(Bindings::wrap(exception->realm(), exception));
+    return JS::throw_completion(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, exception));
 }
 
 }

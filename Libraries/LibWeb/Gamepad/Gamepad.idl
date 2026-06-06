@@ -22,5 +22,5 @@ interface Gamepad {
 // https://w3c.github.io/gamepad/#idl-def-navigator-partial-1
 [Exposed=Window]
 partial interface Navigator {
-    sequence<Gamepad?> getGamepads();
+    [NeedsCallerRealm] sequence<Gamepad?> getGamepads();
 };

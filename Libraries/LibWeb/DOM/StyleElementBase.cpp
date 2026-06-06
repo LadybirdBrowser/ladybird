@@ -16,6 +16,8 @@
 #include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::DOM {
@@ -97,7 +99,7 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
         return;
 
     // 5. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon the style element, "style", and the style element's child text content, then return. [CSP]
-    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(style_element.realm(), style_element, ContentSecurityPolicy::Directives::Directive::InlineType::Style, style_element.child_text_content().to_utf8_but_should_be_ported_to_utf16()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(HTML::relevant_realm(style_element), style_element, ContentSecurityPolicy::Directives::Directive::InlineType::Style, style_element.child_text_content().to_utf8_but_should_be_ported_to_utf16()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
         return;
 
     // 6. Create a CSS style sheet with the following properties:
@@ -188,10 +190,14 @@ void StyleElementBase::finished_loading_critical_subresources(AnyFailed any_fail
         // 1. If success is true, fire an event named load at element.
         // AD-HOC: these should call fire an event this is not implemented anywhere so we dispatch it ourselves
         if (success)
-            element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::load));
+            element.dispatch_event(DOM::Event::create(
+                HTML::EventNames::load,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(element))));
         // 2. Otherwise, fire an event named error at element.
         else
-            element.dispatch_event(DOM::Event::create(element.realm(), HTML::EventNames::error));
+            element.dispatch_event(DOM::Event::create(
+                HTML::EventNames::error,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(element))));
         // 3. If element contributes a script-blocking style sheet:
         if (element.contributes_a_script_blocking_style_sheet()) {
             // 1. Assert: element's node document's script-blocking style sheet set contains element.

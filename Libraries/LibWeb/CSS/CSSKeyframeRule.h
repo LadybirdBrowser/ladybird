@@ -21,7 +21,7 @@ class CSSKeyframeRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSKeyframeRule);
 
 public:
-    static GC::Ref<CSSKeyframeRule> create(JS::Realm&, CSS::Percentage key, CSSStyleProperties&);
+    static GC::Ref<CSSKeyframeRule> create(CSS::Percentage key, CSSStyleProperties&);
 
     virtual ~CSSKeyframeRule() = default;
 
@@ -39,7 +39,7 @@ public:
     }
 
 private:
-    CSSKeyframeRule(JS::Realm&, CSS::Percentage, CSSStyleProperties&);
+    CSSKeyframeRule(CSS::Percentage, CSSStyleProperties&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;

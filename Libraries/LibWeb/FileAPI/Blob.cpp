@@ -6,6 +6,7 @@
  */
 
 #include <AK/GenericLexer.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Realm.h>
@@ -27,13 +28,9 @@ namespace Web::FileAPI {
 
 GC_DEFINE_ALLOCATOR(Blob);
 
-GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type)
+GC::Ref<Blob> Blob::create(ByteBuffer byte_buffer, String type)
 {
-    Bindings::BlobPropertyBag options = {
-        .endings = Bindings::EndingType::Transparent,
-        .type = move(type),
-    };
-    return create(realm, move(byte_buffer), move(options));
+    return GC::Heap::the().allocate<Blob>(move(byte_buffer), move(type));
 }
 
 // https://w3c.github.io/FileAPI/#convert-line-endings-to-native
@@ -128,27 +125,27 @@ bool is_basic_latin(StringView view)
     return true;
 }
 
-Blob::Blob(JS::Realm& realm)
-    : Bindings::Wrappable(realm)
+Blob::Blob()
+    : Bindings::Wrappable()
 {
 }
 
-Blob::Blob(JS::Realm& realm, ByteBuffer byte_buffer, String type)
-    : Bindings::Wrappable(realm)
+Blob::Blob(ByteBuffer byte_buffer, String type)
+    : Bindings::Wrappable()
     , m_byte_buffer(move(byte_buffer))
     , m_type(move(type))
 {
 }
 
-Blob::Blob(JS::Realm& realm, ByteBuffer byte_buffer)
-    : Bindings::Wrappable(realm)
+Blob::Blob(ByteBuffer byte_buffer)
+    : Bindings::Wrappable()
     , m_byte_buffer(move(byte_buffer))
 {
 }
 
 Blob::~Blob() = default;
 
-WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
+WebIDL::ExceptionOr<void> Blob::serialization_steps(JS::Realm&, HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {
     //  FIXME: 1. Set serialized.[[SnapshotState]] to value’s snapshot state.
 
@@ -162,10 +159,8 @@ WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::TransferDataEncoder& s
     return {};
 }
 
-WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> Blob::deserialization_steps(JS::Realm& realm, HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory&)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Set value’s snapshot state to serialized.[[SnapshotState]].
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be deserialized, although
@@ -179,11 +174,11 @@ WebIDL::ExceptionOr<void> Blob::deserialization_steps(HTML::TransferDataDecoder&
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-blob-blob
-GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer, Optional<Bindings::BlobPropertyBag> const& options)
+GC::Ref<Blob> Blob::create(Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer, Optional<Bindings::BlobPropertyBag> const& options)
 {
     // 1. If invoked with zero parameters, return a new Blob object consisting of 0 bytes, with size set to 0, and with type set to the empty string.
     if (!blob_parts_or_byte_buffer.has_value() && !options.has_value())
-        return realm.create<Blob>(realm);
+        return GC::Heap::the().allocate<Blob>();
 
     ByteBuffer byte_buffer {};
     // 2. Let bytes be the result of processing blob parts given blobParts and options.
@@ -211,32 +206,30 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<BlobPartsOrByteBuffer> con
     }
 
     // 4. Return a Blob object referring to bytes as its associated byte sequence, with its size set to the length of bytes, and its type set to the value of t from the substeps above.
-    return realm.create<Blob>(realm, move(byte_buffer), move(type));
+    return GC::Heap::the().allocate<Blob>(move(byte_buffer), move(type));
 }
 
-WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(JS::Realm& realm, Optional<BlobParts> const& blob_parts, Optional<Bindings::BlobPropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::construct_impl(Optional<BlobParts> const& blob_parts, Optional<Bindings::BlobPropertyBag> const& options)
 {
     if (blob_parts.has_value())
-        return create(realm, BlobPartsOrByteBuffer { blob_parts.value() }, options);
-    return create(realm, {}, options);
+        return create(BlobPartsOrByteBuffer { blob_parts.value() }, options);
+    return create({}, options);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-slice
-WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice(Optional<i64> start, Optional<i64> end, Optional<String> const& content_type)
+WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice(JS::Realm& realm, Optional<i64> start, Optional<i64> end, Optional<String> const& content_type)
 {
     // 1. Let sliceStart, sliceEnd, and sliceContentType be null.
     // 2. If start is given, set sliceStart to start.
     // 3. If end is given, set sliceEnd to end.
     // 3. If contentType is given, set sliceContentType to contentType.
     // 4. Return the result of slice blob given this, sliceStart, sliceEnd, and sliceContentType.
-    return slice_blob(start, end, content_type);
+    return TRY_OR_THROW_OOM(realm.vm(), slice_blob(start, end, content_type));
 }
 
 // https://w3c.github.io/FileAPI/#slice-blob
-WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optional<i64> end, Optional<String> const& content_type)
+ErrorOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optional<i64> end, Optional<String> const& content_type)
 {
-    auto& vm = realm().vm();
-
     // 1. Let originalSize be blob’s size.
     auto original_size = size();
 
@@ -304,27 +297,25 @@ WebIDL::ExceptionOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optiona
     // a. S refers to span consecutive bytes from blob’s associated byte sequence, beginning with the byte at byte-order position relativeStart.
     // b. S.size = span.
     // c. S.type = relativeContentType.
-    auto byte_buffer = TRY_OR_THROW_OOM(vm, m_byte_buffer.slice(relative_start, span));
-    return realm().create<Blob>(realm(), move(byte_buffer), move(relative_content_type));
+    auto byte_buffer = TRY(m_byte_buffer.slice(relative_start, span));
+    return create(move(byte_buffer), move(relative_content_type));
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-stream
-GC::Ref<Streams::ReadableStream> Blob::stream()
+GC::Ref<Streams::ReadableStream> Blob::stream(JS::Realm& realm)
 {
     // The stream() method, when invoked, must return the result of calling get stream on this.
-    return get_stream();
+    return get_stream(realm);
 }
 
 // https://w3c.github.io/FileAPI/#blob-get-stream
-GC::Ref<Streams::ReadableStream> Blob::get_stream()
+GC::Ref<Streams::ReadableStream> Blob::get_stream(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. Let stream be a new ReadableStream created in blob’s relevant Realm.
-    auto stream = realm.create<Streams::ReadableStream>(realm);
+    auto stream = GC::Heap::the().allocate<Streams::ReadableStream>();
 
     // 2. Set up stream with byte reading support.
-    stream->set_up_with_byte_reading_support();
+    stream->set_up_with_byte_reading_support(realm);
 
     // FIXME: 3. Run the following steps in parallel:
     {
@@ -335,8 +326,7 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
             auto bytes = m_byte_buffer;
 
             // 2. Queue a global task on the file reading task source given blob’s relevant global object to perform the following steps:
-            HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [stream, bytes = move(bytes)]() {
-                auto& realm = stream->realm();
+            HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, stream, bytes = move(bytes)]() {
                 HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 // 1. If bytes is failure, then error stream with a failure reason and abort these steps.
@@ -345,8 +335,8 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
                 auto chunk = JS::Uint8Array::create(realm, bytes.size(), *array_buffer);
 
                 // 3. Enqueue chunk in stream.
-                auto maybe_error = Bindings::throw_dom_exception_if_needed(realm.vm(), [&]() {
-                    return stream->enqueue(chunk);
+                auto maybe_error = Bindings::throw_dom_exception_if_needed(realm.vm(), realm, [&]() {
+                    return stream->enqueue(realm, chunk);
                 });
 
                 if (maybe_error.is_error()) {
@@ -357,7 +347,7 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
                 // FIXME: Spec bug: https://github.com/w3c/FileAPI/issues/206
                 //
                 // We need to close the stream so that the stream will finish reading.
-                stream->close();
+                stream->close(realm);
             }));
         }
     }
@@ -367,16 +357,15 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-text
-GC::Ref<WebIDL::Promise> Blob::text()
+GC::Ref<WebIDL::Promise> Blob::text(JS::Realm& realm)
 {
-    auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. Let stream be the result of calling get stream on this.
-    auto stream = get_stream();
+    auto stream = get_stream(realm);
 
     // 2. Let reader be the result of getting a reader from stream. If that threw an exception, return a new promise rejected with that exception.
-    auto reader_or_exception = stream->get_a_reader();
+    auto reader_or_exception = stream->get_a_reader(realm);
     if (reader_or_exception.is_exception())
         return WebIDL::create_rejected_promise_from_exception(realm, reader_or_exception.release_error());
     auto reader = reader_or_exception.release_value();
@@ -385,7 +374,7 @@ GC::Ref<WebIDL::Promise> Blob::text()
     auto promise = reader->read_all_bytes_deprecated();
 
     // 4. Return the result of transforming promise by a fulfillment handler that returns the result of running UTF-8 decode on its first argument.
-    return WebIDL::upon_fulfillment(*promise, GC::create_function(heap(), [&vm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
+    return WebIDL::upon_fulfillment(*promise, GC::create_function(GC::Heap::the(), [&vm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
         auto const& object = first_argument.as_object();
         VERIFY(is<JS::ArrayBuffer>(object));
         auto const& array_buffer = static_cast<JS::ArrayBuffer const&>(object);
@@ -397,15 +386,13 @@ GC::Ref<WebIDL::Promise> Blob::text()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-arraybuffer
-GC::Ref<WebIDL::Promise> Blob::array_buffer()
+GC::Ref<WebIDL::Promise> Blob::array_buffer(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. Let stream be the result of calling get stream on this.
-    auto stream = get_stream();
+    auto stream = get_stream(realm);
 
     // 2. Let reader be the result of getting a reader from stream. If that threw an exception, return a new promise rejected with that exception.
-    auto reader_or_exception = stream->get_a_reader();
+    auto reader_or_exception = stream->get_a_reader(realm);
     if (reader_or_exception.is_exception())
         return WebIDL::create_rejected_promise_from_exception(realm, reader_or_exception.release_error());
     auto reader = reader_or_exception.release_value();
@@ -414,7 +401,7 @@ GC::Ref<WebIDL::Promise> Blob::array_buffer()
     auto promise = reader->read_all_bytes_deprecated();
 
     // 4. Return the result of transforming promise by a fulfillment handler that returns a new ArrayBuffer whose contents are its first argument.
-    return WebIDL::upon_fulfillment(*promise, GC::create_function(heap(), [&realm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
+    return WebIDL::upon_fulfillment(*promise, GC::create_function(GC::Heap::the(), [&realm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
         auto const& object = first_argument.as_object();
         VERIFY(is<JS::ArrayBuffer>(object));
         auto const& array_buffer = static_cast<JS::ArrayBuffer const&>(object);
@@ -424,15 +411,13 @@ GC::Ref<WebIDL::Promise> Blob::array_buffer()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-bytes
-GC::Ref<WebIDL::Promise> Blob::bytes()
+GC::Ref<WebIDL::Promise> Blob::bytes(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. Let stream be the result of calling get stream on this.
-    auto stream = get_stream();
+    auto stream = get_stream(realm);
 
     // 2. Let reader be the result of getting a reader from stream. If that threw an exception, return a new promise rejected with that exception.
-    auto reader_or_exception = stream->get_a_reader();
+    auto reader_or_exception = stream->get_a_reader(realm);
     if (reader_or_exception.is_exception())
         return WebIDL::create_rejected_promise_from_exception(realm, reader_or_exception.release_error());
     auto reader = reader_or_exception.release_value();
@@ -441,7 +426,7 @@ GC::Ref<WebIDL::Promise> Blob::bytes()
     auto promise = reader->read_all_bytes_deprecated();
 
     // 4. Return the result of transforming promise by a fulfillment handler that returns a new Uint8Array wrapping an ArrayBuffer containing its first argument.
-    return WebIDL::upon_fulfillment(*promise, GC::create_function(heap(), [&realm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
+    return WebIDL::upon_fulfillment(*promise, GC::create_function(GC::Heap::the(), [&realm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
         auto& object = first_argument.as_object();
         VERIFY(is<JS::ArrayBuffer>(object));
         auto& array_buffer = static_cast<JS::ArrayBuffer&>(object);

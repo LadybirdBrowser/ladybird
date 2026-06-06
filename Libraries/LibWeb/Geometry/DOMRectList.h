@@ -20,17 +20,17 @@ class DOMRectList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(DOMRectList);
 
 public:
-    [[nodiscard]] static GC::Ref<DOMRectList> create(JS::Realm&, Vector<GC::Root<DOMRect>>);
+    [[nodiscard]] static GC::Ref<DOMRectList> create(Vector<GC::Root<DOMRect>>);
 
     virtual ~DOMRectList() override;
 
     u32 length() const;
     DOMRect const* item(u32 index) const;
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
 private:
-    DOMRectList(JS::Realm&, Vector<GC::Ref<DOMRect>>);
+    explicit DOMRectList(Vector<GC::Ref<DOMRect>>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

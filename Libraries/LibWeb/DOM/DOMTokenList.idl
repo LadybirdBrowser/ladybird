@@ -4,10 +4,10 @@ interface DOMTokenList {
     readonly attribute unsigned long length;
     getter DOMString? item(unsigned long index);
     boolean contains(DOMString token);
-    [CEReactions] undefined add(DOMString... tokens);
-    [CEReactions] undefined remove(DOMString... tokens);
-    [CEReactions] boolean toggle(DOMString token, optional boolean force);
-    [CEReactions] boolean replace(DOMString token, DOMString newToken);
+    [CEReactions, NeedsCallerRealm] undefined add(DOMString... tokens);
+    [CEReactions, NeedsCallerRealm] undefined remove(DOMString... tokens);
+    [CEReactions, NeedsCallerRealm] boolean toggle(DOMString token, optional boolean force);
+    [CEReactions, NeedsCallerRealm] boolean replace(DOMString token, DOMString newToken);
     boolean supports(DOMString token);
     [CEReactions] stringifier attribute DOMString value;
     iterable<DOMString>;

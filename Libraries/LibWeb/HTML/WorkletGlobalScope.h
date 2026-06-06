@@ -19,7 +19,7 @@ public:
     virtual ~WorkletGlobalScope() override;
 
 protected:
-    explicit WorkletGlobalScope(JS::Realm&);
+    WorkletGlobalScope();
 };
 
 }

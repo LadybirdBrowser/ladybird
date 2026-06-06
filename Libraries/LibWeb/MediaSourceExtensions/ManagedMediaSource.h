@@ -16,7 +16,7 @@ class ManagedMediaSource : public MediaSource {
     GC_DECLARE_ALLOCATOR(ManagedMediaSource);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ManagedMediaSource>> construct_impl(JS::Realm&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ManagedMediaSource>> construct_impl(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     void set_onstartstreaming(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onstartstreaming();
@@ -25,11 +25,9 @@ public:
     GC::Ptr<WebIDL::CallbackType> onendstreaming();
 
 private:
-    ManagedMediaSource(JS::Realm&);
+    ManagedMediaSource(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     virtual ~ManagedMediaSource() override;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

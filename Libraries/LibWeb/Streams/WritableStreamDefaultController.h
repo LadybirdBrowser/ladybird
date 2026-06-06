@@ -54,7 +54,7 @@ public:
     void error_steps();
 
 private:
-    explicit WritableStreamDefaultController(JS::Realm&);
+    WritableStreamDefaultController();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

@@ -20,12 +20,6 @@ SVGAnimationElement::SVGAnimationElement(DOM::Document& document, DOM::Qualified
 {
 }
 
-void SVGAnimationElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimationElement);
-    Base::initialize(realm);
-}
-
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onbegin
 void SVGAnimationElement::set_onbegin(GC::Ptr<WebIDL::CallbackType> value)
 {

@@ -243,10 +243,10 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
     if (HTML::window_from_global_object(global_object)) {
        if (!is_window_exposed(name))
            return false;
-    } else if (is<HTML::DedicatedWorkerGlobalScope>(global_object)) {
+    } else if (impl_from<HTML::DedicatedWorkerGlobalScope>(&global_object)) {
        if (!is_dedicated_worker_exposed(name))
            return false;
-    } else if (is<HTML::SharedWorkerGlobalScope>(global_object)) {
+    } else if (impl_from<HTML::SharedWorkerGlobalScope>(&global_object)) {
         if (!is_shared_worker_exposed(name))
             return false;
     } else {

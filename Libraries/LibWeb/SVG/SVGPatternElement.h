@@ -52,7 +52,7 @@ public:
 protected:
     SVGPatternElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

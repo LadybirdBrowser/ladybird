@@ -7,9 +7,12 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
+#include <AK/HashTable.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
 #include <LibGC/Root.h>
-#include <LibGC/WeakHashMap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -27,17 +30,17 @@ WEB_API void visit_edges(JS::Object&, JS::Cell::Visitor&);
 WEB_API void finalize(JS::Object&);
 WEB_API void initialize(JS::Object&, JS::Realm&);
 
-WEB_API bool validate(JS::VM&, WebIDL::BufferSource bytes);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::VM&, WebIDL::BufferSource bytes);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::VM&, GC::Ref<WebIDL::Promise> source);
+WEB_API bool validate(JS::Realm&, WebIDL::BufferSource bytes);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile(JS::Realm&, WebIDL::BufferSource bytes);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::Realm&, GC::Ref<WebIDL::Promise> source);
 
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::VM&, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object);
-WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::VM&, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, GC::Ref<Module> module_object, GC::Ptr<JS::Object> import_object);
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::Realm&, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object);
 
 namespace Detail {
 
-Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function, Wasm::FunctionType const& type, ByteString const& name);
+Wasm::HostFunction create_host_function(JS::Realm&, JS::FunctionObject& function, Wasm::FunctionType const& type, ByteString const& name);
 
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {
     explicit CompiledWebAssemblyModule(NonnullRefPtr<Wasm::Module> module)
@@ -48,8 +51,10 @@ struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> 
     NonnullRefPtr<Wasm::Module> module;
 };
 
-class WebAssemblyCache {
+class WebAssemblyCache : public RefCounted<WebAssemblyCache> {
 public:
+    void visit_edges(JS::Cell::Visitor&);
+
     void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> module) { m_compiled_modules.append(module); }
     void add_function_instance(Wasm::FunctionAddress address, GC::Ptr<JS::NativeFunction> function) { m_function_instances.set(address, function); }
     void add_imported_object(GC::Ptr<JS::Object> object) { m_imported_objects.set(object); }
@@ -113,19 +118,19 @@ private:
     Wasm::FunctionAddress m_exported_address;
 };
 
-WebAssemblyCache& get_cache(JS::Realm&);
+NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm&);
 
-JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM&, Wasm::Module const&, GC::Ptr<JS::Object> import_object);
-JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::VM&, ByteBuffer);
-JS::NativeFunction* create_native_function(JS::VM&, Wasm::FunctionAddress address, Utf16FlyString name, Instance* instance = nullptr);
-JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::VM&, JS::Value value, Wasm::ValueType const& type);
-Wasm::Value default_webassembly_value(JS::VM&, Wasm::ValueType type);
-JS::Value to_js_value(JS::VM&, Wasm::Value& wasm_value, Wasm::ValueType type);
-JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::VM&);
+JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::Realm&, Wasm::Module const&, GC::Ptr<JS::Object> import_object);
+JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm&, ByteBuffer);
+JS::NativeFunction* create_native_function(JS::Realm&, Wasm::FunctionAddress address, Utf16FlyString name, Instance* instance = nullptr);
+JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::Realm&, JS::Value value, Wasm::ValueType const& type);
+Wasm::Value default_webassembly_value(JS::Realm&, Wasm::ValueType type);
+JS::Value to_js_value(JS::Realm&, Wasm::Value& wasm_value, Wasm::ValueType type);
+JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::Realm&);
 JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 
-extern GC::WeakHashMap<JS::Object, WebAssemblyCache> s_caches;
+extern HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>> s_caches;
 
 }
 

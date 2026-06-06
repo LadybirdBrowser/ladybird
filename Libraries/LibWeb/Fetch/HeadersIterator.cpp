@@ -26,13 +26,13 @@ namespace Web::Fetch {
 
 GC_DEFINE_ALLOCATOR(HeadersIterator);
 
-GC::Ref<HeadersIterator> HeadersIterator::create(Headers const& headers, JS::Object::PropertyKind iteration_kind)
+GC::Ref<HeadersIterator> HeadersIterator::create(JS::Realm& realm, Headers const& headers, JS::Object::PropertyKind iteration_kind)
 {
-    return headers.realm().create<HeadersIterator>(headers, iteration_kind);
+    return realm.create<HeadersIterator>(realm, headers, iteration_kind);
 }
 
-HeadersIterator::HeadersIterator(Headers const& headers, JS::Object::PropertyKind iteration_kind)
-    : JS::Object(headers.realm(), nullptr)
+HeadersIterator::HeadersIterator(JS::Realm& realm, Headers const& headers, JS::Object::PropertyKind iteration_kind)
+    : JS::Object(realm, nullptr)
     , m_headers(headers)
     , m_iteration_kind(iteration_kind)
 {

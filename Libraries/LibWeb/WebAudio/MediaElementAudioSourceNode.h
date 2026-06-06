@@ -18,8 +18,8 @@ class MediaElementAudioSourceNode final : public AudioNode {
 public:
     virtual ~MediaElementAudioSourceNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create(JS::Realm&, GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
-    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> construct_impl(JS::Realm&, GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create(GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> construct_impl(GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
 
     virtual WebIDL::UnsignedLong number_of_inputs() override { return 0; }
     virtual WebIDL::UnsignedLong number_of_outputs() override { return 1; }
@@ -27,9 +27,7 @@ public:
     GC::Ref<HTML::HTMLMediaElement> media_element() const { return m_media_element; }
 
 private:
-    MediaElementAudioSourceNode(JS::Realm&, GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
-
-    virtual void initialize(JS::Realm&) override;
+    MediaElementAudioSourceNode(GC::Ref<AudioContext>, Bindings::MediaElementAudioSourceOptions const&);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<HTML::HTMLMediaElement> m_media_element;

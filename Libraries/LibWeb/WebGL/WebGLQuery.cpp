@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/WebGLQuery.h>
 #include <LibWeb/WebGL/WebGLQuery.h>
 
@@ -12,13 +12,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLQuery);
 
-GC::Ref<WebGLQuery> WebGLQuery::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLQuery> WebGLQuery::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
-    return realm.create<WebGLQuery>(realm, context, handle);
+    return GC::Heap::the().allocate<WebGLQuery>(context, handle);
 }
 
-WebGLQuery::WebGLQuery(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : WebGLObject(realm, context, handle)
+WebGLQuery::WebGLQuery(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+    : WebGLObject(context, handle)
 {
 }
 

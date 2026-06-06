@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibJS/Forward.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/MediaList.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -22,7 +23,7 @@ class MediaList final : public Bindings::Wrappable {
     GC_DECLARE_ALLOCATOR(MediaList);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaList> create(JS::Realm&, Vector<NonnullRefPtr<MediaQuery>>&&);
+    [[nodiscard]] static GC::Ref<MediaList> create(Vector<NonnullRefPtr<MediaQuery>>&&);
     virtual ~MediaList() override = default;
 
     String media_text() const;
@@ -30,9 +31,9 @@ public:
     size_t length() const { return m_media.size(); }
     Optional<String> item(u32 index) const;
     void append_medium(StringView);
-    WebIDL::ExceptionOr<void> delete_medium(StringView);
+    WebIDL::ExceptionOr<void> delete_medium(JS::Realm&, StringView);
 
-    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual Optional<JS::Value> item_value(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override;
 
     bool evaluate(DOM::Document const&);
     bool matches() const;
@@ -42,7 +43,7 @@ public:
     void dump(StringBuilder&, int indent_levels = 0) const;
 
 private:
-    MediaList(JS::Realm&, Vector<NonnullRefPtr<MediaQuery>>&&);
+    MediaList(Vector<NonnullRefPtr<MediaQuery>>&&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

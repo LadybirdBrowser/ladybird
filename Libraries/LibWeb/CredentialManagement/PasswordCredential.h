@@ -11,6 +11,7 @@
 #include <LibWeb/CredentialManagement/Credential.h>
 #include <LibWeb/CredentialManagement/CredentialUserData.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web::CredentialManagement {
 
@@ -22,8 +23,8 @@ class PasswordCredential final
     GC_DECLARE_ALLOCATOR(PasswordCredential);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, GC::Ref<HTML::HTMLFormElement>);
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(JS::Realm&, Bindings::PasswordCredentialData const&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(HTML::Window&, GC::Ref<HTML::HTMLFormElement>);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PasswordCredential>> construct_impl(HTML::Window&, Bindings::PasswordCredentialData const&);
 
     virtual ~PasswordCredential() override;
 
@@ -33,7 +34,7 @@ public:
     String type() const override { return "password"_string; }
 
 private:
-    PasswordCredential(JS::Realm&, Bindings::PasswordCredentialData const&, URL::Origin);
+    PasswordCredential(Bindings::PasswordCredentialData const&, URL::Origin);
 
     // TODO: Use Core::SecretString when it comes back
     String m_password;

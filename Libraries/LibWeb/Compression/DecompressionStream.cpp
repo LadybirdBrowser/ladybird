@@ -8,13 +8,18 @@
 #include <LibCompress/Deflate.h>
 #include <LibCompress/Gzip.h>
 #include <LibCompress/Zlib.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/DecompressionStream.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Compression/DecompressionStream.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/TransformStream.h>
+#include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Compression {
@@ -22,8 +27,11 @@ namespace Web::Compression {
 GC_DEFINE_ALLOCATOR(DecompressionStream);
 
 // https://compression.spec.whatwg.org/#dom-decompressionstream-decompressionstream
-WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct_impl(JS::Realm& realm, Bindings::CompressionFormat format)
+WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct_impl(HTML::WindowOrWorkerGlobalScopeMixin& global_scope, Bindings::CompressionFormat format)
 {
+    auto& realm = HTML::relevant_realm(global_scope);
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+
     // 1. If format is unsupported in DecompressionStream, then throw a TypeError.
     // 2. Set this's format to format.
     auto input_stream = make<AllocatingMemoryStream>();
@@ -46,16 +54,17 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
 
     // 5. Set this's transform to a new TransformStream.
     // NOTE: We do this first so that we may store it as nonnull in the GenericTransformStream.
-    auto stream = realm.create<DecompressionStream>(realm, realm.create<Streams::TransformStream>(realm), decompressor.release_value(), move(input_stream));
+    auto transform_stream = GC::Heap::the().allocate<Streams::TransformStream>();
+    (void)Bindings::wrap(wrapper_world, realm, transform_stream);
+    auto stream = GC::Heap::the().allocate<DecompressionStream>(transform_stream, decompressor.release_value(), move(input_stream));
 
     // 3. Let transformAlgorithm be an algorithm which takes a chunk argument and runs the decompress and enqueue a chunk
     //    algorithm with this and chunk.
-    auto transform_algorithm = GC::create_function(realm.heap(), [stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        auto& vm = realm.vm();
+    auto transform_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+        auto& vm = realm->vm();
 
-        if (auto result = stream->decompress_and_enqueue_chunk(chunk); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
+        if (auto result = stream->decompress_and_enqueue_chunk(realm, chunk); result.is_error()) {
+            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
             return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
@@ -63,12 +72,11 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
     });
 
     // 4. Let flushAlgorithm be an algorithm which takes no argument and runs the decompress flush and enqueue algorithm with this.
-    auto flush_algorithm = GC::create_function(realm.heap(), [stream]() -> GC::Ref<WebIDL::Promise> {
-        auto& realm = stream->realm();
-        auto& vm = realm.vm();
+    auto flush_algorithm = GC::create_function(GC::Heap::the(), [stream, realm = GC::Ref(realm)]() -> GC::Ref<WebIDL::Promise> {
+        auto& vm = realm->vm();
 
-        if (auto result = stream->decompress_flush_and_enqueue(); result.is_error()) {
-            auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
+        if (auto result = stream->decompress_flush_and_enqueue(realm); result.is_error()) {
+            auto throw_completion = Bindings::exception_to_throw_completion(vm, realm, result.exception());
             return WebIDL::create_rejected_promise(realm, throw_completion.release_value());
         }
 
@@ -76,13 +84,15 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
     });
 
     // 6. Set up this's transform with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
-    stream->m_transform->set_up(transform_algorithm, flush_algorithm);
+    stream->m_transform->set_up(realm, transform_algorithm, flush_algorithm);
+    (void)Bindings::wrap(wrapper_world, realm, stream->m_transform->readable());
+    (void)Bindings::wrap(wrapper_world, realm, stream->m_transform->writable());
 
     return stream;
 }
 
-DecompressionStream::DecompressionStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, Decompressor decompressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
-    : Bindings::Wrappable(realm)
+DecompressionStream::DecompressionStream(GC::Ref<Streams::TransformStream> transform, Decompressor decompressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
+    : Bindings::Wrappable()
     , Streams::GenericTransformStreamMixin(transform)
     , m_decompressor(move(decompressor))
     , m_input_stream(move(input_stream))
@@ -98,10 +108,8 @@ void DecompressionStream::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://compression.spec.whatwg.org/#decompress-and-enqueue-a-chunk
-WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::Value chunk)
+WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::Realm& realm, JS::Value chunk)
 {
-    auto& realm = this->realm();
-
     // 1. If chunk is not a BufferSource type, then throw a TypeError.
     if (!WebIDL::is_buffer_source_type(chunk))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Chunk is not a BufferSource type"sv };
@@ -137,10 +145,8 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::
 }
 
 // https://compression.spec.whatwg.org/#decompress-flush-and-enqueue
-WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue()
+WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue(JS::Realm& realm)
 {
-    auto& realm = this->realm();
-
     // 1. Let buffer be the result of decompressing an empty input with ds's format and context, with the finish flag.
     auto maybe_buffer = m_decompressor.visit([&](auto const& decompressor) -> ErrorOr<ByteBuffer> {
         return TRY(decompressor->read_until_eof());

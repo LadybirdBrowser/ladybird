@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
 
 namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLActiveInfo);
 
-GC::Ptr<WebGLActiveInfo> WebGLActiveInfo::create(JS::Realm& realm, String name, GLenum type, GLsizei size)
+GC::Ptr<WebGLActiveInfo> WebGLActiveInfo::create(String name, GLenum type, GLsizei size)
 {
-    return realm.create<WebGLActiveInfo>(realm, move(name), type, size);
+    return GC::Heap::the().allocate<WebGLActiveInfo>(move(name), type, size);
 }
 
-WebGLActiveInfo::WebGLActiveInfo(JS::Realm& realm, String name, GLenum type, GLsizei size)
-    : Wrappable(realm)
+WebGLActiveInfo::WebGLActiveInfo(String name, GLenum type, GLsizei size)
+    : Bindings::Wrappable()
     , m_name(move(name))
     , m_type(type)
     , m_size(size)

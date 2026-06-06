@@ -41,7 +41,6 @@ public:
 
 private:
     SVGMaskElement(DOM::Document&, DOM::QualifiedName);
-    virtual void initialize(JS::Realm&) override;
 
     Optional<MaskContentUnits> m_mask_content_units = {};
     Optional<MaskUnits> m_mask_units = {};

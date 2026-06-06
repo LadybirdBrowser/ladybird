@@ -23,5 +23,5 @@ interface Module {
 
     static sequence<ModuleExportDescriptor> exports(Module moduleObject);
     static sequence<ModuleImportDescriptor> imports(Module moduleObject);
-    static sequence<ArrayBuffer> customSections(Module moduleObject, DOMString sectionName);
+    [NeedsCallerRealm] static sequence<ArrayBuffer> customSections(Module moduleObject, DOMString sectionName);
 };

@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLSummaryElement.h>
 #include <LibWeb/HTML/ToggleEvent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 
@@ -36,12 +37,6 @@ void HTMLDetailsElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_summary_slot);
     visitor.visit(m_descendants_slot);
-}
-
-void HTMLDetailsElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDetailsElement);
-    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:html-element-insertion-steps
@@ -129,7 +124,7 @@ void HTMLDetailsElement::queue_a_details_toggle_event_task(String old_state, Str
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
 
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init)));
+        dispatch_event(ToggleEvent::create(HTML::EventNames::toggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
 
         // 2. Set element's details toggle task tracker to null.
         m_details_toggle_task_tracker = {};
@@ -229,10 +224,8 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return {};
 
-    auto& realm = this->realm();
-
     // The details element is expected to have an internal shadow tree with three child elements:
-    auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Bindings::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     shadow_root->set_slot_assignment(Bindings::SlotAssignmentMode::Manual);
     set_shadow_root(shadow_root);
@@ -248,7 +241,7 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 
     // The third child element is either a link or style element with the following styles for the default summary:
     auto style = TRY(DOM::create_element(document(), HTML::TagNames::style, Namespace::HTML));
-    auto style_text = realm.create<DOM::Text>(document(), R"~~~(
+    auto style_text = DOM::Text::create(document(), R"~~~(
         :host summary {
             display: list-item;
             counter-increment: list-item 0;
