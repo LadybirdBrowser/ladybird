@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div
+    id="target"
+    style="
+        width: 100px;
+        height: 50px;
+        background-image: url('../wpt-import/images/anim-gr.gif');
+    "
+></div>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+
+        internals.dumpLayoutTree(document);
+        const activeAnimationsBeforeBaseChange =
+            internals.activeImageStyleValueAnimationCount();
+        println(
+            `active animations before base change: ${activeAnimationsBeforeBaseChange}`
+        );
+
+        const base = document.createElement("base");
+        base.href = "../";
+        document.head.append(base);
+
+        target.remove();
+        internals.dumpLayoutTree(document);
+        const activeAnimationsAfterRemoval =
+            internals.activeImageStyleValueAnimationCount();
+        println(`active animations after removal: ${activeAnimationsAfterRemoval}`);
+        done();
+    });
+</script>

@@ -44,7 +44,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
 
     if (auto const* list_style_image = layout_box().list_style_image()) {
         list_style_image->resolve_for_size(layout_box(), marker_rect.size());
-        list_style_image->paint(context, device_rect, computed_values().image_rendering());
+        list_style_image->paint(context, layout_box().document(), device_rect, computed_values().image_rendering());
         return;
     }
 

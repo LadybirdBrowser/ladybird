@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const imagePath = "/echo/css-imported-image-origin-clean.png";
+    const stylesheetPath = "/echo/css-imported-image-origin-clean.css";
+
+    function registerEchoResponse(response) {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/echo", false);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify(response));
+    }
+
+    const transparentPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+    registerEchoResponse({
+        method: "GET",
+        path: imagePath,
+        status: 200,
+        headers: {
+            "Cache-Control": "no-store",
+            "Content-Type": "image/png",
+        },
+        body_encoding: "base64",
+        body: transparentPng,
+    });
+
+    const sameOriginImageUrl = new URL(imagePath, location.href).href;
+    registerEchoResponse({
+        method: "GET",
+        path: stylesheetPath,
+        status: 200,
+        headers: {
+            "Cache-Control": "no-store",
+            "Content-Type": "text/css",
+        },
+        body: `#target {
+            background-image: url("${sameOriginImageUrl}");
+            height: 1px;
+            width: 1px;
+        }`,
+    });
+
+    const crossOriginStylesheetUrl = new URL(stylesheetPath, location.href);
+    crossOriginStylesheetUrl.hostname = uniqueLocalhostHostname(
+        "css-imported-image-origin-clean"
+    );
+
+    document.write(`<style>@import url("${crossOriginStylesheetUrl.href}");</style>`);
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            (async () => {
+                const backgroundImage = getComputedStyle(
+                    document.getElementById("target")
+                ).backgroundImage;
+                println(`Imported background image applied: ${backgroundImage.includes(imagePath)}`);
+
+                const imageEntries = performance.getEntriesByType("resource").filter(
+                    entry => entry.name === sameOriginImageUrl
+                );
+                const response = await fetch(`/recorded-request-headers${imagePath}`);
+                const responseText = await response.text();
+                let headers = {};
+                try {
+                    headers = JSON.parse(responseText);
+                } catch {
+                    // No recorded headers response means the image was not requested.
+                }
+                println(`Imported image requested: ${Object.keys(headers).length > 0}`);
+                println(`Imported image resource timing entries: ${imageEntries.length}`);
+                println(
+                    `Imported image initiator type: ${imageEntries[0]?.initiatorType ?? "missing"}`
+                );
+                done();
+            })().catch(error => {
+                println(`Caught error while checking imported image: ${error}`);
+                done();
+            });
+        });
+    });
+</script>
+<div id="target"></div>

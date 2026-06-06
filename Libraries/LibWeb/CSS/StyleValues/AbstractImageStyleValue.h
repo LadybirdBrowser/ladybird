@@ -19,13 +19,13 @@ class AbstractImageStyleValue : public StyleValue {
 public:
     using StyleValue::StyleValue;
 
-    virtual Optional<CSSPixels> natural_width() const { return {}; }
-    virtual Optional<CSSPixels> natural_height() const { return {}; }
+    virtual Optional<CSSPixels> natural_width(DOM::Document const&) const { return {}; }
+    virtual Optional<CSSPixels> natural_height(DOM::Document const&) const { return {}; }
 
-    virtual Optional<CSSPixelFraction> natural_aspect_ratio() const
+    virtual Optional<CSSPixelFraction> natural_aspect_ratio(DOM::Document const& document) const
     {
-        auto width = natural_width();
-        auto height = natural_height();
+        auto width = natural_width(document);
+        auto height = natural_height(document);
         if (width.has_value() && height.has_value() && *height != 0)
             return *width / *height;
         return {};
@@ -35,10 +35,10 @@ public:
     virtual void load_any_resources(Layout::NodeWithStyle const&);
     virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { }
 
-    virtual bool is_paintable() const = 0;
-    virtual void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
+    virtual bool is_paintable(DOM::Document const&) const = 0;
+    virtual void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
 
-    virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
+    virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const { return {}; }
 
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 };

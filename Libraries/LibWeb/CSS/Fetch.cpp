@@ -17,12 +17,21 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-values-4/#style-resource-base-url
 
-struct StyleSheetAndURL {
+struct StyleResourceContext {
     GC::Ptr<CSSStyleSheet> sheet;
+    Optional<bool> parent_style_sheet_origin_clean;
     ::URL::URL url;
 };
-static StyleSheetAndURL style_resource_base_url(RuleOrDeclaration css_rule_or_declaration)
+static StyleResourceContext style_resource_context(RuleOrDeclaration css_rule_or_declaration)
 {
+    if (css_rule_or_declaration.style_resource_base_url.has_value()) {
+        return {
+            nullptr,
+            css_rule_or_declaration.parent_style_sheet_origin_clean,
+            css_rule_or_declaration.style_resource_base_url.value()
+        };
+    }
+
     // 1. Let sheet be null.
     GC::Ptr<CSSStyleSheet> sheet;
 
@@ -43,22 +52,25 @@ static StyleSheetAndURL style_resource_base_url(RuleOrDeclaration css_rule_or_de
     if (sheet) {
         // 1. If sheet’s stylesheet base URL is not null, return sheet’s stylesheet base URL.
         if (auto base_url = sheet->base_url(); base_url.has_value())
-            return { sheet, base_url.value() };
+            return { sheet, sheet->is_origin_clean(), base_url.value() };
 
         // 2. If sheet’s location is not null, return sheet’s location.
         if (auto location = sheet->location(); location.has_value())
-            return { sheet, location.value() };
+            return { sheet, sheet->is_origin_clean(), location.value() };
     }
 
     // 5. Return cssRuleOrDeclaration’s relevant settings object’s API base URL.
-    return { sheet, css_rule_or_declaration.environment_settings_object->api_base_url() };
+    auto api_base_url = css_rule_or_declaration.environment_settings_object->api_base_url();
+    if (sheet)
+        return { sheet, sheet->is_origin_clean(), api_base_url };
+    return { nullptr, {}, api_base_url };
 }
 
 // https://drafts.csswg.org/css-values-4/#resolve-a-style-resource-url
 static Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const& url_value, RuleOrDeclaration css_rule_or_declaration)
 {
     // 1. Let baseURL be the style resource base URL given cssRuleOrDeclaration.
-    auto [_, base_url] = style_resource_base_url(css_rule_or_declaration);
+    auto base_url = style_resource_context(css_rule_or_declaration).url;
 
     // 2. Return the result of the URL parser steps with urlValue’s url and base.
     auto url_string = url_value.visit(
@@ -104,13 +116,13 @@ static GC::Ptr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(Style
     // 6. If req’s mode is "cors", and sheet is not null, then set req’s referrer to the style resource base URL given cssRuleOrDeclaration. [CSSOM]
     // FIXME: Spec issue - sheet is not defined as a variable, we use the sheet determined from 'style resource base URL' instead.
     //        https://github.com/w3c/csswg-drafts/issues/12288
-    auto [sheet, base_url] = style_resource_base_url(css_rule_or_declaration);
-    if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS && sheet)
-        request->set_referrer(base_url);
+    auto context = style_resource_context(css_rule_or_declaration);
+    if (request->mode() == Fetch::Infrastructure::Request::Mode::CORS && (context.sheet || context.parent_style_sheet_origin_clean.has_value()))
+        request->set_referrer(context.url);
 
     // 7. If sheet’s origin-clean flag is set, set req’s initiator type to "css". [CSSOM]
-    if (sheet) {
-        if (sheet->is_origin_clean())
+    if (context.sheet || context.parent_style_sheet_origin_clean.has_value()) {
+        if (context.parent_style_sheet_origin_clean.value_or(false))
             request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::CSS);
     } else {
         // AD-HOC: If the resource is not associated with a stylesheet, we must still set an initiator type in order

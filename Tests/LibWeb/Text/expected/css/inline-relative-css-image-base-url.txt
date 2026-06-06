@@ -1,0 +1,4 @@
+Computed URL before base change: url("../wpt-import/images/anim-gr.gif")
+Computed URL after base change: url("../wpt-import/images/anim-gr.gif")
+active animations before base change: 1
+active animations after base change: 1

@@ -35,6 +35,8 @@ struct RuleOrDeclaration {
 
     GC::Ref<HTML::EnvironmentSettingsObject> environment_settings_object;
     Variant<StyleDeclaration, Rule> value;
+    Optional<::URL::URL> style_resource_base_url;
+    Optional<bool> parent_style_sheet_origin_clean;
 };
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource

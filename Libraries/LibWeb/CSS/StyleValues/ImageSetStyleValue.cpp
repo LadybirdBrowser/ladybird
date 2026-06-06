@@ -64,14 +64,6 @@ AbstractImageStyleValue const* ImageSetStyleValue::select_image(double device_pi
     return nullptr;
 }
 
-void ImageSetStyleValue::visit_edges(JS::Cell::Visitor& visitor) const
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_style_sheet);
-    for (auto const& option : m_options)
-        option.image->visit_edges(visitor);
-}
-
 void ImageSetStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     builder.append("image-set("sv);
@@ -126,32 +118,30 @@ bool ImageSetStyleValue::is_computationally_independent() const
 void ImageSetStyleValue::load_any_resources(DOM::Document& document)
 {
     auto dpr = document.page().client().device_pixels_per_css_pixel();
-    if (auto const* image = select_image(dpr); image && image != m_selected_image) {
-        const_cast<AbstractImageStyleValue&>(*image).set_style_sheet(m_style_sheet.ptr());
+    if (auto const* image = select_image(dpr); image && image != m_selected_image)
         m_selected_image = image;
-    }
     if (m_selected_image)
         const_cast<AbstractImageStyleValue&>(*m_selected_image).load_any_resources(document);
 }
 
-Optional<CSSPixels> ImageSetStyleValue::natural_width() const
+Optional<CSSPixels> ImageSetStyleValue::natural_width(DOM::Document const& document) const
 {
     if (m_selected_image)
-        return m_selected_image->natural_width();
+        return m_selected_image->natural_width(document);
     return {};
 }
 
-Optional<CSSPixels> ImageSetStyleValue::natural_height() const
+Optional<CSSPixels> ImageSetStyleValue::natural_height(DOM::Document const& document) const
 {
     if (m_selected_image)
-        return m_selected_image->natural_height();
+        return m_selected_image->natural_height(document);
     return {};
 }
 
-Optional<CSSPixelFraction> ImageSetStyleValue::natural_aspect_ratio() const
+Optional<CSSPixelFraction> ImageSetStyleValue::natural_aspect_ratio(DOM::Document const& document) const
 {
     if (m_selected_image)
-        return m_selected_image->natural_aspect_ratio();
+        return m_selected_image->natural_aspect_ratio(document);
     return {};
 }
 
@@ -161,30 +151,29 @@ void ImageSetStyleValue::resolve_for_size(Layout::NodeWithStyle const& layout_no
         m_selected_image->resolve_for_size(layout_node, size);
 }
 
-bool ImageSetStyleValue::is_paintable() const
+bool ImageSetStyleValue::is_paintable(DOM::Document const& document) const
 {
     if (m_selected_image)
-        return m_selected_image->is_paintable();
+        return m_selected_image->is_paintable(document);
     return false;
 }
 
-void ImageSetStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, ImageRendering image_rendering) const
+void ImageSetStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, ImageRendering image_rendering) const
 {
     if (m_selected_image)
-        m_selected_image->paint(context, dest_rect, image_rendering);
+        m_selected_image->paint(context, document, dest_rect, image_rendering);
 }
 
-Optional<Gfx::Color> ImageSetStyleValue::color_if_single_pixel_bitmap() const
+Optional<Gfx::Color> ImageSetStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const
 {
     if (m_selected_image)
-        return m_selected_image->color_if_single_pixel_bitmap();
+        return m_selected_image->color_if_single_pixel_bitmap(document);
     return {};
 }
 
 void ImageSetStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     Base::set_style_sheet(style_sheet);
-    m_style_sheet = style_sheet;
 
     // Propagate the style sheet to candidate images whose type() filter does not exclude them. This ensures the
     // candidate images register themselves as pending image resources on the style sheet, so their fetches start when

@@ -1,0 +1,1 @@
+Referer is stylesheet URL: true

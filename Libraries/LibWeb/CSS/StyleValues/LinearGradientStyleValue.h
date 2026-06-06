@@ -83,8 +83,8 @@ public:
 
     void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
-    bool is_paintable() const override { return true; }
-    void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
+    bool is_paintable(DOM::Document const&) const override { return true; }
+    void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
 
 private:
     LinearGradientStyleValue(GradientDirection direction, Vector<ColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)

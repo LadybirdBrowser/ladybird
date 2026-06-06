@@ -79,6 +79,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -2694,6 +2695,7 @@ RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<Co
 
     Vector<ImageSetStyleValue::Option> options;
     options.ensure_capacity(image_set_options_tokens.size());
+    auto style_resource_base_url = m_document ? Optional<::URL::URL> { m_document->base_url() } : Optional<::URL::URL> {};
     for (auto const& option_tokens_list : image_set_options_tokens) {
         if (option_tokens_list.first_matching([](auto const& component_value) { return component_value.contains_attr_tainted_value(); }).has_value())
             return nullptr;
@@ -2704,7 +2706,7 @@ RefPtr<ImageSetStyleValue const> Parser::parse_image_set_function(TokenStream<Co
         RefPtr<AbstractImageStyleValue const> image;
         if (option_tokens.next_token().is(Token::Type::String)) {
             auto url = URL { option_tokens.consume_a_token().token().string().to_string() };
-            image = ImageStyleValue::create(url);
+            image = ImageStyleValue::create(url, style_resource_base_url);
         } else {
             image = parse_image_value(option_tokens, AllowImageSet::No);
         }
@@ -2768,7 +2770,8 @@ RefPtr<AbstractImageStyleValue const> Parser::parse_image_value(TokenStream<Comp
         // FIXME: Remove this special case once mask-image accepts `<image>`.
         if (!url->url().starts_with('#')) {
             tokens.discard_a_mark();
-            return ImageStyleValue::create(url.release_value());
+            auto style_resource_base_url = m_document ? Optional<::URL::URL> { m_document->base_url() } : Optional<::URL::URL> {};
+            return ImageStyleValue::create(url.release_value(), move(style_resource_base_url));
         }
         tokens.restore_a_mark();
         return nullptr;

@@ -1,0 +1,2 @@
+active animations before base change: 1
+active animations after removal: 0

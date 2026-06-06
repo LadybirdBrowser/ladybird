@@ -216,16 +216,41 @@ public:
         unregister_image_style_value_client();
     }
 
-    virtual bool is_image_available() const override { return m_image->is_paintable(); }
+    virtual bool is_image_available() const override
+    {
+        if (auto document = this->document())
+            return m_image->is_paintable(*document);
+        return false;
+    }
 
-    virtual Optional<CSSPixels> intrinsic_width() const override { return m_image->natural_width(); }
-    virtual Optional<CSSPixels> intrinsic_height() const override { return m_image->natural_height(); }
-    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override { return m_image->natural_aspect_ratio(); }
+    virtual Optional<CSSPixels> intrinsic_width() const override
+    {
+        if (auto document = this->document())
+            return m_image->natural_width(*document);
+        return {};
+    }
+
+    virtual Optional<CSSPixels> intrinsic_height() const override
+    {
+        if (auto document = this->document())
+            return m_image->natural_height(*document);
+        return {};
+    }
+
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override
+    {
+        if (auto document = this->document())
+            return m_image->natural_aspect_ratio(*document);
+        return {};
+    }
 
     virtual Optional<Gfx::DecodedImageFrame> current_image_frame_sized(Gfx::IntSize size) const override
     {
+        auto document = this->document();
+        if (!document)
+            return {};
         auto rect = DevicePixelRect { DevicePixelPoint {}, size.to_type<DevicePixels>() };
-        return m_image->current_frame(rect);
+        return m_image->current_frame(*document, rect);
     }
 
     virtual void set_visible_in_viewport(bool) override { }
@@ -247,10 +272,18 @@ public:
         m_layout_node = layout_node;
     }
 
-    virtual size_t current_frame_index() const override { return 0; }
+    virtual size_t current_frame_index() const override
+    {
+        if (auto document = this->document())
+            return m_image->current_frame_index(*document);
+        return 0;
+    }
+
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override
     {
-        return m_image->image_data();
+        if (auto document = this->document())
+            return m_image->image_data(*document);
+        return nullptr;
     }
 
 private:
@@ -264,7 +297,6 @@ private:
     {
         Base::visit_edges(visitor);
         visitor.visit(m_layout_node);
-        m_image->visit_edges(visitor);
     }
 
     virtual void image_provider_visit_edges(Visitor& visitor) const override

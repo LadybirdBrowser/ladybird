@@ -26,7 +26,7 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
-    void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
+    void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
@@ -47,7 +47,7 @@ public:
 
     float angle_degrees() const;
 
-    bool is_paintable() const override { return true; }
+    bool is_paintable(DOM::Document const&) const override { return true; }
 
     void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
