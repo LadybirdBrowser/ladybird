@@ -63,6 +63,36 @@ def title_casify(dashy_name: str) -> str:
     return "".join(part[0].upper() + part[1:] for part in dashy_name.split("-") if part)
 
 
+def string_to_cpp_enum_name(value: str) -> str:
+    if not value:
+        return "Empty"
+
+    def title_case_words(text: str) -> str:
+        result = ""
+        word = ""
+        for ch in text:
+            if ch.isalnum():
+                word += ch
+            elif word:
+                result += word[0].upper() + word[1:].lower()
+                word = ""
+        if word:
+            result += word[0].upper() + word[1:].lower()
+        return result
+
+    name = ""
+    for i, slash_segment in enumerate(value.split("/")):
+        combined = "".join(title_case_words(s) for s in slash_segment.replace(".", "+").split("+"))
+        if combined:
+            name += ("_" if i > 0 else "") + combined
+
+    if not name:
+        return "Empty"
+    if name[0].isdigit():
+        name = f"_{name}"
+    return make_name_acceptable_cpp(name)
+
+
 def camel_casify(dashy_name: str) -> str:
     parts = [part for part in dashy_name.split("-") if part]
     if not parts:
@@ -78,6 +108,18 @@ def snake_casify(dashy_name: str, trim_leading_underscores: bool = False) -> str
     if trim_leading_underscores:
         snake_case = snake_case.lstrip("_")
     return snake_case
+
+
+def title_case_to_snake_case(value: str) -> str:
+    parts = []
+    for index, character in enumerate(value):
+        if character.isupper() and index > 0:
+            previous_character = value[index - 1]
+            next_character = value[index + 1] if index + 1 < len(value) else ""
+            if previous_character.islower() or next_character.islower():
+                parts.append("_")
+        parts.append(character.lower())
+    return "".join(parts)
 
 
 def underlying_type_for_enum(member_count: int) -> str:
