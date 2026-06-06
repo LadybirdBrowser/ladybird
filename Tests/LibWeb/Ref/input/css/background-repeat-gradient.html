@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<!-- A gradient that fills its background area looks the same whether or not background-repeat is set — because there's
+     nothing to repeat. This guards against a repeating non-image background being rerouted through a pattern fill that
+     paints it differently from a direct paint. See issue #9876. -->
+<link rel="match" href="../../expected/css/background-repeat-gradient-ref.html" />
+<style>
+    html, body { margin: 0; padding: 0; }
+    #test {
+        width: 200px;
+        height: 200px;
+        background: linear-gradient(45deg, red, orange, yellow, green, blue);
+    }
+</style>
+<div id="test"></div>
