@@ -153,7 +153,12 @@ void HTMLMediaElement::queue_a_media_element_task(Function<void()> steps)
 {
     // To queue a media element task with a media element element and a series of steps steps, queue an element task on the media element's
     // media element event task source given element and steps.
-    queue_an_element_task(media_element_event_task_source(), move(steps));
+    queue_an_element_task(media_element_event_task_source(), [element = GC::Weak { *this }, steps = move(steps)]() mutable {
+        auto self = element.ptr();
+        if (!self || !self->document().is_fully_active())
+            return;
+        steps();
+    });
 }
 
 void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
