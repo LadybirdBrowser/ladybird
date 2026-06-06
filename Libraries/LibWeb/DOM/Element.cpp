@@ -2896,7 +2896,9 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
 
     auto scrolling_box_computed_properties = [&scrolling_box]() -> RefPtr<CSS::ComputedProperties const> {
         if (scrolling_box.is_document()) {
-            return scrolling_box.document().scrolling_element()->computed_properties();
+            if (auto scrolling_element = scrolling_box.document().scrolling_element())
+                return scrolling_element->computed_properties();
+            return nullptr;
         }
 
         if (auto const* element = as_if<DOM::Element>(scrolling_box)) {
