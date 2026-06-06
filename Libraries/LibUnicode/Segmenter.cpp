@@ -8,7 +8,6 @@
 #include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf32View.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
@@ -107,12 +106,6 @@ public:
     virtual void for_each_boundary(Utf16View const& text, SegmentationCallback callback) override
     {
         set_segmented_text(text);
-        for_each_boundary_impl(callback);
-    }
-
-    virtual void for_each_boundary(Utf32View const& text, SegmentationCallback callback) override
-    {
-        m_length = text.length();
         for_each_boundary_impl(callback);
     }
 
@@ -491,11 +484,6 @@ public:
         iterate(callback);
     }
 
-    virtual void for_each_boundary(Utf32View const&, SegmentationCallback) override
-    {
-        VERIFY_NOT_REACHED();
-    }
-
     virtual bool is_current_boundary_word_like() const override
     {
         return false;
@@ -626,30 +614,6 @@ public:
 
         set_segmented_text(text);
         for_each_boundary(move(callback));
-    }
-
-    virtual void for_each_boundary(Utf32View const& text, SegmentationCallback callback) override
-    {
-        if (text.is_empty())
-            return;
-
-        // FIXME: We should be able to create a custom UText provider to avoid converting to UTF-8 here.
-        set_segmented_text(MUST(String::formatted("{}", text)));
-
-        auto code_points = m_segmented_text.get<String>().code_points();
-        auto current = code_points.begin();
-        size_t code_point_index = 0;
-
-        for_each_boundary([&](auto index) {
-            auto it = code_points.iterator_at_byte_offset(index);
-
-            while (current != it) {
-                ++code_point_index;
-                ++current;
-            }
-
-            return callback(code_point_index);
-        });
     }
 
     virtual bool is_current_boundary_word_like() const override

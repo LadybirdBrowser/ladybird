@@ -52,7 +52,6 @@ public:
     using SegmentationCallback = Function<IterationDecision(size_t)>;
     virtual void for_each_boundary(String, SegmentationCallback) = 0;
     virtual void for_each_boundary(Utf16View const&, SegmentationCallback) = 0;
-    virtual void for_each_boundary(Utf32View const&, SegmentationCallback) = 0;
 
     virtual bool is_current_boundary_word_like() const = 0;
 
