@@ -702,7 +702,7 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
     // We need to host the topmost inline ancestor and its previous siblings in an anonymous "before" wrapper. If an
     // inline wrapper does not already exist, we create a new one and add it to the nearest block ancestor.
     RefPtr<Node> before_wrapper;
-    if (auto last_child = nearest_block_ancestor.last_child(); last_child->is_anonymous() && last_child->children_are_inline()) {
+    if (auto last_child = nearest_block_ancestor.last_child(); last_child && last_child->is_anonymous() && last_child->children_are_inline()) {
         before_wrapper = last_child;
     } else {
         before_wrapper = nearest_block_ancestor.create_anonymous_wrapper();
@@ -758,24 +758,28 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
 
             auto style = element.computed_properties();
             auto new_layout_node = element.create_layout_node(*style);
-            auto& new_inline_node = static_cast<NodeWithStyleAndBoxModelMetrics&>(*new_layout_node);
+            if (!new_layout_node)
+                break;
+            auto* new_inline_node = as_if<NodeWithStyleAndBoxModelMetrics>(*new_layout_node);
+            if (!new_inline_node)
+                break;
             if (inline_node == topmost_inline_ancestor) {
                 // The topmost inline ancestor points to the middle wrapper, which in turns points to the original node.
-                new_inline_node.set_continuation_of_node({}, middle_wrapper.ptr());
-                topmost_inline_ancestor = new_inline_node;
+                new_inline_node->set_continuation_of_node({}, middle_wrapper);
+                topmost_inline_ancestor = *new_inline_node;
             } else {
                 // We need all other inline nodes to point to their original node so we can walk the continuation chain
                 // in LayoutState and create the right paintables.
-                new_inline_node.set_continuation_of_node({}, &static_cast<NodeWithStyleAndBoxModelMetrics&>(*inline_node));
+                new_inline_node->set_continuation_of_node({}, &static_cast<NodeWithStyleAndBoxModelMetrics&>(*inline_node));
             }
 
-            current_parent->append_child(new_inline_node);
-            current_parent = new_inline_node;
+            current_parent->append_child(*new_inline_node);
+            current_parent = *new_inline_node;
 
             // Replace the node in the ancestor stack with the new node.
             auto& node_with_style = static_cast<NodeWithStyle&>(*inline_node);
             if (auto stack_index = m_ancestor_stack.find_first_index(&node_with_style); stack_index.has_value())
-                m_ancestor_stack[stack_index.release_value()] = &new_inline_node;
+                m_ancestor_stack[stack_index.release_value()] = new_inline_node;
 
             // Stop recreating nodes when we've reached node's parent.
             if (inline_node == &parent)
