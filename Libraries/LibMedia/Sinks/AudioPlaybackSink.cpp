@@ -130,6 +130,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         output_thread_data->m_output_condition.wait();
                         continue;
                     }
+                    if (output_thread_data->m_playback_rate == 0.0f) {
+                        output_thread_data->m_output_condition.wait();
+                        continue;
+                    }
                     if (output_thread_data->m_audio_processor_should_exit)
                         continue;
                     output_thread_data->m_waiting_for_upstream_data = true;
@@ -246,7 +250,8 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
             disconnect_input_while_locked(input);
             return result.release_error();
         }
-        input->set_playback_rate(m_output_thread_data->m_playback_rate);
+        if (m_output_thread_data->m_playback_rate != 0.0f)
+            input->set_playback_rate(m_output_thread_data->m_playback_rate);
         input->seek(current_time());
         input->start();
     }
@@ -316,8 +321,7 @@ void AudioPlaybackSink::create_playback_stream()
             self->m_output_thread_data->m_output_condition.broadcast();
         }
 
-        if (self->m_playing)
-            self->resume();
+        self->update_playback_stream_state();
     });
 
     promise->when_rejected([self = NonnullRefPtr(*this)](auto& error) {
@@ -420,13 +424,44 @@ AK::Duration AudioPlaybackSink::current_time() const
 void AudioPlaybackSink::resume()
 {
     m_playing = true;
+    update_playback_stream_state();
+}
 
-    // If we're in the middle of the seek() callbacks, let those take care of resuming.
+void AudioPlaybackSink::pause()
+{
+    m_playing = false;
+    update_playback_stream_state();
+}
+
+bool AudioPlaybackSink::effectively_paused() const
+{
+    if (!m_playing)
+        return true;
+    if (m_output_thread_data->m_playback_rate == 0.0f)
+        return true;
     if (m_temporary_time.has_value())
-        return;
+        return true;
+    return false;
+}
 
+void AudioPlaybackSink::update_playback_stream_state()
+{
+    if (effectively_paused()) {
+        pause_playback_stream();
+        return;
+    }
+
+    resume_playback_stream();
+}
+
+void AudioPlaybackSink::resume_playback_stream()
+{
+    if (m_stream_state == StreamState::Playing)
+        return;
     if (!m_output_thread_data->m_playback_stream)
         return;
+
+    m_stream_state = StreamState::Playing;
     m_output_thread_data->m_playback_stream->resume()
         ->when_resolved([self = NonnullRefPtr(*this)](auto new_device_time) {
             self->m_main_thread_event_loop.deferred_invoke([self, new_device_time]() {
@@ -438,12 +473,14 @@ void AudioPlaybackSink::resume()
         });
 }
 
-void AudioPlaybackSink::pause()
+void AudioPlaybackSink::pause_playback_stream()
 {
-    m_playing = false;
-
+    if (m_stream_state == StreamState::Suspended)
+        return;
     if (!m_output_thread_data->m_playback_stream)
         return;
+
+    m_stream_state = StreamState::Suspended;
     m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([self = NonnullRefPtr(*this)]() {
             auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();
@@ -491,6 +528,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
     if (already_draining_for_seek)
         return;
 
+    m_stream_state = StreamState::Suspended;
     m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([self = NonnullRefPtr(*this)]() {
             auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();
@@ -501,8 +539,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
                 self->m_anchor_output_frame_index = seek_target.to_time_units(1, self->m_output_thread_data->m_sample_specification.sample_rate());
                 self->m_minimum_media_time = seek_target;
 
-                if (self->m_playing)
-                    self->resume();
+                self->update_playback_stream_state();
             });
         })
         .when_rejected([](auto&& error) {
@@ -531,8 +568,11 @@ void AudioPlaybackSink::set_playback_rate(float rate)
         input = m_output_thread_data->m_input;
         m_output_thread_data->m_playback_rate = rate;
     }
-    if (input != nullptr)
+
+    if (input != nullptr && rate != 0.0f)
         input->set_playback_rate(rate);
+
+    update_playback_stream_state();
 }
 
 }

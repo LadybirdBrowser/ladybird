@@ -46,12 +46,22 @@ public:
     Function<void(Error&&)> on_audio_output_error;
 
 private:
+    enum class StreamState {
+        Suspended,
+        Playing,
+    };
+
     void create_playback_stream();
+    bool effectively_paused() const;
+    void update_playback_stream_state();
+    void resume_playback_stream();
+    void pause_playback_stream();
 
     Core::EventLoop& m_main_thread_event_loop;
 
     bool m_started_creating_playback_stream { false };
     bool m_playing { false };
+    StreamState m_stream_state { StreamState::Suspended };
     double m_volume { 1 };
 
     AK::Duration m_anchor_stream_time;
