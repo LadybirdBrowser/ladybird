@@ -9,6 +9,7 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/Path.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/Node.h>
@@ -17,7 +18,9 @@
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Painting {
@@ -292,6 +295,14 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             display_list_recorder.apply_effects(1.0f, compositing_and_blending_operator);
         }
 
+        // Past this (super-large) tile count, the non-image branch below covers the area with a single repeating
+        // pattern whose command count is independent of the tile count. Otherwise, recording one painting command per
+        // tile for a super-large tile count can produce enough commands that we overflow the display list and crash.
+        constexpr double max_tiles_before_pattern_fallback = 1000;
+        auto tile_columns = (repeat_x && x_step > 0) ? ceil((css_clip_rect.right() - initial_image_x).to_double() / x_step.to_double()) : 1.0;
+        auto tile_rows = (repeat_y && y_step > 0) ? ceil((css_clip_rect.bottom() - image_y).to_double() / y_step.to_double()) : 1.0;
+        auto tile_count = tile_columns * tile_rows;
+
         if (auto color = image.color_if_single_pixel_bitmap(); color.has_value()) {
             // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
             //               However, we must first figure out the real coverage area, taking repeat etc into account.
@@ -318,6 +329,47 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
                 return;
             auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
             context.display_list_recorder().draw_repeated_decoded_image_frame(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *frame, scaling_mode, repeat_x, repeat_y);
+        } else if ((repeat_x || repeat_y) && !repeat_x_has_gap && !repeat_y_has_gap && tile_count > max_tiles_before_pattern_fallback) {
+            // A not-decoded-image repeating background otherwise records a separate painting command for every tile —
+            // which for very-large tile counts can lead to enough commands that we crash. So, instead record a single
+            // tile into a nested display list, and fill the area with a repeating pattern. The painter does the tiling.
+            auto tile_device_rect = context.rounded_device_rect(image_rect);
+            // If the tile's dimensions were rounded to zero then they need to be restored to avoid a crash.
+            if (tile_device_rect.width() == 0)
+                tile_device_rect.set_width(1);
+            if (tile_device_rect.height() == 0)
+                tile_device_rect.set_height(1);
+
+            auto visual_context_tree = AccumulatedVisualContextTree::create();
+            auto tile_display_list = DisplayList::create(visual_context_tree);
+            DisplayListRecorder tile_recorder(*tile_display_list, visual_context_tree, display_list_recorder.resource_storage());
+            tile_recorder.translate(-tile_device_rect.location().to_type<int>());
+            auto tile_context = context.clone(tile_recorder);
+            image.paint(tile_context, tile_device_rect, image_rendering);
+
+            // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
+            auto coverage = clip_rect;
+            if (!repeat_x) {
+                coverage.set_x(tile_device_rect.x());
+                coverage.set_width(tile_device_rect.width());
+            }
+            if (!repeat_y) {
+                coverage.set_y(tile_device_rect.y());
+                coverage.set_height(tile_device_rect.height());
+            }
+
+            auto coverage_float = coverage.to_type<int>().to_type<float>();
+            Gfx::Path path;
+            path.move_to({ coverage_float.x(), coverage_float.y() });
+            path.line_to({ coverage_float.x() + coverage_float.width(), coverage_float.y() });
+            path.line_to({ coverage_float.x() + coverage_float.width(), coverage_float.y() + coverage_float.height() });
+            path.line_to({ coverage_float.x(), coverage_float.y() + coverage_float.height() });
+            path.close();
+            display_list_recorder.fill_path({
+                .path = move(path),
+                .paint_style_or_color = PaintStyle { PatternPaintStyle { { *tile_display_list, move(visual_context_tree) }, tile_device_rect.to_type<int>().to_type<float>(), {} } },
+                .winding_rule = Gfx::WindingRule::Nonzero,
+            });
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, image_device_rect, image_rendering);

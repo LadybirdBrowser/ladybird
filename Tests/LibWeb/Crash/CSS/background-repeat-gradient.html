@@ -1,0 +1,13 @@
+<!doctype html>
+<!-- A small repeating-gradient tile covering a large area must not record one painting command per tile. Doing so
+     can produce a display list that overflows the IPC message size limit and crashes the WebContent process. This
+     applies to every non-image background (linear, radial and conic gradients, image-set). See issue #9876. -->
+<style>
+    div { width: 4000px; height: 4000px; }
+    .linear { background: linear-gradient(45deg, blue 50%, red 50%) 0 0 / 2px 2px; }
+    .radial { background: radial-gradient(circle, blue 50%, red 50%) 0 0 / 2px 2px; }
+    .conic { background: conic-gradient(blue 50%, red 50%) 0 0 / 2px 2px; }
+</style>
+<div class="linear"></div>
+<div class="radial"></div>
+<div class="conic"></div>
