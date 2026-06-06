@@ -811,7 +811,8 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
     case PropertyID::GridColumn: {
         auto start = longhand(PropertyID::GridColumnStart);
         auto end = longhand(PropertyID::GridColumnEnd);
-        if (end->as_grid_track_placement().grid_track_placement().is_auto() || start == end) {
+        if ((end->is_grid_track_placement() && end->as_grid_track_placement().grid_track_placement().is_auto())
+            || start == end) {
             start->serialize(builder, mode);
             return;
         }
@@ -823,7 +824,8 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
     case PropertyID::GridRow: {
         auto start = longhand(PropertyID::GridRowStart);
         auto end = longhand(PropertyID::GridRowEnd);
-        if (end->as_grid_track_placement().grid_track_placement().is_auto() || start == end) {
+        if ((end->is_grid_track_placement() && end->as_grid_track_placement().grid_track_placement().is_auto())
+            || start == end) {
             start->serialize(builder, mode);
             return;
         }
