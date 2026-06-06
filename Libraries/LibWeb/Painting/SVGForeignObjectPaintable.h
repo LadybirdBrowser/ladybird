@@ -8,6 +8,7 @@
 
 #include <LibWeb/Layout/SVGForeignObjectBox.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGMaskable.h>
 
 namespace Web::Painting {
@@ -29,8 +30,13 @@ public:
     virtual Optional<CSSPixelRect> get_clip_area() const override { return get_svg_clip_area(); }
     virtual Optional<DisplayListResource> calculate_clip(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const override { return calculate_svg_clip_display_list(context, clip_area); }
 
+    void set_computed_transforms(SVGGraphicsPaintable::ComputedTransforms computed_transforms) { m_computed_transforms = computed_transforms; }
+    SVGGraphicsPaintable::ComputedTransforms const& computed_transforms() const { return m_computed_transforms; }
+
 protected:
     SVGForeignObjectPaintable(Layout::SVGForeignObjectBox const&);
+
+    SVGGraphicsPaintable::ComputedTransforms m_computed_transforms;
 };
 
 }

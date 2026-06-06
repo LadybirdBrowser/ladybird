@@ -16,7 +16,10 @@
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/SVGForeignObjectPaintable.h>
+#include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/TextPaintable.h>
 
 namespace Web::Layout {
@@ -583,6 +586,14 @@ void LayoutState::commit(Box& root)
             if (auto* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable.ptr());
                 svg_graphics_paintable && used_values.computed_svg_transforms().has_value()) {
                 svg_graphics_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
+            }
+            if (auto* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(paintable.ptr());
+                svg_foreign_object_paintable && used_values.computed_svg_transforms().has_value()) {
+                svg_foreign_object_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
+            }
+            if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable.ptr());
+                svg_svg_paintable && used_values.computed_svg_transforms().has_value()) {
+                svg_svg_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
             }
 
             if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable.ptr())) {
