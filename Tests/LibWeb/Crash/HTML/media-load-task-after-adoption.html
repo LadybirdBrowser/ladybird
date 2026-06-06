@@ -1,0 +1,10 @@
+<!doctype html>
+<body>
+<audio id="audio" src="x"></audio>
+<iframe id="frame"></iframe>
+<script>
+let inactive_document = frame.contentDocument;
+frame.remove();
+audio.load();
+inactive_document.adoptNode(audio);
+</script>
