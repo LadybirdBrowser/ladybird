@@ -294,6 +294,9 @@ void DisplayListPlayer::execute_impl(
     };
 
     DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+        if (display_list_command_is_compositor_metadata(header.type))
+            return;
+
         auto bounding_rect = header.has_bounding_rect
             ? Optional<Gfx::IntRect>(header.bounding_rect)
             : Optional<Gfx::IntRect> {};

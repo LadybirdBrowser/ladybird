@@ -78,6 +78,22 @@ enum class DisplayListCommandType : u8 {
 #undef ENUMERATE_DISPLAY_LIST_COMMAND_TYPE
 };
 
+constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandType type)
+{
+    switch (type) {
+    case DisplayListCommandType::CompositorScrollNode:
+    case DisplayListCommandType::CompositorStickyArea:
+    case DisplayListCommandType::CompositorWheelHitTestTarget:
+    case DisplayListCommandType::CompositorWheelHitTestTargetWithCornerRadii:
+    case DisplayListCommandType::CompositorMainThreadWheelEventRegion:
+    case DisplayListCommandType::CompositorViewportScrollbar:
+    case DisplayListCommandType::CompositorBlockingWheelEventRegion:
+        return true;
+    default:
+        return false;
+    }
+}
+
 enum class CompositorScrollNodeKind : u8 {
     Viewport,
     Element,
