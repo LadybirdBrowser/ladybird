@@ -356,7 +356,7 @@ GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::Pro
         if (auto const computed_properties = this->computed_properties()) {
             auto const& style_value = computed_properties->property(property);
 
-            if (!style_value.has_auto())
+            if (!style_value.has_auto() && (style_value.is_length() || style_value.is_percentage() || style_value.is_calculated()))
                 return SVGLength::from_length_percentage(realm(), CSS::LengthPercentage::from_style_value(style_value), read_only);
         }
         return SVGLength::create(realm(), 0, 0, read_only);
