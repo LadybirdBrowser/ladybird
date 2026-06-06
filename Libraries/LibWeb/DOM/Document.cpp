@@ -7934,6 +7934,13 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
             VERIFY(end_dom_node);
             auto end_position = match_index.value() + utf16_query.length_in_code_units() - match_end_position->start_offset + match_end_position->dom_offset_within_node;
 
+            if (start_position > start_dom_node->length() || end_position > end_dom_node->length()) {
+                offset = match_index.value() + utf16_query.length_in_code_units() + 1;
+                if (offset >= text_view.length_in_code_units())
+                    break;
+                continue;
+            }
+
             matches.append(Range::create(*start_dom_node, start_position, *end_dom_node, end_position));
             match_start_position = match_end_position;
             offset = match_index.value() + utf16_query.length_in_code_units() + 1;
