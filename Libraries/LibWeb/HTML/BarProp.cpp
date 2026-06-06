@@ -38,7 +38,10 @@ bool BarProp::visible() const
     }
 
     // 3. Return the negation of browsingContext's top-level browsing context's is popup.
-    return browsing_context->top_level_browsing_context()->is_popup() != TokenizedFeature::Popup::Yes;
+    auto top_level_browsing_context = browsing_context->top_level_browsing_context();
+    if (!top_level_browsing_context)
+        return true;
+    return top_level_browsing_context->is_popup() != TokenizedFeature::Popup::Yes;
 }
 
 void BarProp::initialize(JS::Realm& realm)

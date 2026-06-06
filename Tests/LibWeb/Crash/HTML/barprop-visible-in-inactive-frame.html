@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script>
+const outer = document.createElement("iframe");
+document.body.appendChild(outer);
+
+const inner = outer.contentDocument.createElement("iframe");
+outer.contentDocument.body.appendChild(inner);
+
+const innerWindow = inner.contentWindow;
+outer.remove();
+
+innerWindow.menubar.visible;
+</script>
