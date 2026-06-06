@@ -37,7 +37,7 @@ void HTMLAudioElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
-GC::Ptr<Layout::Node> HTMLAudioElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+GC::Ptr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::ComputedProperties const& style)
 {
     return heap().allocate<Layout::AudioBox>(document(), *this, style);
 }

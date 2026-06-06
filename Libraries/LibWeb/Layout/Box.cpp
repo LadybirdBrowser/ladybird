@@ -17,8 +17,8 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(Box);
 
-Box::Box(DOM::Document& document, DOM::Node* node, GC::Ref<CSS::ComputedProperties> style)
-    : NodeWithStyleAndBoxModelMetrics(document, node, move(style))
+Box::Box(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& style)
+    : NodeWithStyleAndBoxModelMetrics(document, node, style)
 {
 }
 

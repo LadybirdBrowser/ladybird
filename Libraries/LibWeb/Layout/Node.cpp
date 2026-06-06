@@ -600,7 +600,7 @@ bool Node::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, GC::Ref<CSS::ComputedProperties> computed_style)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& computed_style)
     : Node(document, node)
     , m_computed_values(make<CSS::ComputedValues>())
 {
@@ -615,6 +615,11 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOw
 {
     m_has_style = true;
     m_is_body = node && node == document.body();
+}
+
+NodeWithStyleAndBoxModelMetrics::NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties const& style)
+    : NodeWithStyle(document, node, style)
+{
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)

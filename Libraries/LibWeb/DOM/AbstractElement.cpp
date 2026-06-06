@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -141,7 +142,7 @@ bool AbstractElement::is_before(AbstractElement const& other) const
     return this_node && other_node && this_node->is_before(*other_node);
 }
 
-GC::Ptr<CSS::ComputedProperties const> AbstractElement::computed_properties() const
+CSS::ComputedProperties const* AbstractElement::computed_properties() const
 {
     return m_element->computed_properties(m_pseudo_element);
 }

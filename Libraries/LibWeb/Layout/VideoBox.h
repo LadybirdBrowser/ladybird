@@ -24,7 +24,7 @@ public:
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
 private:
-    VideoBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);
+    VideoBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties const&);
     virtual CSS::SizeWithAspectRatio natural_size() const override;
 };
 

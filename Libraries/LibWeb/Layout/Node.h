@@ -343,7 +343,7 @@ public:
     void set_layout_index(u32 index) { m_layout_index = index; }
 
 protected:
-    NodeWithStyle(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
+    NodeWithStyle(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
     NodeWithStyle(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
 private:
@@ -379,10 +379,7 @@ public:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 protected:
-    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, GC::Ref<CSS::ComputedProperties> style)
-        : NodeWithStyle(document, node, style)
-    {
-    }
+    NodeWithStyleAndBoxModelMetrics(DOM::Document&, DOM::Node*, CSS::ComputedProperties const&);
 
     NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, NonnullOwnPtr<CSS::ComputedValues> computed_values)
         : NodeWithStyle(document, node, move(computed_values))

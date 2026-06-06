@@ -46,7 +46,7 @@ public:
 
     void set_inheritance_override(GC::Ref<Element> element) { m_inheritance_override = element; }
 
-    GC::Ptr<CSS::ComputedProperties const> computed_properties() const;
+    CSS::ComputedProperties const* computed_properties() const;
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const;
 
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const>);

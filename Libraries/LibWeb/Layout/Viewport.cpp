@@ -18,8 +18,8 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(Viewport);
 
-Viewport::Viewport(DOM::Document& document, GC::Ref<CSS::ComputedProperties> style)
-    : BlockContainer(document, &document, move(style))
+Viewport::Viewport(DOM::Document& document, CSS::ComputedProperties const& style)
+    : BlockContainer(document, &document, style)
 {
 }
 

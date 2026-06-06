@@ -62,7 +62,7 @@ bool SVGSymbolElement::is_direct_child_of_use_shadow_tree() const
     return is<SVGUseElement>(host);
 }
 
-GC::Ptr<Layout::Node> SVGSymbolElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+GC::Ptr<Layout::Node> SVGSymbolElement::create_layout_node(CSS::ComputedProperties const& style)
 {
     // https://svgwg.org/svg2-draft/render.html#TermNeverRenderedElement
     // [..] it also includes a ‘symbol’ element that is not the instance root of a use-element shadow tree.

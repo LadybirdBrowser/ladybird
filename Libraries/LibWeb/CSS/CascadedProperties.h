@@ -7,8 +7,10 @@
 #pragma once
 
 #include <AK/FixedBitmap.h>
-#include <LibGC/CellAllocator.h>
-#include <LibJS/Heap/Cell.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefCounted.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Selector.h>
@@ -18,12 +20,11 @@
 
 namespace Web::CSS {
 
-class CascadedProperties final : public JS::Cell {
-    GC_CELL(CascadedProperties, JS::Cell);
-    GC_DECLARE_ALLOCATOR(CascadedProperties);
-
+class CascadedProperties final : public RefCounted<CascadedProperties> {
 public:
-    virtual ~CascadedProperties() override;
+    static NonnullRefPtr<CascadedProperties> create();
+
+    ~CascadedProperties();
 
     [[nodiscard]] RefPtr<StyleValue const> property(PropertyID) const;
     [[nodiscard]] PropertyID property_with_higher_priority(PropertyID, PropertyID) const;
@@ -39,15 +40,13 @@ public:
 private:
     CascadedProperties();
 
-    virtual void visit_edges(Visitor&) override;
-
     struct Entry {
         StyleProperty property;
         size_t cascade_index { 0 };
         CascadeOrigin origin;
         Optional<FlyString> layer_name;
-        GC::Ptr<CSS::CSSStyleDeclaration const> source;
-        GC::Ptr<DOM::ShadowRoot const> source_shadow_root;
+        GC::Weak<CSS::CSSStyleDeclaration const> source;
+        GC::Weak<DOM::ShadowRoot const> source_shadow_root;
     };
     HashMap<PropertyID, Vector<Entry>> m_properties;
     size_t m_next_cascade_index { 0 };

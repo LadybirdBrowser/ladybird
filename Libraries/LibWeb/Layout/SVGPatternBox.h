@@ -16,7 +16,7 @@ class SVGPatternBox final : public SVGBox {
     GC_DECLARE_ALLOCATOR(SVGPatternBox);
 
 public:
-    SVGPatternBox(DOM::Document&, SVG::SVGPatternElement&, GC::Ref<CSS::ComputedProperties>);
+    SVGPatternBox(DOM::Document&, SVG::SVGPatternElement&, CSS::ComputedProperties const&);
     virtual ~SVGPatternBox() override = default;
 
     SVG::SVGPatternElement& dom_node() { return as<SVG::SVGPatternElement>(SVGBox::dom_node()); }

@@ -10,8 +10,8 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(SVGBox);
 
-SVGBox::SVGBox(DOM::Document& document, SVG::SVGElement& element, GC::Ref<CSS::ComputedProperties> style)
-    : Box(document, &element, move(style))
+SVGBox::SVGBox(DOM::Document& document, SVG::SVGElement& element, CSS::ComputedProperties const& style)
+    : Box(document, &element, style)
 {
 }
 

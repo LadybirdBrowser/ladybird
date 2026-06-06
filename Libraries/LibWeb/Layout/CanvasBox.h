@@ -16,7 +16,7 @@ class CanvasBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(CanvasBox);
 
 public:
-    CanvasBox(DOM::Document&, HTML::HTMLCanvasElement&, GC::Ref<CSS::ComputedProperties>);
+    CanvasBox(DOM::Document&, HTML::HTMLCanvasElement&, CSS::ComputedProperties const&);
     virtual ~CanvasBox() override;
 
     HTML::HTMLCanvasElement const& dom_node() const { return static_cast<HTML::HTMLCanvasElement const&>(*ReplacedBox::dom_node()); }

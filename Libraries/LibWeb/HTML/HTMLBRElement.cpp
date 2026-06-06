@@ -29,9 +29,9 @@ void HTMLBRElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> HTMLBRElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+GC::Ptr<Layout::Node> HTMLBRElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::BreakNode>(document(), *this, move(style));
+    return heap().allocate<Layout::BreakNode>(document(), *this, style);
 }
 
 bool HTMLBRElement::is_presentational_hint(FlyString const& name) const

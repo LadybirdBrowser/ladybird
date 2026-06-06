@@ -194,16 +194,16 @@ void HTMLObjectElement::set_data(String const& data)
     set_attribute_value(HTML::AttributeNames::data, data);
 }
 
-GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::ComputedProperties const& style)
 {
     switch (m_representation) {
     case Representation::Children:
-        return NavigableContainer::create_layout_node(move(style));
+        return NavigableContainer::create_layout_node(style);
     case Representation::ContentNavigable:
-        return heap().allocate<Layout::NavigableContainerViewport>(document(), *this, move(style));
+        return heap().allocate<Layout::NavigableContainerViewport>(document(), *this, style);
     case Representation::Image:
         if (image_data())
-            return heap().allocate<Layout::ImageBox>(document(), *this, move(style), *this);
+            return heap().allocate<Layout::ImageBox>(document(), *this, style, *this);
         break;
     default:
         break;

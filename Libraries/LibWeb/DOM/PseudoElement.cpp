@@ -20,7 +20,6 @@ void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
-    visitor.visit(m_computed_properties);
     visitor.visit(m_layout_node);
     if (m_counters_set)
         m_counters_set->visit_edges(visitor);
@@ -61,7 +60,7 @@ GC::Ptr<Layout::NodeWithStyle> ElementReferencePseudoElement::unsafe_layout_node
     return m_referenced_element->unsafe_layout_node();
 }
 
-GC::Ptr<CSS::ComputedProperties> ElementReferencePseudoElement::computed_properties() const
+RefPtr<CSS::ComputedProperties> ElementReferencePseudoElement::computed_properties() const
 {
     return m_referenced_element->computed_properties({});
 }

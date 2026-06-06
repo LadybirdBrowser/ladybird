@@ -14,8 +14,8 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(RadioButton);
 
-RadioButton::RadioButton(DOM::Document& document, HTML::HTMLInputElement& element, GC::Ref<CSS::ComputedProperties> style)
-    : ReplacedBox(document, element, move(style))
+RadioButton::RadioButton(DOM::Document& document, HTML::HTMLInputElement& element, CSS::ComputedProperties const& style)
+    : ReplacedBox(document, element, style)
 {
 }
 
