@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<div id="target"><span>PASS</span></div>
+<script>
+const range = document.createRange();
+range.setStart(target, target.childNodes.length);
+range.setEnd(target, target.childNodes.length);
+range.getClientRects();
+</script>

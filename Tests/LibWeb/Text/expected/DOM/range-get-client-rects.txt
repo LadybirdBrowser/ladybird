@@ -1,2 +1,3 @@
 [object DOMRectList]
 [object DOMRect]
+PASS

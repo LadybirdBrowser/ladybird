@@ -1,7 +1,17 @@
 <!DOCTYPE html>
 <!--refer to https://wpt.live/css/cssom-view/DOMRectList.html -->
+<style>
+    #start-container {
+        display: inline-block;
+    }
+    #following {
+        display: inline-block;
+        margin-left: 100px;
+    }
+</style>
 <body>
 <div id="x">x</div>
+<div id="start-container"><span><span>old</span></span></div><span id="following">new</span>
 <script src="../include.js"></script>
 <script>
     function print_class_string(object) {
@@ -14,6 +24,15 @@
         const domRectList = range.getClientRects();
         print_class_string(domRectList);
         print_class_string(domRectList.item(0));
+
+        const startContainer = document.getElementById("start-container");
+        const following = document.getElementById("following");
+        range.setStart(startContainer, startContainer.childNodes.length);
+        range.setEnd(following.firstChild, following.firstChild.length);
+
+        const firstRangeRect = range.getClientRects()[0];
+        const followingRect = following.getBoundingClientRect();
+        println(firstRangeRect.left >= followingRect.left && firstRangeRect.left < followingRect.right ? "PASS" : "FAIL");
     });
 </script>
 
