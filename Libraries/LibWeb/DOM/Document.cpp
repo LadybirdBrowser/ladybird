@@ -5744,7 +5744,10 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
                 auto increment_unloaded = GC::create_function(heap, [unload_state] { unload_state->did_process_child(); });
 
                 // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
-                child_navigable->active_document()->unload_a_document_and_its_descendants({}, increment_unloaded);
+                if (auto active_document = child_navigable->active_document())
+                    active_document->unload_a_document_and_its_descendants({}, increment_unloaded);
+                else
+                    increment_unloaded->function()();
             }));
     }
 

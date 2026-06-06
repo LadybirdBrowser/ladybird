@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<iframe id="frame" srcdoc="PASS"></iframe>
+<script>
+frame.src = "data:text/html,child";
+setTimeout(() => frame.remove(), 0);
+</script>
