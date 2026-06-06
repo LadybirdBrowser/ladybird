@@ -301,8 +301,10 @@ WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned of
     // 4. Let newRange be a new range.
     auto new_range = DOM::Range::create(*m_document);
 
+    auto old_anchor_and_new_focus_have_the_same_shadow_including_root = &old_anchor_node.shadow_including_root() == &new_focus_node->shadow_including_root();
+
     // 5. If node's root is not the same as the this's range's root, set the start newRange's start and end to newFocus.
-    if (&node->root() != &m_range->start_container()->root()) {
+    if (&node->root() != &m_range->start_container()->root() || !old_anchor_and_new_focus_have_the_same_shadow_including_root) {
         TRY(new_range->set_start(new_focus_node, new_focus_offset));
         TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
@@ -321,7 +323,7 @@ WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned of
     set_range(new_range);
 
     // 9. If newFocus is before oldAnchor, set this's direction to backwards. Otherwise, set it to forwards.
-    if (DOM::position_of_boundary_point_relative_to_other_boundary_point({ new_focus_node, new_focus_offset }, { old_anchor_node, old_anchor_offset }) == DOM::RelativeBoundaryPointPosition::Before) {
+    if (old_anchor_and_new_focus_have_the_same_shadow_including_root && DOM::position_of_boundary_point_relative_to_other_boundary_point({ new_focus_node, new_focus_offset }, { old_anchor_node, old_anchor_offset }) == DOM::RelativeBoundaryPointPosition::Before) {
         m_direction = Direction::Backwards;
     } else {
         m_direction = Direction::Forwards;
