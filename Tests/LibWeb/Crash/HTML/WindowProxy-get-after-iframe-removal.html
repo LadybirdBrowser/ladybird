@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script>
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+
+    const iframeWindow = iframe.contentWindow;
+    iframe.remove();
+
+    iframeWindow.closed;
+</script>

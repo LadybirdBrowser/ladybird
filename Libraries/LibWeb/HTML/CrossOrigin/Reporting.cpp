@@ -32,8 +32,8 @@ void check_if_access_between_two_browsing_contexts_should_be_reported(
         return;
 
     // 2. Assert: accessor's active document and accessed's active document are both fully active.
-    VERIFY(accessor->active_document()->is_fully_active());
-    VERIFY(accessed->active_document()->is_fully_active());
+    if (!accessor->active_document()->is_fully_active() || !accessed->active_document()->is_fully_active())
+        return;
 
     // 3. Let accessorTopDocument be accessor's top-level browsing context's active document.
     auto* accessor_top_document = accessor->top_level_browsing_context()->active_document();
