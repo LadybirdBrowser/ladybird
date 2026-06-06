@@ -206,9 +206,9 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     }
 }
 
-GC::Ptr<Layout::Node> SVGImageElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+GC::Ptr<Layout::Node> SVGImageElement::create_layout_node(CSS::ComputedProperties const& style)
 {
-    return heap().allocate<Layout::SVGImageBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGImageBox>(document(), *this, style);
 }
 
 bool SVGImageElement::is_image_available() const

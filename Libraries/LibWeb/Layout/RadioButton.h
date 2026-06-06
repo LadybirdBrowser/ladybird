@@ -16,7 +16,7 @@ class RadioButton final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(RadioButton);
 
 public:
-    RadioButton(DOM::Document&, HTML::HTMLInputElement&, GC::Ref<CSS::ComputedProperties>);
+    RadioButton(DOM::Document&, HTML::HTMLInputElement&, CSS::ComputedProperties const&);
     virtual ~RadioButton() override;
 
 private:

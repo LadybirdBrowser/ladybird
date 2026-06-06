@@ -16,7 +16,7 @@ class ImageBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(ImageBox);
 
 public:
-    ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, GC::Ref<CSS::ComputedProperties>, ImageProvider const&);
+    ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&, ImageProvider const&);
     virtual ~ImageBox() override;
 
     bool renders_as_alt_text() const;

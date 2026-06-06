@@ -9,12 +9,11 @@
 
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibGC/CellAllocator.h>
+#include <AK/RefCounted.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
-#include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/FontFeatureData.h>
@@ -40,14 +39,13 @@ enum class AnimatedPropertyResultOfTransition : u8 {
     Yes
 };
 
-class WEB_API ComputedProperties final : public JS::Cell {
-    GC_CELL(ComputedProperties, JS::Cell);
-    GC_DECLARE_ALLOCATOR(ComputedProperties);
-
+class WEB_API ComputedProperties final : public RefCounted<ComputedProperties> {
 public:
+    static NonnullRefPtr<ComputedProperties> create();
+
     static constexpr double normal_line_height_scale = 1.15;
 
-    virtual ~ComputedProperties() override;
+    ~ComputedProperties();
 
     template<typename Callback>
     inline void for_each_property(Callback callback) const
@@ -290,8 +288,6 @@ public:
 
 private:
     ComputedProperties();
-
-    virtual void visit_edges(Visitor&) override;
 
     Overflow overflow(PropertyID) const;
     Vector<ShadowData> shadow(PropertyID, Layout::Node const&) const;

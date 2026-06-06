@@ -9,6 +9,7 @@
 #include <AK/OwnPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -25,7 +26,7 @@ public:
     virtual GC::Ptr<Layout::NodeWithStyle> layout_node() const = 0;
     virtual GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const = 0;
 
-    virtual GC::Ptr<CSS::ComputedProperties> computed_properties() const = 0;
+    virtual RefPtr<CSS::ComputedProperties> computed_properties() const = 0;
 
     virtual RefPtr<CSS::CustomPropertyData const> custom_property_data() const = 0;
     virtual void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) = 0;
@@ -39,8 +40,8 @@ class WEB_API SyntheticPseudoElement : public PseudoElement {
     GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const override { return m_layout_node; }
     void set_layout_node(GC::Ptr<Layout::NodeWithStyle> value) { m_layout_node = value; }
 
-    GC::Ptr<CSS::ComputedProperties> computed_properties() const override { return m_computed_properties; }
-    void set_computed_properties(GC::Ptr<CSS::ComputedProperties> value) { m_computed_properties = value; }
+    RefPtr<CSS::ComputedProperties> computed_properties() const override { return m_computed_properties; }
+    void set_computed_properties(RefPtr<CSS::ComputedProperties> value) { m_computed_properties = value; }
 
     RefPtr<CSS::CustomPropertyData const> custom_property_data() const override { return m_custom_property_data; }
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override { m_custom_property_data = move(value); }
@@ -57,7 +58,7 @@ class WEB_API SyntheticPseudoElement : public PseudoElement {
 
 private:
     GC::Ptr<Layout::NodeWithStyle> m_layout_node;
-    GC::Ptr<CSS::ComputedProperties> m_computed_properties;
+    RefPtr<CSS::ComputedProperties> m_computed_properties;
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
     OwnPtr<CSS::CountersSet> m_counters_set;
     CSSPixelPoint m_scroll_offset {};
@@ -86,7 +87,7 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
     GC::Ptr<Layout::NodeWithStyle> layout_node() const override;
     GC::Ptr<Layout::NodeWithStyle> unsafe_layout_node() const override;
 
-    GC::Ptr<CSS::ComputedProperties> computed_properties() const override;
+    RefPtr<CSS::ComputedProperties> computed_properties() const override;
 
     RefPtr<CSS::CustomPropertyData const> custom_property_data() const override;
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override;

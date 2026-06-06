@@ -16,7 +16,7 @@ class CheckBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(CheckBox);
 
 public:
-    CheckBox(DOM::Document&, HTML::HTMLInputElement&, GC::Ref<CSS::ComputedProperties>);
+    CheckBox(DOM::Document&, HTML::HTMLInputElement&, CSS::ComputedProperties const&);
     virtual ~CheckBox() override;
 
 private:

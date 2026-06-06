@@ -482,7 +482,7 @@ Optional<String> HTMLTextAreaElement::placeholder_value() const
     return get_attribute_value(HTML::AttributeNames::placeholder);
 }
 
-GC::Ptr<Layout::Node> HTMLTextAreaElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+GC::Ptr<Layout::Node> HTMLTextAreaElement::create_layout_node(CSS::ComputedProperties const& style)
 {
     return heap().allocate<Layout::TextAreaBox>(document(), *this, style);
 }

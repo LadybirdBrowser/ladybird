@@ -16,8 +16,8 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(InlineNode);
 
-InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, GC::Ref<CSS::ComputedProperties> style)
-    : Layout::NodeWithStyleAndBoxModelMetrics(document, element, move(style))
+InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, CSS::ComputedProperties const& style)
+    : Layout::NodeWithStyleAndBoxModelMetrics(document, element, style)
 {
 }
 

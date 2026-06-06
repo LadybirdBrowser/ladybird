@@ -10,8 +10,8 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(TextAreaBox);
 
-TextAreaBox::TextAreaBox(DOM::Document& document, GC::Ptr<DOM::Element> element, GC::Ref<CSS::ComputedProperties> style)
-    : BlockContainer(document, element, move(style))
+TextAreaBox::TextAreaBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::ComputedProperties const& style)
+    : BlockContainer(document, element, style)
 {
 }
 

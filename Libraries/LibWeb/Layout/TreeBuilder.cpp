@@ -911,7 +911,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     auto& document = dom_node.document();
     auto& style_computer = document.style_computer();
-    GC::Ptr<CSS::ComputedProperties> style;
+    RefPtr<CSS::ComputedProperties> style;
     CSS::Display display;
 
     if (!should_create_layout_node) {

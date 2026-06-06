@@ -25,7 +25,7 @@ void SVGTitleElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> SVGTitleElement::create_layout_node(GC::Ref<CSS::ComputedProperties>)
+GC::Ptr<Layout::Node> SVGTitleElement::create_layout_node(CSS::ComputedProperties const&)
 {
     return nullptr;
 }

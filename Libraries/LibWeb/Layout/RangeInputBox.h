@@ -16,7 +16,7 @@ class RangeInputBox final : public BlockContainer {
     GC_DECLARE_ALLOCATOR(RangeInputBox);
 
 public:
-    RangeInputBox(DOM::Document&, GC::Ptr<DOM::Element>, GC::Ref<CSS::ComputedProperties>);
+    RangeInputBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);
 
     virtual ~RangeInputBox() override = default;
 

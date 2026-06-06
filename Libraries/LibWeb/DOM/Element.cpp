@@ -195,7 +195,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_custom_element_definition);
     visitor.visit(m_custom_state_set);
-    visitor.visit(m_computed_properties);
     visitor.visit(m_computed_style_map_cache);
     visitor.visit(m_attribute_style_map);
     if (m_pseudo_element_data) {
@@ -807,32 +806,32 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
     return elements;
 }
 
-GC::Ptr<Layout::Node> Element::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+GC::Ptr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties const& style)
 {
     if (local_name() == "noscript" && document().is_scripting_enabled())
         return nullptr;
 
-    auto display = style->display();
+    auto display = style.display();
     return create_layout_node_for_display_type(document(), display, style, this);
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, GC::Ref<CSS::ComputedProperties> style, Element* element)
+GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::ComputedProperties const& style, Element* element)
 {
     if (display.is_none())
         return {};
 
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
-        return document.heap().allocate<Layout::Box>(document, element, move(style));
+        return document.heap().allocate<Layout::Box>(document, element, style);
 
     if (display.is_list_item())
-        return document.heap().allocate<Layout::ListItemBox>(document, element, move(style));
+        return document.heap().allocate<Layout::ListItemBox>(document, element, style);
 
     if (display.is_table_cell())
-        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
 
     if (display.is_table_column() || display.is_table_column_group() || display.is_table_caption()) {
         // FIXME: This is just an incorrect placeholder until we improve table layout support.
-        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
     }
 
     if (display.is_math_inside()) {
@@ -840,35 +839,35 @@ GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM:
         // MathML elements with a computed display value equal to block math or inline math control box generation
         // and layout according to their tag name, as described in the relevant sections.
         // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
-        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
     }
 
     if (display.is_inline_outside()) {
         if (display.is_flow_root_inside())
-            return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
+            return document.heap().allocate<Layout::BlockContainer>(document, element, style);
         if (display.is_flow_inside())
-            return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
+            return document.heap().allocate<Layout::InlineNode>(document, element, style);
         if (display.is_flex_inside())
-            return document.heap().allocate<Layout::Box>(document, element, move(style));
+            return document.heap().allocate<Layout::Box>(document, element, style);
         if (display.is_grid_inside())
-            return document.heap().allocate<Layout::Box>(document, element, move(style));
+            return document.heap().allocate<Layout::Box>(document, element, style);
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Support display: {}", display.to_string());
-        return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
+        return document.heap().allocate<Layout::InlineNode>(document, element, style);
     }
 
     if (display.is_flex_inside() || display.is_grid_inside())
-        return document.heap().allocate<Layout::Box>(document, element, move(style));
+        return document.heap().allocate<Layout::Box>(document, element, style);
 
     if (display.is_flow_inside() || display.is_flow_root_inside() || display.is_contents())
-        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
 
     dbgln("FIXME: CSS display '{}' not implemented yet.", display.to_string());
 
     // FIXME: We don't actually support `display: block ruby`, this is just a hack to prevent a crash
     if (display.is_ruby_inside())
-        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, style);
 
-    return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
+    return document.heap().allocate<Layout::InlineNode>(document, element, style);
 }
 
 void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
@@ -2890,7 +2889,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
     target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
 
-    auto scrolling_box_computed_properties = [&scrolling_box]() -> GC::Ptr<CSS::ComputedProperties const> {
+    auto scrolling_box_computed_properties = [&scrolling_box]() -> RefPtr<CSS::ComputedProperties const> {
         if (scrolling_box.is_document()) {
             return scrolling_box.document().scrolling_element()->computed_properties();
         }
@@ -3638,7 +3637,7 @@ size_t Element::attribute_list_size() const
     return m_attributes ? m_attributes->length() : 0;
 }
 
-GC::Ptr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type)
+RefPtr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type)
 {
     if (pseudo_element_type.has_value()) {
         if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
@@ -3648,7 +3647,7 @@ GC::Ptr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::Pseu
     return m_computed_properties;
 }
 
-GC::Ptr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type) const
+RefPtr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type) const
 {
     if (pseudo_element_type.has_value()) {
         if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
@@ -3658,7 +3657,7 @@ GC::Ptr<CSS::ComputedProperties const> Element::computed_properties(Optional<CSS
     return m_computed_properties;
 }
 
-void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_element_type, GC::Ptr<CSS::ComputedProperties> style)
+void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_element_type, RefPtr<CSS::ComputedProperties> style)
 {
     if (pseudo_element_type.has_value()) {
         VERIFY(is_synthetic_pseudo_element(pseudo_element_type.value()));

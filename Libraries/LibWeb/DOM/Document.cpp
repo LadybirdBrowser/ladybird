@@ -2293,7 +2293,7 @@ static CSS::RequiredInvalidationAfterStyleChange recompute_style_for_targeted_st
     return {};
 }
 
-GC::Ptr<CSS::ComputedProperties const> Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
+CSS::ComputedProperties const* Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
     // Refresh computed properties for an abstract element without requiring every unrelated dirty element in the
     // document to be resolved. This walks the flat-tree inheritance chain and re-cascades from the rootmost stale
@@ -2352,7 +2352,7 @@ GC::Ptr<CSS::ComputedProperties const> Document::update_style_for_element(Abstra
             ancestor_needs_descendant_style_recompute = true;
         }
 
-        if (auto const* properties = ancestor->computed_properties().ptr(); properties && properties->display().is_none()) {
+        if (auto const properties = ancestor->computed_properties(); properties && properties->display().is_none()) {
             topmost_display_none_index = i - 1;
             if (mode == StyleUpdateMode::StopAtDisplayNone && !topmost_element_requiring_style.has_value())
                 return nullptr;

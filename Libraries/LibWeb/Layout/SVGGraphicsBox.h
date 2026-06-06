@@ -18,7 +18,7 @@ class WEB_API SVGGraphicsBox : public SVGBox {
     GC_DECLARE_ALLOCATOR(SVGGraphicsBox);
 
 public:
-    SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, GC::Ref<CSS::ComputedProperties>);
+    SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, CSS::ComputedProperties const&);
     virtual ~SVGGraphicsBox() override = default;
 
     SVG::SVGGraphicsElement& dom_node() { return as<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }

@@ -101,11 +101,11 @@ public:
     void push_ancestor(DOM::Element const&);
     void pop_ancestor(DOM::Element const&);
 
-    [[nodiscard]] GC::Ref<ComputedProperties> create_document_style() const;
+    [[nodiscard]] NonnullRefPtr<ComputedProperties> create_document_style() const;
 
-    [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
-    [[nodiscard]] GC::Ref<ComputedProperties> compute_style_with_seeded_ancestors(DOM::AbstractElement);
-    [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
+    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
+    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_style_with_seeded_ancestors(DOM::AbstractElement);
+    [[nodiscard]] RefPtr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
     [[nodiscard]] JsonArray collect_devtools_applied_style_rules(DOM::AbstractElement, bool include_inherited, bool include_user_agent_styles);
 
     struct ScopedMatchingRule {
@@ -129,7 +129,7 @@ public:
 
     void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&) const;
 
-    [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&) const;
+    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&) const;
 
     void compute_property_values(ComputedProperties&, Optional<DOM::AbstractElement>) const;
     void process_animation_definitions(ComputedProperties const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element) const;
@@ -182,8 +182,8 @@ private:
 
     [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::AbstractElement, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
 
-    [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&) const;
-    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&) const;
+    [[nodiscard]] RefPtr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&) const;
+    [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;

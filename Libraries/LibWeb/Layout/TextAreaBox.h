@@ -16,7 +16,7 @@ class TextAreaBox : public BlockContainer {
     GC_DECLARE_ALLOCATOR(TextAreaBox);
 
 public:
-    TextAreaBox(DOM::Document&, GC::Ptr<DOM::Element>, GC::Ref<CSS::ComputedProperties>);
+    TextAreaBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::ComputedProperties const&);
 
     HTML::HTMLTextAreaElement const& dom_node() const { return static_cast<HTML::HTMLTextAreaElement const&>(*Box::dom_node()); }
 

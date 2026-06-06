@@ -23,7 +23,7 @@ class HTMLIFrameElement final
 public:
     virtual ~HTMLIFrameElement() override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties const&) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     // ^EventTarget

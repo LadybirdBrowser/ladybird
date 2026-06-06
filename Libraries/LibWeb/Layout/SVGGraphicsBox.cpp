@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(SVGGraphicsBox);
 
-SVGGraphicsBox::SVGGraphicsBox(DOM::Document& document, SVG::SVGGraphicsElement& element, GC::Ref<CSS::ComputedProperties> style)
+SVGGraphicsBox::SVGGraphicsBox(DOM::Document& document, SVG::SVGGraphicsElement& element, CSS::ComputedProperties const& style)
     : SVGBox(document, element, style)
 {
 }
