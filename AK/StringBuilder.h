@@ -36,7 +36,6 @@ public:
 
     ErrorOr<void> try_append(StringView);
     ErrorOr<void> try_append(Utf16View const&);
-    ErrorOr<void> try_append(Utf32View const&);
     ErrorOr<void> try_append(char);
     ErrorOr<void> try_append_code_unit(char16_t);
     ErrorOr<void> try_append_code_point(u32);
@@ -56,7 +55,6 @@ public:
 
     void append(StringView);
     void append(Utf16View const&);
-    void append(Utf32View const&);
     void append(char);
     void append_code_unit(char16_t);
     void append_code_point(u32);
