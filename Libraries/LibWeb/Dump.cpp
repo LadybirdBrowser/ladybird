@@ -365,6 +365,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     }
 
     auto dump_fragment = [&](auto& fragment, size_t fragment_index) {
+        auto fragment_has_paintable = fragment.layout_node().first_paintable();
+        auto fragment_rect = [&] {
+            if (fragment_has_paintable)
+                return fragment.absolute_rect();
+            return CSSPixelRect { fragment.offset(), fragment.size() };
+        }();
+
         builder.append_repeated("  "sv, indent);
         builder.appendff("  {}frag {}{} from {} ",
             fragment_color_on,
@@ -374,9 +381,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         builder.appendff("start: {}, length: {}, rect: {} baseline: {}\n",
             fragment.start_offset(),
             fragment.length_in_code_units(),
-            fragment.absolute_rect(),
+            fragment_rect,
             fragment.baseline());
-        if (fragment.length_in_code_units() > 0) {
+        if (fragment_has_paintable && fragment.length_in_code_units() > 0) {
             builder.append_repeated("  "sv, indent);
             builder.appendff("      \"{}\"\n", fragment.text());
         }
