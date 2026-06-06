@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const importPath = "/echo/css-inline-import-initiator-type.css";
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/echo", false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+        method: "GET",
+        path: importPath,
+        status: 200,
+        headers: {
+            "Cache-Control": "no-store",
+            "Content-Type": "text/css",
+        },
+        body: "",
+    }));
+</script>
+<style>
+@import url("/echo/css-inline-import-initiator-type.css");
+</style>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const entry = performance.getEntriesByType("resource").find(
+                entry => entry.name.endsWith(importPath)
+            );
+            println(`Inline @import initiator type: ${entry?.initiatorType ?? "missing"}`);
+            done();
+        });
+    });
+</script>

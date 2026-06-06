@@ -55,6 +55,12 @@
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::CSS {
+
+class ImageStyleValueResource;
+
+}
+
 namespace Web::DOM {
 
 enum class QuirksMode {
@@ -809,6 +815,13 @@ public:
     void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
+    HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
+    CSS::ImageStyleValueResource* css_image_resource(URL::URL const&);
+    CSS::ImageStyleValueResource const* css_image_resource(URL::URL const&) const;
+    CSS::ImageStyleValueResource& ensure_css_image_resource(URL::URL const&);
+    void remove_css_image_resource_if_unused(URL::URL const&);
+    void animate_css_image_resource(URL::URL const&);
+    u64 active_css_image_animation_timer_count() const;
     void prune_image_resource_caches();
 
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
@@ -1451,6 +1464,7 @@ private:
     RefPtr<HTML::SessionHistoryEntry> m_latest_entry;
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> m_shared_resource_requests;
+    HashMap<URL::URL, OwnPtr<CSS::ImageStyleValueResource>> m_css_image_resources;
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     HashTable<GC::Ref<Animations::AnimationTimeline>> m_associated_animation_timelines;

@@ -9,7 +9,6 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibGC/Weak.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 
 namespace Web::CSS {
@@ -27,22 +26,20 @@ public:
     static ValueComparingNonnullRefPtr<ImageSetStyleValue const> create(Vector<Option>);
     virtual ~ImageSetStyleValue() override = default;
 
-    virtual void visit_edges(JS::Cell::Visitor&) const override;
-
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual bool equals(StyleValue const& other) const override;
     virtual bool is_computationally_independent() const override;
 
     virtual void load_any_resources(DOM::Document&) override;
 
-    virtual Optional<CSSPixels> natural_width() const override;
-    virtual Optional<CSSPixels> natural_height() const override;
-    virtual Optional<CSSPixelFraction> natural_aspect_ratio() const override;
+    virtual Optional<CSSPixels> natural_width(DOM::Document const&) const override;
+    virtual Optional<CSSPixels> natural_height(DOM::Document const&) const override;
+    virtual Optional<CSSPixelFraction> natural_aspect_ratio(DOM::Document const&) const override;
 
     virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
-    virtual bool is_paintable() const override;
-    virtual void paint(DisplayListRecordingContext&, DevicePixelRect const&, ImageRendering) const override;
-    virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
+    virtual bool is_paintable(DOM::Document const&) const override;
+    virtual void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const&, ImageRendering) const override;
+    virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const override;
 
     AbstractImageStyleValue const* selected_image() const { return m_selected_image; }
 
@@ -55,7 +52,6 @@ private:
     AbstractImageStyleValue const* select_image(double device_pixels_per_css_pixel) const;
 
     Vector<Option> m_options;
-    GC::Weak<CSSStyleSheet> m_style_sheet;
     mutable AbstractImageStyleValue const* m_selected_image { nullptr };
 };
 

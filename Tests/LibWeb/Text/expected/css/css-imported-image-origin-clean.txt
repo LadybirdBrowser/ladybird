@@ -1,0 +1,4 @@
+Imported background image applied: true
+Imported image requested: true
+Imported image resource timing entries: 0
+Imported image initiator type: missing

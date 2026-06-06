@@ -171,7 +171,9 @@ void CSSImportRule::fetch()
         .environment_settings_object = HTML::relevant_settings_object(parent_style_sheet),
         .value = RuleOrDeclaration::Rule {
             .parent_style_sheet = &parent_style_sheet,
-        }
+        },
+        .style_resource_base_url = {},
+        .parent_style_sheet_origin_clean = {},
     };
     (void)fetch_a_style_resource(URL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
         [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, document = m_document](auto response, auto maybe_byte_stream) {
@@ -231,7 +233,7 @@ void CSSImportRule::fetch()
             imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());
 
             // 6. If response is not CORS-same-origin, unset importedStylesheet’s origin-clean flag.
-            if (!response->is_cors_cross_origin())
+            if (!response->is_cors_same_origin())
                 imported_style_sheet->set_origin_clean(false);
 
             // 7. Set rule’s styleSheet to importedStylesheet.
@@ -249,7 +251,10 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
             m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
     }
 
-    if (auto document = m_style_sheet->owning_document())
+    auto document = m_style_sheet->owning_document();
+    if (!document && m_parent_style_sheet)
+        document = m_parent_style_sheet->owning_document();
+    if (document)
         m_style_sheet->load_pending_image_resources(*document);
 
     m_style_sheet->invalidate_owners(DOM::StyleInvalidationReason::CSSImportRule);

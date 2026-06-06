@@ -53,6 +53,7 @@ public:
     URL(String url, Type = Type::Url, Vector<RequestURLModifier> = {});
 
     String const& url() const { return m_url; }
+    Type type() const { return m_type; }
     Vector<RequestURLModifier> const& request_url_modifiers() const { return m_request_url_modifiers; }
 
     String to_string() const;

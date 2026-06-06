@@ -1499,8 +1499,8 @@ void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(Li
 
     // If an image is used, the marker's dimensions are the same as the image.
     if (auto const* list_style_image = marker.list_style_image()) {
-        marker_state.set_content_width(list_style_image->natural_width().value_or(0));
-        marker_state.set_content_height(list_style_image->natural_height().value_or(0));
+        marker_state.set_content_width(list_style_image->natural_width(marker.document()).value_or(0));
+        marker_state.set_content_height(list_style_image->natural_height(marker.document()).value_or(0));
         return;
     }
 

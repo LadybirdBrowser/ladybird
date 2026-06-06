@@ -535,8 +535,10 @@ void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)
 
     auto pending = move(m_pending_image_values);
     for (auto const& weak_image_value : pending) {
-        if (auto* image_value = weak_image_value.ptr())
+        if (auto* image_value = weak_image_value.ptr()) {
+            image_value->update_style_sheet_resource_context(*this);
             image_value->load_any_resources(document);
+        }
     }
 }
 

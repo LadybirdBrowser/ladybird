@@ -303,7 +303,8 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
         auto tile_rows = (repeat_y && y_step > 0) ? ceil((css_clip_rect.bottom() - image_y).to_double() / y_step.to_double()) : 1.0;
         auto tile_count = tile_columns * tile_rows;
 
-        if (auto color = image.color_if_single_pixel_bitmap(); color.has_value()) {
+        auto const& document = paintable_box.layout_node().document();
+        if (auto color = image.color_if_single_pixel_bitmap(document); color.has_value()) {
             // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
             //               However, we must first figure out the real coverage area, taking repeat etc into account.
 
@@ -324,7 +325,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             if (dest_rect.height() == 0)
                 dest_rect.set_height(1);
 
-            auto frame = static_cast<CSS::ImageStyleValue const&>(image).current_frame(dest_rect);
+            auto frame = static_cast<CSS::ImageStyleValue const&>(image).current_frame(document, dest_rect);
             if (!frame.has_value())
                 return;
             auto scaling_mode = to_gfx_scaling_mode(image_rendering, frame->size(), dest_rect.size().to_type<int>());
@@ -345,7 +346,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             DisplayListRecorder tile_recorder(*tile_display_list, visual_context_tree, display_list_recorder.resource_storage());
             tile_recorder.translate(-tile_device_rect.location().to_type<int>());
             auto tile_context = context.clone(tile_recorder);
-            image.paint(tile_context, tile_device_rect, image_rendering);
+            image.paint(tile_context, document, tile_device_rect, image_rendering);
 
             // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
             auto coverage = clip_rect;
@@ -372,7 +373,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
             });
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, image_device_rect, image_rendering);
+                image.paint(context, document, image_device_rect, image_rendering);
             });
         }
 
@@ -404,7 +405,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     for (auto const& layer : layers) {
-        if (!layer.background_image->is_paintable())
+        auto const& document = paintable_box.layout_node().document();
+        if (!layer.background_image->is_paintable(document))
             continue;
 
         auto background_positioning_area = get_box(layer.origin, border_box, paintable_box).rect;
@@ -432,7 +434,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         }
         auto concrete_image_size = CSS::run_default_sizing_algorithm(
             specified_width, specified_height,
-            { image.natural_width(), image.natural_height(), image.natural_aspect_ratio() },
+            { image.natural_width(document), image.natural_height(document), image.natural_aspect_ratio(document) },
             background_positioning_area.size());
 
         // If the image has no size, there's nothing to paint.

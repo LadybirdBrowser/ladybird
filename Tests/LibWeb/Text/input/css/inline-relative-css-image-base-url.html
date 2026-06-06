@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div
+    id="target"
+    style="
+        width: 1px;
+        height: 1px;
+        background-image: url('../wpt-import/images/anim-gr.gif');
+    "
+></div>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            internals.dumpLayoutTree(document);
+            const activeAnimationsBeforeBaseChange =
+                internals.activeImageStyleValueAnimationCount();
+
+            const beforeBaseChange = getComputedStyle(target).backgroundImage;
+            const base = document.createElement("base");
+            base.href = "../wpt-import/";
+            document.head.append(base);
+            const afterBaseChange = getComputedStyle(target).backgroundImage;
+
+            internals.dumpLayoutTree(document);
+            const activeAnimationsAfterBaseChange =
+                internals.activeImageStyleValueAnimationCount();
+
+            println(
+                `Computed URL before base change: ${beforeBaseChange}`
+            );
+            println(`Computed URL after base change: ${afterBaseChange}`);
+            println(
+                `active animations before base change: ${activeAnimationsBeforeBaseChange}`
+            );
+            println(
+                `active animations after base change: ${activeAnimationsAfterBaseChange}`
+            );
+            done();
+        });
+    });
+</script>

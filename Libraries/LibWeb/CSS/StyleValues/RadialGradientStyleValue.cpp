@@ -111,7 +111,7 @@ bool RadialGradientStyleValue::is_computationally_independent() const
         && (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent());
 }
 
-void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
+void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
 {
     VERIFY(m_resolved.has_value());
     auto center = context.rounded_device_point(m_resolved->center).to_type<int>();

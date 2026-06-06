@@ -58,12 +58,11 @@ bool CursorStyleValue::is_computationally_independent() const
 Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node) const
 {
     auto const& image = *m_properties.image;
-    if (!image.is_paintable()) {
+    auto const& document = layout_node.document();
+    if (!image.is_paintable(document)) {
         const_cast<AbstractImageStyleValue&>(image).load_any_resources(const_cast<DOM::Document&>(layout_node.document()));
         return {};
     }
-
-    auto const& document = layout_node.document();
 
     auto const& current_color = layout_node.computed_values().color();
 
@@ -82,7 +81,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         // 32x32 is selected arbitrarily.
         // FIXME: Ask the OS for the default size?
         CSSPixelSize const default_cursor_size { 32, 32 };
-        auto cursor_css_size = run_default_sizing_algorithm({}, {}, { image.natural_width(), image.natural_height(), image.natural_aspect_ratio() }, default_cursor_size);
+        auto cursor_css_size = run_default_sizing_algorithm({}, {}, { image.natural_width(document), image.natural_height(document), image.natural_aspect_ratio(document) }, default_cursor_size);
         // FIXME: How do we determine what cursor sizes the OS allows?
         // We don't multiply by the pixel ratio, because we want to use the image's actual pixel size.
         DevicePixelSize cursor_device_size { cursor_css_size.to_type<double>().to_rounded<int>() };
@@ -113,7 +112,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
 
         image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
-        image.paint(paint_context, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto);
+        image.paint(paint_context, document, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto);
 
         switch (document.page().client().display_list_player_type()) {
         case DisplayListPlayerType::SkiaGPUIfAvailable:

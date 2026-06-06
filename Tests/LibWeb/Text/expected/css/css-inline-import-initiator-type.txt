@@ -1,0 +1,1 @@
+Inline @import initiator type: css

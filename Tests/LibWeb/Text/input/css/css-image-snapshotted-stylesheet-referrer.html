@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const imagePath = "/echo/css-image-snapshotted-stylesheet-referrer.png";
+    const stylesheetPath = "/echo/css-image-snapshotted-stylesheet-referrer.css";
+
+    function registerEchoResponse(response) {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/echo", false);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify(response));
+    }
+
+    const transparentPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+    registerEchoResponse({
+        method: "GET",
+        path: imagePath,
+        status: 200,
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-store",
+            "Content-Type": "image/png",
+        },
+        body_encoding: "base64",
+        body: transparentPng,
+    });
+
+    registerEchoResponse({
+        method: "GET",
+        path: stylesheetPath,
+        status: 200,
+        headers: {
+            "Cache-Control": "no-store",
+            "Content-Type": "text/css",
+        },
+        body: `#target {
+            background-image: url("${imagePath}" cross-origin(anonymous));
+            height: 1px;
+            width: 1px;
+        }`,
+    });
+
+    asyncTest(done => {
+        window.addEventListener("load", async () => {
+            const response = await fetch(`/recorded-request-headers${imagePath}`);
+            const headers = await response.json();
+
+            const stylesheetUrl = new URL(stylesheetPath, location.href).href;
+            const referer = headers["Referer"]?.[0] ?? null;
+            println(`Referer is stylesheet URL: ${referer === stylesheetUrl}`);
+            done();
+        });
+    });
+</script>
+<link rel="stylesheet" href="/echo/css-image-snapshotted-stylesheet-referrer.css">
+<div id="target"></div>

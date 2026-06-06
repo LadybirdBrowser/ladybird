@@ -829,7 +829,9 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         .environment_settings_object = document().relevant_settings_object(),
         .value = RuleOrDeclaration::Rule {
             .parent_style_sheet = font_face.parent_rule()->parent_style_sheet(),
-        }
+        },
+        .style_resource_base_url = {},
+        .parent_style_sheet_origin_clean = {},
     };
 
     auto key = urls.first().to_string();
