@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Inline event handlers retain their ordering even when invalid</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+setup({ allow_uncaught_exception: true });
+var events = [];
+
+test(function() {
+  events = [];
+  var e = document.createElement("div");
+  document.body.appendChild(e);
+  e.addEventListener("click", function() { events.push("ONE") });
+  e.setAttribute("onclick", "window.open(");
+  e.addEventListener("click", function() { events.push("THREE") });
+  // Try to compile the event handler.
+  e.onclick;
+  e.setAttribute("onclick", "events.push('TWO')");
+  e.dispatchEvent(new Event("click"));
+  var expected_events = ["ONE", "TWO", "THREE"];
+  assert_array_equals(events, expected_events);
+}, "Inline event handlers retain their ordering when invalid and force-compiled");
+
+test(function() {
+  events = [];
+  var e = document.createElement("div");
+  document.body.appendChild(e);
+  e.addEventListener("click", function() { events.push("ONE") });
+  e.setAttribute("onclick", "window.open(");
+  e.addEventListener("click", function() { events.push("THREE") });
+  e.dispatchEvent(new Event("click"));
+  e.setAttribute("onclick", "events.push('TWO')");
+  e.dispatchEvent(new Event("click"));
+  var expected_events = ["ONE", "THREE", "ONE", "TWO", "THREE"];
+  assert_array_equals(events, expected_events);
+}, "Inline event handlers retain their ordering when invalid and force-compiled via dispatch");
+
+test(function() {
+  events = [];
+  var e = document.createElement("div");
+  document.body.appendChild(e);
+  e.addEventListener("click", function() { events.push("ONE") });
+  e.setAttribute("onclick", "window.open(");
+  e.addEventListener("click", function() { events.push("THREE") });
+  e.setAttribute("onclick", "events.push('TWO')");
+  e.dispatchEvent(new Event("click"));
+  var expected_events = ["ONE", "TWO", "THREE"];
+  assert_array_equals(events, expected_events);
+}, "Inline event handlers retain their ordering when invalid and lazy-compiled");
+</script>
+</body>

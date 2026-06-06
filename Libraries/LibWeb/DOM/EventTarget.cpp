@@ -519,7 +519,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         // 7. If body is not parsable as FunctionBody or if parsing detects an early error, then follow these substeps:
         if (!rust_compilation.has_value() || rust_compilation->is_error()) {
             // 1. Set eventHandler's value to null.
-            handler_map.remove(event_handler_iterator);
+            event_handler->value = GC::Ptr<WebIDL::CallbackType> {};
 
             // FIXME: 2. Report the error for the appropriate script and with the appropriate position (line number and column number) given by location, using settings object's global object.
 
