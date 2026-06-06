@@ -24,6 +24,7 @@
 #include <LibWeb/Layout/SVGMaskBox.h>
 #include <LibWeb/Layout/SVGPatternBox.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -330,6 +331,7 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         };
         auto parent_svg_transform = get_parent_svg_transform(child);
         auto svg_transform = parent_svg_transform.multiply(foreign_object_element->element_transform());
+        child_state.set_computed_svg_transforms(Painting::SVGGraphicsPaintable::ComputedTransforms(m_current_viewbox_transform, svg_transform));
         auto to_css_pixels_transform = Gfx::AffineTransform {}.multiply(m_current_viewbox_transform).multiply(svg_transform);
         auto transformed_rect = to_css_pixels_transform.map(rect.to_type<float>()).to_type<CSSPixels>();
         child_state.set_content_offset(transformed_rect.location());

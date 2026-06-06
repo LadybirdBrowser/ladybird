@@ -16,7 +16,9 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
@@ -376,10 +378,21 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
     }
 
     auto svg_rect = owner_paintable->absolute_rect();
-    auto inv = static_cast<Painting::SVGGraphicsPaintable&>(*self_paintable).computed_transforms().svg_to_css_pixels_transform().inverse();
     auto rect = self_paintable->absolute_rect().to_type<float>().translated(-svg_rect.location().to_type<float>());
-    if (inv.has_value())
-        rect = inv->map(rect);
+    auto svg_to_css_pixels_transform = [&]() -> Optional<Gfx::AffineTransform> {
+        if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(*self_paintable))
+            return svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
+        if (auto const* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(*self_paintable))
+            return svg_foreign_object_paintable->computed_transforms().svg_to_css_pixels_transform();
+        if (auto const* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(*self_paintable))
+            return svg_svg_paintable->computed_transforms().svg_to_css_pixels_transform();
+        return {};
+    }();
+    if (svg_to_css_pixels_transform.has_value()) {
+        auto inv = svg_to_css_pixels_transform->inverse();
+        if (inv.has_value())
+            rect = inv->map(rect);
+    }
     return Geometry::DOMRect::create(realm(), rect);
 }
 
