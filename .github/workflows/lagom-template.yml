@@ -117,6 +117,13 @@ jobs:
           ccache_path: ${{ steps.setup.outputs.ccache_path }}
           vcpkg_cache_path: ${{ steps.setup.outputs.vcpkg_cache_path }}
 
+      - name: Cache the WebAssembly spec test suite
+        if: ${{ inputs.os_name != 'Windows' }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/caches/WasmSpecTests
+          key: wasm-spec-test-suite | ${{ hashFiles('Meta/CMake/wasm_spec_tests.cmake') }}
+
       - name: Set dynamic environment variables
         if: ${{ inputs.os_name != 'Windows' }}
         run: |
