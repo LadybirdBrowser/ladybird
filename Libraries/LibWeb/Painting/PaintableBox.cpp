@@ -1044,8 +1044,11 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     if (!m_own_scroll_frame_index.value())
         return {};
 
-    CSSPixelRect scrollable_overflow_rect = this->scrollable_overflow_rect().value();
-    CSSPixels scrollable_overflow_length = scrollable_overflow_rect.primary_size_for_orientation(orientation);
+    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    if (!scrollable_overflow_rect.has_value())
+        return {};
+
+    CSSPixels scrollable_overflow_length = scrollable_overflow_rect->primary_size_for_orientation(orientation);
     if (scrollable_overflow_length == 0)
         return {};
 
