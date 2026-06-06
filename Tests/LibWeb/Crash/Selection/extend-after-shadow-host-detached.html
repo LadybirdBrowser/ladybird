@@ -1,0 +1,13 @@
+<!doctype html>
+<div id="host"></div>
+<div id="target"></div>
+<script>
+const shadowRoot = host.attachShadow({ mode: "open" });
+shadowRoot.innerHTML = "<span id=anchor>hello</span>";
+const anchor = shadowRoot.getElementById("anchor");
+
+const selection = getSelection();
+selection.collapse(anchor, 0);
+host.remove();
+selection.extend(target, 0);
+</script>
