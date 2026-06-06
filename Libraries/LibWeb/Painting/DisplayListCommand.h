@@ -512,7 +512,6 @@ struct PaintNestedDisplayList {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::PaintNestedDisplayList;
 
     DisplayListResourceId display_list_id;
-    DisplayListDataSpan command_bytes;
     Gfx::IntRect rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
