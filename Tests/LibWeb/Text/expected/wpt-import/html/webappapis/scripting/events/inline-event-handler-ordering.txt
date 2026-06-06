@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Inline event handlers retain their ordering when invalid and force-compiled
+Pass	Inline event handlers retain their ordering when invalid and force-compiled via dispatch
+Pass	Inline event handlers retain their ordering when invalid and lazy-compiled
