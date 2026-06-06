@@ -1,27 +1,18 @@
-#!/usr/bin/env python3
-
 # Copyright (c) 2026-present, the Ladybird developers.
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
-
-import argparse
-import sys
-
 from dataclasses import dataclass
 from dataclasses import field
-from pathlib import Path
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Set
 from typing import TextIO
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
+from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
+from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
-from Utils.webidl_parser import parse_module
 
 ALL_WORKERS_EXPOSURE = {
     "DedicatedWorker",
@@ -68,37 +59,18 @@ class LegacyConstructor:
     constructor_class: str
 
 
-def title_case_to_snake_case(value: str) -> str:
-    parts = []
-    for index, character in enumerate(value):
-        if character.isupper() and index > 0:
-            previous_character = value[index - 1]
-            next_character = value[index + 1] if index + 1 < len(value) else ""
-            if previous_character.islower() or (previous_character.isupper() and next_character.islower()):
-                parts.append("_")
-        parts.append(character.lower())
-    return "".join(parts)
+def collect_interface_sets(modules: List[Module]) -> InterfaceSets:
+    interface_sets = InterfaceSets()
 
+    for module in modules:
+        interface = module.interface
+        if interface is None:
+            continue
+        if not should_have_interface_object(interface):
+            continue
+        interface_sets.add_interface(interface)
 
-def parse_arguments() -> argparse.Namespace:
-    argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument(
-        "-o",
-        "--output-path",
-        required=True,
-        type=Path,
-        help="Path to output generated files into",
-    )
-    argument_parser.add_argument("paths", nargs="+", type=Path, help="Paths of every IDL file that could be Exposed")
-    return argument_parser.parse_args()
-
-
-def read_input_paths(paths: List[Path]) -> List[Path]:
-    if len(paths) == 1 and str(paths[0]).startswith("@"):
-        response_file_path = Path(str(paths[0])[1:])
-        return [Path(path) for path in response_file_path.read_text().splitlines() if path]
-
-    return paths
+    return interface_sets
 
 
 def parse_exposure_set(interface_name: str, exposed_value: str) -> Set[str]:
@@ -167,6 +139,9 @@ def can_use_shared_interface_prototype(interface: Interface) -> bool:
         and not interface.has_special_member
         and interface.named_property_getter is None
         and interface.indexed_property_getter is None
+        and interface.named_property_setter is None
+        and interface.named_property_deleter is None
+        and interface.indexed_property_setter is None
     )
 
 
@@ -402,6 +377,23 @@ void Intrinsics::create_web_namespace<{interface.namespace_class}>(JS::Realm& re
 
 
 def write_interface_creation(out: TextIO, interface: Interface) -> None:
+    if interface.is_callback_interface:
+        out.write(
+            f"""template<>
+WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
+{{
+    static constexpr InterfaceObjectMetadata metadata {{
+        .name = "{interface.name}"sv,
+        .namespaced_name = "{interface.namespaced_name}"sv,
+        .initialize_constructor = &{interface.constructor_class}::initialize,
+        .initialize_prototype = &{interface.prototype_class}::initialize,
+    }};
+    create_web_prototype_and_constructor(realm, metadata);
+}}
+"""
+        )
+        return
+
     if can_use_shared_interface_prototype(interface):
         out.write(
             f"""template<>
@@ -470,14 +462,10 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
 """
         )
 
-        named_properties_class = ""
-        if "Global" in interface.extended_attributes and interface.supports_named_properties:
-            named_properties_class = f"{interface.name}Properties"
-
-        if named_properties_class:
+        if interface_supports_named_properties(interface):
             out.write(
-                f"""    auto named_properties_object = realm.create<{named_properties_class}>(realm);
-    m_prototypes.set("{named_properties_class}"_fly_string, named_properties_object);
+                f"""    auto named_properties_object = realm.create<{interface.name}Properties>(realm);
+    m_prototypes.set("{interface.name}Properties"_fly_string, named_properties_object);
 
 """
             )
@@ -504,10 +492,6 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         )
         return
 
-    named_properties_class = ""
-    if "Global" in interface.extended_attributes and interface.supports_named_properties:
-        named_properties_class = f"{interface.name}Properties"
-
     out.write(
         f"""template<>
 WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
@@ -517,10 +501,10 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
 """
     )
 
-    if named_properties_class:
+    if interface_supports_named_properties(interface):
         out.write(
-            f"""    auto named_properties_object = realm.create<{named_properties_class}>(realm);
-    m_prototypes.set("{named_properties_class}"_fly_string, named_properties_object);
+            f"""    auto named_properties_object = realm.create<{interface.name}Properties>(realm);
+    m_prototypes.set("{interface.name}Properties"_fly_string, named_properties_object);
 
 """
         )
@@ -676,127 +660,3 @@ def write_namespace_global_accessor(out: TextIO, interface: Interface) -> None:
         f"""    global.define_intrinsic_accessor("{interface.name}"_utf16_fly_string, attr, [](auto& realm) -> JS::Value {{ return &ensure_web_namespace<{interface.namespace_class}>(realm, "{interface.name}"_fly_string); }});
 """
     )
-
-
-def cpp_namespace_for_module_path(path: Path) -> str:
-    """A path of Libraries/LibWeb/<namespace>/... should have a namespace of Web::<namespace>."""
-    parts = path.parts
-    return parts[parts.index("LibWeb") + 1]
-
-
-def write_forward_header(out: TextIO, modules: List[Module]) -> None:
-    out.write(
-        """#pragma once
-
-"""
-    )
-
-    interface_names_by_namespace: Dict[str, Set[str]] = {}
-
-    for module in modules:
-        interface = module.interface
-        if interface is None or interface.is_namespace:
-            continue
-
-        namespace_name = cpp_namespace_for_module_path(interface.path)
-        if not namespace_name:
-            continue
-
-        interface_names_by_namespace.setdefault(namespace_name, set()).add(interface.implemented_name)
-
-    for namespace_name in sorted(interface_names_by_namespace):
-        out.write(f"namespace Web::{namespace_name} {{\n\n")
-
-        for class_name in sorted(interface_names_by_namespace[namespace_name]):
-            out.write(f"class {class_name};\n")
-
-        out.write(
-            """
-}
-
-"""
-        )
-
-    dictionary_names = {dictionary.name for module in modules for dictionary in module.dictionaries}
-
-    out.write(
-        """namespace Web::Bindings {
-
-"""
-    )
-
-    for dictionary_name in sorted(dictionary_names):
-        out.write(f"struct {dictionary_name};\n")
-
-    out.write(
-        """
-}
-"""
-    )
-
-
-def write_generated_file(path: Path, writer, *args) -> None:
-    with path.open("w", encoding="utf-8", newline="\n") as output_file:
-        writer(output_file, *args)
-
-
-def main() -> int:
-    arguments = parse_arguments()
-    output_directory = arguments.output_path
-    output_directory.mkdir(parents=True, exist_ok=True)
-
-    interface_sets = InterfaceSets()
-    modules: List[Module] = []
-
-    for path in read_input_paths(arguments.paths):
-        module = parse_module(path, path.read_text(encoding="utf-8"))
-        modules.append(module)
-
-        interface = module.interface
-        if interface is None:
-            continue
-        if not should_have_interface_object(interface):
-            continue
-        interface_sets.add_interface(interface)
-
-    write_generated_file(
-        output_directory / "IntrinsicDefinitions.h", write_intrinsic_definitions_header, interface_sets
-    )
-    write_generated_file(
-        output_directory / "IntrinsicDefinitions.cpp",
-        write_intrinsic_definitions_implementation,
-        interface_sets,
-    )
-
-    for class_name in ("Window", "DedicatedWorker", "SharedWorker"):
-        write_generated_file(
-            output_directory / f"{class_name}ExposedInterfaces.h",
-            write_exposed_interface_header,
-            class_name,
-        )
-
-    write_generated_file(
-        output_directory / "WindowExposedInterfaces.cpp",
-        write_exposed_interface_implementation,
-        "Window",
-        interface_sets.window_exposed,
-    )
-    write_generated_file(
-        output_directory / "DedicatedWorkerExposedInterfaces.cpp",
-        write_exposed_interface_implementation,
-        "DedicatedWorker",
-        interface_sets.dedicated_worker_exposed,
-    )
-    write_generated_file(
-        output_directory / "SharedWorkerExposedInterfaces.cpp",
-        write_exposed_interface_implementation,
-        "SharedWorker",
-        interface_sets.shared_worker_exposed,
-    )
-    write_generated_file(output_directory / "Forward.h", write_forward_header, modules)
-
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
