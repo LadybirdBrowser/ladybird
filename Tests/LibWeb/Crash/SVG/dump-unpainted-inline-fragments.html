@@ -1,0 +1,32 @@
+<!doctype html>
+<svg>
+    <g opacity="0.7">
+        <switch>
+            <feMergeNode>
+                <foreignObject display="table-caption">
+                    <body xmlns="http://www.w3.org/1999/xhtml">x</body>
+                </foreignObject>
+            </feMergeNode>
+            <tref>
+                <text visibility="hidden">
+                    <tspan font-size="55px">
+                        <meshpatch>
+                            <feTile></feTile>
+                            <textPath>
+                                <textPath id="target"><embed></textPath>
+                                <text></text>
+                            </textPath>
+                        </meshpatch>
+                    </tspan>
+                </text>
+                <altGlyph></altGlyph>
+            </tref>
+            <radialGradient><animateTransform></animateTransform></radialGradient>
+            <feFlood></feFlood>
+        </switch>
+    </g>
+</svg>
+<script>
+    internals.dumpLayoutTree(document.body);
+    document.getElementById("target").scrollIntoView();
+</script>
