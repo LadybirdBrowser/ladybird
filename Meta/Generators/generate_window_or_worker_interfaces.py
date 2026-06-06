@@ -471,7 +471,7 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         )
 
         named_properties_class = ""
-        if "Global" in interface.extended_attributes and interface.supports_named_properties():
+        if "Global" in interface.extended_attributes and interface.supports_named_properties:
             named_properties_class = f"{interface.name}Properties"
 
         if named_properties_class:
@@ -505,7 +505,7 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         return
 
     named_properties_class = ""
-    if "Global" in interface.extended_attributes and interface.supports_named_properties():
+    if "Global" in interface.extended_attributes and interface.supports_named_properties:
         named_properties_class = f"{interface.name}Properties"
 
     out.write(
