@@ -1179,6 +1179,7 @@ set(SOURCES
     WebIDL/DOMException.cpp
     WebIDL/ObservableArray.cpp
     WebIDL/OverloadResolution.cpp
+    WebIDL/OverloadTypes.cpp
     WebIDL/Promise.cpp
     WebIDL/QuotaExceededError.cpp
     WebIDL/Tracing.cpp
@@ -1254,7 +1255,7 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibSync LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibURL LibTLS LibRequests LibGC LibSync LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADER RustFFI.h)
 
