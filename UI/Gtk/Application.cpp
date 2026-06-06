@@ -195,24 +195,26 @@ Optional<ByteString> Application::ask_user_for_download_path(StringView file) co
     }
     gtk_file_dialog_set_initial_name(GTK_FILE_DIALOG(dialog.ptr()), ByteString(file).characters());
 
-    Optional<ByteString> result;
-    Core::EventLoop nested_loop;
+    struct FileDialogSaveResult {
+        bool done { false };
+        Optional<ByteString> path;
+    } result;
 
     gtk_file_dialog_save(GTK_FILE_DIALOG(dialog.ptr()), m_active_window->gtk_window(), nullptr, +[](GObject* source, GAsyncResult* async_result, gpointer user_data) {
-        auto* result_ptr = static_cast<Optional<ByteString>*>(user_data);
+        auto* result_ptr = static_cast<FileDialogSaveResult*>(user_data);
         GError* error = nullptr;
         GObjectPtr file { gtk_file_dialog_save_finish(GTK_FILE_DIALOG(source), async_result, &error) };
         if (file.ptr()) {
             g_autofree char* path = g_file_get_path(G_FILE(file.ptr()));
             if (path)
-                *result_ptr = ByteString(path);
+                result_ptr->path = ByteString(path);
         }
         if (error)
             g_error_free(error);
-        Core::EventLoop::current().quit(0); }, &result);
+        result_ptr->done = true; }, &result);
 
-    nested_loop.exec();
-    return result;
+    Core::EventLoop::current().spin_until([&] { return result.done; });
+    return result.path;
 }
 
 void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
