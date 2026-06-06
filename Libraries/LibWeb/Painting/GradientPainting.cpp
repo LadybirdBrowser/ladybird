@@ -94,6 +94,9 @@ static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopL
 
 static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, float repeat_length)
 {
+    VERIFY(isfinite(repeat_length));
+    VERIFY(repeat_length > 0);
+
     // https://drafts.csswg.org/css-images/#repeating-gradients
     // When rendered, however, the color-stops are repeated infinitely in both directions, with their
     // positions shifted by multiples of the difference between the last specified color-stop's position
@@ -139,6 +142,64 @@ static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, 
     }
 
     return color_stop_list_with_expanded_repeat;
+}
+
+static bool has_degenerate_repeat_length(ResolvedColorStopData const& resolved_color_stops)
+{
+    return resolved_color_stops.repeat_length.has_value()
+        && (!isfinite(*resolved_color_stops.repeat_length) || *resolved_color_stops.repeat_length <= 0);
+}
+
+static Gfx::Color average_color_for_degenerate_repeating_gradient(ColorStopList const& color_stop_list)
+{
+    VERIFY(!color_stop_list.is_empty());
+
+    if (color_stop_list.size() == 1)
+        return color_stop_list.first().color;
+
+    // https://drafts.csswg.org/css-images-3/#repeating-gradients
+    // For zero-length repeating gradients, average a gradient with the same
+    // colors and equally-spaced stops over an arbitrary non-zero distance.
+    float premultiplied_red = 0;
+    float premultiplied_green = 0;
+    float premultiplied_blue = 0;
+    float alpha = 0;
+    float const weight = 0.5f / static_cast<float>(color_stop_list.size() - 1);
+
+    auto add_weighted_color = [&](Gfx::Color color) {
+        auto color_alpha = color.alpha() / 255.0f;
+        alpha += color_alpha * weight;
+        premultiplied_red += color.red() / 255.0f * color_alpha * weight;
+        premultiplied_green += color.green() / 255.0f * color_alpha * weight;
+        premultiplied_blue += color.blue() / 255.0f * color_alpha * weight;
+    };
+
+    for (size_t i = 1; i < color_stop_list.size(); ++i) {
+        add_weighted_color(color_stop_list[i - 1].color);
+        add_weighted_color(color_stop_list[i].color);
+    }
+
+    if (alpha == 0)
+        return Gfx::Color::Transparent;
+
+    auto normalized_to_u8 = [](float value) -> u8 {
+        return clamp(lroundf(value * 255.0f), 0L, 255L);
+    };
+
+    return {
+        normalized_to_u8(premultiplied_red / alpha),
+        normalized_to_u8(premultiplied_green / alpha),
+        normalized_to_u8(premultiplied_blue / alpha),
+        normalized_to_u8(alpha),
+    };
+}
+
+static void normalize_degenerate_repeating_gradient(ResolvedColorStopData& resolved_color_stops)
+{
+    auto average_color = average_color_for_degenerate_repeating_gradient(resolved_color_stops.list);
+    resolved_color_stops.list = { { average_color, 0 }, { average_color, 1 } };
+    resolved_color_stops.repeat_length = {};
+    resolved_color_stops.repeating = false;
 }
 
 static ColorStopList expand_color_stops_for_painting(ColorStopList const& color_stop_list, Optional<float> repeat_length)
@@ -258,6 +319,9 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
         },
         linear_gradient.is_repeating());
 
+    if (has_degenerate_repeat_length(resolved_color_stops))
+        normalize_degenerate_repeating_gradient(resolved_color_stops);
+
     // Replace transition hints for painting; keep repeat_length for Skia's native tiling
     resolved_color_stops.list = replace_transition_hints_with_normal_color_stops(resolved_color_stops.list);
 
@@ -278,6 +342,9 @@ ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node,
         },
         conic_gradient.is_repeating());
 
+    if (has_degenerate_repeat_length(resolved_color_stops))
+        normalize_degenerate_repeating_gradient(resolved_color_stops);
+
     // Expand color stops for painting (replace transition hints and expand repeat length)
     resolved_color_stops.list = expand_color_stops_for_painting(resolved_color_stops.list, resolved_color_stops.repeat_length);
     resolved_color_stops.repeat_length = {};
@@ -296,6 +363,9 @@ RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& nod
             return CSS::Length::from_style_value(position, CSS::Length::make_px(gradient_size.width())).absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
         },
         radial_gradient.is_repeating());
+
+    if (has_degenerate_repeat_length(resolved_color_stops))
+        normalize_degenerate_repeating_gradient(resolved_color_stops);
 
     // Expand color stops for painting (replace transition hints and expand repeat length)
     resolved_color_stops.list = expand_color_stops_for_painting(resolved_color_stops.list, resolved_color_stops.repeat_length);
