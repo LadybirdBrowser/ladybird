@@ -7,6 +7,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/NumericLimits.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
@@ -93,11 +94,24 @@ Font const& Font::bold_variant() const
     return *m_bold_variant;
 }
 
+static int scale_for_harfbuzz(float pixel_size)
+{
+    auto scaled_pixel_size = static_cast<double>(pixel_size) * text_shaping_resolution;
+    if (__builtin_isnan(scaled_pixel_size))
+        return 0;
+    if (scaled_pixel_size >= NumericLimits<int>::max())
+        return NumericLimits<int>::max();
+    if (scaled_pixel_size <= NumericLimits<int>::min())
+        return NumericLimits<int>::min();
+    return static_cast<int>(scaled_pixel_size);
+}
+
 hb_font_t* Font::harfbuzz_font() const
 {
     if (!m_harfbuzz_font) {
         m_harfbuzz_font = hb_font_create(typeface().harfbuzz_typeface());
-        hb_font_set_scale(m_harfbuzz_font, pixel_size() * text_shaping_resolution, pixel_size() * text_shaping_resolution);
+        auto harfbuzz_scale = scale_for_harfbuzz(pixel_size());
+        hb_font_set_scale(m_harfbuzz_font, harfbuzz_scale, harfbuzz_scale);
         // HarfBuzz uses ptem for AAT 'trak' table lookup; use CSS pixels instead of physical points here.
         hb_font_set_ptem(m_harfbuzz_font, pixel_size());
 

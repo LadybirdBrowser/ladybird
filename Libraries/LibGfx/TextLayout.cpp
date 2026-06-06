@@ -277,12 +277,12 @@ float measure_text_width(Utf16View const& string, Font const& font, float letter
     u32 glyph_count;
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
-    hb_position_t point_x = 0;
+    double point_x = 0;
     for (size_t i = 0; i < glyph_count; ++i)
         point_x += positions[i].x_advance;
 
     hb_buffer_destroy(buffer);
-    return point_x / text_shaping_resolution + glyph_count * letter_spacing;
+    return static_cast<float>(point_x / text_shaping_resolution + glyph_count * letter_spacing);
 }
 
 }
