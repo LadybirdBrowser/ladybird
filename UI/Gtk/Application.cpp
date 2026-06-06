@@ -232,23 +232,26 @@ void Application::display_error_dialog(StringView error_message) const
     Dialogs::show_error(m_active_window->gtk_window(), error_message);
 }
 
-// GDK4 only provides an async clipboard API. Spin a nested event loop to read synchronously.
+// GDK4 only provides an async clipboard API. Spin the event loop until we get a response.
 static Optional<ByteString> read_clipboard_text_sync()
 {
     auto* clipboard = gdk_display_get_clipboard(gdk_display_get_default());
 
-    Optional<ByteString> result;
-    Core::EventLoop nested_loop;
+    struct ClipboardReadTextResult {
+        bool done { false };
+        Optional<ByteString> text;
+    } result;
 
     gdk_clipboard_read_text_async(clipboard, nullptr, [](GObject* source, GAsyncResult* async_result, gpointer user_data) {
-        auto* result_ptr = static_cast<Optional<ByteString>*>(user_data);
+        auto* result_ptr = static_cast<ClipboardReadTextResult*>(user_data);
         g_autofree char* text = gdk_clipboard_read_text_finish(GDK_CLIPBOARD(source), async_result, nullptr);
         if (text)
-            *result_ptr = ByteString(text);
-        Core::EventLoop::current().quit(0); }, &result);
+            result_ptr->text = ByteString(text);
 
-    nested_loop.exec();
-    return result;
+        result_ptr->done = true; }, &result);
+
+    Core::EventLoop::current().spin_until([&] { return result.done; });
+    return result.text;
 }
 
 Utf16String Application::clipboard_text(ClipboardType) const
