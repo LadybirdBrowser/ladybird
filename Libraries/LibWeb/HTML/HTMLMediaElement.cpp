@@ -2592,9 +2592,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
     // on setting, the user agent must follow these steps:
 
     // 1. If the given value is not supported by the user agent, then throw a "NotSupportedError" DOMException.
-    // FIXME: We need to support playback rates other than 1 for this to be even remotely useful.
-    if (new_value != 1.0)
-        return WebIDL::NotSupportedError::create(realm(), "Playback rates other than 1 are not supported."_utf16);
+    if (!isfinite(new_value) || new_value < 0.0 || new_value > 64.0)
+        return WebIDL::NotSupportedError::create(realm(), "Playback rate is outside of the supported range."_utf16);
 
     // When the defaultPlaybackRate or playbackRate attributes change value (either by being set by script or by being changed directly by the user agent, e.g. in response to user
     // control), the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.
