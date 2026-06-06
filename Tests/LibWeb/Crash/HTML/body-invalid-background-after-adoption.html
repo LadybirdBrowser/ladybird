@@ -1,0 +1,12 @@
+<!doctype html>
+<body onload="runTest()">
+<script>
+function runTest()
+{
+    const documentWithBody = document.implementation.createHTMLDocument("x");
+    const body = documentWithBody.createElement("body");
+    body.setAttribute("background", "http://[");
+    document.documentElement.appendChild(body);
+    body.scrollIntoView();
+}
+</script>
