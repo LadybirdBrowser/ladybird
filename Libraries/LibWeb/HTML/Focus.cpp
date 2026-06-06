@@ -415,7 +415,10 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
     if (is_shadow_host(old_focus_target)) {
         auto shadow_root = static_cast<DOM::Element*>(old_focus_target)->shadow_root();
         if (shadow_root->delegates_focus()) {
-            auto top_level_traversable = old_focus_target->document().browsing_context()->top_level_traversable();
+            auto browsing_context = old_focus_target->document().browsing_context();
+            if (!browsing_context)
+                return;
+            auto top_level_traversable = browsing_context->top_level_traversable();
             if (auto currently_focused_area = top_level_traversable->currently_focused_area()) {
                 if (shadow_root->is_shadow_including_ancestor_of(*currently_focused_area)) {
                     old_focus_target = currently_focused_area;
@@ -436,7 +439,10 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
     // NOTE: HTMLAreaElement is currently missing the shapes property
 
     // 4. Let old chain be the current focus chain of the top-level browsing context in which old focus target finds itself.
-    auto top_level_traversable = old_focus_target->document().browsing_context()->top_level_traversable();
+    auto browsing_context = old_focus_target->document().browsing_context();
+    if (!browsing_context)
+        return;
+    auto top_level_traversable = browsing_context->top_level_traversable();
     auto currently_focused_area = top_level_traversable->currently_focused_area();
     auto old_chain = focus_chain(currently_focused_area);
 

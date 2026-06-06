@@ -1,0 +1,6 @@
+<!doctype html>
+<script>
+let document_without_browsing_context = new DOMParser().parseFromString("", "text/html");
+let body = document_without_browsing_context.createElement("body");
+body.blur();
+</script>
