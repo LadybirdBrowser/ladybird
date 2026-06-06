@@ -72,9 +72,9 @@ Optional<Gfx::IntRect> BitmapDecodedImageData::frame_rect(size_t frame_index) co
     return m_frames[frame_index].frame.rect();
 }
 
-void BitmapDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const
+void BitmapDecodedImageData::paint(DisplayListRecordingContext& context, size_t frame_index, Gfx::IntRect dst_rect, Gfx::ScalingMode scaling_mode) const
 {
-    context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, clip_rect, m_frames[frame_index].frame, scaling_mode);
+    context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, m_frames[frame_index].frame, scaling_mode);
 }
 
 }

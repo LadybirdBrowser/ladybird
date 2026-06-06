@@ -244,7 +244,7 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRec
     auto dest_int_rect = dest_rect.to_type<int>();
     auto rect = image_data->frame_rect(m_current_frame_index).value_or(dest_int_rect);
     auto scaling_mode = to_gfx_scaling_mode(image_rendering, rect.size(), dest_int_rect.size());
-    image_data->paint(context, m_current_frame_index, dest_int_rect, dest_int_rect, scaling_mode);
+    image_data->paint(context, m_current_frame_index, dest_int_rect, scaling_mode);
 }
 
 Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DevicePixelRect const& dest_rect) const

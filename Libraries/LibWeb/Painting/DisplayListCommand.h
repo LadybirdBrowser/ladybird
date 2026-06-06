@@ -145,11 +145,10 @@ struct DrawScaledDecodedImageFrame {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawScaledDecodedImageFrame;
 
     Gfx::IntRect dst_rect;
-    Gfx::IntRect clip_rect;
     ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void dump(StringBuilder&) const;
 };
 

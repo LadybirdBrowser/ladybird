@@ -58,7 +58,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         if (dst_rect.is_empty())
             return;
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame.size(), dst_rect.size());
-        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, dst_rect, move(frame), scaling_mode);
+        context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, move(frame), scaling_mode);
     };
 
     auto paint_video_frame = [&]() {
