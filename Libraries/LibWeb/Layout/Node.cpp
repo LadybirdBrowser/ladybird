@@ -1384,6 +1384,9 @@ DOM::Document const& Node::document() const
 // https://drafts.csswg.org/css-ui/#propdef-user-select
 CSS::UserSelect Node::user_select_used_value() const
 {
+    if (!has_style_or_parent_with_style())
+        return CSS::UserSelect::None;
+
     // The used value is the same as the computed value, except:
     auto computed_value = computed_values().user_select();
 
