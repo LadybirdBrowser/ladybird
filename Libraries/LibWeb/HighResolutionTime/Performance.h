@@ -17,7 +17,7 @@
 namespace Web::HighResolutionTime {
 
 class Performance final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Performance, DOM::EventTarget);
+    WEB_WRAPPABLE(Performance, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Performance);
 
 public:

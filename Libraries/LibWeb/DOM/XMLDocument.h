@@ -11,7 +11,7 @@
 namespace Web::DOM {
 
 class XMLDocument final : public Document {
-    WEB_PLATFORM_OBJECT(XMLDocument, Document);
+    WEB_WRAPPABLE(XMLDocument, Document);
     GC_DECLARE_ALLOCATOR(XMLDocument);
 
 public:

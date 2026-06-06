@@ -8,7 +8,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/Bindings/CSSFontFaceRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontFace.h>
@@ -32,12 +31,6 @@ CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, GC::Ref<CSSFontFaceDescriptor
     , m_style(style)
 {
     m_style->set_parent_rule(*this);
-}
-
-void CSSFontFaceRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceRule);
-    Base::initialize(realm);
 }
 
 bool CSSFontFaceRule::is_valid() const
@@ -148,7 +141,7 @@ String CSSFontFaceRule::serialized() const
     return MUST(builder.to_string());
 }
 
-void CSSFontFaceRule::visit_edges(Visitor& visitor)
+void CSSFontFaceRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);

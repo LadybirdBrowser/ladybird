@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/Comment.h>
 #include <LibWeb/DOM/Comment.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
 
@@ -21,7 +22,7 @@ Comment::Comment(Document& document, Utf16String data)
 // https://dom.spec.whatwg.org/#dom-comment-comment
 WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(JS::Realm& realm, Utf16String data)
 {
-    auto& window = as<HTML::Window>(realm.global_object());
+    auto& window = HTML::relevant_window(realm.global_object());
     return realm.create<Comment>(window.associated_document(), move(data));
 }
 

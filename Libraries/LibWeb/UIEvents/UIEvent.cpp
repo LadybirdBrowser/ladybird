@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/UIEvent.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/UIEvents/UIEvent.h>
@@ -37,13 +36,7 @@ UIEvent::UIEvent(JS::Realm& realm, FlyString const& event_name, Bindings::UIEven
 
 UIEvent::~UIEvent() = default;
 
-void UIEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(UIEvent);
-    Base::initialize(realm);
-}
-
-void UIEvent::visit_edges(Cell::Visitor& visitor)
+void UIEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_view);

@@ -21,8 +21,7 @@ GC::Ref<CloseWatcherManager> CloseWatcherManager::create(JS::Realm& realm)
     return realm.create<CloseWatcherManager>(realm);
 }
 
-CloseWatcherManager::CloseWatcherManager(JS::Realm& realm)
-    : PlatformObject(realm)
+CloseWatcherManager::CloseWatcherManager(JS::Realm&)
 {
 }
 
@@ -111,7 +110,7 @@ bool CloseWatcherManager::can_prevent_close()
     return m_groups.size() < m_allowed_number_of_groups;
 }
 
-void CloseWatcherManager::visit_edges(JS::Cell::Visitor& visitor)
+void CloseWatcherManager::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 

@@ -6,7 +6,6 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StaticRange.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DocumentType.h>
@@ -36,12 +35,6 @@ WebIDL::ExceptionOr<GC::Ref<StaticRange>> StaticRange::construct_impl(JS::Realm&
 
     // 2. Set this’s start to (init["startContainer"], init["startOffset"]) and end to (init["endContainer"], init["endOffset"]).
     return realm.create<StaticRange>(*init.start_container, init.start_offset, *init.end_container, init.end_offset);
-}
-
-void StaticRange::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StaticRange);
-    Base::initialize(realm);
 }
 
 }

@@ -21,7 +21,7 @@ namespace Web::HTML {
 class HTMLSlotElement final
     : public HTMLElement
     , public DOM::Slot {
-    WEB_PLATFORM_OBJECT(HTMLSlotElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLSlotElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSlotElement);
 
 public:

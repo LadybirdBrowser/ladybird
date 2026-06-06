@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OESStandardDerivatives.h>
 #include <LibWeb/WebGL/Extensions/OESStandardDerivatives.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -15,24 +13,19 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESStandardDerivatives);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESStandardDerivatives::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESStandardDerivatives::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<OESStandardDerivatives>(realm, context);
+    auto extension = realm.create<OESStandardDerivatives>(realm, context);
+    return GC::Ref<Bindings::Wrappable> { extension };
 }
 
 OESStandardDerivatives::OESStandardDerivatives(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_context(context)
 {
 }
 
-void OESStandardDerivatives::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OESStandardDerivatives);
-    Base::initialize(realm);
-}
-
-void OESStandardDerivatives::visit_edges(Visitor& visitor)
+void OESStandardDerivatives::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

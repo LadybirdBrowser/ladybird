@@ -7,7 +7,6 @@
 #include "CSSNestedDeclarations.h"
 #include <AK/NeverDestroyed.h>
 #include <LibWeb/Bindings/CSSNestedDeclarations.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -37,13 +36,7 @@ CSSNestedDeclarations::CSSNestedDeclarations(JS::Realm& realm, CSSStylePropertie
     m_declaration->set_parent_rule(*this);
 }
 
-void CSSNestedDeclarations::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSNestedDeclarations);
-    Base::initialize(realm);
-}
-
-void CSSNestedDeclarations::visit_edges(Cell::Visitor& visitor)
+void CSSNestedDeclarations::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_declaration);

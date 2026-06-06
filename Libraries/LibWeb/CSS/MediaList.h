@@ -10,14 +10,15 @@
 
 #include <AK/Optional.h>
 #include <LibJS/Runtime/Object.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MediaList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/MediaQuery.h>
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom-1/#the-medialist-interface
-class MediaList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaList, Bindings::PlatformObject);
+class MediaList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MediaList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MediaList);
 
 public:
@@ -31,7 +32,7 @@ public:
     void append_medium(StringView);
     WebIDL::ExceptionOr<void> delete_medium(StringView);
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     bool evaluate(DOM::Document const&);
     bool matches() const;
@@ -43,8 +44,7 @@ public:
 private:
     MediaList(JS::Realm&, Vector<NonnullRefPtr<MediaQuery>>&&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<StyleSheet> m_associated_style_sheet;
     Vector<NonnullRefPtr<MediaQuery>> m_media;

@@ -12,7 +12,7 @@
 namespace Web::WebGL {
 
 class WebGLQuery : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLQuery, WebGLObject);
+    WEB_WRAPPABLE(WebGLQuery, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLQuery);
 
 public:
@@ -22,8 +22,6 @@ public:
 
 protected:
     explicit WebGLQuery(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

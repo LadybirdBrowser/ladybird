@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceEventTiming.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -116,13 +114,7 @@ PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_entry(Opt
     return should_add_performance_event_timing();
 }
 
-void PerformanceEventTiming::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceEventTiming);
-    Base::initialize(realm);
-}
-
-void PerformanceEventTiming::visit_edges(JS::Cell::Visitor& visitor)
+void PerformanceEventTiming::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_event_target);

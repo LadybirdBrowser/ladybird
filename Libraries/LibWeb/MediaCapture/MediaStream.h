@@ -15,7 +15,7 @@ namespace Web::MediaCapture {
 
 // Spec: https://w3c.github.io/mediacapture-main/#mediastream
 class MediaStream final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaStream, DOM::EventTarget);
+    WEB_WRAPPABLE(MediaStream, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaStream);
 
 public:

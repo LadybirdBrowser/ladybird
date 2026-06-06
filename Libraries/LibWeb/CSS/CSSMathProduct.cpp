@@ -6,7 +6,6 @@
 
 #include "CSSMathProduct.h"
 #include <LibWeb/Bindings/CSSMathProduct.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -73,13 +72,7 @@ CSSMathProduct::CSSMathProduct(JS::Realm& realm, NumericType type, GC::Ref<CSSNu
 
 CSSMathProduct::~CSSMathProduct() = default;
 
-void CSSMathProduct::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathProduct);
-    Base::initialize(realm);
-}
-
-void CSSMathProduct::visit_edges(Visitor& visitor)
+void CSSMathProduct::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_values);

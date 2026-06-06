@@ -17,6 +17,11 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/Blob.h>
+#include <LibWeb/Bindings/File.h>
+#include <LibWeb/Bindings/IDBDatabase.h>
+#include <LibWeb/Bindings/IDBKeyRange.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
@@ -438,7 +443,7 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     // 10. Queue a database task to run these steps:
     queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version, on_complete]() {
         // 1. Set request’s result to connection.
-        request->set_result(connection);
+        request->set_result(Bindings::wrap(realm, connection));
 
         // 2. Set request’s transaction to transaction.
         // NOTE: We need to do a two-way binding here.
@@ -1040,6 +1045,9 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
     // 3. Let identifiers be the result of strictly splitting keyPath on U+002E FULL STOP characters (.).
     // 4. For each identifier of identifiers, jump to the appropriate step below:
     TRY(key_path_string.bytes_as_string_view().for_each_split_view('.', SplitBehavior::KeepEmpty, [&](auto const& identifier) -> ErrorOr<void> {
+        auto* blob = value.is_object() ? Bindings::impl_from<FileAPI::Blob>(&value.as_object()) : nullptr;
+        auto* file = value.is_object() ? Bindings::impl_from<FileAPI::File>(&value.as_object()) : nullptr;
+
         // If Type(value) is String, and identifier is "length"
         if (value.is_string() && identifier == "length") {
             // Let value be a Number equal to the number of elements in value.
@@ -1053,27 +1061,27 @@ WebIDL::ExceptionOr<ErrorOr<JS::Value>> evaluate_key_path_on_a_value(JS::Realm& 
         }
 
         // If value is a Blob and identifier is "size"
-        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "size") {
+        else if (blob && identifier == "size") {
             // Let value be value’s size.
-            value = JS::Value(static_cast<FileAPI::Blob&>(value.as_object()).size());
+            value = JS::Value(blob->size());
         }
 
         // If value is a Blob and identifier is "type"
-        else if (value.is_object() && is<FileAPI::Blob>(value.as_object()) && identifier == "type") {
+        else if (blob && identifier == "type") {
             // Let value be a String equal to value’s type.
-            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::Blob&>(value.as_object()).type());
+            value = JS::PrimitiveString::create(realm.vm(), blob->type());
         }
 
         // If value is a File and identifier is "name"
-        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "name") {
+        else if (file && identifier == "name") {
             // Let value be a String equal to value’s name.
-            value = JS::PrimitiveString::create(realm.vm(), static_cast<FileAPI::File&>(value.as_object()).name());
+            value = JS::PrimitiveString::create(realm.vm(), file->name());
         }
 
         // If value is a File and identifier is "lastModified"
-        else if (value.is_object() && is<FileAPI::File>(value.as_object()) && identifier == "lastModified") {
+        else if (file && identifier == "lastModified") {
             // Let value be a Number equal to value’s lastModified.
-            value = JS::Value(static_cast<double>(static_cast<FileAPI::File&>(value.as_object()).last_modified()));
+            value = JS::Value(static_cast<double>(file->last_modified()));
         }
 
         // Otherwise
@@ -1557,8 +1565,9 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 WebIDL::ExceptionOr<GC::Ref<IDBKeyRange>> convert_a_value_to_a_key_range(JS::Realm& realm, Optional<JS::Value> value, bool null_disallowed)
 {
     // 1. If value is a key range, return value.
-    if (value.has_value() && value->is_object() && is<IDBKeyRange>(value->as_object())) {
-        return GC::Ref(static_cast<IDBKeyRange&>(value->as_object()));
+    if (value.has_value() && value->is_object()) {
+        if (auto* key_range = Bindings::impl_from<IDBKeyRange>(&value->as_object()))
+            return GC::Ref { *key_range };
     }
 
     // 2. If value is undefined or is null, then throw a "DataError" DOMException if null disallowed flag is true, or return an unbounded key range otherwise.
@@ -2080,7 +2089,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
             auto record_snapshot = IDBRecord::create(realm, key, value, key);
 
             // 5. Append record snapshot to list.
-            MUST(list->create_data_property_or_throw(i, record_snapshot));
+            MUST(list->create_data_property_or_throw(i, Bindings::wrap(realm, record_snapshot)));
             break;
         }
         }
@@ -2258,7 +2267,7 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
 bool is_a_potentially_valid_key_range(JS::Realm& realm, JS::Value value)
 {
     // 1. If value is a key range, return true.
-    if (value.is<IDBKeyRange>())
+    if (value.is_object() && Bindings::impl_from<IDBKeyRange>(&value.as_object()))
         return true;
 
     // 2. Else if Type(value) is Number, return true.
@@ -2429,7 +2438,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_index(JS::Realm& target_realm
             auto record_snapshot = IDBRecord::create(target_realm, index_key, value, key);
 
             // 6. Append record snapshot to list.
-            MUST(list->create_data_property_or_throw(i, record_snapshot));
+            MUST(list->create_data_property_or_throw(i, Bindings::wrap(target_realm, record_snapshot)));
             break;
         }
         }

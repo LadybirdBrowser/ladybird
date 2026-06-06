@@ -7,7 +7,6 @@
 
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableByteStreamController.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
@@ -22,7 +21,7 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(PullIntoDescriptor);
 GC_DEFINE_ALLOCATOR(ReadableByteStreamController);
 
-void PullIntoDescriptor::visit_edges(Visitor& visitor)
+void PullIntoDescriptor::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(buffer);
@@ -70,14 +69,8 @@ void ReadableByteStreamController::error(Optional<JS::Value> error)
 }
 
 ReadableByteStreamController::ReadableByteStreamController(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
-}
-
-void ReadableByteStreamController::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableByteStreamController);
-    Base::initialize(realm);
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-enqueue
@@ -198,7 +191,7 @@ void ReadableByteStreamController::release_steps()
     }
 }
 
-void ReadableByteStreamController::visit_edges(Cell::Visitor& visitor)
+void ReadableByteStreamController::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_byob_request);

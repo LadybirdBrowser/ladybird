@@ -19,8 +19,8 @@
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
 #include <LibWeb/Bindings/Internals.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -69,13 +70,7 @@ Internals::Internals(JS::Realm& realm)
 
 Internals::~Internals() = default;
 
-void Internals::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Internals);
-    Base::initialize(realm);
-}
-
-void Internals::visit_edges(Visitor& visitor)
+void Internals::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_gamepads);
@@ -95,7 +90,7 @@ void Internals::set_test_timeout(double milliseconds)
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest
 WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
     auto& page = this->page();
 
     auto* document = page.top_level_browsing_context().active_document();
@@ -145,9 +140,32 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
     return {};
 }
 
+// https://web-platform-tests.org/writing-tests/testharness.html#variants
+WebIDL::ExceptionOr<void> Internals::load_test_variants()
+{
+    auto& page = this->page();
+
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document)
+        return realm().vm().throw_completion<JS::InternalError>("No active document available"sv);
+
+    auto variant_nodes = TRY(document->query_selector_all("meta[name=variant]"sv));
+
+    JsonArray variants;
+    for (size_t i = 0; i < variant_nodes->length(); ++i) {
+        auto const* variant_node = variant_nodes->item(i);
+        auto content = as<DOM::Element>(variant_node)->get_attribute_value(HTML::AttributeNames::content);
+        variants.must_append(content);
+    }
+
+    // Always fire callback so test runner knows variant check is complete.
+    page.client().page_did_receive_test_variant_metadata(variants);
+    return {};
+}
+
 void Internals::gc()
 {
-    vm().heap().collect_garbage();
+    realm().vm().heap().collect_garbage();
 }
 
 GC::Ref<WebIDL::Promise> Internals::gc_async()
@@ -167,7 +185,7 @@ GC::Ref<WebIDL::Promise> Internals::gc_async()
 
 WebIDL::ExceptionOr<void> Internals::mark_as_garbage(StringView variable_name)
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // This helper is intentionally limited to real environment bindings. It cannot
     // find values that the bytecode generator stored only in optimized locals.
@@ -195,7 +213,7 @@ WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
     auto current_time_zone = Core::TimeZone::current_time_zone();
 
     if (auto result = Core::TimeZone::set_current_time_zone(time_zone); result.is_error())
-        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
+        return realm().vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set time zone: {}", result.error())));
 
     JS::clear_system_time_zone_cache();
     return current_time_zone;
@@ -211,7 +229,7 @@ JS::Object* Internals::hit_test(double x, double y)
     auto result = active_document.hit_test({ x, y }, Painting::HitTestType::Exact);
     if (result.has_value()) {
         auto hit_testing_result = JS::Object::create(realm(), nullptr);
-        hit_testing_result->define_direct_property("node"_utf16_fly_string, result->dom_node(), JS::default_attributes);
+        hit_testing_result->define_direct_property("node"_utf16_fly_string, Bindings::wrap(realm(), GC::Ref { *result->dom_node() }), JS::default_attributes);
         hit_testing_result->define_direct_property("indexInNode"_utf16_fly_string, JS::Value(result->index_in_node), JS::default_attributes);
         return hit_testing_result;
     }
@@ -443,7 +461,7 @@ void Internals::spoof_current_url(String const& url_string)
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
     auto& realm = this->realm();
-    return realm.create<InternalAnimationTimeline>(realm, as<HTML::Window>(realm.global_object()).associated_document());
+    return realm.create<InternalAnimationTimeline>(realm, HTML::relevant_window(realm.global_object()).associated_document());
 }
 
 void Internals::simulate_drag_start(double x, double y, String const& name, String const& contents)
@@ -497,7 +515,7 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns
 
         auto pattern = String::from_utf8(line);
         if (pattern.is_error())
-            return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", pattern.error())));
+            return realm().vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", pattern.error())));
 
         patterns.append(pattern.release_value());
     }
@@ -506,7 +524,7 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(String const& patterns
     auto had_cosmetic_rules = blocker.has_cosmetic_rules();
     auto result = blocker.set_patterns(patterns);
     if (result.is_error())
-        return vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", result.error())));
+        return realm().vm().throw_completion<JS::InternalError>(MUST(String::formatted("Could not set content blockers: {}", result.error())));
 
     if (had_cosmetic_rules || blocker.has_cosmetic_rules())
         page().invalidate_user_style();
@@ -717,7 +735,7 @@ void Internals::clear_element(HTML::HTMLElement& element)
 
 void Internals::set_environments_top_level_url(StringView url)
 {
-    auto& realm = *vm().current_realm();
+    auto& realm = *this->realm().vm().current_realm();
     HTML::principal_realm_settings_object(realm).top_level_creation_url = URL::Parser::basic_parse(url);
 }
 

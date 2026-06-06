@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/StorageManager.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::StorageAPI {
 
-class StorageManager final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(StorageManager, Bindings::PlatformObject);
+class StorageManager final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(StorageManager, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(StorageManager);
 
 public:
@@ -20,8 +21,6 @@ public:
 
 private:
     StorageManager(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

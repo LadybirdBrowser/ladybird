@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/DOMPoint.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
 
@@ -14,7 +15,7 @@ namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#DOMPoint
 class WEB_API DOMPoint final : public DOMPointReadOnly {
-    WEB_PLATFORM_OBJECT(DOMPoint, DOMPointReadOnly);
+    WEB_WRAPPABLE(DOMPoint, DOMPointReadOnly);
     GC_DECLARE_ALLOCATOR(DOMPoint);
 
 public:
@@ -38,8 +39,6 @@ public:
 private:
     DOMPoint(JS::Realm&, double x, double y, double z, double w);
     DOMPoint(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

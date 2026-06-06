@@ -8,7 +8,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordTrustedTypes.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
@@ -123,17 +123,11 @@ Optional<Utf16String> TrustedTypePolicyFactory::get_property_type(Utf16String co
 }
 
 TrustedTypePolicyFactory::TrustedTypePolicyFactory(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
-void TrustedTypePolicyFactory::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TrustedTypePolicyFactory);
-    Base::initialize(realm);
-}
-
-void TrustedTypePolicyFactory::visit_edges(Visitor& visitor)
+void TrustedTypePolicyFactory::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_default_policy);
@@ -149,28 +143,28 @@ WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> TrustedTypePolicyFactory::create
     //      policyName: policyName
     //      options: policyOptions
     //      global: this value’s relevant global object
-    return create_a_trusted_type_policy(policy_name, policy_options, HTML::relevant_global_object(*this));
+    return create_a_trusted_type_policy(policy_name, policy_options, realm().global_object());
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-ishtml
 bool TrustedTypePolicyFactory::is_html(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedHTML and has an associated data value set, false otherwise.
-    return value.is<TrustedHTML>();
+    return value.is_object() && Bindings::impl_from<TrustedHTML>(&value.as_object());
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscript
 bool TrustedTypePolicyFactory::is_script(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedScript and has an associated data value set, false otherwise.
-    return value.is<TrustedScript>();
+    return value.is_object() && Bindings::impl_from<TrustedScript>(&value.as_object());
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicyfactory-isscripturl
 bool TrustedTypePolicyFactory::is_script_url(JS::Value value)
 {
     // 1. Returns true if value is an instance of TrustedScriptURL and has an associated data value set, false otherwise.
-    return value.is<TrustedScriptURL>();
+    return value.is_object() && Bindings::impl_from<TrustedScriptURL>(&value.as_object());
 }
 
 GC::Ref<TrustedHTML const> TrustedTypePolicyFactory::empty_html()

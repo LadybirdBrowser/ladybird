@@ -6,7 +6,6 @@
 
 #include "CSSMathSum.h"
 #include <LibWeb/Bindings/CSSMathSum.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -71,13 +70,7 @@ CSSMathSum::CSSMathSum(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericArr
 
 CSSMathSum::~CSSMathSum() = default;
 
-void CSSMathSum::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathSum);
-    Base::initialize(realm);
-}
-
-void CSSMathSum::visit_edges(Visitor& visitor)
+void CSSMathSum::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_values);

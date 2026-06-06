@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Streams/Algorithms.h>
 
 namespace Web::Streams {
 
-class TransformStreamDefaultController : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TransformStreamDefaultController, Bindings::PlatformObject);
+class TransformStreamDefaultController : public Bindings::Wrappable {
+    WEB_WRAPPABLE(TransformStreamDefaultController, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TransformStreamDefaultController);
 
 public:
@@ -40,9 +40,7 @@ public:
     void set_stream(GC::Ptr<TransformStream> stream) { m_stream = stream; }
 
 private:
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#transformstreamdefaultcontroller-cancelalgorithm
     GC::Ptr<CancelAlgorithm> m_cancel_algorithm;

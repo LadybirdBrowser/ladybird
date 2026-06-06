@@ -18,7 +18,7 @@ class WEB_API SVGElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<SVGElement> {
-    WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
+    WEB_WRAPPABLE(SVGElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(SVGElement);
 
 public:

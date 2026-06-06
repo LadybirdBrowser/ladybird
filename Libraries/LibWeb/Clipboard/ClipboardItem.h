@@ -9,6 +9,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/ClipboardItem.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DataTransfer.h>
@@ -24,8 +25,8 @@ constexpr inline Array MANDATORY_DATA_TYPES = {
 };
 
 // https://w3c.github.io/clipboard-apis/#clipboard-item-interface
-class ClipboardItem : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ClipboardItem, Bindings::PlatformObject);
+class ClipboardItem : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ClipboardItem, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ClipboardItem);
 
 public:
@@ -53,8 +54,7 @@ public:
 private:
     ClipboardItem(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Bindings::PresentationStyle m_presentation_style;
     Vector<String> m_types;

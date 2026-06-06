@@ -14,7 +14,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
 class BiquadFilterNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(BiquadFilterNode, AudioNode);
+    WEB_WRAPPABLE(BiquadFilterNode, AudioNode);
     GC_DECLARE_ALLOCATOR(BiquadFilterNode);
 
 public:

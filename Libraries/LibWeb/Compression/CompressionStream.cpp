@@ -12,7 +12,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Compression/CompressionStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
@@ -83,7 +82,7 @@ WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::construct_imp
 }
 
 CompressionStream::CompressionStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, Compressor compressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , Streams::GenericTransformStreamMixin(transform)
     , m_compressor(move(compressor))
     , m_output_stream(move(input_stream))
@@ -92,13 +91,7 @@ CompressionStream::CompressionStream(JS::Realm& realm, GC::Ref<Streams::Transfor
 
 CompressionStream::~CompressionStream() = default;
 
-void CompressionStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CompressionStream);
-    Base::initialize(realm);
-}
-
-void CompressionStream::visit_edges(JS::Cell::Visitor& visitor)
+void CompressionStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Streams::GenericTransformStreamMixin::visit_edges(visitor);

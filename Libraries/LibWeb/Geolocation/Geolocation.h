@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Geolocation.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -17,8 +18,8 @@ namespace Web::Geolocation {
 using EmulatedPositionData = Variant<Empty, GC::Ref<GeolocationCoordinates>, GeolocationPositionError::ErrorCode>;
 
 // https://w3c.github.io/geolocation/#geolocation_interface
-class Geolocation : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Geolocation, Bindings::PlatformObject);
+class Geolocation : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Geolocation, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Geolocation);
 
 public:
@@ -29,8 +30,7 @@ public:
 private:
     Geolocation(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void acquire_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, Bindings::PositionOptions const&, Optional<WebIDL::UnsignedLong>);
     void call_back_with_error(GC::Ptr<WebIDL::CallbackType>, GeolocationPositionError::ErrorCode) const;

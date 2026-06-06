@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
+#include <LibGC/WeakInlines.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
@@ -19,7 +20,10 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/Blob.h>
+#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/Bindings/ProgressEvent.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/XMLHttpRequest.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -41,6 +45,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
@@ -97,8 +102,10 @@ void XMLHttpRequest::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_fetch_controller);
     visitor.visit(m_timeout_timer);
 
-    if (auto* value = m_response_object.get_pointer<GC::Ref<JS::Object>>())
-        visitor.visit(*value);
+    m_response_object.visit(
+        [&](GC::Ref<DOM::Document> document) { visitor.visit(document); },
+        [&](GC::Ref<FileAPI::Blob> blob) { visitor.visit(blob); },
+        [](auto const&) {});
 }
 
 void XMLHttpRequest::stop_timeout_timer()
@@ -108,6 +115,39 @@ void XMLHttpRequest::stop_timeout_timer()
     m_timeout_timer->stop();
     m_timeout_timer->on_timeout = nullptr;
     m_timeout_timer = nullptr;
+}
+
+void XMLHttpRequest::clear_response_object_cache()
+{
+    m_main_realm_response_object = nullptr;
+    m_live_response_objects.clear();
+}
+
+GC::Ptr<JS::Object> XMLHttpRequest::cached_response_object_for_realm(JS::Realm& realm) const
+{
+    if (&realm == &this->realm())
+        return m_main_realm_response_object.ptr();
+
+    m_live_response_objects.remove_all_matching([](auto const& object) { return !object; });
+    for (auto const& object : m_live_response_objects) {
+        if (&object->shape().realm() == &realm)
+            return object.ptr();
+    }
+
+    return nullptr;
+}
+
+void XMLHttpRequest::cache_response_object_for_realm(JS::Realm& realm, GC::Ref<JS::Object> object)
+{
+    if (&realm == &this->realm()) {
+        m_main_realm_response_object = object.ptr();
+        return;
+    }
+
+    m_live_response_objects.remove_all_matching([&realm](auto const& object) {
+        return !object || &object->shape().realm() == &realm;
+    });
+    m_live_response_objects.append(object.ptr());
 }
 
 // https://xhr.spec.whatwg.org/#concept-event-fire-progress
@@ -153,23 +193,25 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> XMLHttpRequest::response_xml()
     VERIFY(!m_response_object.has<Failure>());
 
     // 4. If this’s response object is non-null, then return it.
-    if (!m_response_object.has<Empty>())
-        return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
+    if (auto* document = m_response_object.get_pointer<GC::Ref<DOM::Document>>())
+        return *document;
 
     // 5. Set a document response for this.
     set_document_response();
 
     // 6. Return this’s response object.
-    if (m_response_object.has<Empty>())
-        return nullptr;
-    return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
+    if (auto* document = m_response_object.get_pointer<GC::Ref<DOM::Document>>())
+        return *document;
+    return nullptr;
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-responsetype
 WebIDL::ExceptionOr<void> XMLHttpRequest::set_response_type(Bindings::XMLHttpRequestResponseType response_type)
 {
+    auto* current_window = HTML::window_from_global_object(HTML::current_global_object());
+
     // 1. If the current global object is not a Window object and the given value is "document", then return.
-    if (!is<HTML::Window>(HTML::current_global_object()) && response_type == Bindings::XMLHttpRequestResponseType::Document)
+    if (!current_window && response_type == Bindings::XMLHttpRequestResponseType::Document)
         return {};
 
     // 2. If this’s state is loading or done, then throw an "InvalidStateError" DOMException.
@@ -177,7 +219,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_response_type(Bindings::XMLHttpReq
         return WebIDL::InvalidStateError::create(realm(), "Can't readyState when XHR is loading or done"_utf16);
 
     // 3. If the current global object is a Window object and this’s synchronous flag is set, then throw an "InvalidAccessError" DOMException.
-    if (is<HTML::Window>(HTML::current_global_object()) && m_synchronous)
+    if (current_window && m_synchronous)
         return WebIDL::InvalidAccessError::create(realm(), "Can't set readyState on synchronous XHR in Window environment"_utf16);
 
     // 4. Set this’s response type to the given value.
@@ -189,6 +231,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_response_type(Bindings::XMLHttpReq
 WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
 {
     auto& vm = this->vm();
+    auto& realm = *vm.current_realm();
 
     // 1. If this’s response type is the empty string or "text", then:
     if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty || m_response_type == Bindings::XMLHttpRequestResponseType::Text) {
@@ -208,24 +251,33 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
         return JS::js_null();
 
     // 4. If this’s response object is non-null, then return it.
-    if (!m_response_object.has<Empty>())
-        return m_response_object.get<GC::Ref<JS::Object>>();
+    if (auto* document = m_response_object.get_pointer<GC::Ref<DOM::Document>>())
+        return Bindings::wrap(realm, *document);
+    if (auto* blob = m_response_object.get_pointer<GC::Ref<FileAPI::Blob>>())
+        return Bindings::wrap(realm, *blob);
+    if (auto cached_response_object = cached_response_object_for_realm(realm))
+        return cached_response_object;
 
     // 5. If this’s response type is "arraybuffer",
     if (m_response_type == Bindings::XMLHttpRequestResponseType::Arraybuffer) {
         // then set this’s response object to a new ArrayBuffer object representing this’s received bytes. If this throws an exception, then set this’s response object to failure and return null.
-        auto buffer = JS::ArrayBuffer::create(realm(), move(m_received_bytes));
-        m_response_object = GC::Ref<JS::Object> { buffer };
+        auto buffer = JS::ArrayBuffer::create(realm, MUST(ByteBuffer::copy(m_received_bytes.bytes())));
+        cache_response_object_for_realm(realm, buffer);
+        return buffer;
     }
     // 6. Otherwise, if this’s response type is "blob", set this’s response object to a new Blob object representing this’s received bytes with type set to the result of get a final MIME type for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Blob) {
         auto mime_type_as_string = get_final_mime_type().serialized();
-        auto blob = FileAPI::Blob::create(realm(), m_received_bytes, move(mime_type_as_string));
-        m_response_object = GC::Ref<JS::Object> { blob };
+        auto blob = FileAPI::Blob::create(this->realm(), MUST(ByteBuffer::copy(m_received_bytes.bytes())), move(mime_type_as_string));
+        m_response_object = blob;
+        return Bindings::wrap(realm, blob);
     }
     // 7. Otherwise, if this’s response type is "document", set a document response for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Document) {
         set_document_response();
+        if (auto* document = m_response_object.get_pointer<GC::Ref<DOM::Document>>())
+            return Bindings::wrap(realm, *document);
+        return JS::js_null();
     }
     // 8. Otherwise:
     else {
@@ -237,21 +289,20 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
             return JS::js_null();
 
         // 3. Let jsonObject be the result of running parse JSON from bytes on this’s received bytes. If that threw an exception, then return null.
-        auto json_object_result = Infra::parse_json_bytes_to_javascript_value(realm(), m_received_bytes);
+        auto json_object_result = Infra::parse_json_bytes_to_javascript_value(realm, m_received_bytes);
         if (json_object_result.is_error())
             return JS::js_null();
 
         // 4. Set this’s response object to jsonObject.
-        if (json_object_result.value().is_object())
-            m_response_object = GC::Ref<JS::Object> { json_object_result.release_value().as_object() };
-        else
-            m_response_object = Empty {};
+        auto json_object = json_object_result.release_value();
+        if (json_object.is_object()) {
+            cache_response_object_for_realm(realm, GC::Ref<JS::Object> { json_object.as_object() });
+            return json_object;
+        }
     }
 
     // 9. Return this’s response object.
-    return m_response_object.visit(
-        [](GC::Ref<JS::Object> object) -> JS::Value { return object; },
-        [](auto const&) -> JS::Value { return JS::js_null(); });
+    return JS::js_null();
 }
 
 // https://xhr.spec.whatwg.org/#text-response
@@ -353,7 +404,7 @@ void XMLHttpRequest::set_document_response()
     document->set_origin(HTML::relevant_settings_object(*this).origin());
 
     // 12. Set xhr’s response object to document.
-    m_response_object = GC::Ref<JS::Object> { *document };
+    m_response_object = GC::Ref { *document };
 }
 
 // https://xhr.spec.whatwg.org/#final-mime-type
@@ -461,9 +512,8 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
 WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String const& url, bool async, Optional<String> const& username, Optional<String> const& password)
 {
     // 1. If this’s relevant global object is a Window object and its associated Document is not fully active, then throw an "InvalidStateError" DOMException.
-    if (is<HTML::Window>(HTML::relevant_global_object(*this))) {
-        auto const& window = static_cast<HTML::Window const&>(HTML::relevant_global_object(*this));
-        if (!window.associated_document().is_fully_active())
+    if (auto const* window = HTML::window_from_global_object(HTML::relevant_global_object(*this)); window) {
+        if (!window->associated_document().is_fully_active())
             return WebIDL::InvalidStateError::create(realm(), "Invalid state: Window's associated document is not fully active."_utf16);
     }
 
@@ -502,7 +552,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     // 9. If async is false, the current global object is a Window object, and either this’s timeout is
     //     not 0 or this’s response type is not the empty string, then throw an "InvalidAccessError" DOMException.
     if (!async
-        && is<HTML::Window>(HTML::current_global_object())
+        && HTML::window_from_global_object(HTML::current_global_object())
         && (m_timeout != 0 || m_response_type != Bindings::XMLHttpRequestResponseType::Empty)) {
         return WebIDL::InvalidAccessError::create(realm(), "Synchronous XMLHttpRequests in a Window context do not support timeout or a non-empty responseType"_utf16);
     }
@@ -532,6 +582,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     m_received_bytes = {};
     // Set this’s response object to null.
     m_response_object = {};
+    clear_response_object_cache();
     // Spec Note: Override MIME type is not overridden here as the overrideMimeType() method can be invoked before the open() method.
 
     // 12. If this’s state is not opened, then:
@@ -1048,7 +1099,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_timeout(u32 timeout)
 {
     // 1. If the current global object is a Window object and this’s synchronous flag is set,
     //    then throw an "InvalidAccessError" DOMException.
-    if (is<HTML::Window>(HTML::current_global_object()) && m_synchronous)
+    if (HTML::window_from_global_object(HTML::current_global_object()) && m_synchronous)
         return WebIDL::InvalidAccessError::create(realm(), "Use of XMLHttpRequest's timeout attribute is not supported in the synchronous mode in window context."_utf16);
 
     // 2. Set this’s timeout to the given value.
@@ -1091,7 +1142,7 @@ bool XMLHttpRequest::must_survive_garbage_collection() const
 {
     // AD-HOC: Don't keep XHRs alive once their associated document is destroyed. No listener can ever fire at this point.
     auto& global = HTML::relevant_global_object(*this);
-    if (auto* window = as_if<HTML::Window>(global); window && window->associated_document().has_been_destroyed())
+    if (auto* window = HTML::window_from_global_object(global); window && window->associated_document().has_been_destroyed())
         return false;
 
     // An XMLHttpRequest object must not be garbage collected
@@ -1257,7 +1308,7 @@ JS::ThrowCompletionOr<void> XMLHttpRequest::request_error_steps(FlyString const&
     // 4. If xhr’s synchronous flag is set, then throw exception.
     if (m_synchronous) {
         VERIFY(exception);
-        return JS::throw_completion(exception.ptr());
+        return throw_completion(GC::Ref { *exception });
     }
 
     // 5. Fire an event named readystatechange at xhr.

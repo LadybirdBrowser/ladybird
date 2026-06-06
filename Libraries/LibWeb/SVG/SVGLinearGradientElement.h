@@ -13,7 +13,7 @@
 namespace Web::SVG {
 
 class SVGLinearGradientElement : public SVGGradientElement {
-    WEB_PLATFORM_OBJECT(SVGLinearGradientElement, SVGGradientElement);
+    WEB_WRAPPABLE(SVGLinearGradientElement, SVGGradientElement);
     GC_DECLARE_ALLOCATOR(SVGLinearGradientElement);
 
 public:

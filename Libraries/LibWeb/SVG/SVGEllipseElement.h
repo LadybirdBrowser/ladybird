@@ -12,7 +12,7 @@
 namespace Web::SVG {
 
 class SVGEllipseElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGEllipseElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGEllipseElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGEllipseElement);
 
 public:

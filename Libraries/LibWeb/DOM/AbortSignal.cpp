@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventHandler.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 
@@ -65,7 +66,7 @@ void AbortSignal::signal_abort(JS::Value reason)
     if (!reason.is_undefined())
         m_abort_reason = reason;
     else
-        m_abort_reason = WebIDL::AbortError::create(realm(), "Aborted without reason"_utf16).ptr();
+        m_abort_reason = throw_completion(WebIDL::AbortError::create(realm(), "Aborted without reason"_utf16)).value();
 
     // 3. Let dependentSignalsToAbort be a new list.
     Vector<GC::Root<AbortSignal>> dependent_signals_to_abort;
@@ -152,7 +153,7 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::abort(JS::VM& vm, Optiona
     // 2. Set signal’s abort reason to reason if it is given; otherwise to a new "AbortError" DOMException.
     auto reason = maybe_reason.value_or(JS::js_undefined());
     if (reason.is_undefined())
-        reason = WebIDL::AbortError::create(*vm.current_realm(), "Aborted without reason"_utf16).ptr();
+        reason = throw_completion(WebIDL::AbortError::create(*vm.current_realm(), "Aborted without reason"_utf16)).value();
 
     signal->set_reason(reason);
 
@@ -170,14 +171,14 @@ WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::VM& vm, WebID
 
     // 2. Let global be signal’s relevant global object.
     auto& global = HTML::relevant_global_object(signal);
-    auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
+    auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(global);
+    VERIFY(window_or_worker);
 
     // 3. Run steps after a timeout given global, "AbortSignal-timeout", milliseconds, and the following step:
-    window_or_worker.run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
+    window_or_worker->run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
         // 1. Queue a global task on the timer task source given global to signal abort given signal and a new "TimeoutError" DOMException.
         HTML::queue_global_task(HTML::Task::Source::TimerTask, global, GC::create_function(realm.heap(), [&realm, signal]() mutable {
-            auto reason = WebIDL::TimeoutError::create(realm, "Signal timed out"_utf16);
-            signal->signal_abort(reason);
+            signal->signal_abort(throw_completion(WebIDL::TimeoutError::create(realm, "Signal timed out"_utf16)).value());
         }));
     });
 

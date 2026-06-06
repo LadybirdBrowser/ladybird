@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PageTransitionEvent.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
 
@@ -29,11 +28,5 @@ PageTransitionEvent::PageTransitionEvent(JS::Realm& realm, FlyString const& even
 }
 
 PageTransitionEvent::~PageTransitionEvent() = default;
-
-void PageTransitionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PageTransitionEvent);
-    Base::initialize(realm);
-}
 
 }

@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/NamedNodeMap.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
@@ -25,23 +25,12 @@ GC::Ref<NamedNodeMap> NamedNodeMap::create(Element& element)
 }
 
 NamedNodeMap::NamedNodeMap(Element& element)
-    : Bindings::PlatformObject(element.realm())
+    : Bindings::Wrappable(element.realm())
     , m_element(element)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-    };
 }
 
-void NamedNodeMap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NamedNodeMap);
-    Base::initialize(realm);
-}
-
-void NamedNodeMap::visit_edges(Cell::Visitor& visitor)
+void NamedNodeMap::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);
@@ -331,20 +320,20 @@ Attr const* NamedNodeMap::remove_attribute_ns(Optional<FlyString> const& namespa
     return attribute;
 }
 
-Optional<JS::Value> NamedNodeMap::item_value(size_t index) const
+Optional<JS::Value> NamedNodeMap::item_value(JS::Realm& realm, size_t index) const
 {
     auto const* node = item(index);
     if (!node)
         return {};
-    return node;
+    return Bindings::wrap(realm, GC::Ref { const_cast<Attr&>(*node) }).ptr();
 }
 
-JS::Value NamedNodeMap::named_item_value(FlyString const& name) const
+JS::Value NamedNodeMap::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
     auto const* node = get_named_item(name);
     if (!node)
         return JS::js_undefined();
-    return node;
+    return Bindings::wrap(realm, GC::Ref { const_cast<Attr&>(*node) }).ptr();
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode

@@ -15,7 +15,7 @@ namespace Web::HTML {
 class HTMLAreaElement final
     : public HTMLElement
     , public HTMLHyperlinkElementUtils {
-    WEB_PLATFORM_OBJECT(HTMLAreaElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLAreaElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLAreaElement);
 
 public:

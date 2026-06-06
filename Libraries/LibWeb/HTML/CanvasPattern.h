@@ -9,13 +9,14 @@
 #pragma once
 
 #include <LibGfx/PaintStyle.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/CanvasPattern.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 
 namespace Web::HTML {
 
-class CanvasPattern final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CanvasPattern, Bindings::PlatformObject);
+class CanvasPattern final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CanvasPattern, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CanvasPattern);
 
 public:
@@ -28,8 +29,6 @@ public:
 
 private:
     CanvasPattern(JS::Realm&, Gfx::CanvasPatternPaintStyle&);
-
-    virtual void initialize(JS::Realm&) override;
 
     NonnullRefPtr<Gfx::CanvasPatternPaintStyle> m_pattern;
 };

@@ -16,7 +16,7 @@
 namespace Web::HTML {
 
 class ToggleEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(ToggleEvent, DOM::Event);
+    WEB_WRAPPABLE(ToggleEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ToggleEvent);
 
 public:
@@ -36,12 +36,10 @@ public:
         return as<DOM::Element>(retarget(m_source, current_target()));
     }
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     ToggleEvent(JS::Realm&, FlyString const& event_name, Bindings::ToggleEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_old_state;
     String m_new_state;

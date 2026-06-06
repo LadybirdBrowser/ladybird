@@ -34,6 +34,7 @@
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -380,11 +381,10 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
     // To show the picker, if applicable for an input element element:
 
     // 1. If element's relevant global object does not have transient activation, then return.
-    auto& global_object = relevant_global_object(element);
-    if (!is<HTML::Window>(global_object))
+    auto* relevant_window = window_from_global_object(relevant_global_object(element));
+    if (!relevant_window)
         return;
-    auto& relevant_global_object = static_cast<HTML::Window&>(global_object);
-    if (!relevant_global_object.has_transient_activation())
+    if (!relevant_window->has_transient_activation())
         return;
 
     // 2. If element is not mutable, then return.
@@ -392,7 +392,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
         return;
 
     // 3. Consume user activation given element's relevant global object.
-    relevant_global_object.consume_user_activation();
+    relevant_window->consume_user_activation();
 
     // 4. If element does not support a picker, then return.
     if (!element.supports_a_picker())
@@ -466,9 +466,8 @@ WebIDL::ExceptionOr<void> HTMLInputElement::show_picker()
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
-    // FIXME: The global object we get here should probably not need casted to Window to check for transient activation
-    auto& global_object = relevant_global_object(*this);
-    if (!is<HTML::Window>(global_object) || !static_cast<HTML::Window&>(global_object).has_transient_activation()) {
+    auto* relevant_window = window_from_global_object(relevant_global_object(*this));
+    if (!relevant_window || !relevant_window->has_transient_activation()) {
         return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_utf16);
     }
 
@@ -1460,12 +1459,12 @@ void HTMLInputElement::create_range_input_shadow_tree()
                 0, Utf16FlyString {}, &realm());
             auto mousemove_callback = realm().heap().allocate<WebIDL::CallbackType>(*mousemove_callback_function, realm());
             auto mousemove_listener = DOM::IDLEventListener::create(realm(), mousemove_callback);
-            auto& window = static_cast<HTML::Window&>(relevant_global_object(*this));
+            auto& window = relevant_window(*this);
             window.add_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
 
             auto mouseup_callback_function = JS::NativeFunction::create(
                 realm(), [this, mousemove_listener](JS::VM&) {
-                    auto& window = static_cast<HTML::Window&>(relevant_global_object(*this));
+                    auto& window = relevant_window(*this);
                     window.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
                     return JS::js_undefined();
                 },
@@ -3284,8 +3283,10 @@ void HTMLInputElement::activation_behavior(DOM::Event const& event)
         return;
 
     // 4. Run the popover target attribute activation behavior given element and event's target.
-    if (event.target() && event.target()->is_dom_node())
-        PopoverTargetAttributes::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
+    if (auto target = event.target()) {
+        if (auto* target_node = as_if<DOM::Node>(*target))
+            PopoverTargetAttributes::popover_target_activation_behaviour(*this, *target_node);
+    }
 }
 
 bool HTMLInputElement::has_input_activation_behavior() const

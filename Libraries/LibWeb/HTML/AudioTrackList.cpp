@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/AudioTrackList.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/EventNames.h>
 
@@ -16,7 +17,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(AudioTrackList);
 
 AudioTrackList::AudioTrackList(JS::Realm& realm)
-    : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+    : DOM::EventTarget(realm)
 {
 }
 
@@ -26,22 +27,15 @@ void AudioTrackList::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#dom-tracklist-item
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> AudioTrackList::internal_get_own_property(JS::PropertyKey const& property_name) const
+Optional<JS::Value> AudioTrackList::item_value(JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property for a given index index in an AudioTrackList or VideoTrackList
     // object list, the user agent must return the AudioTrack or VideoTrack object that represents the indexth track
     // in list.
-    if (property_name.is_number()) {
-        if (auto index = property_name.as_number(); index < m_audio_tracks.size()) {
-            JS::PropertyDescriptor descriptor;
-            descriptor.value = m_audio_tracks.at(index);
+    if (index >= m_audio_tracks.size())
+        return {};
 
-            return descriptor;
-        }
-    }
-
-    return Base::internal_get_own_property(property_name);
+    return Bindings::wrap(realm, m_audio_tracks.at(index));
 }
 
 void AudioTrackList::add_track(GC::Ref<AudioTrack> audio_track)

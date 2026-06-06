@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class HTMLTrackElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTrackElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTrackElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTrackElement);
 
 public:

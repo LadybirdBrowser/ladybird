@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class PageTransitionEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(PageTransitionEvent, DOM::Event);
+    WEB_WRAPPABLE(PageTransitionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PageTransitionEvent);
 
 public:
@@ -27,8 +27,6 @@ public:
     bool persisted() const { return m_persisted; }
 
 private:
-    virtual void initialize(JS::Realm&) override;
-
     bool m_persisted { false };
 };
 

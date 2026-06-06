@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLQuoteElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLQuoteElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLQuoteElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLQuoteElement);
 
 public:

@@ -6,7 +6,6 @@
 
 #include "CSSRotate.h"
 #include <LibWeb/Bindings/CSSRotate.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -79,13 +78,7 @@ CSSRotate::CSSRotate(JS::Realm& realm, Is2D is_2d, GC::Ref<CSSNumericValue> x, G
 
 CSSRotate::~CSSRotate() = default;
 
-void CSSRotate::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSRotate);
-    Base::initialize(realm);
-}
-
-void CSSRotate::visit_edges(Visitor& visitor)
+void CSSRotate::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_x);

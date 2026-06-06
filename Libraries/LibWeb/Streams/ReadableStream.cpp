@@ -8,9 +8,10 @@
 
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/UnderlyingSource.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -86,19 +87,13 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::from(JS::VM& vm, JS
 }
 
 ReadableStream::ReadableStream(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 ReadableStream::~ReadableStream() = default;
 
-void ReadableStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStream);
-    Base::initialize(realm);
-}
-
-void ReadableStream::visit_edges(Cell::Visitor& visitor)
+void ReadableStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     if (m_controller.has_value())
@@ -492,7 +487,8 @@ WebIDL::ExceptionOr<void> ReadableStream::transfer_steps(HTML::TransferDataEncod
     WebIDL::mark_promise_as_handled(promise);
 
     // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
-    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { port2 } }));
+    auto port2_wrapper = Bindings::wrap(realm, port2);
+    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2_wrapper.ptr(), { { port2_wrapper } }));
     data_holder.extend(move(result.transfer_data_holders));
 
     return {};
@@ -509,10 +505,11 @@ WebIDL::ExceptionOr<void> ReadableStream::transfer_receiving_steps(HTML::Transfe
     auto deserialized_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
 
     // 2. Let port be deserializedRecord.[[Deserialized]].
-    auto& port = as<HTML::MessagePort>(deserialized_record.as_object());
+    auto* port = Bindings::impl_from<HTML::MessagePort>(&deserialized_record.as_object());
+    VERIFY(port);
 
     // 3. Perform ! SetUpCrossRealmTransformReadable(value, port).
-    set_up_cross_realm_transform_readable(realm, *this, port);
+    set_up_cross_realm_transform_readable(realm, *this, *port);
 
     return {};
 }

@@ -11,6 +11,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
@@ -72,9 +73,9 @@ Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request co
             auto& global_object = const_cast<HTML::EnvironmentSettingsObject&>(*environment).global_object();
 
             // 1. If environment’s global object is a Window object, then
-            if (is<HTML::Window>(global_object)) {
+            if (auto const* window = HTML::window_from_global_object(global_object)) {
                 // 1. Let document be the associated Document of environment’s global object.
-                auto const& document = static_cast<HTML::Window const&>(global_object).associated_document();
+                auto const& document = window->associated_document();
 
                 // 2. If document’s origin is an opaque origin, return no referrer.
                 if (document.origin().is_opaque())

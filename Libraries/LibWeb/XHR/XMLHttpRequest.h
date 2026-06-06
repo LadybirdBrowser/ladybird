@@ -11,7 +11,9 @@
 #include <AK/ByteBuffer.h>
 #include <AK/RefCounted.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <LibGC/Weak.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -25,6 +27,12 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XHR/XMLHttpRequestEventTarget.h>
 
+namespace Web::FileAPI {
+
+class Blob;
+
+}
+
 namespace Web::XHR {
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
@@ -32,7 +40,7 @@ using DocumentOrXMLHttpRequestBodyInit = FlattenVariant<Variant<GC::Ref<Web::DOM
 using NullableDocumentOrXMLHttpRequestBodyInit = FlattenVariant<DocumentOrXMLHttpRequestBodyInit, Variant<Empty>>;
 
 class XMLHttpRequest final : public XMLHttpRequestEventTarget {
-    WEB_PLATFORM_OBJECT(XMLHttpRequest, XMLHttpRequestEventTarget);
+    WEB_WRAPPABLE(XMLHttpRequest, XMLHttpRequestEventTarget);
     GC_DECLARE_ALLOCATOR(XMLHttpRequest);
 
 public:
@@ -95,6 +103,9 @@ private:
 
     String get_text_response() const;
     void set_document_response();
+    void clear_response_object_cache();
+    GC::Ptr<JS::Object> cached_response_object_for_realm(JS::Realm&) const;
+    void cache_response_object_for_realm(JS::Realm&, GC::Ref<JS::Object>);
 
     WebIDL::ExceptionOr<void> handle_response_end_of_body();
     WebIDL::ExceptionOr<void> handle_errors();
@@ -191,8 +202,9 @@ private:
     // https://xhr.spec.whatwg.org/#response-object
     // response object
     //     An object, failure, or null, initially null.
-    //     NOTE: This needs to be a JS::Value as the JSON response might not actually be an object.
-    Variant<GC::Ref<JS::Object>, Failure, Empty> m_response_object;
+    Variant<GC::Ref<DOM::Document>, GC::Ref<FileAPI::Blob>, Failure, Empty> m_response_object;
+    mutable GC::Weak<JS::Object> m_main_realm_response_object;
+    mutable Vector<GC::Weak<JS::Object>> m_live_response_objects;
 
     // https://xhr.spec.whatwg.org/#xmlhttprequest-fetch-controller
     // fetch controller

@@ -12,7 +12,7 @@
 namespace Web::SVG {
 
 class SVGLineElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGLineElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGLineElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGLineElement);
 
 public:

@@ -16,7 +16,7 @@
 namespace Web::Internals {
 
 class WEB_API Internals final : public InternalsBase {
-    WEB_PLATFORM_OBJECT(Internals, InternalsBase);
+    WEB_WRAPPABLE(Internals, InternalsBase);
     GC_DECLARE_ALLOCATOR(Internals);
 
 public:
@@ -142,8 +142,7 @@ public:
 private:
     explicit Internals(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     UIEvents::MouseButton button_from_unsigned_short(WebIDL::UnsignedShort button);
 

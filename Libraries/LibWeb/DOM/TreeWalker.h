@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeFilter.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#treewalker
-class TreeWalker final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TreeWalker, Bindings::PlatformObject);
+class TreeWalker final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(TreeWalker, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TreeWalker);
 
 public:
@@ -40,8 +41,7 @@ public:
 private:
     explicit TreeWalker(JS::Realm&, Node& root);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     enum class ChildTraversalType {
         First,

@@ -8,14 +8,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/StyleSheetList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-class WEB_API StyleSheetList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(StyleSheetList, Bindings::PlatformObject);
+class WEB_API StyleSheetList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(StyleSheetList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(StyleSheetList);
 
 public:
@@ -45,7 +46,7 @@ public:
 
     size_t length() const { return m_sheets.size(); }
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     [[nodiscard]] DOM::Document& document();
     [[nodiscard]] DOM::Document const& document() const;
@@ -56,8 +57,7 @@ public:
 private:
     explicit StyleSheetList(GC::Ref<DOM::Node> document_or_shadow_root);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void add_sheet(CSSStyleSheet&);
     void remove_sheet(CSSStyleSheet&);

@@ -21,9 +21,11 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -139,12 +141,6 @@ GC::Ref<Window> Window::create(JS::Realm& realm)
 Window::Window(JS::Realm& realm)
     : DOM::EventTarget(realm)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-        .has_global_interface_extended_attribute = true,
-    };
-
     all_windows().set(*this);
 }
 
@@ -237,7 +233,9 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
         return OpenedWindow {};
 
     // 2. Let sourceDocument be the entry global object's associated Document.
-    auto& source_document = as<Window>(entry_global_object()).associated_document();
+    auto* source_window = window_from_global_object(entry_global_object());
+    VERIFY(source_window);
+    auto& source_document = source_window->associated_document();
 
     // 3. Let urlRecord be null.
     Optional<URL::URL> url_record;
@@ -556,7 +554,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
 bool Window::has_sticky_activation() const
 {
     // When the current high resolution time given W
-    auto current_time = HighResolutionTime::current_high_resolution_time(*this);
+    auto current_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
 
     // is greater than or equal to the last activation timestamp in W
     if (current_time >= m_last_activation_timestamp) {
@@ -575,7 +573,7 @@ bool Window::has_transient_activation() const
     static constexpr HighResolutionTime::DOMHighResTimeStamp transient_activation_duration_ms = 5000;
 
     // When the current high resolution time given W
-    auto current_time = HighResolutionTime::current_high_resolution_time(*this);
+    auto current_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
 
     // is greater than or equal to the last activation timestamp in W
     if (current_time >= m_last_activation_timestamp) {
@@ -672,7 +670,7 @@ void Window::start_an_idle_period()
 
     // 5. Queue a task on the queue associated with the idle-task task source,
     //    which performs the steps defined in the invoke idle callbacks algorithm with window and getDeadline as parameters.
-    queue_global_task(Task::Source::IdleTask, *this, GC::create_function(heap(), [this] {
+    queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(heap(), [this] {
         invoke_idle_callbacks();
     }));
 }
@@ -697,7 +695,7 @@ void Window::invoke_idle_callbacks()
         // 4. If window's list of runnable idle callbacks is not empty, queue a task which performs the steps
         //    in the invoke idle callbacks algorithm with getDeadline and window as a parameters and return from this algorithm
         if (!m_runnable_idle_callbacks.is_empty()) {
-            queue_global_task(Task::Source::IdleTask, *this, GC::create_function(heap(), [this] {
+            queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(heap(), [this] {
                 invoke_idle_callbacks();
             }));
         }
@@ -803,25 +801,20 @@ bool Window::is_internals_object_exposed()
 WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>)
 {
     auto& realm = this->realm();
-    add_window_exposed_interfaces(*this);
+    auto& global_object = realm.global_object();
 
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Window);
+    Bindings::add_window_exposed_interfaces(global_object);
 
-    Bindings::WindowGlobalMixin::initialize(realm, *this);
-    Bindings::WindowGlobalMixin::define_unforgeable_attributes(realm, *this);
+    WEB_SET_PROTOTYPE_FOR_INTERFACE_ON(global_object, Window);
+
+    Bindings::WindowGlobalMixin::initialize(realm, global_object);
+    Bindings::WindowGlobalMixin::define_unforgeable_attributes(realm, global_object);
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
     if (s_internals_object_exposed)
-        define_direct_property("internals"_utf16_fly_string, realm.create<Internals::Internals>(realm), JS::default_attributes);
+        global_object.define_direct_property("internals"_utf16_fly_string, Bindings::wrap(realm, realm.create<Internals::Internals>(realm)), JS::default_attributes);
 
     return {};
-}
-
-// https://webidl.spec.whatwg.org/#platform-object-setprototypeof
-JS::ThrowCompletionOr<bool> Window::internal_set_prototype_of(JS::Object* prototype)
-{
-    // 1. Return ? SetImmutablePrototype(O, V).
-    return set_immutable_prototype(prototype);
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#dom-window
@@ -894,7 +887,7 @@ void Window::close()
     // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
     auto source_snapshot_params = traversable->active_document()->snapshot_source_snapshot_params();
 
-    auto& incumbent_global_object = as<HTML::Window>(HTML::incumbent_global_object());
+    auto& incumbent_global_object = HTML::incumbent_window();
 
     // 6. If all the following are true:
     if (
@@ -912,7 +905,7 @@ void Window::close()
         traversable->set_closing(true);
 
         // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, incumbent_global_object, GC::create_function(heap(), [traversable] {
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(incumbent_global_object), GC::create_function(heap(), [traversable] {
             as<TraversableNavigable>(*traversable).definitely_close_top_level_traversable();
         }));
     }
@@ -1108,7 +1101,7 @@ WebIDL::ExceptionOr<void> Window::set_opener(JS::Value value)
     // 2. If the given value is non-null, then perform ? DefinePropertyOrThrow(this, "opener", { [[Value]]: the given value, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }).
     if (!value.is_null()) {
         JS::PropertyDescriptor descriptor { .value = value, .writable = true, .enumerable = true, .configurable = true };
-        TRY(define_property_or_throw(vm().names.opener, descriptor));
+        TRY(relevant_global_object(*this).define_property_or_throw(vm().names.opener, descriptor));
     }
 
     return {};
@@ -1266,7 +1259,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
     auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(target_realm.vm(), message, transfer));
 
     // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
-    queue_global_task(Task::Source::PostedMessage, *this, GC::create_function(heap(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result), target_origin = move(target_origin), &incumbent_settings, &target_realm]() mutable {
+    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result), target_origin = move(target_origin), &incumbent_settings, &target_realm]() mutable {
         // 1. If the targetOrigin argument is not a single literal U+002A ASTERISK character (*) and targetWindow's
         //    associated Document's origin is not same origin with targetOrigin, then return.
         // NOTE: Due to step 4 and 5 above, the only time it's not '*' is if target_origin contains an Origin.
@@ -1306,7 +1299,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, B
         // FIXME: Use a FrozenArray
         GC::RootVector<GC::Ref<MessagePort>> new_ports;
         for (auto const& object : deserialize_record.transferred_values) {
-            if (auto* message_port = as_if<HTML::MessagePort>(*object)) {
+            if (auto* message_port = Bindings::impl_from<HTML::MessagePort>(&*object)) {
                 new_ports.append(*message_port);
             }
         }
@@ -1777,7 +1770,8 @@ u32 Window::request_idle_callback(WebIDL::CallbackType& callback, Bindings::Idle
 
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
     auto handler = [callback = GC::make_root(callback)](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
-        return WebIDL::invoke_callback(*callback, {}, { { deadline } });
+        auto& callback_realm = callback->callback->shape().realm();
+        return WebIDL::invoke_callback(*callback, {}, { { Bindings::wrap(callback_realm, deadline) } });
     };
     m_idle_request_callbacks.append(adopt_ref(*new IdleCallback(move(handler), handle)));
 
@@ -1940,7 +1934,7 @@ Vector<FlyString> Window::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
-JS::Value Window::named_item_value(FlyString const& name) const
+JS::Value Window::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
     auto& mutable_this = const_cast<Window&>(*this);
@@ -1971,16 +1965,17 @@ JS::Value Window::named_item_value(FlyString const& name) const
 
     // 3. Otherwise, if objects has only one element, return that element.
     if (objects.elements.size() == 1)
-        return objects.elements[0];
+        return Bindings::wrap(realm, objects.elements[0]);
 
     // 4. Otherwise return an HTMLCollection rooted at window's associated Document,
     //    whose filter matches only named objects of window with the name name. (By definition, these will all be elements.)
-    return DOM::HTMLCollection::create(mutable_this.associated_document(), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) -> bool {
+    auto collection = DOM::HTMLCollection::create(mutable_this.associated_document(), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) -> bool {
         if ((is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element))
             && (element.name() == name))
             return true;
         return element.id() == name;
     });
+    return Bindings::wrap(realm, collection);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-nameditem-filter

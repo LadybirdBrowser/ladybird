@@ -21,7 +21,7 @@
 namespace Web::HTML {
 
 class WEB_API HTMLLinkElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLLinkElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLLinkElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLLinkElement);
 
 public:

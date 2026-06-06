@@ -16,7 +16,7 @@ namespace Web::CSS {
 
 // https://www.w3.org/TR/css-conditional-3/#the-csssupportsrule-interface
 class CSSSupportsRule final : public CSSConditionRule {
-    WEB_PLATFORM_OBJECT(CSSSupportsRule, CSSConditionRule);
+    WEB_WRAPPABLE(CSSSupportsRule, CSSConditionRule);
     GC_DECLARE_ALLOCATOR(CSSSupportsRule);
 
 public:
@@ -33,8 +33,6 @@ public:
 
 private:
     CSSSupportsRule(JS::Realm&, NonnullRefPtr<Supports>&&, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/Cache.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/ServiceWorker/NameToCacheMap.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -41,8 +41,8 @@ struct CacheBatchOperation : public GC::Cell {
 };
 
 // https://w3c.github.io/ServiceWorker/#cache-interface
-class Cache : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Cache, Bindings::PlatformObject);
+class Cache : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Cache, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Cache);
 
 public:
@@ -57,8 +57,7 @@ public:
 private:
     Cache(JS::Realm&, GC::Ref<RequestResponseList>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     enum class CloneCache {
         No,

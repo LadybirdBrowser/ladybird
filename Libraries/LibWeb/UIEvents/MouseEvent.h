@@ -16,7 +16,7 @@
 namespace Web::UIEvents {
 
 class WEB_API MouseEvent : public UIEvent {
-    WEB_PLATFORM_OBJECT(MouseEvent, UIEvent);
+    WEB_WRAPPABLE(MouseEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(MouseEvent);
 
 public:
@@ -77,8 +77,7 @@ public:
 protected:
     MouseEvent(JS::Realm&, FlyString const& event_name, Bindings::MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     double m_screen_x { 0 };
     double m_screen_y { 0 };

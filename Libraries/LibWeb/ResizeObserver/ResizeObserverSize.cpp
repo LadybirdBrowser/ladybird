@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/ResizeObserverSize.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -14,12 +13,6 @@
 namespace Web::ResizeObserver {
 
 GC_DEFINE_ALLOCATOR(ResizeObserverSize);
-
-void ResizeObserverSize::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ResizeObserverSize);
-    Base::initialize(realm);
-}
 
 // https://drafts.csswg.org/resize-observer-1/#calculate-box-size
 ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)

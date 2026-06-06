@@ -9,7 +9,7 @@
 #include <AK/Function.h>
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/ReadableStreamGenericReader.h>
 
@@ -66,9 +66,9 @@ private:
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader
 class ReadableStreamDefaultReader final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public ReadableStreamGenericReaderMixin {
-    WEB_PLATFORM_OBJECT(ReadableStreamDefaultReader, Bindings::PlatformObject);
+    WEB_WRAPPABLE(ReadableStreamDefaultReader, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableStreamDefaultReader);
 
 public:
@@ -91,9 +91,8 @@ public:
 private:
     explicit ReadableStreamDefaultReader(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual JS::Realm& reader_realm() const override { return realm(); }
 
     SinglyLinkedList<GC::Ref<ReadRequest>> m_read_requests;
 

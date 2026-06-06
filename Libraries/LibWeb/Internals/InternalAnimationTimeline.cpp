@@ -6,7 +6,6 @@
 
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/InternalAnimationTimeline.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
@@ -30,12 +29,6 @@ InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm, GC::Ref<D
 {
     m_current_time = { Animations::TimeValue::Type::Milliseconds, 0.0 };
     m_is_monotonically_increasing = true;
-}
-
-void InternalAnimationTimeline::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(InternalAnimationTimeline);
-    Base::initialize(realm);
 }
 
 }

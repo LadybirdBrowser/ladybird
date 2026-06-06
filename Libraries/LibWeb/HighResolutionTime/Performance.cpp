@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
@@ -115,7 +116,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
     auto& vm = realm.vm();
 
     // 1. If the global object is not a Window object, throw a TypeError.
-    if (!is<HTML::Window>(realm.global_object()))
+    if (!HTML::window_from_global_object(realm.global_object()))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, TRY_OR_THROW_OOM(vm, String::formatted("'{}' is an attribute in the PerformanceTiming interface and thus can only be used in a Window context", name)) };
 
     // 2. If name is navigationStart, return 0.
@@ -393,7 +394,9 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 
 HTML::WindowOrWorkerGlobalScopeMixin& Performance::window_or_worker()
 {
-    return as<HTML::WindowOrWorkerGlobalScopeMixin>(realm().global_object());
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm().global_object());
+    VERIFY(global_scope);
+    return *global_scope;
 }
 
 HTML::WindowOrWorkerGlobalScopeMixin const& Performance::window_or_worker() const

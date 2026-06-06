@@ -13,7 +13,7 @@
 namespace Web::WebGL {
 
 class WebGLContextEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(WebGLContextEvent, DOM::Event);
+    WEB_WRAPPABLE(WebGLContextEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(WebGLContextEvent);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 private:
     WebGLContextEvent(JS::Realm&, FlyString const& type, Bindings::WebGLContextEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_status_message;
 };

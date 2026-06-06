@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CSSMarginRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/Dump.h>
@@ -28,12 +27,6 @@ CSSMarginRule::CSSMarginRule(JS::Realm& realm, FlyString name, GC::Ref<CSSStyleP
     m_style->set_parent_rule(*this);
 }
 
-void CSSMarginRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMarginRule);
-    Base::initialize(realm);
-}
-
 String CSSMarginRule::serialized() const
 {
     // AD-HOC: There is currently no spec for serializing CSSMarginRule.
@@ -48,7 +41,7 @@ String CSSMarginRule::serialized() const
     return builder.to_string_without_validation();
 }
 
-void CSSMarginRule::visit_edges(Visitor& visitor)
+void CSSMarginRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);

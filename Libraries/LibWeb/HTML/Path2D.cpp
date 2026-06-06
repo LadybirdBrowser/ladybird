@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Path2D.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Path2D.h>
@@ -24,8 +23,7 @@ WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Op
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
 Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> const& path)
-    : PlatformObject(realm)
-    , CanvasPath(static_cast<Bindings::PlatformObject&>(*this))
+    : Bindings::Wrappable(realm)
 {
     // 1. Let output be a new Path2D object.
     // 2. If path is not given, then return output.
@@ -58,12 +56,6 @@ Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Ref<Path2D>, String>> cons
 }
 
 Path2D::~Path2D() = default;
-
-void Path2D::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::Path2DPrototype>(realm, "Path2D"_fly_string));
-}
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d-addpath
 WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit& transform)

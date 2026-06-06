@@ -89,10 +89,11 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
 
     // 2. Let fallbackError be an "AbortError" DOMException.
     auto fallback_error = WebIDL::AbortError::create(realm, "Fetch was aborted"_utf16);
+    auto fallback_error_value = throw_completion(fallback_error).value();
 
     // 3. Set error to fallbackError if it is not given.
     if (!error.has_value())
-        error = fallback_error;
+        error = fallback_error_value;
 
     // 4. Let serializedError be StructuredSerialize(error). If that threw an exception, catch it, and let serializedError be StructuredSerialize(fallbackError).
     // 5. Set controller’s serialized abort reason to serializedError
@@ -102,7 +103,7 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
             ? HTML::structured_serialize(vm, fallback_error).value()
             : serialized_value_or_error.value();
     };
-    m_serialized_abort_reason = structured_serialize(realm.vm(), error.value(), fallback_error);
+    m_serialized_abort_reason = structured_serialize(realm.vm(), error.value(), fallback_error_value);
 }
 
 // https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
@@ -110,9 +111,10 @@ JS::Value FetchController::deserialize_a_serialized_abort_reason(JS::Realm& real
 {
     // 1. Let fallbackError be an "AbortError" DOMException.
     auto fallback_error = WebIDL::AbortError::create(realm, "Fetch was aborted"_utf16);
+    auto fallback_error_value = throw_completion(fallback_error).value();
 
     // 2. Let deserializedError be fallbackError.
-    JS::Value deserialized_error = fallback_error;
+    JS::Value deserialized_error = fallback_error_value;
 
     // 3. If abortReason is non-null, then set deserializedError to StructuredDeserialize(abortReason, realm).
     //    If that threw an exception or returned undefined, then set deserializedError to fallbackError.

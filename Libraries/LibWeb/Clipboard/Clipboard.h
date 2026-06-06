@@ -17,7 +17,7 @@
 namespace Web::Clipboard {
 
 class Clipboard final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Clipboard, DOM::EventTarget);
+    WEB_WRAPPABLE(Clipboard, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Clipboard);
 
 public:

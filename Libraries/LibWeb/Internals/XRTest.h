@@ -13,7 +13,7 @@ namespace Web::Internals {
 
 // https://github.com/immersive-web/webxr-test-api/blob/main/explainer.md
 class WEB_API XRTest final : public InternalsBase {
-    WEB_PLATFORM_OBJECT(XRTest, InternalsBase);
+    WEB_WRAPPABLE(XRTest, InternalsBase);
     GC_DECLARE_ALLOCATOR(XRTest);
 
 public:
@@ -27,8 +27,6 @@ public:
 
 private:
     explicit XRTest(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

@@ -7,9 +7,9 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -17,9 +17,9 @@
 namespace Web::Streams {
 
 class TransformStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(TransformStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(TransformStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TransformStream);
 
 public:
@@ -55,9 +55,7 @@ public:
 private:
     explicit TransformStream(JS::Realm& realm);
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#transformstream-backpressure
     // Whether there was backpressure on [[readable]] the last time it was observed

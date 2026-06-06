@@ -7,7 +7,6 @@
 #include "CSSFontFeatureValuesRule.h"
 #include <AK/QuickSort.h>
 #include <LibWeb/Bindings/CSSFontFeatureValuesRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -152,13 +151,7 @@ void CSSFontFeatureValuesRule::clear_caches()
     }
 }
 
-void CSSFontFeatureValuesRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFeatureValuesRule);
-    Base::initialize(realm);
-}
-
-void CSSFontFeatureValuesRule::visit_edges(Cell::Visitor& visitor)
+void CSSFontFeatureValuesRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_annotation);

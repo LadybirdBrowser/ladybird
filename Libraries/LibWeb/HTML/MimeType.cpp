@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MimeType.h>
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
@@ -15,18 +13,12 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(MimeType);
 
 MimeType::MimeType(JS::Realm& realm, String type)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_type(move(type))
 {
 }
 
 MimeType::~MimeType() = default;
-
-void MimeType::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MimeType);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/system-state.html#concept-mimetype-type
 String const& MimeType::type() const
@@ -55,7 +47,7 @@ String const& MimeType::suffixes() const
 GC::Ref<Plugin> MimeType::enabled_plugin() const
 {
     // The MimeType interface's enabledPlugin getter steps are to return this's relevant global object's PDF viewer plugin objects[0] (i.e., the generic "PDF Viewer" one).
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = HTML::relevant_window(*this);
     auto plugin_objects = window.pdf_viewer_plugin_objects();
 
     // NOTE: If a MimeType object was created, that means PDF viewer support is enabled, meaning there will be Plugin objects.

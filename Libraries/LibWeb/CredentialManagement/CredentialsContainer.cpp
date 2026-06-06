@@ -20,40 +20,42 @@ CredentialsContainer::~CredentialsContainer() { }
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get
 GC::Ref<WebIDL::Promise> CredentialsContainer::get(Bindings::CredentialRequestOptions const&)
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "get"sv));
+    auto& vm = this->realm().vm();
+    auto* realm = vm.current_realm();
+    auto exception = vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "get"sv);
+    return WebIDL::create_rejected_promise_from_exception(*realm, exception);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-store
 GC::Ref<WebIDL::Promise> CredentialsContainer::store(Credential const&)
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "store"sv));
+    auto& vm = this->realm().vm();
+    auto* realm = vm.current_realm();
+    auto exception = vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "store"sv);
+    return WebIDL::create_rejected_promise_from_exception(*realm, exception);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-create
 GC::Ref<WebIDL::Promise> CredentialsContainer::create(Bindings::CredentialCreationOptions const&)
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "create"sv));
+    auto& vm = this->realm().vm();
+    auto* realm = vm.current_realm();
+    auto exception = vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "create"sv);
+    return WebIDL::create_rejected_promise_from_exception(*realm, exception);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-preventsilentaccess
 GC::Ref<WebIDL::Promise> CredentialsContainer::prevent_silent_access()
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "prevent silent access"sv));
+    auto& vm = this->realm().vm();
+    auto* realm = vm.current_realm();
+    auto exception = vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "prevent silent access"sv);
+    return WebIDL::create_rejected_promise_from_exception(*realm, exception);
 }
 
 CredentialsContainer::CredentialsContainer(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
-}
-
-void CredentialsContainer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CredentialsContainer);
-    Base::initialize(realm);
 }
 
 }

@@ -16,7 +16,7 @@ namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#customevent
 class WEB_API CustomEvent : public Event {
-    WEB_PLATFORM_OBJECT(CustomEvent, Event);
+    WEB_WRAPPABLE(CustomEvent, Event);
     GC_DECLARE_ALLOCATOR(CustomEvent);
 
 public:
@@ -28,8 +28,7 @@ public:
     // https://dom.spec.whatwg.org/#dom-customevent-detail
     JS::Value detail() const { return m_detail; }
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void init_custom_event(String const& type, bool bubbles, bool cancelable, JS::Value detail);
 

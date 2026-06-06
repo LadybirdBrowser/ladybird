@@ -9,16 +9,17 @@
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Global.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::WebAssembly {
 
-class Global : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Global, Bindings::PlatformObject);
+class Global : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Global, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Global);
 
 public:
     static WebIDL::ExceptionOr<GC::Ref<Global>> construct_impl(JS::Realm&, Bindings::GlobalDescriptor const&, Optional<JS::Value>);
+    static GC::Ref<Global> create(JS::Realm&, Wasm::GlobalAddress);
 
     WebIDL::ExceptionOr<JS::Value> value_of() const;
 
@@ -29,8 +30,6 @@ public:
 
 private:
     Global(JS::Realm&, Wasm::GlobalAddress);
-
-    virtual void initialize(JS::Realm&) override;
 
     Wasm::GlobalAddress m_address;
 };

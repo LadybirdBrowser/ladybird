@@ -5,8 +5,7 @@
  */
 
 #include "CSSTransformValue.h"
-#include <LibWeb/Bindings/CSSTransformValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -44,21 +43,11 @@ CSSTransformValue::CSSTransformValue(JS::Realm& realm, Vector<GC::Ref<CSSTransfo
     : CSSStyleValue(realm)
     , m_transforms(move(transforms))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .has_indexed_property_setter = true,
-    };
 }
 
 CSSTransformValue::~CSSTransformValue() = default;
 
-void CSSTransformValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSTransformValue);
-    Base::initialize(realm);
-}
-
-void CSSTransformValue::visit_edges(Visitor& visitor)
+void CSSTransformValue::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_transforms);
@@ -72,19 +61,21 @@ WebIDL::UnsignedLong CSSTransformValue::length() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#ref-for-dfn-determine-the-value-of-an-indexed-property%E2%91%A0
-Optional<JS::Value> CSSTransformValue::item_value(size_t index) const
+Optional<JS::Value> CSSTransformValue::item_value(JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property of a CSSTransformValue this and an index n, let values be this’s
     // [[values]] internal slot, and return values[n].
     if (index >= m_transforms.size())
         return {};
-    return m_transforms[index];
+    return Bindings::wrap(realm, m_transforms[index]);
 }
 
 static WebIDL::ExceptionOr<GC::Ref<CSSTransformComponent>> transform_component_from_js_value(JS::Value& value)
 {
-    if (auto transform_component = value.as_if<CSSTransformComponent>())
-        return GC::Ref { *transform_component };
+    if (value.is_object()) {
+        if (auto* transform_component = Bindings::impl_from<CSSTransformComponent>(&value.as_object()))
+            return GC::Ref { *transform_component };
+    }
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Value must be a CSSTransformComponent"sv };
 }
 

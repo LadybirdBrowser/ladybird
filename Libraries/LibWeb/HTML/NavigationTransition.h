@@ -6,14 +6,15 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/NavigationTransition.h>
 #include <LibWeb/Bindings/NavigationType.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationtransition
-class NavigationTransition : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NavigationTransition, Bindings::PlatformObject);
+class NavigationTransition : public Bindings::Wrappable {
+    WEB_WRAPPABLE(NavigationTransition, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(NavigationTransition);
 
 public:
@@ -59,8 +60,7 @@ public:
 private:
     NavigationTransition(JS::Realm&, Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationtransition-navigationtype
     // Each NavigationTransition has an associated navigation type, which is a NavigationType.

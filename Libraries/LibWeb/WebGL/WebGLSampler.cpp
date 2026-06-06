@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
 
@@ -24,11 +23,5 @@ WebGLSampler::WebGLSampler(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> 
 }
 
 WebGLSampler::~WebGLSampler() = default;
-
-void WebGLSampler::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLSampler);
-    Base::initialize(realm);
-}
 
 }

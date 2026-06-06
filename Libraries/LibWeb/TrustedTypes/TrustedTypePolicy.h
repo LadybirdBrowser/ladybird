@@ -8,8 +8,8 @@
 
 #include <AK/FlyString.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/TrustedTypePolicy.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 
 namespace Web::TrustedTypes {
@@ -35,8 +35,8 @@ enum class ThrowIfCallbackMissing {
     No
 };
 
-class TrustedTypePolicy final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TrustedTypePolicy, Bindings::PlatformObject);
+class TrustedTypePolicy final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(TrustedTypePolicy, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TrustedTypePolicy);
 
 public:
@@ -50,11 +50,10 @@ public:
 
     WebIDL::ExceptionOr<JS::Value> get_trusted_type_policy_value(TrustedTypeName, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing);
 
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     explicit TrustedTypePolicy(JS::Realm&, Utf16String const&, Bindings::TrustedTypePolicyOptions const&);
-    virtual void initialize(JS::Realm&) override;
 
     TrustedTypesVariants create_a_trusted_type(TrustedTypeName, Utf16String const&, GC::RootVector<JS::Value> const& values);
 

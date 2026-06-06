@@ -8,8 +8,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLUniformLocation.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 
 #include <GLES2/gl2.h>
@@ -24,7 +22,7 @@ GC::Ref<WebGLUniformLocation> WebGLUniformLocation::create(JS::Realm& realm, GLu
 }
 
 WebGLUniformLocation::WebGLUniformLocation(JS::Realm& realm, GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_handle(handle)
     , m_parent_shader(parent_shader)
 {
@@ -32,13 +30,7 @@ WebGLUniformLocation::WebGLUniformLocation(JS::Realm& realm, GLuint handle, GC::
 
 WebGLUniformLocation::~WebGLUniformLocation() = default;
 
-void WebGLUniformLocation::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLUniformLocation);
-    Base::initialize(realm);
-}
-
-void WebGLUniformLocation::visit_edges(Cell::Visitor& visitor)
+void WebGLUniformLocation::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_parent_shader);

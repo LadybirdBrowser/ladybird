@@ -6,6 +6,8 @@
 
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
@@ -178,7 +180,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
 
             // - For the global object, create a new Window object.
             window = Window::create(realm);
-            return window.ptr();
+            return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
         },
         [&](JS::Realm&) -> JS::Object* {
             // - For the global this binding, use browsingContext's WindowProxy object.

@@ -9,8 +9,8 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Blob.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -27,9 +27,9 @@ using BlobPartsOrByteBuffer = Variant<BlobParts, ByteBuffer>;
 [[nodiscard]] bool is_basic_latin(StringView view);
 
 class WEB_API Blob
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(Blob, Bindings::PlatformObject);
+    WEB_WRAPPABLE(Blob, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Blob);
 
 public:
@@ -61,8 +61,6 @@ public:
 protected:
     Blob(JS::Realm&, ByteBuffer, String type);
     Blob(JS::Realm&, ByteBuffer);
-
-    virtual void initialize(JS::Realm&) override;
 
     WebIDL::ExceptionOr<GC::Ref<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
 

@@ -6,8 +6,7 @@
  */
 
 #include <AK/InsertionSort.h>
-#include <LibWeb/Bindings/HTMLCollection.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -24,29 +23,18 @@ GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Fu
 }
 
 HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort)
-    : PlatformObject(root.realm())
+    : Wrappable(root.realm())
     , GC::WeakContainer(heap())
     , m_root(root)
     , m_filter(move(filter))
     , m_sort(move(sort))
     , m_scope(scope)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-    };
 }
 
 HTMLCollection::~HTMLCollection() = default;
 
-void HTMLCollection::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLCollection);
-    Base::initialize(realm);
-}
-
-void HTMLCollection::visit_edges(Cell::Visitor& visitor)
+void HTMLCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
@@ -189,20 +177,20 @@ Vector<FlyString> HTMLCollection::supported_property_names() const
     return result;
 }
 
-Optional<JS::Value> HTMLCollection::item_value(size_t index) const
+Optional<JS::Value> HTMLCollection::item_value(JS::Realm& realm, size_t index) const
 {
     auto* element = item(index);
     if (!element)
         return {};
-    return element;
+    return Bindings::wrap(realm, GC::Ref { *element }).ptr();
 }
 
-JS::Value HTMLCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLCollection::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
     auto* element = named_item(name);
     if (!element)
         return JS::js_undefined();
-    return element;
+    return Bindings::wrap(realm, GC::Ref { *element }).ptr();
 }
 
 }

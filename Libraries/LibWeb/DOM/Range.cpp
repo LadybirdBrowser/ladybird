@@ -9,7 +9,6 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Range.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
@@ -26,6 +25,7 @@
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
@@ -65,7 +65,7 @@ GC::Ref<Range> Range::create(GC::Ref<Node> start_container, WebIDL::UnsignedLong
 
 WebIDL::ExceptionOr<GC::Ref<Range>> Range::construct_impl(JS::Realm& realm)
 {
-    auto& window = as<HTML::Window>(realm.global_object());
+    auto& window = HTML::relevant_window(realm.global_object());
     return create(window);
 }
 
@@ -91,13 +91,7 @@ void Range::finalize()
     live_ranges().remove(this);
 }
 
-void Range::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Range);
-    Base::initialize(realm);
-}
-
-void Range::visit_edges(Cell::Visitor& visitor)
+void Range::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_selection);
@@ -465,7 +459,7 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 
 GC::Ref<Range> Range::clone_range() const
 {
-    return shape().realm().create<Range>(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
+    return realm().create<Range>(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer

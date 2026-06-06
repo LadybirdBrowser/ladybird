@@ -41,6 +41,16 @@
         // Should be changed 'loading' until the font is loaded; should fire loading event
         println(`FIXME: fontFaceSet.status: ${fontFaceSet.status}`);
 
+        println("-- Iterator Updates --");
+        const secondFontFace = new FontFace("Hash Serif", 'url(../../../../Assets/HashSans.woff)');
+        const iterator = fontFaceSet.values();
+        println(`first iterator value: ${iterator.next().value.family}`);
+        fontFaceSet.add(secondFontFace);
+        println(`second iterator value: ${iterator.next().value.family}`);
+        fontFaceSet.delete(fontFace);
+        fontFaceSet.delete(secondFontFace);
+        println(`iterator done after deletes: ${iterator.next().done}`);
+
         println("-- Clear FontFaceSet --");
         fontFaceSet.clear();
         println(`fontFaceSet.size: ${fontFaceSet.size}`);

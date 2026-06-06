@@ -35,6 +35,7 @@ from Generators.libweb_bindings.cpp_types import is_typed_array_type
 from Generators.libweb_bindings.cpp_types import union_type_to_variant
 from Generators.libweb_bindings.default_values import cpp_default_value_conversion
 from Generators.libweb_bindings.includes import GeneratedIncludes
+from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Utils.utils import make_name_acceptable_cpp
 from Utils.utils import string_to_cpp_enum_name
 from Utils.utils import title_case_to_snake_case
@@ -602,12 +603,17 @@ def interface_to_idl_value(
     includes.add("LibJS/Runtime/Value.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add(interface_like_type.implementation_header)
+    includes.add("LibWeb/Bindings/Wrappable.h")
+    interface = context.interfaces.get(interface_like_type.name)
 
     # 1. If V implements I, then return the IDL interface type value that represents a reference to that platform object.
     # 2. Throw a TypeError.
     return f"""[&]() -> JS::ThrowCompletionOr<GC::Ref<{interface_like_type.fully_qualified_name}>> {{
-        if (auto impl = {value_name}.as_if<{interface_like_type.fully_qualified_name}>())
-            return *impl;
+        if (!{value_name}.is_object())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
+
+        if (auto* impl = Web::Bindings::impl_from<{interface_like_type.fully_qualified_name}>(&{value_name}.as_object()))
+            return GC::Ref {{ *impl }};
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
     }}()"""
 
@@ -963,6 +969,14 @@ def union_to_idl_value(
         }}
 """)
 
+    if (
+        types.interface_types
+        or types.array_buffer_type is not None
+        or types.data_view_type is not None
+        or types.typed_array_types
+    ):
+        includes.add("AK/TypeCasts.h")
+
     # NB: Doing this here simplifies logic below.
     append(f"""
         if ({value_name}.is_object()) {{
@@ -971,7 +985,9 @@ def union_to_idl_value(
 
     # 5. If V is a platform object, then:
     if types.interface_types:
+        includes.add("AK/Traits.h")
         includes.add("LibWeb/Bindings/PlatformObject.h")
+        includes.add("LibWeb/Bindings/Wrappable.h")
         append("""
             if (is<PlatformObject>(object)) {
 """)
@@ -980,9 +996,20 @@ def union_to_idl_value(
             assert interface_like_type is not None
             platform_object_cpp_type = interface_like_type.fully_qualified_name
             includes.add(interface_like_type.implementation_header)
+            interface = context.interfaces.get(interface_type.name)
+            if interface is not None and interface_needs_wrapper(interface):
+                append(f"""
+                if (auto* impl = Web::Bindings::impl_from<{platform_object_cpp_type}>(&object))
+                    return {variant_type} {{ GC::Ref {{ *impl }} }};
+""")
+                continue
             # 1. If types includes an interface type that V implements, then return the IDL value that is a reference to the object V.
             append(f"""
-                if (auto* result = as_if<{platform_object_cpp_type}>(object))
+                if (auto* result = []<typename Impl>(JS::Object& object, Impl*) -> Impl* {{
+                    if constexpr (IsBaseOf<JS::Object, Impl>)
+                        return as_if<Impl>(object);
+                    return nullptr;
+                }}(object, static_cast<{platform_object_cpp_type}*>(nullptr)))
                     return {variant_type} {{ GC::Ref {{ *result }} }};
 """)
         # 2. If types includes object, then return the IDL value that is a reference to the object V.

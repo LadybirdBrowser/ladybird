@@ -8,15 +8,16 @@
 
 #include <AK/RefPtr.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MediaKeySystemAccess.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
 #include <LibWeb/EncryptedMediaExtensions/KeySystem.h>
 
 namespace Web::EncryptedMediaExtensions {
 
 // https://w3c.github.io/encrypted-media/#dom-mediakeysystemaccess
-class MediaKeySystemAccess : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaKeySystemAccess, Bindings::PlatformObject);
+class MediaKeySystemAccess : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MediaKeySystemAccess, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MediaKeySystemAccess);
 
 public:
@@ -28,7 +29,6 @@ public:
 
 protected:
     explicit MediaKeySystemAccess(JS::Realm&, Utf16String const&, Bindings::MediaKeySystemConfiguration, NonnullOwnPtr<KeySystem>);
-    virtual void initialize(JS::Realm&) override;
 
 private:
     Utf16String m_key_system;

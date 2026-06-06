@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/FormDataEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/FormDataEvent.h>
 
 namespace Web::HTML {
@@ -25,13 +24,7 @@ FormDataEvent::FormDataEvent(JS::Realm& realm, FlyString const& event_name, Bind
 
 FormDataEvent::~FormDataEvent() = default;
 
-void FormDataEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FormDataEvent);
-    Base::initialize(realm);
-}
-
-void FormDataEvent::visit_edges(Cell::Visitor& visitor)
+void FormDataEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_form_data);

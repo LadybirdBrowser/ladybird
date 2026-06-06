@@ -10,8 +10,8 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/TextDecoder.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -21,9 +21,9 @@ namespace Web::Encoding {
 
 // https://encoding.spec.whatwg.org/#textdecoder
 class TextDecoder
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public TextDecoderCommonMixin {
-    WEB_PLATFORM_OBJECT(TextDecoder, Bindings::PlatformObject);
+    WEB_WRAPPABLE(TextDecoder, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TextDecoder);
 
 public:
@@ -35,8 +35,6 @@ public:
 
 private:
     TextDecoder(JS::Realm&, TextCodec::Decoder&, FlyString encoding, ErrorMode error_mode, bool ignore_bom);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

@@ -60,7 +60,7 @@ class WEB_API Window final
     , public WindowOrWorkerGlobalScopeMixin
     , public UniversalGlobalScopeMixin
     , public Bindings::WindowGlobalMixin {
-    WEB_PLATFORM_OBJECT(Window, DOM::EventTarget);
+    WEB_WRAPPABLE(Window, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Window);
 
 public:
@@ -88,9 +88,6 @@ public:
     // ^WindowOrWorkerGlobalScopeMixin
     virtual DOM::EventTarget& this_impl() override { return *this; }
     virtual DOM::EventTarget const& this_impl() const override { return *this; }
-
-    // ^JS::Object
-    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
 
     virtual Optional<URL::Origin> extract_an_origin() const override { return window_or_worker_global_scope_extract_an_origin(); }
 
@@ -262,7 +259,7 @@ public:
     [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
 
     [[nodiscard]] Vector<FlyString> supported_property_names() const override;
-    [[nodiscard]] JS::Value named_item_value(FlyString const&) const override;
+    [[nodiscard]] JS::Value named_item_value(JS::Realm&, FlyString const&) const override;
 
     bool find(String const& string);
 
@@ -275,8 +272,6 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
-
-    virtual bool is_html_window() const override { return true; }
 
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
@@ -360,6 +355,3 @@ private:
 void run_animation_frame_callbacks(DOM::Document&, double now);
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::HTML::Window>() const { return is_html_window(); }

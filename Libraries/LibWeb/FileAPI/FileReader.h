@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -17,7 +16,7 @@ namespace Web::FileAPI {
 
 // https://w3c.github.io/FileAPI/#dfn-filereader
 class FileReader : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(FileReader, DOM::EventTarget);
+    WEB_WRAPPABLE(FileReader, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(FileReader);
 
 public:

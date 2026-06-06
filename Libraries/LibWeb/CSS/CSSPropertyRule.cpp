@@ -6,7 +6,6 @@
  */
 
 #include <LibWeb/Bindings/CSSPropertyRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
@@ -34,12 +33,6 @@ Optional<String> CSSPropertyRule::initial_value() const
     if (m_initial_value)
         return m_initial_value->to_string(SerializationMode::Normal);
     return {};
-}
-
-void CSSPropertyRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSPropertyRule);
-    Base::initialize(realm);
 }
 
 CustomPropertyRegistration CSSPropertyRule::to_registration() const

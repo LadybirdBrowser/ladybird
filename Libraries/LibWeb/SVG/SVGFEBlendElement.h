@@ -17,7 +17,7 @@ namespace Web::SVG {
 class SVGFEBlendElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEBlendElement> {
-    WEB_PLATFORM_OBJECT(SVGFEBlendElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEBlendElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEBlendElement);
 
 public:

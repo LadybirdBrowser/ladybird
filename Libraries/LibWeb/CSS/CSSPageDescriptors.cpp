@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CSSPageDescriptors.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPageDescriptors.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -24,12 +23,6 @@ CSSPageDescriptors::CSSPageDescriptors(JS::Realm& realm, Vector<Descriptor> desc
 }
 
 CSSPageDescriptors::~CSSPageDescriptors() = default;
-
-void CSSPageDescriptors::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSPageDescriptors);
-    Base::initialize(realm);
-}
 
 WebIDL::ExceptionOr<void> CSSPageDescriptors::set_margin(StringView value)
 {

@@ -11,6 +11,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLFormElement.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -44,12 +45,6 @@ GC_DEFINE_ALLOCATOR(HTMLFormElement);
 HTMLFormElement::HTMLFormElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-        .has_legacy_override_built_ins_interface_extended_attribute = true,
-    };
 }
 
 HTMLFormElement::~HTMLFormElement() = default;
@@ -1002,12 +997,12 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-item
-Optional<JS::Value> HTMLFormElement::item_value(size_t index) const
+Optional<JS::Value> HTMLFormElement::item_value(JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property for a form element, the user agent must return the value returned by
     // the item method on the elements collection, when invoked with the given index as its argument.
     if (auto value = elements()->item(index))
-        return value;
+        return Bindings::wrap(realm, GC::Ref { *value });
     return {};
 }
 
@@ -1111,9 +1106,8 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-nameditem
-JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
+JS::Value HTMLFormElement::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
-    auto& realm = this->realm();
     auto& root = as<ParentNode>(this->root());
 
     // To determine the value of a named property name for a form element, the user agent must run the following steps:
@@ -1156,20 +1150,20 @@ JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
     if (length == 0) {
         auto it = m_past_names_map.find(name);
         if (it != m_past_names_map.end())
-            return it->value.node;
+            return Bindings::wrap(realm, GC::Ref { const_cast<DOM::Node&>(*it->value.node) });
     }
 
     // 4. If candidates contains more than one node, return candidates.
     if (length > 1)
-        return candidates;
+        return Bindings::wrap(realm, candidates).ptr();
 
     // 5. Otherwise, candidates contains exactly one node. Add a mapping from name to the node in candidates in the form
     //    element's past names map, replacing the previous entry with the same name, if any.
-    auto const* node = candidates->item(0);
+    auto* node = candidates->item(0);
     m_past_names_map.set(name, HTMLFormElement::PastNameEntry { .node = node, .insertion_time = MonotonicTime::now() });
 
     // 6. Return the node in candidates.
-    return node;
+    return Bindings::wrap(realm, GC::Ref { const_cast<DOM::Node&>(*node) });
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#default-button

@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 class CSSNamespaceRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSNamespaceRule, CSSRule);
+    WEB_WRAPPABLE(CSSNamespaceRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSNamespaceRule);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 private:
     CSSNamespaceRule(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);
-
-    virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

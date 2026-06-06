@@ -25,7 +25,7 @@ enum class AnimationClass {
 
 // https://www.w3.org/TR/web-animations-1/#the-animation-interface
 class Animation : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Animation, DOM::EventTarget);
+    WEB_WRAPPABLE(Animation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Animation);
 
 public:

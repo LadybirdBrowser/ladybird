@@ -7,13 +7,13 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/Fetch/Headers.h>
 
 namespace Web::Fetch {
 
-class HeadersIterator final : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(HeadersIterator, Bindings::PlatformObject);
+class HeadersIterator final : public JS::Object {
+    JS_OBJECT(HeadersIterator, JS::Object);
     GC_DECLARE_ALLOCATOR(HeadersIterator);
 
 public:
@@ -25,7 +25,7 @@ public:
 
 private:
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     HeadersIterator(Headers const&, JS::Object::PropertyKind iteration_kind);
 

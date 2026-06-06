@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/NodeFilter.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/NodeFilter.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
 
@@ -18,13 +16,12 @@ GC::Ref<NodeFilter> NodeFilter::create(JS::Realm& realm, GC::Ref<WebIDL::Callbac
     return realm.create<NodeFilter>(realm, callback);
 }
 
-NodeFilter::NodeFilter(JS::Realm& realm, GC::Ref<WebIDL::CallbackType> callback)
-    : PlatformObject(realm.intrinsics().object_prototype())
-    , m_callback(callback)
+NodeFilter::NodeFilter(JS::Realm&, GC::Ref<WebIDL::CallbackType> callback)
+    : m_callback(callback)
 {
 }
 
-void NodeFilter::visit_edges(Cell::Visitor& visitor)
+void NodeFilter::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_callback);

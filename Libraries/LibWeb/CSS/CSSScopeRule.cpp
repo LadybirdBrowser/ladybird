@@ -7,7 +7,6 @@
 #include "CSSScopeRule.h"
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSScopeRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -31,13 +30,7 @@ CSSScopeRule::CSSScopeRule(JS::Realm& realm, Optional<SelectorList>&& start_sele
 
 CSSScopeRule::~CSSScopeRule() = default;
 
-void CSSScopeRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSScopeRule);
-    Base::initialize(realm);
-}
-
-void CSSScopeRule::visit_edges(Cell::Visitor& visitor)
+void CSSScopeRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_cached_nearest_ancestor_scope_rule);

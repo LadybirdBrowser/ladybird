@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLFontElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLFontElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLFontElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLFontElement);
 
 public:

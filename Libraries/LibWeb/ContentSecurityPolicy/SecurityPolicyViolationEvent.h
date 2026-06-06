@@ -12,7 +12,7 @@
 namespace Web::ContentSecurityPolicy {
 
 class SecurityPolicyViolationEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(SecurityPolicyViolationEvent, DOM::Event);
+    WEB_WRAPPABLE(SecurityPolicyViolationEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(SecurityPolicyViolationEvent);
 
 public:
@@ -36,8 +36,6 @@ public:
 
 private:
     SecurityPolicyViolationEvent(JS::Realm&, FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_document_uri;
     String m_referrer;

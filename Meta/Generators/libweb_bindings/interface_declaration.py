@@ -11,6 +11,7 @@ from Generators.libweb_bindings.attributes import attribute_has_setter
 from Generators.libweb_bindings.attributes import attribute_setter_callback_name
 from Generators.libweb_bindings.callback_interfaces import write_callback_interface_declaration
 from Generators.libweb_bindings.context import GenerationContext
+from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
 from Generators.libweb_bindings.global_mixins import write_global_mixin_declaration
 from Generators.libweb_bindings.includes import GeneratedIncludes
@@ -20,6 +21,10 @@ from Generators.libweb_bindings.named_and_indexed_properties import interface_su
 from Generators.libweb_bindings.named_and_indexed_properties import write_named_properties_object_declaration
 from Generators.libweb_bindings.namespaces import write_namespace_declaration
 from Generators.libweb_bindings.overload_resolution import operation_callback_names
+from Generators.libweb_bindings.wrappers import interface_needs_wrapper
+from Generators.libweb_bindings.wrappers import wrapper_base_class_name
+from Generators.libweb_bindings.wrappers import wrapper_class_name
+from Generators.libweb_bindings.wrappers import wrapper_needs_wrappable_impl
 from Utils.webidl_parser import Interface
 
 
@@ -53,6 +58,69 @@ def write_declaration(
     includes.add("LibJS/Runtime/Object.h")
     includes.add("LibWeb/Bindings/InterfaceObject.h")
     operation_callbacks = operation_callback_names(interface)
+
+    if interface_needs_wrapper(interface):
+        includes.add("LibWeb/Bindings/PlatformObject.h")
+        base_class = wrapper_base_class_name(context, interface)
+        if "LocationObject" in interface.extended_attributes:
+            includes.add("AK/Vector.h")
+            includes.add("LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h")
+        impl_type = fully_qualified_name_for_interface(interface)
+        if interface.parent_name:
+            parent_interface = context.interfaces.get(interface.parent_name)
+            if parent_interface is not None:
+                includes.add_binding(parent_interface.implemented_name)
+        out.write(
+            f"""class {wrapper_class_name(interface)} : public {base_class} {{
+    WEB_PLATFORM_OBJECT({wrapper_class_name(interface)}, {base_class});
+    GC_DECLARE_ALLOCATOR({wrapper_class_name(interface)});
+
+public:
+    {wrapper_class_name(interface)}(JS::Realm&, GC::Ref<{impl_type}>);
+    virtual ~{wrapper_class_name(interface)}() override;
+
+    virtual StringView class_name() const override {{ return "{interface.name}"sv; }}
+    virtual void initialize(JS::Realm&) override;
+"""
+        )
+        if "Global" in interface.extended_attributes:
+            out.write("    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object*) override;\n")
+        if "LocationObject" in interface.extended_attributes:
+            out.write(
+                """
+    HTML::CrossOriginPropertyDescriptorMap const& cross_origin_property_descriptor_map() const { return m_cross_origin_property_descriptor_map; }
+    HTML::CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
+"""
+            )
+        if wrapper_needs_wrappable_impl(context, interface):
+            out.write(
+                """protected:
+    virtual Wrappable* wrappable_impl() override;
+    virtual Wrappable const* wrappable_impl() const override;
+
+public:
+"""
+            )
+        if interface.name == "DOMException":
+            out.write(
+                """    virtual JS::ErrorData* error_data() override;
+    virtual JS::ErrorData const* error_data() const override;
+"""
+            )
+        if interface.name == "HTMLAllCollection":
+            out.write("    virtual bool is_htmldda() const override;\n")
+
+        out.write("\nprotected:\n")
+        out.write(f"    {impl_type}& impl();\n")
+        out.write(f"    {impl_type} const& impl() const;\n")
+
+        out.write("\nprivate:\n")
+        if not interface.parent_name:
+            out.write("    virtual void visit_edges(JS::Cell::Visitor&) override;\n\n")
+            out.write(f"    GC::Ref<{impl_type}> m_impl;\n")
+        if "LocationObject" in interface.extended_attributes:
+            out.write("\n    HTML::CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;\n")
+        out.write("};\n\n")
 
     out.write(
         f"""struct {interface.constructor_class} {{

@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 /// https://webaudio.github.io/web-audio-api/#ChannelSplitterNode
 class ChannelSplitterNode final : public AudioNode {
-    WEB_PLATFORM_OBJECT(ChannelSplitterNode, AudioNode);
+    WEB_WRAPPABLE(ChannelSplitterNode, AudioNode);
     GC_DECLARE_ALLOCATOR(ChannelSplitterNode);
 
 public:

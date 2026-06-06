@@ -6,8 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Permissions.h>
+#include <LibWeb/Bindings/PermissionStatus.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -105,14 +104,8 @@ GC::Ref<Permissions> Permissions::create(JS::Realm& realm)
 }
 
 Permissions::Permissions(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
-}
-
-void Permissions::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Permissions);
-    Base::initialize(realm);
 }
 
 // https://w3c.github.io/permissions/#query-method
@@ -123,7 +116,7 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
     auto& relevant_global_object = HTML::relevant_global_object(*this);
 
     // 1. If this's relevant global object is a Window object, then:
-    if (auto* window = as_if<HTML::Window>(relevant_global_object)) {
+    if (auto* window = HTML::window_from_global_object(relevant_global_object)) {
         // 1. If the current settings object's associated Document is not fully active, return a promise rejected with an "InvalidStateError" DOMException.
         if (!window->associated_document().is_fully_active()) {
             auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
@@ -133,7 +126,7 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
 
     // 2. Let rootDesc be the object permissionDesc refers to, converted to an IDL value of type PermissionDescriptor.
     // 3. If the conversion throws an exception, return a promise rejected with that exception.
-    auto root_desc_or_error = Bindings::convert_to_idl_value_for_permission_descriptor(vm(), permission_desc);
+    auto root_desc_or_error = Bindings::convert_to_idl_value_for_permission_descriptor(realm.vm(), permission_desc);
     if (root_desc_or_error.is_error()) {
         return WebIDL::create_rejected_promise_from_exception(realm, root_desc_or_error.release_error());
     }
@@ -141,7 +134,7 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
 
     // 4. If rootDesc["name"] is not supported, return a promise rejected with a TypeError.
     if (!is_permission_supported(root_desc.name)) {
-        auto error = vm().throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
+        auto error = realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
         return WebIDL::create_rejected_promise_from_exception(realm, error.release_error());
     }
 
@@ -169,7 +162,7 @@ GC::Ref<Web::WebIDL::Promise> Permissions::query(JS::Value permission_desc)
         // 4. Queue a global task on the permissions task source with this's relevant global object to resolve promise with status.
         HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object, GC::create_function(realm.heap(), [&realm, promise, status]() mutable {
             HTML::TemporaryExecutionContext execution_context { realm };
-            WebIDL::resolve_promise(realm, promise, status);
+            WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, status));
         }));
     }
 

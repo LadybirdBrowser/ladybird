@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLTimeElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTimeElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTimeElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTimeElement);
 
 public:

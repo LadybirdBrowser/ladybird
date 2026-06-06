@@ -15,7 +15,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/pservers.html#GradientStops
 class SVGStopElement final : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGStopElement, SVGElement);
+    WEB_WRAPPABLE(SVGStopElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGStopElement);
 
 public:

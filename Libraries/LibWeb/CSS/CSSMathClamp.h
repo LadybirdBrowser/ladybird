@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathclamp
 class CSSMathClamp final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathClamp, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathClamp, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathClamp);
 
 public:
@@ -20,9 +20,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> construct_impl(JS::Realm&, CSSNumberish lower, CSSNumberish value, CSSNumberish upper);
 
     virtual ~CSSMathClamp() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> lower() const;
     GC::Ref<CSSNumericValue> value() const;

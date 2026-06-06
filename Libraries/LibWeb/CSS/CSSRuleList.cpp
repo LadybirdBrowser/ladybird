@@ -6,8 +6,7 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/CSSRuleList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
@@ -37,18 +36,11 @@ GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, ReadonlySpan<GC::Ref<
 }
 
 CSSRuleList::CSSRuleList(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 }
 
-void CSSRuleList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSRuleList);
-    Base::initialize(realm);
-}
-
-void CSSRuleList::visit_edges(Cell::Visitor& visitor)
+void CSSRuleList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
@@ -334,11 +326,11 @@ bool CSSRuleList::evaluate_media_queries(DOM::Document const& document, Function
     return any_media_queries_changed_match_state;
 }
 
-Optional<JS::Value> CSSRuleList::item_value(size_t index) const
+Optional<JS::Value> CSSRuleList::item_value(JS::Realm& realm, size_t index) const
 {
-    if (auto value = item(index))
-        return value;
-    return {};
+    if (index >= m_rules.size())
+        return {};
+    return Bindings::wrap(realm, m_rules[index]);
 }
 
 Vector<Parser::RuleContext> CSSRuleList::rule_context() const

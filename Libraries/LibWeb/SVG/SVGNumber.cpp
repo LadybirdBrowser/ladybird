@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGNumber.h>
 #include <LibWeb/SVG/SVGNumber.h>
 
 namespace Web::SVG {
@@ -18,16 +16,10 @@ GC::Ref<SVGNumber> SVGNumber::create(JS::Realm& realm, float value, ReadOnly rea
 }
 
 SVGNumber::SVGNumber(JS::Realm& realm, float value, ReadOnly read_only)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_value(value)
     , m_read_only(read_only)
 {
-}
-
-void SVGNumber::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGNumber);
-    Base::initialize(realm);
 }
 
 // https://www.w3.org/TR/SVG2/types.html#__svg__SVGNumber__value

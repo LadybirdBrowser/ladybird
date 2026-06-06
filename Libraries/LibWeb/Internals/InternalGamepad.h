@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/InternalGamepad.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
 
 namespace Web::Internals {
 
-class InternalGamepad : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(InternalGamepad, Bindings::PlatformObject);
+class InternalGamepad : public Bindings::Wrappable {
+    WEB_WRAPPABLE(InternalGamepad, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(InternalGamepad);
 
 public:
@@ -37,8 +38,7 @@ public:
 
 private:
     InternalGamepad(JS::Realm&, GC::Ref<Internals>);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     SDL_JoystickID m_sdl_joystick_id;

@@ -6,8 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -22,19 +20,13 @@ GC::Ref<NavigationDestination> NavigationDestination::create(JS::Realm& realm)
 }
 
 NavigationDestination::NavigationDestination(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 NavigationDestination::~NavigationDestination() = default;
 
-void NavigationDestination::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationDestination);
-    Base::initialize(realm);
-}
-
-void NavigationDestination::visit_edges(JS::Cell::Visitor& visitor)
+void NavigationDestination::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_entry);
@@ -88,7 +80,7 @@ bool NavigationDestination::same_document() const
 WebIDL::ExceptionOr<JS::Value> NavigationDestination::get_state()
 {
     // The getState() method steps are to return StructuredDeserialize(this's state).
-    return structured_deserialize(vm(), m_state, realm());
+    return structured_deserialize(realm().vm(), m_state, realm());
 }
 
 }

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CredentialManagement/FederatedCredential.h>
 #include <LibWeb/CredentialManagement/FederatedCredentialOperations.h>
 
@@ -31,12 +30,6 @@ FederatedCredential::FederatedCredential(JS::Realm& realm, Bindings::FederatedCr
     , m_provider(init.provider)
     , m_origin(move(origin))
 {
-}
-
-void FederatedCredential::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FederatedCredential);
-    Base::initialize(realm);
 }
 
 }

@@ -6,7 +6,6 @@
 
 #include "CSSMathInvert.h"
 #include <LibWeb/Bindings/CSSMathInvert.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -41,13 +40,7 @@ CSSMathInvert::CSSMathInvert(JS::Realm& realm, NumericType type, GC::Ref<CSSNume
 
 CSSMathInvert::~CSSMathInvert() = default;
 
-void CSSMathInvert::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathInvert);
-    Base::initialize(realm);
-}
-
-void CSSMathInvert::visit_edges(Visitor& visitor)
+void CSSMathInvert::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_value);

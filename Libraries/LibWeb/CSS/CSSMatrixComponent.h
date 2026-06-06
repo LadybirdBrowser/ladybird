@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmatrixcomponent
 class CSSMatrixComponent final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSMatrixComponent, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSMatrixComponent, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSMatrixComponent);
 
 public:
@@ -33,9 +33,7 @@ public:
 
 private:
     explicit CSSMatrixComponent(JS::Realm&, Is2D, GC::Ref<Geometry::DOMMatrix>);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<Geometry::DOMMatrix> m_matrix;
 };

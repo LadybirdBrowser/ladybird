@@ -6,7 +6,6 @@
  */
 
 #include <LibWeb/Bindings/CSSStyleRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -32,13 +31,7 @@ CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, CSSStyleP
     m_declaration->set_parent_rule(*this);
 }
 
-void CSSStyleRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleRule);
-    Base::initialize(realm);
-}
-
-void CSSStyleRule::visit_edges(Cell::Visitor& visitor)
+void CSSStyleRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_declaration);

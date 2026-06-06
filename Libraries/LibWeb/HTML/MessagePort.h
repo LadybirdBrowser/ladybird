@@ -24,7 +24,7 @@ namespace Web::HTML {
 class WEB_API MessagePort final
     : public DOM::EventTarget
     , public Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(MessagePort, DOM::EventTarget);
+    WEB_WRAPPABLE(MessagePort, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MessagePort);
 
 public:

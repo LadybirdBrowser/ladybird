@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class SubmitEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(SubmitEvent, DOM::Event);
+    WEB_WRAPPABLE(SubmitEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(SubmitEvent);
 
 public:
@@ -27,8 +27,7 @@ public:
 private:
     SubmitEvent(JS::Realm&, FlyString const& event_name, Bindings::SubmitEventInit const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<HTMLElement> m_submitter;
 };

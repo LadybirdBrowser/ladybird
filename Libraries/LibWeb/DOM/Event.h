@@ -8,15 +8,15 @@
 
 #include <AK/FlyString.h>
 #include <LibWeb/Bindings/Event.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::DOM {
 
-class WEB_API Event : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Event, Bindings::PlatformObject);
+class WEB_API Event : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Event, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Event);
 
 public:
@@ -96,7 +96,8 @@ public:
     GC::Ptr<EventTarget> current_target() const { return m_current_target; }
     void set_current_target(EventTarget* current_target) { m_current_target = current_target; }
 
-    GC::Ptr<EventTarget> current_target_for_bindings() const;
+    JS::Value current_target_value_for_bindings(JS::Realm&) const;
+    GC::Ptr<Bindings::PlatformObject> current_target_wrapper_for_bindings(JS::Realm&) const;
 
     bool return_value() const { return !m_cancelled; }
     void set_return_value(bool return_value)
@@ -153,12 +154,9 @@ public:
 protected:
     void initialize_event(String const&, bool, bool);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    virtual bool is_dom_event() const final { return true; }
-
     FlyString m_type;
     GC::Ptr<EventTarget> m_target;
     GC::Ptr<EventTarget> m_related_target;
@@ -188,6 +186,3 @@ private:
 };
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Event>() const { return is_dom_event(); }

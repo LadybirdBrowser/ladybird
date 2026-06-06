@@ -8,7 +8,6 @@
 #include <AK/Time.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/VideoTrack.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -27,13 +26,7 @@ VideoTrack::VideoTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element
 
 VideoTrack::~VideoTrack() = default;
 
-void VideoTrack::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(VideoTrack);
-    Base::initialize(realm);
-}
-
-void VideoTrack::visit_edges(Cell::Visitor& visitor)
+void VideoTrack::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_video_track_list);

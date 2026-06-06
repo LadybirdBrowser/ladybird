@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLTableCaptionElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTableCaptionElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTableCaptionElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTableCaptionElement);
 
 public:

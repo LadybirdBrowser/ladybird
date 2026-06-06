@@ -9,13 +9,13 @@
 #include <LibGC/WeakHashSet.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/TimeValue.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Animations {
 
 // https://www.w3.org/TR/web-animations-1/#animationtimeline
-class AnimationTimeline : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AnimationTimeline, Bindings::PlatformObject);
+class AnimationTimeline : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AnimationTimeline, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AnimationTimeline);
 
 public:
@@ -49,8 +49,7 @@ public:
 protected:
     AnimationTimeline(JS::Realm&, GC::Ref<DOM::Document>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     void set_current_time(Optional<TimeValue> value);

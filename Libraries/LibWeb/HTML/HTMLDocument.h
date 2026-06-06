@@ -15,7 +15,7 @@ namespace Web::HTML {
 //       https://github.com/whatwg/html/issues/4792
 //       https://github.com/whatwg/dom/issues/221
 class HTMLDocument final : public DOM::Document {
-    WEB_PLATFORM_OBJECT(HTMLDocument, DOM::Document);
+    WEB_WRAPPABLE(HTMLDocument, DOM::Document);
     GC_DECLARE_ALLOCATOR(HTMLDocument);
 
 public:

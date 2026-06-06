@@ -58,6 +58,9 @@ interface Document : Node {
 
     readonly attribute HTMLAllCollection all;
 
+    // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
+    getter object (DOMString name);
+
     undefined clear();
     undefined captureEvents();
     undefined releaseEvents();

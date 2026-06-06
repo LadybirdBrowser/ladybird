@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLSync.h>
 #include <LibWeb/WebGL/WebGLSync.h>
 
@@ -27,12 +26,6 @@ WebGLSync::WebGLSync(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> contex
 }
 
 WebGLSync::~WebGLSync() = default;
-
-void WebGLSync::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLSync);
-    Base::initialize(realm);
-}
 
 ErrorOr<GLsyncInternal> WebGLSync::sync_handle(WebGLRenderingContextBase const* context) const
 {

@@ -8,14 +8,15 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DOMRectList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
 
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry-1/#DOMRectList
-class DOMRectList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMRectList, Bindings::PlatformObject);
+class DOMRectList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMRectList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMRectList);
 
 public:
@@ -26,13 +27,12 @@ public:
     u32 length() const;
     DOMRect const* item(u32 index) const;
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
 private:
     DOMRectList(JS::Realm&, Vector<GC::Ref<DOMRect>>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<GC::Ref<DOMRect>> m_rects;
 };

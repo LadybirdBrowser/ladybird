@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::Bindings {
@@ -25,9 +27,42 @@ PlatformObject::PlatformObject(JS::Object& prototype, MayInterfereWithIndexedPro
 
 PlatformObject::~PlatformObject() = default;
 
+void PlatformObject::finalize()
+{
+    Base::finalize();
+
+    auto* wrappable = wrappable_impl();
+    if (!wrappable)
+        return;
+
+    if (realm().host_defined())
+        host_defined_wrapper_world(realm()).clear_wrapper(*wrappable, *this);
+}
+
 JS::Realm& PlatformObject::realm() const
 {
     return shape().realm();
+}
+
+bool PlatformObject::implements_interface(String const& interface) const
+{
+    if (auto const* wrappable = wrappable_impl())
+        return wrappable->implements_interface(interface);
+    return false;
+}
+
+Bindings::InterfaceName PlatformObject::interface_name() const
+{
+    if (auto const* wrappable = wrappable_impl())
+        return wrappable->interface_name();
+    VERIFY_NOT_REACHED();
+}
+
+Optional<URL::Origin> PlatformObject::extract_an_origin() const
+{
+    if (auto const* wrappable = wrappable_impl())
+        return wrappable->extract_an_origin();
+    return {};
 }
 
 // https://webidl.spec.whatwg.org/#dfn-named-property-visibility
@@ -85,7 +120,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
         u32 index = property_name.as_number();
 
         // 2. If index is a supported property index, then:
-        if (auto maybe_value = item_value(index); maybe_value.has_value()) {
+        if (auto maybe_value = item_value(realm(), index); maybe_value.has_value()) {
             // 1. Let operation be the operation used to declare the indexed property getter.
             // 2. Let value be an uninitialized variable.
             // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of an indexed property with index as the index.
@@ -124,7 +159,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
             // 2. Let value be an uninitialized variable.
             // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of a named property with P as the name.
             // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with O as this and « P » as the argument values.
-            auto value = named_item_value(property_name_string);
+            auto value = named_item_value(realm(), property_name_string);
 
             // 5. Let desc be a newly created Property Descriptor with no fields.
             JS::PropertyDescriptor descriptor;
@@ -362,11 +397,11 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
         // 4. Otherwise, operation was defined with an identifier:
         //    1. Perform method steps of operation with O as this and « P » as the argument values.
         //    2. If operation was declared with a return type of boolean and the steps returned false, then return false.
-        auto did_deletion_fail = TRY(throw_dom_exception_if_needed(vm, [&] { return delete_value(property_name_string); }));
+        auto deletion_result = TRY(throw_dom_exception_if_needed(vm, [&] { return delete_value(property_name_string); }));
         if (!m_legacy_platform_object_flags->named_property_deleter_has_identifier)
-            VERIFY(did_deletion_fail != DidDeletionFail::NotRelevant);
+            VERIFY(deletion_result != NamedPropertyDeletionResult::NotRelevant);
 
-        if (did_deletion_fail == DidDeletionFail::Yes)
+        if (deletion_result == NamedPropertyDeletionResult::DidFail)
             return false;
 
         // 5. Return true.
@@ -449,64 +484,86 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     return { move(keys) };
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_named_property(String const& name, JS::Value value)
 {
+    if (auto* wrappable = wrappable_impl())
+        return wrappable->set_value_of_new_named_property(name, value);
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_named_property(String const& name, JS::Value value)
 {
+    if (auto* wrappable = wrappable_impl())
+        return wrappable->set_value_of_existing_named_property(name, value);
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_named_property(String const&, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_named_property(String const& name, JS::Value value)
 {
+    if (auto* wrappable = wrappable_impl())
+        return wrappable->set_value_of_named_property(name, value);
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_new_indexed_property(u32 index, JS::Value value)
 {
+    if (auto* wrappable = wrappable_impl())
+        return wrappable->set_value_of_new_indexed_property(index, value);
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_existing_indexed_property(u32 index, JS::Value value)
 {
+    if (auto* wrappable = wrappable_impl())
+        return wrappable->set_value_of_existing_indexed_property(index, value);
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<void> PlatformObject::set_value_of_indexed_property(u32, JS::Value)
+WebIDL::ExceptionOr<void> PlatformObject::set_value_of_indexed_property(u32 index, JS::Value value)
 {
+    if (auto* wrappable = wrappable_impl())
+        return wrappable->set_value_of_indexed_property(index, value);
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<PlatformObject::DidDeletionFail> PlatformObject::delete_value(String const&)
+WebIDL::ExceptionOr<NamedPropertyDeletionResult> PlatformObject::delete_value(String const& name)
 {
+    if (auto* wrappable = wrappable_impl())
+        return wrappable->delete_value(name);
     VERIFY_NOT_REACHED();
 }
 
-Optional<JS::Value> PlatformObject::item_value(size_t) const
+Optional<JS::Value> PlatformObject::item_value(JS::Realm& realm, size_t index) const
 {
+    if (auto const* wrappable = wrappable_impl())
+        return wrappable->item_value(realm, index);
     return {};
 }
 
-JS::Value PlatformObject::named_item_value(FlyString const&) const
+JS::Value PlatformObject::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
+    if (auto const* wrappable = wrappable_impl())
+        return wrappable->named_item_value(realm, name);
     return JS::js_undefined();
 }
 
 Vector<FlyString> PlatformObject::supported_property_names() const
 {
+    if (auto const* wrappable = wrappable_impl())
+        return wrappable->supported_property_names();
     return {};
 }
 
 bool PlatformObject::is_supported_property_name(FlyString const& name) const
 {
+    if (auto const* wrappable = wrappable_impl())
+        return wrappable->is_supported_property_name(name);
     return supported_property_names().contains_slow(name);
 }
 
 bool PlatformObject::is_supported_property_index(u32 index) const
 {
-    return item_value(index).has_value();
+    return item_value(realm(), index).has_value();
 }
 
 }

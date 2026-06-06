@@ -70,7 +70,7 @@ class WEB_API HTMLElement
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<HTMLElement>
     , public FormAssociatedElement {
-    WEB_PLATFORM_OBJECT(HTMLElement, DOM::Element);
+    WEB_WRAPPABLE(HTMLElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(HTMLElement);
 
 public:
@@ -270,15 +270,5 @@ namespace Web::DOM {
 
 template<>
 inline bool Node::fast_is<HTML::HTMLElement>() const { return is_html_element(); }
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::HTMLElement>() const
-{
-    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_element();
-}
 
 }

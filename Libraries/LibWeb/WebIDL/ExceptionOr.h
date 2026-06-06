@@ -59,7 +59,7 @@ public:
     // Disabled for POD types to avoid weird conversion shenanigans.
     template<typename WrappedValueType>
     ExceptionOr(WrappedValueType result)
-    requires(!IsPOD<ValueType>)
+    requires(!IsPOD<ValueType> && IsConstructible<ValueType, WrappedValueType>)
         : m_result_or_exception(ValueType { move(result) })
     {
     }

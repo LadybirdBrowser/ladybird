@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -14,8 +14,8 @@
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymapreadonly
-class StylePropertyMapReadOnly : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(StylePropertyMapReadOnly, Bindings::PlatformObject);
+class StylePropertyMapReadOnly : public Bindings::Wrappable {
+    WEB_WRAPPABLE(StylePropertyMapReadOnly, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(StylePropertyMapReadOnly);
 
 public:
@@ -32,8 +32,7 @@ protected:
     using Source = Variant<DOM::AbstractElement, GC::Ref<CSSStyleDeclaration>>;
     explicit StylePropertyMapReadOnly(JS::Realm&, Source);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     static RefPtr<StyleValue const> get_style_value(Source&, PropertyNameAndID const& property);
 

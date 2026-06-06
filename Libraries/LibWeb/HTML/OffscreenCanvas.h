@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibGfx/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -22,7 +21,7 @@ using OffscreenRenderingContext = Variant<GC::Ref<OffscreenCanvasRenderingContex
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvas
 class OffscreenCanvas : public DOM::EventTarget
     , public Web::Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(OffscreenCanvas, DOM::EventTarget);
+    WEB_WRAPPABLE(OffscreenCanvas, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(OffscreenCanvas);
 
 public:

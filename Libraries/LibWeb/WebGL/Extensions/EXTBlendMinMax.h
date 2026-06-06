@@ -6,21 +6,21 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/EXTBlendMinMax.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebGL {
 
-class EXTBlendMinMax : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(EXTBlendMinMax, Bindings::PlatformObject);
+class EXTBlendMinMax : public Bindings::Wrappable {
+    WEB_WRAPPABLE(EXTBlendMinMax, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(EXTBlendMinMax);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
-    void initialize(JS::Realm&) override;
-    void visit_edges(Visitor&) override;
+    void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     EXTBlendMinMax(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);

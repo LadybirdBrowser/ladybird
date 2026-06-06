@@ -15,7 +15,7 @@ namespace Web::SVG {
 class SVGFEFloodElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEFloodElement> {
-    WEB_PLATFORM_OBJECT(SVGFEFloodElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEFloodElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEFloodElement);
 
 public:

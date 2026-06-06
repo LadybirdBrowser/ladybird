@@ -21,7 +21,7 @@ namespace Web::SVG {
 
 class SVGSVGElement final : public SVGGraphicsElement
     , public SVGFitToViewBox {
-    WEB_PLATFORM_OBJECT(SVGSVGElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGSVGElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSVGElement);
 
 public:

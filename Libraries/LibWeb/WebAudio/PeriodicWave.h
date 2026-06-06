@@ -8,13 +8,14 @@
 
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/PeriodicWave.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
-class PeriodicWave : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(PeriodicWave, Bindings::PlatformObject);
+class PeriodicWave : public Bindings::Wrappable {
+    WEB_WRAPPABLE(PeriodicWave, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(PeriodicWave);
 
 public:
@@ -24,8 +25,7 @@ public:
     virtual ~PeriodicWave() override;
 
 protected:
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     GC::Ptr<JS::Float32Array> m_real;

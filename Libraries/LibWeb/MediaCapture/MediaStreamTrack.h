@@ -11,7 +11,6 @@
 #include <AK/String.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -20,7 +19,7 @@ namespace Web::MediaCapture {
 
 // Spec: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 class MediaStreamTrack final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaStreamTrack, DOM::EventTarget);
+    WEB_WRAPPABLE(MediaStreamTrack, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaStreamTrack);
 
 public:

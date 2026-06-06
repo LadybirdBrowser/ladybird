@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CountQueuingStrategy.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/Streams/CountQueuingStrategy.h>
 
@@ -23,7 +22,7 @@ GC::Ref<CountQueuingStrategy> CountQueuingStrategy::construct_impl(JS::Realm& re
 }
 
 CountQueuingStrategy::CountQueuingStrategy(JS::Realm& realm, double high_water_mark)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_high_water_mark(high_water_mark)
 {
 }
@@ -34,14 +33,8 @@ CountQueuingStrategy::~CountQueuingStrategy() = default;
 GC::Ref<WebIDL::CallbackType> CountQueuingStrategy::size()
 {
     // 1. Return this's relevant global object's count queuing strategy size function.
-    auto& global = as<HTML::UniversalGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    auto& global = HTML::relevant_settings_object(*this).universal_global_scope();
     return global.count_queuing_strategy_size_function();
-}
-
-void CountQueuingStrategy::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CountQueuingStrategy);
-    Base::initialize(realm);
 }
 
 }

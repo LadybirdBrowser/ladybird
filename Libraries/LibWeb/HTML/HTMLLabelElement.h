@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLLabelElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLLabelElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLLabelElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLLabelElement);
 
 public:

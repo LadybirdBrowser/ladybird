@@ -15,7 +15,7 @@
 namespace Web::CSS {
 
 class CSSStyleRule final : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSStyleRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSStyleRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
@@ -37,9 +37,7 @@ public:
 
 private:
     CSSStyleRule(JS::Realm&, SelectorList&&, CSSStyleProperties&, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

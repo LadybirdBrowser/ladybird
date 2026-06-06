@@ -30,10 +30,11 @@ SharedWorkerGlobalScope::~SharedWorkerGlobalScope() = default;
 void SharedWorkerGlobalScope::initialize_web_interfaces_impl()
 {
     auto& realm = this->realm();
+    auto& global_object = realm.global_object();
 
-    Bindings::add_shared_worker_exposed_interfaces(*this);
+    Bindings::add_shared_worker_exposed_interfaces(global_object);
 
-    SharedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
+    SharedWorkerGlobalScopeGlobalMixin::initialize(realm, global_object);
     Base::initialize_web_interfaces_impl();
 }
 

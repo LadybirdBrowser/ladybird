@@ -5,9 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XPathEvaluator.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 #include "XPath.h"
@@ -20,7 +17,7 @@ namespace Web::XPath {
 GC_DEFINE_ALLOCATOR(XPathEvaluator);
 
 XPathEvaluator::XPathEvaluator(JS::Realm& realm)
-    : Web::Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
@@ -29,12 +26,6 @@ XPathEvaluator::~XPathEvaluator() = default;
 WebIDL::ExceptionOr<GC::Ref<XPathEvaluator>> XPathEvaluator::construct_impl(JS::Realm& realm)
 {
     return realm.create<XPathEvaluator>(realm);
-}
-
-void XPathEvaluator::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XPathEvaluator);
-    Base::initialize(realm);
 }
 
 WebIDL::ExceptionOr<GC::Ref<XPathExpression>> XPathEvaluator::create_expression(String const& expression, GC::Ptr<XPathNSResolver> resolver)

@@ -16,7 +16,7 @@ namespace Web::SVG {
 class SVGFEComponentTransferElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEComponentTransferElement> {
-    WEB_PLATFORM_OBJECT(SVGFEComponentTransferElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEComponentTransferElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEComponentTransferElement);
 
 public:

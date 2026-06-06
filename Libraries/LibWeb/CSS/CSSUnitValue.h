@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
 class CSSUnitValue final : public CSSNumericValue {
-    WEB_PLATFORM_OBJECT(CSSUnitValue, CSSNumericValue);
+    WEB_WRAPPABLE(CSSUnitValue, CSSNumericValue);
     GC_DECLARE_ALLOCATOR(CSSUnitValue);
 
 public:
@@ -40,8 +40,6 @@ public:
 
 private:
     explicit CSSUnitValue(JS::Realm&, double value, FlyString unit, NumericType type);
-
-    virtual void initialize(JS::Realm&) override;
 
     double m_value;
     FlyString m_unit;

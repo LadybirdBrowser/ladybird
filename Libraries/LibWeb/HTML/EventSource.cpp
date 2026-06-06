@@ -173,7 +173,7 @@ void EventSource::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(EventSource);
     Base::initialize(realm);
 
-    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    auto& relevant_global = relevant_window_or_worker_global_scope(*this);
     relevant_global.register_event_source({}, *this);
 }
 
@@ -189,7 +189,7 @@ void EventSource::finalize()
             m_fetch_controller->abort(realm(), {});
     }
 
-    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    auto& relevant_global = relevant_window_or_worker_global_scope(*this);
     relevant_global.unregister_event_source({}, *this);
 }
 

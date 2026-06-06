@@ -9,6 +9,7 @@
 
 #include <LibGC/Root.h>
 #include <LibWeb/Bindings/MutationObserver.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/MutationRecord.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -16,8 +17,8 @@
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#mutationobserver
-class MutationObserver final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MutationObserver, Bindings::PlatformObject);
+class MutationObserver final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MutationObserver, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MutationObserver);
 
 public:
@@ -41,8 +42,7 @@ public:
 private:
     MutationObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://dom.spec.whatwg.org/#concept-mo-callback
     GC::Ptr<WebIDL::CallbackType> m_callback;

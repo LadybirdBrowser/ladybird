@@ -6,8 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ResizeObserverEntry.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
@@ -62,13 +60,7 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_an
     return resize_observer_entry;
 }
 
-void ResizeObserverEntry::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ResizeObserverEntry);
-    Base::initialize(realm);
-}
-
-void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
+void ResizeObserverEntry::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target);
@@ -76,32 +68,6 @@ void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_border_box_size);
     visitor.visit(m_device_pixel_content_box_size);
     visitor.visit(m_content_rect);
-}
-
-static GC::Ref<JS::Object> to_js_array(JS::Realm& realm, Vector<GC::Ref<ResizeObserverSize>> const& sizes)
-{
-    GC::RootVector<JS::Value> vector;
-    for (auto const& size : sizes)
-        vector.append(JS::Value(size.ptr()));
-
-    auto array = JS::Array::create_from(realm, vector);
-    MUST(array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
-    return array;
-}
-
-GC::Ref<JS::Object> ResizeObserverEntry::border_box_size_js_array() const
-{
-    return to_js_array(realm(), m_border_box_size);
-}
-
-GC::Ref<JS::Object> ResizeObserverEntry::content_box_size_js_array() const
-{
-    return to_js_array(realm(), m_content_box_size);
-}
-
-GC::Ref<JS::Object> ResizeObserverEntry::device_pixel_content_box_size_js_array() const
-{
-    return to_js_array(realm(), m_device_pixel_content_box_size);
 }
 
 }

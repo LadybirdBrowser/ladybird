@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaSourceHandle.h>
 #include <LibWeb/MediaSourceExtensions/MediaSourceHandle.h>
 
 namespace Web::MediaSourceExtensions {
@@ -13,16 +11,10 @@ namespace Web::MediaSourceExtensions {
 GC_DEFINE_ALLOCATOR(MediaSourceHandle);
 
 MediaSourceHandle::MediaSourceHandle(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 MediaSourceHandle::~MediaSourceHandle() = default;
-
-void MediaSourceHandle::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaSourceHandle);
-    Base::initialize(realm);
-}
 
 }

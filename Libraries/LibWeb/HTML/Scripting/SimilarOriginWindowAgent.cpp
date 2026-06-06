@@ -30,6 +30,11 @@ SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&
     return as<SimilarOriginWindowAgent>(*relevant_realm(object).vm().agent());
 }
 
+SimilarOriginWindowAgent& relevant_similar_origin_window_agent(Bindings::Wrappable const& wrappable)
+{
+    return as<SimilarOriginWindowAgent>(*relevant_realm(wrappable).vm().agent());
+}
+
 SimilarOriginWindowAgent::SimilarOriginWindowAgent(CanBlock can_block)
     : Agent(can_block)
 {

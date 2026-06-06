@@ -23,7 +23,7 @@
 namespace Web::ServiceWorker {
 
 class ServiceWorkerContainer : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(ServiceWorkerContainer, DOM::EventTarget);
+    WEB_WRAPPABLE(ServiceWorkerContainer, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(ServiceWorkerContainer);
 
 public:

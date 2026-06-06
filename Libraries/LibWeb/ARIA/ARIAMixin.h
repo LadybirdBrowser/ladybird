@@ -8,6 +8,8 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Weak.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/ARIA/Roles.h>
@@ -71,8 +73,8 @@ public:
     Optional<Vector<GC::Weak<DOM::Element>> const&> attribute() const; \
     void set_##attribute(Optional<Vector<GC::Weak<DOM::Element>>>);    \
                                                                        \
-    GC::Ptr<JS::Array> cached_##attribute() const;                     \
-    void set_cached_##attribute(GC::Ptr<JS::Array>);
+    GC::Ptr<JS::Array> cached_##attribute(JS::Realm&) const;           \
+    void set_cached_##attribute(JS::Realm&, GC::Ptr<JS::Array>);
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
@@ -91,7 +93,8 @@ private:
 
 #define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
     OwnPtr<Vector<GC::Weak<DOM::Element>>> m_##attribute;            \
-    GC::Ptr<JS::Array> m_cached_##attribute;
+    mutable GC::Weak<JS::Array> m_cached_##attribute;                \
+    mutable Vector<GC::Weak<JS::Array>> m_live_cached_##attribute;
     ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 };

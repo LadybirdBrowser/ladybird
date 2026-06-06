@@ -13,7 +13,8 @@
 #include <LibGC/Ptr.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Headers.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Fetch {
@@ -21,8 +22,8 @@ namespace Web::Fetch {
 using HeadersInit = Variant<Vector<Vector<String>>, OrderedHashMap<String, String>>;
 
 // https://fetch.spec.whatwg.org/#headers-class
-class Headers final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Headers, Bindings::PlatformObject);
+class Headers final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Headers, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Headers);
 
 public:
@@ -62,8 +63,6 @@ private:
     friend class HeadersIterator;
 
     Headers(JS::Realm&, NonnullRefPtr<HTTP::HeaderList>);
-
-    virtual void initialize(JS::Realm&) override;
 
     WebIDL::ExceptionOr<bool> validate(HTTP::Header const&) const;
     void remove_privileged_no_cors_request_headers();

@@ -24,7 +24,7 @@ using SumValue = Vector<SumValueItem>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
 class CSSNumericValue : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSNumericValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSNumericValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSNumericValue);
 
 public:
@@ -66,8 +66,6 @@ public:
 
 protected:
     explicit CSSNumericValue(JS::Realm&, NumericType);
-
-    virtual void initialize(JS::Realm&) override;
 
     NumericType m_type;
 };

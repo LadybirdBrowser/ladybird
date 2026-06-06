@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/media.html#texttrackcuelist
 class TextTrackCueList final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(TextTrackCueList, DOM::EventTarget);
+    WEB_WRAPPABLE(TextTrackCueList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(TextTrackCueList);
 
 public:
@@ -30,7 +30,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     Vector<GC::Ref<TextTrackCue>> m_cues;
 };

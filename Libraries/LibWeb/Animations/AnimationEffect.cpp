@@ -11,7 +11,6 @@
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
@@ -771,17 +770,11 @@ Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(StringView va
 }
 
 AnimationEffect::AnimationEffect(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
-void AnimationEffect::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationEffect);
-    Base::initialize(realm);
-}
-
-void AnimationEffect::visit_edges(JS::Cell::Visitor& visitor)
+void AnimationEffect::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_animation);

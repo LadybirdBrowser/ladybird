@@ -9,9 +9,9 @@
 #include <AK/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Request.h>
 #include <LibWeb/Bindings/Response.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Headers.h>
@@ -22,9 +22,9 @@ namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#response
 class Response final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public BodyMixin {
-    WEB_PLATFORM_OBJECT(Response, Bindings::PlatformObject);
+    WEB_WRAPPABLE(Response, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Response);
 
 public:
@@ -37,8 +37,8 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
     virtual GC::Ptr<Infrastructure::Body> body_impl() override;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
-    virtual Bindings::PlatformObject& as_platform_object() override { return *this; }
-    virtual Bindings::PlatformObject const& as_platform_object() const override { return *this; }
+    virtual Bindings::Wrappable& as_wrappable() override { return *this; }
+    virtual Bindings::Wrappable const& as_wrappable() const override { return *this; }
 
     [[nodiscard]] GC::Ref<Infrastructure::Response> response() const { return m_response; }
 
@@ -61,8 +61,7 @@ public:
 private:
     Response(JS::Realm&, GC::Ref<Infrastructure::Response>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> initialize_response(Bindings::ResponseInit const&, Optional<Infrastructure::BodyWithType> const&);
 

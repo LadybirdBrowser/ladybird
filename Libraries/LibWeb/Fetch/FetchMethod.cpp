@@ -8,6 +8,7 @@
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Response.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -114,7 +115,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Bindings::R
         response_object = Response::create(relevant_realm, response, Headers::Guard::Immutable);
 
         // 5. Resolve p with responseObject.
-        WebIDL::resolve_promise(relevant_realm, promise_capability, response_object);
+        WebIDL::resolve_promise(relevant_realm, promise_capability, Bindings::wrap(relevant_realm, GC::Ref { *response_object }));
     };
     controller_holder->set_controller(Fetching::fetch(
         realm,

@@ -16,7 +16,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dnd.html#the-dragevent-interface
 class DragEvent : public UIEvents::MouseEvent {
-    WEB_PLATFORM_OBJECT(DragEvent, UIEvents::MouseEvent);
+    WEB_WRAPPABLE(DragEvent, UIEvents::MouseEvent);
     GC_DECLARE_ALLOCATOR(DragEvent);
 
 public:
@@ -30,8 +30,7 @@ public:
 private:
     DragEvent(JS::Realm&, FlyString const& event_name, Bindings::DragEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<DataTransfer> m_data_transfer;
 };

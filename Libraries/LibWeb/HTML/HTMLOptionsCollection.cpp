@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLOptionsCollection.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
@@ -26,17 +26,9 @@ GC::Ref<HTMLOptionsCollection> HTMLOptionsCollection::create(DOM::ParentNode& ro
 HTMLOptionsCollection::HTMLOptionsCollection(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
     : DOM::HTMLCollection(root, Scope::Descendants, move(filter))
 {
-    m_legacy_platform_object_flags->has_indexed_property_setter = true;
-    m_legacy_platform_object_flags->indexed_property_setter_has_identifier = true;
 }
 
 HTMLOptionsCollection::~HTMLOptionsCollection() = default;
-
-void HTMLOptionsCollection::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptionsCollection);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-length
 WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_length(WebIDL::UnsignedLong value)
@@ -73,6 +65,16 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_length(WebIDL::UnsignedLong
     return {};
 }
 
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_new_indexed_property(u32 index, JS::Value value)
+{
+    return set_value_of_indexed_property(index, value);
+}
+
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_existing_indexed_property(u32 index, JS::Value value)
+{
+    return set_value_of_indexed_property(index, value);
+}
+
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-setter
 WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u32 index, JS::Value unconverted_option)
 {
@@ -87,7 +89,9 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
         return {};
     }
 
-    auto option = unconverted_option.as_if<DOM::Element>();
+    DOM::Element* option = nullptr;
+    if (unconverted_option.is_object())
+        option = Bindings::impl_from<DOM::Element>(&unconverted_option.as_object());
     if (!option)
         return WebIDL::TypeMismatchError::create(realm(), "The value provided is not an HTMLOptionElement"_utf16);
 

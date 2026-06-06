@@ -5,7 +5,6 @@
  */
 
 #include "StylePropertyMap.h"
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StylePropertyMap.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -39,12 +38,6 @@ CSSStyleDeclaration& StylePropertyMap::declarations()
 {
     // Writable StylePropertyMaps must be backed by a CSSStyleDeclaration, not an AbstractElement.
     return m_declarations.get<GC::Ref<CSSStyleDeclaration>>();
-}
-
-void StylePropertyMap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StylePropertyMap);
-    Base::initialize(realm);
 }
 
 static bool any_have_non_matching_associated_property(Utf16FlyString const& property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, String>> values)
@@ -159,7 +152,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, Re
     // 9. For each value in values, create an internal representation for property and value, and append the result to values to set.
     for (auto const& value : values) {
         // AD-HOC: Step 5 is done here, see above.
-        auto internal_representation = TRY(create_an_internal_representation(vm(), property.value(), value));
+        auto internal_representation = TRY(create_an_internal_representation(realm().vm(), property.value(), value));
         internal_representation = TRY(normalize_overflow_clip_margin_internal_representation(
             props, property.value(), move(internal_representation)));
 
@@ -281,7 +274,7 @@ WebIDL::ExceptionOr<void> StylePropertyMap::append(Utf16FlyString property_name,
     // 10. For each value in values, create an internal representation with property and value, and append the returned value to temp values.
     for (auto const& value : values) {
         // AD-HOC: Step 5 is done here, see above.
-        auto internal_representation = TRY(create_an_internal_representation(vm(), property.value(), value));
+        auto internal_representation = TRY(create_an_internal_representation(realm().vm(), property.value(), value));
 
         if (internal_representation->is_unresolved())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot append a CSSUnparsedValue or CSSVariableReferenceValue"_string };

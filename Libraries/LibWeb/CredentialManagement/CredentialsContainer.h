@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CredentialsContainer.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CredentialManagement/Credential.h>
 #include <LibWeb/CredentialManagement/FederatedCredential.h>
 #include <LibWeb/CredentialManagement/PasswordCredential.h>
@@ -17,8 +17,8 @@
 
 namespace Web::CredentialManagement {
 
-class CredentialsContainer final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CredentialsContainer, Bindings::PlatformObject);
+class CredentialsContainer final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CredentialsContainer, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CredentialsContainer);
 
 public:
@@ -33,7 +33,6 @@ public:
 
 private:
     explicit CredentialsContainer(JS::Realm&);
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

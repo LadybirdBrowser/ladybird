@@ -9,6 +9,7 @@
 #include <LibWeb/EncryptedMediaExtensions/MediaKeySystemAccess.h>
 #include <LibWeb/EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.h>
 #include <LibWeb/HTML/Navigator.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -22,7 +23,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsP
     auto& realm = navigator.realm();
 
     // 1. If this's relevant global object's associated Document is not allowed to use the encrypted-media feature, then throw a "SecurityError" DOMException and abort these steps.
-    auto& associated_document = as<HTML::Window>(HTML::relevant_global_object(navigator)).associated_document();
+    auto& associated_document = HTML::relevant_window(navigator).associated_document();
     if (!associated_document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::EncryptedMedia))
         return WebIDL::SecurityError::create(realm, "This document is not allowed to use the encrypted-media feature"_utf16);
 
@@ -71,7 +72,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> NavigatorEncryptedMediaExtensionsP
                 auto access = MediaKeySystemAccess::create(realm, key_system, *supported_configuration->configuration, move(implementation));
 
                 // 2. Resolve promise with access and abort the parallel steps of this algorithm.
-                return WebIDL::resolve_promise(realm, promise, access);
+                return WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, access));
             }
         }
 

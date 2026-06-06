@@ -16,7 +16,7 @@ namespace Web::SVG {
 class SVGFECompositeElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFECompositeElement> {
-    WEB_PLATFORM_OBJECT(SVGFECompositeElement, SVGElement);
+    WEB_WRAPPABLE(SVGFECompositeElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFECompositeElement);
 
 public:

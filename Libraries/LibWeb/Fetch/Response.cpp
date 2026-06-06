@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Response.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -23,20 +22,14 @@ namespace Web::Fetch {
 GC_DEFINE_ALLOCATOR(Response);
 
 Response::Response(JS::Realm& realm, GC::Ref<Infrastructure::Response> response)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_response(response)
 {
 }
 
 Response::~Response() = default;
 
-void Response::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Response);
-    Base::initialize(realm);
-}
-
-void Response::visit_edges(Cell::Visitor& visitor)
+void Response::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_response);

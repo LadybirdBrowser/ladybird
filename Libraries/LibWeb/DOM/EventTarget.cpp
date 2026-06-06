@@ -17,9 +17,14 @@
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/RustIntegration.h>
+#include <LibWeb/Bindings/Document.h>
+#include <LibWeb/Bindings/Element.h>
+#include <LibWeb/Bindings/Event.h>
 #include <LibWeb/Bindings/EventTarget.h>
+#include <LibWeb/Bindings/HTMLFormElement.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/DOMEventListener.h>
@@ -53,8 +58,8 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(EventTarget);
 
-EventTarget::EventTarget(JS::Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : PlatformObject(realm, may_interfere_with_indexed_property_access)
+EventTarget::EventTarget(JS::Realm& realm)
+    : Wrappable(realm)
 {
 }
 
@@ -65,16 +70,6 @@ WebIDL::ExceptionOr<GC::Ref<EventTarget>> EventTarget::construct_impl(JS::Realm&
 {
     // The new EventTarget() constructor steps are to do nothing.
     return realm.create<EventTarget>(realm);
-}
-
-void EventTarget::initialize(JS::Realm& realm)
-{
-    // FIXME: We can't do this for UniversalGlobalScopeMixin classes, as this will run when creating the initial global object.
-    //        During this time, the ESO is not setup, so it will cause a nullptr dereference in host_defined_intrinsics.
-    if (!is_universal_global_scope_mixin())
-        WEB_SET_PROTOTYPE_FOR_INTERFACE(EventTarget);
-
-    Base::initialize(realm);
 }
 
 void EventTarget::visit_edges(Cell::Visitor& visitor)
@@ -539,16 +534,22 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 
         // 3. If eventHandler is an element's event handler, then set scope to NewObjectEnvironment(document, true, scope).
         //    (Otherwise, eventHandler is a Window object's event handler.)
-        if (is<Element>(this))
-            scope = JS::new_object_environment(*document, true, scope);
+        if (is<Element>(this)) {
+            auto document_wrapper = Bindings::wrap(realm, GC::Ref { *document });
+            scope = JS::new_object_environment(*document_wrapper, true, scope);
+        }
 
         //  4. If form owner is not null, then set scope to NewObjectEnvironment(form owner, true, scope).
-        if (form_owner)
-            scope = JS::new_object_environment(*form_owner, true, scope);
+        if (form_owner) {
+            auto form_owner_wrapper = Bindings::wrap(realm, GC::Ref { *form_owner });
+            scope = JS::new_object_environment(*form_owner_wrapper, true, scope);
+        }
 
         //  5. If element is not null, then set scope to NewObjectEnvironment(element, true, scope).
-        if (element)
-            scope = JS::new_object_environment(*element, true, scope);
+        if (element) {
+            auto element_wrapper = Bindings::wrap(realm, GC::Ref { *element });
+            scope = JS::new_object_environment(*element_wrapper, true, scope);
+        }
 
         // 9. Let function be the result of calling OrdinaryFunctionCreate.
         auto function = JS::ECMAScriptFunctionObject::create_from_function_data(
@@ -632,7 +633,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
     if (event_handler.listener)
         return;
 
-    JS::Realm& realm = shape().realm();
+    JS::Realm& realm = this->realm();
 
     // 4. Let callback be the result of creating a Web IDL EventListener instance representing a reference to a function of one argument that executes the steps of the event handler processing algorithm, given eventTarget, name, and its argument.
     //    The EventListener's callback context can be arbitrary; it does not impact the steps of the event handler processing algorithm. [DOM]
@@ -648,9 +649,10 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
             VERIFY(vm.argument_count() == 1);
 
             // The argument must be an object and it must be an Event.
-            auto& event = vm.argument(0).as<DOM::Event>();
+            auto* event = Bindings::impl_from<Event>(&vm.argument(0).as_object());
+            VERIFY(event);
 
-            TRY(event_target->process_event_handler_for_event(name, event));
+            TRY(event_target->process_event_handler_for_event(name, *event));
             return JS::js_undefined();
         },
         0, Utf16FlyString {}, &realm);
@@ -733,20 +735,20 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
         // NOTE: current_target is always non-null here, as the event dispatcher takes care to make sure it's non-null (and uses it as the this value for the callback!)
         // FIXME: This is rewrapping the this value of the callback defined in activate_event_handler. While I don't think this is observable as the event dispatcher
         //        calls directly into the callback without considering things such as proxies, it is a waste. However, if it observable, then we must reuse the this_value that was given to the callback.
-        auto* this_value = error_event.current_target().ptr();
+        auto this_value = error_event.current_target_wrapper_for_bindings(callback->callback->shape().realm());
 
-        return_value_or_error = WebIDL::invoke_callback(*callback, this_value, { { wrapped_message, wrapped_filename, wrapped_lineno, wrapped_colno, error_event.error() } });
+        return_value_or_error = WebIDL::invoke_callback(*callback, this_value.ptr(), { { wrapped_message, wrapped_filename, wrapped_lineno, wrapped_colno, error_event.error() } });
     } else {
         // -> Otherwise
         // Invoke callback with one argument, the value of which is the Event object event, with the callback this value set to event's currentTarget. Let return value be the callback's return value. [WEBIDL]
 
         // FIXME: This has the same rewrapping issue as this_value.
-        auto* wrapped_event = &event;
+        auto wrapped_event = Bindings::wrap(callback->callback->shape().realm(), GC::Ref { event });
 
         // FIXME: The comments about this in the special_error_event_handling path also apply here.
-        auto* this_value = event.current_target().ptr();
+        auto this_value = event.current_target_wrapper_for_bindings(callback->callback->shape().realm());
 
-        return_value_or_error = WebIDL::invoke_callback(*callback, this_value, { { wrapped_event } });
+        return_value_or_error = WebIDL::invoke_callback(*callback, this_value.ptr(), { { wrapped_event } });
     }
 
     // If an exception gets thrown by the callback, end these steps and allow the exception to propagate. (It will propagate to the DOM event dispatch logic, which will then report the exception.)

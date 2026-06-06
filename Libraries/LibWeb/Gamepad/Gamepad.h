@@ -8,15 +8,15 @@
 #pragma once
 
 #include <LibWeb/Bindings/Gamepad.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Gamepad {
 
 // https://w3c.github.io/gamepad/#dom-gamepad
-class Gamepad final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Gamepad, Bindings::PlatformObject);
+class Gamepad final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Gamepad, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Gamepad);
 
 public:
@@ -52,8 +52,7 @@ public:
 private:
     explicit Gamepad(JS::Realm&, SDL_JoystickID);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     void select_a_mapping();

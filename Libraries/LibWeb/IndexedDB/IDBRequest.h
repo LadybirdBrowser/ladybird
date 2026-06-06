@@ -17,7 +17,7 @@ using IDBRequestSource = Variant<Empty, GC::Ref<IDBObjectStore>, GC::Ref<IDBInde
 
 // https://w3c.github.io/IndexedDB/#request-api
 class IDBRequest : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(IDBRequest, DOM::EventTarget);
+    WEB_WRAPPABLE(IDBRequest, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(IDBRequest);
 
 public:

@@ -16,7 +16,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
 class OfflineAudioContext final : public BaseAudioContext {
-    WEB_PLATFORM_OBJECT(OfflineAudioContext, BaseAudioContext);
+    WEB_WRAPPABLE(OfflineAudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(OfflineAudioContext);
 
 public:

@@ -16,12 +16,12 @@
 namespace Web::CSS {
 
 CSSRule::CSSRule(JS::Realm& realm, Type type)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_type(type)
 {
 }
 
-void CSSRule::visit_edges(Cell::Visitor& visitor)
+void CSSRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_parent_style_sheet);

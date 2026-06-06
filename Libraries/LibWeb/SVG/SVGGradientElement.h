@@ -39,7 +39,7 @@ inline Painting::GradientPaintStyle::SpreadMethod to_painting_spread_method(Spre
 class SVGGradientElement
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGGradientElement, SVGElement);
+    WEB_WRAPPABLE(SVGGradientElement, SVGElement);
 
 public:
     virtual ~SVGGradientElement() override = default;

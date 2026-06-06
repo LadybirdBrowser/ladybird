@@ -26,7 +26,7 @@
 namespace Web::Speech {
 
 class SpeechSynthesisUtterance final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(SpeechSynthesisUtterance, DOM::EventTarget);
+    WEB_WRAPPABLE(SpeechSynthesisUtterance, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SpeechSynthesisUtterance);
 
 public:

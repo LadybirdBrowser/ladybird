@@ -14,7 +14,7 @@
 namespace Web::WebGL {
 
 class WebGLTexture final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLTexture, WebGLObject);
+    WEB_WRAPPABLE(WebGLTexture, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLTexture);
 
 public:
@@ -24,8 +24,6 @@ public:
 
 protected:
     explicit WebGLTexture(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

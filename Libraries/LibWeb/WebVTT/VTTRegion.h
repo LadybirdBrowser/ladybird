@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/VTTRegion.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebVTT {
 
 // https://w3c.github.io/webvtt/#vttregion
-class VTTRegion final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(VTTRegion, Bindings::PlatformObject);
+class VTTRegion final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(VTTRegion, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(VTTRegion);
 
 public:
@@ -47,8 +47,6 @@ public:
 
 private:
     VTTRegion(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     // https://w3c.github.io/webvtt/#webvtt-region-identifier
     String m_identifier {};

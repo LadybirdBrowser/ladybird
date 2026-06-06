@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.h>
 #include <LibWeb/GPC/GlobalPrivacyControl.h>
 #include <LibWeb/Gamepad/NavigatorGamepad.h>
@@ -27,7 +27,7 @@
 namespace Web::HTML {
 
 class Navigator
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public NavigatorBeaconPartial
     , public NavigatorConcurrentHardwareMixin
     , public NavigatorDeviceMemoryMixin
@@ -38,7 +38,7 @@ class Navigator
     , public NavigatorLanguageMixin
     , public NavigatorOnLineMixin
     , public StorageAPI::NavigatorStorage {
-    WEB_PLATFORM_OBJECT(Navigator, Bindings::PlatformObject);
+    WEB_WRAPPABLE(Navigator, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Navigator);
 
 public:
@@ -80,15 +80,13 @@ public:
     virtual ~Navigator() override;
 
 protected:
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     explicit Navigator(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-
     // ^StorageAPI::NavigatorStorage
-    virtual Bindings::PlatformObject const& this_navigator_storage_object() const override { return *this; }
+    virtual Bindings::Wrappable const& this_navigator_storage_object() const override { return *this; }
 
     GC::Ptr<PluginArray> m_plugin_array;
     GC::Ptr<MimeTypeArray> m_mime_type_array;

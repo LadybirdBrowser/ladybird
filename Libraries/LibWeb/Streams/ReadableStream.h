@@ -9,10 +9,10 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -44,9 +44,9 @@ struct ReadableStreamPair {
 
 // https://streams.spec.whatwg.org/#readablestream
 class ReadableStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(ReadableStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(ReadableStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableStream);
 
 public:
@@ -108,8 +108,7 @@ public:
 private:
     explicit ReadableStream(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#readablestream-controller
     // A ReadableStreamDefaultController or ReadableByteStreamController created with the ability to control the state and queue of this stream

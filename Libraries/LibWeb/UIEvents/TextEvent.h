@@ -11,7 +11,7 @@
 namespace Web::UIEvents {
 
 class TextEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(TextEvent, UIEvent);
+    WEB_WRAPPABLE(TextEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(TextEvent);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 private:
     TextEvent(JS::Realm&, FlyString const& event_name);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_data;
 };

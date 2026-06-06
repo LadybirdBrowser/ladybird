@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StorageManager.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/StorageAPI/StorageManager.h>
 
@@ -19,14 +17,8 @@ WebIDL::ExceptionOr<GC::Ref<StorageManager>> StorageManager::create(JS::Realm& r
 }
 
 StorageManager::StorageManager(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
-}
-
-void StorageManager::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StorageManager);
-    Base::initialize(realm);
 }
 
 }

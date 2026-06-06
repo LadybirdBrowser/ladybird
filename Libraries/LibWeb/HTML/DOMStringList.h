@@ -7,12 +7,13 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DOMStringList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class DOMStringList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMStringList, Bindings::PlatformObject);
+class DOMStringList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMStringList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMStringList);
 
 public:
@@ -22,12 +23,10 @@ public:
     Optional<String> item(u32 index) const;
     bool contains(StringView string);
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
 private:
     explicit DOMStringList(JS::Realm&, Vector<String>);
-
-    virtual void initialize(JS::Realm&) override;
 
     Vector<String> m_list;
 };

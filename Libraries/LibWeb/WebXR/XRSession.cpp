@@ -6,7 +6,6 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/XRSession.h>
 #include <LibWeb/Bindings/XRSessionEvent.h>
 #include <LibWeb/HTML/EventNames.h>

@@ -179,7 +179,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get(Bindings::CookieStoreGetOptions const&
 
         // 2. If this’s relevant global object is a Window object and parsed does not equal url with exclude fragments
         //    set to true, then return a promise rejected with a TypeError.
-        if (is<HTML::Window>(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
+        if (HTML::window_from_global_object(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
             return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"sv));
 
         // 3. If parsed’s origin and url’s origin are not the same origin, then return a promise rejected with a TypeError.
@@ -295,7 +295,7 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(Bindings::CookieStoreGetOptions co
 
         // 2. If this’s relevant global object is a Window object and parsed does not equal url with exclude fragments
         //    set to true, then return a promise rejected with a TypeError.
-        if (is<HTML::Window>(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
+        if (HTML::window_from_global_object(HTML::relevant_global_object(*this)) && !parsed->equals(url, URL::ExcludeFragment::Yes))
             return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "url does not match creation URL"sv));
 
         // 3. If parsed’s origin and url’s origin are not the same origin, then return a promise rejected with a TypeError.

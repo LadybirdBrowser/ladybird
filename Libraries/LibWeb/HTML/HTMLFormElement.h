@@ -29,7 +29,7 @@ namespace Web::HTML {
     __ENUMERATE_FORM_METHOD_ENCODING_TYPE("text/plain", PlainText)
 
 class HTMLFormElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLFormElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLFormElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLFormElement);
 
 public:
@@ -114,8 +114,8 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^PlatformObject
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
     virtual bool is_supported_property_name(FlyString const&) const override;
     virtual Vector<FlyString> supported_property_names() const override;
 

@@ -85,7 +85,7 @@ class WEB_API Element
     , public SlottableMixin
     , public ARIA::ARIAMixin
     , public Animations::Animatable {
-    WEB_PLATFORM_OBJECT(Element, ParentNode);
+    WEB_WRAPPABLE(Element, ParentNode);
     GC_DECLARE_ALLOCATOR(Element);
 
 public:
@@ -843,6 +843,3 @@ enum class ValidationContext {
 WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context);
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Element>() const { return is_dom_element(); }

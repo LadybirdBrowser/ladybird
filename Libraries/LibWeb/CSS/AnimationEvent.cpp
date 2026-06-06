@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/AnimationEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 
 namespace Web::CSS {
@@ -28,12 +27,6 @@ AnimationEvent::AnimationEvent(JS::Realm& realm, FlyString const& type, Bindings
     , m_elapsed_time(event_init.elapsed_time)
     , m_pseudo_element(event_init.pseudo_element)
 {
-}
-
-void AnimationEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationEvent);
-    Base::initialize(realm);
 }
 
 }

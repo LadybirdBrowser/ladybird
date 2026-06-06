@@ -6,17 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextEncoderCommon.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 
 namespace Web::Encoding {
 
 class TextEncoderStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Streams::GenericTransformStreamMixin
     , public TextEncoderCommonMixin {
-    WEB_PLATFORM_OBJECT(TextEncoderStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(TextEncoderStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TextEncoderStream);
 
 public:
@@ -26,8 +26,7 @@ public:
 private:
     TextEncoderStream(JS::Realm&, GC::Ref<Streams::TransformStream>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> encode_and_enqueue_chunk(JS::Value);
     WebIDL::ExceptionOr<void> encode_and_flush();

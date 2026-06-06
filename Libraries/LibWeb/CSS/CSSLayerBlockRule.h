@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-cascade-5/#the-csslayerblockrule-interface
 class CSSLayerBlockRule final : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSLayerBlockRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSLayerBlockRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSLayerBlockRule);
 
 public:
@@ -28,8 +28,6 @@ public:
 
 private:
     CSSLayerBlockRule(JS::Realm&, FlyString name, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

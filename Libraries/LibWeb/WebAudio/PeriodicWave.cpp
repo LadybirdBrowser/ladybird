@@ -6,8 +6,6 @@
  */
 
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PeriodicWave.h>
 #include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -99,19 +97,13 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> PeriodicWave::construct_impl(JS::Real
 }
 
 PeriodicWave::PeriodicWave(JS::Realm& realm)
-    : Base(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 PeriodicWave::~PeriodicWave() = default;
 
-void PeriodicWave::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PeriodicWave);
-    Base::initialize(realm);
-}
-
-void PeriodicWave::visit_edges(Cell::Visitor& visitor)
+void PeriodicWave::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_real);

@@ -45,10 +45,4 @@ PasswordCredential::PasswordCredential(JS::Realm& realm, Bindings::PasswordCrede
 {
 }
 
-void PasswordCredential::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PasswordCredential);
-    Base::initialize(realm);
-}
-
 }

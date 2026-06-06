@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CSSCounterStyleRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Enums.h>
@@ -369,12 +368,6 @@ void CSSCounterStyleRule::clear_caches()
         style_scope.invalidate_counter_style_cache();
         style_scope.node().invalidate_style(DOM::StyleInvalidationReason::CounterStyleCacheInvalidated);
     });
-}
-
-void CSSCounterStyleRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSCounterStyleRule);
-    Base::initialize(realm);
 }
 
 }

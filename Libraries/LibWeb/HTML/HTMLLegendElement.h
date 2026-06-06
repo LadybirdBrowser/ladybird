@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLLegendElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLLegendElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLLegendElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLLegendElement);
 
 public:

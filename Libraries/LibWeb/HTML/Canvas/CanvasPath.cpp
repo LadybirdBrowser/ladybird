@@ -97,7 +97,7 @@ void CanvasPath::bezier_curve_to(double cp1x, double cp1y, double cp2x, double c
 WebIDL::ExceptionOr<void> CanvasPath::arc(float x, float y, float radius, float start_angle, float end_angle, bool counter_clockwise)
 {
     if (radius < 0 && isfinite(radius))
-        return WebIDL::IndexSizeError::create(m_self->realm(), Utf16String::formatted("The radius provided ({}) is negative.", radius));
+        return WebIDL::IndexSizeError::create(canvas_path_realm(), Utf16String::formatted("The radius provided ({}) is negative.", radius));
     return ellipse(x, y, radius, radius, 0, start_angle, end_angle, counter_clockwise);
 }
 
@@ -110,9 +110,9 @@ WebIDL::ExceptionOr<void> CanvasPath::ellipse(float x, float y, float radius_x, 
 
     // 2. If either radiusX or radiusY are negative, then throw an "IndexSizeError" DOMException.
     if (radius_x < 0)
-        return WebIDL::IndexSizeError::create(m_self->realm(), Utf16String::formatted("The major-axis radius provided ({}) is negative.", radius_x));
+        return WebIDL::IndexSizeError::create(canvas_path_realm(), Utf16String::formatted("The major-axis radius provided ({}) is negative.", radius_x));
     if (radius_y < 0)
-        return WebIDL::IndexSizeError::create(m_self->realm(), Utf16String::formatted("The minor-axis radius provided ({}) is negative.", radius_y));
+        return WebIDL::IndexSizeError::create(canvas_path_realm(), Utf16String::formatted("The minor-axis radius provided ({}) is negative.", radius_y));
 
     auto add_line_to_start_point = [this](Gfx::FloatPoint const& start_point) {
         if (!m_path.is_empty())
@@ -214,7 +214,7 @@ WebIDL::ExceptionOr<void> CanvasPath::arc_to(double x1, double y1, double x2, do
 
     // 3. If radius is negative, then throw an "IndexSizeError" DOMException.
     if (radius < 0)
-        return WebIDL::IndexSizeError::create(m_self->realm(), Utf16String::formatted("The radius provided ({}) is negative.", radius));
+        return WebIDL::IndexSizeError::create(canvas_path_realm(), Utf16String::formatted("The radius provided ({}) is negative.", radius));
 
     auto transform = active_transform();
 

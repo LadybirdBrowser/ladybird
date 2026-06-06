@@ -20,7 +20,7 @@ namespace Web::HTML {
 class WEB_API SharedWorkerGlobalScope
     : public WorkerGlobalScope
     , public Bindings::SharedWorkerGlobalScopeGlobalMixin {
-    WEB_PLATFORM_OBJECT(SharedWorkerGlobalScope, WorkerGlobalScope);
+    WEB_WRAPPABLE(SharedWorkerGlobalScope, WorkerGlobalScope);
     GC_DECLARE_ALLOCATOR(SharedWorkerGlobalScope);
 
 public:

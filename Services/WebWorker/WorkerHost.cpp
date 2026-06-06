@@ -7,7 +7,10 @@
 #include <AK/RefPtr.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/Bindings/MessageEvent.h>
+#include <LibWeb/Bindings/SharedWorkerGlobalScope.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -67,16 +70,19 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         Web::Bindings::main_thread_vm(),
         [page, is_shared](JS::Realm& realm) -> JS::Object* {
             // For the global object, if is shared is true, create a new SharedWorkerGlobalScope object.
-            if (is_shared)
-                return realm.heap().allocate<Web::HTML::SharedWorkerGlobalScope>(realm, page);
+            if (is_shared) {
+                auto worker_global_scope = realm.heap().allocate<Web::HTML::SharedWorkerGlobalScope>(realm, page);
+                return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope }).ptr();
+            }
             // Otherwise, create a new DedicatedWorkerGlobalScope object.
-            return realm.heap().allocate<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
+            auto worker_global_scope = realm.heap().allocate<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
+            return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope }).ptr();
         },
         nullptr);
 
     // 6. Let worker global scope be the global object of realm execution context's Realm component.
-    // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object created in the previous step.
-    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope = as<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
+    // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object wrapped in the previous step.
+    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope { Web::Bindings::impl_from<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object()) };
     m_worker_global_scope = worker_global_scope;
 
     // AD-HOC: The spec assumes when setting up the worker environment settings object that the URL is already set on
@@ -359,7 +365,7 @@ void WorkerHost::connect_shared_worker_impl(Web::HTML::TransferDataEncoder messa
     //         attribute initialized to the empty string, the ports attribute initialized to a new
     //         frozen array containing only insidePort, and the source attribute initialized to
     //         insidePort.
-    Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, *m_worker_global_scope, GC::create_function(realm.heap(), [worker_global_scope = GC::Root { *m_worker_global_scope }, inside_port] {
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::DOMManipulation, Web::HTML::relevant_global_object(*m_worker_global_scope), GC::create_function(realm.heap(), [worker_global_scope = GC::Root { *m_worker_global_scope }, inside_port] {
         auto& realm = worker_global_scope->realm();
         auto& vm = realm.vm();
         Web::HTML::TemporaryExecutionContext const context(realm);

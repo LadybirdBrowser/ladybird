@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMQuad.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/DOMPoint.h>
 #include <LibWeb/Bindings/DOMRectReadOnly.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 
@@ -25,7 +26,7 @@ GC::Ref<DOMQuad> DOMQuad::create(JS::Realm& realm)
 }
 
 DOMQuad::DOMQuad(JS::Realm& realm, Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_p1(DOMPoint::from_point(realm.vm(), p1))
     , m_p2(DOMPoint::from_point(realm.vm(), p2))
     , m_p3(DOMPoint::from_point(realm.vm(), p3))
@@ -34,7 +35,7 @@ DOMQuad::DOMQuad(JS::Realm& realm, Bindings::DOMPointInit const& p1, Bindings::D
 }
 
 DOMQuad::DOMQuad(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_p1(DOMPoint::create(realm))
     , m_p2(DOMPoint::create(realm))
     , m_p3(DOMPoint::create(realm))
@@ -118,19 +119,20 @@ GC::Ref<DOMRect> DOMQuad::get_bounds() const
 // https://drafts.fxtf.org/geometry/#structured-serialization
 WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
-    auto& vm = this->vm();
+    auto& realm = this->realm();
+    auto& vm = realm.vm();
 
     // 1. Set serialized.[[P1]] to the sub-serialization of value’s point 1.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p1, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, Bindings::wrap(realm, m_p1), for_storage, memory)));
 
     // 2. Set serialized.[[P2]] to the sub-serialization of value’s point 2.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p2, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, Bindings::wrap(realm, m_p2), for_storage, memory)));
 
     // 3. Set serialized.[[P3]] to the sub-serialization of value’s point 3.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p3, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, Bindings::wrap(realm, m_p3), for_storage, memory)));
 
     // 4. Set serialized.[[P4]] to the sub-serialization of value’s point 4.
-    serialized.append(TRY(HTML::structured_serialize_internal(vm, m_p4, for_storage, memory)));
+    serialized.append(TRY(HTML::structured_serialize_internal(vm, Bindings::wrap(realm, m_p4), for_storage, memory)));
 
     return {};
 }
@@ -138,12 +140,14 @@ WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::TransferDataEncoder
 // https://drafts.fxtf.org/geometry/#structured-serialization
 WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
-    auto& vm = this->vm();
     auto& realm = this->realm();
+    auto& vm = realm.vm();
 
     auto deserialize_dom_point = [&](GC::Ref<DOMPoint>& storage) -> WebIDL::ExceptionOr<void> {
         auto deserialized = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory));
-        storage = as<DOMPoint>(deserialized.as_object());
+        auto* point = Bindings::impl_from<DOMPoint>(&deserialized.as_object());
+        VERIFY(point);
+        storage = GC::Ref { *point };
         return {};
     };
 
@@ -162,13 +166,7 @@ WebIDL::ExceptionOr<void> DOMQuad::deserialization_steps(HTML::TransferDataDecod
     return {};
 }
 
-void DOMQuad::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMQuad);
-    Base::initialize(realm);
-}
-
-void DOMQuad::visit_edges(Cell::Visitor& visitor)
+void DOMQuad::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_p1);

@@ -16,7 +16,7 @@ class HTMLIFrameElement final
     : public NavigableContainer
     , public LazyLoadingElement<HTMLIFrameElement> {
 
-    WEB_PLATFORM_OBJECT(HTMLIFrameElement, NavigableContainer);
+    WEB_WRAPPABLE(HTMLIFrameElement, NavigableContainer);
     LAZY_LOADING_ELEMENT(HTMLIFrameElement);
     GC_DECLARE_ALLOCATOR(HTMLIFrameElement);
 

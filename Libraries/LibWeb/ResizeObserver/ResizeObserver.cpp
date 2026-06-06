@@ -5,9 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ResizeObserver.h>
+#include <LibWeb/Bindings/ResizeObserverEntry.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
@@ -25,21 +26,15 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> ResizeObserver::construct_impl(JS::
 }
 
 ResizeObserver::ResizeObserver(JS::Realm& realm, WebIDL::CallbackType* callback)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_callback(callback)
 {
-    m_document = as<HTML::Window>(HTML::relevant_global_object(*this)).document().ptr();
+    m_document = HTML::relevant_window(*this).document().ptr();
 }
 
 ResizeObserver::~ResizeObserver() = default;
 
-void ResizeObserver::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ResizeObserver);
-    Base::initialize(realm);
-}
-
-void ResizeObserver::visit_edges(JS::Cell::Visitor& visitor)
+void ResizeObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_callback);
@@ -122,19 +117,21 @@ void ResizeObserver::remove_dead_observations()
     unregister_observer_if_needed();
 }
 
-void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const
+void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries)
 {
     auto& callback = *m_callback;
     auto& settings_object = callback.callback_context;
+    auto& callback_realm = settings_object->realm();
 
-    auto wrapped_records = MUST(JS::Array::create(settings_object->realm(), 0));
+    auto wrapped_records = MUST(JS::Array::create(callback_realm, 0));
     for (size_t i = 0; i < entries.size(); ++i) {
         auto& record = entries.at(i);
         auto property_index = JS::PropertyKey { i };
-        MUST(wrapped_records->create_data_property(property_index, record.ptr()));
+        MUST(wrapped_records->create_data_property(property_index, Bindings::wrap(callback_realm, record)));
     }
 
-    (void)WebIDL::invoke_callback(callback, this, WebIDL::ExceptionBehavior::Report, { { wrapped_records, this } });
+    auto wrapped_observer = Bindings::wrap(callback_realm, GC::Ref { *this });
+    (void)WebIDL::invoke_callback(callback, wrapped_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, wrapped_observer } });
 }
 
 void ResizeObserver::unregister_observer_if_needed()

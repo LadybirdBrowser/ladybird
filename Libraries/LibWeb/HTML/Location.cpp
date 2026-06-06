@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -29,28 +30,25 @@ GC_DEFINE_ALLOCATOR(Location);
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface
 Location::Location(JS::Realm& realm)
-    : PlatformObject(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+    : Bindings::Wrappable(realm)
 {
 }
 
 Location::~Location() = default;
 
-void Location::visit_edges(Cell::Visitor& visitor)
+void Location::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_default_properties);
-    for (auto& descriptor : m_cross_origin_property_descriptor_map)
-        descriptor.value.visit_edges(visitor);
 }
 
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
-void Location::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Location);
-    Base::initialize(realm);
-    Bindings::LocationPrototype::define_unforgeable_attributes(realm, *this);
+}
 
-    auto& vm = this->vm();
+namespace Web::Bindings {
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
+void LocationWrapper::initialize_location_object(JS::Realm& realm)
+{
+    auto& vm = realm.vm();
 
     // 2. Let valueOf be location's relevant realm.[[Intrinsics]].[[%Object.prototype.valueOf%]].
     auto& intrinsics = realm.intrinsics();
@@ -80,8 +78,13 @@ void Location::initialize(JS::Realm& realm)
     MUST(JS::Object::internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
-    m_default_properties.extend(MUST(Object::internal_own_property_keys()));
+    // NOTE: In LibWeb this happens before the ESO is set up, so we must avoid location's custom [[OwnPropertyKeys]].
+    m_default_properties.extend(MUST(JS::Object::internal_own_property_keys()));
 }
+
+}
+
+namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/history.html#relevant-document
 GC::Ptr<DOM::Document> Location::relevant_document() const
@@ -89,7 +92,7 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
     // A Location object has an associated relevant Document, which is this Location object's
     // relevant global object's browsing context's active document, if this Location object's
     // relevant global object's browsing context is non-null, and null otherwise.
-    auto* browsing_context = as<HTML::Window>(HTML::relevant_global_object(*this)).browsing_context();
+    auto* browsing_context = relevant_window(*this).browsing_context();
     return browsing_context ? browsing_context->active_document() : nullptr;
 }
 
@@ -97,13 +100,13 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
 WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, Bindings::NavigationHistoryBehavior history_handling)
 {
     // 1. Let navigable be location's relevant global object's navigable.
-    auto navigable = as<HTML::Window>(HTML::relevant_global_object(*this)).navigable();
+    auto navigable = relevant_window(*this).navigable();
 
     // 2. Let sourceDocument be the incumbent global object's associated Document.
-    auto& source_document = as<HTML::Window>(incumbent_global_object()).associated_document();
+    auto& source_document = incumbent_window().associated_document();
 
     // 3. If location's relevant Document is not yet completely loaded, and the incumbent global object does not have transient activation, then set historyHandling to "replace".
-    if (!relevant_document()->is_completely_loaded() && !as<HTML::Window>(incumbent_global_object()).has_transient_activation()) {
+    if (!relevant_document()->is_completely_loaded() && !incumbent_window().has_transient_activation()) {
         history_handling = Bindings::NavigationHistoryBehavior::Replace;
     }
 
@@ -175,7 +178,7 @@ WebIDL::ExceptionOr<String> Location::origin() const
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
 WebIDL::ExceptionOr<String> Location::protocol() const
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -222,7 +225,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-host
 WebIDL::ExceptionOr<String> Location::host() const
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -416,7 +419,7 @@ WebIDL::ExceptionOr<void> Location::set_pathname(String const& value)
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-search
 WebIDL::ExceptionOr<String> Location::search() const
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -476,7 +479,7 @@ WebIDL::ExceptionOr<void> Location::set_search(String const& value)
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hash
 WebIDL::ExceptionOr<String> Location::hash() const
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
@@ -588,8 +591,12 @@ WebIDL::ExceptionOr<void> Location::assign(String const& url)
     return {};
 }
 
+}
+
+namespace Web::Bindings {
+
 // 7.10.5.1 [[GetPrototypeOf]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-getprototypeof
-JS::ThrowCompletionOr<JS::Object*> Location::internal_get_prototype_of() const
+JS::ThrowCompletionOr<JS::Object*> LocationWrapper::internal_get_prototype_of() const
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ! OrdinaryGetPrototypeOf(this).
     if (HTML::is_platform_object_same_origin(*this))
@@ -600,35 +607,35 @@ JS::ThrowCompletionOr<JS::Object*> Location::internal_get_prototype_of() const
 }
 
 // 7.10.5.2 [[SetPrototypeOf]] ( V ), https://html.spec.whatwg.org/multipage/history.html#location-setprototypeof
-JS::ThrowCompletionOr<bool> Location::internal_set_prototype_of(Object* prototype)
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_set_prototype_of(JS::Object* prototype)
 {
     // 1. Return ! SetImmutablePrototype(this, V).
     return MUST(set_immutable_prototype(prototype));
 }
 
 // 7.10.5.3 [[IsExtensible]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-isextensible
-JS::ThrowCompletionOr<bool> Location::internal_is_extensible() const
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_is_extensible() const
 {
     // 1. Return true.
     return true;
 }
 
 // 7.10.5.4 [[PreventExtensions]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-preventextensions
-JS::ThrowCompletionOr<bool> Location::internal_prevent_extensions()
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_prevent_extensions()
 {
     // 1. Return false.
     return false;
 }
 
 // 7.10.5.5 [[GetOwnProperty]] ( P ), https://html.spec.whatwg.org/multipage/history.html#location-getownproperty
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_own_property(JS::PropertyKey const& property_key) const
+JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> LocationWrapper::internal_get_own_property(JS::PropertyKey const& property_key) const
 {
     auto& vm = this->vm();
 
     // 1. If IsPlatformObjectSameOrigin(this) is true, then:
     if (HTML::is_platform_object_same_origin(*this)) {
         // 1. Let desc be OrdinaryGetOwnProperty(this, P).
-        auto descriptor = MUST(Object::internal_get_own_property(property_key));
+        auto descriptor = MUST(JS::Object::internal_get_own_property(property_key));
 
         // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
         // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
@@ -643,7 +650,11 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
     }
 
     // 2. Let property be CrossOriginGetOwnPropertyHelper(this, P).
-    auto property = HTML::cross_origin_get_own_property_helper(const_cast<Location*>(this), property_key);
+    auto property = HTML::cross_origin_get_own_property_helper(
+        const_cast<LocationWrapper&>(*this),
+        impl(),
+        const_cast<LocationWrapper&>(*this).cross_origin_property_descriptor_map(),
+        property_key);
 
     // 3. If property is not undefined, then return property.
     if (property.has_value())
@@ -654,7 +665,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
 }
 
 // 7.10.5.6 [[DefineOwnProperty]] ( P, Desc ), https://html.spec.whatwg.org/multipage/history.html#location-defineownproperty
-JS::ThrowCompletionOr<bool> Location::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then:
     if (HTML::is_platform_object_same_origin(*this)) {
@@ -668,7 +679,7 @@ JS::ThrowCompletionOr<bool> Location::internal_define_own_property(JS::PropertyK
 }
 
 // 7.10.5.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-get
-JS::ThrowCompletionOr<JS::Value> Location::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
+JS::ThrowCompletionOr<JS::Value> LocationWrapper::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
 {
     auto& vm = this->vm();
 
@@ -681,7 +692,7 @@ JS::ThrowCompletionOr<JS::Value> Location::internal_get(JS::PropertyKey const& p
 }
 
 // 7.10.5.8 [[Set]] ( P, V, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-set
-JS::ThrowCompletionOr<bool> Location::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
 {
     auto& vm = this->vm();
 
@@ -694,7 +705,7 @@ JS::ThrowCompletionOr<bool> Location::internal_set(JS::PropertyKey const& proper
 }
 
 // 7.10.5.9 [[Delete]] ( P ), https://html.spec.whatwg.org/multipage/history.html#location-delete
-JS::ThrowCompletionOr<bool> Location::internal_delete(JS::PropertyKey const& property_key)
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_delete(JS::PropertyKey const& property_key)
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryDelete(this, P).
     if (HTML::is_platform_object_same_origin(*this))
@@ -705,14 +716,14 @@ JS::ThrowCompletionOr<bool> Location::internal_delete(JS::PropertyKey const& pro
 }
 
 // 7.10.5.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-ownpropertykeys
-JS::ThrowCompletionOr<GC::RootVector<JS::Value>> Location::internal_own_property_keys() const
+JS::ThrowCompletionOr<GC::RootVector<JS::Value>> LocationWrapper::internal_own_property_keys() const
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return OrdinaryOwnPropertyKeys(this).
     if (HTML::is_platform_object_same_origin(*this))
         return JS::Object::internal_own_property_keys();
 
     // 2. Return CrossOriginOwnPropertyKeys(this).
-    return HTML::cross_origin_own_property_keys(this);
+    return HTML::cross_origin_own_property_keys(impl());
 }
 
 }

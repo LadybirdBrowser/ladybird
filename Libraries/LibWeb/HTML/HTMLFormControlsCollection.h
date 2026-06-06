@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLFormControlsCollection : public DOM::HTMLCollection {
-    WEB_PLATFORM_OBJECT(HTMLFormControlsCollection, DOM::HTMLCollection);
+    WEB_WRAPPABLE(HTMLFormControlsCollection, DOM::HTMLCollection);
     GC_DECLARE_ALLOCATOR(HTMLFormControlsCollection);
 
 public:
@@ -22,9 +22,7 @@ public:
     Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(FlyString const& name) const;
 
 protected:
-    virtual void initialize(JS::Realm&) override;
-
-    virtual JS::Value named_item_value(FlyString const& name) const final;
+    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const final;
 
 private:
     HTMLFormControlsCollection(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);

@@ -6,7 +6,6 @@
 
 #include "CSSTranslate.h"
 #include <LibWeb/Bindings/CSSTranslate.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -63,13 +62,7 @@ CSSTranslate::CSSTranslate(JS::Realm& realm, Is2D is_2d, GC::Ref<CSSNumericValue
 
 CSSTranslate::~CSSTranslate() = default;
 
-void CSSTranslate::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSTranslate);
-    Base::initialize(realm);
-}
-
-void CSSTranslate::visit_edges(Visitor& visitor)
+void CSSTranslate::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_x);

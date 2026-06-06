@@ -15,7 +15,7 @@ namespace Web::WebVTT {
 
 // https://w3c.github.io/webvtt/#vttcue
 class VTTCue final : public HTML::TextTrackCue {
-    WEB_PLATFORM_OBJECT(VTTCue, HTML::TextTrackCue);
+    WEB_WRAPPABLE(VTTCue, HTML::TextTrackCue);
     GC_DECLARE_ALLOCATOR(VTTCue);
 
 public:

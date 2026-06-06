@@ -18,6 +18,7 @@ extern "C" {
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
 #include <LibWeb/WebGL/WebGLBuffer.h>
@@ -822,7 +823,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     case GL_ARRAY_BUFFER_BINDING: {
         if (!m_array_buffer_binding)
             return JS::js_null();
-        return JS::Value(m_array_buffer_binding);
+        return Bindings::wrap(realm(), m_array_buffer_binding);
     }
     case GL_BLEND: {
         GLboolean result { GL_FALSE };
@@ -907,7 +908,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     case GL_CURRENT_PROGRAM: {
         if (!m_current_program)
             return JS::js_null();
-        return JS::Value(m_current_program);
+        return Bindings::wrap(realm(), m_current_program);
     }
     case GL_DEPTH_BITS: {
         GLint result { 0 };
@@ -951,12 +952,12 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     case GL_ELEMENT_ARRAY_BUFFER_BINDING: {
         if (!m_element_array_buffer_binding)
             return JS::js_null();
-        return JS::Value(m_element_array_buffer_binding);
+        return Bindings::wrap(realm(), m_element_array_buffer_binding);
     }
     case GL_FRAMEBUFFER_BINDING: {
         if (!m_framebuffer_binding)
             return JS::js_null();
-        return JS::Value(m_framebuffer_binding);
+        return Bindings::wrap(realm(), m_framebuffer_binding);
     }
     case GL_FRONT_FACE: {
         GLint result { 0 };
@@ -1075,7 +1076,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     case GL_RENDERBUFFER_BINDING: {
         if (!m_renderbuffer_binding)
             return JS::js_null();
-        return JS::Value(m_renderbuffer_binding);
+        return Bindings::wrap(realm(), m_renderbuffer_binding);
     }
     case GL_RENDERER: {
         auto result = reinterpret_cast<char const*>(glGetString(GL_RENDERER));
@@ -1222,12 +1223,12 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
     case GL_TEXTURE_BINDING_2D: {
         if (!m_texture_binding_2d)
             return JS::js_null();
-        return JS::Value(m_texture_binding_2d);
+        return Bindings::wrap(realm(), m_texture_binding_2d);
     }
     case GL_TEXTURE_BINDING_CUBE_MAP: {
         if (!m_texture_binding_cube_map)
             return JS::js_null();
-        return JS::Value(m_texture_binding_cube_map);
+        return Bindings::wrap(realm(), m_texture_binding_cube_map);
     }
     case GL_UNPACK_ALIGNMENT: {
         GLint result { 0 };
@@ -1329,12 +1330,12 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         case GL_COPY_READ_BUFFER_BINDING: {
             if (!m_copy_read_buffer_binding)
                 return JS::js_null();
-            return JS::Value(m_copy_read_buffer_binding);
+            return Bindings::wrap(realm(), m_copy_read_buffer_binding);
         }
         case GL_COPY_WRITE_BUFFER_BINDING: {
             if (!m_copy_write_buffer_binding)
                 return JS::js_null();
-            return JS::Value(m_copy_write_buffer_binding);
+            return Bindings::wrap(realm(), m_copy_write_buffer_binding);
         }
         case GL_MAX_SAMPLES: {
             GLint result { 0 };
@@ -1484,17 +1485,17 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         case GL_PIXEL_PACK_BUFFER_BINDING: {
             if (!m_pixel_pack_buffer_binding)
                 return JS::js_null();
-            return JS::Value(m_pixel_pack_buffer_binding);
+            return Bindings::wrap(realm(), m_pixel_pack_buffer_binding);
         }
         case GL_PIXEL_UNPACK_BUFFER_BINDING: {
             if (!m_pixel_unpack_buffer_binding)
                 return JS::js_null();
-            return JS::Value(m_pixel_unpack_buffer_binding);
+            return Bindings::wrap(realm(), m_pixel_unpack_buffer_binding);
         }
         case GL_TEXTURE_BINDING_2D_ARRAY: {
             if (!m_texture_binding_2d_array)
                 return JS::js_null();
-            return JS::Value(m_texture_binding_2d_array);
+            return Bindings::wrap(realm(), m_texture_binding_2d_array);
         }
         case GL_TRANSFORM_FEEDBACK_ACTIVE: {
             GLboolean result { GL_FALSE };
@@ -1504,12 +1505,12 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         case GL_TRANSFORM_FEEDBACK_BINDING: {
             if (!m_transform_feedback_binding)
                 return JS::js_null();
-            return JS::Value(m_transform_feedback_binding);
+            return Bindings::wrap(realm(), m_transform_feedback_binding);
         }
         case GL_TRANSFORM_FEEDBACK_BUFFER_BINDING: {
             if (!m_transform_feedback_buffer_binding)
                 return JS::js_null();
-            return JS::Value(m_transform_feedback_buffer_binding);
+            return Bindings::wrap(realm(), m_transform_feedback_buffer_binding);
         }
         case GL_TRANSFORM_FEEDBACK_PAUSED: {
             GLboolean result { GL_FALSE };
@@ -1524,12 +1525,12 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         case GL_SAMPLER_BINDING: {
             GLint handle { 0 };
             glGetIntegervRobustANGLE(GL_SAMPLER_BINDING, 1, nullptr, &handle);
-            return WebGLSampler::create(realm(), *this, handle);
+            return Bindings::wrap(realm(), WebGLSampler::create(realm(), *this, handle));
         }
         case GL_UNIFORM_BUFFER_BINDING: {
             if (!m_uniform_buffer_binding)
                 return JS::js_null();
-            return JS::Value(m_uniform_buffer_binding);
+            return Bindings::wrap(realm(), m_uniform_buffer_binding);
         }
         case GL_UNPACK_IMAGE_HEIGHT: {
             GLint result { 0 };
@@ -1559,7 +1560,7 @@ WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::
         case GL_VERTEX_ARRAY_BINDING: { // FIXME: Allow this for VERTEX_ARRAY_BINDING_OES
             if (!m_current_vertex_array)
                 return JS::js_null();
-            return JS::Value(m_current_vertex_array);
+            return Bindings::wrap(realm(), m_current_vertex_array);
         }
         case MAX_CLIENT_WAIT_TIMEOUT_WEBGL:
             // FIXME: Make this an actual limit
@@ -1841,7 +1842,7 @@ JS::Value WebGLRenderingContextImpl::get_vertex_attrib(WebIDL::UnsignedLong inde
     case GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING: {
         GLint handle { 0 };
         glGetVertexAttribivRobustANGLE(index, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, 1, nullptr, &handle);
-        return WebGLBuffer::create(realm(), *this, handle);
+        return Bindings::wrap(realm(), WebGLBuffer::create(realm(), *this, handle));
     }
     case GL_VERTEX_ATTRIB_ARRAY_DIVISOR: { // NOTE: This has the same value as GL_VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE
         if (extension_enabled("ANGLE_instanced_arrays"sv) || m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
@@ -2358,7 +2359,7 @@ void WebGLRenderingContextImpl::viewport(WebIDL::Long x, WebIDL::Long y, WebIDL:
     glViewport(x, y, width, height);
 }
 
-void WebGLRenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
+void WebGLRenderingContextImpl::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 

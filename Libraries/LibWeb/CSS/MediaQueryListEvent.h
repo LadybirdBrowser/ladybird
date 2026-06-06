@@ -13,7 +13,7 @@
 namespace Web::CSS {
 
 class MediaQueryListEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(MediaQueryListEvent, DOM::Event);
+    WEB_WRAPPABLE(MediaQueryListEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(MediaQueryListEvent);
 
 public:
@@ -27,8 +27,6 @@ public:
 
 private:
     MediaQueryListEvent(JS::Realm&, FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_media;
     bool m_matches;

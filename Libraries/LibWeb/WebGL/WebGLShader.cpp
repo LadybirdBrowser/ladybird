@@ -7,7 +7,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLShader.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 
@@ -27,11 +26,5 @@ WebGLShader::WebGLShader(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> co
 }
 
 WebGLShader::~WebGLShader() = default;
-
-void WebGLShader::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLShader);
-    Base::initialize(realm);
-}
 
 }

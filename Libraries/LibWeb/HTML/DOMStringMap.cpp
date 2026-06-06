@@ -5,8 +5,6 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <LibWeb/Bindings/DOMStringMap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/DOMStringMap.h>
@@ -22,26 +20,14 @@ GC::Ref<DOMStringMap> DOMStringMap::create(DOM::Element& element)
 }
 
 DOMStringMap::DOMStringMap(DOM::Element& element)
-    : PlatformObject(element.realm())
+    : Bindings::Wrappable(element.realm())
     , m_associated_element(element)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_named_properties = true,
-        .has_named_property_setter = true,
-        .has_named_property_deleter = true,
-        .has_legacy_override_built_ins_interface_extended_attribute = true,
-    };
 }
 
 DOMStringMap::~DOMStringMap() = default;
 
-void DOMStringMap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMStringMap);
-    Base::initialize(realm);
-}
-
-void DOMStringMap::visit_edges(Cell::Visitor& visitor)
+void DOMStringMap::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_element);
@@ -130,7 +116,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(vm()));
+    auto value = TRY(unconverted_value.to_string(realm().vm()));
 
     StringBuilder builder;
 
@@ -179,7 +165,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_existing_named_property(Str
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-domstringmap-removeitem
-WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::delete_value(String const& name)
+WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> DOMStringMap::delete_value(String const& name)
 {
     StringBuilder builder;
 
@@ -203,12 +189,12 @@ WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> DOMStringMap::del
     m_associated_element->remove_attribute(data_name);
 
     // The spec doesn't have the step. This indicates that the deletion was successful.
-    return DidDeletionFail::No;
+    return Bindings::NamedPropertyDeletionResult::DidNotFail;
 }
 
-JS::Value DOMStringMap::named_item_value(FlyString const& name) const
+JS::Value DOMStringMap::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
-    return JS::PrimitiveString::create(vm(), determine_value_of_named_property(name));
+    return JS::PrimitiveString::create(realm.vm(), determine_value_of_named_property(name));
 }
 
 }

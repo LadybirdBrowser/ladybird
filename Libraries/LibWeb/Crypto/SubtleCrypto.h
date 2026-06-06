@@ -10,15 +10,15 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/SubtleCrypto.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 
 namespace Web::Crypto {
 
-class SubtleCrypto final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SubtleCrypto, Bindings::PlatformObject);
+class SubtleCrypto final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SubtleCrypto, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SubtleCrypto);
 
 public:
@@ -53,7 +53,6 @@ public:
 
 private:
     explicit SubtleCrypto(JS::Realm&);
-    virtual void initialize(JS::Realm&) override;
 };
 
 struct NormalizedAlgorithmAndParameter {

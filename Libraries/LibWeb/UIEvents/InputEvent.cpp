@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/InputEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 
 namespace Web::UIEvents {
@@ -37,12 +36,6 @@ InputEvent::InputEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
 }
 
 InputEvent::~InputEvent() = default;
-
-void InputEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(InputEvent);
-    Base::initialize(realm);
-}
 
 void InputEvent::visit_edges(Visitor& visitor)
 {

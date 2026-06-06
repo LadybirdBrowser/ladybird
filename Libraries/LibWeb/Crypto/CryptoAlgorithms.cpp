@@ -37,7 +37,9 @@
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/Bindings/CryptoKey.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
 #include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
@@ -284,7 +286,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedKey::to_object(JS::Realm&
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
     if (shared_key.has_value())
-        TRY(object->create_data_property("sharedKey"_utf16_fly_string, shared_key.value()));
+        TRY(object->create_data_property("sharedKey"_utf16_fly_string, Bindings::wrap(realm, GC::Ref { *shared_key.value() })));
 
     if (ciphertext.has_value())
         TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, ciphertext.value())));
@@ -559,13 +561,12 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_
     auto key_value = TRY(object.get("public"_utf16_fly_string));
     auto key_object = TRY(key_value.to_object(vm));
 
-    if (!is<CryptoKey>(*key_object)) {
+    auto* key = Bindings::impl_from<CryptoKey>(&*key_object);
+    if (!key) {
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKey");
     }
 
-    auto& key = as<CryptoKey>(*key_object);
-
-    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { key });
+    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { *key });
 }
 
 EcKeyImportParams::~EcKeyImportParams() = default;
@@ -769,7 +770,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacImportParams::from_val
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
     auto& realm = *m_realm;
-    auto& vm = realm.vm();
     auto const& normalized_algorithm = static_cast<RsaOaepParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
@@ -781,7 +781,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
 
     auto const& handle = key->handle();
     auto public_key = handle.get<::Crypto::PK::RSAPublicKey>();
-    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = key->rsa_hashed_algorithm().hash();
 
     // 3. Perform the encryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA public key,
     //    the contents of plaintext as the message to be encrypted, M and label as the label, L, and with the hash function specified by the hash attribute
@@ -816,7 +816,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, AK::ByteBuffer const& ciphertext)
 {
     auto& realm = *m_realm;
-    auto& vm = realm.vm();
     auto const& normalized_algorithm = static_cast<RsaOaepParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
@@ -828,7 +827,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
 
     auto const& handle = key->handle();
     auto private_key = handle.get<::Crypto::PK::RSAPrivateKey>();
-    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = key->rsa_hashed_algorithm().hash();
 
     // 3. Perform the decryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA private key,
     //    the contents of ciphertext as the ciphertext to be decrypted, C, and label as the label, L, and with the hash function specified by the hash attribute
@@ -1275,7 +1274,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         jwk.kty = "RSA"_string;
 
         // 4. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
-        auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+        auto hash = key->rsa_hashed_algorithm().hash();
 
         // 4. If hash is "SHA-1":
         //      - Set the alg attribute of jwk to the string "RSA-OAEP".
@@ -1432,7 +1431,6 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAPSS:
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
-    auto& vm = realm.vm();
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
@@ -1440,7 +1438,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(AlgorithmParams const
 
     auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
-    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = key->rsa_hashed_algorithm().hash();
 
     // 3. Perform the signature generation operation defined in Section 8.1 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's private key, K, and the contents of message as the message to be signed, M, and using the hash function specified
@@ -1476,7 +1474,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(AlgorithmParams const
 WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
-    auto& vm = realm.vm();
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Public)
@@ -1484,7 +1481,7 @@ WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(AlgorithmParams const& params, GC:
 
     auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
-    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = key->rsa_hashed_algorithm().hash();
 
     // 2. Perform the signature verification operation defined in Section 8.1 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's RSA public key and the contents of message as M and the contents of signature as S and using the hash function specified
@@ -1857,7 +1854,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
         jwk.kty = "RSA"_string;
 
         // 3. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
-        auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+        auto hash = key->rsa_hashed_algorithm().hash();
 
         // 4. If hash is "SHA-1":
         //      - Set the alg attribute of jwk to the string "PS1".
@@ -2015,14 +2012,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAP
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
-    auto& vm = realm.vm();
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
         return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_utf16);
 
     auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey>();
-    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = key->rsa_hashed_algorithm().hash();
 
     // 3. Perform the signature generation operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's private key and the contents of message as M and using the hash function specified in the hash attribute
@@ -2056,14 +2052,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(AlgorithmParams 
 WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto& realm = *m_realm;
-    auto& vm = realm.vm();
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Public)
         return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_utf16);
 
     auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey>();
-    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = key->rsa_hashed_algorithm().hash();
 
     // 2. Perform the signature verification operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's RSA public key and the contents of message as M and the contents of signature as S and using the hash function specified
@@ -2434,7 +2429,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
         jwk.kty = "RSA"_string;
 
         // 3. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
-        auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+        auto hash = key->rsa_hashed_algorithm().hash();
 
         // 4. If hash is "SHA-1":
         //      - Set the alg attribute of jwk to the string "RS1".
@@ -3993,7 +3988,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
 
     // FIXME: 5. Let params be the EC domain parameters associated with key.
 
-    auto const& internal_algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+    auto const& internal_algorithm = key->ec_algorithm();
     auto const& named_curve = internal_algorithm.named_curve();
 
     ByteBuffer result;
@@ -4089,7 +4084,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
     // FIXME: 5. Let params be the EC domain parameters associated with key.
 
     // 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-    auto const& internal_algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+    auto const& internal_algorithm = key->ec_algorithm();
     auto const& named_curve = internal_algorithm.named_curve();
 
     auto result = false;
@@ -4124,7 +4119,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
     } else {
         // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
         // Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
-        return realm.vm().throw_completion<WebIDL::NotSupportedError>("Invalid algorithm"_utf16);
+        return throw_completion(WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_utf16));
     }
 
     // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
@@ -4652,7 +4647,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
         //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //    Set the subjectPublicKey field to keyData
         //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
             //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
@@ -4715,7 +4710,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
         //      Set the privateKey field to keyData.
         //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
             // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
@@ -4774,7 +4769,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
         jwk.kty = "EC"_string;
 
         // 3. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
             if (algorithm.named_curve() == "P-256"sv) {
@@ -4887,7 +4882,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
         ByteBuffer data;
 
         // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let data be an octet string representing the Elliptic Curve point Q represented by [[handle]] internal slot
             // of key according to [SEC1] 2.3.3 using the uncompressed format.
@@ -5044,8 +5039,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
 
     // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
-    auto& internal_algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
-    auto& public_internal_algorithm = static_cast<EcKeyAlgorithm const&>(*public_key->algorithm());
+    auto& internal_algorithm = key->ec_algorithm();
+    auto& public_internal_algorithm = public_key->ec_algorithm();
     if (internal_algorithm.name() != public_internal_algorithm.name()) {
         return WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16);
     }
@@ -5602,7 +5597,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
         //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //    Set the subjectPublicKey field to keyData
         //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
             //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
@@ -5665,7 +5660,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
         //      Set the privateKey field to keyData.
         //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
             // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
@@ -5724,7 +5719,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
         jwk.kty = "EC"_string;
 
         // 3. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
             if (algorithm.named_curve() == "P-256"sv) {
@@ -5837,7 +5832,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
         ByteBuffer data;
 
         // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+        auto& algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let data be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
             // of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
@@ -7077,9 +7072,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(AlgorithmParam
 
     // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
-    auto& internal_algorithm = static_cast<KeyAlgorithm const&>(*key->algorithm());
-    auto& public_internal_algorithm = static_cast<KeyAlgorithm const&>(*public_key->algorithm());
-    if (internal_algorithm.name() != public_internal_algorithm.name())
+    if (key->algorithm_name() != public_key->algorithm_name())
         return WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_utf16);
 
     // 5. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
@@ -7592,9 +7585,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(
 
     // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
-    auto& internal_algorithm = static_cast<KeyAlgorithm const&>(*key->algorithm());
-    auto& public_internal_algorithm = static_cast<KeyAlgorithm const&>(*public_key->algorithm());
-    if (internal_algorithm.name() != public_internal_algorithm.name())
+    if (key->algorithm_name() != public_key->algorithm_name())
         return WebIDL::InvalidAccessError::create(m_realm, "Algorithm mismatch"_utf16);
 
     // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
@@ -8074,9 +8065,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
     return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
 }
 
-static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& realm, GC::Ptr<KeyAlgorithm> hash, ReadonlyBytes key, ReadonlyBytes message)
+static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& realm, String const& hash_name, ReadonlyBytes key, ReadonlyBytes message)
 {
-    auto hash_name = hash->name();
     auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
         if (hash_name == "SHA-1")
             return ::Crypto::Hash::HashKind::SHA1;
@@ -8115,7 +8105,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HMAC::sign(AlgorithmParams const&,
     //    function identified by the hash attribute of the [[algorithm]] internal slot of key and
     //    message as the input data text.
     auto const& key_data = key->handle().get<ByteBuffer>();
-    auto const& algorithm = as<HmacKeyAlgorithm>(*key->algorithm());
+    auto const& algorithm = key->hmac_algorithm();
     auto mac = TRY(hmac_calculate_message_digest(m_realm, algorithm.hash(), key_data.bytes(), message.bytes()));
 
     // 2. Return the result of creating an ArrayBuffer containing mac.
@@ -8130,7 +8120,7 @@ WebIDL::ExceptionOr<JS::Value> HMAC::verify(AlgorithmParams const&, GC::Ref<Cryp
     //    function identified by the hash attribute of the [[algorithm]] internal slot of key and
     //    message as the input data text.
     auto const& key_data = key->handle().get<ByteBuffer>();
-    auto const& algorithm = as<HmacKeyAlgorithm>(*key->algorithm());
+    auto const& algorithm = key->hmac_algorithm();
     auto mac = TRY(hmac_calculate_message_digest(m_realm, algorithm.hash(), key_data.bytes(), message.bytes()));
 
     // 2. Return true if mac is equal to signature and false otherwise.
@@ -8405,13 +8395,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
         jwk.k = MUST(encode_base64url(data, AK::OmitPadding::Yes));
 
         // Let algorithm be the [[algorithm]] internal slot of key.
-        auto const& algorithm = as<HmacKeyAlgorithm>(*key->algorithm());
+        auto const& algorithm = key->hmac_algorithm();
 
         // Let hash be the hash attribute of algorithm.
-        auto hash = algorithm.hash();
-
         // If the name attribute of hash is "SHA-1":
-        auto hash_name = hash->name();
+        auto hash_name = algorithm.hash();
         if (hash_name == "SHA-1") {
             // Set the alg attribute of jwk to the string "HS1".
             jwk.alg = "HS1"_string;

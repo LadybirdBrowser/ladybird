@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSetLoadEvent.h>
 
@@ -31,12 +30,6 @@ FontFaceSetLoadEvent::FontFaceSetLoadEvent(JS::Realm& realm, FlyString const& ev
     for (auto const& font_face : event_init.fontfaces) {
         m_fontfaces.unchecked_append(font_face);
     }
-}
-
-void FontFaceSetLoadEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFaceSetLoadEvent);
-    Base::initialize(realm);
 }
 
 void FontFaceSetLoadEvent::visit_edges(Visitor& visitor)

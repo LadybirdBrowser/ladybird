@@ -7,6 +7,7 @@
 #include "ScrollTimeline.h"
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -28,7 +29,7 @@ GC::Ref<ScrollTimeline> ScrollTimeline::create(JS::Realm& realm, DOM::Document& 
 // https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-scrolltimeline
 GC::Ref<ScrollTimeline> ScrollTimeline::construct_impl(JS::Realm& realm, Bindings::ScrollTimelineOptions options)
 {
-    auto& document = as<HTML::Window>(realm.global_object()).associated_document();
+    auto& document = HTML::relevant_window(realm.global_object()).associated_document();
 
     // 1. Let timeline be the new ScrollTimeline object.
     // 2. Set the source of timeline to:
@@ -220,18 +221,12 @@ ScrollTimeline::ScrollTimeline(JS::Realm& realm, DOM::Document& document, Source
 {
 }
 
-void ScrollTimeline::visit_edges(Cell::Visitor& visitor)
+void ScrollTimeline::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_source.visit(
         [&](GC::Ptr<DOM::Element const>& source) { visitor.visit(source); },
         [&](AnonymousSource& anonymous_source) { anonymous_source.target.visit(visitor); });
-}
-
-void ScrollTimeline::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ScrollTimeline);
-    Base::initialize(realm);
 }
 
 Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> ScrollTimeline::get_propagated_source() const

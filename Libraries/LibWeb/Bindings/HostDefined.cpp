@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 
 namespace Web::Bindings {
 
@@ -13,6 +14,7 @@ void HostDefined::visit_edges(JS::Cell::Visitor& visitor)
 {
     JS::Realm::HostDefined::visit_edges(visitor);
     visitor.visit(intrinsics);
+    visitor.visit(wrapper_world);
 }
 
 }

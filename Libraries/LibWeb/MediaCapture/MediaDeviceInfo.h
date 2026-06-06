@@ -8,7 +8,8 @@
 
 #include <AK/String.h>
 #include <AK/Types.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MediaDeviceInfo.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Bindings {
 
@@ -19,8 +20,8 @@ enum class MediaDeviceKind : u8;
 namespace Web::MediaCapture {
 
 // https://w3c.github.io/mediacapture-main/#device-info
-class MediaDeviceInfo final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaDeviceInfo, Bindings::PlatformObject);
+class MediaDeviceInfo final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MediaDeviceInfo, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MediaDeviceInfo);
 
 public:
@@ -34,8 +35,6 @@ public:
 
 private:
     MediaDeviceInfo(JS::Realm&, String device_id, Bindings::MediaDeviceKind kind, String label, String group_id);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_device_id;
     Bindings::MediaDeviceKind m_kind;

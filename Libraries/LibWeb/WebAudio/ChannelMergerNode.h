@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#ChannelMergerNode
 class ChannelMergerNode final : public AudioNode {
-    WEB_PLATFORM_OBJECT(ChannelMergerNode, AudioNode);
+    WEB_WRAPPABLE(ChannelMergerNode, AudioNode);
     GC_DECLARE_ALLOCATOR(ChannelMergerNode);
 
 public:

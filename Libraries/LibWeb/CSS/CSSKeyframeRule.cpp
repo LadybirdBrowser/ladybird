@@ -7,7 +7,6 @@
 
 #include "CSSKeyframeRule.h"
 #include <LibWeb/Bindings/CSSKeyframeRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>
 
@@ -28,16 +27,10 @@ CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, Percentage key, CSSStylePrope
     m_declarations->set_parent_rule(*this);
 }
 
-void CSSKeyframeRule::visit_edges(Visitor& visitor)
+void CSSKeyframeRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_declarations);
-}
-
-void CSSKeyframeRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeyframeRule);
-    Base::initialize(realm);
 }
 
 String CSSKeyframeRule::serialized() const

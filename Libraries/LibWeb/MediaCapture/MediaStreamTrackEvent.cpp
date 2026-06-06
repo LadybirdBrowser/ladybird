@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaStreamTrackEvent.h>
 #include <LibWeb/MediaCapture/MediaStreamTrackEvent.h>
 
@@ -31,13 +30,7 @@ MediaStreamTrackEvent::MediaStreamTrackEvent(JS::Realm& realm, FlyString const& 
 
 MediaStreamTrackEvent::~MediaStreamTrackEvent() = default;
 
-void MediaStreamTrackEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaStreamTrackEvent);
-    Base::initialize(realm);
-}
-
-void MediaStreamTrackEvent::visit_edges(Cell::Visitor& visitor)
+void MediaStreamTrackEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_track);

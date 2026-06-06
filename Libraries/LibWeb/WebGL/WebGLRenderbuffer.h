@@ -12,7 +12,7 @@
 namespace Web::WebGL {
 
 class WebGLRenderbuffer final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLRenderbuffer, WebGLObject);
+    WEB_WRAPPABLE(WebGLRenderbuffer, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLRenderbuffer);
 
 public:
@@ -22,8 +22,6 @@ public:
 
 protected:
     explicit WebGLRenderbuffer(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

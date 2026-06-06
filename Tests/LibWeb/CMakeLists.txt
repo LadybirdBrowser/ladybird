@@ -18,6 +18,7 @@ set(TEST_SOURCES
     TestSecureContexts.cpp
     TestSourceHighlighter.cpp
     TestStrings.cpp
+    TestWrapperWorld.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
@@ -32,6 +33,7 @@ target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
+target_link_libraries(TestWrapperWorld PRIVATE LibGC LibJS)
 
 if (NOT WIN32)
     add_custom_target(test-css-tokenizer ALL DEPENDS css-tokenizer "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer")

@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 class CSSCounterStyleRule : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSCounterStyleRule, CSSRule);
+    WEB_WRAPPABLE(CSSCounterStyleRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSCounterStyleRule);
 
 public:
@@ -87,8 +87,6 @@ protected:
     RefPtr<StyleValue const> m_symbols;
     RefPtr<StyleValue const> m_additive_symbols;
     RefPtr<StyleValue const> m_speak_as;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

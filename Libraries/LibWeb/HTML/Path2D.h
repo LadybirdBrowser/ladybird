@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
 
@@ -15,10 +15,10 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#path2d
 class Path2D final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public CanvasPath {
 
-    WEB_PLATFORM_OBJECT(Path2D, Bindings::PlatformObject);
+    WEB_WRAPPABLE(Path2D, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Path2D);
 
 public:
@@ -31,7 +31,7 @@ public:
 private:
     Path2D(JS::Realm&, Optional<Variant<GC::Ref<Path2D>, String>> const&);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual JS::Realm& canvas_path_realm() const override { return realm(); }
 };
 
 }

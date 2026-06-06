@@ -8,7 +8,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/DOMTokenList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -66,12 +66,10 @@ GC::Ref<DOMTokenList> DOMTokenList::create(Element& associated_element, FlyStrin
 
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A2
 DOMTokenList::DOMTokenList(Element& associated_element, FlyString associated_attribute)
-    : Bindings::PlatformObject(associated_element.realm())
+    : Bindings::Wrappable(associated_element.realm())
     , m_associated_element(associated_element)
     , m_associated_attribute(move(associated_attribute))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
-
     // When a DOMTokenList object set is created:
     // 1. Let element be set’s element.
     // 2. Let attributeName be set’s attribute name.
@@ -82,13 +80,7 @@ DOMTokenList::DOMTokenList(Element& associated_element, FlyString associated_att
     associated_attribute_changed(value);
 }
 
-void DOMTokenList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMTokenList);
-    Base::initialize(realm);
-}
-
-void DOMTokenList::visit_edges(Cell::Visitor& visitor)
+void DOMTokenList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_element);
@@ -348,12 +340,12 @@ void DOMTokenList::run_update_steps()
     associated_element->set_attribute_value(m_associated_attribute, serialize_ordered_set());
 }
 
-Optional<JS::Value> DOMTokenList::item_value(size_t index) const
+Optional<JS::Value> DOMTokenList::item_value(JS::Realm& realm, size_t index) const
 {
     auto string = item(index);
     if (!string.has_value())
         return {};
-    return JS::PrimitiveString::create(vm(), string.release_value());
+    return JS::PrimitiveString::create(realm.vm(), string.release_value());
 }
 
 }

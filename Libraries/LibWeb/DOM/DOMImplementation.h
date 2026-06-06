@@ -8,12 +8,12 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::DOM {
 
-class DOMImplementation final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMImplementation, Bindings::PlatformObject);
+class DOMImplementation final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMImplementation, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMImplementation);
 
 public:
@@ -34,8 +34,7 @@ public:
 private:
     explicit DOMImplementation(Document&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Document& document() { return m_document; }
     Document const& document() const { return m_document; }

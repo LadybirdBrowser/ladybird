@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEFuncAElement
 class SVGFEFuncAElement final : public SVGComponentTransferFunctionElement {
-    WEB_PLATFORM_OBJECT(SVGFEFuncAElement, SVGComponentTransferFunctionElement);
+    WEB_WRAPPABLE(SVGFEFuncAElement, SVGComponentTransferFunctionElement);
     GC_DECLARE_ALLOCATOR(SVGFEFuncAElement);
 
 public:

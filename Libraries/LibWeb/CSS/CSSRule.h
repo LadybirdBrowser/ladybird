@@ -9,7 +9,7 @@
 
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Export.h>
@@ -17,8 +17,8 @@
 
 namespace Web::CSS {
 
-class WEB_API CSSRule : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSRule, Bindings::PlatformObject);
+class WEB_API CSSRule : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSRule, Bindings::Wrappable);
 
 public:
     virtual ~CSSRule() = default;
@@ -78,7 +78,7 @@ public:
 protected:
     CSSRule(JS::Realm&, Type);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     [[nodiscard]] FlyString const& parent_layer_internal_qualified_name() const
     {

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/FileSystemEntry.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::EntriesAPI {
 
@@ -15,8 +16,8 @@ enum class EntryType {
     Directory,
 };
 
-class FileSystemEntry final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FileSystemEntry, Bindings::PlatformObject);
+class FileSystemEntry final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(FileSystemEntry, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(FileSystemEntry);
 
 public:
@@ -29,8 +30,6 @@ public:
 
 private:
     FileSystemEntry(JS::Realm&, EntryType entry_type, ByteString name);
-
-    virtual void initialize(JS::Realm&) override;
 
     EntryType m_entry_type;
     ByteString m_name;

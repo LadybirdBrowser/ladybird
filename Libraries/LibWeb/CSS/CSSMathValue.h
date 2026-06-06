@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathvalue
 class CSSMathValue : public CSSNumericValue {
-    WEB_PLATFORM_OBJECT(CSSMathValue, CSSNumericValue);
+    WEB_WRAPPABLE(CSSMathValue, CSSNumericValue);
     GC_DECLARE_ALLOCATOR(CSSMathValue);
 
 public:
@@ -36,8 +36,6 @@ public:
 
 protected:
     explicit CSSMathValue(JS::Realm&, Bindings::CSSMathOperator, NumericType);
-
-    virtual void initialize(JS::Realm&) override;
 
     Bindings::CSSMathOperator m_operator;
 };

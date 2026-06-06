@@ -12,7 +12,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#MediaElementAudioSourceNode
 class MediaElementAudioSourceNode final : public AudioNode {
-    WEB_PLATFORM_OBJECT(MediaElementAudioSourceNode, AudioNode);
+    WEB_WRAPPABLE(MediaElementAudioSourceNode, AudioNode);
     GC_DECLARE_ALLOCATOR(MediaElementAudioSourceNode);
 
 public:

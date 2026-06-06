@@ -7,14 +7,15 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/NavigationDestination.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationdestination
-class NavigationDestination : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NavigationDestination, Bindings::PlatformObject);
+class NavigationDestination : public Bindings::Wrappable {
+    WEB_WRAPPABLE(NavigationDestination, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(NavigationDestination);
 
 public:
@@ -43,8 +44,7 @@ public:
 private:
     NavigationDestination(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationdestination-url
     URL::URL m_url;

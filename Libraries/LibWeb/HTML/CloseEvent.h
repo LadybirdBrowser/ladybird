@@ -14,7 +14,7 @@
 namespace Web::HTML {
 
 class CloseEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(CloseEvent, DOM::Event);
+    WEB_WRAPPABLE(CloseEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CloseEvent);
 
 public:
@@ -29,8 +29,6 @@ public:
 
 private:
     CloseEvent(JS::Realm&, FlyString const& event_name, Bindings::CloseEventInit const& event_init);
-
-    virtual void initialize(JS::Realm&) override;
 
     bool m_was_clean { false };
     u16 m_code { 0 };

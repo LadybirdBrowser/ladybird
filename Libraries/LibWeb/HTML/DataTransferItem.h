@@ -8,15 +8,16 @@
 
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DataTransferItem.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EntriesAPI/FileSystemEntry.h>
 #include <LibWeb/HTML/DragDataStore.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransferitem-interface
-class DataTransferItem : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DataTransferItem, Bindings::PlatformObject);
+class DataTransferItem : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DataTransferItem, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DataTransferItem);
 
 public:
@@ -35,8 +36,7 @@ public:
 private:
     DataTransferItem(JS::Realm&, GC::Ref<DataTransfer>, size_t item_index);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Optional<DragDataStore::Mode> mode() const;
 

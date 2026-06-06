@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMStringList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -19,16 +17,9 @@ GC::Ref<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> li
 }
 
 DOMStringList::DOMStringList(JS::Realm& realm, Vector<String> list)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_list(move(list))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
-}
-
-void DOMStringList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMStringList);
-    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-domstringlist-length
@@ -56,12 +47,12 @@ bool DOMStringList::contains(StringView string)
     return m_list.contains_slow(string);
 }
 
-Optional<JS::Value> DOMStringList::item_value(size_t index) const
+Optional<JS::Value> DOMStringList::item_value(JS::Realm& realm, size_t index) const
 {
     if (index >= m_list.size())
         return {};
 
-    return JS::PrimitiveString::create(vm(), m_list.at(index));
+    return JS::PrimitiveString::create(realm.vm(), m_list.at(index));
 }
 
 }

@@ -9,7 +9,6 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -21,7 +20,7 @@ namespace Web::WebGL {
 using namespace Web::HTML;
 
 class WebGLRenderingContextImpl : public WebGLRenderingContextBase {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextImpl, WebGLRenderingContextBase);
+    WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextImpl, WebGLRenderingContextBase);
 
 public:
     WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
@@ -146,7 +145,7 @@ public:
     void viewport(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
 
 protected:
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<WebGLBuffer> m_array_buffer_binding;
     GC::Ptr<WebGLBuffer> m_element_array_buffer_binding;

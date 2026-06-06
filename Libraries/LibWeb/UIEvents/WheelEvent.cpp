@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WheelEvent.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -27,12 +26,6 @@ WheelEvent::WheelEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
 }
 
 WheelEvent::~WheelEvent() = default;
-
-void WheelEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WheelEvent);
-    Base::initialize(realm);
-}
 
 GC::Ref<WheelEvent> WheelEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, Bindings::WheelEventInit const& wheel_event_init)
 {

@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom-view/#visualviewport
 class VisualViewport final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(VisualViewport, DOM::EventTarget);
+    WEB_WRAPPABLE(VisualViewport, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(VisualViewport);
 
 public:

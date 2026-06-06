@@ -19,6 +19,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/MessagePort.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
@@ -264,7 +265,7 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(GC::Ptr<M
 
     // 2. If transfer contains this MessagePort, then throw a "DataCloneError" DOMException.
     for (auto const& handle : transfer) {
-        if (handle == this)
+        if (Bindings::impl_from<MessagePort>(&*handle) == this)
             return WebIDL::DataCloneError::create(realm, "Cannot transfer a MessagePort to itself"_utf16);
     }
 
@@ -274,7 +275,7 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(GC::Ptr<M
     // 4. If targetPort is not null and transfer contains targetPort, then set doomed to true and optionally report to a developer console that the target port was posted to itself, causing the communication channel to be lost.
     if (target_port) {
         for (auto const& handle : transfer) {
-            if (handle == target_port.ptr()) {
+            if (Bindings::impl_from<MessagePort>(&*handle) == target_port.ptr()) {
                 doomed = true;
                 dbgln("FIXME: Report to a developer console that the target port was posted to itself, causing the communication channel to be lost");
             }
@@ -421,9 +422,8 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     // FIXME: Use a FrozenArray
     GC::RootVector<GC::Ref<MessagePort>> new_ports;
     for (auto const& object : deserialize_record.transferred_values) {
-        if (is<HTML::MessagePort>(*object)) {
-            new_ports.append(as<MessagePort>(*object));
-        }
+        if (auto* message_port = Bindings::impl_from<MessagePort>(&*object))
+            new_ports.append(*message_port);
     }
 
     // 6. Fire an event named message at finalTargetPort, using MessageEvent, with the data attribute initialized to messageClone and the ports attribute initialized to newPorts.

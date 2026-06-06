@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ServiceWorker/Cache.h>
 #include <LibWeb/ServiceWorker/NameToCacheMap.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -15,8 +15,8 @@
 namespace Web::ServiceWorker {
 
 // https://w3c.github.io/ServiceWorker/#cachestorage-interface
-class CacheStorage : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CacheStorage, Bindings::PlatformObject);
+class CacheStorage : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CacheStorage, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CacheStorage);
 
 public:
@@ -29,8 +29,7 @@ public:
 private:
     explicit CacheStorage(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     NameToCacheMap& relevant_name_to_cache_map();
 

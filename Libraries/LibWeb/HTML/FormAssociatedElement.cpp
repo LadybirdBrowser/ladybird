@@ -8,6 +8,7 @@
 
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/Bindings/HTMLFormElement.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
@@ -259,7 +260,10 @@ void FormAssociatedElement::reset_form_owner()
     // See the AD-HOC comment above.
     if (m_form != old_form && html_element.is_form_associated_custom_element()) {
         GC::RootVector<JS::Value> arguments;
-        arguments.append(JS::Value(m_form.ptr()));
+        if (m_form)
+            arguments.append(Bindings::wrap(m_form->realm(), GC::Ref { *m_form }));
+        else
+            arguments.append(JS::js_null());
         html_element.enqueue_a_custom_element_callback_reaction(CustomElementReactionNames::formAssociatedCallback, move(arguments));
     }
 }

@@ -7,7 +7,6 @@
  */
 
 #include <LibWeb/Bindings/CSSKeyframesRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>
@@ -30,16 +29,10 @@ CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, GC::Ref<CSS
         rule->set_parent_rule(this);
 }
 
-void CSSKeyframesRule::visit_edges(Visitor& visitor)
+void CSSKeyframesRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
-}
-
-void CSSKeyframesRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeyframesRule);
-    Base::initialize(realm);
 }
 
 String CSSKeyframesRule::serialized() const

@@ -12,7 +12,7 @@
 namespace Web::DOM {
 
 class StaticRange final : public AbstractRange {
-    WEB_PLATFORM_OBJECT(StaticRange, AbstractRange);
+    WEB_WRAPPABLE(StaticRange, AbstractRange);
     GC_DECLARE_ALLOCATOR(StaticRange);
 
 public:
@@ -20,8 +20,6 @@ public:
 
     StaticRange(Node& start_container, u32 start_offset, Node& end_container, u32 end_offset);
     virtual ~StaticRange() override;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

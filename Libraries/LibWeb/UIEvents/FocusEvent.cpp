@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/FocusEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
 
 namespace Web::UIEvents {
@@ -29,11 +28,5 @@ FocusEvent::FocusEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
 }
 
 FocusEvent::~FocusEvent() = default;
-
-void FocusEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FocusEvent);
-    Base::initialize(realm);
-}
 
 }

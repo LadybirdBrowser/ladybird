@@ -13,7 +13,6 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/DecompressionStream.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Compression/DecompressionStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -83,7 +82,7 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
 }
 
 DecompressionStream::DecompressionStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, Decompressor decompressor, NonnullOwnPtr<AllocatingMemoryStream> input_stream)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , Streams::GenericTransformStreamMixin(transform)
     , m_decompressor(move(decompressor))
     , m_input_stream(move(input_stream))
@@ -92,13 +91,7 @@ DecompressionStream::DecompressionStream(JS::Realm& realm, GC::Ref<Streams::Tran
 
 DecompressionStream::~DecompressionStream() = default;
 
-void DecompressionStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DecompressionStream);
-    Base::initialize(realm);
-}
-
-void DecompressionStream::visit_edges(JS::Cell::Visitor& visitor)
+void DecompressionStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Streams::GenericTransformStreamMixin::visit_edges(visitor);

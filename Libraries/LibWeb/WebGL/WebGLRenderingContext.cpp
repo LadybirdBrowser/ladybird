@@ -8,7 +8,6 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLContextEvent.h>
 #include <LibWeb/Bindings/WebGLRenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -82,13 +81,7 @@ WebGLRenderingContext::WebGLRenderingContext(JS::Realm& realm, HTML::HTMLCanvasE
 
 WebGLRenderingContext::~WebGLRenderingContext() = default;
 
-void WebGLRenderingContext::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderingContext);
-    Base::initialize(realm);
-}
-
-void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
+void WebGLRenderingContext::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     WebGLRenderingContextImpl::visit_edges(visitor);

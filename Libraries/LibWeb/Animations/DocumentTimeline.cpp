@@ -9,6 +9,7 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Bindings/DocumentTimeline.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -36,7 +37,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(
 {
     // Creates a new DocumentTimeline. The Document with which the timeline is associated is the Document associated
     // with the Window that is the current global object.
-    auto& window = as<HTML::Window>(realm.global_object());
+    auto& window = HTML::relevant_window(realm.global_object());
     return create(realm, window.associated_document(), options.origin_time);
 }
 
@@ -82,12 +83,6 @@ DocumentTimeline::DocumentTimeline(JS::Realm& realm, DOM::Document& document, Hi
     : AnimationTimeline(realm, document)
     , m_origin_time(origin_time)
 {
-}
-
-void DocumentTimeline::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DocumentTimeline);
-    Base::initialize(realm);
 }
 
 }

@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 class AudioTrackList final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(AudioTrackList, DOM::EventTarget);
+    WEB_WRAPPABLE(AudioTrackList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(AudioTrackList);
 
 public:
@@ -53,7 +53,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;
-    virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     Vector<GC::Ref<AudioTrack>> m_audio_tracks;
 };

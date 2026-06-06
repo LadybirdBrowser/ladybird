@@ -7,8 +7,6 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/Headers.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
 
@@ -33,18 +31,12 @@ WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(JS::Realm& realm, 
 }
 
 Headers::Headers(JS::Realm& realm, NonnullRefPtr<HTTP::HeaderList> header_list)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_header_list(move(header_list))
 {
 }
 
 Headers::~Headers() = default;
-
-void Headers::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Headers);
-    Base::initialize(realm);
-}
 
 // https://fetch.spec.whatwg.org/#dom-headers-append
 WebIDL::ExceptionOr<void> Headers::append(String const& name_string, String const& value_string)

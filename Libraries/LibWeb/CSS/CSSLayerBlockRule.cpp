@@ -6,7 +6,6 @@
 
 #include "CSSLayerBlockRule.h"
 #include <LibWeb/Bindings/CSSLayerBlockRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
 
@@ -34,12 +33,6 @@ CSSLayerBlockRule::CSSLayerBlockRule(JS::Realm& realm, FlyString name, CSSRuleLi
     } else {
         m_name_internal = m_name;
     }
-}
-
-void CSSLayerBlockRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSLayerBlockRule);
-    Base::initialize(realm);
 }
 
 String CSSLayerBlockRule::serialized() const

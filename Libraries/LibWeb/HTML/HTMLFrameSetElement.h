@@ -15,7 +15,7 @@ namespace Web::HTML {
 class HTMLFrameSetElement final
     : public HTMLElement
     , public WindowEventHandlers {
-    WEB_PLATFORM_OBJECT(HTMLFrameSetElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLFrameSetElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLFrameSetElement);
 
 public:

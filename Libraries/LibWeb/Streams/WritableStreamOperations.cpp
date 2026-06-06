@@ -11,6 +11,7 @@
 #include <AK/GenericShorthands.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/UnderlyingSink.h>
+#include <LibWeb/Bindings/WritableStreamDefaultController.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/WritableStream.h>
@@ -112,7 +113,7 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_writer(WritableStreamDe
 {
     // FIXME: Exactly when we should effectively be using the relevant realm of `this` is to be clarified by the spec.
     //        For now, we do so as needed by WPT tests. See: https://github.com/whatwg/streams/issues/1213
-    auto& realm = HTML::relevant_realm(writer);
+    auto& realm = writer.realm();
 
     // 1. If ! IsWritableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_writable_stream_locked(stream))
@@ -984,7 +985,8 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    callback this value underlyingSink.
     if (underlying_sink.start) {
         start_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, { { controller } }));
+            auto wrapped_controller = Bindings::wrap(controller->realm(), controller);
+            return TRY(WebIDL::invoke_callback(*callback, underlying_sink_value, WebIDL::ExceptionBehavior::Rethrow, { { wrapped_controller } }));
         });
     }
 
@@ -993,7 +995,8 @@ WebIDL::ExceptionOr<void> set_up_writable_stream_default_controller_from_underly
     //    callback this value underlyingSink.
     if (underlying_sink.write) {
         write_algorithm = GC::create_function(realm.heap(), [controller, underlying_sink_value, callback = underlying_sink.write](JS::Value chunk) {
-            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, { { chunk, controller } });
+            auto wrapped_controller = Bindings::wrap(controller->realm(), controller);
+            return WebIDL::invoke_promise_callback(*callback, underlying_sink_value, { { chunk, wrapped_controller } });
         });
     }
 
@@ -1258,7 +1261,7 @@ void writable_stream_default_controller_process_write(WritableStreamDefaultContr
 // https://streams.spec.whatwg.org/#writable-stream-default-controller-write
 void writable_stream_default_controller_write(WritableStreamDefaultController& controller, JS::Value chunk, JS::Value chunk_size)
 {
-    auto& vm = controller.vm();
+    auto& vm = controller.realm().vm();
 
     // 1. Let enqueueResult be EnqueueValueWithSize(controller, chunk, chunkSize).
     auto enqueue_result = enqueue_value_with_size(controller, chunk, chunk_size);

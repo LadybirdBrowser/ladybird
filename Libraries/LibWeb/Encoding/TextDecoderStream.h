@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
@@ -16,10 +16,10 @@ namespace Web::Encoding {
 
 // https://encoding.spec.whatwg.org/#textdecoderstream
 class TextDecoderStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Streams::GenericTransformStreamMixin
     , public TextDecoderCommonMixin {
-    WEB_PLATFORM_OBJECT(TextDecoderStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(TextDecoderStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TextDecoderStream);
 
 public:
@@ -29,8 +29,7 @@ public:
 private:
     TextDecoderStream(JS::Realm&, GC::Ref<Streams::TransformStream>, TextCodec::Decoder&, FlyString encoding, ErrorMode, bool ignore_bom);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> decode_and_enqueue_chunk(JS::Value);
     WebIDL::ExceptionOr<void> flush_and_enqueue();

@@ -7,7 +7,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLTexture.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
 
@@ -26,11 +25,5 @@ WebGLTexture::WebGLTexture(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> 
 }
 
 WebGLTexture::~WebGLTexture() = default;
-
-void WebGLTexture::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLTexture);
-    Base::initialize(realm);
-}
 
 }

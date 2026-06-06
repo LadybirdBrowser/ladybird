@@ -21,7 +21,7 @@ namespace Web::HTML {
 class HTMLButtonElement final
     : public HTMLElement
     , public PopoverTargetAttributes {
-    WEB_PLATFORM_OBJECT(HTMLButtonElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLButtonElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLButtonElement);
 
 public:

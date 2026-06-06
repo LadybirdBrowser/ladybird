@@ -14,7 +14,7 @@ namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#idbopendbrequest
 class IDBOpenDBRequest : public IDBRequest {
-    WEB_PLATFORM_OBJECT(IDBOpenDBRequest, IDBRequest);
+    WEB_WRAPPABLE(IDBOpenDBRequest, IDBRequest);
     GC_DECLARE_ALLOCATOR(IDBOpenDBRequest);
 
 public:

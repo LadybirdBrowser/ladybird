@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HashChangeEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(HashChangeEvent, DOM::Event);
+    WEB_WRAPPABLE(HashChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(HashChangeEvent);
 
 public:
@@ -25,8 +25,7 @@ public:
 private:
     HashChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::HashChangeEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
     String m_old_url;
     String m_new_url;

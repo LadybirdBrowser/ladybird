@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMRect.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -46,11 +45,5 @@ DOMRect::DOMRect(JS::Realm& realm)
 }
 
 DOMRect::~DOMRect() = default;
-
-void DOMRect::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMRect);
-    Base::initialize(realm);
-}
 
 }

@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaError.h>
 #include <LibWeb/HTML/MediaError.h>
 
 namespace Web::HTML {
@@ -14,16 +12,10 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(MediaError);
 
 MediaError::MediaError(JS::Realm& realm, Code code, String message)
-    : Base(realm)
+    : Wrappable(realm)
     , m_code(code)
     , m_message(move(message))
 {
-}
-
-void MediaError::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaError);
-    Base::initialize(realm);
 }
 
 }

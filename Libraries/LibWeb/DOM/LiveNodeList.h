@@ -15,7 +15,7 @@ namespace Web::DOM {
 // FIXME: Just like HTMLCollection, LiveNodeList currently does no caching.
 
 class LiveNodeList : public NodeList {
-    WEB_NON_IDL_PLATFORM_OBJECT(LiveNodeList, NodeList);
+    WEB_NON_IDL_WRAPPABLE(LiveNodeList, NodeList);
     GC_DECLARE_ALLOCATOR(LiveNodeList);
 
 public:
@@ -36,7 +36,7 @@ protected:
     Node* first_matching(Function<bool(Node const&)> const& filter) const;
 
 private:
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::RootVector<Node*> collection() const;
 

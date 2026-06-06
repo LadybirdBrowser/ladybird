@@ -8,15 +8,15 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioListener.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioListener
-class AudioListener final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AudioListener, Bindings::PlatformObject);
+class AudioListener final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AudioListener, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AudioListener);
 
 public:
@@ -39,8 +39,7 @@ public:
 private:
     explicit AudioListener(JS::Realm&, GC::Ref<BaseAudioContext>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<AudioParam> m_forward_x;
     GC::Ref<AudioParam> m_forward_y;

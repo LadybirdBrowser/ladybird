@@ -19,7 +19,7 @@
 namespace Web::HTML {
 
 class HTMLScriptElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLScriptElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLScriptElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLScriptElement);
 
 public:

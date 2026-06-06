@@ -9,14 +9,15 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SpeechRecognitionPhrase.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Speech {
 
-class SpeechRecognitionPhrase final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechRecognitionPhrase, Bindings::PlatformObject);
+class SpeechRecognitionPhrase final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechRecognitionPhrase, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechRecognitionPhrase);
 
 public:
@@ -31,8 +32,6 @@ public:
 
 private:
     SpeechRecognitionPhrase(JS::Realm&, String const& phrase, float boost);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_phrase;
     float m_boost { 1.f };

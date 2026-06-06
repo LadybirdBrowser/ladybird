@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/PerformanceObserver.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 
 namespace Web::PerformanceTimeline {
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver
-class PerformanceObserver final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(PerformanceObserver, Bindings::PlatformObject);
+class PerformanceObserver final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(PerformanceObserver, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(PerformanceObserver);
 
 public:
@@ -44,8 +45,7 @@ public:
 private:
     PerformanceObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-callback
     // A PerformanceObserverCallback observer callback set on creation.

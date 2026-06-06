@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
 class WEB_API HTMLFrameElement final : public NavigableContainer {
-    WEB_PLATFORM_OBJECT(HTMLFrameElement, NavigableContainer);
+    WEB_WRAPPABLE(HTMLFrameElement, NavigableContainer);
     GC_DECLARE_ALLOCATOR(HTMLFrameElement);
 
 public:

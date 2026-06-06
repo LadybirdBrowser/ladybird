@@ -11,7 +11,7 @@
 namespace Web::DOM {
 
 class ProcessingInstruction final : public CharacterData {
-    WEB_PLATFORM_OBJECT(ProcessingInstruction, CharacterData);
+    WEB_WRAPPABLE(ProcessingInstruction, CharacterData);
     GC_DECLARE_ALLOCATOR(ProcessingInstruction);
 
 public:

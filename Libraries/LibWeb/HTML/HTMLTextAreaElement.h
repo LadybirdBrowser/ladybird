@@ -25,7 +25,7 @@ class WEB_API HTMLTextAreaElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
     , public AutocompleteElement {
-    WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTextAreaElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTextAreaElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLTextAreaElement);
 

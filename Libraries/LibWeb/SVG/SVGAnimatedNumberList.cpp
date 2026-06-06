@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedNumberList.h>
 #include <LibWeb/SVG/SVGAnimatedNumberList.h>
 
 namespace Web::SVG {
@@ -18,15 +16,9 @@ GC::Ref<SVGAnimatedNumberList> SVGAnimatedNumberList::create(JS::Realm& realm, G
 }
 
 SVGAnimatedNumberList::SVGAnimatedNumberList(JS::Realm& realm, GC::Ref<SVGNumberList> base_val)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_base_val(base_val)
 {
-}
-
-void SVGAnimatedNumberList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedNumberList);
-    Base::initialize(realm);
 }
 
 void SVGAnimatedNumberList::visit_edges(Visitor& visitor)

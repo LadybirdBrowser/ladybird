@@ -14,7 +14,7 @@ namespace Web::WebXR {
 
 // https://immersive-web.github.io/webxr/#XRSession-interface
 class XRSession final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(XRSession, DOM::EventTarget);
+    WEB_WRAPPABLE(XRSession, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(XRSession);
 
 public:

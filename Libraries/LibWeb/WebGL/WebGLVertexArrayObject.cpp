@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLVertexArrayObject.h>
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 
@@ -24,11 +23,5 @@ WebGLVertexArrayObject::WebGLVertexArrayObject(JS::Realm& realm, GC::Ref<WebGLRe
 }
 
 WebGLVertexArrayObject::~WebGLVertexArrayObject() = default;
-
-void WebGLVertexArrayObject::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLVertexArrayObject);
-    Base::initialize(realm);
-}
 
 }

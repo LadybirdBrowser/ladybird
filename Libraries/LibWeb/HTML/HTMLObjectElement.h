@@ -16,7 +16,7 @@ namespace Web::HTML {
 class HTMLObjectElement final
     : public NavigableContainer
     , public Layout::ImageProvider {
-    WEB_PLATFORM_OBJECT(HTMLObjectElement, NavigableContainer)
+    WEB_WRAPPABLE(HTMLObjectElement, NavigableContainer)
     GC_DECLARE_ALLOCATOR(HTMLObjectElement);
 
     enum class Representation {

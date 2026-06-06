@@ -8,12 +8,13 @@
 
 #include <AK/String.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MediaError.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class MediaError final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaError, Bindings::PlatformObject);
+class MediaError final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MediaError, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MediaError);
 
 public:
@@ -29,8 +30,6 @@ public:
 
 private:
     MediaError(JS::Realm&, Code code, String message);
-
-    virtual void initialize(JS::Realm&) override;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-mediaerror-code
     Code m_code;

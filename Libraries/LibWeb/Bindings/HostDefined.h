@@ -8,19 +8,22 @@
 
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Bindings {
 
-struct HostDefined : public JS::Realm::HostDefined {
-    explicit HostDefined(GC::Ref<Intrinsics> intrinsics)
+struct WEB_API HostDefined : public JS::Realm::HostDefined {
+    HostDefined(GC::Ref<Intrinsics> intrinsics, GC::Ref<WrapperWorld> wrapper_world)
         : intrinsics(intrinsics)
+        , wrapper_world(wrapper_world)
     {
     }
     virtual ~HostDefined() override = default;
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 
     GC::Ref<Intrinsics> intrinsics;
+    GC::Ref<WrapperWorld> wrapper_world;
 };
 
 }

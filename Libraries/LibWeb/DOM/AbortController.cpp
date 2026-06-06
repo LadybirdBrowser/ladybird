@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/AbortController.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/AbortController.h>
 #include <LibWeb/DOM/AbortSignal.h>
 
@@ -21,20 +19,14 @@ WebIDL::ExceptionOr<GC::Ref<AbortController>> AbortController::construct_impl(JS
 
 // https://dom.spec.whatwg.org/#dom-abortcontroller-abortcontroller
 AbortController::AbortController(JS::Realm& realm, GC::Ref<AbortSignal> signal)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_signal(move(signal))
 {
 }
 
 AbortController::~AbortController() = default;
 
-void AbortController::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AbortController);
-    Base::initialize(realm);
-}
-
-void AbortController::visit_edges(Cell::Visitor& visitor)
+void AbortController::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_signal);
@@ -45,6 +37,11 @@ void AbortController::abort(Optional<JS::Value> reason)
 {
     // The abort(reason) method steps are to signal abort on this’s signal with reason if it is given.
     m_signal->signal_abort(reason.value_or(JS::js_undefined()));
+}
+
+void AbortController::abort(GC::Ref<WebIDL::DOMException> reason)
+{
+    abort(throw_completion(reason).value());
 }
 
 }

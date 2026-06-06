@@ -6,7 +6,6 @@
 
 #include "CSSMathClamp.h"
 #include <LibWeb/Bindings/CSSMathClamp.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -53,13 +52,7 @@ CSSMathClamp::CSSMathClamp(JS::Realm& realm, NumericType type, GC::Ref<CSSNumeri
 
 CSSMathClamp::~CSSMathClamp() = default;
 
-void CSSMathClamp::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathClamp);
-    Base::initialize(realm);
-}
-
-void CSSMathClamp::visit_edges(Visitor& visitor)
+void CSSMathClamp::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_lower);

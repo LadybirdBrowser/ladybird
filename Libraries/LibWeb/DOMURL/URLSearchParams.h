@@ -8,6 +8,7 @@
 
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOMURL {
@@ -19,8 +20,8 @@ struct QueryParam {
 String url_encode(Vector<QueryParam> const&, StringView encoding = "UTF-8"sv);
 Vector<QueryParam> url_decode(StringView);
 
-class URLSearchParams : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(URLSearchParams, Bindings::PlatformObject);
+class URLSearchParams : public Bindings::Wrappable {
+    WEB_WRAPPABLE(URLSearchParams, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(URLSearchParams);
 
 public:
@@ -51,8 +52,7 @@ private:
 
     URLSearchParams(JS::Realm&, Vector<QueryParam> list);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void update();
 

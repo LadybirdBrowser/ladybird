@@ -27,7 +27,7 @@ GC::Ptr<StorageShelf> StorageShed::obtain_a_storage_shelf(HTML::EnvironmentSetti
     // 1. Let key be the result of running obtain a storage key with environment.
     auto key = obtain_a_storage_key(environment);
 
-    auto& page = as<HTML::Window>(environment.global_object()).page();
+    auto& page = HTML::relevant_window(environment.global_object()).page();
 
     // 2. If key is failure, then return failure.
     if (!key.has_value())

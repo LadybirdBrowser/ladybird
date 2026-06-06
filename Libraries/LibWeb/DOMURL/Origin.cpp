@@ -5,8 +5,6 @@
  */
 
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Origin.h>
 #include <LibWeb/DOMURL/Origin.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -16,18 +14,12 @@ namespace Web::DOMURL {
 GC_DEFINE_ALLOCATOR(Origin);
 
 Origin::Origin(JS::Realm& realm, URL::Origin origin)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_origin(move(origin))
 {
 }
 
 Origin::~Origin() = default;
-
-void Origin::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Origin);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-constructor
 GC::Ref<Origin> Origin::construct_impl(JS::Realm& realm)
@@ -42,8 +34,13 @@ WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
     auto& realm = *vm.current_realm();
 
     // NB: IDL only ever sees HTML::WindowProxy but we want to use HTML::Window.
-    if (auto window_proxy = value.as_if<HTML::WindowProxy>())
-        value = window_proxy->window();
+    if (auto window_proxy = value.as_if<HTML::WindowProxy>()) {
+        if (auto window = window_proxy->window()) {
+            auto origin = window->extract_an_origin();
+            if (origin.has_value())
+                return realm.create<Origin>(realm, origin.release_value());
+        }
+    }
 
     // 1. If value is a platform object:
     if (auto object = value.as_if<Bindings::PlatformObject>()) {

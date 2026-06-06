@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebAssembly/Memory.h>
@@ -377,9 +378,10 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
                 // 2. If v implements Global,
                 Optional<Wasm::GlobalAddress> globaladdr;
-                if (v.is_object() && is<Global>(v.as_object())) {
+                auto* global = v.is_object() ? Bindings::impl_from<Global>(&v.as_object()) : nullptr;
+                if (global) {
                     // 1. Let globaladdr be v.[[Global]].
-                    globaladdr = as<Global>(v.as_object()).address();
+                    globaladdr = global->address();
 
                     // 2. Let targetmut valuetype be global_type(store, globaladdr).
                     auto* valuetype = store.get(*globaladdr);
@@ -430,12 +432,13 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
             // 5. If importtype is of the form mem memtype,
             if (entry.description().has<Wasm::MemoryType>()) {
                 // 1. If v does not implement Memory, throw a LinkError exception.
-                if (!v.is_object() || !is<WebAssembly::Memory>(v.as_object())) {
+                auto* memory = v.is_object() ? Bindings::impl_from<Memory>(&v.as_object()) : nullptr;
+                if (!memory) {
                     return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
                 }
 
                 // 2. Let externmem be the external value mem v.[[Memory]].
-                auto externmem = static_cast<WebAssembly::Memory const&>(v.as_object()).address();
+                auto externmem = memory->address();
 
                 // 3. Append externmem to imports.
                 imports.append(externmem);
@@ -444,12 +447,13 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
             // 6. If importtype is of the form table tabletype,
             if (entry.description().has<Wasm::TableType>()) {
                 // 1. If v does not implement Table, throw a LinkError exception.
-                if (!v.is_object() || !is<WebAssembly::Table>(v.as_object())) {
+                auto* table = v.is_object() ? Bindings::impl_from<Table>(&v.as_object()) : nullptr;
+                if (!table) {
                     return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
                 }
 
                 // 2. Let tableaddr be v.[[Table]].
-                auto tableaddr = static_cast<WebAssembly::Table const&>(v.as_object()).address();
+                auto tableaddr = table->address();
 
                 // 3. Let externtable be the external value table tableaddr.
                 Wasm::ExternValue externtable { tableaddr };
@@ -475,7 +479,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
     }
 
     // 7. Set record.[[Instance]] to instance.
-    record->m_instance = vm.heap().allocate<Instance>(*vm.current_realm(), instantiation_result.release_value());
+    record->m_instance = Instance::create(*vm.current_realm(), instantiation_result.release_value());
 
     // 8. For each (name, externtype) of module_exports(module),
     for (auto const& entry : module->module->export_section().entries()) {
@@ -509,7 +513,9 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
         else {
             // 1. Perform !record.[[Environment]].InitializeBinding(name, !Get(instance.[[Exports]], name)).
             auto name = Utf16FlyString::from_utf8(entry.name());
-            MUST(record->environment()->initialize_binding(vm, name, MUST(record->m_instance->get(JS::PropertyKey { name })), JS::Environment::InitializeBindingHint::Normal));
+            auto* exports = record->m_instance->exports();
+            VERIFY(exports);
+            MUST(record->environment()->initialize_binding(vm, name, MUST(exports->get(JS::PropertyKey { name })), JS::Environment::InitializeBindingHint::Normal));
         }
     }
 

@@ -9,7 +9,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::StorageAPI {
@@ -21,7 +21,7 @@ public:
     GC::Ref<StorageManager> storage();
 
 protected:
-    virtual Bindings::PlatformObject const& this_navigator_storage_object() const = 0;
+    virtual Bindings::Wrappable const& this_navigator_storage_object() const = 0;
 };
 
 }

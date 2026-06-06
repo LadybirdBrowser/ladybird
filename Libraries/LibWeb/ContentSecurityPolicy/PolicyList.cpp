@@ -6,14 +6,13 @@
 
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WorkerGlobalScope.h>
 
 namespace Web::ContentSecurityPolicy {
 
@@ -41,14 +40,12 @@ GC::Ref<PolicyList> PolicyList::create(GC::Heap& heap, Vector<SerializedPolicy> 
 GC::Ptr<PolicyList> PolicyList::from_object(JS::Object& object)
 {
     // 1. If object is a Document return object’s policy container's CSP list.
-    if (is<DOM::Document>(object)) {
-        auto& document = static_cast<DOM::Document&>(object);
-        return document.policy_container()->csp_list;
-    }
+    if (auto* document = Bindings::impl_from<DOM::Document>(&object))
+        return document->policy_container()->csp_list;
 
     // 2. If object is a Window or a WorkerGlobalScope or a WorkletGlobalScope, return environment settings object’s
     //    policy container's CSP list.
-    if (is<HTML::Window>(object) || is<HTML::WorkerGlobalScope>(object)) {
+    if (HTML::window_or_worker_global_scope_from_global_object(object)) {
         auto& settings = HTML::relevant_settings_object(object);
         return settings.policy_container()->csp_list;
     }

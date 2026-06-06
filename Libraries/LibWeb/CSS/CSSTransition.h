@@ -15,7 +15,7 @@
 namespace Web::CSS {
 
 class CSSTransition : public Animations::Animation {
-    WEB_PLATFORM_OBJECT(CSSTransition, Animations::Animation);
+    WEB_WRAPPABLE(CSSTransition, Animations::Animation);
     GC_DECLARE_ALLOCATOR(CSSTransition);
 
 public:

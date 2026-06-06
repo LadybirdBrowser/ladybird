@@ -461,7 +461,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     ImportMap import_map;
 
     // 5. If settingsObject's global object implements Window, then set importMap to settingsObject's global object's import map.
-    if (auto* window = as_if<Window>(settings_object->global_object()))
+    if (auto* window = window_from_global_object(settings_object->global_object()))
         import_map = window->import_map();
 
     // 6. Let serializedBaseURL be baseURL, serialized.

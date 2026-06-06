@@ -28,7 +28,7 @@ enum class RelativeBoundaryPointPosition {
 RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(BoundaryPoint a, BoundaryPoint b);
 
 class WEB_API Range final : public AbstractRange {
-    WEB_PLATFORM_OBJECT(Range, AbstractRange);
+    WEB_WRAPPABLE(Range, AbstractRange);
     GC_DECLARE_ALLOCATOR(Range);
 
 public:
@@ -127,8 +127,7 @@ private:
     explicit Range(Document&);
     Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     GC::Ref<Node> root() const;

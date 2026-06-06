@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/PerformanceTiming.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 
@@ -14,23 +14,17 @@ namespace Web::NavigationTiming {
 GC_DEFINE_ALLOCATOR(PerformanceTiming);
 
 PerformanceTiming::PerformanceTiming(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 PerformanceTiming::~PerformanceTiming() = default;
 
-void PerformanceTiming::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceTiming);
-    Base::initialize(realm);
-}
-
 DOM::DocumentLoadTimingInfo const& PerformanceTiming::document_load_timing_info(JS::Object const& global_object) const
 {
-    VERIFY(is<HTML::Window>(global_object));
-    auto& window = static_cast<HTML::Window const&>(global_object);
-    auto document = window.document();
+    auto const* window = HTML::window_from_global_object(global_object);
+    VERIFY(window);
+    auto document = window->document();
     return document->load_timing_info();
 }
 

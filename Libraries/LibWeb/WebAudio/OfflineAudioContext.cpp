@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
@@ -76,7 +77,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::start_renderi
     auto& realm = this->realm();
 
     // 1. If this’s relevant global object’s associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = HTML::relevant_window(*this);
     auto const& associated_document = window.associated_document();
 
     if (!associated_document.is_fully_active()) {
@@ -137,7 +138,8 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
         HTML::TemporaryExecutionContext context(this->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 4.1 Resolve the promise created by startRendering() with [[rendered buffer]].
-        WebIDL::resolve_promise(this->realm(), promise, this->m_rendered_buffer);
+        auto rendered_buffer = Bindings::wrap(this->realm(), this->m_rendered_buffer);
+        WebIDL::resolve_promise(this->realm(), promise, rendered_buffer);
 
         // AD-HOC: Remove resolved promise from [[pending promises]]
         // https://github.com/WebAudio/web-audio-api/issues/2648

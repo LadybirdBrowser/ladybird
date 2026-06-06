@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#OscillatorNode
 class OscillatorNode : public AudioScheduledSourceNode {
-    WEB_PLATFORM_OBJECT(OscillatorNode, AudioScheduledSourceNode);
+    WEB_WRAPPABLE(OscillatorNode, AudioScheduledSourceNode);
     GC_DECLARE_ALLOCATOR(OscillatorNode);
 
 public:

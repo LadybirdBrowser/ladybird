@@ -6,8 +6,11 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -37,11 +40,12 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
     VERIFY(realm);
 
     // 2. Let window be realm's global object.
-    auto& window = as<HTML::Window>(realm->global_object());
+    auto* window = window_from_global_object(realm->global_object());
+    VERIFY(window);
 
     // 3. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
-    auto settings_object = realm->create<WindowEnvironmentSettingsObject>(window, move(execution_context));
+    auto settings_object = realm->create<WindowEnvironmentSettingsObject>(*window, move(execution_context));
 
     // 4. If reservedEnvironment is non-null, then:
     if (reserved_environment) {
@@ -75,12 +79,14 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
     // 7. Set realm's [[HostDefined]] field to settings object.
     // Non-Standard: We store the ESO next to the web intrinsics in a custom HostDefined object
     auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-    auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, page);
+    auto wrapper_world = realm->heap().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
+    auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, *wrapper_world, page);
     realm->set_host_defined(move(host_defined));
+    Bindings::cache_global_object_wrapper(*realm);
 
     // Non-Standard: We cannot fully initialize window object until *after* the we set up
     //    the realm's [[HostDefined]] internal slot as the internal slot contains the web platform intrinsics
-    MUST(window.initialize_web_interfaces({}));
+    MUST(window->initialize_web_interfaces({}));
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:responsible-document

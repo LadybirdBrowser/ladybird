@@ -10,7 +10,6 @@
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioNode.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/Types.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -40,7 +39,7 @@ struct AudioParamConnection {
 
 // https://webaudio.github.io/web-audio-api/#AudioNode
 class AudioNode : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(AudioNode, DOM::EventTarget);
+    WEB_WRAPPABLE(AudioNode, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(AudioNode);
 
 public:

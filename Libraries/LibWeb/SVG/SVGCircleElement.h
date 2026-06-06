@@ -12,7 +12,7 @@
 namespace Web::SVG {
 
 class SVGCircleElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGCircleElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGCircleElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGCircleElement);
 
 public:

@@ -7,24 +7,27 @@
 
 #pragma once
 
+#include <LibGC/Weak.h>
 #include <LibJS/Runtime/Set.h>
-#include <LibJS/Runtime/SetIterator.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/FontFaceSet.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::CSS {
 
 class FontFaceSet final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(FontFaceSet, DOM::EventTarget);
+    WEB_WRAPPABLE(FontFaceSet, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(FontFaceSet);
 
 public:
     [[nodiscard]] static GC::Ref<FontFaceSet> create(JS::Realm&);
     virtual ~FontFaceSet() override = default;
 
-    GC::Ref<JS::Set> set_entries() const { return m_set_entries; }
+    size_t set_size() const { return m_font_faces.size(); }
+    GC::Ref<JS::Set> set_entries_for_realm(JS::Realm&) const;
+    bool set_has(JS::Value) const;
+    Vector<GC::Ref<FontFace>> const& font_faces() const { return m_font_faces; }
 
     WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Ref<FontFace>);
     bool delete_(GC::Ref<FontFace>);
@@ -63,7 +66,9 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ref<JS::Set> m_set_entries;
+    Vector<GC::Ref<FontFace>> m_font_faces;
+    mutable GC::Weak<JS::Set> m_relevant_realm_set_entries;
+    mutable Vector<GC::Weak<JS::Set>> m_live_set_entries;
     GC::Ref<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
 
     Vector<GC::Ref<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]

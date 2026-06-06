@@ -1133,7 +1133,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
         // 2. Let settingsObject be the media element's node document's relevant settings object.
         auto& settings_object = document().relevant_settings_object();
         // 3. Let global be the media element's node document's relevant global object.
-        auto const& global_window = as_if<HTML::Window>(HTML::relevant_global_object(document()));
+        auto const* global_window = window_from_global_object(relevant_global_object(document()));
         // 4. If all of the following conditions are true:
         if (
             // global is a Window object;

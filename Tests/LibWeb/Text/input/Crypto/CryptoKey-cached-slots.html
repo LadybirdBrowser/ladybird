@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        let key = await window.crypto.subtle.generateKey(
+            { name: "AES-CTR", length: 128 },
+            true,
+            ["encrypt"]
+        );
+
+        println(`algorithm cached: ${key.algorithm === key.algorithm}`);
+        println(`usages cached: ${key.usages === key.usages}`);
+        done();
+    });
+</script>

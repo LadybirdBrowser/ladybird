@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Notification.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
@@ -170,7 +171,7 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::construct_impl(
     auto& relevant_global_object = HTML::relevant_global_object(this_notification);
 
     // 1. If this’s relevant global object is a ServiceWorkerGlobalScope object, then throw a TypeError.
-    if (is<ServiceWorker::ServiceWorkerGlobalScope>(relevant_global_object))
+    if (Bindings::impl_from<ServiceWorker::ServiceWorkerGlobalScope>(&relevant_global_object))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "This’s relevant global object is a ServiceWorkerGlobalScope object"sv };
 
     // 2. If options["actions"] is not empty, then throw a TypeError.

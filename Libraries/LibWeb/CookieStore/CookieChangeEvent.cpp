@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CookieChangeEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CookieStore/CookieChangeEvent.h>
 
 namespace Web::CookieStore {
@@ -31,13 +30,7 @@ CookieChangeEvent::CookieChangeEvent(JS::Realm& realm, FlyString const& event_na
 
 CookieChangeEvent::~CookieChangeEvent() = default;
 
-void CookieChangeEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CookieChangeEvent);
-    Base::initialize(realm);
-}
-
-void CookieChangeEvent::visit_edges(Cell::Visitor& visitor)
+void CookieChangeEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 

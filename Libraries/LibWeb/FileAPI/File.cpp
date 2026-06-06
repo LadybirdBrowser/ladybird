@@ -6,8 +6,7 @@
 
 #include <AK/Time.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/File.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Infra/Strings.h>
@@ -27,12 +26,6 @@ File::File(JS::Realm& realm, ByteBuffer byte_buffer, String file_name, String ty
 File::File(JS::Realm& realm)
     : Blob(realm, {})
 {
-}
-
-void File::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(File);
-    Base::initialize(realm);
 }
 
 File::~File() = default;

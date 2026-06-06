@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 // https://www.w3.org/TR/filter-effects-1/#svgfemergenodeelement
 class SVGFEMergeNodeElement final : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGFEMergeNodeElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEMergeNodeElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEMergeNodeElement);
 
 public:

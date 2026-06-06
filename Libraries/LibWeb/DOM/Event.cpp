@@ -8,7 +8,7 @@
 
 #include <AK/TypeCasts.h>
 #include <LibWeb/Bindings/Event.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<GC::Ref<Event>> Event::construct_impl(JS::Realm& realm, FlyS
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
 Event::Event(JS::Realm& realm, FlyString const& type)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_type(type)
     , m_initialized(true)
     , m_time_stamp(HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)))
@@ -45,7 +45,7 @@ Event::Event(JS::Realm& realm, FlyString const& type)
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
 Event::Event(JS::Realm& realm, FlyString const& type, Bindings::EventInit const& event_init)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_type(type)
     , m_bubbles(event_init.bubbles)
     , m_cancelable(event_init.cancelable)
@@ -55,14 +55,7 @@ Event::Event(JS::Realm& realm, FlyString const& type, Bindings::EventInit const&
 {
 }
 
-void Event::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Event);
-    Base::initialize(realm);
-    Bindings::EventPrototype::define_unforgeable_attributes(realm, *this);
-}
-
-void Event::visit_edges(Visitor& visitor)
+void Event::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target);
@@ -265,13 +258,18 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
     return composed_path;
 }
 
-// AD-HOC: Needed to return a WindowProxy when the current target is a Window,
-// ensuring that JavaScript sees the correct global object instead of the internal Window.
-GC::Ptr<EventTarget> Event::current_target_for_bindings() const
+GC::Ptr<Bindings::PlatformObject> Event::current_target_wrapper_for_bindings(JS::Realm& realm) const
 {
     if (auto* window = as_if<HTML::Window>(m_current_target.ptr()))
         return window->window();
-    return m_current_target;
+    return Bindings::wrap(realm, m_current_target);
+}
+
+JS::Value Event::current_target_value_for_bindings(JS::Realm& realm) const
+{
+    if (auto current_target = current_target_wrapper_for_bindings(realm))
+        return current_target;
+    return JS::js_null();
 }
 
 }

@@ -6,7 +6,6 @@
 
 #include "CSSFunctionDescriptors.h"
 #include <LibWeb/Bindings/CSSFunctionDescriptors.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 
 namespace Web::CSS {
 
@@ -15,12 +14,6 @@ GC_DEFINE_ALLOCATOR(CSSFunctionDescriptors);
 GC::Ref<CSSFunctionDescriptors> CSSFunctionDescriptors::create(JS::Realm& realm, Vector<Descriptor> descriptors)
 {
     return realm.create<CSSFunctionDescriptors>(realm, move(descriptors));
-}
-
-void CSSFunctionDescriptors::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFunctionDescriptors);
-    Base::initialize(realm);
 }
 
 // https://drafts.csswg.org/css-mixins-1/#dom-cssfunctiondescriptors-result

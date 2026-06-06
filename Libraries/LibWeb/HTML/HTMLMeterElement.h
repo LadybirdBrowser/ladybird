@@ -14,7 +14,7 @@
 namespace Web::HTML {
 
 class HTMLMeterElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLMeterElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLMeterElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLMeterElement);
 
 public:

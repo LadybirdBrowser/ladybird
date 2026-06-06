@@ -6,7 +6,6 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/ClipboardEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Clipboard/ClipboardEvent.h>
 
 namespace Web::Clipboard {
@@ -26,13 +25,7 @@ ClipboardEvent::ClipboardEvent(JS::Realm& realm, FlyString const& event_name, Bi
 
 ClipboardEvent::~ClipboardEvent() = default;
 
-void ClipboardEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ClipboardEvent);
-    Base::initialize(realm);
-}
-
-void ClipboardEvent::visit_edges(JS::Cell::Visitor& visitor)
+void ClipboardEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_clipboard_data);

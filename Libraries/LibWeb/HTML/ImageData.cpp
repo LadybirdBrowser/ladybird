@@ -8,7 +8,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ImageData.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -126,12 +125,12 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::initialize(JS::Realm& realm, 
 }
 
 ImageData::ImageData(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 ImageData::ImageData(JS::Realm& realm, NonnullRefPtr<Gfx::Bitmap> bitmap, GC::Ref<JS::Uint8ClampedArray> data, Bindings::PredefinedColorSpace color_space)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_bitmap(move(bitmap))
     , m_color_space(color_space)
     , m_data(move(data))
@@ -140,16 +139,7 @@ ImageData::ImageData(JS::Realm& realm, NonnullRefPtr<Gfx::Bitmap> bitmap, GC::Re
 
 ImageData::~ImageData() = default;
 
-void ImageData::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ImageData);
-    Base::initialize(realm);
-
-    if (m_data)
-        define_direct_property("data"_utf16_fly_string, m_data, JS::Attribute::Enumerable);
-}
-
-void ImageData::visit_edges(Cell::Visitor& visitor)
+void ImageData::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_data);
@@ -178,7 +168,7 @@ JS::Uint8ClampedArray const* ImageData::data() const
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:serialization-steps
 WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncoder& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. Set serialized.[[Data]] to the sub-serialization of the value of value's data attribute.
     auto serialized_data = TRY(structured_serialize_internal(vm, m_data, for_storage, memory));
@@ -201,8 +191,8 @@ WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::TransferDataEncod
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:deserialization-steps
 WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::TransferDataDecoder& serialized, HTML::DeserializationMemory& memory)
 {
-    auto& vm = this->vm();
     auto& realm = this->realm();
+    auto& vm = realm.vm();
 
     // 1. Initialize value's data attribute to the sub-deserialization of serialized.[[Data]].
     auto deserialized = TRY(structured_deserialize_internal(vm, serialized, realm, memory));
@@ -221,8 +211,6 @@ WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::TransferDataDec
 
     // AD-HOC: Create the bitmap backed by the Uint8ClampedArray.
     m_bitmap = TRY_OR_THROW_OOM(vm, create_bitmap_backed_by_uint8_clamped_array(width, height, *m_data));
-
-    define_direct_property("data"_utf16_fly_string, m_data, JS::Attribute::Enumerable);
 
     return {};
 }

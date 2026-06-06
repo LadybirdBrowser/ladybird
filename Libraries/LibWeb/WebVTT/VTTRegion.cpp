@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebVTT/VTTRegion.h>
 
@@ -47,14 +46,8 @@ WebIDL::ExceptionOr<GC::Ref<VTTRegion>> VTTRegion::construct_impl(JS::Realm& rea
 }
 
 VTTRegion::VTTRegion(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
-}
-
-void VTTRegion::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(VTTRegion);
-    Base::initialize(realm);
 }
 
 // https://w3c.github.io/webvtt/#dom-vttregion-width

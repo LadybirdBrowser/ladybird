@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGfx/Path.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
@@ -17,7 +18,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/canvas.html#canvaspath
 class CanvasPath {
 public:
-    ~CanvasPath() = default;
+    virtual ~CanvasPath() = default;
 
     void close_path();
 
@@ -35,23 +36,20 @@ public:
     Gfx::Path const& path() const { return m_path; }
 
 protected:
-    explicit CanvasPath(Bindings::PlatformObject& self)
-        : m_self(self)
+    CanvasPath() = default;
+
+    explicit CanvasPath(CanvasState const& canvas_state)
+        : m_canvas_state(canvas_state)
     {
     }
 
-    explicit CanvasPath(Bindings::PlatformObject& self, CanvasState const& canvas_state)
-        : m_self(self)
-        , m_canvas_state(canvas_state)
-    {
-    }
+    virtual JS::Realm& canvas_path_realm() const = 0;
 
 private:
     Gfx::AffineTransform active_transform() const;
 
     void ensure_subpath(float x, float y);
 
-    GC::Ref<Bindings::PlatformObject> m_self;
     Optional<CanvasState const&> m_canvas_state;
     Gfx::Path m_path;
 };

@@ -5,8 +5,6 @@
  */
 
 #include <AK/Time.h>
-#include <LibWeb/Bindings/Geolocation.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Permissions.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
@@ -31,17 +29,11 @@ static WebIDL::UnsignedLong s_next_watch_id = 0;
 GC_DEFINE_ALLOCATOR(Geolocation);
 
 Geolocation::Geolocation(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
-void Geolocation::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Geolocation);
-    Base::initialize(realm);
-}
-
-void Geolocation::visit_edges(Visitor& visitor)
+void Geolocation::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_cached_position);
@@ -53,7 +45,7 @@ void Geolocation::get_current_position(GC::Ref<WebIDL::CallbackType> success_cal
     GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options)
 {
     // 1. If this's relevant global object's associated Document is not fully active:
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = HTML::relevant_window(*this);
     if (!window.associated_document().is_fully_active()) {
         // 1. Call back with error errorCallback and POSITION_UNAVAILABLE.
         call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::PositionUnavailable);
@@ -71,7 +63,7 @@ WebIDL::Long Geolocation::watch_position(GC::Ref<WebIDL::CallbackType> success_c
     GC::Ptr<WebIDL::CallbackType> error_callback, Bindings::PositionOptions const& options)
 {
     // 1. If this's relevant global object's associated Document is not fully active:
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = HTML::relevant_window(*this);
     if (!window.associated_document().is_fully_active()) {
         // 1. Call back with error passing errorCallback and POSITION_UNAVAILABLE.
         call_back_with_error(error_callback, GeolocationPositionError::ErrorCode::PositionUnavailable);
@@ -159,7 +151,8 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
                     // 3. Queue a task on the geolocation task source with a step that invokes successCallback with
                     //    « position » and "report".
                     HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] {
-                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { position } });
+                        auto& callback_realm = success_callback->callback->shape().realm();
+                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(callback_realm, position) } });
                     }));
 
                     // 4. Terminate this algorithm.
@@ -182,7 +175,8 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
                     // 1. Queue a task on the geolocation task source with a step that invokes successCallback with
                     //    « cachedPosition » and "report".
                     HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, cached_position] {
-                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { cached_position } });
+                        auto& callback_realm = success_callback->callback->shape().realm();
+                        (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(callback_realm, GC::Ref { *cached_position }) } });
                     }));
 
                     // 2. Terminate this algorithm.
@@ -242,7 +236,8 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
             // 8. Queue a task on the geolocation task source with a step that invokes successCallback with « position »
             //    and "report".
             HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [success_callback, position] {
-                (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { position } });
+                auto& callback_realm = success_callback->callback->shape().realm();
+                (void)WebIDL::invoke_callback(success_callback, {}, WebIDL::ExceptionBehavior::Report, { { Bindings::wrap(callback_realm, GC::Ref { *position }) } });
             }));
         }
     }
@@ -260,8 +255,9 @@ void Geolocation::call_back_with_error(GC::Ptr<WebIDL::CallbackType> callback, G
 
     // 3. Queue a task on the geolocation task source with a step that invokes callback with « error » and "report".
     HTML::queue_a_task(HTML::Task::Source::Geolocation, nullptr, nullptr, GC::create_function(heap(), [callback, error] {
+        auto& callback_realm = callback->callback->shape().realm();
         (void)WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report,
-            { { error } });
+            { { Bindings::wrap(callback_realm, error) } });
     }));
 }
 
@@ -269,7 +265,7 @@ void Geolocation::call_back_with_error(GC::Ptr<WebIDL::CallbackType> callback, G
 EmulatedPositionData Geolocation::get_emulated_position_data() const
 {
     // 1. Let navigable be geolocation's relevant global object's associated Document's node navigable.
-    auto navigable = as<HTML::Window>(HTML::relevant_global_object(*this)).navigable();
+    auto navigable = HTML::relevant_window(*this).navigable();
 
     // 2. If navigable is null, return null.
     if (!navigable)
@@ -293,7 +289,7 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
     // 1. Let watchIDs be geolocation's [[watchIDs]].
 
     // 2. Let document be the geolocation's relevant global object's associated Document.
-    [[maybe_unused]] auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    [[maybe_unused]] auto& document = HTML::relevant_window(*this).associated_document();
 
     // FIXME: 3. If document is not allowed to use the "geolocation" feature:
     if (false) {

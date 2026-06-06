@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ResizeObserver.h>
+#include <LibWeb/Bindings/ResizeObserverSize.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::ResizeObserver {
 
 // https://drafts.csswg.org/resize-observer-1/#resizeobserversize
-class ResizeObserverSize : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ResizeObserverSize, Bindings::PlatformObject);
+class ResizeObserverSize : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ResizeObserverSize, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ResizeObserverSize);
 
 public:
@@ -36,11 +37,9 @@ public:
 
 private:
     explicit ResizeObserverSize(JS::Realm& realm)
-        : PlatformObject(realm)
+        : Wrappable(realm)
     {
     }
-
-    virtual void initialize(JS::Realm&) override;
 
     double m_inline_size { 0 };
     double m_block_size { 0 };

@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLEmbedElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLEmbedElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLEmbedElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLEmbedElement);
 
 public:

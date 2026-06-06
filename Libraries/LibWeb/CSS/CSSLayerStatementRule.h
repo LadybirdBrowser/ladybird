@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-cascade-5/#the-csslayerstatementrule-interface
 class CSSLayerStatementRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSLayerStatementRule, CSSRule);
+    WEB_WRAPPABLE(CSSLayerStatementRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSLayerStatementRule);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 private:
     CSSLayerStatementRule(JS::Realm&, Vector<FlyString> name_list);
-
-    virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

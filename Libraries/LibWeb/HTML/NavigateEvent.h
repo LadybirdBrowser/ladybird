@@ -17,7 +17,7 @@ using NavigationInterceptHandler = GC::Ref<WebIDL::CallbackType>;
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigateevent
 class NavigateEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(NavigateEvent, DOM::Event);
+    WEB_WRAPPABLE(NavigateEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(NavigateEvent);
 
 public:
@@ -68,8 +68,7 @@ public:
 private:
     NavigateEvent(JS::Realm&, FlyString const& event_name, Bindings::NavigateEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> perform_shared_checks();
     void process_scroll_behavior();

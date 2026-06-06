@@ -6,7 +6,6 @@
 
 #include "CSSScale.h"
 #include <LibWeb/Bindings/CSSScale.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -64,13 +63,7 @@ CSSScale::CSSScale(JS::Realm& realm, Is2D is_2d, GC::Ref<CSSNumericValue> x, GC:
 
 CSSScale::~CSSScale() = default;
 
-void CSSScale::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSScale);
-    Base::initialize(realm);
-}
-
-void CSSScale::visit_edges(Visitor& visitor)
+void CSSScale::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_x);

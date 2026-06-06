@@ -20,7 +20,7 @@ namespace Web::CSS {
 class WEB_API CSSImportRule final
     : public CSSRule
     , public CSSStyleSheet::Subresource {
-    WEB_PLATFORM_OBJECT(CSSImportRule, CSSRule);
+    WEB_WRAPPABLE(CSSImportRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
@@ -57,8 +57,7 @@ public:
 private:
     CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, Optional<ImportScope>&&, RefPtr<Supports>, GC::Ref<MediaList>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

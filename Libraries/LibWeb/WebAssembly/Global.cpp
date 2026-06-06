@@ -8,7 +8,6 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWasm/Types.h>
 #include <LibWeb/Bindings/Global.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
@@ -78,30 +77,26 @@ WebIDL::ExceptionOr<GC::Ref<Global>> Global::construct_impl(JS::Realm& realm, Bi
     if (!address.has_value())
         return vm.throw_completion<JS::TypeError>("Wasm Global allocation failed"sv);
 
-    return realm.create<Global>(realm, *address);
+    return Global::create(realm, *address);
+}
+
+GC::Ref<Global> Global::create(JS::Realm& realm, Wasm::GlobalAddress address)
+{
+    auto global = realm.create<Global>(realm, address);
+
+    // https://webassembly.github.io/spec/js-api/#initialize-a-global-object
+    auto& cache = Detail::get_cache(realm);
+    auto exists = cache.global_instances().contains(address);
+    VERIFY(!exists);
+    cache.add_global_instance(address, global);
+
+    return global;
 }
 
 Global::Global(JS::Realm& realm, Wasm::GlobalAddress address)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_address(address)
 {
-}
-
-// https://webassembly.github.io/spec/js-api/#initialize-a-global-object
-void Global::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Global, WebAssembly.Global);
-    Base::initialize(realm);
-
-    // 1. Let map be the surrounding agent's associated Global object cache.
-    // 2. Assert: map[globaladdr] doesn’t exist.
-    auto& cache = Detail::get_cache(realm);
-    auto exists = cache.global_instances().contains(m_address);
-    VERIFY(!exists);
-
-    // 3. Set global.[[Global]] to globaladdr.
-    // 4. Set map[globaladdr] to global.
-    cache.add_global_instance(m_address, *this);
 }
 
 // https://webassembly.github.io/spec/js-api/#getglobalvalue
@@ -115,17 +110,17 @@ static WebIDL::ExceptionOr<JS::Value> get_global_value(Global const& global)
     auto& cache = Detail::get_cache(global.realm());
     auto* global_instance = cache.abstract_machine().store().get(global.address());
     if (!global_instance)
-        return global.vm().throw_completion<JS::RangeError>("Could not find the global instance"sv);
+        return global.realm().vm().throw_completion<JS::RangeError>("Could not find the global instance"sv);
 
     auto value_type = global_instance->type().type();
     if (value_type.kind() == Wasm::ValueType::V128)
-        return global.vm().throw_completion<JS::TypeError>("V128 is not supported as a global value type"sv);
+        return global.realm().vm().throw_completion<JS::TypeError>("V128 is not supported as a global value type"sv);
 
     // 5. Let value be global_read(store, globaladdr).
     auto value = global_instance->value();
 
     // 6. Return ToJSValue(value).
-    return Detail::to_js_value(global.vm(), value, value_type);
+    return Detail::to_js_value(global.realm().vm(), value, value_type);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-global-value
@@ -144,7 +139,7 @@ WebIDL::ExceptionOr<JS::Value> Global::value_of() const
 WebIDL::ExceptionOr<void> Global::set_value(JS::Value the_given_value)
 {
     auto& realm = this->realm();
-    auto& vm = this->vm();
+    auto& vm = realm.vm();
     // 1. Let store be the current agent’s associated store.
     // 2. Let globaladdr be this.[[Global]].
     // 3. Let mut valuetype be global_type(store, globaladdr).

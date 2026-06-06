@@ -6,7 +6,6 @@
 
 #include "CSSMathMax.h"
 #include <LibWeb/Bindings/CSSMathMax.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -73,13 +72,7 @@ CSSMathMax::CSSMathMax(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericArr
 
 CSSMathMax::~CSSMathMax() = default;
 
-void CSSMathMax::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathMax);
-    Base::initialize(realm);
-}
-
-void CSSMathMax::visit_edges(Visitor& visitor)
+void CSSMathMax::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_values);

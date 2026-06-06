@@ -219,7 +219,7 @@ void EventLoop::queue_task_to_update_the_rendering()
         if (document->is_decoded_svg())
             continue;
 
-        queue_global_task(Task::Source::Rendering, *navigable->active_window(), *m_rendering_task_function);
+        queue_global_task(Task::Source::Rendering, HTML::relevant_global_object(*navigable->active_window()), *m_rendering_task_function);
     }
 }
 
@@ -605,7 +605,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
 
     // 2. Let document be global's associated Document, if global is a Window object; otherwise null.
     DOM::Document* document { nullptr };
-    if (auto* window_object = as_if<HTML::Window>(global_object))
+    if (auto* window_object = window_from_global_object(global_object))
         document = &window_object->associated_document();
 
     // 3. Queue a task given source, event loop, document, and steps.

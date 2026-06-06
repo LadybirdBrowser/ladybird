@@ -19,7 +19,7 @@ namespace Web::HTML {
 using NullableTrackType = Variant<GC::Ref<VideoTrack>, GC::Ref<AudioTrack>, GC::Ref<TextTrack>, Empty>;
 
 class TrackEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(TrackEvent, DOM::Event);
+    WEB_WRAPPABLE(TrackEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(TrackEvent);
 
 public:
@@ -32,7 +32,6 @@ public:
 private:
     TrackEvent(JS::Realm&, FlyString const& event_name, Bindings::TrackEventInit const&);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     NullableTrackType m_track;

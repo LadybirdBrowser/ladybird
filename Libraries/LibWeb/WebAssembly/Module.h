@@ -13,13 +13,14 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibWasm/Types.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Module.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
 namespace Web::WebAssembly {
 
-class Module : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Module, Bindings::PlatformObject);
+class Module : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Module, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Module);
 
 public:
@@ -32,8 +33,6 @@ public:
 
 private:
     Module(JS::Realm&, NonnullRefPtr<Detail::CompiledWebAssemblyModule>);
-
-    virtual void initialize(JS::Realm&) override;
 
     NonnullRefPtr<Detail::CompiledWebAssemblyModule> m_compiled_module;
 };

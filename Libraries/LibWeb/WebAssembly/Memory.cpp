@@ -5,11 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Root.h>
+#include <LibGC/WeakInlines.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/SharedArrayBufferConstructor.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWasm/Types.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Memory.h>
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
@@ -26,6 +27,11 @@ static u8* wasm_memory_buffer_data(void* context)
 static size_t wasm_memory_buffer_size(void* context)
 {
     return static_cast<Wasm::MemoryBuffer*>(context)->size();
+}
+
+static void prune_live_buffer_objects(Vector<GC::Weak<JS::ArrayBuffer>>& live_buffer_objects)
+{
+    live_buffer_objects.remove_all_matching([](auto const& buffer) { return !buffer; });
 }
 
 WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Bindings::MemoryDescriptor& descriptor)
@@ -52,13 +58,28 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Bi
     if (!address.has_value())
         return vm.throw_completion<JS::TypeError>("Wasm Memory allocation failed"sv);
 
-    auto memory_object = realm.create<Memory>(realm, *address, shared ? Shared::Yes : Shared::No);
+    auto memory_object = Memory::create(realm, *address, shared ? Shared::Yes : Shared::No);
 
     return memory_object;
 }
 
+GC::Ref<Memory> Memory::create(JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
+{
+    auto memory = realm.create<Memory>(realm, address, shared);
+
+    // https://webassembly.github.io/spec/js-api/#initialize-a-memory-object
+    auto& cache = Detail::get_cache(realm);
+    auto exists = cache.memory_instances().contains(address);
+    VERIFY(!exists);
+
+    memory->set_buffer_object_for_realm(realm, create_a_fixed_length_memory_buffer(realm.vm(), realm, realm, address, shared, memory));
+    cache.add_memory_instance(address, memory);
+
+    return memory;
+}
+
 Memory::Memory(JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_address(address)
     , m_shared(shared)
 {
@@ -67,34 +88,6 @@ Memory::Memory(JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
     cache.abstract_machine().store().get(address)->successful_grow_hook = [realm = GC::Ref(realm), address] {
         refresh_the_memory_buffer(realm->vm(), realm, address);
     };
-}
-
-// https://webassembly.github.io/spec/js-api/#initialize-a-memory-object
-void Memory::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Memory, WebAssembly.Memory);
-    Base::initialize(realm);
-
-    auto& vm = realm.vm();
-
-    // https://webassembly.github.io/spec/js-api/#initialize-a-memory-object
-    // 1. Let map be the surrounding agent’s associated Memory object cache.
-    // 2. Assert: map[memaddr] doesn’t exist.
-    auto& cache = Detail::get_cache(realm);
-    auto exists = cache.memory_instances().contains(m_address);
-    VERIFY(!exists);
-
-    // 3. Let buffer be the result of creating a fixed length memory buffer from memaddr.
-    auto buffer = create_a_fixed_length_memory_buffer(vm, realm, m_address, m_shared, *this);
-
-    // 4. Set memory.[[Memory]] to memaddr.
-    // NOTE: This is already set by the Memory constructor.
-
-    // 5. Set memory.[[BufferObject]] to buffer.
-    m_buffer = buffer;
-
-    // 6. Set map[memaddr] to memory.
-    cache.add_memory_instance(m_address, *this);
 }
 
 void Memory::visit_edges(Visitor& visitor)
@@ -106,7 +99,7 @@ void Memory::visit_edges(Visitor& visitor)
 // https://webassembly.github.io/spec/js-api/#dom-memory-grow
 JS::ThrowCompletionOr<u32> Memory::grow(u32 delta)
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     auto& context = Detail::get_cache(realm());
     auto* memory = context.abstract_machine().store().get(address());
@@ -124,25 +117,28 @@ JS::ThrowCompletionOr<u32> Memory::grow(u32 delta)
 // https://webassembly.github.io/threads/js-api/index.html#dom-memory-tofixedlengthbuffer
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::to_fixed_length_buffer()
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
+    auto& buffer_realm = *vm.current_realm();
 
     // 1. Let buffer be this.[[BufferObject]].
+    auto buffer = buffer_object_for_realm(buffer_realm);
+
     // 2. Let memaddr be this.[[Memory]].
     // 3. If IsSharedArrayBuffer(buffer) is false,
     if (m_shared == Shared::No) {
         // 1. If IsFixedLengthArrayBuffer(buffer) is true, return buffer.
-        if (m_buffer->is_fixed_length())
-            return GC::Ref(*m_buffer);
+        if (buffer->is_fixed_length())
+            return buffer;
 
         // 2. Otherwise,
         // 1. Let fixedBuffer be the result of creating a fixed length memory buffer from memaddr.
-        auto fixed_buffer = create_a_fixed_length_memory_buffer(vm, realm(), m_address, m_shared, *this);
+        auto fixed_buffer = create_a_fixed_length_memory_buffer(vm, buffer_realm, realm(), m_address, m_shared, *this);
 
         // 2. Perform ! DetachArrayBuffer(buffer, "WebAssembly.Memory").
-        MUST(JS::detach_array_buffer(vm, *m_buffer, JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)));
+        MUST(JS::detach_array_buffer(vm, *buffer, JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)));
 
         // 3. Set this.[[BufferObject]] to fixedBuffer.
-        m_buffer = fixed_buffer;
+        set_buffer_object_for_realm(buffer_realm, fixed_buffer);
 
         // 4. Return fixedBuffer.
         return fixed_buffer;
@@ -158,24 +154,27 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::to_fixed_length_buffer()
     VERIFY(new_memory.has_value());
 
     // 4. Let newBufferObject be newMemory.[[BufferObject]].
-    auto new_buffer_object = new_memory.value()->m_buffer;
+    auto new_buffer_object = new_memory.value()->buffer_object_for_realm(buffer_realm);
 
     // 5. Set this.[[BufferObject]] to newBufferObject.
-    m_buffer = new_buffer_object;
+    set_buffer_object_for_realm(buffer_realm, new_buffer_object);
 
     // 6. Return newBufferObject.
-    return GC::Ref(*new_buffer_object);
+    return new_buffer_object;
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-memory-toresizablebuffer
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::to_resizable_buffer()
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
+    auto& buffer_realm = *vm.current_realm();
 
     // 1. Let buffer be this.[[BufferObject]].
+    auto buffer = buffer_object_for_realm(buffer_realm);
+
     // 2. If IsFixedLengthArrayBuffer(buffer) is false, return buffer.
-    if (!m_buffer->is_fixed_length())
-        return GC::Ref(*m_buffer);
+    if (!buffer->is_fixed_length())
+        return buffer;
 
     // 3. Let memaddr be this.[[Memory]].
     // 4. Let store be the surrounding agent’s associated store.
@@ -191,16 +190,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::to_resizable_buffer()
     size_t max_size = mem_type.limits().max().value_or(65536) * Wasm::Constants::page_size;
 
     // 8. Let resizableBuffer be the result of creating a resizable memory buffer from memaddr and maxsize.
-    auto resizable_buffer = TRY(create_a_resizable_memory_buffer(vm, realm(), m_address, m_shared, max_size, *this));
+    auto resizable_buffer = TRY(create_a_resizable_memory_buffer(vm, buffer_realm, realm(), m_address, m_shared, max_size, *this));
 
     // https://webassembly.github.io/threads/js-api/index.html#dom-memory-toresizablebuffer
     // 5. If IsSharedArrayBuffer(buffer) is false,
     // 9. Perform ! DetachArrayBuffer(buffer, "WebAssembly.Memory").
-    if (!m_buffer->is_shared_array_buffer())
-        MUST(JS::detach_array_buffer(vm, *m_buffer, JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)));
+    if (!buffer->is_shared_array_buffer())
+        MUST(JS::detach_array_buffer(vm, *buffer, JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)));
 
     // 10. Set this.[[BufferObject]] to resizableBuffer.
-    m_buffer = resizable_buffer;
+    set_buffer_object_for_realm(buffer_realm, resizable_buffer);
 
     // 11. Return resizeableBuffer.
     return resizable_buffer;
@@ -216,8 +215,12 @@ void Memory::refresh_the_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::Memor
     auto memory = cache.get_memory_instance(address);
     VERIFY(memory.has_value());
 
+    memory.value()->refresh_buffer_objects(vm);
+}
+
+void Memory::refresh_buffer_object(JS::VM& vm, GC::Ref<JS::ArrayBuffer> buffer) const
+{
     // 4. Let buffer be memory.[[BufferObject]].
-    auto& buffer = memory.value()->m_buffer;
 
     // 5. If IsFixedLengthArrayBuffer(buffer) is true,
     if (buffer->is_fixed_length()) {
@@ -230,10 +233,11 @@ void Memory::refresh_the_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::Memor
 
         // 2. Let newBuffer be the result of creating a fixed length memory buffer from memaddr.
         // 3. Set memory.[[BufferObject]] to newBuffer.
-        buffer = create_a_fixed_length_memory_buffer(vm, realm, address, memory.value()->m_shared, *memory.value());
+        set_buffer_object_for_realm(buffer->shape().realm(), create_a_fixed_length_memory_buffer(vm, buffer->shape().realm(), realm(), m_address, m_shared, const_cast<Memory&>(*this)));
     } else {
         // 1. Let block be a Data Block which is identified with the underlying memory of memaddr.
-        auto& bytes = cache.abstract_machine().store().get(address)->data();
+        auto& cache = Detail::get_cache(realm());
+        auto& bytes = cache.abstract_machine().store().get(m_address)->data();
 
         // AD-HOC: Neither the main spec nor the threads proposal specify that the Data Block should be Shared for
         //         shared Wasm memories, but we do in fact want a Shared Data Block in that case.
@@ -241,13 +245,39 @@ void Memory::refresh_the_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::Memor
 
         // 2. Set buffer.[[ArrayBufferData]] to block.
         // 3. Set buffer.[[ArrayBufferByteLength]] to the length of block.
-        buffer->set_data_block({ JS::DataBlock::UnownedExternalBuffer(*memory.value(), &bytes, wasm_memory_buffer_data, wasm_memory_buffer_size), is_shared });
+        buffer->set_data_block({ JS::DataBlock::UnownedExternalBuffer(const_cast<Memory&>(*this), &bytes, wasm_memory_buffer_data, wasm_memory_buffer_size), is_shared });
     }
+}
+
+void Memory::refresh_buffer_objects(JS::VM& vm) const
+{
+    GC::RootVector<GC::Ref<JS::ArrayBuffer>> buffer_objects;
+
+    if (m_buffer)
+        buffer_objects.append(GC::Ref { *m_buffer });
+
+    prune_live_buffer_objects(m_live_buffer_objects);
+    for (auto const& buffer : m_live_buffer_objects) {
+        bool already_appended = false;
+        for (auto const& buffer_object : buffer_objects) {
+            if (buffer_object.ptr() == buffer.ptr()) {
+                already_appended = true;
+                break;
+            }
+        }
+        if (!already_appended)
+            buffer_objects.append(GC::Ref { *buffer });
+    }
+
+    for (auto buffer : buffer_objects)
+        refresh_buffer_object(vm, buffer);
 }
 
 // https://webassembly.github.io/threads/js-api/#dom-memory-buffer
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::buffer() const
 {
+    auto& buffer_realm = *realm().vm().current_realm();
+
     // 1. Let memaddr be this.[[Memory]].
     // 2. Let block be a Data Block which is identified with the underlying memory of memaddr.
     // 3. If block is a Shared Data Block,
@@ -260,25 +290,73 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::buffer() const
         VERIFY(new_memory.has_value());
 
         // 4. Let newBufferObject be newMemory.[[BufferObject]].
-        auto new_buffer_object = new_memory.value()->m_buffer;
+        auto new_buffer_object = new_memory.value()->buffer_object_for_realm(buffer_realm);
 
         // 5. Set this.[[BufferObject]] to newBufferObject.
-        m_buffer = new_buffer_object;
+        set_buffer_object_for_realm(buffer_realm, new_buffer_object);
 
         // 6. Return newBufferObject.
-        return GC::Ref(*new_buffer_object);
+        return new_buffer_object;
     }
     // 4. Otherwise,
     else {
         // 1. Return this.[[BufferObject]].
-        return GC::Ref(*m_buffer);
+        return buffer_object_for_realm(buffer_realm);
     }
 }
 
-// https://webassembly.github.io/spec/js-api/#create-a-fixed-length-memory-buffer
-GC::Ref<JS::ArrayBuffer> Memory::create_a_fixed_length_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::MemoryAddress address, Shared shared, GC::Ref<GC::Cell> owner)
+GC::Ref<JS::ArrayBuffer> Memory::buffer_object_for_realm(JS::Realm& buffer_realm) const
 {
-    auto& context = Detail::get_cache(realm);
+    if (&buffer_realm == &realm() && m_buffer)
+        return GC::Ref { *m_buffer };
+
+    prune_live_buffer_objects(m_live_buffer_objects);
+    for (auto const& buffer : m_live_buffer_objects) {
+        if (&buffer->shape().realm() == &buffer_realm)
+            return GC::Ref { *buffer };
+    }
+
+    auto buffer = create_a_fixed_length_memory_buffer(buffer_realm.vm(), buffer_realm, realm(), m_address, m_shared, const_cast<Memory&>(*this));
+    set_buffer_object_for_realm(buffer_realm, buffer);
+    return buffer;
+}
+
+void Memory::set_buffer_object_for_realm(JS::Realm& buffer_realm, GC::Ref<JS::ArrayBuffer> buffer) const
+{
+    if (&buffer_realm == &realm()) {
+        m_buffer = buffer;
+        return;
+    }
+
+    prune_live_buffer_objects(m_live_buffer_objects);
+    for (auto& live_buffer : m_live_buffer_objects) {
+        if (&live_buffer->shape().realm() == &buffer_realm) {
+            live_buffer = buffer;
+            return;
+        }
+    }
+
+    m_live_buffer_objects.append(buffer);
+}
+
+bool Memory::has_buffer_object(JS::ArrayBuffer const& buffer) const
+{
+    if (m_buffer.ptr() == &buffer)
+        return true;
+
+    prune_live_buffer_objects(m_live_buffer_objects);
+    for (auto const& live_buffer : m_live_buffer_objects) {
+        if (live_buffer.ptr() == &buffer)
+            return true;
+    }
+
+    return false;
+}
+
+// https://webassembly.github.io/spec/js-api/#create-a-fixed-length-memory-buffer
+GC::Ref<JS::ArrayBuffer> Memory::create_a_fixed_length_memory_buffer(JS::VM& vm, JS::Realm& buffer_realm, JS::Realm& memory_realm, Wasm::MemoryAddress address, Shared shared, GC::Ref<GC::Cell> owner)
+{
+    auto& context = Detail::get_cache(memory_realm);
     auto* memory = context.abstract_machine().store().get(address);
     VERIFY(memory);
 
@@ -291,7 +369,7 @@ GC::Ref<JS::ArrayBuffer> Memory::create_a_fixed_length_memory_buffer(JS::VM& vm,
         // 3. Set buffer.[[ArrayBufferData]] to block.
         // 4. Set buffer.[[ArrayBufferByteLength]] to the length of block.
         // NOTE: ArrayBufferByteLength should contain the original size regardless of growth.
-        array_buffer = JS::ArrayBuffer::create(realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, memory->size()), JS::DataBlock::Shared::Yes);
+        array_buffer = JS::ArrayBuffer::create(buffer_realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, memory->size()), JS::DataBlock::Shared::Yes);
         VERIFY(array_buffer->byte_length() == memory->size());
 
         // 5. Perform ! SetIntegrityLevel(buffer, "frozen").
@@ -300,7 +378,7 @@ GC::Ref<JS::ArrayBuffer> Memory::create_a_fixed_length_memory_buffer(JS::VM& vm,
 
     // 4. Otherwise,
     else {
-        array_buffer = JS::ArrayBuffer::create(realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, wasm_memory_buffer_size));
+        array_buffer = JS::ArrayBuffer::create(buffer_realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, wasm_memory_buffer_size));
         array_buffer->set_detach_key(JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string));
     }
 
@@ -309,9 +387,9 @@ GC::Ref<JS::ArrayBuffer> Memory::create_a_fixed_length_memory_buffer(JS::VM& vm,
 
 // https://webassembly.github.io/spec/js-api/#create-a-resizable-memory-buffer
 // AD HOC: _owner_ refers to the object which owns the memory, allowing the created array buffer to keep it alive.
-JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::MemoryAddress address, Shared shared, size_t max_size, GC::Ref<GC::Cell> owner)
+JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memory_buffer(JS::VM& vm, JS::Realm& buffer_realm, JS::Realm& memory_realm, Wasm::MemoryAddress address, Shared shared, size_t max_size, GC::Ref<GC::Cell> owner)
 {
-    auto& context = Detail::get_cache(realm);
+    auto& context = Detail::get_cache(memory_realm);
     auto* memory = context.abstract_machine().store().get(address);
     VERIFY(memory);
 
@@ -327,7 +405,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memor
         // 1. Let block be a Shared Data Block which is identified with the underlying memory of memaddr.
         // 2. Let buffer be a new SharedArrayBuffer with the internal slots [[ArrayBufferData]], [[ArrayBufferByteLength]], and [[ArrayBufferMaxByteLength]].
         // 3. Set buffer.[[ArrayBufferData]] to block.
-        auto buffer = JS::ArrayBuffer::create(realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, wasm_memory_buffer_size), JS::DataBlock::Shared::Yes);
+        auto buffer = JS::ArrayBuffer::create(buffer_realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, wasm_memory_buffer_size), JS::DataBlock::Shared::Yes);
 
         // AD-HOC: The threads proposal uses the memory type's minimum for both shared and
         //         non-shared memories, but the upstream spec uses the memory instance's current
@@ -339,7 +417,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memor
         buffer->set_max_byte_length(max_size);
 
         // 6. Perform ! SetIntegrityLevel(buffer, "frozen").
-        MUST(buffer->set_integrity_level(IntegrityLevel::Frozen));
+        MUST(buffer->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
 
         // AD-HOC: Set buffer.[[ArrayBufferDetachKey]] to "WebAssembly.Memory".
         //         SharedArrayBuffers can't be detached, but this allows us to bail early from HostGrowSharedArrayBuffer
@@ -354,7 +432,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memor
         // 1. Let block be a Data Block which is identified with the underlying memory of memaddr.
         // 4. Let buffer be a new ArrayBuffer with the internal slots [[ArrayBufferData]], [[ArrayBufferByteLength]], [[ArrayBufferMaxByteLength]], and [[ArrayBufferDetachKey]].
         // 5. Set buffer.[[ArrayBufferData]] to block.
-        auto buffer = JS::ArrayBuffer::create(realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, wasm_memory_buffer_size));
+        auto buffer = JS::ArrayBuffer::create(buffer_realm, JS::DataBlock::UnownedExternalBuffer(owner, &memory->data(), wasm_memory_buffer_data, wasm_memory_buffer_size));
 
         // 2. Let length be the length of block.
         // 6. Set buffer.[[ArrayBufferByteLength]] to length.

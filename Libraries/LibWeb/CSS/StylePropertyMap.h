@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
 class StylePropertyMap : public StylePropertyMapReadOnly {
-    WEB_PLATFORM_OBJECT(StylePropertyMap, StylePropertyMapReadOnly);
+    WEB_WRAPPABLE(StylePropertyMap, StylePropertyMapReadOnly);
     GC_DECLARE_ALLOCATOR(StylePropertyMap);
 
 public:
@@ -29,8 +29,6 @@ private:
     explicit StylePropertyMap(JS::Realm&, GC::Ref<CSSStyleDeclaration>);
 
     CSSStyleDeclaration& declarations();
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

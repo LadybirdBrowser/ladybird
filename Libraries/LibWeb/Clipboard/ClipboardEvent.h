@@ -15,7 +15,7 @@ namespace Web::Clipboard {
 
 // https://w3c.github.io/clipboard-apis/#clipboardevent
 class ClipboardEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(ClipboardEvent, DOM::Event);
+    WEB_WRAPPABLE(ClipboardEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ClipboardEvent);
 
 public:
@@ -28,8 +28,7 @@ public:
 private:
     ClipboardEvent(JS::Realm&, FlyString const& event_name, Bindings::ClipboardEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<HTML::DataTransfer> m_clipboard_data;
 };

@@ -8,7 +8,6 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Permissions.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
@@ -16,7 +15,7 @@
 namespace Web::PermissionsAPI {
 
 class WEB_API PermissionStatus : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(PermissionStatus, DOM::EventTarget);
+    WEB_WRAPPABLE(PermissionStatus, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(PermissionStatus);
 
 public:

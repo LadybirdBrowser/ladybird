@@ -7,7 +7,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/HashChangeEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
 
 namespace Web::HTML {
@@ -31,13 +30,7 @@ HashChangeEvent::HashChangeEvent(JS::Realm& realm, FlyString const& event_name, 
 {
 }
 
-void HashChangeEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HashChangeEvent);
-    Base::initialize(realm);
-}
-
-void HashChangeEvent::visit_edges(JS::Cell::Visitor& visitor)
+void HashChangeEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 }

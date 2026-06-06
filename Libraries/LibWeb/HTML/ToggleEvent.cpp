@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ToggleEvent.h>
 #include <LibWeb/HTML/ToggleEvent.h>
 
@@ -32,13 +31,7 @@ ToggleEvent::ToggleEvent(JS::Realm& realm, FlyString const& event_name, Bindings
 {
 }
 
-void ToggleEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ToggleEvent);
-    Base::initialize(realm);
-}
-
-void ToggleEvent::visit_edges(Cell::Visitor& visitor)
+void ToggleEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_source);

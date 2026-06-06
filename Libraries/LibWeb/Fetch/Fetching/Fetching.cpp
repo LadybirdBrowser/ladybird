@@ -223,6 +223,8 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     if (auto const* buffer = request.body().get_pointer<ByteBuffer>())
         request.set_body(Infrastructure::byte_sequence_as_body(realm, buffer->bytes()));
 
+    auto* client_window = request.client() ? HTML::window_from_global_object(request.client()->global_object()) : nullptr;
+
     // 10. If all of the following conditions are true:
     if (
         // - request’s URL’s scheme is an HTTP(S) scheme
@@ -230,7 +232,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         // - request’s mode is "same-origin", "cors", or "no-cors"
         && (request.mode() == Infrastructure::Request::Mode::SameOrigin || request.mode() == Infrastructure::Request::Mode::CORS || request.mode() == Infrastructure::Request::Mode::NoCORS)
         // - request’s client is not null, and request’s client’s global object is a Window object
-        && request.client() && is<HTML::Window>(request.client()->global_object())
+        && client_window
         // - request’s method is `GET`
         && request.method().equals_ignoring_ascii_case("GET"sv)
         // - request’s unsafe-request flag is not set or request’s header list is empty
@@ -255,9 +257,8 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         // 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
         //    window, given request’s URL, request’s destination, request’s mode, request’s credentials mode,
         //    request’s integrity metadata, and onPreloadedResponseAvailable.
-        auto& window = as<HTML::Window>(request.client()->global_object());
         auto found_preloaded_resource = HTML::consume_a_preloaded_resource(
-            window,
+            *client_window,
             request.url(),
             request.destination(),
             request.mode(),
@@ -374,7 +375,7 @@ void populate_request_from_client(JS::Realm const& realm, Infrastructure::Reques
 
             // 2. If global is a Window object and global’s navigable is not null, then set request’s traversable for
             //    user prompts to global’s navigable’s traversable navigable.
-            if (auto const* window = as_if<HTML::Window>(global)) {
+            if (auto const* window = HTML::window_from_global_object(global)) {
                 if (window->navigable())
                     request.set_traversable_for_user_prompts(window->navigable()->traversable_navigable());
             }
@@ -1025,7 +1026,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         // 5. If request’s client is non-null:
         if (request->client() != nullptr) {
             // 1. Let global be request’s client’s global object.
-            auto const* global_window = as_if<HTML::Window>(request->client()->global_object());
+            auto const* global_window = HTML::window_from_global_object(request->client()->global_object());
 
             // 2. If all of the following conditions are true:
             if (

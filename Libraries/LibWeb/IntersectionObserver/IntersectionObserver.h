@@ -7,7 +7,8 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/IntersectionObserver.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -23,8 +24,8 @@ struct ObservationTarget {
 };
 
 // https://w3c.github.io/IntersectionObserver/#intersection-observer-interface
-class IntersectionObserver final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IntersectionObserver, Bindings::PlatformObject);
+class IntersectionObserver final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IntersectionObserver, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IntersectionObserver);
 
 public:
@@ -62,8 +63,7 @@ public:
 private:
     explicit IntersectionObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double debug, bool track_visibility);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     static Optional<Vector<CSS::LengthPercentage>> parse_a_margin(JS::Realm&, String);

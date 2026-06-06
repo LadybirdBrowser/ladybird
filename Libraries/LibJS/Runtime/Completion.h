@@ -199,8 +199,8 @@ public:
     // Disabled for POD types to avoid weird conversion shenanigans.
     template<typename WrappedValueType>
     ALWAYS_INLINE ThrowCompletionOr(WrappedValueType&& value)
-    requires(!IsPOD<ValueType>)
-        : m_value_or_error(ValueType { value })
+    requires(!IsPOD<ValueType> && IsConstructible<ValueType, WrappedValueType &&>)
+        : m_value_or_error(ValueType { forward<WrappedValueType>(value) })
     {
     }
 

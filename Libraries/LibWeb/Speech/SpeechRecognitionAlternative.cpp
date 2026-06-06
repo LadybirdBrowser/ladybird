@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognitionAlternative.h>
 #include <LibWeb/Speech/SpeechRecognitionAlternative.h>
 
 namespace Web::Speech {
@@ -19,16 +17,10 @@ GC::Ref<SpeechRecognitionAlternative> SpeechRecognitionAlternative::create(JS::R
 }
 
 SpeechRecognitionAlternative::SpeechRecognitionAlternative(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 SpeechRecognitionAlternative::~SpeechRecognitionAlternative() = default;
-
-void SpeechRecognitionAlternative::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechRecognitionAlternative);
-    Base::initialize(realm);
-}
 
 }

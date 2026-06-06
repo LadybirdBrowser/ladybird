@@ -6,9 +6,11 @@
  */
 
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibWeb/Bindings/Event.h>
 #include <LibWeb/Bindings/HTMLDialogElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -413,11 +415,12 @@ void HTMLDialogElement::set_close_watcher()
     //      with the cancelable attribute initialized to canPreventClose.
     auto cancel_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
-            auto& event = as<DOM::Event>(vm.argument(0).as_object());
-            bool can_prevent_close = event.cancelable();
+            auto* event = Bindings::impl_from<DOM::Event>(&vm.argument(0).as_object());
+            VERIFY(event);
+            bool can_prevent_close = event->cancelable();
             auto should_continue = dispatch_event(DOM::Event::create(realm(), HTML::EventNames::cancel, { .cancelable = can_prevent_close }));
             if (!should_continue)
-                event.prevent_default();
+                event->prevent_default();
             return JS::js_undefined();
         },
         0, Utf16FlyString {}, &realm());

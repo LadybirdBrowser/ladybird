@@ -14,7 +14,7 @@
 namespace Web::UIEvents {
 
 class WEB_API UIEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(UIEvent, DOM::Event);
+    WEB_WRAPPABLE(UIEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(UIEvent);
 
 public:
@@ -47,8 +47,7 @@ protected:
     UIEvent(JS::Realm&, FlyString const& event_name);
     UIEvent(JS::Realm&, FlyString const& event_name, Bindings::UIEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<HTML::WindowProxy> m_view;
     int m_detail { 0 };

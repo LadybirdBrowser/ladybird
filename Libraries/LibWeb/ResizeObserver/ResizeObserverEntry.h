@@ -6,18 +6,18 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ResizeObserver.h>
+#include <LibWeb/Bindings/ResizeObserverEntry.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/ResizeObserver/ResizeObserverSize.h>
 
 namespace Web::ResizeObserver {
 
 // https://drafts.csswg.org/resize-observer-1/#resize-observer-entry-interface
-class ResizeObserverEntry : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ResizeObserverEntry, Bindings::PlatformObject);
+class ResizeObserverEntry : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ResizeObserverEntry, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ResizeObserverEntry);
 
 public:
@@ -30,19 +30,14 @@ public:
     Vector<GC::Ref<ResizeObserverSize>> const& content_box_size() const { return m_content_box_size; }
     Vector<GC::Ref<ResizeObserverSize>> const& device_pixel_content_box_size() const { return m_device_pixel_content_box_size; }
 
-    GC::Ref<JS::Object> border_box_size_js_array() const;
-    GC::Ref<JS::Object> content_box_size_js_array() const;
-    GC::Ref<JS::Object> device_pixel_content_box_size_js_array() const;
-
 private:
     explicit ResizeObserverEntry(JS::Realm& realm, DOM::Element& target)
-        : PlatformObject(realm)
+        : Wrappable(realm)
         , m_target(target)
     {
     }
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<DOM::Element> m_target;
 

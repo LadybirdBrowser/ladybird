@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/Gamepad/Gamepad.h>
@@ -29,7 +28,7 @@ static constexpr u64 MAX_VIBRATION_DURATION = 5000;
 // https://w3c.github.io/gamepad/#dfn-constructing-a-gamepadhapticactuator
 GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(JS::Realm& realm, GC::Ref<Gamepad> gamepad)
 {
-    auto& window = as<HTML::Window>(realm.global_object());
+    auto& window = HTML::relevant_window(realm.global_object());
     auto document_became_hidden_observer = realm.create<DOM::DocumentObserver>(realm, window.associated_document());
 
     // 1. Let gamepadHapticActuator be a newly created GamepadHapticActuator instance.
@@ -55,7 +54,7 @@ GC::Ref<GamepadHapticActuator> GamepadHapticActuator::create(JS::Realm& realm, G
 }
 
 GamepadHapticActuator::GamepadHapticActuator(JS::Realm& realm, GC::Ref<Gamepad> gamepad, GC::Ref<DOM::DocumentObserver> document_became_hidden_observer)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_gamepad(gamepad)
     , m_document_became_hidden_observer(document_became_hidden_observer)
 {
@@ -67,13 +66,7 @@ GamepadHapticActuator::GamepadHapticActuator(JS::Realm& realm, GC::Ref<Gamepad> 
 
 GamepadHapticActuator::~GamepadHapticActuator() = default;
 
-void GamepadHapticActuator::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(GamepadHapticActuator);
-    Base::initialize(realm);
-}
-
-void GamepadHapticActuator::visit_edges(Cell::Visitor& visitor)
+void GamepadHapticActuator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_gamepad);
@@ -148,7 +141,7 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHap
         return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid effect"_string });
 
     // 2. Let document be the current settings object's relevant global object's associated Document.
-    auto& window = as<HTML::Window>(HTML::current_settings_object().global_object());
+    auto& window = HTML::relevant_window(HTML::current_settings_object().global_object());
     auto& document = window.associated_document();
 
     // 3. If document is null or document is not fully active or document's visibility state is "hidden", return a
@@ -225,7 +218,7 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset()
     auto& realm = this->realm();
 
     // 1. Let document be the current settings object's relevant global object's associated Document.
-    auto& window = as<HTML::Window>(HTML::current_settings_object().global_object());
+    auto& window = HTML::relevant_window(HTML::current_settings_object().global_object());
     auto& document = window.associated_document();
 
     // 2. If document is null or document is not fully active or document's visibility state is "hidden", return a

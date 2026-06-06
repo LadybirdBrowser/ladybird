@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/PerformanceObserverEntryList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::PerformanceTimeline {
 
 // https://w3c.github.io/performance-timeline/#performanceobserverentrylist-interface
-class PerformanceObserverEntryList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(PerformanceObserverEntryList, Bindings::PlatformObject);
+class PerformanceObserverEntryList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(PerformanceObserverEntryList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(PerformanceObserverEntryList);
 
 public:
@@ -25,8 +26,7 @@ public:
 private:
     PerformanceObserverEntryList(JS::Realm&, Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://w3c.github.io/performance-timeline/#dfn-entry-list
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,

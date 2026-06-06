@@ -18,7 +18,7 @@ class SVGAnimatedString;
 class SVGFEColorMatrixElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEColorMatrixElement> {
-    WEB_PLATFORM_OBJECT(SVGFEColorMatrixElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEColorMatrixElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEColorMatrixElement);
 
 public:

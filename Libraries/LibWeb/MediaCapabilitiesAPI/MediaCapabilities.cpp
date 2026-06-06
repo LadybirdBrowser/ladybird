@@ -6,8 +6,6 @@
  */
 
 #include <LibJS/Runtime/BooleanObject.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaCapabilities.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
@@ -118,14 +116,8 @@ GC::Ref<MediaCapabilities> MediaCapabilities::create(JS::Realm& realm)
 }
 
 MediaCapabilities::MediaCapabilities(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
-}
-
-void MediaCapabilities::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaCapabilities);
-    Base::initialize(realm);
 }
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
@@ -145,7 +137,7 @@ GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(Bindings::MediaDecodin
     // 1. If configuration is not a valid MediaDecodingConfiguration, return a Promise rejected with a newly created
     //    TypeError.
     if (!is_valid_media_decoding_configuration(configuration)) {
-        return WebIDL::create_rejected_promise_from_exception(realm, vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"sv));
+        return WebIDL::create_rejected_promise_from_exception(realm, realm.vm().throw_completion<JS::TypeError>("The given configuration is not a valid MediaDecodingConfiguration"sv));
     }
 
     // 2. If configuration.keySystemConfiguration exists, run the following substeps:
@@ -155,7 +147,7 @@ GC::Ref<WebIDL::Promise> MediaCapabilities::decoding_info(Bindings::MediaDecodin
     auto p = WebIDL::create_promise(realm);
 
     // 4. Run the following steps in parallel:
-    auto& vm = this->vm();
+    auto& vm = realm.vm();
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, p, configuration]() mutable {
         HTML::TemporaryExecutionContext context(realm);
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.

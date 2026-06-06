@@ -9,15 +9,15 @@
 #include <AK/Function.h>
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#writablestreamdefaultwriter
-class WritableStreamDefaultWriter final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WritableStreamDefaultWriter, Bindings::PlatformObject);
+class WritableStreamDefaultWriter final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(WritableStreamDefaultWriter, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(WritableStreamDefaultWriter);
 
 public:
@@ -46,9 +46,7 @@ public:
 private:
     explicit WritableStreamDefaultWriter(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultwriter-closedpromise
     // A promise returned by the writer’s closed getter

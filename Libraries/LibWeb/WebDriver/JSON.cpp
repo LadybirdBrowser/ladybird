@@ -16,6 +16,9 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibWeb/Bindings/Element.h>
+#include <LibWeb/Bindings/ShadowRoot.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -55,19 +58,19 @@ static bool is_collection(JS::Object const& value)
         // - instance of Array
         || is<JS::Array>(value)
         // - instance of DOMTokenList
-        || is<DOM::DOMTokenList>(value)
+        || Bindings::impl_from<DOM::DOMTokenList>(&value)
         // - instance of FileList
-        || is<FileAPI::FileList>(value)
+        || Bindings::impl_from<FileAPI::FileList>(&value)
         // - instance of HTMLAllCollection
-        || is<HTML::HTMLAllCollection>(value)
+        || Bindings::impl_from<HTML::HTMLAllCollection>(&value)
         // - instance of HTMLCollection
-        || is<DOM::HTMLCollection>(value)
+        || Bindings::impl_from<DOM::HTMLCollection>(&value)
         // - instance of HTMLFormControlsCollection
-        || is<HTML::HTMLFormControlsCollection>(value)
+        || Bindings::impl_from<HTML::HTMLFormControlsCollection>(&value)
         // - instance of HTMLOptionsCollection
-        || is<HTML::HTMLOptionsCollection>(value)
+        || Bindings::impl_from<HTML::HTMLOptionsCollection>(&value)
         // - instance of NodeList
-        || is<DOM::NodeList>(value));
+        || Bindings::impl_from<DOM::NodeList>(&value));
 }
 
 // Helper to convert AK::JsonValue to JS::Value (for WebDriver protocol)
@@ -240,17 +243,15 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     auto const& object = static_cast<JS::Object const&>(value.as_object());
 
     // -> instance of Element
-    if (is<DOM::Element>(object)) {
-        auto const& element = static_cast<DOM::Element const&>(object);
-
+    if (auto const* element = Bindings::impl_from<DOM::Element>(&object)) {
         // If the element is stale, return error with error code stale element reference.
-        if (is_element_stale(element)) {
+        if (is_element_stale(*element)) {
             return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Referenced element has become stale"sv);
         }
         // Otherwise:
         else {
             // 1. Let reference be the web element reference object for session and value.
-            auto reference = web_element_reference_object(browsing_context, element);
+            auto reference = web_element_reference_object(browsing_context, *element);
 
             // 2. Return success with data reference.
             return JsonValue { move(reference) };
@@ -258,17 +259,15 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     }
 
     // -> instance of ShadowRoot
-    if (is<DOM::ShadowRoot>(object)) {
-        auto const& shadow_root = static_cast<DOM::ShadowRoot const&>(object);
-
+    if (auto const* shadow_root = Bindings::impl_from<DOM::ShadowRoot>(&object)) {
         // If the shadow root is detached, return error with error code detached shadow root.
-        if (is_shadow_root_detached(shadow_root)) {
+        if (is_shadow_root_detached(*shadow_root)) {
             return WebDriver::Error::from_code(ErrorCode::DetachedShadowRoot, "Referenced shadow root has become detached"sv);
         }
         // Otherwise:
         else {
             // 1. Let reference be the shadow root reference object for session and value.
-            auto reference = shadow_root_reference_object(browsing_context, shadow_root);
+            auto reference = shadow_root_reference_object(browsing_context, *shadow_root);
 
             // 2. Return success with data reference.
             return JsonValue { move(reference) };
@@ -340,13 +339,15 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
     // -> Object that represents a web element
     if (represents_a_web_element(value)) {
         // Return the deserialized web element of value.
-        return deserialize_web_element(browsing_context, value.as_object());
+        auto element = TRY(deserialize_web_element(browsing_context, value.as_object()));
+        return Bindings::wrap(browsing_context.active_document()->realm(), element);
     }
 
     // -> Object that represents a shadow root
     if (represents_a_shadow_root(value)) {
         // Return the deserialized shadow root of value.
-        return deserialize_shadow_root(browsing_context, value.as_object());
+        auto shadow_root = TRY(deserialize_shadow_root(browsing_context, value.as_object()));
+        return Bindings::wrap(browsing_context.active_document()->realm(), shadow_root);
     }
 
     // -> Object that represents a web frame

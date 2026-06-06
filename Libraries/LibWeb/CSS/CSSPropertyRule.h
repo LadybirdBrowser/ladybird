@@ -18,7 +18,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-properties-values-api/#the-css-property-rule-interface
 class CSSPropertyRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSPropertyRule, CSSRule);
+    WEB_WRAPPABLE(CSSPropertyRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSPropertyRule);
 
 public:
@@ -36,8 +36,6 @@ public:
 
 private:
     CSSPropertyRule(JS::Realm&, Utf16FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value);
-
-    virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

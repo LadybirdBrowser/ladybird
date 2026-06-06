@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-mixins-1/#cssfunctiondeclarations
 class CSSFunctionDeclarations final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSFunctionDeclarations, CSSRule);
+    WEB_WRAPPABLE(CSSFunctionDeclarations, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFunctionDeclarations);
 
 public:
@@ -25,9 +25,7 @@ public:
 
 private:
     CSSFunctionDeclarations(JS::Realm&, GC::Ref<CSSFunctionDescriptors>);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

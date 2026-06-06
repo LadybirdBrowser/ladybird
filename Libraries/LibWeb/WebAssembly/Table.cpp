@@ -12,7 +12,6 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWasm/Types.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Table.h>
 #include <LibWeb/WebAssembly/Table.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
@@ -128,16 +127,9 @@ WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, Bind
 }
 
 Table::Table(JS::Realm& realm, Wasm::TableAddress address)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_address(address)
 {
-}
-
-void Table::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Table, WebAssembly.Table);
-    Base::initialize(realm);
-
     // https://webassembly.github.io/spec/js-api/#initialize-a-table-object
     // 1. Let map be the surrounding agent's associated Table object cache.
     auto& cache = Detail::get_cache(realm);
@@ -156,7 +148,7 @@ void Table::initialize(JS::Realm& realm)
 // https://webassembly.github.io/spec/js-api/#dom-table-grow
 WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::Value> value)
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.
@@ -197,7 +189,7 @@ WebIDL::ExceptionOr<JS::Value> Table::grow(JS::Value delta_value, Optional<JS::V
 // https://webassembly.github.io/spec/js-api/#dom-table-get
 WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.
@@ -232,7 +224,7 @@ WebIDL::ExceptionOr<JS::Value> Table::get(JS::Value index_value) const
 // https://webassembly.github.io/spec/js-api/#dom-table-set
 WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> value)
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.
@@ -274,7 +266,7 @@ WebIDL::ExceptionOr<void> Table::set(JS::Value index_value, Optional<JS::Value> 
 // https://webassembly.github.io/spec/js-api/#dom-table-length
 WebIDL::ExceptionOr<JS::Value> Table::length() const
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. Let tableaddr be this.[[Table]].
     // 2. Let store be the surrounding agent's associated store.

@@ -15,7 +15,7 @@ namespace Web::SVG {
 class SVGFEDisplacementMapElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEDisplacementMapElement> {
-    WEB_PLATFORM_OBJECT(SVGFEDisplacementMapElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEDisplacementMapElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEDisplacementMapElement);
 
 public:

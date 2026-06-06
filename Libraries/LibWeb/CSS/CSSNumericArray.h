@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/CSSNumericArray.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericarray
-class CSSNumericArray : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSNumericArray, Bindings::PlatformObject);
+class CSSNumericArray : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSNumericArray, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CSSNumericArray);
 
 public:
@@ -22,11 +23,10 @@ public:
     virtual ~CSSNumericArray() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
     Vector<GC::Ref<CSSNumericValue>> values() { return m_values; }
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     bool is_equal_numeric_values(GC::Ref<CSSNumericArray> other) const;
 
 private:

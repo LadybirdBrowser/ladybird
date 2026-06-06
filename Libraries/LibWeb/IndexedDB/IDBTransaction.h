@@ -28,7 +28,7 @@ class IDBRequest;
 
 // https://w3c.github.io/IndexedDB/#transaction
 class IDBTransaction : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(IDBTransaction, DOM::EventTarget);
+    WEB_WRAPPABLE(IDBTransaction, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(IDBTransaction);
 
     enum TransactionState {

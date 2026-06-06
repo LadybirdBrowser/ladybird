@@ -12,7 +12,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#ScriptProcessorNode
 class ScriptProcessorNode final : public AudioNode {
-    WEB_PLATFORM_OBJECT(ScriptProcessorNode, AudioNode);
+    WEB_WRAPPABLE(ScriptProcessorNode, AudioNode);
     GC_DECLARE_ALLOCATOR(ScriptProcessorNode);
 
 public:

@@ -19,7 +19,7 @@ struct InitializationSegmentData;
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer
 class SourceBuffer : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(SourceBuffer, DOM::EventTarget);
+    WEB_WRAPPABLE(SourceBuffer, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SourceBuffer);
 
 public:

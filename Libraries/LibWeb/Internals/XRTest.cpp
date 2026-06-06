@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/FakeXRDevice.h>
 #include <LibWeb/Bindings/XRTest.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/Internals/XRTest.h>
@@ -22,12 +22,6 @@ XRTest::XRTest(JS::Realm& realm)
 
 XRTest::~XRTest() = default;
 
-void XRTest::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XRTest);
-    Base::initialize(realm);
-}
-
 GC::Ref<WebIDL::Promise> XRTest::simulate_device_connection(Bindings::FakeXRDeviceInit const&) const
 {
     // Simulates connecting a device to the system.
@@ -35,7 +29,7 @@ GC::Ref<WebIDL::Promise> XRTest::simulate_device_connection(Bindings::FakeXRDevi
     // FIXME: Actually perform whatever device connection steps are needed once those are implemented.
     auto& realm = HTML::relevant_realm(*this);
     auto promise = WebIDL::create_promise(realm);
-    WebIDL::resolve_promise(realm, promise, FakeXRDevice::create(realm));
+    WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, FakeXRDevice::create(realm)));
     return promise;
 }
 

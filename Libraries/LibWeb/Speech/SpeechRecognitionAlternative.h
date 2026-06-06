@@ -9,13 +9,14 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SpeechRecognitionAlternative.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Speech {
 
-class SpeechRecognitionAlternative final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechRecognitionAlternative, Bindings::PlatformObject);
+class SpeechRecognitionAlternative final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechRecognitionAlternative, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechRecognitionAlternative);
 
 public:
@@ -30,8 +31,6 @@ public:
 
 private:
     explicit SpeechRecognitionAlternative(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_transcript;
     float m_confidence { 0.f };

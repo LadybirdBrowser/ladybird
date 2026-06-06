@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class NavigationCurrentEntryChangeEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(NavigationCurrentEntryChangeEvent, DOM::Event);
+    WEB_WRAPPABLE(NavigationCurrentEntryChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
 public:
@@ -27,8 +27,7 @@ public:
 private:
     NavigationCurrentEntryChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Optional<Bindings::NavigationType> m_navigation_type;
     GC::Ref<NavigationHistoryEntry> m_from;

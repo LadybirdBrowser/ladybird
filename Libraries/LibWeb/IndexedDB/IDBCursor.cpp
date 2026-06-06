@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/IDBCursor.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>
@@ -19,7 +18,7 @@ GC_DEFINE_ALLOCATOR(IDBCursor);
 IDBCursor::~IDBCursor() = default;
 
 IDBCursor::IDBCursor(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_value(value)
     , m_position(position)
     , m_direction(direction)
@@ -40,13 +39,7 @@ GC::Ref<IDBCursor> IDBCursor::create(JS::Realm& realm, CursorSourceHandle source
     return realm.create<IDBCursor>(realm, source_handle, position, direction, got_value, key, value, range, key_only);
 }
 
-void IDBCursor::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBCursor);
-    Base::initialize(realm);
-}
-
-void IDBCursor::visit_edges(Visitor& visitor)
+void IDBCursor::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_position);
@@ -69,17 +62,6 @@ IDBCursorWithValue::~IDBCursorWithValue() = default;
 IDBCursorWithValue::IDBCursorWithValue(JS::Realm& realm, CursorSourceHandle source_handle, GC::Ptr<Key> position, Bindings::IDBCursorDirection direction, GotValue got_value, GC::Ptr<Key> key, JS::Value value, GC::Ref<IDBKeyRange> range, KeyOnly key_only)
     : IDBCursor(realm, source_handle, position, direction, got_value, key, value, range, key_only)
 {
-}
-
-void IDBCursorWithValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBCursorWithValue);
-    Base::initialize(realm);
-}
-
-void IDBCursorWithValue::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
 }
 
 bool IDBCursor::is_source_or_object_store_deleted() const
@@ -179,7 +161,10 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_(Optional<JS::Value> key)
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and key (if given).
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key_value] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, key_value));
+        auto result = iterate_a_cursor(realm, *this, key_value);
+        if (!result)
+            return JS::js_null();
+        return Bindings::wrap(realm, result);
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -248,7 +233,10 @@ WebIDL::ExceptionOr<void> IDBCursor::advance(WebIDL::UnsignedLong count)
 
     // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and count.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, count] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, nullptr, nullptr, count));
+        auto result = iterate_a_cursor(realm, *this, nullptr, nullptr, count);
+        if (!result)
+            return JS::js_null();
+        return Bindings::wrap(realm, result);
     });
 
     // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
@@ -336,7 +324,10 @@ WebIDL::ExceptionOr<void> IDBCursor::continue_primary_key(JS::Value key_param, J
 
     // 21. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, key, and primaryKey.
     auto operation = GC::Function<WebIDL::ExceptionOr<JS::Value>()>::create(realm.heap(), [this, &realm, key, primary_key] -> WebIDL::ExceptionOr<JS::Value> {
-        return WebIDL::ExceptionOr<JS::Value>(iterate_a_cursor(realm, *this, key, primary_key));
+        auto result = iterate_a_cursor(realm, *this, key, primary_key);
+        if (!result)
+            return JS::js_null();
+        return Bindings::wrap(realm, result);
     });
 
     // 22. Run asynchronously execute a request with this’s source handle, operation, and request.

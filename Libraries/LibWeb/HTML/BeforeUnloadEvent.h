@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class BeforeUnloadEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(BeforeUnloadEvent, DOM::Event);
+    WEB_WRAPPABLE(BeforeUnloadEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(BeforeUnloadEvent);
 
 public:
@@ -26,8 +26,6 @@ public:
     void set_return_value(String const& return_value) { m_return_value = return_value; }
 
 private:
-    virtual void initialize(JS::Realm&) override;
-
     String m_return_value;
 };
 

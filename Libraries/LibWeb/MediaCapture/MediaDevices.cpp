@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaDeviceInfo.h>
 #include <LibWeb/Bindings/MediaDevices.h>
+#include <LibWeb/Bindings/MediaStream.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -59,7 +60,7 @@ MediaDevices::MediaDevices(JS::Realm& realm)
     auto pending_request_state_change_callback = realm.heap().allocate<WebIDL::CallbackType>(*pending_request_state_change_callback_function, realm);
     m_pending_request_state_change_listener = DOM::IDLEventListener::create(realm, pending_request_state_change_callback);
 
-    auto& window = as<HTML::Window>(realm.global_object());
+    auto& window = HTML::relevant_window(realm.global_object());
     window.associated_document().add_event_listener_without_options(HTML::EventNames::visibilitychange, *m_pending_request_state_change_listener);
     window.add_event_listener_without_options(HTML::EventNames::focus, *m_pending_request_state_change_listener);
     window.add_event_listener_without_options(HTML::EventNames::blur, *m_pending_request_state_change_listener);
@@ -80,7 +81,7 @@ void MediaDevices::initialize(JS::Realm& realm)
 void MediaDevices::finalize()
 {
     if (m_pending_request_state_change_listener) {
-        auto& window = as<HTML::Window>(realm().global_object());
+        auto& window = HTML::relevant_window(realm().global_object());
         window.associated_document().remove_event_listener_without_options(HTML::EventNames::visibilitychange, *m_pending_request_state_change_listener);
         window.remove_event_listener_without_options(HTML::EventNames::focus, *m_pending_request_state_change_listener);
         window.remove_event_listener_without_options(HTML::EventNames::blur, *m_pending_request_state_change_listener);
@@ -130,13 +131,13 @@ bool MediaDevices::camera_information_can_be_exposed() const
 
 bool MediaDevices::can_use_microphone_feature() const
 {
-    auto const& document = as<HTML::Window>(realm().global_object()).associated_document();
+    auto const& document = HTML::relevant_window(realm().global_object()).associated_document();
     return document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Microphone);
 }
 
 bool MediaDevices::can_use_camera_feature() const
 {
-    auto const& document = as<HTML::Window>(realm().global_object()).associated_document();
+    auto const& document = HTML::relevant_window(realm().global_object()).associated_document();
     return document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Camera);
 }
 
@@ -152,12 +153,12 @@ bool MediaDevices::device_enumeration_can_proceed()
 
 bool MediaDevices::get_user_media_can_proceed() const
 {
-    return is_in_view() && as<HTML::Window>(realm().global_object()).associated_document().has_focus();
+    return is_in_view() && HTML::relevant_window(realm().global_object()).associated_document().has_focus();
 }
 
 bool MediaDevices::is_in_view() const
 {
-    auto const& document = as<HTML::Window>(realm().global_object()).associated_document();
+    auto const& document = HTML::relevant_window(realm().global_object()).associated_document();
     return document.is_fully_active() && document.visibility_state_value() == HTML::VisibilityState::Visible;
 }
 
@@ -324,7 +325,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         media_devices->m_media_stream_track_sources.set(track->provider_id());
 
         // 11.12 Resolve p with stream and abort these steps.
-        WebIDL::resolve_promise(realm, *promise, stream);
+        WebIDL::resolve_promise(realm, *promise, Bindings::wrap(realm, stream));
 
         // 11.15 Permission Failure: Reject p with a new DOMException object whose name attribute has the value "NotAllowedError".
         (void)reject_permission_failure;
@@ -383,7 +384,7 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
     GC::RootVector<GC::Ref<MediaDeviceInfo>> other_device_list;
 
     // 3. Let document be mediaDevices's relevant global object's associated Document.
-    auto const& document = as<HTML::Window>(realm.global_object()).associated_document();
+    auto const& document = HTML::relevant_window(realm.global_object()).associated_document();
     (void)document;
 
     auto create_device_info_object = [&](StoredDevice const& device) -> Optional<GC::Ref<MediaDeviceInfo>> {
@@ -619,7 +620,7 @@ GC::Ref<WebIDL::Promise> MediaDevices::get_user_media(Optional<Bindings::MediaSt
         return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("No media types requested"sv));
 
     // 4. Let document be the relevant global object's associated Document.
-    auto const& document = as<HTML::Window>(realm.global_object()).associated_document();
+    auto const& document = HTML::relevant_window(realm.global_object()).associated_document();
 
     // 5. If document is NOT fully active, return a promise rejected with an InvalidStateError.
     if (!document.is_fully_active())
@@ -753,7 +754,7 @@ static void resolve_with_device_info_list(JS::Realm& realm, WebIDL::Promise& pro
     GC::Ref<JS::Array> array = MUST(JS::Array::create(realm, result_list.size()));
     for (size_t index = 0; index < result_list.size(); ++index) {
         JS::PropertyKey property_index { index };
-        if (array->create_data_property(property_index, result_list[index]).is_error()) {
+        if (array->create_data_property(property_index, Bindings::wrap(realm, result_list[index])).is_error()) {
             WebIDL::reject_promise(realm, promise, WebIDL::OperationError::create(realm, "Failed to build enumerateDevices result"_utf16));
             return;
         }

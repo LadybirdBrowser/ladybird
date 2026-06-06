@@ -13,7 +13,7 @@
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawPath.h>
@@ -35,7 +35,7 @@
 namespace Web::HTML {
 
 class CanvasRenderingContext2D
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public CanvasPath
     , public CanvasState
     , public CanvasTransform
@@ -53,7 +53,7 @@ class CanvasRenderingContext2D
     , public CanvasPathDrawingStyles
     , public CanvasTextDrawingStyles<HTMLCanvasElement> {
 
-    WEB_PLATFORM_OBJECT(CanvasRenderingContext2D, Bindings::PlatformObject);
+    WEB_WRAPPABLE(CanvasRenderingContext2D, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CanvasRenderingContext2D);
 
 public:
@@ -136,11 +136,9 @@ protected:
 private:
     CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, Bindings::CanvasRenderingContext2DSettings);
 
-    virtual bool is_canvas_rendering_context_2d() const final { return true; }
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
+    virtual JS::Realm& canvas_path_realm() const override { return realm(); }
 
     struct PreparedText {
         Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
@@ -183,12 +181,5 @@ enum class CanvasImageSourceUsability {
 
 WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
 bool image_is_not_origin_clean(CanvasImageSource const&);
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::CanvasRenderingContext2D>() const { return is_canvas_rendering_context_2d(); }
 
 }

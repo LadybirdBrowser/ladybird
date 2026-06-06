@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechGrammarList.h>
 #include <LibWeb/Speech/SpeechGrammarList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -20,19 +18,13 @@ WebIDL::ExceptionOr<GC::Ref<SpeechGrammarList>> SpeechGrammarList::construct_imp
 }
 
 SpeechGrammarList::SpeechGrammarList(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 SpeechGrammarList::~SpeechGrammarList() = default;
 
-void SpeechGrammarList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechGrammarList);
-    Base::initialize(realm);
-}
-
-void SpeechGrammarList::visit_edges(Cell::Visitor& visitor)
+void SpeechGrammarList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_grammars);

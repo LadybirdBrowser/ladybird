@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLUListElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLUListElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLUListElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLUListElement);
 
 public:

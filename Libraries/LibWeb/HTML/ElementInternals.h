@@ -8,7 +8,8 @@
 
 #include <AK/WeakPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/ElementInternals.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -18,8 +19,8 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#elementinternals
-class ElementInternals final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ElementInternals, Bindings::PlatformObject);
+class ElementInternals final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ElementInternals, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ElementInternals);
 
 public:
@@ -45,8 +46,7 @@ public:
 private:
     explicit ElementInternals(JS::Realm&, HTMLElement& target_element);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#internals-target
     GC::Ref<HTMLElement> m_target_element;

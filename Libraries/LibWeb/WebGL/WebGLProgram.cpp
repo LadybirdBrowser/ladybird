@@ -7,7 +7,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLShader.h>
@@ -28,13 +27,7 @@ WebGLProgram::WebGLProgram(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> 
 
 WebGLProgram::~WebGLProgram() = default;
 
-void WebGLProgram::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLProgram);
-    Base::initialize(realm);
-}
-
-void WebGLProgram::visit_edges(Cell::Visitor& visitor)
+void WebGLProgram::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_attached_vertex_shader);

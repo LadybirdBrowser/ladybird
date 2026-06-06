@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathsum
 class CSSMathSum final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathSum, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathSum, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathSum);
 
 public:
@@ -21,9 +21,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> add_all_types_into_math_sum(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathSum() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericArray> values() const;
 

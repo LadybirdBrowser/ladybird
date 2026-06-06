@@ -34,19 +34,13 @@ GC::Ref<CustomElementRegistry> CustomElementRegistry::construct_impl(JS::Realm& 
 }
 
 CustomElementRegistry::CustomElementRegistry(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 CustomElementRegistry::~CustomElementRegistry() = default;
 
-void CustomElementRegistry::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CustomElementRegistry);
-    Base::initialize(realm);
-}
-
-void CustomElementRegistry::visit_edges(Visitor& visitor)
+void CustomElementRegistry::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_custom_element_definitions);
@@ -126,7 +120,7 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
 JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const& options)
 {
     auto& realm = this->realm();
-    auto& vm = this->vm();
+    auto& vm = realm.vm();
 
     // 1. If IsConstructor(constructor) is false, then throw a TypeError.
     if (!JS::Value(constructor->callback).is_constructor())
@@ -134,7 +128,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 2. If name is not a valid custom element name, then throw a "SyntaxError" DOMException.
     if (!is_valid_custom_element_name(name))
-        return JS::throw_completion(WebIDL::SyntaxError::create(realm, Utf16String::formatted("'{}' is not a valid custom element name", name)));
+        return throw_completion(WebIDL::SyntaxError::create(realm, Utf16String::formatted("'{}' is not a valid custom element name", name)));
 
     // 3. If this's custom element definition set contains an item with name name, then throw a "NotSupportedError"
     //    DOMException.
@@ -143,7 +137,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     });
 
     if (existing_definition_with_name_iterator != m_custom_element_definitions.end())
-        return JS::throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("A custom element with name '{}' is already defined", name)));
+        return throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("A custom element with name '{}' is already defined", name)));
 
     // 4. If this's custom element definition set contains an item with constructor constructor, then throw a
     //    "NotSupportedError" DOMException.
@@ -152,7 +146,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     });
 
     if (existing_definition_with_constructor_iterator != m_custom_element_definitions.end())
-        return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "The given constructor is already in use by another custom element"_utf16));
+        return throw_completion(WebIDL::NotSupportedError::create(realm, "The given constructor is already in use by another custom element"_utf16));
 
     // 5. Let localName be name.
     String local_name = name;
@@ -164,16 +158,16 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     if (extends.has_value()) {
         // 1. If this's is scoped is true, then throw a "NotSupportedError" DOMException.
         if (m_is_scoped)
-            return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot define a custom element that extends another in a scoped registry"_utf16));
+            return throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot define a custom element that extends another in a scoped registry"_utf16));
 
         // 2. If extends is a valid custom element name, then throw a "NotSupportedError" DOMException.
         if (is_valid_custom_element_name(extends.value()))
-            return JS::throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is a custom element name, only non-custom elements can be extended", extends.value())));
+            return throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is a custom element name, only non-custom elements can be extended", extends.value())));
 
         // 3. If the element interface for extends and the HTML namespace is HTMLUnknownElement (e.g., if extends does
         //    not indicate an element definition in this specification), then throw a "NotSupportedError" DOMException.
         if (DOM::is_unknown_html_element(extends.value()))
-            return JS::throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is an unknown HTML element", extends.value())));
+            return throw_completion(WebIDL::NotSupportedError::create(realm, Utf16String::formatted("'{}' is an unknown HTML element", extends.value())));
 
         // 4. Set localName to extends.
         local_name = extends.value();
@@ -181,7 +175,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 8. If this's element definition is running is true, then throw a "NotSupportedError" DOMException.
     if (m_element_definition_is_running)
-        return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot recursively define custom elements"_utf16));
+        return throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot recursively define custom elements"_utf16));
 
     // 9. Set this's element definition is running to true.
     m_element_definition_is_running = true;
@@ -312,7 +306,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     // 18. Otherwise, upgrade particular elements within a document given this, this's relevant global object's
     //     associated Document, definition, localName, and name.
     else {
-        auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+        auto& document = relevant_window(*this).associated_document();
         document.upgrade_particular_elements(*this, definition, local_name, name);
     }
 

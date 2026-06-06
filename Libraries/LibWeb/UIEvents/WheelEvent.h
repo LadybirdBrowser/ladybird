@@ -25,7 +25,7 @@ enum class WheelEventIsCancelable : u8 {
 };
 
 class WheelEvent final : public MouseEvent {
-    WEB_PLATFORM_OBJECT(WheelEvent, MouseEvent);
+    WEB_WRAPPABLE(WheelEvent, MouseEvent);
     GC_DECLARE_ALLOCATOR(WheelEvent);
 
 public:
@@ -43,8 +43,6 @@ public:
 
 private:
     WheelEvent(JS::Realm&, FlyString const& event_name, Bindings::WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y);
-
-    virtual void initialize(JS::Realm&) override;
 
     double m_delta_x { 0 };
     double m_delta_y { 0 };

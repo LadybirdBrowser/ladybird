@@ -7,14 +7,13 @@
 #pragma once
 
 #include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ScrollTimeline.h>
 
 namespace Web::Animations {
 
 // https://drafts.csswg.org/scroll-animations-1/#scrolltimeline
 class ScrollTimeline : public AnimationTimeline {
-    WEB_PLATFORM_OBJECT(ScrollTimeline, AnimationTimeline);
+    WEB_WRAPPABLE(ScrollTimeline, AnimationTimeline);
     GC_DECLARE_ALLOCATOR(ScrollTimeline);
 
 public:
@@ -47,8 +46,7 @@ private:
     ScrollTimeline(JS::Realm&, DOM::Document&, Source source, Bindings::ScrollAxis axis);
     virtual ~ScrollTimeline() override = default;
 
-    virtual void visit_edges(Cell::Visitor&) override;
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> get_propagated_source() const;
 

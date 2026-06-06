@@ -7,7 +7,7 @@
  */
 
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -16,8 +16,8 @@
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMPoint.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::construct_imp
     // -> If init is a DOMString
     if (init_value.has<String>()) {
         // 1. If current global object is not a Window object, then throw a TypeError exception.
-        if (!is<HTML::Window>(realm.global_object()))
+        if (!HTML::window_from_global_object(realm.global_object()))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "This can only be used in a Window context"_string };
 
         // 2. Parse init into an abstract matrix, and let matrix and 2dTransform be the result. If the result is failure, then throw a "SyntaxError" DOMException.
@@ -128,36 +128,30 @@ GC::Ref<DOMMatrixReadOnly> DOMMatrixReadOnly::create(JS::Realm& realm)
 }
 
 DOMMatrixReadOnly::DOMMatrixReadOnly(JS::Realm& realm, double m11, double m12, double m21, double m22, double m41, double m42)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
     initialize_from_create_2d_matrix(m11, m12, m21, m22, m41, m42);
 }
 
 DOMMatrixReadOnly::DOMMatrixReadOnly(JS::Realm& realm, double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
     initialize_from_create_3d_matrix(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
 }
 
 DOMMatrixReadOnly::DOMMatrixReadOnly(JS::Realm& realm, DOMMatrixReadOnly const& other)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_matrix(other.m_matrix)
     , m_is_2d(other.m_is_2d)
 {
 }
 
 DOMMatrixReadOnly::DOMMatrixReadOnly(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 DOMMatrixReadOnly::~DOMMatrixReadOnly() = default;
-
-void DOMMatrixReadOnly::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMMatrixReadOnly);
-    Base::initialize(realm);
-}
 
 // https://drafts.fxtf.org/geometry/#create-a-2d-matrix
 void DOMMatrixReadOnly::initialize_from_create_2d_matrix(double m11, double m12, double m21, double m22, double m41, double m42)
@@ -547,7 +541,7 @@ GC::Ref<JS::Float64Array> DOMMatrixReadOnly::to_float64_array() const
 // https://drafts.fxtf.org/geometry/#dommatrixreadonly-stringification-behavior
 WebIDL::ExceptionOr<String> DOMMatrixReadOnly::to_string() const
 {
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     // 1. If one or more of m11 element through m44 element are a non-finite value, then throw an "InvalidStateError" DOMException.
     // Spec Note: The CSS syntax cannot represent NaN or Infinity values.

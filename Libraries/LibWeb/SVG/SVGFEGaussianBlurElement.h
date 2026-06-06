@@ -15,7 +15,7 @@ namespace Web::SVG {
 class SVGFEGaussianBlurElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEGaussianBlurElement> {
-    WEB_PLATFORM_OBJECT(SVGFEGaussianBlurElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEGaussianBlurElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEGaussianBlurElement);
 
 public:

@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Runtime/ModuleRequest.h>
+#include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -160,7 +161,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
     }
 
     // 7. Set script's record to the result of CreateDefaultExportSyntheticModule(sheet).
-    script->m_record = JS::SyntheticModule::create_default_export_synthetic_module(realm, sheet, filename.view());
+    script->m_record = JS::SyntheticModule::create_default_export_synthetic_module(realm, Bindings::wrap(realm, sheet), filename.view());
 
     // 8. Return script.
     return script;
@@ -288,7 +289,7 @@ WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting
         // If Evaluate fails to complete as a result of the user agent aborting the running script,
         // then set evaluationPromise to a promise rejected with a new "QuotaExceededError" DOMException.
         if (elevation_promise_or_error.is_error()) {
-            evaluation_promise = WebIDL::create_rejected_promise(realm, WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_utf16).ptr());
+            evaluation_promise = WebIDL::create_rejected_promise(realm, WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_utf16));
         } else {
             evaluation_promise = elevation_promise_or_error.value();
         }
@@ -302,7 +303,9 @@ WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting
     if (prevent_error_reporting == PreventErrorReporting::No) {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         WebIDL::upon_rejection(*evaluation_promise, GC::create_function(realm.heap(), [&realm](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
-            as<WindowOrWorkerGlobalScopeMixin>(realm.global_object()).report_an_exception(reason);
+            auto* window_or_worker = window_or_worker_global_scope_from_global_object(realm.global_object());
+            VERIFY(window_or_worker);
+            window_or_worker->report_an_exception(reason);
             return JS::js_undefined();
         }));
     }

@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
 class DynamicsCompressorNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(DynamicsCompressorNode, AudioNode);
+    WEB_WRAPPABLE(DynamicsCompressorNode, AudioNode);
     GC_DECLARE_ALLOCATOR(DynamicsCompressorNode);
 
 public:

@@ -23,7 +23,7 @@ enum class DOMKeyLocation {
 
 // https://www.w3.org/TR/uievents/#interface-keyboardevent
 class KeyboardEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(KeyboardEvent, UIEvent);
+    WEB_WRAPPABLE(KeyboardEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(KeyboardEvent);
 
 public:
@@ -56,8 +56,6 @@ public:
 
 private:
     KeyboardEvent(JS::Realm&, FlyString const& event_name, Bindings::KeyboardEventInit const& event_init);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_key;
     String m_code;

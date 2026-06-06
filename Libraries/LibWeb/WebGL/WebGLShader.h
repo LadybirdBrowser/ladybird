@@ -14,7 +14,7 @@
 namespace Web::WebGL {
 
 class WebGLShader final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLShader, WebGLObject);
+    WEB_WRAPPABLE(WebGLShader, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLShader);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 protected:
     explicit WebGLShader(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle, GLenum type);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     GLenum m_type { 0 };

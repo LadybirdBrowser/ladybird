@@ -10,8 +10,8 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ReadableStreamBYOBReader.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/ReadableStreamGenericReader.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -38,9 +38,9 @@ public:
 
 // https://streams.spec.whatwg.org/#readablestreambyobreader
 class ReadableStreamBYOBReader final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public ReadableStreamGenericReaderMixin {
-    WEB_PLATFORM_OBJECT(ReadableStreamBYOBReader, Bindings::PlatformObject);
+    WEB_WRAPPABLE(ReadableStreamBYOBReader, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableStreamBYOBReader);
 
 public:
@@ -57,9 +57,8 @@ public:
 private:
     explicit ReadableStreamBYOBReader(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual JS::Realm& reader_realm() const override { return realm(); }
 
     // https://streams.spec.whatwg.org/#readablestreambyobreader-readintorequests
     // A list of read-into requests, used when a consumer requests chunks sooner than they are available

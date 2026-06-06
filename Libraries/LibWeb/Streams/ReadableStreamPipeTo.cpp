@@ -68,7 +68,6 @@ GC_DEFINE_ALLOCATOR(ReadableStreamPipeToReadRequest);
 
 // https://streams.spec.whatwg.org/#ref-for-in-parallel
 ReadableStreamPipeTo::ReadableStreamPipeTo(
-    GC::Ref<JS::Realm> realm,
     GC::Ref<WebIDL::Promise> promise,
     GC::Ref<ReadableStream> source,
     GC::Ref<WritableStream> destination,
@@ -77,8 +76,7 @@ ReadableStreamPipeTo::ReadableStreamPipeTo(
     bool prevent_close,
     bool prevent_abort,
     bool prevent_cancel)
-    : m_realm(realm)
-    , m_promise(promise)
+    : m_promise(promise)
     , m_source(source)
     , m_destination(destination)
     , m_reader(reader)
@@ -102,7 +100,6 @@ ReadableStreamPipeTo::ReadableStreamPipeTo(
 void ReadableStreamPipeTo::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_realm);
     visitor.visit(m_promise);
     visitor.visit(m_source);
     visitor.visit(m_destination);
@@ -126,7 +123,7 @@ void ReadableStreamPipeTo::process()
         return;
     }
 
-    auto when_ready = GC::create_function(m_realm->heap(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto when_ready = GC::create_function(realm().heap(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         read_chunk();
         return JS::js_undefined();
     });
@@ -152,7 +149,7 @@ void ReadableStreamPipeTo::shutdown_with_action(GC::Ref<GC::Function<GC::Ref<Web
     m_shutting_down = true;
 
     auto on_pending_writes_complete = [this, action, original_error = move(original_error)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 4. Let p be the result of performing action.
         auto promise = action->function()();
@@ -194,7 +191,7 @@ void ReadableStreamPipeTo::shutdown(Optional<JS::Value> error)
     m_shutting_down = true;
 
     auto on_pending_writes_complete = [this, error = move(error)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 4. Finalize, passing along error if it was given.
         finish(move(error));
@@ -226,8 +223,8 @@ void ReadableStreamPipeTo::read_chunk()
         if (check_for_error_and_close_states())
             return;
 
-        HTML::queue_a_microtask(nullptr, GC::create_function(m_realm->heap(), [this]() {
-            HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::queue_a_microtask(nullptr, GC::create_function(realm().heap(), [this]() {
+            HTML::TemporaryExecutionContext execution_context { realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             write_chunk();
             process();
         }));
@@ -296,11 +293,11 @@ void ReadableStreamPipeTo::finish(Optional<JS::Value> error)
 
     // 5. If error was given, reject promise with error.
     if (error.has_value()) {
-        WebIDL::reject_promise(m_realm, m_promise, *error);
+        WebIDL::reject_promise(realm(), m_promise, *error);
     }
     // 6. Otherwise, resolve promise with undefined.
     else {
-        WebIDL::resolve_promise(m_realm, m_promise, JS::js_undefined());
+        WebIDL::resolve_promise(realm(), m_promise, JS::js_undefined());
     }
 
     m_reader->set_readable_stream_pipe_to_operation({}, nullptr);
@@ -388,7 +385,7 @@ bool ReadableStreamPipeTo::check_for_backward_close()
         // 1. Assert: no chunks have been read or written.
 
         // 2. Let destClosed be a new TypeError.
-        auto destination_closed = JS::TypeError::create(m_realm, "Destination stream was closed during piping operation"sv);
+        auto destination_closed = JS::TypeError::create(realm(), "Destination stream was closed during piping operation"sv);
 
         // 3. If preventCancel is false, shutdown with an action of ! ReadableStreamCancel(source, destClosed) and with destClosed.
         if (!m_prevent_cancel) {

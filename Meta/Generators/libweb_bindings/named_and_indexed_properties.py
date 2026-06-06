@@ -72,6 +72,9 @@ def write_named_properties_object_implementation(
     includes.add("LibJS/Runtime/PropertyKey.h")
     includes.add("LibWeb/Bindings/Intrinsics.h")
     includes.add(implementation_header_for_interface(interface))
+    if interface.name == "Window":
+        includes.add("LibWeb/Bindings/PlatformObject.h")
+        includes.add("LibWeb/Bindings/Wrappable.h")
     parent_prototype = "realm.intrinsics().object_prototype()"
     if interface.parent_name:
         parent_prototype = (
@@ -110,22 +113,43 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> {interface.name}Properti
 {{
     auto& realm = this->realm();
 
-    // 1. Let A be the interface for the named properties object O.
-    using A = {fully_qualified_name_for_interface(interface)};
-
     // 2. Let object be O.[[Realm]]'s global object.
     // 3. Assert: object implements A.
-    auto& object = as<A>(realm.global_object());
+"""
+    )
+    if interface.name == "Window":
+        out.write(
+            """    auto* object = as_if<PlatformObject>(&realm.global_object());
+    VERIFY(object);
+    auto* window = Web::Bindings::impl_from<HTML::Window>(&realm.global_object());
+    VERIFY(window);
+"""
+        )
+    else:
+        out.write(
+            f"""    using A = {fully_qualified_name_for_interface(interface)};
+    auto* object = &as<A>(realm.global_object());
+"""
+        )
+    out.write(
+        f"""
 
     // 4. If the result of running the named property visibility algorithm with property name P and object object is true, then:
-    if (TRY(object.is_named_property_exposed_on_object(property_name))) {{
+    if (TRY(object->is_named_property_exposed_on_object(property_name))) {{
         auto property_name_string = property_name.to_string().to_utf8_but_should_be_ported_to_utf16();
 
         // 1. Let operation be the operation used to declare the named property getter.
         // 2. Let value be an uninitialized variable.
         // 3. If operation was defined without an identifier, then set value to the result of performing the steps listed in the interface description to determine the value of a named property with P as the name.
         // 4. Otherwise, operation was defined with an identifier. Set value to the result of performing the method steps of operation with « P » as the only argument value.
-        auto value = object.named_item_value(property_name_string);
+"""
+    )
+    if interface.name == "Window":
+        out.write("        auto value = window->named_item_value(realm, property_name_string);\n")
+    else:
+        out.write("        auto value = object->named_item_value(realm, property_name_string);\n")
+    out.write(
+        f"""
 
         // 5. Let desc be a newly created Property Descriptor with no fields.
         JS::PropertyDescriptor descriptor;

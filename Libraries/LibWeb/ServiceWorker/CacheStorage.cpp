@@ -7,7 +7,6 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/CacheStorage.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
@@ -18,17 +17,11 @@ namespace Web::ServiceWorker {
 GC_DEFINE_ALLOCATOR(CacheStorage);
 
 CacheStorage::CacheStorage(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
-void CacheStorage::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CacheStorage);
-}
-
-void CacheStorage::visit_edges(Visitor& visitor)
+void CacheStorage::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_relevant_name_to_cache_map);
@@ -136,7 +129,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
         //     1. If cacheName matches key, then:
         if (auto value = relevant_name_to_cache_map.get(cache_name); value.has_value()) {
             // 1. Resolve promise with a new Cache object that represents value.
-            WebIDL::resolve_promise(realm, promise, realm.create<Cache>(realm, value.release_value()));
+            WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, realm.create<Cache>(realm, value.release_value())));
 
             // 2. Abort these steps.
             return;
@@ -151,7 +144,7 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
         relevant_name_to_cache_map.set(cache_name, cache);
 
         // 4. Resolve promise with a new Cache object that represents cache.
-        WebIDL::resolve_promise(realm, promise, realm.create<Cache>(realm, cache));
+        WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, realm.create<Cache>(realm, cache)));
     }));
 
     // 3. Return promise.

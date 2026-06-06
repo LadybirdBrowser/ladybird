@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/AudioParam.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -15,7 +13,7 @@ namespace Web::WebAudio {
 GC_DEFINE_ALLOCATOR(AudioParam);
 
 AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_context(context)
     , m_current_value(default_value)
     , m_default_value(default_value)
@@ -145,13 +143,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::cancel_and_hold_at_time(dou
     return GC::Ref { *this };
 }
 
-void AudioParam::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioParam);
-    Base::initialize(realm);
-}
-
-void AudioParam::visit_edges(Cell::Visitor& visitor)
+void AudioParam::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

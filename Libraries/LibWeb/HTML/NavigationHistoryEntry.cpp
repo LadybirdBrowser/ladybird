@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
@@ -45,7 +46,7 @@ Optional<String> NavigationHistoryEntry::url() const
 {
     // The url getter steps are:
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = relevant_window(*this).associated_document();
 
     // 2. If document is not fully active, then return the empty string.
     if (!document.is_fully_active())
@@ -70,7 +71,7 @@ String NavigationHistoryEntry::key() const
 {
     // The key of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return the empty string.
-    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = relevant_window(*this).associated_document();
     if (!associated_document.is_fully_active())
         return {};
 
@@ -83,7 +84,7 @@ String NavigationHistoryEntry::id() const
 {
     // The ID of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return the empty string.
-    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = relevant_window(*this).associated_document();
     if (!associated_document.is_fully_active())
         return {};
 
@@ -96,7 +97,7 @@ i64 NavigationHistoryEntry::index() const
 {
     // The index of a NavigationHistoryEntry nhe is given by the return value of the following algorithm:
     // 1. If nhe's relevant global object's associated Document is not fully active, then return −1.
-    auto& this_relevant_global_object = as<HTML::Window>(relevant_global_object(*this));
+    auto& this_relevant_global_object = relevant_window(*this);
     if (!this_relevant_global_object.associated_document().is_fully_active())
         return -1;
 
@@ -110,7 +111,7 @@ bool NavigationHistoryEntry::same_document() const
 {
     // The sameDocument getter steps are:
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = relevant_window(*this).associated_document();
 
     // 2. If document is not fully active, then return false.
     if (!document.is_fully_active())
@@ -125,7 +126,7 @@ WebIDL::ExceptionOr<JS::Value> NavigationHistoryEntry::get_state()
 {
     // The getState() method steps are:
     // 1. If this's relevant global object's associated Document is not fully active, then return undefined.
-    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = relevant_window(*this).associated_document();
     if (!associated_document.is_fully_active())
         return JS::js_undefined();
 

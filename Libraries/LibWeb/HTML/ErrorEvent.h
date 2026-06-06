@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 class ErrorEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(ErrorEvent, DOM::Event);
+    WEB_WRAPPABLE(ErrorEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ErrorEvent);
 
 public:
@@ -41,8 +41,7 @@ public:
 private:
     ErrorEvent(JS::Realm&, FlyString const& event_name, Bindings::ErrorEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     String m_message;
     String m_filename; // FIXME: This should be a USVString.

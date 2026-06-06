@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Internals {
 
-class WEB_API InternalsBase : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(InternalsBase, Bindings::PlatformObject);
+class WEB_API InternalsBase : public Bindings::Wrappable {
+    WEB_NON_IDL_WRAPPABLE(InternalsBase, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(InternalsBase);
 
 public:

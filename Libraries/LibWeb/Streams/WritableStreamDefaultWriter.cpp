@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WritableStreamDefaultWriter.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/Streams/WritableStreamDefaultWriter.h>
@@ -121,17 +120,11 @@ GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(Optional<JS::Value> 
 }
 
 WritableStreamDefaultWriter::WritableStreamDefaultWriter(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
-void WritableStreamDefaultWriter::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStreamDefaultWriter);
-    Base::initialize(realm);
-}
-
-void WritableStreamDefaultWriter::visit_edges(Cell::Visitor& visitor)
+void WritableStreamDefaultWriter::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_closed_promise);

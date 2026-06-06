@@ -12,6 +12,9 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Keyword.h>
@@ -30,16 +33,18 @@ GC::Ref<JS::Realm> internal_css_realm()
             Bindings::main_thread_vm(),
             [&](JS::Realm& realm) -> JS::Object* {
                 window = HTML::Window::create(realm);
-                return window;
+                return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
             },
-            [&](JS::Realm&) -> JS::Object* {
-                return window;
+            [&](JS::Realm& realm) -> JS::Object* {
+                return &realm.global_object();
             });
 
         realm = *execution_context->realm;
         auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-        auto host_defined = make<Bindings::HostDefined>(intrinsics);
+        auto wrapper_world = realm->heap().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
+        auto host_defined = make<Bindings::HostDefined>(intrinsics, *wrapper_world);
         realm->set_host_defined(move(host_defined));
+        Bindings::cache_global_object_wrapper(*realm);
     }
     return *realm;
 }

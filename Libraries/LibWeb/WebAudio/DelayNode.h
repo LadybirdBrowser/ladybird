@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#DelayNode
 class DelayNode final : public AudioNode {
-    WEB_PLATFORM_OBJECT(DelayNode, AudioNode);
+    WEB_WRAPPABLE(DelayNode, AudioNode);
     GC_DECLARE_ALLOCATOR(DelayNode);
 
 public:

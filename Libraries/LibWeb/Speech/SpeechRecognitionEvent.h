@@ -17,7 +17,7 @@
 namespace Web::Speech {
 
 class SpeechRecognitionEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(SpeechRecognitionEvent, DOM::Event);
+    WEB_WRAPPABLE(SpeechRecognitionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(SpeechRecognitionEvent);
 
 public:
@@ -33,8 +33,7 @@ public:
 private:
     SpeechRecognitionEvent(JS::Realm&, FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::UnsignedLong m_result_index { 0 };
     GC::Ptr<SpeechRecognitionResultList> m_results;

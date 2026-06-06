@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStreamDefaultController.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -19,7 +18,7 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ReadableStreamDefaultController);
 
 ReadableStreamDefaultController::ReadableStreamDefaultController(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
@@ -123,13 +122,7 @@ void ReadableStreamDefaultController::release_steps()
     // 1. Return.
 }
 
-void ReadableStreamDefaultController::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamDefaultController);
-    Base::initialize(realm);
-}
-
-void ReadableStreamDefaultController::visit_edges(Cell::Visitor& visitor)
+void ReadableStreamDefaultController::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto const& item : m_queue)

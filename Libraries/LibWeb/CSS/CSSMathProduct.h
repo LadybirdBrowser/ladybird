@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathproduct
 class CSSMathProduct final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathProduct, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathProduct, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathProduct);
 
 public:
@@ -21,9 +21,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> multiply_all_types_into_math_product(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathProduct() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericArray> values() const;
 

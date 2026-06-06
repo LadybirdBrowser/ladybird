@@ -19,7 +19,7 @@ class SVGFEImageElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEImageElement>
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGFEImageElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEImageElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEImageElement);
 
 public:

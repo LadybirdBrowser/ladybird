@@ -6,12 +6,14 @@
 
 #include <AK/Tuple.h>
 #include <LibGfx/Bitmap.h>
+#include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/OffscreenCanvas.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -62,10 +64,9 @@ WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> OffscreenCanvas::construct_impl(
     auto& global = realm.global_object();
 
     // 7. If global is a Window object:
-    if (is<HTML::Window>(global)) {
-        auto& window = as<HTML::Window>(global);
+    if (auto* window = window_from_global_object(global)) {
         // 1.Let element be the document element of global's associated Document.
-        auto* element = window.associated_document().document_element();
+        auto* element = window->associated_document().document_element();
         // 2. If element is not null :
         if (element) {
             // FIXME: 1. Set the inherited language of this to element's language.
@@ -321,7 +322,7 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<Bindings::Ima
             // 2. Otherwise, resolve result with a new Blob object, created in global's relevant realm, representing file. [FILEAPI]
             else {
                 auto blob = FileAPI::Blob::create(realm(), file_result->buffer, MUST(String::from_utf8(file_result->mime_type)));
-                WebIDL::resolve_promise(realm(), result_promise, blob);
+                WebIDL::resolve_promise(realm(), result_promise, Bindings::wrap(realm(), blob));
             }
         }));
     }));

@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssmathmin
 class CSSMathMin final : public CSSMathValue {
-    WEB_PLATFORM_OBJECT(CSSMathMin, CSSMathValue);
+    WEB_WRAPPABLE(CSSMathMin, CSSMathValue);
     GC_DECLARE_ALLOCATOR(CSSMathMin);
 
 public:
@@ -21,9 +21,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> add_all_types_into_math_min(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathMin() override;
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericArray> values() const;
 

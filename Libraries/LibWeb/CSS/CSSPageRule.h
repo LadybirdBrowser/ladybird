@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-page-3/#at-ruledef-page
 class CSSPageRule final : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSPageRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSPageRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSPageRule);
 
 public:
@@ -30,10 +30,8 @@ public:
 
 private:
     CSSPageRule(JS::Realm&, PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     PageSelectorList m_selectors;

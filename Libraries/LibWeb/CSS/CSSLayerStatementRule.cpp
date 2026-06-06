@@ -6,7 +6,6 @@
 
 #include "CSSLayerStatementRule.h"
 #include <LibWeb/Bindings/CSSLayerStatementRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/Dump.h>
 
@@ -23,12 +22,6 @@ CSSLayerStatementRule::CSSLayerStatementRule(JS::Realm& realm, Vector<FlyString>
     : CSSRule(realm, Type::LayerStatement)
     , m_name_list(move(name_list))
 {
-}
-
-void CSSLayerStatementRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSLayerStatementRule);
-    Base::initialize(realm);
 }
 
 String CSSLayerStatementRule::serialized() const

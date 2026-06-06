@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/UIEvents/FocusEvent.h>
@@ -31,7 +32,7 @@ static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC:
     // object, and the composed flag set.
     Bindings::FocusEventInit focus_event_init {};
     focus_event_init.related_target = related_focus_target;
-    focus_event_init.view = as<HTML::Window>(focus_event_target->realm().global_object()).window();
+    focus_event_init.view = relevant_window(*focus_event_target).window();
 
     auto focus_event = UIEvents::FocusEvent::create(focus_event_target->realm(), event_name, focus_event_init);
     // AD-HOC: support bubbling focus events, used for focusin & focusout.
@@ -46,7 +47,7 @@ static void designate_document_viewport_as_focused_area(DOM::Document& document)
     if (document.focused_area() == nullptr)
         return;
 
-    as<Window>(relevant_global_object(document)).navigation()->set_focus_changed_during_ongoing_navigation(true);
+    relevant_window(document).navigation()->set_focus_changed_during_ongoing_navigation(true);
 
     // AD-HOC: null focused_area indicates "viewport focus".
     document.set_focused_area(nullptr);
@@ -102,7 +103,7 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         if (is<DOM::Element>(*entry))
             blur_event_target = entry;
         else if (is<DOM::Document>(*entry))
-            blur_event_target = as<Window>(relevant_global_object(*entry));
+            blur_event_target = &relevant_window(*entry);
 
         // 3. If entry is the last entry in old chain, and entry is an Element, and the last entry in new chain is also
         //    an Element, then let related blur target be the last entry in new chain. Otherwise, let related blur
@@ -143,7 +144,7 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         if (entry->is_document()) {
             designate_document_viewport_as_focused_area(entry->document());
         } else if (entry->is_focusable() && entry->document().focused_area() != entry.ptr()) {
-            as<Window>(relevant_global_object(*entry)).navigation()->set_focus_changed_during_ongoing_navigation(true);
+            relevant_window(*entry).navigation()->set_focus_changed_during_ongoing_navigation(true);
 
             // 2. Designate entry as the focused area of the document.
             entry->document().set_focused_area(*entry);
@@ -156,7 +157,7 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         if (entry.ptr() == new_focus_target && is_top_level_document_viewport(new_focus_target)) {
             // The viewport does not fire a focus event. The Document object is only its surrogate.
         } else if (is<DOM::Document>(*entry)) {
-            focus_event_target = as<Window>(relevant_global_object(*entry));
+            focus_event_target = &relevant_window(*entry);
         } else if (is<DOM::Element>(*entry)) {
             focus_event_target = *entry;
         }

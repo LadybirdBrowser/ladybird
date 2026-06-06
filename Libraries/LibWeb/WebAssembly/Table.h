@@ -13,13 +13,13 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Table.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::WebAssembly {
 
-class Table : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Table, Bindings::PlatformObject);
+class Table : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Table, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Table);
 
 public:
@@ -36,8 +36,6 @@ public:
 
 private:
     Table(JS::Realm&, Wasm::TableAddress);
-
-    virtual void initialize(JS::Realm&) override;
 
     Wasm::TableAddress m_address;
 };

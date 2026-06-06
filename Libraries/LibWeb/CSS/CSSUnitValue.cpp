@@ -6,7 +6,6 @@
 
 #include "CSSUnitValue.h"
 #include <LibWeb/Bindings/CSSUnitValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -76,12 +75,6 @@ CSSUnitValue::CSSUnitValue(JS::Realm& realm, double value, FlyString unit, Numer
     // AD-HOC: WPT expects the unit to be lowercase but this doesn't seem to be specified anywhere.
     , m_unit(unit.to_ascii_lowercase())
 {
-}
-
-void CSSUnitValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSUnitValue);
-    Base::initialize(realm);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunitvalue-value

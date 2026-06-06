@@ -240,7 +240,7 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
     auto const& global_object = realm.global_object();
 
     // 1. If construct’s exposure set is not *, and realm.[[GlobalObject]] does not implement an interface that is in construct’s exposure set, then return false.
-    if (is<HTML::Window>(global_object)) {
+    if (HTML::window_from_global_object(global_object)) {
        if (!is_window_exposed(name))
            return false;
     } else if (is<HTML::DedicatedWorkerGlobalScope>(global_object)) {

@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLVertexArrayObjectOES.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
@@ -20,13 +18,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESVertexArrayObject);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESVertexArrayObject::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> OESVertexArrayObject::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<OESVertexArrayObject>(realm, context);
+    auto extension = realm.create<OESVertexArrayObject>(realm, context);
+    return GC::Ref<Bindings::Wrappable> { extension };
 }
 
 OESVertexArrayObject::OESVertexArrayObject(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_context(context)
 {
 }
@@ -90,13 +89,7 @@ void OESVertexArrayObject::bind_vertex_array_oes(GC::Ptr<WebGLVertexArrayObjectO
     glBindVertexArrayOES(vertex_array_handle);
 }
 
-void OESVertexArrayObject::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OESVertexArrayObject);
-    Base::initialize(realm);
-}
-
-void OESVertexArrayObject::visit_edges(Visitor& visitor)
+void OESVertexArrayObject::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

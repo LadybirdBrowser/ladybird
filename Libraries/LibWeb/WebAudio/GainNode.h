@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#GainNode
 class GainNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(GainNode, AudioNode);
+    WEB_WRAPPABLE(GainNode, AudioNode);
     GC_DECLARE_ALLOCATOR(GainNode);
 
 public:

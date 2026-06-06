@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MutationRecord.h>
 #include <LibWeb/DOM/MutationRecord.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>
@@ -21,7 +19,7 @@ GC::Ref<MutationRecord> MutationRecord::create(JS::Realm& realm, FlyString const
 }
 
 MutationRecord::MutationRecord(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_type(type)
     , m_target(GC::make_root(target))
     , m_added_nodes(added_nodes)
@@ -36,13 +34,7 @@ MutationRecord::MutationRecord(JS::Realm& realm, FlyString const& type, Node con
 
 MutationRecord::~MutationRecord() = default;
 
-void MutationRecord::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MutationRecord);
-    Base::initialize(realm);
-}
-
-void MutationRecord::visit_edges(Cell::Visitor& visitor)
+void MutationRecord::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target);

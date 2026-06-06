@@ -53,5 +53,6 @@ private:
 };
 
 WEB_API SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&);
+WEB_API SimilarOriginWindowAgent& relevant_similar_origin_window_agent(Bindings::Wrappable const&);
 
 }

@@ -17,7 +17,7 @@ namespace Web::SVG {
 class SVGFEOffsetElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEOffsetElement> {
-    WEB_PLATFORM_OBJECT(SVGFEOffsetElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEOffsetElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEOffsetElement);
 
 public:

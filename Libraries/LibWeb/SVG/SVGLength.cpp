@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGLength.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/SVG/SVGLength.h>
 
@@ -55,17 +53,11 @@ GC::Ref<SVGLength> SVGLength::from_length_percentage(JS::Realm& realm, CSS::Leng
 }
 
 SVGLength::SVGLength(JS::Realm& realm, u8 unit_type, float value, ReadOnly read_only)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_value(value)
     , m_unit_type(unit_type)
     , m_read_only(read_only)
 {
-}
-
-void SVGLength::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGLength);
-    Base::initialize(realm);
 }
 
 SVGLength::~SVGLength() = default;

@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WorkerNavigator.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
@@ -22,19 +21,13 @@ GC::Ref<WorkerNavigator> WorkerNavigator::create(WorkerGlobalScope& global_scope
 }
 
 WorkerNavigator::WorkerNavigator(WorkerGlobalScope& global_scope)
-    : PlatformObject(global_scope.realm())
+    : Bindings::Wrappable(global_scope.realm())
 {
 }
 
 WorkerNavigator::~WorkerNavigator() = default;
 
-void WorkerNavigator::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WorkerNavigator);
-    Base::initialize(realm);
-}
-
-void WorkerNavigator::visit_edges(Cell::Visitor& visitor)
+void WorkerNavigator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media_capabilities);

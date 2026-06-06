@@ -8,12 +8,13 @@
 #pragma once
 
 #include <LibGfx/PaintStyle.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/CanvasGradient.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class CanvasGradient final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CanvasGradient, Bindings::PlatformObject);
+class CanvasGradient final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CanvasGradient, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CanvasGradient);
 
 public:
@@ -29,8 +30,6 @@ public:
 
 private:
     CanvasGradient(JS::Realm&, Gfx::GradientPaintStyle& gradient);
-
-    virtual void initialize(JS::Realm&) override;
 
     NonnullRefPtr<Gfx::GradientPaintStyle> m_gradient;
 };

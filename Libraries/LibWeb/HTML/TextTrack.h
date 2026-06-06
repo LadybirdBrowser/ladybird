@@ -17,7 +17,7 @@
 namespace Web::HTML {
 
 class TextTrack final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(TextTrack, DOM::EventTarget);
+    WEB_WRAPPABLE(TextTrack, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(TextTrack);
 
 public:

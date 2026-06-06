@@ -6,7 +6,6 @@
 
 #include "CSSStyleValue.h"
 #include <LibWeb/Bindings/CSSStyleValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -23,27 +22,21 @@ GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, Utf16FlyString as
 }
 
 CSSStyleValue::CSSStyleValue(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 CSSStyleValue::CSSStyleValue(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_source_value(move(source_value))
 {
 }
 
 CSSStyleValue::CSSStyleValue(JS::Realm& realm, Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_associated_property(move(associated_property))
     , m_source_value(move(source_value))
 {
-}
-
-void CSSStyleValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleValue);
-    Base::initialize(realm);
 }
 
 CSSStyleValue::~CSSStyleValue() = default;

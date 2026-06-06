@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 class HTMLOutputElement final
     : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLOutputElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLOutputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOutputElement);
 
 public:

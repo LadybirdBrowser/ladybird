@@ -16,7 +16,7 @@
 namespace Web::HTML {
 
 class HTMLCanvasElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLCanvasElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLCanvasElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:

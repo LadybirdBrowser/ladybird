@@ -11,9 +11,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TextDecoder.h>
-#include <LibWeb/Bindings/TextDecoderStream.h>
 #include <LibWeb/Encoding/TextDecoderStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
@@ -148,7 +146,7 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
 }
 
 TextDecoderStream::TextDecoderStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform, TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , Streams::GenericTransformStreamMixin(transform)
     , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
 {
@@ -156,13 +154,7 @@ TextDecoderStream::TextDecoderStream(JS::Realm& realm, GC::Ref<Streams::Transfor
 
 TextDecoderStream::~TextDecoderStream() = default;
 
-void TextDecoderStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextDecoderStream);
-    Base::initialize(realm);
-}
-
-void TextDecoderStream::visit_edges(Cell::Visitor& visitor)
+void TextDecoderStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Streams::GenericTransformStreamMixin::visit_edges(visitor);

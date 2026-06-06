@@ -6,7 +6,6 @@
 
 #include "CSSMathMin.h"
 #include <LibWeb/Bindings/CSSMathMin.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
@@ -74,13 +73,7 @@ CSSMathMin::CSSMathMin(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericArr
 
 CSSMathMin::~CSSMathMin() = default;
 
-void CSSMathMin::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathMin);
-    Base::initialize(realm);
-}
-
-void CSSMathMin::visit_edges(Visitor& visitor)
+void CSSMathMin::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_values);

@@ -67,9 +67,10 @@ bool AnimationTimeline::is_inactive() const
 }
 
 AnimationTimeline::AnimationTimeline(JS::Realm& realm, GC::Ref<DOM::Document> document)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_associated_document(document)
 {
+    m_associated_document->associate_with_timeline(*this);
 }
 
 void AnimationTimeline::finalize()
@@ -78,14 +79,7 @@ void AnimationTimeline::finalize()
     m_associated_document->disassociate_with_timeline(*this);
 }
 
-void AnimationTimeline::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationTimeline);
-    Base::initialize(realm);
-    m_associated_document->associate_with_timeline(*this);
-}
-
-void AnimationTimeline::visit_edges(Cell::Visitor& visitor)
+void AnimationTimeline::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_document);

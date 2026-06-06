@@ -10,7 +10,8 @@
 #include <AK/String.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/PermissionStatus.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Permissions.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::PermissionsAPI {
 
@@ -22,8 +23,8 @@ Bindings::PermissionState get_current_permission_state(String const& name, Optio
 
 Bindings::PermissionState request_permission(Bindings::PermissionDescriptor const& descriptor);
 
-class WEB_API Permissions : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Permissions, Bindings::PlatformObject);
+class WEB_API Permissions : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Permissions, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Permissions);
 
 public:
@@ -33,8 +34,6 @@ public:
 
 private:
     Permissions(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 void permission_query_algorithm(Bindings::PermissionDescriptor const&, PermissionStatus&);

@@ -13,7 +13,6 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/FontFace.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Enums.h>
@@ -31,6 +30,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -222,7 +222,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
                 // FIXME: Are we supposed to set the properties of the FontFace based on the loaded vector font?
                 font->m_parsed_font = vector_font;
                 font->m_status = Bindings::FontFaceLoadStatus::Loaded;
-                WebIDL::resolve_promise(font->realm(), font->m_font_status_promise, font);
+                WebIDL::resolve_promise(font->realm(), font->m_font_status_promise, Bindings::wrap(font->realm(), GC::Ref { *font }));
 
                 if (auto font_computer = font->font_computer(); font_computer.has_value())
                     font_computer->register_font_face(*font);
@@ -334,20 +334,14 @@ ParsedFontFace FontFace::parsed_font_face() const
 }
 
 FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promise)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_font_status_promise(font_status_promise)
 {
 }
 
 FontFace::~FontFace() = default;
 
-void FontFace::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFace);
-    Base::initialize(realm);
-}
-
-void FontFace::visit_edges(JS::Cell::Visitor& visitor)
+void FontFace::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
@@ -372,11 +366,16 @@ void FontFace::reject_status_promise(JS::Value reason)
     }
 }
 
+void FontFace::reject_status_promise(GC::Ref<WebIDL::DOMException> reason)
+{
+    reject_status_promise(throw_completion(reason).value());
+}
+
 Optional<FontComputer&> FontFace::font_computer() const
 {
     for (auto& font_face_set : m_containing_sets) {
         auto& global = HTML::relevant_global_object(font_face_set);
-        if (auto* window = as_if<HTML::Window>(global))
+        if (auto* window = HTML::window_from_global_object(global))
             return window->associated_document().font_computer();
     }
     return {};
@@ -389,7 +388,7 @@ Optional<ComputationContext> FontFace::computation_context() const
             return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
     }
     auto& global = HTML::relevant_global_object(*this);
-    if (auto* window = as_if<HTML::Window>(global))
+    if (auto* window = HTML::window_from_global_object(global))
         return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(window->associated_document()) };
     return {};
 }
@@ -796,7 +795,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 else {
                     m_parsed_font = maybe_typeface;
                     m_status = Bindings::FontFaceLoadStatus::Loaded;
-                    WebIDL::resolve_promise(realm(), m_font_status_promise, this);
+                    WebIDL::resolve_promise(realm(), m_font_status_promise, Bindings::wrap(realm(), GC::Ref { *this }));
 
                     if (auto font_computer = this->font_computer(); font_computer.has_value())
                         font_computer->register_font_face(*this);
@@ -820,7 +819,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 
         // FIXME: We should probably put the 'font cache' on the WindowOrWorkerGlobalScope instead of tying it to the document's style computer
         auto& global = HTML::relevant_global_object(*this);
-        if (auto* window = as_if<HTML::Window>(global)) {
+        if (auto* window = HTML::window_from_global_object(global)) {
             auto& font_computer = const_cast<FontComputer&>(window->document()->font_computer());
 
             if (auto loader = font_computer.load_font_face(parsed_font_face(), move(on_load))) {

@@ -9,8 +9,8 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Namespace.h>
@@ -29,7 +29,7 @@ namespace Web::TrustedTypes {
 GC_DEFINE_ALLOCATOR(TrustedTypePolicy);
 
 TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, Utf16String const& name, Bindings::TrustedTypePolicyOptions const& options)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_name(name)
     , m_create_html(options.create_html)
     , m_create_script(options.create_script)
@@ -37,13 +37,7 @@ TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, Utf16String const& name, 
 {
 }
 
-void TrustedTypePolicy::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TrustedTypePolicy);
-    Base::initialize(realm);
-}
-
-void TrustedTypePolicy::visit_edges(Visitor& visitor)
+void TrustedTypePolicy::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_create_html);
@@ -115,8 +109,8 @@ WebIDL::ExceptionOr<GC::Ref<TrustedScriptURL>> TrustedTypePolicy::create_script_
 // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
 TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& arguments)
 {
-    auto& vm = this->vm();
     auto& realm = this->realm();
+    auto& vm = realm.vm();
 
     // 1. Let policyValue be the result of executing Get Trusted Type policy value with the same arguments
     // as this algorithm and additionally true as throwIfMissing.
@@ -157,7 +151,7 @@ TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName tr
 // https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-policy-value
 WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing)
 {
-    auto& vm = this->vm();
+    auto& vm = this->realm().vm();
 
     // 1. Let functionName be a function name for the given trustedTypeName, based on the following table:
     // 2. Let function be policy’s options[functionName].
@@ -207,7 +201,9 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
     auto& realm = HTML::relevant_realm(global);
 
     // 1. Let defaultPolicy be the value of global’s trusted type policy factory’s default policy.
-    auto const& default_policy = as<HTML::WindowOrWorkerGlobalScopeMixin>(global).trusted_types()->default_policy();
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(global);
+    VERIFY(global_scope);
+    auto const& default_policy = global_scope->trusted_types()->default_policy();
 
     // This algorithm routes a value to be assigned to an injection sink through a default policy, should one exist.
     // FIXME: Open an issue upstream. It is not immediately clear what to do if the default policy does not exist.

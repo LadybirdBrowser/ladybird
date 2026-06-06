@@ -6,7 +6,9 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/Cache.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Request.h>
+#include <LibWeb/Bindings/Response.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -26,18 +28,12 @@ GC_DEFINE_ALLOCATOR(Cache);
 GC_DEFINE_ALLOCATOR(CacheBatchOperation);
 
 Cache::Cache(JS::Realm& realm, GC::Ref<RequestResponseList> request_response_list)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_request_response_list(request_response_list)
 {
 }
 
-void Cache::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Cache);
-}
-
-void Cache::visit_edges(Visitor& visitor)
+void Cache::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_request_response_list);
@@ -185,7 +181,7 @@ GC::Ref<WebIDL::Promise> Cache::match_all(Optional<Fetch::RequestInfo> request, 
                 for (auto response : responses->elements()) {
                     // 1. Add a new Response object associated with response and a new Headers object whose guard is
                     //    "immutable" to responseList.
-                    response_list->elements().append(Fetch::Response::create(realm, response, Fetch::Headers::Guard::Immutable));
+                    response_list->elements().append(Bindings::wrap(realm, Fetch::Response::create(realm, response, Fetch::Headers::Guard::Immutable)));
                 }
 
                 // 3. Resolve promise with a frozen array created from responseList, in realm.
@@ -261,7 +257,7 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
         }
 
         // 3. If r’s client’s global object is a ServiceWorkerGlobalScope object, set request’s service-workers mode to "none".
-        if (is<ServiceWorkerGlobalScope>(inner_request->client()->global_object()))
+        if (Bindings::impl_from<ServiceWorkerGlobalScope>(&inner_request->client()->global_object()))
             inner_request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);
 
         // 4. Add r to requestList.
@@ -703,7 +699,7 @@ GC::Ref<WebIDL::Promise> Cache::keys(Optional<Fetch::RequestInfo> request, Bindi
                 for (auto request : requests->elements()) {
                     // 1. Add a new Request object associated with request and a new associated Headers object whose
                     //    guard is "immutable" to requestList.
-                    request_list->elements().append(Fetch::Request::create(realm, request, Fetch::Headers::Guard::Immutable, MUST(DOM::AbortSignal::construct_impl(realm))));
+                    request_list->elements().append(Bindings::wrap(realm, Fetch::Request::create(realm, request, Fetch::Headers::Guard::Immutable, MUST(DOM::AbortSignal::construct_impl(realm)))));
                 }
 
                 // 3. Resolve promise with a frozen array created from requestList, in realm.

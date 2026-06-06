@@ -6,8 +6,6 @@
  */
 
 #include <AK/QuickSort.h>
-#include <LibWeb/Bindings/CanvasGradient.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/HTML/CanvasGradient.h>
@@ -45,18 +43,12 @@ WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasGradient::create_conic(JS::Re
 }
 
 CanvasGradient::CanvasGradient(JS::Realm& realm, Gfx::GradientPaintStyle& gradient)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_gradient(gradient)
 {
 }
 
 CanvasGradient::~CanvasGradient() = default;
-
-void CanvasGradient::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CanvasGradient);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvasgradient-addcolorstop
 WebIDL::ExceptionOr<void> CanvasGradient::add_color_stop(double offset, StringView color)

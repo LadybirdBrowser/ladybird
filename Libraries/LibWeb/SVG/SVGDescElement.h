@@ -11,7 +11,7 @@
 namespace Web::SVG {
 
 class SVGDescElement final : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGDescElement, SVGElement);
+    WEB_WRAPPABLE(SVGDescElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGDescElement);
 
 private:

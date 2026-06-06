@@ -9,6 +9,8 @@
 
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
@@ -57,7 +59,11 @@ void EnvironmentSettingsObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     m_module_map = realm.heap().allocate<ModuleMap>();
-    m_universal_global_scope = &as<UniversalGlobalScopeMixin>(global_object());
+    if (auto* window = window_from_global_object(global_object()))
+        m_universal_global_scope = window;
+    else
+        m_universal_global_scope = Bindings::impl_from<WorkerGlobalScope>(&global_object());
+    VERIFY(m_universal_global_scope);
 }
 
 void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
@@ -147,7 +153,7 @@ RunScriptDecision can_run_script(EnvironmentSettingsObject const& settings)
 {
     // 1. If the global object specified by settings is a Window object whose Document object is not fully active,
     //     then return "do not run".
-    if (auto const* window = as_if<Window>(settings.global_object())) {
+    if (auto const* window = window_from_global_object(settings.global_object())) {
         if (!window->associated_document().is_fully_active())
             return RunScriptDecision::DoNotRun;
     }
@@ -238,8 +244,8 @@ Optional<URL::URL> EnvironmentSettingsObject::encoding_parse_url(StringView url)
 
     // 3. Otherwise, if environment's relevant global object is a Window object, set encoding to environment's relevant
     //    global object's associated Document's character encoding.
-    if (is<HTML::Window>(global_object()))
-        encoding = static_cast<HTML::Window const&>(global_object()).associated_document().encoding_or_default();
+    if (auto const* window = window_from_global_object(global_object()))
+        encoding = window->associated_document().encoding_or_default();
 
     // 4. Let baseURL be environment's base URL, if environment is a Document object; otherwise environment's API base URL.
     auto base_url = api_base_url();
@@ -291,11 +297,12 @@ bool is_scripting_enabled(EnvironmentSettingsObject const& settings)
     // NOTE: This is always true in LibWeb :^)
 
     // FIXME: Do the right thing for workers.
-    if (!is<HTML::Window>(settings.global_object()))
+    auto const* window = window_from_global_object(settings.global_object());
+    if (!window)
         return true;
 
     // The user has not disabled scripting for realm at this time. (User agents may provide users with the option to disable scripting globally, or in a finer-grained manner, e.g., on a per-origin basis, down to the level of individual realms.)
-    auto const& document = as<HTML::Window>(settings.global_object()).associated_document();
+    auto const& document = window->associated_document();
 
     // NB: WebUI pages are internal pages requiring javascript, so we do not consider user configuration for these.
     if (!document.page().is_scripting_enabled() && !URL::is_webui_url(document.url()))
@@ -335,7 +342,8 @@ void add_module_to_resolved_module_set(EnvironmentSettingsObject& settings_objec
     auto& global = settings_object.global_object();
 
     // 2. If global does not implement Window, then return.
-    if (!is<Window>(global))
+    auto* window = window_from_global_object(global);
+    if (!window)
         return;
 
     // 3. Let record be a new specifier resolution record, with serialized base URL set to serializedBaseURL,
@@ -349,7 +357,7 @@ void add_module_to_resolved_module_set(EnvironmentSettingsObject& settings_objec
     };
 
     // 4. Append record to global's resolved module set.
-    as<Window>(global).append_resolved_module(move(resolution));
+    window->append_resolved_module(move(resolution));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-realm
@@ -390,6 +398,13 @@ JS::Object& incumbent_global_object()
     return incumbent_settings_object().global_object();
 }
 
+Window& incumbent_window()
+{
+    auto* window = window_from_global_object(incumbent_global_object());
+    VERIFY(window);
+    return *window;
+}
+
 // https://whatpr.org/html/9893/webappapis.html#concept-realm-settings-object
 EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm& realm)
 {
@@ -411,6 +426,13 @@ JS::Object& current_global_object()
     return Bindings::main_thread_vm().current_realm()->global_object();
 }
 
+Window& current_window()
+{
+    auto* window = window_from_global_object(current_global_object());
+    VERIFY(window);
+    return *window;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-realm
 JS::Realm& relevant_realm(JS::Object const& object)
 {
@@ -418,11 +440,23 @@ JS::Realm& relevant_realm(JS::Object const& object)
     return object.shape().realm();
 }
 
+JS::Realm& relevant_realm(Bindings::Wrappable const& wrappable)
+{
+    // The relevant Realm for a wrappable implementation object is the Realm
+    // used for its corresponding platform object wrapper.
+    return wrappable.realm();
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const& object)
 {
     // Then, the relevant settings object for a platform object o is the environment settings object of the relevant realm for o.
     return Bindings::principal_host_defined_environment_settings_object(relevant_realm(object));
+}
+
+EnvironmentSettingsObject& relevant_settings_object(Bindings::Wrappable const& wrappable)
+{
+    return Bindings::principal_host_defined_environment_settings_object(relevant_realm(wrappable));
 }
 
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const& node)
@@ -436,6 +470,63 @@ JS::Object& relevant_global_object(JS::Object const& object)
 {
     // Similarly, the relevant global object for a platform object o is the global object of the relevant Realm for o.
     return relevant_realm(object).global_object();
+}
+
+JS::Object& relevant_global_object(Bindings::Wrappable const& wrappable)
+{
+    return relevant_realm(wrappable).global_object();
+}
+
+Window* window_from_global_object(JS::Object& object)
+{
+    return Bindings::impl_from<Window>(&object);
+}
+
+Window const* window_from_global_object(JS::Object const& object)
+{
+    return Bindings::impl_from<Window>(&object);
+}
+
+WindowOrWorkerGlobalScopeMixin* window_or_worker_global_scope_from_global_object(JS::Object& object)
+{
+    if (auto* window = window_from_global_object(object))
+        return window;
+    return Bindings::impl_from<WorkerGlobalScope>(&object);
+}
+
+WindowOrWorkerGlobalScopeMixin const* window_or_worker_global_scope_from_global_object(JS::Object const& object)
+{
+    if (auto const* window = window_from_global_object(object))
+        return window;
+    return Bindings::impl_from<WorkerGlobalScope>(&object);
+}
+
+Window& relevant_window(JS::Object const& object)
+{
+    auto* window = window_from_global_object(relevant_global_object(object));
+    VERIFY(window);
+    return *window;
+}
+
+Window& relevant_window(Bindings::Wrappable const& wrappable)
+{
+    auto* window = window_from_global_object(relevant_global_object(wrappable));
+    VERIFY(window);
+    return *window;
+}
+
+WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(JS::Object const& object)
+{
+    auto* global_scope = window_or_worker_global_scope_from_global_object(relevant_global_object(object));
+    VERIFY(global_scope);
+    return *global_scope;
+}
+
+WindowOrWorkerGlobalScopeMixin& relevant_window_or_worker_global_scope(Bindings::Wrappable const& wrappable)
+{
+    auto* global_scope = window_or_worker_global_scope_from_global_object(relevant_global_object(wrappable));
+    VERIFY(global_scope);
+    return *global_scope;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-entry-realm
@@ -479,7 +570,7 @@ bool is_secure_context(Environment const& environment)
         auto const& global = environment_settings_object->global_object();
 
         // 2. If global is a WorkerGlobalScope, then:
-        if (auto const* worker = as_if<WorkerGlobalScope>(global)) {
+        if (auto const* worker = Bindings::impl_from<WorkerGlobalScope>(&global)) {
             // 1. If global's owner set[0]'s relevant settings object is a secure context, then return true.
             // NOTE: We only need to check the 0th item since they will necessarily all be consistent.
             if (worker->owner_set().at(0).visit([](auto const& owner) { return owner.relevant_settings_object_is_secure_context; }))
@@ -512,7 +603,8 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
     auto serialized_global = [this]() -> SerializedGlobal {
         bool relevant_settings_object_is_secure_context = is_secure_context(*this);
-        if (auto const* window = as_if<Window>(global_object())) {
+        auto& global = global_object();
+        if (auto const* window = window_from_global_object(global)) {
             return SerializedWindow {
                 .associated_document {
                     .url = window->associated_document().url(),
@@ -520,7 +612,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
                 }
             };
         }
-        VERIFY(is<WorkerGlobalScope>(global_object()));
+        VERIFY(Bindings::impl_from<WorkerGlobalScope>(&global));
         return SerializedWorkerGlobalScope {
             .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
         };

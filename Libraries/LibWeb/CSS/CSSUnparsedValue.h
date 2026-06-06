@@ -15,7 +15,7 @@ using CSSUnparsedSegment = Variant<String, GC::Ref<CSSVariableReferenceValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunparsedvalue
 class CSSUnparsedValue final : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSUnparsedValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSUnparsedValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSUnparsedValue);
 
 public:
@@ -25,7 +25,7 @@ public:
     virtual ~CSSUnparsedValue() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
     virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
     virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
 
@@ -34,9 +34,7 @@ public:
 
 private:
     explicit CSSUnparsedValue(JS::Realm&, ReadonlySpan<CSSUnparsedSegment>);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     bool contains_unparsed_value(CSSUnparsedValue const&) const;
 

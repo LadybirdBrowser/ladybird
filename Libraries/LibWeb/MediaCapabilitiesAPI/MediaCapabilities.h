@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MediaCapabilities.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -24,8 +25,8 @@ bool is_valid_media_decoding_configuration(Bindings::MediaDecodingConfiguration 
 GC::Ref<JS::Object> to_object(JS::Realm&, Bindings::MediaCapabilitiesDecodingInfo const&);
 
 // https://w3c.github.io/media-capabilities/#media-capabilities-interface
-class MediaCapabilities final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaCapabilities, Bindings::PlatformObject);
+class MediaCapabilities final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MediaCapabilities, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MediaCapabilities);
 
 public:
@@ -37,8 +38,6 @@ public:
 
 private:
     MediaCapabilities(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task

@@ -12,7 +12,7 @@ namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#idbcursorwithvalue
 class IDBCursorWithValue : public IDBCursor {
-    WEB_PLATFORM_OBJECT(IDBCursorWithValue, IDBCursor);
+    WEB_WRAPPABLE(IDBCursorWithValue, IDBCursor);
     GC_DECLARE_ALLOCATOR(IDBCursorWithValue);
 
 public:
@@ -23,8 +23,6 @@ public:
 
 private:
     explicit IDBCursorWithValue(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
 };
 
 }

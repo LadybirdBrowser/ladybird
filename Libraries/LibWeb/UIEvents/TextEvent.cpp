@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TextEvent.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 
@@ -23,12 +22,6 @@ TextEvent::TextEvent(JS::Realm& realm, FlyString const& event_name)
 }
 
 TextEvent::~TextEvent() = default;
-
-void TextEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEvent);
-    Base::initialize(realm);
-}
 
 // https://w3c.github.io/uievents/#dom-textevent-inittextevent
 void TextEvent::init_text_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data)

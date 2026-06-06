@@ -5,8 +5,7 @@
  */
 
 #include <LibJS/Runtime/PropertyKey.h>
-#include <LibWeb/Bindings/HTMLAllCollection.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -38,27 +37,16 @@ GC::Ref<HTMLAllCollection> HTMLAllCollection::create(DOM::ParentNode& root, Scop
 }
 
 HTMLAllCollection::HTMLAllCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
-    : PlatformObject(root.realm())
+    : Wrappable(root.realm())
     , m_root(root)
     , m_filter(move(filter))
     , m_scope(scope)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-    };
 }
 
 HTMLAllCollection::~HTMLAllCollection() = default;
 
-void HTMLAllCollection::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAllCollection);
-    Base::initialize(realm);
-}
-
-void HTMLAllCollection::visit_edges(Cell::Visitor& visitor)
+void HTMLAllCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
@@ -214,18 +202,19 @@ Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllColle
     return get_the_all_named_elements(name_or_index.as_string().view().to_utf8_but_should_be_ported_to_utf16());
 }
 
-Optional<JS::Value> HTMLAllCollection::item_value(size_t index) const
+Optional<JS::Value> HTMLAllCollection::item_value(JS::Realm& realm, size_t index) const
 {
     if (auto value = get_the_all_indexed_element(index))
-        return value;
+        return Bindings::wrap(realm, GC::Ref { *value });
     return {};
 }
 
-JS::Value HTMLAllCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLAllCollection::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
     return named_item(name).visit(
         [](Empty) -> JS::Value { return JS::js_undefined(); },
-        [](auto const& value) -> JS::Value { return value; });
+        [&realm](GC::Ref<DOM::HTMLCollection> const& value) -> JS::Value { return Bindings::wrap(realm, value); },
+        [&realm](GC::Ref<DOM::Element> const& value) -> JS::Value { return Bindings::wrap(realm, value); });
 }
 
 }

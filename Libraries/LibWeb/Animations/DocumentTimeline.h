@@ -15,7 +15,7 @@ namespace Web::Animations {
 
 // https://www.w3.org/TR/web-animations-1/#the-documenttimeline-interface
 class DocumentTimeline : public AnimationTimeline {
-    WEB_PLATFORM_OBJECT(DocumentTimeline, AnimationTimeline);
+    WEB_WRAPPABLE(DocumentTimeline, AnimationTimeline);
     GC_DECLARE_ALLOCATOR(DocumentTimeline);
 
 public:
@@ -33,8 +33,6 @@ public:
 private:
     DocumentTimeline(JS::Realm&, DOM::Document&, HighResolutionTime::DOMHighResTimeStamp origin_time);
     virtual ~DocumentTimeline() override = default;
-
-    virtual void initialize(JS::Realm&) override;
 
     HighResolutionTime::DOMHighResTimeStamp m_origin_time;
 };

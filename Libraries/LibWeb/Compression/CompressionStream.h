@@ -13,7 +13,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CompressionStream.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -26,9 +26,9 @@ using Compressor = Variant<
 
 // https://compression.spec.whatwg.org/#compressionstream
 class CompressionStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Streams::GenericTransformStreamMixin {
-    WEB_PLATFORM_OBJECT(CompressionStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(CompressionStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CompressionStream);
 
 public:
@@ -38,8 +38,7 @@ public:
 private:
     CompressionStream(JS::Realm&, GC::Ref<Streams::TransformStream>, Compressor, NonnullOwnPtr<AllocatingMemoryStream>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> compress_and_enqueue_chunk(JS::Value);
     WebIDL::ExceptionOr<void> compress_flush_and_enqueue();

@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 class HTMLFieldSetElement final
     : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLFieldSetElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLFieldSetElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLFieldSetElement);
 
 public:

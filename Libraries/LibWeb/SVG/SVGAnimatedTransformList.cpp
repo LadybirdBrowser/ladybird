@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>
 
 namespace Web::SVG {
@@ -18,18 +16,10 @@ GC::Ref<SVGAnimatedTransformList> SVGAnimatedTransformList::create(JS::Realm& re
 }
 
 SVGAnimatedTransformList::SVGAnimatedTransformList(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_base_val(base_val)
     , m_anim_val(anim_val)
 {
-}
-
-SVGAnimatedTransformList::~SVGAnimatedTransformList() = default;
-
-void SVGAnimatedTransformList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedTransformList);
-    Base::initialize(realm);
 }
 
 void SVGAnimatedTransformList::visit_edges(Cell::Visitor& visitor)

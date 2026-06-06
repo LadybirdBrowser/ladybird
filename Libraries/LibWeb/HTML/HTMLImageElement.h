@@ -26,7 +26,7 @@ class HTMLImageElement final
     , public LazyLoadingElement<HTMLImageElement>
     , public Layout::ImageProvider
     , public DOM::ViewportClient {
-    WEB_PLATFORM_OBJECT(HTMLImageElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLImageElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLImageElement);
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 

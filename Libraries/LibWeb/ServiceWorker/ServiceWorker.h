@@ -17,7 +17,7 @@ namespace Web::ServiceWorker {
 
 // https://w3c.github.io/ServiceWorker/#serviceworker-interface
 class ServiceWorker : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(ServiceWorker, DOM::EventTarget);
+    WEB_WRAPPABLE(ServiceWorker, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(ServiceWorker);
 
 public:

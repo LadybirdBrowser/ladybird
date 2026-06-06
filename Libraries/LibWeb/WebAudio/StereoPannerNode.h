@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#stereopannernode
 class StereoPannerNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(StereoPannerNode, AudioNode);
+    WEB_WRAPPABLE(StereoPannerNode, AudioNode);
     GC_DECLARE_ALLOCATOR(StereoPannerNode);
 
 public:

@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 // https://www.w3.org/TR/css-animations-2/#cssanimation
 class CSSAnimation : public Animations::Animation {
-    WEB_PLATFORM_OBJECT(CSSAnimation, Animations::Animation);
+    WEB_WRAPPABLE(CSSAnimation, Animations::Animation);
     GC_DECLARE_ALLOCATOR(CSSAnimation);
 
 public:

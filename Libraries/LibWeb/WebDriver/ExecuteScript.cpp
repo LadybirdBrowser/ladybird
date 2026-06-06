@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #include <LibJS/RustIntegration.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -79,7 +80,7 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     // 9. Let completion be Function.[[Call]](window, parameters) with function as the this value.
     // NOTE: This is not entirely clear, but I don't think they mean actually passing `function` as
     // the this value argument, but using it as the object [[Call]] is executed on.
-    auto completion = JS::call(realm.vm(), *function, window, parameters);
+    auto completion = JS::call(realm.vm(), *function, Bindings::wrap(realm, GC::Ref { *window }), parameters);
 
     // 10. Clean up after running a callback with environment settings.
     HTML::clean_up_after_running_callback(environment_settings);

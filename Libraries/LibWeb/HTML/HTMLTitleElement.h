@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLTitleElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTitleElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTitleElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTitleElement);
 
 public:

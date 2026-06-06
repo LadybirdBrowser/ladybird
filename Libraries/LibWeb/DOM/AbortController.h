@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/AbortController.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/AbortSignal.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#abortcontroller
-class AbortController final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AbortController, Bindings::PlatformObject);
+class AbortController final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AbortController, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AbortController);
 
 public:
@@ -25,12 +26,12 @@ public:
     GC::Ref<AbortSignal> signal() const { return *m_signal; }
 
     void abort(Optional<JS::Value> reason);
+    void abort(GC::Ref<WebIDL::DOMException> reason);
 
 private:
     AbortController(JS::Realm&, GC::Ref<AbortSignal>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://dom.spec.whatwg.org/#abortcontroller-signal
     GC::Ref<AbortSignal> m_signal;

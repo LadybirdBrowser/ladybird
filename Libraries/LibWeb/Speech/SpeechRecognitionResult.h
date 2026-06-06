@@ -9,14 +9,15 @@
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SpeechRecognitionResult.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Speech/SpeechRecognitionAlternative.h>
 
 namespace Web::Speech {
 
-class SpeechRecognitionResult final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechRecognitionResult, Bindings::PlatformObject);
+class SpeechRecognitionResult final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechRecognitionResult, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechRecognitionResult);
 
 public:
@@ -35,8 +36,7 @@ public:
 private:
     explicit SpeechRecognitionResult(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<GC::Ref<SpeechRecognitionAlternative>> m_alternatives;
     bool m_is_final { false };

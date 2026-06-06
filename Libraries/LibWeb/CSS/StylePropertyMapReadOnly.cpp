@@ -5,7 +5,6 @@
  */
 
 #include "StylePropertyMapReadOnly.h"
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StylePropertyMapReadOnly.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -25,20 +24,14 @@ GC::Ref<StylePropertyMapReadOnly> StylePropertyMapReadOnly::create_computed_styl
 }
 
 StylePropertyMapReadOnly::StylePropertyMapReadOnly(JS::Realm& realm, Source source)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_declarations(move(source))
 {
 }
 
 StylePropertyMapReadOnly::~StylePropertyMapReadOnly() = default;
 
-void StylePropertyMapReadOnly::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StylePropertyMapReadOnly);
-    Base::initialize(realm);
-}
-
-void StylePropertyMapReadOnly::visit_edges(Cell::Visitor& visitor)
+void StylePropertyMapReadOnly::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 

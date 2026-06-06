@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ProgressEvent.h>
 #include <LibWeb/XHR/ProgressEvent.h>
 
@@ -31,11 +30,5 @@ ProgressEvent::ProgressEvent(JS::Realm& realm, FlyString const& event_name, Bind
 }
 
 ProgressEvent::~ProgressEvent() = default;
-
-void ProgressEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ProgressEvent);
-    Base::initialize(realm);
-}
 
 }

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const xhr = new XMLHttpRequest();
+        xhr.responseType = "json";
+        xhr.onreadystatechange = async function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                const response = xhr.response;
+                if (response.answer === 42)
+                    println("PASS");
+                else
+                    println("FAIL");
+                if (response === xhr.response)
+                    println("PASS");
+                else
+                    println("FAIL");
+                done();
+            }
+        };
+        xhr.open("GET", 'data:application/json,{"answer":42}', true);
+        xhr.send();
+    });
+</script>

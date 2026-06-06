@@ -33,7 +33,7 @@ class ControlMessageQueue;
 
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 class BaseAudioContext : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(BaseAudioContext, DOM::EventTarget);
+    WEB_WRAPPABLE(BaseAudioContext, DOM::EventTarget);
 
 public:
     virtual ~BaseAudioContext() override;

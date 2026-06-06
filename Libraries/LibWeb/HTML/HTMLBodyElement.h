@@ -15,7 +15,7 @@ namespace Web::HTML {
 class HTMLBodyElement final
     : public HTMLElement
     , public WindowEventHandlers {
-    WEB_PLATFORM_OBJECT(HTMLBodyElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLBodyElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLBodyElement);
 
 public:

@@ -22,7 +22,7 @@ class SVGPatternElement
     : public SVGElement
     , public SVGFitToViewBox
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGPatternElement, SVGElement);
+    WEB_WRAPPABLE(SVGPatternElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGPatternElement);
 
 public:

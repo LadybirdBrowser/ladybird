@@ -14,7 +14,7 @@
 namespace Web::HTML {
 
 class HTMLTableSectionElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTableSectionElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTableSectionElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTableSectionElement);
 
 public:

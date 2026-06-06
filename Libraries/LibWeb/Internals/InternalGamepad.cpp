@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/InternalGamepad.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 
@@ -63,7 +61,7 @@ static SDLCALL bool rumble_triggers(void* user_data, u16 left_rumble, u16 right_
 }
 
 InternalGamepad::InternalGamepad(JS::Realm& realm, GC::Ref<Internals> internals)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_internals(internals)
 {
     SDL_VirtualJoystickDesc virtual_joystick_desc {};
@@ -99,13 +97,7 @@ InternalGamepad::InternalGamepad(JS::Realm& realm, GC::Ref<Internals> internals)
 
 InternalGamepad::~InternalGamepad() = default;
 
-void InternalGamepad::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(InternalGamepad);
-    Base::initialize(realm);
-}
-
-void InternalGamepad::visit_edges(Cell::Visitor& visitor)
+void InternalGamepad::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_received_rumble_effects);

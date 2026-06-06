@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -354,8 +355,9 @@ JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_
             // FIXME: 1. Assert: callable’s return type is undefined or any.
 
             // 2. Report an exception completion.[[Value]] for relevant realm’s global object.
-            auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(relevant_realm.global_object());
-            window_or_worker.report_an_exception(completion.release_value());
+            auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(relevant_realm.global_object());
+            VERIFY(window_or_worker);
+            window_or_worker->report_an_exception(completion.release_value());
 
             // 3. Return the unique undefined IDL value.
             return JS::js_undefined();
@@ -582,9 +584,12 @@ bool lists_contain_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVect
 
     for (size_t i = 0; is_equivalent && i < elements->size(); ++i) {
         auto cached_value = array->get_without_side_effects(JS::PropertyKey { i });
-        auto const& cached_element = as<DOM::Element>(cached_value.as_object());
+        auto const* cached_element = cached_value.is_object()
+            ? Bindings::impl_from<DOM::Element>(&cached_value.as_object())
+            : nullptr;
+        VERIFY(cached_element);
 
-        auto it = elements->find_if([&](auto const& element) { return element.ptr() == &cached_element; });
+        auto it = elements->find_if([&](auto const& element) { return element.ptr() == cached_element; });
         if (it == elements->end())
             is_equivalent = false;
     }

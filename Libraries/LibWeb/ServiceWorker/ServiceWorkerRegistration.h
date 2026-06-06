@@ -12,7 +12,7 @@ namespace Web::ServiceWorker {
 
 // https://w3c.github.io/ServiceWorker/#serviceworkerregistration-interface
 class ServiceWorkerRegistration : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(ServiceWorkerRegistration, DOM::EventTarget);
+    WEB_WRAPPABLE(ServiceWorkerRegistration, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(ServiceWorkerRegistration);
 
 public:

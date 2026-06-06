@@ -7,13 +7,15 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/PerformanceTiming.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::NavigationTiming {
 
-class PerformanceTiming final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(PerformanceTiming, Bindings::PlatformObject);
+class PerformanceTiming final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(PerformanceTiming, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(PerformanceTiming);
 
 public:
@@ -70,8 +72,6 @@ private:
     DOM::DocumentLoadTimingInfo const& document_load_timing_info(JS::Object const& global_object) const;
     u64 monotonic_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const;
     u64 relative_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

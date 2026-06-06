@@ -5,9 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMPoint.h>
-#include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 
 namespace Web::Geometry {
@@ -42,11 +40,5 @@ GC::Ref<DOMPoint> DOMPoint::from_point(JS::VM& vm, Bindings::DOMPointInit const&
 }
 
 DOMPoint::~DOMPoint() = default;
-
-void DOMPoint::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMPoint);
-    Base::initialize(realm);
-}
 
 }

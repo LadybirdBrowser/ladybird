@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CredentialManagement/Credential.h>
 
 namespace Web::CredentialManagement {
@@ -19,20 +18,14 @@ GC::Ref<WebIDL::Promise> Credential::is_conditional_mediation_available(JS::VM& 
 Credential::~Credential() { }
 
 Credential::Credential(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 Credential::Credential(JS::Realm& realm, String id)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_id(move(id))
 {
-}
-
-void Credential::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Credential);
-    Base::initialize(realm);
 }
 
 }

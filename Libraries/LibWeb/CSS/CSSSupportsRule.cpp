@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CSSSupportsRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
@@ -23,12 +22,6 @@ CSSSupportsRule::CSSSupportsRule(JS::Realm& realm, NonnullRefPtr<Supports>&& sup
     : CSSConditionRule(realm, rules, Type::Supports)
     , m_supports(move(supports))
 {
-}
-
-void CSSSupportsRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSSupportsRule);
-    Base::initialize(realm);
 }
 
 String CSSSupportsRule::condition_text() const

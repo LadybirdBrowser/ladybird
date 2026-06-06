@@ -6,26 +6,29 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibGC/Cell.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
-
-#include "XPathResult.h"
+#include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::XPath {
 
-class XPathNSResolver final : public JS::Object {
-    JS_OBJECT(XPathNSResolver, JS::Object);
+class XPathNSResolver final : public GC::Cell {
+    GC_CELL(XPathNSResolver, GC::Cell);
     GC_DECLARE_ALLOCATOR(XPathNSResolver);
 
 public:
     [[nodiscard]] static GC::Ref<XPathNSResolver> create(JS::Realm&, GC::Ref<WebIDL::CallbackType>);
-    XPathNSResolver(JS::Realm&, GC::Ref<WebIDL::CallbackType>);
 
     virtual ~XPathNSResolver() = default;
-    virtual void visit_edges(Cell::Visitor&) override;
+
     WebIDL::CallbackType& callback() { return *m_callback; }
 
 private:
+    explicit XPathNSResolver(GC::Ref<WebIDL::CallbackType>);
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
     GC::Ref<WebIDL::CallbackType> m_callback;
 };
 

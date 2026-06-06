@@ -13,7 +13,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
@@ -37,7 +37,7 @@
 
 namespace Web::HTML {
 
-class OffscreenCanvasRenderingContext2D : public Bindings::PlatformObject
+class OffscreenCanvasRenderingContext2D : public Bindings::Wrappable
     , public CanvasState
     , public CanvasTransform
     , public CanvasFillStrokeStyles
@@ -56,7 +56,7 @@ class OffscreenCanvasRenderingContext2D : public Bindings::PlatformObject
     , public CanvasPath
 
 {
-    WEB_PLATFORM_OBJECT(OffscreenCanvasRenderingContext2D, Bindings::PlatformObject);
+    WEB_WRAPPABLE(OffscreenCanvasRenderingContext2D, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
 
 public:
@@ -134,8 +134,8 @@ protected:
 private:
     explicit OffscreenCanvasRenderingContext2D(JS::Realm&, OffscreenCanvas&, Bindings::CanvasRenderingContext2DSettings);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual JS::Realm& canvas_path_realm() const override { return realm(); }
 
     GC::Ref<OffscreenCanvas> m_canvas;
     Gfx::IntSize m_size;

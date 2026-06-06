@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/PerformanceEntry.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::PerformanceTimeline {
@@ -22,8 +23,8 @@ enum class ShouldAddEntry {
 };
 
 // https://www.w3.org/TR/performance-timeline/#dom-performanceentry
-class PerformanceEntry : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(PerformanceEntry, Bindings::PlatformObject);
+class PerformanceEntry : public Bindings::Wrappable {
+    WEB_WRAPPABLE(PerformanceEntry, Bindings::Wrappable);
 
 public:
     virtual ~PerformanceEntry();
@@ -40,7 +41,6 @@ public:
 
 protected:
     PerformanceEntry(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
-    virtual void initialize(JS::Realm&) override;
 
 private:
     // https://www.w3.org/TR/performance-timeline/#dom-performanceentry-name

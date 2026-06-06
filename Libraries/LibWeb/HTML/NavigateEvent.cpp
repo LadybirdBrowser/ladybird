@@ -9,7 +9,6 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigateEvent.h>
 #include <LibWeb/DOM/AbortController.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -18,6 +17,7 @@
 #include <LibWeb/HTML/NavigateEvent.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationDestination.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/XHR/FormData.h>
 
@@ -55,13 +55,7 @@ NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, Bind
 
 NavigateEvent::~NavigateEvent() = default;
 
-void NavigateEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigateEvent);
-    Base::initialize(realm);
-}
-
-void NavigateEvent::visit_edges(JS::Cell::Visitor& visitor)
+void NavigateEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_navigation_handler_list);
@@ -77,7 +71,7 @@ void NavigateEvent::visit_edges(JS::Cell::Visitor& visitor)
 WebIDL::ExceptionOr<void> NavigateEvent::intercept(Bindings::NavigationInterceptOptions const& options)
 {
     auto& realm = this->realm();
-    auto& vm = this->vm();
+    auto& vm = realm.vm();
     // The intercept(options) method steps are:
 
     // 1. Perform shared checks given this.
@@ -158,7 +152,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::perform_shared_checks()
 
     // 1. If event's relevant global object's associated Document is not fully active,
     //    then throw an "InvalidStateError" DOMException.
-    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = relevant_window(*this).associated_document();
     if (!associated_document.is_fully_active())
         return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_utf16);
 
@@ -193,7 +187,7 @@ void NavigateEvent::process_scroll_behavior()
     // 4. Otherwise:
     else {
         // 1. Let document be event's relevant global object's associated Document.
-        auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+        auto& document = relevant_window(*this).associated_document();
 
         // 2. If document's indicated part is null, then scroll to the beginning of the document given document. [CSSOMVIEW]
         auto indicated_part = document.determine_the_indicated_part();
@@ -235,8 +229,8 @@ void NavigateEvent::potentially_reset_the_focus()
     VERIFY(m_interception_state == InterceptionState::Committed || m_interception_state == InterceptionState::Scrolled);
 
     // 2. Let navigation be event's relevant global object's navigation API.
-    auto& relevant_global_object = as<Window>(HTML::relevant_global_object(*this));
-    auto navigation = relevant_global_object.navigation();
+    auto& window = HTML::relevant_window(*this);
+    auto navigation = window.navigation();
 
     // 3. Let focusChanged be navigation's focus changed during ongoing navigation.
     auto focus_changed = navigation->focus_changed_during_ongoing_navigation();
@@ -254,7 +248,7 @@ void NavigateEvent::potentially_reset_the_focus()
         return;
 
     // 7. Let document be event's relevant global object's associated Document.
-    auto& document = relevant_global_object.associated_document();
+    auto& document = window.associated_document();
 
     // 8. FIXME: Let focusTarget be the autofocus delegate for document.
     GC::Ptr<DOM::Node> focus_target = nullptr;

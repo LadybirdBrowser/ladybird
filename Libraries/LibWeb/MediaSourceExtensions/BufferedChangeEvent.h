@@ -14,7 +14,7 @@ namespace Web::MediaSourceExtensions {
 
 // https://w3c.github.io/media-source/#bufferedchangeevent-interface
 class BufferedChangeEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(BufferedChangeEvent, DOM::Event);
+    WEB_WRAPPABLE(BufferedChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(BufferedChangeEvent);
 
 public:
@@ -24,8 +24,6 @@ private:
     BufferedChangeEvent(JS::Realm&, FlyString const& type, Bindings::BufferedChangeEventInit const&);
 
     virtual ~BufferedChangeEvent() override;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

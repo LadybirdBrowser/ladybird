@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/ErrorEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/ErrorEvent.h>
 
 namespace Web::HTML {
@@ -36,13 +35,7 @@ ErrorEvent::ErrorEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
 
 ErrorEvent::~ErrorEvent() = default;
 
-void ErrorEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ErrorEvent);
-    Base::initialize(realm);
-}
-
-void ErrorEvent::visit_edges(Cell::Visitor& visitor)
+void ErrorEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_error);

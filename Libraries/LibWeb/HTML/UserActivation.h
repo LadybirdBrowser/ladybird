@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/UserActivation.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class UserActivation final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(UserActivation, Bindings::PlatformObject);
+class UserActivation final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(UserActivation, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(UserActivation);
 
 public:
@@ -23,8 +24,6 @@ public:
 
 private:
     UserActivation(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

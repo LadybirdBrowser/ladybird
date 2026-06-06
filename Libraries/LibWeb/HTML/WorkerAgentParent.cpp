@@ -6,6 +6,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -151,8 +152,12 @@ void WorkerAgentParent::dispatch_worker_exception(String message, String filenam
         bool not_handled = m_worker_event_target->dispatch_event(error);
 
         // 3. If notHandled is true, then report exception for workerObject's relevant global object with omitError set to true.
-        if (not_handled)
-            as<WindowOrWorkerGlobalScopeMixin>(m_outside_settings->global_object()).report_an_exception(error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+        if (not_handled) {
+            auto wrapped_error = Bindings::wrap(realm, error);
+            auto* window_or_worker = window_or_worker_global_scope_from_global_object(m_outside_settings->global_object());
+            VERIFY(window_or_worker);
+            window_or_worker->report_an_exception(wrapped_error, WindowOrWorkerGlobalScopeMixin::OmitError::Yes);
+        }
     }));
 }
 

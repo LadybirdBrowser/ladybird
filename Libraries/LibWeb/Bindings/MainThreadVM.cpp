@@ -20,11 +20,15 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/SourceTextModule.h>
+#include <LibWeb/Bindings/Element.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/MutationRecord.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
@@ -45,9 +49,8 @@
 #include <LibWeb/HTML/Scripting/WorkerAgent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
-#include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -114,7 +117,7 @@ void initialize_main_thread_vm(AgentType type)
     // 8.1.6.1 HostEnsureCanAddPrivateElement(O), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostensurecanaddprivateelement-implementation
     main_thread_vm_ptr()->host_ensure_can_add_private_element = [](JS::Object const& object) -> JS::ThrowCompletionOr<void> {
         // 1. If O is a WindowProxy object, or implements Location, then return ThrowCompletion(a new TypeError).
-        if (is<HTML::WindowProxy>(object) || is<HTML::Location>(object))
+        if (is<HTML::WindowProxy>(object) || impl_from<HTML::Location>(&object))
             return main_thread_vm_ptr()->throw_completion<JS::TypeError>("Cannot add private elements to window or location object"sv);
 
         // 2. Return NormalCompletion(unused).
@@ -130,7 +133,7 @@ void initialize_main_thread_vm(AgentType type)
     // 8.1.6.3 HostGetCodeForEval(argument), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetcodeforeval(argument)
     main_thread_vm_ptr()->host_get_code_for_eval = [](JS::Object const& argument) -> GC::Ptr<JS::PrimitiveString> {
         // 1. If argument is a TrustedScript object, then return argument's data.
-        if (auto const* trusted_script = as_if<TrustedTypes::TrustedScript>(argument); trusted_script)
+        if (auto const* trusted_script = impl_from<TrustedTypes::TrustedScript>(&argument))
             return JS::PrimitiveString::create(argument.vm(), trusted_script->to_string());
 
         // 2. Otherwise, return no-code.
@@ -167,7 +170,7 @@ void initialize_main_thread_vm(AgentType type)
         auto& settings_object = script ? script->settings_object() : HTML::current_settings_object();
 
         // 5. Let global be settingsObject's global object.
-        auto& global_mixin = as<HTML::UniversalGlobalScopeMixin>(settings_object.global_object());
+        auto& global_mixin = settings_object.universal_global_scope();
         auto& global = global_mixin.this_impl();
 
         switch (operation) {
@@ -193,9 +196,11 @@ void initialize_main_thread_vm(AgentType type)
 
             // 4. Queue a global task on the DOM manipulation task source given global to fire an event named rejectionhandled at global, using PromiseRejectionEvent,
             //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
-            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, GC::create_function(main_thread_vm_ptr()->heap(), [&global, &promise] {
+            auto& global_object = settings_object.global_object();
+            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(main_thread_vm_ptr()->heap(), [&global, &promise] {
                 // FIXME: This currently assumes that global is a WindowObject.
-                auto& window = as<HTML::Window>(global);
+                auto* window = as_if<HTML::Window>(global);
+                VERIFY(window);
 
                 Bindings::PromiseRejectionEventInit event_init {
                     {}, // Initialize the inherited Bindings::EventInit
@@ -203,7 +208,7 @@ void initialize_main_thread_vm(AgentType type)
                     /* .reason = */ promise.result(),
                 };
                 auto promise_rejection_event = HTML::PromiseRejectionEvent::create(HTML::relevant_realm(global), HTML::EventNames::rejectionhandled, event_init);
-                window.dispatch_event(promise_rejection_event);
+                window->dispatch_event(promise_rejection_event);
             }));
             break;
         }
@@ -438,7 +443,8 @@ void initialize_main_thread_vm(AgentType type)
         GC::Ref<HTML::EnvironmentSettingsObject> settings_object = HTML::current_settings_object();
 
         // 2. If settingsObject's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
-        if ((is<HTML::WorkletGlobalScope>(settings_object->global_object()) || is<ServiceWorker::ServiceWorkerGlobalScope>(settings_object->global_object())) && !load_state) {
+        auto const* global_object = as_if<PlatformObject>(settings_object->global_object());
+        if (global_object && (global_object->implements_interface("WorkletGlobalScope"_string) || global_object->implements_interface("ServiceWorkerGlobalScope"_string)) && !load_state) {
             // 1. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(a new TypeError)).
             auto completion = JS::throw_completion(JS::TypeError::create(settings_object->realm(), "Dynamic Import not available for Worklets or ServiceWorkers"_string));
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
@@ -738,10 +744,12 @@ void queue_mutation_observer_microtask()
                 for (size_t i = 0; i < records.size(); ++i) {
                     auto& record = records.at(i);
                     auto property_index = JS::PropertyKey { i };
-                    MUST(wrapped_records->create_data_property(property_index, record.ptr()));
+                    MUST(wrapped_records->create_data_property(property_index,
+                        Bindings::wrap(settings->realm(), GC::Ref { *record })));
                 }
 
-                (void)WebIDL::invoke_callback(callback, mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, mutation_observer } });
+                auto wrapped_mutation_observer = Bindings::wrap(settings->realm(), mutation_observer);
+                (void)WebIDL::invoke_callback(callback, wrapped_mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, wrapped_mutation_observer } });
             }
         }
 
@@ -809,14 +817,16 @@ void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_que
                         auto& realm = callback.callback->shape().realm();
                         auto& global = realm.global_object();
 
-                        auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
-                        window_or_worker.report_an_exception(maybe_exception.error_value());
+                        auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(global);
+                        VERIFY(window_or_worker);
+                        window_or_worker->report_an_exception(maybe_exception.error_value());
                     }
                 },
                 [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {
                     // -> callback reaction
                     //      Invoke reaction's callback function with reaction's arguments and "report", and callback this value set to element.
-                    (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, element.ptr(), WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
+                    auto this_value = Bindings::wrap(custom_element_callback_reaction.callback->callback->shape().realm(), GC::Ref { *element });
+                    (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
                 });
         }
     }

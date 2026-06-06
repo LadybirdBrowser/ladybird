@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
 class HTMLMarqueeElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLMarqueeElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLMarqueeElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLMarqueeElement);
 
 public:

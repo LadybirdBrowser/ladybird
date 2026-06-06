@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
@@ -48,7 +49,7 @@ GC::Ref<ViewTransition> ViewTransition::create(JS::Realm& realm)
 }
 
 ViewTransition::ViewTransition(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<WebIDL::Promise> update_callback_done_promise, GC::Ref<WebIDL::Promise> finished_promise)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_ready_promise(ready_promise)
     , m_update_callback_done_promise(update_callback_done_promise)
     , m_finished_promise(finished_promise)
@@ -57,13 +58,7 @@ ViewTransition::ViewTransition(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_
 {
 }
 
-void ViewTransition::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ViewTransition);
-    Base::initialize(realm);
-}
-
-void ViewTransition::visit_edges(Cell::Visitor& visitor)
+void ViewTransition::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
@@ -108,7 +103,7 @@ void ViewTransition::setup_view_transition()
     // To setup view transition for a ViewTransition transition, perform the following steps:
 
     // 1. Let document be transition’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     // 2. Flush the update callback queue.
     // AD-HOC: Spec doesn't say what document to flush it for.
@@ -162,7 +157,7 @@ void ViewTransition::activate_view_transition()
 
     // 2. Set transition’s relevant global object’s associated document’s rendering suppression for view transitions to
     //    false.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
     document.set_rendering_suppression_for_view_transitions(false);
 
     // 3. If transition’s initial snapshot containing block size is not equal to the snapshot containing block size, then
@@ -221,7 +216,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
     // To capture the old state for ViewTransition transition:
 
     // 1. Let document be transition’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
 
@@ -359,7 +354,7 @@ ErrorOr<void> ViewTransition::capture_the_new_state()
     // To capture the new state for ViewTransition transition:
 
     // 1. Let document be transition’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
 
@@ -424,7 +419,7 @@ void ViewTransition::setup_transition_pseudo_elements()
     // To setup transition pseudo-elements for a ViewTransition transition:
 
     // 1. Let document be this’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     // 2. Set document’s show view transition tree to true.
     document.set_show_view_transition_tree(true);
@@ -694,7 +689,7 @@ void ViewTransition::schedule_the_update_callback()
     // AD-HOC: The update callback queue is a property on document, not a settings object.
     //         For now we'll just put it on the relevant global object's associated document.
     //         Spec bug is filed at https://github.com/w3c/csswg-drafts/issues/11986
-    as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().update_callback_queue().append(this);
+    HTML::relevant_window(*this).associated_document().update_callback_queue().append(this);
 
     // 2. Queue a global task on the DOM manipulation task source, given transition’s relevant global object, to flush
     //    the update callback queue.
@@ -702,7 +697,7 @@ void ViewTransition::schedule_the_update_callback()
         // AD-HOC: Spec doesn't say what document to flush it for.
         //         Lets just use the one we use elsewhere.
         //         (see https://github.com/w3c/csswg-drafts/issues/11986 )
-        as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().flush_the_update_callback_queue();
+        HTML::relevant_window(*this).associated_document().flush_the_update_callback_queue();
     }));
 }
 
@@ -713,7 +708,7 @@ void ViewTransition::skip_the_view_transition(JS::Value reason)
     // To skip the view transition for ViewTransition transition with reason reason:
 
     // 1. Let document be transition’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     // 2. Assert: transition’s phase is not "done".
     VERIFY(m_phase != Phase::Done);
@@ -742,6 +737,11 @@ void ViewTransition::skip_the_view_transition(JS::Value reason)
     WebIDL::resolve_promise(realm, m_finished_promise, WebIDL::react_to_promise(m_update_callback_done_promise, GC::create_function(realm.heap(), [](JS::Value) -> WebIDL::ExceptionOr<JS::Value> { return JS::js_undefined(); }), nullptr)->promise());
 }
 
+void ViewTransition::skip_the_view_transition(GC::Ref<WebIDL::DOMException> reason)
+{
+    skip_the_view_transition(throw_completion(reason).value());
+}
+
 // https://drafts.csswg.org/css-view-transitions-1/#handle-transition-frame
 void ViewTransition::handle_transition_frame()
 {
@@ -749,7 +749,7 @@ void ViewTransition::handle_transition_frame()
     // To handle transition frame given a ViewTransition transition
 
     // 1. Let document be transition’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     // 2. Let hasActiveAnimations be a boolean, initially false.
     bool has_active_animations = false;
@@ -935,7 +935,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             //   color-scheme: colorScheme;
             // }
             // NOTE: The above code example contains variables to be replaced.
-            auto stylesheet = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().dynamic_view_transition_style_sheet();
+            auto stylesheet = HTML::relevant_window(*this).associated_document().dynamic_view_transition_style_sheet();
             unsigned index = MUST(stylesheet->insert_rule(MUST(String::formatted(R"(
                 :root::view-transition-group({}) {{
                     width: {};
@@ -1010,7 +1010,7 @@ void ViewTransition::clear_view_transition()
     // To clear view transition of a ViewTransition transition:
 
     // 1. Let document be transition’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     // 2. Assert: document’s active view transition is transition.
     VERIFY(document.active_view_transition() == this);

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/DOMMatrix.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
@@ -16,7 +17,7 @@ namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dommatrix
 class DOMMatrix : public DOMMatrixReadOnly {
-    WEB_PLATFORM_OBJECT(DOMMatrix, DOMMatrixReadOnly);
+    WEB_WRAPPABLE(DOMMatrix, DOMMatrixReadOnly);
     GC_DECLARE_ALLOCATOR(DOMMatrix);
 
 public:
@@ -76,8 +77,6 @@ private:
     DOMMatrix(JS::Realm&, double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
     DOMMatrix(JS::Realm&, DOMMatrixReadOnly const& read_only_matrix);
     explicit DOMMatrix(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

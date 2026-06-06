@@ -111,15 +111,16 @@ def write_constructor_steps(
         arguments = f", {arguments}"
     out.write(
         f"""    auto impl = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {fully_qualified_name_for_interface(interface)}::construct_impl(realm{arguments}); }}));
+    auto wrapper = wrap(realm, impl);
 
     // 7. Set instance.[[Prototype]] to prototype.
     VERIFY(prototype.is_object());
-    impl->set_prototype(&prototype.as_object());
+    wrapper->set_prototype(&prototype.as_object());
 
     // FIXME: Steps 8...11. of the "internally create a new object implementing the interface {interface.name}" algorithm
     // (https://webidl.spec.whatwg.org/#js-platform-objects) are currently not handled, or are handled within {fully_qualified_name_for_interface(interface)}::construct_impl().
 
-    return *impl;
+    return *wrapper;
 """
     )
 

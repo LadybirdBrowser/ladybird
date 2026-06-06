@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/Response.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -433,7 +434,7 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
     auto listener_fn = JS::NativeFunction::create(
         realm, [document, js_response](JS::VM&) mutable -> JS::ThrowCompletionOr<JS::Value> {
             Bindings::CustomEventInit init;
-            init.detail = JS::Value(js_response.ptr());
+            init.detail = Bindings::wrap(document->realm(), js_response);
             document->dispatch_event(*DOM::CustomEvent::create(document->realm(), "ladybirdpdf"_fly_string, init));
             return JS::js_undefined();
         },

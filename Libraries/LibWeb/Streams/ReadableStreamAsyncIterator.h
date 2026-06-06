@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/AsyncIterator.h>
@@ -14,7 +13,7 @@
 namespace Web::Streams {
 
 class ReadableStreamAsyncIterator final : public WebIDL::AsyncIterator {
-    WEB_NON_IDL_PLATFORM_OBJECT(ReadableStreamAsyncIterator, WebIDL::AsyncIterator);
+    JS_OBJECT(ReadableStreamAsyncIterator, WebIDL::AsyncIterator);
     GC_DECLARE_ALLOCATOR(ReadableStreamAsyncIterator);
 
 public:
@@ -26,7 +25,7 @@ private:
     ReadableStreamAsyncIterator(JS::Realm&, JS::Object::PropertyKind, GC::Ref<ReadableStreamDefaultReader>, bool prevent_cancel);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     virtual GC::Ref<WebIDL::Promise> next_iteration_result(JS::Realm&) override;
     virtual GC::Ref<WebIDL::Promise> iterator_return(JS::Realm&, JS::Value) override;

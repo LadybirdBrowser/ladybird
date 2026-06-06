@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/ErrorData.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <WebContent/ConsoleGlobalEnvironmentExtensions.h>
@@ -24,7 +25,7 @@ GC_DEFINE_ALLOCATOR(DevToolsConsoleClient);
 
 GC::Ref<DevToolsConsoleClient> DevToolsConsoleClient::create(JS::Realm& realm, JS::Console& console, PageClient& client)
 {
-    auto& window = as<Web::HTML::Window>(realm.global_object());
+    auto& window = Web::HTML::relevant_window(realm.global_object());
     auto console_global_environment_extensions = realm.create<ConsoleGlobalEnvironmentExtensions>(realm, window);
 
     return realm.heap().allocate<DevToolsConsoleClient>(realm, console, client, console_global_environment_extensions);

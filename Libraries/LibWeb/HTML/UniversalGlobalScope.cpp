@@ -17,6 +17,7 @@
 #include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
@@ -198,9 +199,10 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
 
     // 4. Let global be settings object's global object.
     auto& global = this_impl();
+    auto& global_object = relevant_global_object(global);
 
     // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
-    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(global.heap(), [this, &global, list = move(list)] {
+    queue_global_task(Task::Source::DOMManipulation, global_object, GC::create_function(global.heap(), [this, &global, list = move(list)] {
         auto& realm = global.realm();
 
         // 1. For each promise p in list:

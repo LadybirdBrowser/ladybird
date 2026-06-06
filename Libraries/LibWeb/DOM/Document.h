@@ -206,7 +206,7 @@ struct PendingFullscreenEvent {
 class WEB_API Document
     : public ParentNode
     , public HTML::GlobalEventHandlers {
-    WEB_PLATFORM_OBJECT(Document, ParentNode);
+    WEB_WRAPPABLE(Document, ParentNode);
     GC_DECLARE_ALLOCATOR(Document);
 
 public:
@@ -912,7 +912,7 @@ public:
     void set_needs_accumulated_visual_contexts_update(bool value) { m_needs_accumulated_visual_contexts_update = value; }
     bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
 
-    virtual JS::Value named_item_value(FlyString const& name) const override;
+    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
 
@@ -1629,12 +1629,5 @@ template<>
 inline bool Node::fast_is<Document>() const { return is_document(); }
 
 bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host);
-
-}
-
-namespace JS {
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Document>() const { return is_dom_document(); }
 
 }

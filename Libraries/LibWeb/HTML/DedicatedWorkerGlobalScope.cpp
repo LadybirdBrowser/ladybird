@@ -20,7 +20,6 @@ GC_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
 DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
     : WorkerGlobalScope(realm, page)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .has_global_interface_extended_attribute = true };
 }
 
 DedicatedWorkerGlobalScope::~DedicatedWorkerGlobalScope() = default;
@@ -28,9 +27,11 @@ DedicatedWorkerGlobalScope::~DedicatedWorkerGlobalScope() = default;
 void DedicatedWorkerGlobalScope::initialize_web_interfaces_impl()
 {
     auto& realm = this->realm();
-    add_dedicated_worker_exposed_interfaces(*this);
+    auto& global_object = realm.global_object();
 
-    DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
+    Bindings::add_dedicated_worker_exposed_interfaces(global_object);
+
+    DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, global_object);
 
     Base::initialize_web_interfaces_impl();
 }

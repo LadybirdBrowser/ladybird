@@ -9,7 +9,7 @@
 #include <LibGfx/BitmapExport.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -37,8 +37,8 @@ static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using TexImageSource = Variant<GC::Ref<HTML::ImageBitmap>, GC::Ref<HTML::ImageData>, GC::Ref<HTML::HTMLImageElement>, GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>, GC::Ref<HTML::HTMLVideoElement>>;
 
-class WebGLRenderingContextBase : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
+class WebGLRenderingContextBase : public Bindings::Wrappable {
+    WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextBase, Bindings::Wrappable);
 
 public:
     using Float32List = Variant<GC::Ref<JS::Float32Array>, Vector<float>>;
@@ -63,7 +63,7 @@ public:
 protected:
     WebGLRenderingContextBase(JS::Realm&);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // FIXME: Make this and any another instance of extension names a FlyString, similarly to HTML::TagNames
     bool extension_enabled(StringView extension) const;
@@ -183,7 +183,7 @@ private:
 
     // Extensions
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
-    HashMap<String, GC::Ref<JS::Object>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
+    HashMap<String, GC::Ref<Bindings::Wrappable>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
 };
 
 }

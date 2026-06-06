@@ -6,7 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigationCurrentEntryChangeEvent.h>
 #include <LibWeb/HTML/NavigationCurrentEntryChangeEvent.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
@@ -29,13 +28,7 @@ NavigationCurrentEntryChangeEvent::NavigationCurrentEntryChangeEvent(JS::Realm& 
 
 NavigationCurrentEntryChangeEvent::~NavigationCurrentEntryChangeEvent() = default;
 
-void NavigationCurrentEntryChangeEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationCurrentEntryChangeEvent);
-    Base::initialize(realm);
-}
-
-void NavigationCurrentEntryChangeEvent::visit_edges(JS::Cell::Visitor& visitor)
+void NavigationCurrentEntryChangeEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_from);

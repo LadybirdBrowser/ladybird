@@ -11,8 +11,8 @@
 #include <LibGfx/Matrix4x4.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
@@ -20,9 +20,9 @@ namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dommatrixreadonly
 class DOMMatrixReadOnly
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(DOMMatrixReadOnly, Bindings::PlatformObject);
+    WEB_WRAPPABLE(DOMMatrixReadOnly, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMMatrixReadOnly);
 
 public:
@@ -94,8 +94,6 @@ protected:
     DOMMatrixReadOnly(JS::Realm&, double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
     DOMMatrixReadOnly(JS::Realm&, DOMMatrixReadOnly const& other);
     explicit DOMMatrixReadOnly(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     // NOTE: The matrix used in the spec is column-major (https://drafts.fxtf.org/geometry/#4x4-abstract-matrix) but Gfx::Matrix4x4 is row-major so we need to transpose the values.
     Gfx::DoubleMatrix4x4 m_matrix { Gfx::DoubleMatrix4x4::identity() };

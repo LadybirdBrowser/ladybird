@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/ContentSecurityPolicy/SecurityPolicyViolationEvent.h>
 
@@ -40,11 +39,5 @@ SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(JS::Realm& realm, Fly
 }
 
 SecurityPolicyViolationEvent::~SecurityPolicyViolationEvent() = default;
-
-void SecurityPolicyViolationEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SecurityPolicyViolationEvent);
-    Base::initialize(realm);
-}
 
 }

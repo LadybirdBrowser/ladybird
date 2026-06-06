@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WebSocket.h>
@@ -25,6 +26,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
@@ -132,7 +134,7 @@ void WebSocket::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebSocket);
     Base::initialize(realm);
 
-    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    auto& relevant_global = HTML::relevant_window_or_worker_global_scope(*this);
     relevant_global.register_web_socket({}, *this);
 }
 
@@ -150,7 +152,7 @@ void WebSocket::finalize()
         m_websocket->close(1000);
     }
 
-    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    auto& relevant_global = HTML::relevant_window_or_worker_global_scope(*this);
     relevant_global.unregister_web_socket({}, *this);
 }
 
@@ -203,8 +205,9 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     // FIXME: Integrate properly with FETCH as per https://fetch.spec.whatwg.org/#websocket-opening-handshake
     //        That means following https://websockets.spec.whatwg.org/#concept-websocket-establish
 
-    auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(client.global_object());
-    auto origin_string = window_or_worker.origin().to_byte_string();
+    auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(client.global_object());
+    VERIFY(window_or_worker);
+    auto origin_string = window_or_worker->origin().to_byte_string();
 
     Vector<ByteString> protocol_byte_strings;
     for (auto const& protocol : protocols)
@@ -388,7 +391,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
         if (m_binary_type == "blob") {
             // type indicates that the data is Binary and binaryType is "blob"
             Bindings::MessageEventInit event_init;
-            event_init.data = FileAPI::Blob::create(realm(), message, "text/plain;charset=utf-8"_string);
+            event_init.data = Bindings::wrap(realm(), FileAPI::Blob::create(realm(), message, "text/plain;charset=utf-8"_string));
             dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init, m_url.origin()));
             return;
         } else if (m_binary_type == "arraybuffer") {

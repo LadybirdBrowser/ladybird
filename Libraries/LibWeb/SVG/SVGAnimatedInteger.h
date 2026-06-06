@@ -8,14 +8,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SVGAnimatedInteger.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedInteger
-class SVGAnimatedInteger final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGAnimatedInteger, Bindings::PlatformObject);
+class SVGAnimatedInteger final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGAnimatedInteger, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGAnimatedInteger);
 
 public:
@@ -45,8 +46,7 @@ public:
 private:
     SVGAnimatedInteger(JS::Realm&, GC::Ref<SVGElement>, DOM::QualifiedName, WebIDL::Long, SupportsSecondValue, ValueRepresented);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::Long parse_value_or_initial(StringView) const;
     WebIDL::Long get_base_or_anim_value() const;

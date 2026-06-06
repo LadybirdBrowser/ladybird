@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 
 namespace Web::DOMURL {
 
-class URLSearchParamsIterator : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(URLSearchParamsIterator, Bindings::PlatformObject);
+class URLSearchParamsIterator : public JS::Object {
+    JS_OBJECT(URLSearchParamsIterator, JS::Object);
     GC_DECLARE_ALLOCATOR(URLSearchParamsIterator);
 
 public:
@@ -26,7 +26,7 @@ private:
     URLSearchParamsIterator(URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<URLSearchParams const> m_url_search_params;
     JS::Object::PropertyKind m_iteration_kind;

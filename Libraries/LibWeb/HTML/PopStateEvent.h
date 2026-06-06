@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class PopStateEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(PopStateEvent, DOM::Event);
+    WEB_WRAPPABLE(PopStateEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PopStateEvent);
 
 public:
@@ -24,8 +24,7 @@ public:
 private:
     PopStateEvent(JS::Realm&, FlyString const& event_name, Bindings::PopStateEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
     JS::Value m_state { JS::js_null() };
 };

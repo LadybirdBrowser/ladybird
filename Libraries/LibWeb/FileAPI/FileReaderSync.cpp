@@ -7,8 +7,6 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/FileReaderSync.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/FileReaderSync.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -23,14 +21,8 @@ GC_DEFINE_ALLOCATOR(FileReaderSync);
 FileReaderSync::~FileReaderSync() = default;
 
 FileReaderSync::FileReaderSync(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
-}
-
-void FileReaderSync::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FileReaderSync);
-    Base::initialize(realm);
 }
 
 GC::Ref<FileReaderSync> FileReaderSync::create(JS::Realm& realm)

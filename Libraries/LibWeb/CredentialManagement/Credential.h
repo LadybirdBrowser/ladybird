@@ -8,14 +8,14 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Credential.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CredentialManagement {
 
 // https://www.w3.org/TR/credential-management-1/#credential
-class Credential : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Credential, Bindings::PlatformObject);
+class Credential : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Credential, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Credential);
 
 public:
@@ -30,7 +30,6 @@ public:
 protected:
     explicit Credential(JS::Realm&);
     Credential(JS::Realm&, String id);
-    virtual void initialize(JS::Realm&) override;
 
     String m_id;
 };

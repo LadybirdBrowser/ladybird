@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -19,13 +19,12 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#css-declaration-blocks
 class CSSStyleDeclaration
-    : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSStyleDeclaration, Bindings::PlatformObject);
+    : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSStyleDeclaration, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CSSStyleDeclaration);
 
 public:
     virtual ~CSSStyleDeclaration() = default;
-    virtual void initialize(JS::Realm&) override;
 
     virtual size_t length() const = 0;
     virtual String item(size_t index) const = 0;
@@ -74,13 +73,12 @@ protected:
     };
     explicit CSSStyleDeclaration(JS::Realm&, Computed, Readonly);
 
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void update_style_attribute();
 
 private:
-    // ^PlatformObject
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-parent-css-rule
     GC::Ptr<CSSRule> m_parent_rule { nullptr };

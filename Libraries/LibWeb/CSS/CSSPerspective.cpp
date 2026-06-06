@@ -6,7 +6,6 @@
 
 #include "CSSPerspective.h"
 #include <LibWeb/Bindings/CSSPerspective.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -71,13 +70,7 @@ CSSPerspective::CSSPerspective(JS::Realm& realm, CSSPerspectiveValueInternal len
 
 CSSPerspective::~CSSPerspective() = default;
 
-void CSSPerspective::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSPerspective);
-    Base::initialize(realm);
-}
-
-void CSSPerspective::visit_edges(Visitor& visitor)
+void CSSPerspective::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_length);

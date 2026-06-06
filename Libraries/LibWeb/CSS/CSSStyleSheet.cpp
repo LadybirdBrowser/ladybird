@@ -9,7 +9,6 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
@@ -26,6 +25,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
     auto sheet = create(realm, CSSRuleList::create(realm), CSS::MediaList::create(realm, {}), {});
 
     // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
-    auto associated_document = as<HTML::Window>(realm.global_object()).document();
+    auto associated_document = HTML::relevant_window(realm.global_object()).document();
     sheet->set_location(associated_document->base_url());
 
     // 3. Set sheet’s stylesheet base URL to the baseURL attribute value from options.
@@ -125,13 +125,7 @@ CSSStyleSheet::CSSStyleSheet(JS::Realm& realm, CSSRuleList& rules, MediaList& me
 
 CSSStyleSheet::~CSSStyleSheet() = default;
 
-void CSSStyleSheet::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleSheet);
-    Base::initialize(realm);
-}
-
-void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)
+void CSSStyleSheet::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
@@ -265,7 +259,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         set_disallow_modification(false);
 
         // 5. Resolve promise with sheet.
-        WebIDL::resolve_promise(realm, *promise, this);
+        WebIDL::resolve_promise(realm, *promise, Bindings::wrap(realm, GC::Ref { *this }));
     }));
 
     return promise;

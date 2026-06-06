@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CSSPageRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -27,12 +26,6 @@ CSSPageRule::CSSPageRule(JS::Realm& realm, PageSelectorList&& selectors, GC::Ref
     , m_style(style)
 {
     m_style->set_parent_rule(*this);
-}
-
-void CSSPageRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSPageRule);
-    Base::initialize(realm);
 }
 
 // https://drafts.csswg.org/cssom/#dom-csspagerule-selectortext
@@ -89,7 +82,7 @@ String CSSPageRule::serialized() const
     return builder.to_string_without_validation();
 }
 
-void CSSPageRule::visit_edges(Visitor& visitor)
+void CSSPageRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);

@@ -23,7 +23,6 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2D.h>
 #include <LibWeb/Bindings/DOMRectReadOnly.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
@@ -55,8 +54,8 @@ JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2
 }
 
 CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : PlatformObject(realm)
-    , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
+    : Bindings::Wrappable(realm)
+    , CanvasPath(static_cast<CanvasState const&>(*this))
     , m_element(element)
     , m_size(element.bitmap_size_for_canvas())
     , m_context_attributes(move(context_attributes))
@@ -65,13 +64,7 @@ CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasE
 
 CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
 
-void CanvasRenderingContext2D::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_string));
-}
-
-void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
+void CanvasRenderingContext2D::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     CanvasState::visit_edges(visitor);

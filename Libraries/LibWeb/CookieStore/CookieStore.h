@@ -18,7 +18,7 @@ namespace Web::CookieStore {
 
 // https://cookiestore.spec.whatwg.org/#cookiestore
 class WEB_API CookieStore final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(CookieStore, DOM::EventTarget);
+    WEB_WRAPPABLE(CookieStore, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(CookieStore);
 
 public:

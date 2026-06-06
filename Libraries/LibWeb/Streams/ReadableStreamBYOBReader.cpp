@@ -7,7 +7,6 @@
 
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStreamBYOBReader.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamBYOBReader.h>
@@ -20,15 +19,8 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(ReadableStreamBYOBReader);
 
 ReadableStreamBYOBReader::ReadableStreamBYOBReader(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
-    , ReadableStreamGenericReaderMixin(realm)
+    : Bindings::Wrappable(realm)
 {
-}
-
-void ReadableStreamBYOBReader::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamBYOBReader);
-    Base::initialize(realm);
 }
 
 // https://streams.spec.whatwg.org/#byob-reader-constructor
@@ -53,7 +45,7 @@ void ReadableStreamBYOBReader::release_lock()
     readable_stream_byob_reader_release(*this);
 }
 
-void ReadableStreamBYOBReader::visit_edges(Cell::Visitor& visitor)
+void ReadableStreamBYOBReader::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     ReadableStreamGenericReaderMixin::visit_edges(visitor);

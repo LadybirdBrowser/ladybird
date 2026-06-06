@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 class SVGSymbolElement final : public SVGGraphicsElement
     , public SVGFitToViewBox {
-    WEB_PLATFORM_OBJECT(SVGSymbolElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGSymbolElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSymbolElement);
 
 public:

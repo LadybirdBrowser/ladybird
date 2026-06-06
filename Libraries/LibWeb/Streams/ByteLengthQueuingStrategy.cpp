@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ByteLengthQueuingStrategy.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/Streams/ByteLengthQueuingStrategy.h>
 
@@ -23,7 +22,7 @@ GC::Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::construct_impl(JS:
 }
 
 ByteLengthQueuingStrategy::ByteLengthQueuingStrategy(JS::Realm& realm, double high_water_mark)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_high_water_mark(high_water_mark)
 {
 }
@@ -34,14 +33,8 @@ ByteLengthQueuingStrategy::~ByteLengthQueuingStrategy() = default;
 GC::Ref<WebIDL::CallbackType> ByteLengthQueuingStrategy::size()
 {
     // 1. Return this's relevant global object's byte length queuing strategy size function.
-    auto& global = as<HTML::UniversalGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    auto& global = HTML::relevant_settings_object(*this).universal_global_scope();
     return global.byte_length_queuing_strategy_size_function();
-}
-
-void ByteLengthQueuingStrategy::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ByteLengthQueuingStrategy);
-    Base::initialize(realm);
 }
 
 }

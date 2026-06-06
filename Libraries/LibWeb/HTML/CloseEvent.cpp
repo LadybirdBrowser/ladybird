@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CloseEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CloseEvent.h>
 
 namespace Web::HTML {
@@ -31,11 +30,5 @@ CloseEvent::CloseEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
 }
 
 CloseEvent::~CloseEvent() = default;
-
-void CloseEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CloseEvent);
-    Base::initialize(realm);
-}
 
 }

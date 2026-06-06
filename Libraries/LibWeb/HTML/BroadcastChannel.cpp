@@ -14,12 +14,14 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -111,12 +113,12 @@ bool BroadcastChannel::is_eligible_for_messaging() const
     auto const& global = relevant_global_object(*this);
 
     // * a Window object whose associated Document is fully active, or
-    if (auto* window = as_if<Window>(global))
+    if (auto* window = window_from_global_object(global))
         return window->associated_document().is_fully_active();
 
     // * a WorkerGlobalScope object whose closing flag is false and is not suspendable.
     // FIXME: Suspendable worker
-    if (auto* worker_global_scope = as_if<WorkerGlobalScope>(global)) {
+    if (auto* worker_global_scope = Bindings::impl_from<WorkerGlobalScope>(&global)) {
         return !worker_global_scope->is_closing();
     }
 

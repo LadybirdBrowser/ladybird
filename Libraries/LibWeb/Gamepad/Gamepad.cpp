@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Gamepad/EventNames.h>
 #include <LibWeb/Gamepad/Gamepad.h>
@@ -114,7 +113,7 @@ GC::Ref<Gamepad> Gamepad::create(JS::Realm& realm, SDL_JoystickID sdl_joystick_i
     //    1. Let navigator be gamepad's relevant global object's Navigator object.
     //    The rest of the steps are implemented in NavigatorGamepad.
     //    NOTE: Gamepad is only exposed on Window.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(gamepad));
+    auto& window = HTML::relevant_window(*gamepad);
     gamepad->m_index = window.navigator()->select_an_unused_gamepad_index({});
 
     //    3. Initialize gamepad's mapping attribute to the result of selecting a mapping for the gamepad device.
@@ -140,19 +139,13 @@ GC::Ref<Gamepad> Gamepad::create(JS::Realm& realm, SDL_JoystickID sdl_joystick_i
 }
 
 Gamepad::Gamepad(JS::Realm& realm, SDL_JoystickID sdl_joystick_id)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_sdl_joystick_id(sdl_joystick_id)
 {
     m_sdl_gamepad = SDL_OpenGamepad(m_sdl_joystick_id);
 }
 
-void Gamepad::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Gamepad);
-    Base::initialize(realm);
-}
-
-void Gamepad::visit_edges(Cell::Visitor& visitor)
+void Gamepad::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_buttons);
@@ -540,8 +533,8 @@ void Gamepad::update_gamepad_state(Badge<NavigatorGamepadPartial>)
     auto& realm = this->realm();
 
     // 1. Let now be the current high resolution time given gamepad's relevant global object.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
-    auto now = HighResolutionTime::current_high_resolution_time(window);
+    auto now = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this));
+    auto& window = HTML::relevant_window(*this);
 
     // 2. Set gamepad.[[timestamp]] to now.
     m_timestamp = now;

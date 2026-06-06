@@ -10,7 +10,7 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
@@ -18,9 +18,9 @@
 
 namespace Web::DOMURL {
 
-class DOMURL : public Bindings::PlatformObject {
+class DOMURL : public Bindings::Wrappable {
     // NOTE: This is 'URL' in the IDL, but we call it DOMURL to avoid name conflicts with LibURL.
-    WEB_PLATFORM_OBJECT(URL, Bindings::PlatformObject);
+    WEB_WRAPPABLE(URL, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMURL);
 
 public:
@@ -89,8 +89,7 @@ private:
 
     static GC::Ref<DOMURL> initialize_a_url(JS::Realm&, URL::URL const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     URL::URL m_url;
     GC::Ref<URLSearchParams> m_query;

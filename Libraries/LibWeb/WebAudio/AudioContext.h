@@ -16,7 +16,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioContext
 class AudioContext final : public BaseAudioContext {
-    WEB_PLATFORM_OBJECT(AudioContext, BaseAudioContext);
+    WEB_WRAPPABLE(AudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(AudioContext);
 
 public:

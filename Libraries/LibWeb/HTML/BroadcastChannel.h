@@ -14,7 +14,7 @@ namespace Web::HTML {
 class BroadcastChannelRepository;
 
 class BroadcastChannel final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(BroadcastChannel, DOM::EventTarget);
+    WEB_WRAPPABLE(BroadcastChannel, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(BroadcastChannel);
 
 public:

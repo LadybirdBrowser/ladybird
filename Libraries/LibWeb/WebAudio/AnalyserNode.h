@@ -8,7 +8,6 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AnalyserNode.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -17,7 +16,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AnalyserNode
 class AnalyserNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(AnalyserNode, AudioNode);
+    WEB_WRAPPABLE(AnalyserNode, AudioNode);
     GC_DECLARE_ALLOCATOR(AnalyserNode);
 
 public:

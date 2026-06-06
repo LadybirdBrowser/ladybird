@@ -4,33 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/NodeList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>
 
 namespace Web::DOM {
 
 NodeList::NodeList(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
 }
 
 NodeList::~NodeList() = default;
 
-void NodeList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NodeList);
-    Base::initialize(realm);
-}
-
-Optional<JS::Value> NodeList::item_value(size_t index) const
+Optional<JS::Value> NodeList::item_value(JS::Realm& realm, size_t index) const
 {
     auto* node = item(index);
     if (!node)
         return {};
-    return const_cast<Node*>(node);
+    return Bindings::wrap(realm, GC::Ref { const_cast<Node&>(*node) }).ptr();
 }
 
 }

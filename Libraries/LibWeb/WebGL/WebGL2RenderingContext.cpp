@@ -9,7 +9,6 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGL2RenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/Infra/Strings.h>
@@ -65,13 +64,7 @@ WebGL2RenderingContext::WebGL2RenderingContext(JS::Realm& realm, HTML::HTMLCanva
 
 WebGL2RenderingContext::~WebGL2RenderingContext() = default;
 
-void WebGL2RenderingContext::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGL2RenderingContext);
-    Base::initialize(realm);
-}
-
-void WebGL2RenderingContext::visit_edges(Cell::Visitor& visitor)
+void WebGL2RenderingContext::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     WebGL2RenderingContextImpl::visit_edges(visitor);

@@ -5,9 +5,12 @@
  */
 
 #include <LibIPC/File.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/TransformStream.h>
+#include <LibWeb/Bindings/TransformStreamDefaultController.h>
 #include <LibWeb/Bindings/Transformer.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -69,7 +72,8 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     // 12. If transformerDict["start"] exists, then resolve startPromise with the result of invoking
     //     transformerDict["start"] with argument list « this.[[controller]] » and callback this value transformer.
     if (transformer_dict.start) {
-        auto result = TRY(WebIDL::invoke_callback(*transformer_dict.start, transformer, { { stream->controller() } }));
+        auto wrapped_controller = Bindings::wrap(realm, stream->controller());
+        auto result = TRY(WebIDL::invoke_callback(*transformer_dict.start, transformer, { { wrapped_controller } }));
         WebIDL::resolve_promise(realm, start_promise, result);
     }
     // 13. Otherwise, resolve startPromise with undefined.
@@ -81,19 +85,23 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
 }
 
 TransformStream::TransformStream(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 TransformStream::~TransformStream() = default;
 
-void TransformStream::initialize(JS::Realm& realm)
+static ReadableStream* readable_stream_from_object(JS::Object& object)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TransformStream);
-    Base::initialize(realm);
+    return Bindings::impl_from<ReadableStream>(&object);
 }
 
-void TransformStream::visit_edges(Cell::Visitor& visitor)
+static WritableStream* writable_stream_from_object(JS::Object& object)
+{
+    return Bindings::impl_from<WritableStream>(&object);
+}
+
+void TransformStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_backpressure_change_promise);
@@ -208,11 +216,13 @@ WebIDL::ExceptionOr<void> TransformStream::transfer_steps(HTML::TransferDataEnco
         return WebIDL::DataCloneError::create(realm, "Cannot transfer locked WritableStream"_utf16);
 
     // 5. Set dataHolder.[[readable]] to ! StructuredSerializeWithTransfer(readable, « readable »).
-    auto readable_result = MUST(HTML::structured_serialize_with_transfer(vm, readable, { { readable } }));
+    auto wrapped_readable = Bindings::wrap(realm, readable);
+    auto readable_result = MUST(HTML::structured_serialize_with_transfer(vm, wrapped_readable, { { wrapped_readable } }));
     data_holder.extend(move(readable_result.transfer_data_holders));
 
     // 6. Set dataHolder.[[writable]] to ! StructuredSerializeWithTransfer(writable, « writable »).
-    auto writable_result = MUST(HTML::structured_serialize_with_transfer(vm, writable, { { writable } }));
+    auto wrapped_writable = Bindings::wrap(realm, writable);
+    auto writable_result = MUST(HTML::structured_serialize_with_transfer(vm, wrapped_writable, { { wrapped_writable } }));
     data_holder.extend(move(writable_result.transfer_data_holders));
 
     return {};
@@ -230,10 +240,14 @@ WebIDL::ExceptionOr<void> TransformStream::transfer_receiving_steps(HTML::Transf
     auto writeable_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
 
     // 3. Set value.[[readable]] to readableRecord.[[Deserialized]].
-    set_readable(as<ReadableStream>(readable_record.as_object()));
+    auto* readable = readable_stream_from_object(readable_record.as_object());
+    VERIFY(readable);
+    set_readable(*readable);
 
     // 4. Set value.[[writable]] to writableRecord.[[Deserialized]].
-    set_writable(as<WritableStream>(writeable_record.as_object()));
+    auto* writable = writable_stream_from_object(writeable_record.as_object());
+    VERIFY(writable);
+    set_writable(*writable);
 
     // 5. Set value.[[backpressure]], value.[[backpressureChangePromise]], and value.[[controller]] to undefined.
     set_backpressure({});

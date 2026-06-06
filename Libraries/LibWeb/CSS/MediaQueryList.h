@@ -14,7 +14,7 @@ namespace Web::CSS {
 
 // 4.2. The MediaQueryList Interface, https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
 class MediaQueryList final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaQueryList, DOM::EventTarget);
+    WEB_WRAPPABLE(MediaQueryList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaQueryList);
 
 public:

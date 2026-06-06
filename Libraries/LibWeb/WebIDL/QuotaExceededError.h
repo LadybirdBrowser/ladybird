@@ -12,7 +12,7 @@ namespace Web::WebIDL {
 
 // https://webidl.spec.whatwg.org/#quotaexceedederror
 class WEB_API QuotaExceededError final : public DOMException {
-    WEB_PLATFORM_OBJECT(QuotaExceededError, DOMException);
+    WEB_WRAPPABLE(QuotaExceededError, DOMException);
     GC_DECLARE_ALLOCATOR(QuotaExceededError);
 
 public:
@@ -33,8 +33,6 @@ public:
 protected:
     QuotaExceededError(JS::Realm&, Utf16String const& message);
     QuotaExceededError(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     // https://webidl.spec.whatwg.org/#quotaexceedederror-quota

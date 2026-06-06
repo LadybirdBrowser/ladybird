@@ -28,7 +28,9 @@
 #include <LibURL/Parser.h>
 #include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Module.h>
 #include <LibWeb/Bindings/Response.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
@@ -369,7 +371,11 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                         address = cache.abstract_machine().store().allocate({ type.type(), false }, cast_value);
                     }
                     // 3.5.2. Otherwise, if v implements Global,
-                    else if (auto global = import_.as_if<Global>()) {
+                    else if (import_.is_object()) {
+                        auto* global = Bindings::impl_from<Global>(&import_.as_object());
+                        if (!global)
+                            return vm.throw_completion<LinkError>("Invalid value for global type"sv);
+
                         // 3.5.2.1. Let globaladdr be v.[[Global]].
                         address = global->address();
                     }
@@ -387,7 +393,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 // 3.6. If externtype is of the form mem memtype,
                 [&](Wasm::MemoryType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.6.1. If v does not implement Memory, throw a LinkError exception.
-                    auto memory = import_.as_if<Memory>();
+                    auto* memory = import_.is_object() ? Bindings::impl_from<Memory>(&import_.as_object()) : nullptr;
                     if (!memory)
                         return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
                     // 3.6.2. Let externmem be the external value mem v.[[Memory]].
@@ -399,7 +405,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 // 3.7. If externtype is of the form table tabletype,
                 [&](Wasm::TableType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.7.1. If v does not implement Table, throw a LinkError exception.
-                    auto table = import_.as_if<Table>();
+                    auto* table = import_.is_object() ? Bindings::impl_from<Table>(&import_.as_object()) : nullptr;
                     if (!table)
                         return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
                     // 3.7.2. Let tableaddr be v.[[Table]].
@@ -531,37 +537,39 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
     // 1. If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     auto detach_key = buffer.detach_key();
     if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)) {
-        // 1. Let map be the surrounding agent's associated Memory object cache.
-        auto const& map = get_cache(*vm.current_realm()).memory_instances();
-
-        // 3. For each memaddr → mem in map,
+        // 3. For each memaddr → mem in all Memory object caches,
         bool seen = false;
-        for (auto [address, memory] : map) {
-            auto buffer_object = memory->buffer_object();
-            // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
-            if (buffer_object.ptr() == &buffer) {
-                // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
-                VERIFY(!seen);
-                seen = true;
+        for (auto& cache_entry : s_caches) {
+            auto& cache = cache_entry.value;
+            auto const& map = cache.memory_instances();
 
-                // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
-                VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
+            for (auto const& entry : map) {
+                auto memory = entry.value;
+                // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
+                if (memory->has_buffer_object(buffer)) {
+                    // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
+                    VERIFY(!seen);
+                    seen = true;
 
-                // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
-                auto length_delta = new_length - buffer.byte_length();
+                    // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
+                    VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
 
-                // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
-                if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
-                    // 1. Throw a RangeError exception.
-                    return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+                    // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
+                    auto length_delta = new_length - buffer.byte_length();
+
+                    // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
+                    if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
+                        // 1. Throw a RangeError exception.
+                        return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+                    }
+
+                    // 4. Let delta be lengthDelta ÷ 65536.
+                    auto delta = length_delta / Wasm::Constants::page_size;
+
+                    // 5. Grow the memory buffer associated with memaddr by delta.
+                    // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
+                    TRY(memory->grow(delta));
                 }
-
-                // 4. Let delta be lengthDelta ÷ 65536.
-                auto delta = length_delta / Wasm::Constants::page_size;
-
-                // 5. Grow the memory buffer associated with memaddr by delta.
-                // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                TRY(memory->grow(delta));
             }
         }
 
@@ -582,39 +590,41 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
     // AD-HOC: If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
     auto detach_key = buffer.detach_key();
     if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)) {
-        // 1. Let map be the surrounding agent's associated Memory object cache.
-        auto const& map = get_cache(*vm.current_realm()).memory_instances();
-
         auto current_byte_length = buffer.byte_length();
 
-        // 3. For each memaddr → mem in map,
+        // 3. For each memaddr → mem in all Memory object caches,
         bool seen = false;
-        for (auto [address, memory] : map) {
-            auto buffer_object = memory->buffer_object();
-            // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
-            if (buffer_object.ptr() == &buffer) {
-                // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
-                VERIFY(!seen);
-                seen = true;
+        for (auto& cache_entry : s_caches) {
+            auto& cache = cache_entry.value;
+            auto const& map = cache.memory_instances();
 
-                // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
-                VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
+            for (auto const& entry : map) {
+                auto memory = entry.value;
+                // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
+                if (memory->has_buffer_object(buffer)) {
+                    // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
+                    VERIFY(!seen);
+                    seen = true;
 
-                // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
-                auto length_delta = new_length - buffer.byte_length();
+                    // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
+                    VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
 
-                // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
-                if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
-                    // 1. Throw a RangeError exception.
-                    return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+                    // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
+                    auto length_delta = new_length - buffer.byte_length();
+
+                    // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
+                    if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
+                        // 1. Throw a RangeError exception.
+                        return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+                    }
+
+                    // 4. Let delta be lengthDelta ÷ 65536.
+                    auto delta = length_delta / Wasm::Constants::page_size;
+
+                    // 5. Grow the memory buffer associated with memaddr by delta.
+                    // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
+                    TRY(memory->grow(delta));
                 }
-
-                // 4. Let delta be lengthDelta ÷ 65536.
-                auto delta = length_delta / Wasm::Constants::page_size;
-
-                // 5. Grow the memory buffer associated with memaddr by delta.
-                // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
-                TRY(memory->grow(delta));
             }
         }
 
@@ -911,7 +921,7 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, B
                 auto module_object = realm.create<Module>(realm, module_or_error.release_value());
 
                 // 2. Resolve promise with moduleObject.
-                WebIDL::resolve_promise(realm, promise, module_object);
+                WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, module_object));
             }
         }));
     }));
@@ -953,10 +963,10 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& v
         // 2. Let instanceObject be a new Instance.
         // 3. Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
         // FIXME: Investigate whether we are doing all the proper steps for "initialize an instance object"
-        auto instance_object = realm.create<Instance>(realm, move(instance));
+        auto instance_object = Instance::create(realm, move(instance));
 
         // 4. Resolve promise with instanceObject.
-        WebIDL::resolve_promise(realm, promise, instance_object);
+        WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, instance_object));
     }));
 
     // 5. Return promise.
@@ -975,20 +985,23 @@ GC::Ref<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, GC::Ref<WebID
 
     // 2. Upon fulfillment of promiseOfModule with value module:
     auto fulfillment_steps = GC::create_function(vm.heap(), [&vm, promise, import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
-        auto& module = module_value.as<Module>();
+        auto* module = module_value.is_object() ? Bindings::impl_from<Module>(&module_value.as_object()) : nullptr;
+        VERIFY(module);
+        auto module_object = GC::Ref { *module };
 
         // 1. Instantiate the WebAssembly module module importing importObject, and let innerPromise be the result.
-        auto inner_promise = asynchronously_instantiate_webassembly_module(vm, module, import_object);
+        auto inner_promise = asynchronously_instantiate_webassembly_module(vm, module_object, import_object);
 
         // 2. Upon fulfillment of innerPromise with value instance.
-        auto instantiate_fulfillment_steps = GC::create_function(vm.heap(), [promise, &module](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
+        auto instantiate_fulfillment_steps = GC::create_function(vm.heap(), [promise, module_object](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
             auto& realm = HTML::relevant_realm(*promise->promise());
-            auto& instance = instance_value.as<Instance>();
+            auto* instance = instance_value.is_object() ? Bindings::impl_from<Instance>(&instance_value.as_object()) : nullptr;
+            VERIFY(instance);
 
             // 1. Let result be the WebAssemblyInstantiatedSource value «[ "module" → module, "instance" → instance ]».
             auto result = JS::Object::create(realm, nullptr);
-            result->define_direct_property("module"_utf16_fly_string, &module, JS::default_attributes);
-            result->define_direct_property("instance"_utf16_fly_string, &instance, JS::default_attributes);
+            result->define_direct_property("module"_utf16_fly_string, Bindings::wrap(realm, module_object), JS::default_attributes);
+            result->define_direct_property("instance"_utf16_fly_string, Bindings::wrap(realm, GC::Ref { *instance }), JS::default_attributes);
 
             // 2. Resolve promise with result.
             WebIDL::resolve_promise(realm, promise, result);
@@ -1046,7 +1059,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         auto& realm = HTML::relevant_realm(*return_value->promise());
 
         // 1. Let response be unwrappedSource’s response.
-        auto response_object = unwrapped_source.as_if<Fetch::Response>();
+        auto* response_object = unwrapped_source.is_object() ? Bindings::impl_from<Fetch::Response>(&unwrapped_source.as_object()) : nullptr;
         if (!response_object) {
             WebIDL::reject_promise(realm, return_value, vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Response").value());
             return JS::js_undefined();

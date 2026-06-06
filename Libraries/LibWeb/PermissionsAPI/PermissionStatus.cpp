@@ -59,7 +59,7 @@ void PermissionStatus::update_steps()
 {
     auto& relevant_global_object = HTML::relevant_global_object(*this);
     // 1. If this's relevant global object is a Window object, then:
-    if (auto* window = as_if<HTML::Window>(relevant_global_object)) {
+    if (auto* window = HTML::window_from_global_object(relevant_global_object)) {
         // 1. Let document be status's relevant global object's associated Document.
         auto const& document = window->associated_document();
         // 2. If document is null or document is not fully active, terminate this algorithm.

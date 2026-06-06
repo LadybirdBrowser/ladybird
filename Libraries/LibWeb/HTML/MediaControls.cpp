@@ -7,6 +7,8 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibWeb/Bindings/Event.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -20,6 +22,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/MediaControls.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/UIEvents/EventNames.h>
@@ -84,9 +87,13 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
 {
     auto callback_function = JS::NativeFunction::create(
         realm, [handler = move(handler)](JS::VM& vm) {
-            if (auto event = vm.argument(0).as_if<T>()) {
-                if (handler(*event))
-                    event->prevent_default();
+            if (vm.argument(0).is_object()) {
+                if (auto* event = Bindings::impl_from<DOM::Event>(&vm.argument(0).as_object())) {
+                    if (auto* typed_event = as_if<T>(*event)) {
+                        if (handler(*typed_event))
+                            typed_event->prevent_default();
+                    }
+                }
             }
             return JS::js_undefined();
         },
@@ -140,7 +147,7 @@ void MediaControls::remove_event_listeners()
     m_registered_event_listeners.clear();
 
     if (m_media_element) {
-        auto& window = as<HTML::Window>(m_media_element->realm().global_object());
+        auto& window = relevant_window(m_media_element->realm().global_object());
         window.cancel_animation_frame(m_request_animation_frame_id);
     }
 }
@@ -248,7 +255,7 @@ void MediaControls::set_up_event_listeners()
         set_current_time(*position);
 
         auto& realm = m_media_element->realm();
-        auto& window = as<HTML::Window>(realm.global_object());
+        auto& window = relevant_window(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
@@ -285,7 +292,7 @@ void MediaControls::set_up_event_listeners()
 
             update_play_pause_icon();
 
-            auto& window_inner = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+            auto& window_inner = relevant_window(*m_media_element);
             window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
             return true;
         });
@@ -319,7 +326,7 @@ void MediaControls::set_up_event_listeners()
         set_volume(*volume);
 
         auto& realm = m_media_element->realm();
-        auto& window = as<HTML::Window>(realm.global_object());
+        auto& window = relevant_window(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
@@ -343,7 +350,7 @@ void MediaControls::set_up_event_listeners()
             if (volume.has_value())
                 set_volume(*volume);
 
-            auto& window_inner = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+            auto& window_inner = relevant_window(*m_media_element);
             window_inner.remove_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
             return true;
         });
@@ -555,7 +562,7 @@ void MediaControls::request_timeline_update()
         return;
 
     auto& realm = m_media_element->realm();
-    auto& window = as<HTML::Window>(realm.global_object());
+    auto& window = relevant_window(realm.global_object());
     m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
 }
 

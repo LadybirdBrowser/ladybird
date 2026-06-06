@@ -16,7 +16,7 @@
 namespace Web::HTML {
 
 class HTMLDetailsElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLDetailsElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLDetailsElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLDetailsElement);
 
 public:

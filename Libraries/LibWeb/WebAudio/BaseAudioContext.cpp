@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
@@ -235,7 +236,7 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Ref<JS::ArrayBu
 
     // 1. If this's relevant global object's associated Document is not fully active then return a
     //    promise rejected with "InvalidStateError" DOMException.
-    auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto const& associated_document = HTML::relevant_window(*this).associated_document();
     if (!associated_document.is_fully_active()) {
         auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
         return WebIDL::create_rejected_promise_from_exception(realm, error);
@@ -269,7 +270,7 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Ref<JS::ArrayBu
         // 4.3. Queue a media element task to invoke errorCallback with error.
         if (error_callback) {
             queue_a_media_element_task(GC::create_function(heap(), [&realm, error_callback, error] {
-                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { error } });
+                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { throw_completion(error).value() } });
                 if (completion.is_abrupt())
                     HTML::report_exception(completion, realm);
             }));
@@ -319,7 +320,7 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
 
             // 4.2. If errorCallback is not missing, invoke errorCallback with error.
             if (error_callback) {
-                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { error } });
+                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { throw_completion(error).value() } });
                 if (completion.is_abrupt())
                     HTML::report_exception(completion, realm);
             }
@@ -337,13 +338,14 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
         // FIXME: 5.2.1. Let buffer be an AudioBuffer containing the final result (after possibly performing
         //               sample-rate conversion).
         auto buffer = MUST(create_buffer(2, 1, 44100));
+        auto wrapped_buffer = Bindings::wrap(realm, buffer);
 
         // 5.2.2. Resolve promise with buffer.
-        WebIDL::resolve_promise(realm, promise, buffer);
+        WebIDL::resolve_promise(realm, promise, wrapped_buffer);
 
         // 5.2.3. If successCallback is not missing, invoke successCallback with buffer.
         if (success_callback) {
-            auto completion = WebIDL::invoke_callback(*success_callback, {}, { { buffer } });
+            auto completion = WebIDL::invoke_callback(*success_callback, {}, { { wrapped_buffer } });
             if (completion.is_abrupt())
                 HTML::report_exception(completion, realm);
         }

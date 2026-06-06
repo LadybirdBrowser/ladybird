@@ -6,7 +6,6 @@
 
 #include "CSSFunctionDeclarations.h"
 #include <LibWeb/Bindings/CSSFunctionDeclarations.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
 
@@ -25,13 +24,7 @@ CSSFunctionDeclarations::CSSFunctionDeclarations(JS::Realm& realm, GC::Ref<CSSFu
 {
 }
 
-void CSSFunctionDeclarations::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFunctionDeclarations);
-    Base::initialize(realm);
-}
-
-void CSSFunctionDeclarations::visit_edges(Cell::Visitor& visitor)
+void CSSFunctionDeclarations::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);

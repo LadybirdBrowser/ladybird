@@ -10,7 +10,6 @@
 #include <AK/RedBlackTree.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Bindings/KeyframeEffect.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
@@ -51,7 +50,7 @@ struct BaseKeyframe {
 
 // https://www.w3.org/TR/web-animations-1/#the-keyframeeffect-interface
 class KeyframeEffect final : public AnimationEffect {
-    WEB_PLATFORM_OBJECT(KeyframeEffect, AnimationEffect);
+    WEB_WRAPPABLE(KeyframeEffect, AnimationEffect);
     GC_DECLARE_ALLOCATOR(KeyframeEffect);
 
 public:
@@ -114,8 +113,7 @@ private:
 
     void invalidate_effect();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://www.w3.org/TR/web-animations-1/#effect-target-target-element
     GC::Ptr<DOM::Element> m_target_element {};
@@ -128,9 +126,6 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#keyframe
     Vector<BaseKeyframe> m_keyframes {};
-
-    // A cached version of m_keyframes suitable for returning from get_keyframes()
-    Vector<GC::Ref<JS::Object>> m_keyframe_objects {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
 };

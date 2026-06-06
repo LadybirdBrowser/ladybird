@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -14,7 +13,7 @@
 namespace Web::CSS {
 
 class ScreenOrientation final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(ScreenOrientation, DOM::EventTarget);
+    WEB_WRAPPABLE(ScreenOrientation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(ScreenOrientation);
 
 public:

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceMeasure.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -36,13 +34,7 @@ FlyString const& PerformanceMeasure::entry_type() const
     return PerformanceTimeline::EntryTypes::measure;
 }
 
-void PerformanceMeasure::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceMeasure);
-    Base::initialize(realm);
-}
-
-void PerformanceMeasure::visit_edges(JS::Cell::Visitor& visitor)
+void PerformanceMeasure::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_detail);

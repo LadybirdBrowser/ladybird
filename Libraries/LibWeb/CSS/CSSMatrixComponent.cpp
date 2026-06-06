@@ -6,7 +6,6 @@
 
 #include "CSSMatrixComponent.h"
 #include <LibWeb/Bindings/CSSMatrixComponent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -50,13 +49,7 @@ CSSMatrixComponent::CSSMatrixComponent(JS::Realm& realm, Is2D is_2d, GC::Ref<Geo
 
 CSSMatrixComponent::~CSSMatrixComponent() = default;
 
-void CSSMatrixComponent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMatrixComponent);
-    Base::initialize(realm);
-}
-
-void CSSMatrixComponent::visit_edges(Visitor& visitor)
+void CSSMatrixComponent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_matrix);

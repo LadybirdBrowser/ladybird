@@ -5,7 +5,6 @@
  */
 
 #include "TransitionEvent.h"
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransitionEvent.h>
 
 namespace Web::CSS {
@@ -33,11 +32,5 @@ TransitionEvent::TransitionEvent(JS::Realm& realm, FlyString const& type, Bindin
 }
 
 TransitionEvent::~TransitionEvent() = default;
-
-void TransitionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TransitionEvent);
-    Base::initialize(realm);
-}
 
 }

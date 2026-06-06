@@ -12,7 +12,8 @@
 #include <LibCompress/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DecompressionStream.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Compression/CompressionStream.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -26,9 +27,9 @@ using Decompressor = Variant<
 
 // https://compression.spec.whatwg.org/#decompressionstream
 class DecompressionStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Streams::GenericTransformStreamMixin {
-    WEB_PLATFORM_OBJECT(DecompressionStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(DecompressionStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DecompressionStream);
 
 public:
@@ -38,8 +39,7 @@ public:
 private:
     DecompressionStream(JS::Realm&, GC::Ref<Streams::TransformStream>, Decompressor, NonnullOwnPtr<AllocatingMemoryStream>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> decompress_and_enqueue_chunk(JS::Value);
     WebIDL::ExceptionOr<void> decompress_flush_and_enqueue();

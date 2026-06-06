@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/BufferedChangeEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/MediaSourceExtensions/BufferedChangeEvent.h>
 
 namespace Web::MediaSourceExtensions {
@@ -23,11 +22,5 @@ BufferedChangeEvent::BufferedChangeEvent(JS::Realm& realm, AK::FlyString const& 
 }
 
 BufferedChangeEvent::~BufferedChangeEvent() = default;
-
-void BufferedChangeEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(BufferedChangeEvent);
-    Base::initialize(realm);
-}
 
 }

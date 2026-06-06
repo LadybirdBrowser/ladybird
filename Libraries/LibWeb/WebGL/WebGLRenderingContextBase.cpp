@@ -102,13 +102,13 @@ static constexpr Optional<Gfx::ExportFormat> determine_export_format(WebIDL::Uns
 }
 
 WebGLRenderingContextBase::WebGLRenderingContextBase(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 struct Extension {
     Vector<StringView> required_angle_extensions;
-    JS::ThrowCompletionOr<GC::Ref<JS::Object>> (*factory)(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> (*factory)(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
     Optional<OpenGLContext::WebGLVersion> only_for_webgl_version { OptionalNone {} };
 };
 
@@ -206,6 +206,8 @@ Optional<Vector<String>> WebGLRenderingContextBase::get_supported_extensions()
 
 JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
 {
+    auto& wrapper_realm = *realm().vm().current_realm();
+
     // Returns an object if, and only if, name is an ASCII case-insensitive match [HTML] for one of the names returned
     // from getSupportedExtensions; otherwise, returns null. The object returned from getExtension contains any constants
     // or functions provided by the extension. A returned object may have no constants or functions if the extension does
@@ -220,7 +222,7 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
 
     auto maybe_extension = m_enabled_extensions.get(name);
     if (maybe_extension.has_value())
-        return maybe_extension.release_value();
+        return Bindings::wrap(wrapper_realm, maybe_extension.release_value()).ptr();
 
     // If we pass the check above this will always return a value
     auto const& extension_info = available_webgl_extensions().get(name).release_value();
@@ -234,7 +236,7 @@ JS::Object* WebGLRenderingContextBase::get_extension(String const& name)
 
     auto extension = MUST(extension_info.factory(realm(), *this));
     m_enabled_extensions.set(name, extension);
-    return extension;
+    return Bindings::wrap(wrapper_realm, extension).ptr();
 }
 
 void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::UnsignedLong format)
@@ -242,7 +244,7 @@ void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::Unsigne
     m_enabled_compressed_texture_formats.append(format);
 }
 
-void WebGLRenderingContextBase::visit_edges(Cell::Visitor& visitor)
+void WebGLRenderingContextBase::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_enabled_extensions);

@@ -6,14 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::WebXR {
 
 // https://immersive-web.github.io/webxr/#xrlayer
 class XRLayer : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(XRLayer, DOM::EventTarget);
+    WEB_WRAPPABLE(XRLayer, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(XRLayer);
 
     XRLayer(JS::Realm&);

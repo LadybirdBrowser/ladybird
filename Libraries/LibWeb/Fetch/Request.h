@@ -9,8 +9,8 @@
 #include <AK/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Request.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Headers.h>
@@ -24,9 +24,9 @@ using RequestInfo = Variant<GC::Ref<Request>, String>;
 
 // https://fetch.spec.whatwg.org/#request
 class Request final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public BodyMixin {
-    WEB_PLATFORM_OBJECT(Request, Bindings::PlatformObject);
+    WEB_WRAPPABLE(Request, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Request);
 
 public:
@@ -39,8 +39,8 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
     virtual GC::Ptr<Infrastructure::Body> body_impl() override;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
-    virtual Bindings::PlatformObject& as_platform_object() override { return *this; }
-    virtual Bindings::PlatformObject const& as_platform_object() const override { return *this; }
+    virtual Bindings::Wrappable& as_wrappable() override { return *this; }
+    virtual Bindings::Wrappable const& as_wrappable() const override { return *this; }
 
     [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
 
@@ -66,8 +66,7 @@ public:
 private:
     Request(JS::Realm&, GC::Ref<Infrastructure::Request>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://fetch.spec.whatwg.org/#concept-request-request
     // A Request object has an associated request (a request).

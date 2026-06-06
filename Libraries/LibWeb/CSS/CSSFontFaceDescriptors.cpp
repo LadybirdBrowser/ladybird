@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CSSFontFaceDescriptors.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -25,12 +24,6 @@ CSSFontFaceDescriptors::CSSFontFaceDescriptors(JS::Realm& realm, Vector<Descript
 }
 
 CSSFontFaceDescriptors::~CSSFontFaceDescriptors() = default;
-
-void CSSFontFaceDescriptors::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceDescriptors);
-    Base::initialize(realm);
-}
 
 WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(Utf16FlyString const& property, StringView value, StringView priority)
 {

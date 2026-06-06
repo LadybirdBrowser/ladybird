@@ -12,7 +12,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationhistoryentry
 class NavigationHistoryEntry : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(NavigationHistoryEntry, DOM::EventTarget);
+    WEB_WRAPPABLE(NavigationHistoryEntry, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(NavigationHistoryEntry);
 
 public:

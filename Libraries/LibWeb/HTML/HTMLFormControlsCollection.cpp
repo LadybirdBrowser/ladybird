@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLFormControlsCollection.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -27,12 +26,6 @@ HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Sc
 }
 
 HTMLFormControlsCollection::~HTMLFormControlsCollection() = default;
-
-void HTMLFormControlsCollection::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFormControlsCollection);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlformcontrolscollection-nameditem
 Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCollection::named_item_or_radio_node_list(FlyString const& name) const
@@ -77,11 +70,12 @@ Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCo
     });
 }
 
-JS::Value HTMLFormControlsCollection::named_item_value(FlyString const& name) const
+JS::Value HTMLFormControlsCollection::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
     return named_item_or_radio_node_list(name).visit(
         [](Empty) -> JS::Value { return JS::js_undefined(); },
-        [](auto const& value) -> JS::Value { return value; });
+        [&realm](GC::Ref<DOM::Element> const& value) -> JS::Value { return Bindings::wrap(realm, value); },
+        [&realm](GC::Ref<RadioNodeList> const& value) -> JS::Value { return Bindings::wrap(realm, value); });
 }
 
 }

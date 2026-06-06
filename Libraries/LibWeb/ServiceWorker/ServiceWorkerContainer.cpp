@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ServiceWorkerContainer.h>
+#include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -146,7 +147,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& 
 
         // 3. Resolve promise with the result of getting the service worker registration object that represents registration in promise’s relevant settings object.
         auto registration_object = HTML::relevant_settings_object(promise->promise()).get_service_worker_registration_object(maybe_registration.value());
-        WebIDL::resolve_promise(realm, promise, registration_object);
+        WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, registration_object));
     }));
 
     return promise;
@@ -195,7 +196,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registrations()
                 // 1. Let registrationObj be the result of getting the service worker registration object that represents registration in promise's relevant settings object.
 
                 // 2. Append registrationObj to registrationObjects.
-                registration_object_values.append(registration_object);
+                registration_object_values.append(Bindings::wrap(realm, registration_object));
             }
 
             // 3. Resolve promise with a new frozen array of registrationObjects in promise's relevant Realm.
@@ -245,7 +246,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::ready()
                 queue_a_task(HTML::Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(heap(), [ready_promise, registration_object]() {
                     auto& realm = HTML::relevant_realm(ready_promise->promise());
                     HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::resolve_promise(realm, ready_promise, registration_object);
+                    WebIDL::resolve_promise(realm, ready_promise, Bindings::wrap(realm, registration_object));
                 }));
             }
             // NOTE: The returned ready promise will never reject.

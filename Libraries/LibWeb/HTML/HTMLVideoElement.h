@@ -23,7 +23,7 @@ struct VideoFrame {
 };
 
 class HTMLVideoElement final : public HTMLMediaElement {
-    WEB_PLATFORM_OBJECT(HTMLVideoElement, HTMLMediaElement);
+    WEB_WRAPPABLE(HTMLVideoElement, HTMLMediaElement);
     GC_DECLARE_ALLOCATOR(HTMLVideoElement);
 
 public:

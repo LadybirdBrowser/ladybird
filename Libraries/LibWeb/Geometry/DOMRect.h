@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#DOMRect
 class DOMRect final : public DOMRectReadOnly {
-    WEB_PLATFORM_OBJECT(DOMRect, DOMRectReadOnly);
+    WEB_WRAPPABLE(DOMRect, DOMRectReadOnly);
     GC_DECLARE_ALLOCATOR(DOMRect);
 
 public:
@@ -36,8 +37,6 @@ public:
 private:
     DOMRect(JS::Realm&, double x, double y, double width, double height);
     explicit DOMRect(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

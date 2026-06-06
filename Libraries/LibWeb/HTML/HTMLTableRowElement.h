@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLTableRowElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLTableRowElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLTableRowElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTableRowElement);
 
 public:

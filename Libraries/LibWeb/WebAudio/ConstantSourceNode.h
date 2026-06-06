@@ -13,7 +13,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#ChannelMergerNode
 class ConstantSourceNode final : public AudioScheduledSourceNode {
-    WEB_PLATFORM_OBJECT(ConstantSourceNode, AudioScheduledSourceNode);
+    WEB_WRAPPABLE(ConstantSourceNode, AudioScheduledSourceNode);
     GC_DECLARE_ALLOCATOR(ConstantSourceNode);
 
 public:

@@ -83,6 +83,16 @@ namespace Web::Bindings {
 
 class Intrinsics;
 class OptionConstructor;
+class PlatformObject;
+class Wrappable;
+class WrapperWorld;
+
+enum class NamedPropertyDeletionResult : u8;
+enum class WrapperWorldType : u8 {
+    Main,
+    Extension,
+    Internal,
+};
 
 enum class AudioContextLatencyCategory : u8;
 enum class CanPlayTypeResult : u8;

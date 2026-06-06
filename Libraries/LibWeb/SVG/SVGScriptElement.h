@@ -18,7 +18,7 @@ namespace Web::SVG {
 class SVGScriptElement
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGScriptElement, SVGElement);
+    WEB_WRAPPABLE(SVGScriptElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGScriptElement);
 
 public:

@@ -8,10 +8,10 @@
 
 #include <AK/String.h>
 #include <LibGC/RootVector.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Storage.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
 #include <LibWeb/HTML/Window.h>
@@ -27,29 +27,13 @@ GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, GC::Ref<StorageAPI
 }
 
 Storage::Storage(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_type(type)
     , m_storage_bottle(move(storage_bottle))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = false,
-        .supports_named_properties = true,
-        .has_indexed_property_setter = false,
-        .has_named_property_setter = true,
-        .has_named_property_deleter = true,
-        .indexed_property_setter_has_identifier = false,
-        .named_property_setter_has_identifier = true,
-        .named_property_deleter_has_identifier = true,
-    };
 }
 
 Storage::~Storage() = default;
-
-void Storage::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Storage);
-    Base::initialize(realm);
-}
 
 void Storage::visit_edges(GC::Cell::Visitor& visitor)
 {
@@ -187,7 +171,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
 
     // 1. Let thisDocument be storage's relevant global object's associated Document.
     auto& relevant_global = relevant_global_object(*this);
-    auto const& this_document = as<Window>(relevant_global).associated_document();
+    auto const& this_document = relevant_window(*this).associated_document();
 
     // 2. Let url be the serialization of thisDocument's URL.
     auto url = this_document.url().serialize();
@@ -249,7 +233,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
             init.new_value = move(new_value);
             init.url = move(url);
             init.storage_area = remote_storage;
-            as<Window>(relevant_global_object(remote_storage)).dispatch_event(StorageEvent::create(realm, EventNames::storage, init));
+            relevant_window(*remote_storage).dispatch_event(StorageEvent::create(realm, EventNames::storage, init));
         }));
     }
 }
@@ -265,27 +249,27 @@ Vector<FlyString> Storage::supported_property_names() const
     return names;
 }
 
-JS::Value Storage::named_item_value(FlyString const& name) const
+JS::Value Storage::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
     auto value = get_item(String(name));
     if (!value.has_value())
         // AD-HOC: Spec leaves open to a description at: https://html.spec.whatwg.org/multipage/webstorage.html#the-storage-interface
         // However correct behavior expected here: https://github.com/whatwg/html/issues/8684
         return JS::js_undefined();
-    return JS::PrimitiveString::create(vm(), value.release_value());
+    return JS::PrimitiveString::create(realm.vm(), value.release_value());
 }
 
-WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> Storage::delete_value(String const& name)
+WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> Storage::delete_value(String const& name)
 {
     remove_item(name);
-    return DidDeletionFail::NotRelevant;
+    return Bindings::NamedPropertyDeletionResult::NotRelevant;
 }
 
 WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(String const& key, JS::Value unconverted_value)
 {
     // NOTE: Since PlatformObject does not know the type of value, we must convert it ourselves.
     //       The type of `value` is `DOMString`.
-    auto value = TRY(unconverted_value.to_string(vm()));
+    auto value = TRY(unconverted_value.to_string(realm().vm()));
     return set_item(key, value);
 }
 

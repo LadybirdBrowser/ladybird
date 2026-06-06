@@ -6,7 +6,6 @@
 
 #include "CSSSkewY.h"
 #include <LibWeb/Bindings/CSSSkewY.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -44,13 +43,7 @@ CSSSkewY::CSSSkewY(JS::Realm& realm, GC::Ref<CSSNumericValue> ay)
 
 CSSSkewY::~CSSSkewY() = default;
 
-void CSSSkewY::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSSkewY);
-    Base::initialize(realm);
-}
-
-void CSSSkewY::visit_edges(Visitor& visitor)
+void CSSSkewY::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_ay);

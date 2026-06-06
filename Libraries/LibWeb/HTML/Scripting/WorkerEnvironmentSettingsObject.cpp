@@ -6,6 +6,8 @@
  */
 
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -23,25 +25,26 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     VERIFY(realm);
 
     // 2. Let worker global scope be realm's global object.
-    auto& worker = as<HTML::WorkerGlobalScope>(realm->global_object());
+    auto* worker = Bindings::impl_from<HTML::WorkerGlobalScope>(&realm->global_object());
+    VERIFY(worker);
 
     // 3. Let origin be a unique opaque origin if worker global scope's url's scheme is "data"; otherwise outside settings's origin.
-    auto origin = worker.url().scheme() == "data" ? URL::Origin::create_opaque() : outside_settings.origin;
+    auto origin = worker->url().scheme() == "data" ? URL::Origin::create_opaque() : outside_settings.origin;
 
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
     // FIXME: Is it enough to cache the has_cross_site_ancestor of outside_settings, or do we need to check the live object somehow?
-    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, move(origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time);
+    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), *worker, move(origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time);
     settings_object->target_browsing_context = nullptr;
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
     // NB: WorkerHost sets (ad-hoc) the global scope's url to be the worker URL before redirects, as the spec does not
     //     do so at that point. See https://github.com/whatwg/html/issues/11340.
-    settings_object->creation_url = worker.url();
+    settings_object->creation_url = worker->url();
 
     // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to
     //    outside settings's top-level origin.
-    if (is<DedicatedWorkerGlobalScope>(worker)) {
+    if (is<DedicatedWorkerGlobalScope>(*worker)) {
         settings_object->top_level_origin = outside_settings.top_level_origin;
     }
     // 7. Otherwise, set settings object's top-level origin to an implementation-defined value.
@@ -56,12 +59,14 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
 
     // 8. Set realm's [[HostDefined]] field to settings object.
     auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-    auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, page);
+    auto wrapper_world = realm->heap().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Main);
+    auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, *wrapper_world, page);
     realm->set_host_defined(move(host_defined));
+    Bindings::cache_global_object_wrapper(*realm);
 
     // Non-Standard: We cannot fully initialize worker object until *after* the we set up
     //    the realm's [[HostDefined]] internal slot as the internal slot contains the web platform intrinsics
-    worker.initialize_web_interfaces({});
+    worker->initialize_web_interfaces({});
 
     // 9. Return settings object.
     return settings_object;

@@ -14,7 +14,7 @@ namespace Web::Internals {
 
 // https://github.com/immersive-web/webxr-test-api/blob/main/explainer.md
 class WEB_API FakeXRDevice final : public InternalsBase {
-    WEB_PLATFORM_OBJECT(FakeXRDevice, InternalsBase);
+    WEB_WRAPPABLE(FakeXRDevice, InternalsBase);
     GC_DECLARE_ALLOCATOR(FakeXRDevice);
 
 public:
@@ -27,8 +27,6 @@ public:
 
 private:
     explicit FakeXRDevice(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

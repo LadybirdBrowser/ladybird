@@ -6,7 +6,6 @@
  */
 
 #include <LibWeb/Bindings/CSSGroupingRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
@@ -24,13 +23,7 @@ CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules, Type type
         rule->set_parent_rule(this);
 }
 
-void CSSGroupingRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSGroupingRule);
-    Base::initialize(realm);
-}
-
-void CSSGroupingRule::visit_edges(Cell::Visitor& visitor)
+void CSSGroupingRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);

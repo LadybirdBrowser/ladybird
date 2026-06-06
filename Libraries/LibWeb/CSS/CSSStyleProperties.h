@@ -16,8 +16,9 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#cssstyleproperties
 class WEB_API CSSStyleProperties
-    : public CSSStyleDeclaration {
-    WEB_PLATFORM_OBJECT(CSSStyleProperties, CSSStyleDeclaration);
+    : public CSSStyleDeclaration
+    , public Bindings::GeneratedCSSStyleProperties {
+    WEB_WRAPPABLE(CSSStyleProperties, CSSStyleDeclaration);
     GC_DECLARE_ALLOCATOR(CSSStyleProperties);
 
 public:
@@ -27,7 +28,6 @@ public:
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement, Vector<StyleProperty>, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties);
 
     virtual ~CSSStyleProperties() override = default;
-    virtual void initialize(JS::Realm&) override;
 
     virtual size_t length() const override;
     virtual String item(size_t index) const override;

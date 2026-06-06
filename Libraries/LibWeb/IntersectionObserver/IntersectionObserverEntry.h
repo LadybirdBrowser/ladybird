@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/IntersectionObserverEntry.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::IntersectionObserver {
 
-class IntersectionObserverEntry final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IntersectionObserverEntry, Bindings::PlatformObject);
+class IntersectionObserverEntry final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IntersectionObserverEntry, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IntersectionObserverEntry);
 
 public:
@@ -32,8 +33,7 @@ public:
 private:
     IntersectionObserverEntry(JS::Realm&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserverentry-time
     HighResolutionTime::DOMHighResTimeStamp m_time { 0.0 };

@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLModElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLModElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLModElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLModElement);
 
 public:

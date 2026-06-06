@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMRectReadOnly.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -33,23 +32,17 @@ GC::Ref<DOMRectReadOnly> DOMRectReadOnly::create(JS::Realm& realm)
 }
 
 DOMRectReadOnly::DOMRectReadOnly(JS::Realm& realm, double x, double y, double width, double height)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_rect(x, y, width, height)
 {
 }
 
 DOMRectReadOnly::DOMRectReadOnly(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 DOMRectReadOnly::~DOMRectReadOnly() = default;
-
-void DOMRectReadOnly::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMRectReadOnly);
-    Base::initialize(realm);
-}
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
 WebIDL::ExceptionOr<void> DOMRectReadOnly::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)

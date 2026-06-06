@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class HTMLPreElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLPreElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLPreElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLPreElement);
 
 public:

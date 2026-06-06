@@ -13,18 +13,18 @@
 namespace Web::Internals {
 
 class WEB_API WebUI final : public InternalsBase {
-    WEB_PLATFORM_OBJECT(WebUI, InternalsBase);
+    WEB_WRAPPABLE(WebUI, InternalsBase);
     GC_DECLARE_ALLOCATOR(WebUI);
 
 public:
+    static GC::Ref<Bindings::PlatformObject> create(JS::Realm&);
+
     virtual ~WebUI() override;
 
     void send_message(String const& name, JS::Value data);
 
 private:
     explicit WebUI(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

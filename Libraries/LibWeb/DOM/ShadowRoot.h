@@ -18,7 +18,7 @@
 namespace Web::DOM {
 
 class WEB_API ShadowRoot final : public DocumentFragment {
-    WEB_PLATFORM_OBJECT(ShadowRoot, DocumentFragment);
+    WEB_WRAPPABLE(ShadowRoot, DocumentFragment);
     GC_DECLARE_ALLOCATOR(ShadowRoot);
 
 public:

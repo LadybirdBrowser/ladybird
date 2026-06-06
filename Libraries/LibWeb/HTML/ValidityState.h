@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/ValidityState.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#validitystate
-class ValidityState final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ValidityState, Bindings::PlatformObject);
+class ValidityState final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ValidityState, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ValidityState);
 
 public:
@@ -47,8 +48,7 @@ public:
 private:
     ValidityState(JS::Realm&, FormAssociatedElement const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     FormAssociatedElement const& m_control;
 };

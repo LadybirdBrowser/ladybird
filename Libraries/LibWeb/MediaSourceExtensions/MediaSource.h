@@ -13,7 +13,7 @@ namespace Web::MediaSourceExtensions {
 
 // https://w3c.github.io/media-source/#dom-mediasource
 class MediaSource : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaSource, DOM::EventTarget);
+    WEB_WRAPPABLE(MediaSource, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaSource);
 
 public:

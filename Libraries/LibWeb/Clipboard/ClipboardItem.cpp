@@ -5,7 +5,8 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Blob.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Clipboard/ClipboardItem.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/MimeSniff/MimeType.h>
@@ -151,10 +152,10 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ClipboardItem::get_type(String con
                         auto blob_data = FileAPI::Blob::create(realm, data_as_bytes, mime_type_serialized);
 
                         // 3. Resolve p with blobData.
-                        WebIDL::resolve_promise(realm, promise, blob_data);
+                        WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, blob_data));
                     }
                     // 2. If v is a Blob, then follow the below steps:
-                    if (value.is<FileAPI::Blob>()) {
+                    if (value.is_object() && Bindings::impl_from<FileAPI::Blob>(&value.as_object())) {
                         // 1. Resolve p with v.
                         WebIDL::resolve_promise(realm, promise, value);
                     }
@@ -191,19 +192,13 @@ bool ClipboardItem::supports(JS::VM&, String const& type)
 }
 
 ClipboardItem::ClipboardItem(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 ClipboardItem::~ClipboardItem() = default;
 
-void ClipboardItem::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ClipboardItem);
-    Base::initialize(realm);
-}
-
-void ClipboardItem::visit_edges(Cell::Visitor& visitor)
+void ClipboardItem::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto& representation : m_representations) {

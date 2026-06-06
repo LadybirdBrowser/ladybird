@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Plugin.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin
-class Plugin : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Plugin, Bindings::PlatformObject);
+class Plugin : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Plugin, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Plugin);
 
 public:
@@ -31,12 +32,10 @@ private:
     // https://html.spec.whatwg.org/multipage/system-state.html#concept-plugin-name
     String m_name;
 
-    virtual void initialize(JS::Realm&) override;
-
-    // ^Bindings::PlatformObject
+    // ^Bindings::Wrappable
     virtual Vector<FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
 };
 
 }

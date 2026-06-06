@@ -17,6 +17,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
@@ -86,7 +87,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::blob() const
         // NOTE: If extracting the mime type returns failure, other browsers set it to an empty string - not sure if that's spec'd.
         auto mime_type = this->mime_type_impl();
         auto mime_type_string = mime_type.has_value() ? mime_type->serialized() : String {};
-        return FileAPI::Blob::create(realm, move(bytes), move(mime_type_string));
+        return Bindings::wrap(realm, FileAPI::Blob::create(realm, move(bytes), move(mime_type_string)));
     }));
 }
 
@@ -131,7 +132,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
                     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Failed to parse multipart form data: {}", error_or_entry_list.release_error().message)) };
 
                 // 3. Return a new FormData object, appending each entry, resulting from the parsing operation, to its entry list.
-                return TRY(XHR::FormData::create(realm, error_or_entry_list.release_value()));
+                return Bindings::wrap(realm, TRY(XHR::FormData::create(realm, error_or_entry_list.release_value())));
             }
             // -> "application/x-www-form-urlencoded"
             if (mime_type->essence() == "application/x-www-form-urlencoded"sv) {
@@ -139,7 +140,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
                 auto entries = DOMURL::url_decode(StringView { bytes });
 
                 // 2. Return a new FormData object whose entry list is entries.
-                return TRY(XHR::FormData::create(realm, entries));
+                return Bindings::wrap(realm, TRY(XHR::FormData::create(realm, entries)));
             }
         }
 
@@ -227,7 +228,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, Bod
     }
     // 6. Otherwise, fully read object’s body given successSteps, errorSteps, and object’s relevant global object.
     else {
-        body->fully_read(realm, success_steps, error_steps, GC::Ref { HTML::relevant_global_object(object.as_platform_object()) });
+        body->fully_read(realm, success_steps, error_steps, GC::Ref { HTML::relevant_global_object(object.as_wrappable()) });
     }
 
     // 7. Return promise.

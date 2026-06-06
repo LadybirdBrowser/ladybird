@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IdleDeadline.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -21,15 +20,9 @@ GC::Ref<IdleDeadline> IdleDeadline::create(JS::Realm& realm, bool did_timeout)
 }
 
 IdleDeadline::IdleDeadline(JS::Realm& realm, bool did_timeout)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_did_timeout(did_timeout)
 {
-}
-
-void IdleDeadline::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IdleDeadline);
-    Base::initialize(realm);
 }
 
 IdleDeadline::~IdleDeadline() = default;

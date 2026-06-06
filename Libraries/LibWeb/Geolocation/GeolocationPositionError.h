@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/GeolocationPositionError.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Geolocation {
 
 // https://w3c.github.io/geolocation/#dom-geolocationpositionerror
-class GeolocationPositionError : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(GeolocationPositionError, Bindings::PlatformObject);
+class GeolocationPositionError : public Bindings::Wrappable {
+    WEB_WRAPPABLE(GeolocationPositionError, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(GeolocationPositionError);
 
 public:
@@ -28,8 +29,6 @@ public:
 
 private:
     GeolocationPositionError(JS::Realm&, ErrorCode);
-
-    virtual void initialize(JS::Realm&) override;
 
     ErrorCode m_code { 0 };
 };

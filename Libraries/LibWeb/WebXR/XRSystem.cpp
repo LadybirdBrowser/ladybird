@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/XRSession.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -185,7 +185,7 @@ GC::Ref<WebIDL::Promise> XRSystem::request_session(Bindings::XRSessionMode mode,
             }
 
             // 10. Resolve promise with session.
-            WebIDL::resolve_promise(realm, promise, session);
+            WebIDL::resolve_promise(realm, promise, Bindings::wrap(realm, session));
 
             // 11. Queue a task to perform the following steps:
             HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [session]() {

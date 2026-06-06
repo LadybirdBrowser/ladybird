@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
@@ -66,7 +67,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, Bindings::PropertyDefini
 {
     // 1. Let property set be the value of the current global object’s associated Document’s [[registeredPropertySet]] slot.
     auto& realm = *vm.current_realm();
-    auto& window = static_cast<Web::HTML::Window&>(realm.global_object());
+    auto& window = Web::HTML::relevant_window(realm.global_object());
     auto& document = window.associated_document();
     auto& property_set = document.registered_property_set();
 

@@ -13,7 +13,7 @@
 namespace Web::UIEvents {
 
 class FocusEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(FocusEvent, UIEvent);
+    WEB_WRAPPABLE(FocusEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(FocusEvent);
 
 public:
@@ -24,8 +24,6 @@ public:
 
 private:
     FocusEvent(JS::Realm&, FlyString const& event_name, Bindings::FocusEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

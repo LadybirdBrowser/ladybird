@@ -14,7 +14,7 @@ namespace Web::Internals {
 GC_DEFINE_ALLOCATOR(InternalsBase);
 
 InternalsBase::InternalsBase(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
@@ -22,7 +22,7 @@ InternalsBase::~InternalsBase() = default;
 
 HTML::Window& InternalsBase::window() const
 {
-    return as<HTML::Window>(HTML::relevant_global_object(*this));
+    return HTML::relevant_window(*this);
 }
 
 Page& InternalsBase::page() const

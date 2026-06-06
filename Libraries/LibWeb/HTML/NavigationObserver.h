@@ -6,16 +6,17 @@
 
 #pragma once
 
+#include <AK/IntrusiveList.h>
+#include <LibGC/Cell.h>
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-class WEB_API NavigationObserver final : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(NavigationObserver, Bindings::PlatformObject);
+class WEB_API NavigationObserver final : public GC::Cell {
+    GC_CELL(NavigationObserver, GC::Cell);
     GC_DECLARE_ALLOCATOR(NavigationObserver);
 
 public:
@@ -28,9 +29,9 @@ public:
     void set_ongoing_navigation_changed(Function<void()>);
 
 private:
-    NavigationObserver(JS::Realm&, Navigable&);
+    explicit NavigationObserver(Navigable&);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     IntrusiveListNode<NavigationObserver> m_list_node;

@@ -6,7 +6,6 @@
 
 #include "CSSMathNegate.h"
 #include <LibWeb/Bindings/CSSMathNegate.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -38,13 +37,7 @@ CSSMathNegate::CSSMathNegate(JS::Realm& realm, NumericType type, GC::Ref<CSSNume
 
 CSSMathNegate::~CSSMathNegate() = default;
 
-void CSSMathNegate::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathNegate);
-    Base::initialize(realm);
-}
-
-void CSSMathNegate::visit_edges(Visitor& visitor)
+void CSSMathNegate::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_value);

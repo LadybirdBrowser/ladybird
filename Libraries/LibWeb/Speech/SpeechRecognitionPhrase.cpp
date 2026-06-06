@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognitionPhrase.h>
 #include <LibWeb/Speech/SpeechRecognitionPhrase.h>
 
 namespace Web::Speech {
@@ -19,18 +17,12 @@ WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionPhrase>> SpeechRecognitionPhrase::c
 }
 
 SpeechRecognitionPhrase::SpeechRecognitionPhrase(JS::Realm& realm, String const& phrase, float boost)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_phrase(phrase)
     , m_boost(boost)
 {
 }
 
 SpeechRecognitionPhrase::~SpeechRecognitionPhrase() = default;
-
-void SpeechRecognitionPhrase::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechRecognitionPhrase);
-    Base::initialize(realm);
-}
 
 }

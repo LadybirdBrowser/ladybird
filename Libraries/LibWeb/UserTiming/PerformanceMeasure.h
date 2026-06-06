@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/PerformanceMeasure.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 
 namespace Web::UserTiming {
 
 // https://w3c.github.io/user-timing/#dom-performancemeasure
 class PerformanceMeasure final : public PerformanceTimeline::PerformanceEntry {
-    WEB_PLATFORM_OBJECT(PerformanceMeasure, PerformanceTimeline::PerformanceEntry);
+    WEB_WRAPPABLE(PerformanceMeasure, PerformanceTimeline::PerformanceEntry);
     GC_DECLARE_ALLOCATOR(PerformanceMeasure);
 
 public:
@@ -40,8 +41,7 @@ public:
 private:
     PerformanceMeasure(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://w3c.github.io/user-timing/#dom-performancemeasure-detail
     JS::Value m_detail { JS::js_null() };

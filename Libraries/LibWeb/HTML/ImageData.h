@@ -9,16 +9,16 @@
 
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageData.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 class ImageData final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(ImageData, Bindings::PlatformObject);
+    WEB_WRAPPABLE(ImageData, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ImageData);
 
 public:
@@ -51,8 +51,7 @@ private:
     explicit ImageData(JS::Realm&);
     ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>, Bindings::PredefinedColorSpace);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     RefPtr<Gfx::Bitmap> m_bitmap;
     Bindings::PredefinedColorSpace m_color_space { Bindings::PredefinedColorSpace::Srgb };

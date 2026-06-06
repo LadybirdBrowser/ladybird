@@ -49,7 +49,7 @@ struct TextPositioning {
 
 // https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextPositioningElement
 class SVGTextPositioningElement : public SVGTextContentElement {
-    WEB_PLATFORM_OBJECT(SVGTextPositioningElement, SVGTextContentElement);
+    WEB_WRAPPABLE(SVGTextPositioningElement, SVGTextContentElement);
 
 public:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

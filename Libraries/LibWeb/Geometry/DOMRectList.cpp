@@ -5,8 +5,7 @@
  */
 
 #include <LibGC/Root.h>
-#include <LibWeb/Bindings/DOMRectList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -24,21 +23,14 @@ GC::Ref<DOMRectList> DOMRectList::create(JS::Realm& realm, Vector<GC::Root<DOMRe
 }
 
 DOMRectList::DOMRectList(JS::Realm& realm, Vector<GC::Ref<DOMRect>> rects)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_rects(move(rects))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 }
 
 DOMRectList::~DOMRectList() = default;
 
-void DOMRectList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMRectList);
-    Base::initialize(realm);
-}
-
-void DOMRectList::visit_edges(Cell::Visitor& visitor)
+void DOMRectList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rects);
@@ -61,12 +53,12 @@ DOMRect const* DOMRectList::item(u32 index) const
     return m_rects[index];
 }
 
-Optional<JS::Value> DOMRectList::item_value(size_t index) const
+Optional<JS::Value> DOMRectList::item_value(JS::Realm& realm, size_t index) const
 {
     if (index >= m_rects.size())
         return {};
 
-    return m_rects[index].ptr();
+    return Bindings::wrap(realm, m_rects[index]);
 }
 
 }

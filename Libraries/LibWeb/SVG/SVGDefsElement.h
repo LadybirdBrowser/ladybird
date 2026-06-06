@@ -12,7 +12,7 @@
 namespace Web::SVG {
 
 class SVGDefsElement final : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGDefsElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGDefsElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGDefsElement);
 
 public:

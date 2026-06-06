@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
@@ -83,6 +84,7 @@
 #include <LibWeb/HTML/HTMLUnknownElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -667,7 +669,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
             if (upgrade_result.is_throw_completion()) {
                 // 1. Report exception for definition’s constructor’s corresponding JavaScript object’s associated
                 //    realm’s global object.
-                auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(definition->constructor().callback));
+                auto& window_or_worker = HTML::relevant_window_or_worker_global_scope(definition->constructor().callback);
                 window_or_worker.report_an_exception(upgrade_result.error_value());
 
                 // 2. Set result’s custom element state to "failed".
@@ -696,7 +698,9 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
             auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<void> {
                 // 1. Set result to the result of constructing C, with no arguments.
                 // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
-                result = TRY(WebIDL::construct(constructor, {})).as_if<HTML::HTMLElement>();
+                auto constructed_element = TRY(WebIDL::construct(constructor, {}));
+                if (constructed_element.is_object())
+                    result = Bindings::impl_from<HTML::HTMLElement>(&constructed_element.as_object());
                 if (!result)
                     return JS::throw_completion(JS::TypeError::create(realm, "Custom element constructor must return an object that implements HTMLElement"_string));
 
@@ -708,23 +712,23 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
                 // 4. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
                 if (result->has_attributes())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_utf16));
+                    return throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_utf16));
 
                 // 5. If result has children, then throw a "NotSupportedError" DOMException.
                 if (result->has_children())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_utf16));
+                    return throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_utf16));
 
                 // 6. If result’s parent is not null, then throw a "NotSupportedError" DOMException.
                 if (result->parent())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_utf16));
+                    return throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_utf16));
 
                 // 7. If result’s node document is not document, then throw a "NotSupportedError" DOMException.
                 if (&result->document() != &document)
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_utf16));
+                    return throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_utf16));
 
                 // 8. If result’s local name is not equal to localName, then throw a "NotSupportedError" DOMException.
                 if (result->local_name() != local_name)
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_utf16));
+                    return throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_utf16));
 
                 // 9. Set result’s namespace prefix to prefix.
                 result->set_prefix(prefix);
@@ -742,7 +746,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
             if (auto maybe_error = synchronously_upgrade_custom_element(); maybe_error.is_throw_completion()) {
                 // 1. Report exception for definition’s constructor’s corresponding JavaScript object’s associated
                 //    realm’s global object.
-                auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(definition->constructor().callback));
+                auto& window_or_worker = HTML::relevant_window_or_worker_global_scope(definition->constructor().callback);
                 window_or_worker.report_an_exception(maybe_error.error_value());
 
                 // 2. Set result to the result of creating an element internal given document, HTMLUnknownElement,

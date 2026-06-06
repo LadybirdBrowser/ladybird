@@ -7,8 +7,6 @@
 
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/DataTransferItem.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
@@ -25,7 +23,7 @@ GC::Ref<DataTransferItem> DataTransferItem::create(JS::Realm& realm, GC::Ref<Dat
 }
 
 DataTransferItem::DataTransferItem(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer, size_t item_index)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_data_transfer(data_transfer)
     , m_item_index(item_index)
 {
@@ -33,13 +31,7 @@ DataTransferItem::DataTransferItem(JS::Realm& realm, GC::Ref<DataTransfer> data_
 
 DataTransferItem::~DataTransferItem() = default;
 
-void DataTransferItem::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransferItem);
-    Base::initialize(realm);
-}
-
-void DataTransferItem::visit_edges(JS::Cell::Visitor& visitor)
+void DataTransferItem::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_data_transfer);

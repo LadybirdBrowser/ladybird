@@ -228,7 +228,7 @@ void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& 
         callback(*style_sheet);
 
     if (m_adopted_style_sheets) {
-        m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+        for_each_adopted_style_sheet(*m_adopted_style_sheets, [&](auto& style_sheet) {
             callback(style_sheet);
         });
     }
@@ -242,7 +242,7 @@ void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleShee
     }
 
     if (m_adopted_style_sheets) {
-        m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+        for_each_adopted_style_sheet(*m_adopted_style_sheets, [&](auto& style_sheet) {
             if (!style_sheet.disabled())
                 callback(style_sheet);
         });

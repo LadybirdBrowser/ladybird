@@ -12,7 +12,8 @@
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
 #include <AK/Variant.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibGC/Weak.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/Forward.h>
@@ -89,7 +90,7 @@ public:
 
     [[nodiscard]] GC::Ref<HighResolutionTime::Performance> performance();
 
-    GC::Ref<JS::Object> supported_entry_types() const;
+    GC::Ref<JS::Object> supported_entry_types(JS::Realm&) const;
 
     GC::Ref<IndexedDB::IDBFactory> indexed_db();
 
@@ -154,7 +155,8 @@ private:
 
     GC::Ptr<IndexedDB::IDBFactory> m_indexed_db;
 
-    mutable GC::Ptr<JS::Object> m_supported_entry_types_array;
+    mutable GC::Weak<JS::Object> m_supported_entry_types_array;
+    mutable Vector<GC::Weak<JS::Object>> m_live_supported_entry_types_arrays;
 
     GC::Ptr<Crypto::Crypto> m_crypto;
 

@@ -8,22 +8,15 @@
 
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 
 namespace Web::TrustedTypes {
 
 GC_DEFINE_ALLOCATOR(TrustedScriptURL);
 
 TrustedScriptURL::TrustedScriptURL(JS::Realm& realm, Utf16String data)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_data(move(data))
 {
-}
-
-void TrustedScriptURL::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TrustedScriptURL);
-    Base::initialize(realm);
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#trustedscripturl-stringification-behavior

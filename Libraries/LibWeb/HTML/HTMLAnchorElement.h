@@ -14,7 +14,7 @@ namespace Web::HTML {
 class HTMLAnchorElement final
     : public HTMLElement
     , public HTMLHyperlinkElementUtils {
-    WEB_PLATFORM_OBJECT(HTMLAnchorElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLAnchorElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLAnchorElement);
 
 public:

@@ -7,8 +7,6 @@
 #include <AK/Enumerate.h>
 #include <AK/Find.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/DataTransfer.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
@@ -50,7 +48,7 @@ GC::Ref<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
 }
 
 DataTransfer::DataTransfer(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_associated_drag_data_store(move(drag_data_store))
 {
     for (auto const& [i, item] : enumerate(m_associated_drag_data_store->item_list())) {
@@ -63,13 +61,7 @@ DataTransfer::DataTransfer(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_d
 
 DataTransfer::~DataTransfer() = default;
 
-void DataTransfer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransfer);
-    Base::initialize(realm);
-}
-
-void DataTransfer::visit_edges(JS::Cell::Visitor& visitor)
+void DataTransfer::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_items);

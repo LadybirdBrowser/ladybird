@@ -20,7 +20,7 @@ namespace Web::WebGL {
 using namespace Web::HTML;
 
 class WebGL2RenderingContextOverloads : public WebGL2RenderingContextImpl {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGL2RenderingContextOverloads, WebGL2RenderingContextImpl);
+    WEB_NON_IDL_WRAPPABLE(WebGL2RenderingContextOverloads, WebGL2RenderingContextImpl);
 
 public:
     WebGL2RenderingContextOverloads(JS::Realm&, NonnullOwnPtr<OpenGLContext>);

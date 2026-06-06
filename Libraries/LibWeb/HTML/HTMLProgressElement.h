@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class HTMLProgressElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLProgressElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLProgressElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLProgressElement);
 
 public:

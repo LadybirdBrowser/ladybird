@@ -15,7 +15,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioScheduledSourceNode {
-    WEB_PLATFORM_OBJECT(AudioBufferSourceNode, AudioScheduledSourceNode);
+    WEB_WRAPPABLE(AudioBufferSourceNode, AudioScheduledSourceNode);
     GC_DECLARE_ALLOCATOR(AudioBufferSourceNode);
 
 public:

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/FileSystemEntry.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/EntriesAPI/FileSystemEntry.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -19,16 +17,10 @@ GC::Ref<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType ent
 }
 
 FileSystemEntry::FileSystemEntry(JS::Realm& realm, EntryType entry_type, ByteString name)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_entry_type(entry_type)
     , m_name(name)
 {
-}
-
-void FileSystemEntry::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FileSystemEntry);
-    Base::initialize(realm);
 }
 
 // https://wicg.github.io/entries-api/#dom-filesystementry-isfile

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IDBRecord.h>
 #include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 
@@ -20,20 +19,14 @@ GC::Ref<IDBRecord> IDBRecord::create(JS::Realm& realm, GC::Ref<Key> key, JS::Val
 }
 
 IDBRecord::IDBRecord(JS::Realm& realm, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_key(move(key))
     , m_value(move(value))
     , m_primary_key(move(primary_key))
 {
 }
 
-void IDBRecord::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBRecord);
-    Base::initialize(realm);
-}
-
-void IDBRecord::visit_edges(Visitor& visitor)
+void IDBRecord::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_key);

@@ -5,9 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XPathExpression.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 
@@ -21,19 +18,13 @@ namespace Web::XPath {
 GC_DEFINE_ALLOCATOR(XPathExpression);
 
 XPathExpression::XPathExpression(JS::Realm& realm, String const& expression, GC::Ptr<XPathNSResolver> resolver)
-    : Web::Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_expression(expression)
     , m_resolver(resolver)
 {
 }
 
-void XPathExpression::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XPathExpression);
-    Base::initialize(realm);
-}
-
-void XPathExpression::visit_edges(Cell::Visitor& visitor)
+void XPathExpression::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_resolver);

@@ -12,7 +12,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/embedded.html#InterfaceSVGForeignObjectElement
 class SVGForeignObjectElement final : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGForeignObjectElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGForeignObjectElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGForeignObjectElement);
 
 public:

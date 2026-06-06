@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DOMQuad.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
@@ -15,9 +16,9 @@ namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#domquad
 class DOMQuad
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(DOMQuad, Bindings::PlatformObject);
+    WEB_WRAPPABLE(DOMQuad, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMQuad);
 
 public:
@@ -43,8 +44,7 @@ private:
     DOMQuad(JS::Realm&, Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4);
     explicit DOMQuad(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<DOMPoint> m_p1;
     GC::Ref<DOMPoint> m_p2;

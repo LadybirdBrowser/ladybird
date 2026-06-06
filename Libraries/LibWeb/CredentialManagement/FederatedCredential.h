@@ -8,7 +8,6 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/FederatedCredential.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CredentialManagement/Credential.h>
 #include <LibWeb/CredentialManagement/CredentialUserData.h>
 
@@ -18,7 +17,7 @@ namespace Web::CredentialManagement {
 class FederatedCredential final
     : public Credential
     , public CredentialUserData {
-    WEB_PLATFORM_OBJECT(FederatedCredential, Credential);
+    WEB_WRAPPABLE(FederatedCredential, Credential);
     GC_DECLARE_ALLOCATOR(FederatedCredential);
 
 public:
@@ -34,7 +33,6 @@ public:
 
 private:
     FederatedCredential(JS::Realm&, Bindings::FederatedCredentialInit const&, URL::Origin);
-    virtual void initialize(JS::Realm&) override;
 
     String m_provider;
     Optional<String> m_protocol;

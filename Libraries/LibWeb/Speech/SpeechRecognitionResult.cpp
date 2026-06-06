@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognitionResult.h>
 #include <LibWeb/Speech/SpeechRecognitionResult.h>
 
 namespace Web::Speech {
@@ -19,19 +17,13 @@ GC::Ref<SpeechRecognitionResult> SpeechRecognitionResult::create(JS::Realm& real
 }
 
 SpeechRecognitionResult::SpeechRecognitionResult(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 SpeechRecognitionResult::~SpeechRecognitionResult() = default;
 
-void SpeechRecognitionResult::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechRecognitionResult);
-    Base::initialize(realm);
-}
-
-void SpeechRecognitionResult::visit_edges(Cell::Visitor& visitor)
+void SpeechRecognitionResult::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_alternatives);

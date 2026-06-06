@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SVGAnimatedEnumeration.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedEnumeration
-class SVGAnimatedEnumeration final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGAnimatedEnumeration, Bindings::PlatformObject);
+class SVGAnimatedEnumeration final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGAnimatedEnumeration, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGAnimatedEnumeration);
 
 public:
@@ -26,8 +27,6 @@ public:
 
 private:
     SVGAnimatedEnumeration(JS::Realm&, u16 value);
-
-    virtual void initialize(JS::Realm&) override;
 
     u16 base_or_anim_value() const;
 

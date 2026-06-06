@@ -10,8 +10,8 @@
 #include <AK/Optional.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ViewTransition.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
@@ -79,8 +79,8 @@ private:
 // https://drafts.csswg.org/css-view-transitions-1/#callbackdef-viewtransitionupdatecallback
 using ViewTransitionUpdateCallback = GC::Ptr<WebIDL::CallbackType>;
 
-class ViewTransition final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ViewTransition, Bindings::PlatformObject);
+class ViewTransition final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ViewTransition, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ViewTransition);
 
 public:
@@ -119,6 +119,7 @@ public:
 
     // https://drafts.csswg.org/css-view-transitions-1/#skip-the-view-transition
     void skip_the_view_transition(JS::Value reason);
+    void skip_the_view_transition(GC::Ref<WebIDL::DOMException> reason);
 
     // https://drafts.csswg.org/css-view-transitions-1/#handle-transition-frame
     void handle_transition_frame();
@@ -141,9 +142,8 @@ public:
 
 private:
     ViewTransition(JS::Realm&, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>, GC::Ref<WebIDL::Promise>);
-    virtual void initialize(JS::Realm&) override;
 
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://drafts.csswg.org/css-view-transitions-1/#viewtransition-named-elements
     HashMap<FlyString, GC::Ptr<CapturedElement>> m_named_elements = {};

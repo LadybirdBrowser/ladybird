@@ -6,6 +6,7 @@
 
 #include <AK/Bitmap.h>
 #include <AK/QuickSort.h>
+#include <LibGC/Root.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
@@ -853,50 +854,49 @@ void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
 WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 {
-    if (m_keyframe_objects.size() != m_keyframes.size()) {
-        auto& vm = this->vm();
-        auto& realm = this->realm();
-
-        // Recalculate the keyframe objects
-        VERIFY(m_keyframe_objects.size() == 0);
-
-        for (auto& keyframe : m_keyframes) {
-            auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-            TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
-            TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
-            auto easing_value = keyframe.easing.get<CSS::EasingFunction>();
-            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value.to_string()), ShouldThrowExceptions::Yes));
-
-            if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));
-            } else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Add) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "add"sv), ShouldThrowExceptions::Yes));
-            } else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Accumulate) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "accumulate"sv), ShouldThrowExceptions::Yes));
-            } else {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "auto"sv), ShouldThrowExceptions::Yes));
-            }
-
-            for (auto const& [id, value] : keyframe.parsed_properties()) {
-                auto key = Utf16FlyString::from_utf8(CSS::camel_case_string_from_property_id(id));
-                auto value_string = JS::PrimitiveString::create(vm, value->to_string(CSS::SerializationMode::Normal));
-                TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
-            }
-
-            m_keyframe_objects.append(object);
-        }
-    }
+    auto& realm = *this->realm().vm().current_realm();
+    auto& vm = realm.vm();
 
     GC::RootVector<JS::Object*> keyframes;
-    for (auto const& keyframe : m_keyframe_objects)
-        keyframes.append(keyframe);
+    keyframes.ensure_capacity(m_keyframes.size());
+
+    for (auto& keyframe : m_keyframes) {
+        auto object = GC::make_root(JS::Object::create(realm, realm.intrinsics().object_prototype()));
+        TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), JS::Object::ShouldThrowExceptions::Yes));
+        TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), JS::Object::ShouldThrowExceptions::Yes));
+
+        auto easing_value = keyframe.easing.get<CSS::EasingFunction>();
+        auto easing = GC::make_root(JS::PrimitiveString::create(vm, easing_value.to_string()));
+        TRY(object->set(vm.names.easing, JS::Value { easing.ptr() }, JS::Object::ShouldThrowExceptions::Yes));
+
+        StringView composite;
+        if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace)
+            composite = "replace"sv;
+        else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Add)
+            composite = "add"sv;
+        else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Accumulate)
+            composite = "accumulate"sv;
+        else
+            composite = "auto"sv;
+
+        auto composite_string = GC::make_root(JS::PrimitiveString::create(vm, composite));
+        TRY(object->set(vm.names.composite, JS::Value { composite_string.ptr() }, JS::Object::ShouldThrowExceptions::Yes));
+
+        for (auto const& [id, value] : keyframe.parsed_properties()) {
+            auto key = Utf16FlyString::from_utf8(CSS::camel_case_string_from_property_id(id));
+            auto value_string = GC::make_root(JS::PrimitiveString::create(vm, value->to_string(CSS::SerializationMode::Normal)));
+            TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, JS::Value { value_string.ptr() }, JS::Object::ShouldThrowExceptions::Yes));
+        }
+
+        keyframes.append(object.ptr());
+    }
+
     return keyframes;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-setkeyframes
 WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(GC::Ptr<JS::Object> keyframe_object)
 {
-    m_keyframe_objects.clear();
     m_keyframes = TRY(process_a_keyframes_argument(realm(), keyframe_object));
     // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
     //        keyframes using the procedure outlined in the second half of
@@ -944,17 +944,10 @@ void KeyframeEffect::invalidate_effect()
         m_target_element->document().set_needs_animated_style_update();
 }
 
-void KeyframeEffect::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(KeyframeEffect);
-    Base::initialize(realm);
-}
-
-void KeyframeEffect::visit_edges(Cell::Visitor& visitor)
+void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target_element);
-    visitor.visit(m_keyframe_objects);
 }
 
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)

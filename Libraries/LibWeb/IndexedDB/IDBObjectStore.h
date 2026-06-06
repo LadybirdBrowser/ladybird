@@ -9,7 +9,7 @@
 #include <AK/HashMap.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBCursor.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
@@ -18,8 +18,8 @@ namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#object-store-interface
 // https://w3c.github.io/IndexedDB/#object-store-handle-construct
-class IDBObjectStore : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBObjectStore, Bindings::PlatformObject);
+class IDBObjectStore : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBObjectStore, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBObjectStore);
 
 public:
@@ -60,8 +60,7 @@ public:
 
 protected:
     explicit IDBObjectStore(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBTransaction>);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     // An object store handle has an associated object store and an associated transaction.

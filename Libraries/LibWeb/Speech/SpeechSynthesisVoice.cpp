@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechSynthesisVoice.h>
 #include <LibWeb/Speech/SpeechSynthesisVoice.h>
 
 namespace Web::Speech {
@@ -19,16 +17,10 @@ GC::Ref<SpeechSynthesisVoice> SpeechSynthesisVoice::create(JS::Realm& realm)
 }
 
 SpeechSynthesisVoice::SpeechSynthesisVoice(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 SpeechSynthesisVoice::~SpeechSynthesisVoice() = default;
-
-void SpeechSynthesisVoice::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechSynthesisVoice);
-    Base::initialize(realm);
-}
 
 }

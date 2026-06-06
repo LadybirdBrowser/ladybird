@@ -9,14 +9,13 @@
 
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationPlaybackEvent.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::Animations {
 
 // https://www.w3.org/TR/web-animations-1/#animationplaybackevent
 class AnimationPlaybackEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(AnimationPlaybackEvent, DOM::Event);
+    WEB_WRAPPABLE(AnimationPlaybackEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(AnimationPlaybackEvent);
 
 public:
@@ -31,7 +30,6 @@ public:
 private:
     AnimationPlaybackEvent(JS::Realm&, FlyString const& type, Bindings::AnimationPlaybackEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     // https://drafts.csswg.org/web-animations-2/#dom-animationplaybackevent-currenttime

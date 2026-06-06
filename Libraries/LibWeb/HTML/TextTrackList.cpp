@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TextTrackList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrackList.h>
 
@@ -15,7 +16,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(TextTrackList);
 
 TextTrackList::TextTrackList(JS::Realm& realm)
-    : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+    : DOM::EventTarget(realm)
 {
 }
 
@@ -33,21 +34,14 @@ void TextTrackList::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_text_tracks);
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#dom-texttracklist-item
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> TextTrackList::internal_get_own_property(JS::PropertyKey const& property_name) const
+Optional<JS::Value> TextTrackList::item_value(JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property of a TextTrackList object for a given index index, the user
     // agent must return the indexth text track in the list represented by the TextTrackList object.
-    if (property_name.is_number()) {
-        if (auto index = property_name.as_number(); index < m_text_tracks.size()) {
-            JS::PropertyDescriptor descriptor;
-            descriptor.value = m_text_tracks.at(index);
+    if (index >= m_text_tracks.size())
+        return {};
 
-            return descriptor;
-        }
-    }
-
-    return Base::internal_get_own_property(property_name);
+    return Bindings::wrap(realm, m_text_tracks.at(index));
 }
 
 void TextTrackList::add_track(GC::Ref<TextTrack> text_track)

@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/GamepadButton.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Gamepad {
 
-class GamepadButton final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(GamepadButton, Bindings::PlatformObject);
+class GamepadButton final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(GamepadButton, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(GamepadButton);
 
 public:
@@ -27,8 +28,6 @@ public:
 
 private:
     GamepadButton(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     // https://w3c.github.io/gamepad/#dfn-pressed
     // A flag indicating that the button is pressed

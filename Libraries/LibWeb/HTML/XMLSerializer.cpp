@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/XMLSerializer.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
@@ -32,17 +31,11 @@ WebIDL::ExceptionOr<GC::Ref<XMLSerializer>> XMLSerializer::construct_impl(JS::Re
 }
 
 XMLSerializer::XMLSerializer(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 XMLSerializer::~XMLSerializer() = default;
-
-void XMLSerializer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XMLSerializer);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-xmlserializer-serializetostring
 WebIDL::ExceptionOr<String> XMLSerializer::serialize_to_string(GC::Ref<DOM::Node const> root)

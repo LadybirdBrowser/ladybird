@@ -16,7 +16,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageevent
 class StorageEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(StorageEvent, DOM::Event);
+    WEB_WRAPPABLE(StorageEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(StorageEvent);
 
 public:
@@ -42,7 +42,6 @@ public:
 
 protected:
     virtual void visit_edges(Visitor& visitor) override;
-    virtual void initialize(JS::Realm&) override;
 
 private:
     StorageEvent(JS::Realm&, FlyString const& event_name, Bindings::StorageEventInit const& event_init);

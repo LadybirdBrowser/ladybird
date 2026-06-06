@@ -12,7 +12,6 @@
 #include <LibRequests/Forward.h>
 #include <LibRequests/WebSocket.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -29,7 +28,7 @@ namespace Web::WebSockets {
 using WebSocketSendData = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<FileAPI::Blob>, String>>;
 
 class WebSocket final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(WebSocket, DOM::EventTarget);
+    WEB_WRAPPABLE(WebSocket, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(WebSocket);
 
 public:

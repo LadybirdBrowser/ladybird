@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IntersectionObserverEntry.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
 
@@ -27,7 +25,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> IntersectionObserverEntr
 }
 
 IntersectionObserverEntry::IntersectionObserverEntry(JS::Realm& realm, HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_time(time)
     , m_root_bounds(root_bounds)
     , m_bounding_client_rect(bounding_client_rect)
@@ -40,13 +38,7 @@ IntersectionObserverEntry::IntersectionObserverEntry(JS::Realm& realm, HighResol
 
 IntersectionObserverEntry::~IntersectionObserverEntry() = default;
 
-void IntersectionObserverEntry::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IntersectionObserverEntry);
-    Base::initialize(realm);
-}
-
-void IntersectionObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
+void IntersectionObserverEntry::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root_bounds);

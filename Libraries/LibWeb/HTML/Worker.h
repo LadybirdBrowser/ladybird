@@ -22,7 +22,7 @@ namespace Web::HTML {
 class Worker
     : public DOM::EventTarget
     , public HTML::AbstractWorker {
-    WEB_PLATFORM_OBJECT(Worker, DOM::EventTarget);
+    WEB_WRAPPABLE(Worker, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Worker);
 
 public:

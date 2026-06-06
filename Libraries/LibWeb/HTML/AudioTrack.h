@@ -9,13 +9,12 @@
 
 #include <LibMedia/Audio/Forward.h>
 #include <LibMedia/Track.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/MediaTrackBase.h>
 
 namespace Web::HTML {
 
 class AudioTrack final : public MediaTrackBase {
-    WEB_PLATFORM_OBJECT(AudioTrack, MediaTrackBase);
+    WEB_WRAPPABLE(AudioTrack, MediaTrackBase);
     GC_DECLARE_ALLOCATOR(AudioTrack);
 
 public:
@@ -29,8 +28,7 @@ public:
 private:
     AudioTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, Media::Track const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-enabled
     bool m_enabled { false };

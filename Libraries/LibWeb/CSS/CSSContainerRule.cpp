@@ -7,7 +7,6 @@
 #include "CSSContainerRule.h"
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSContainerRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -30,13 +29,7 @@ CSSContainerRule::CSSContainerRule(JS::Realm& realm, Vector<Condition>&& conditi
 
 CSSContainerRule::~CSSContainerRule() = default;
 
-void CSSContainerRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSContainerRule);
-    Base::initialize(realm);
-}
-
-void CSSContainerRule::visit_edges(Cell::Visitor& visitor)
+void CSSContainerRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_cached_parent_container_rule);

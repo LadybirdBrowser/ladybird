@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLParamElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLParamElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLParamElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLParamElement);
 
 public:

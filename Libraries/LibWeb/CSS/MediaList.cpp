@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -25,19 +23,12 @@ GC::Ref<MediaList> MediaList::create(JS::Realm& realm, Vector<NonnullRefPtr<Medi
 }
 
 MediaList::MediaList(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_media(move(media))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
 }
 
-void MediaList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaList);
-    Base::initialize(realm);
-}
-
-void MediaList::visit_edges(Visitor& visitor)
+void MediaList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_style_sheet);
@@ -152,11 +143,11 @@ bool MediaList::matches() const
     return false;
 }
 
-Optional<JS::Value> MediaList::item_value(size_t index) const
+Optional<JS::Value> MediaList::item_value(JS::Realm& realm, size_t index) const
 {
     if (index >= m_media.size())
         return {};
-    return JS::PrimitiveString::create(vm(), m_media[index]->to_string());
+    return JS::PrimitiveString::create(realm.vm(), m_media[index]->to_string());
 }
 
 void MediaList::dump(StringBuilder& builder, int indent_levels) const

@@ -7,13 +7,14 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MutationRecord.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#mutationrecord
-class MutationRecord : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MutationRecord, Bindings::PlatformObject);
+class MutationRecord : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MutationRecord, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MutationRecord);
 
 public:
@@ -34,8 +35,7 @@ public:
 private:
     MutationRecord(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     FlyString m_type;
     GC::Ptr<Node const> m_target;

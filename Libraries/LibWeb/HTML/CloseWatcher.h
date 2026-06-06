@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#the-closewatcher-interface
 class CloseWatcher final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(CloseWatcher, DOM::EventTarget);
+    WEB_WRAPPABLE(CloseWatcher, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(CloseWatcher);
 
 public:

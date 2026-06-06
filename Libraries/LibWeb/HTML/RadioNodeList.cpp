@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/RadioNodeList.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/RadioNodeList.h>
@@ -25,12 +23,6 @@ RadioNodeList::RadioNodeList(JS::Realm& realm, DOM::Node const& root, Scope scop
 }
 
 RadioNodeList::~RadioNodeList() = default;
-
-void RadioNodeList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(RadioNodeList);
-    Base::initialize(realm);
-}
 
 static HTMLInputElement const* radio_button(DOM::Node const& node)
 {

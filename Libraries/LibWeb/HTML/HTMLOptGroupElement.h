@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class WEB_API HTMLOptGroupElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLOptGroupElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLOptGroupElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOptGroupElement);
 
 public:

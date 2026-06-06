@@ -17,7 +17,7 @@ namespace Web::ResourceTiming {
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming
 class WEB_API PerformanceResourceTiming : public PerformanceTimeline::PerformanceEntry {
-    WEB_PLATFORM_OBJECT(PerformanceResourceTiming, PerformanceTimeline::PerformanceEntry);
+    WEB_WRAPPABLE(PerformanceResourceTiming, PerformanceTimeline::PerformanceEntry);
     GC_DECLARE_ALLOCATOR(PerformanceResourceTiming);
 
 public:
@@ -73,8 +73,7 @@ protected:
 
     void setup_the_resource_timing_entry(FlyString const& initiator_type, String const& requested_url, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, FlyString delivery_type = ""_fly_string);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     FlyString m_initiator_type;

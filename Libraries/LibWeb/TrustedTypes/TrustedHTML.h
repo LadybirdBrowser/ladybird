@@ -7,15 +7,15 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/TrustedHTML.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::TrustedTypes {
 
 using TrustedHTMLOrString = Variant<GC::Ref<TrustedHTML>, Utf16String>;
 
-class TrustedHTML final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TrustedHTML, Bindings::PlatformObject);
+class TrustedHTML final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(TrustedHTML, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TrustedHTML);
 
 public:
@@ -26,7 +26,6 @@ public:
 
 private:
     explicit TrustedHTML(JS::Realm&, Utf16String);
-    virtual void initialize(JS::Realm&) override;
 
     Utf16String const m_data;
 };

@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#xmlserializer
-class XMLSerializer final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(XMLSerializer, Bindings::PlatformObject);
+class XMLSerializer final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(XMLSerializer, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(XMLSerializer);
 
 public:
@@ -24,8 +24,6 @@ public:
 
 private:
     explicit XMLSerializer(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 enum class RequireWellFormed {

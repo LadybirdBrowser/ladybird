@@ -13,7 +13,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStreamDefaultReader.h>
 #include <LibWeb/Fetch/Infrastructure/IncrementalReadLoopReadRequest.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -39,18 +38,11 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultR
 }
 
 ReadableStreamDefaultReader::ReadableStreamDefaultReader(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
-    , ReadableStreamGenericReaderMixin(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
-void ReadableStreamDefaultReader::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamDefaultReader);
-    Base::initialize(realm);
-}
-
-void ReadableStreamDefaultReader::visit_edges(Cell::Visitor& visitor)
+void ReadableStreamDefaultReader::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     ReadableStreamGenericReaderMixin::visit_edges(visitor);
@@ -82,7 +74,7 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
 {
     // 1. If chunk is not a Uint8Array object, call failureSteps with a TypeError and abort these steps.
     if (!chunk.is_object() || !is<JS::Uint8Array>(chunk.as_object())) {
-        m_failure_steps->function()(JS::TypeError::create(m_realm, "Chunk data is not Uint8Array"sv));
+        m_failure_steps->function()(JS::TypeError::create(m_reader->realm(), "Chunk data is not Uint8Array"sv));
         return;
     }
 

@@ -6,7 +6,6 @@
 
 #include "CSSFunctionRule.h"
 #include <LibWeb/Bindings/CSSFunctionRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
@@ -100,12 +99,6 @@ CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, FlyString
     , m_parameters(move(parameters))
     , m_return_type(move(return_type))
 {
-}
-
-void CSSFunctionRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFunctionRule);
-    Base::initialize(realm);
 }
 
 // https://drafts.csswg.org/css-mixins-1/#dom-cssfunctionrule-getparameters

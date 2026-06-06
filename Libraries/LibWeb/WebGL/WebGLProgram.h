@@ -14,7 +14,7 @@
 namespace Web::WebGL {
 
 class WebGLProgram final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLProgram, WebGLObject);
+    WEB_WRAPPABLE(WebGLProgram, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLProgram);
 
 public:
@@ -30,9 +30,7 @@ public:
 
 protected:
     explicit WebGLProgram(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     GC::Ptr<WebGLShader> m_attached_vertex_shader;

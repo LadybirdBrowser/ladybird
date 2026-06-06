@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverSize.h>
 
@@ -25,17 +25,16 @@ public:
     GC::Ptr<DOM::Element> target() const { return m_target.ptr(); }
     Bindings::ResizeObserverBoxOptions observed_box() const { return m_observed_box; }
 
-    Vector<GC::Ref<ResizeObserverSize>>& last_reported_sizes() { return m_last_reported_sizes; }
+    void set_last_reported_sizes(ReadonlySpan<GC::Ref<ResizeObserverSize>>);
 
-    explicit ResizeObservation(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
+    explicit ResizeObservation(DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box);
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    GC::Ref<JS::Realm> m_realm;
     GC::Weak<DOM::Element> m_target;
     Bindings::ResizeObserverBoxOptions m_observed_box;
-    Vector<GC::Ref<ResizeObserverSize>> m_last_reported_sizes;
+    Vector<ResizeObserverSize::RawSize> m_last_reported_sizes;
 };
 
 }

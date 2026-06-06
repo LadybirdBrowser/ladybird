@@ -14,7 +14,7 @@ namespace Web::Serial {
 
 // https://wicg.github.io/serial/#serial-interface
 class Serial : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Serial, DOM::EventTarget);
+    WEB_WRAPPABLE(Serial, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Serial);
 
 public:

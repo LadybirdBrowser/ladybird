@@ -6,8 +6,6 @@
  */
 
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Selection.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Position.h>
@@ -28,18 +26,12 @@ GC::Ref<Selection> Selection::create(GC::Ref<JS::Realm> realm, GC::Ref<DOM::Docu
 }
 
 Selection::Selection(GC::Ref<JS::Realm> realm, GC::Ref<DOM::Document> document)
-    : PlatformObject(realm)
+    : Wrappable(*realm)
     , m_document(document)
 {
 }
 
 Selection::~Selection() = default;
-
-void Selection::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Selection);
-    Base::initialize(realm);
-}
 
 // https://w3c.github.io/selection-api/#dfn-empty
 bool Selection::is_empty() const
@@ -52,7 +44,7 @@ bool Selection::is_empty() const
     return !m_range;
 }
 
-void Selection::visit_edges(Cell::Visitor& visitor)
+void Selection::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_range);

@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceMark.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
@@ -34,7 +33,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     auto& vm = realm.vm();
 
     // 1. If the current global object is a Window object and markName uses the same name as a read only attribute in the PerformanceTiming interface, throw a SyntaxError.
-    if (is<HTML::Window>(current_global_object)) {
+    if (HTML::window_from_global_object(current_global_object)) {
         bool matched = false;
 
 #define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _) \
@@ -98,13 +97,7 @@ FlyString const& PerformanceMark::entry_type() const
     return PerformanceTimeline::EntryTypes::mark;
 }
 
-void PerformanceMark::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceMark);
-    Base::initialize(realm);
-}
-
-void PerformanceMark::visit_edges(JS::Cell::Visitor& visitor)
+void PerformanceMark::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_detail);

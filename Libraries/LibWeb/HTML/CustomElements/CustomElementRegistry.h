@@ -8,15 +8,15 @@
 #pragma once
 
 #include <LibGC/WeakHashSet.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#customelementregistry
-class WEB_API CustomElementRegistry : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CustomElementRegistry, Bindings::PlatformObject);
+class WEB_API CustomElementRegistry : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CustomElementRegistry, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CustomElementRegistry);
 
 public:
@@ -40,8 +40,7 @@ public:
 private:
     CustomElementRegistry(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#is-scoped
     // Every CustomElementRegistry has an is scoped, a boolean, initially false.

@@ -8,15 +8,15 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBObjectStore.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 
 namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#index-interface
-class IDBIndex : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBIndex, Bindings::PlatformObject);
+class IDBIndex : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBIndex, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBIndex);
 
 public:
@@ -47,8 +47,7 @@ public:
 
 protected:
     explicit IDBIndex(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     // An index handle has an associated index and an associated object store handle.

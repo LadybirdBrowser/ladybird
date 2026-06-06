@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Runtime/MapIterator.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/FontFeatureData.h>
@@ -16,7 +16,7 @@
 namespace Web::CSS {
 
 class CSSFontFeatureValuesRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSFontFeatureValuesRule, CSSRule);
+    WEB_WRAPPABLE(CSSFontFeatureValuesRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFontFeatureValuesRule);
 
 public:
@@ -43,9 +43,7 @@ public:
 
 private:
     CSSFontFeatureValuesRule(JS::Realm&, Vector<FlyString> font_families);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<FlyString> m_font_families;
     GC::Ref<CSSFontFeatureValuesMap> m_annotation;

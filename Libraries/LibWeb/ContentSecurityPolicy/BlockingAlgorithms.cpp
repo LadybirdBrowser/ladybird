@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
@@ -17,11 +18,12 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
@@ -171,7 +173,7 @@ Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::
     auto& global = request->client()->global_object();
 
     // 9. If global is not a Window nor a WorkerGlobalScope, return "Allowed".
-    if (!is<HTML::Window>(global) && !is<HTML::WorkerGlobalScope>(global))
+    if (!HTML::window_or_worker_global_scope_from_global_object(global))
         return Directives::Directive::Result::Allowed;
 
     // 10. Let block be a boolean, initially false.
@@ -479,12 +481,13 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
         auto const compilation_sink = compilation_type == JS::CompilationType::Function ? TrustedTypes::InjectionSink::Function : TrustedTypes::InjectionSink::Eval;
 
         // 2. Let isTrusted be true if bodyArg implements TrustedScript, and false otherwise.
-        auto is_trusted = body_arg.is<TrustedTypes::TrustedScript>();
+        auto* trusted_script_body = body_arg.is_object() ? Bindings::impl_from<TrustedTypes::TrustedScript>(&body_arg.as_object()) : nullptr;
+        auto is_trusted = !!trusted_script_body;
 
         // 3. If isTrusted is true then:
         if (is_trusted) {
             // 1. If bodyString is not equal to bodyArg’s data, set isTrusted to false.
-            if (body_string != as<TrustedTypes::TrustedScript>(body_arg.as_object()).to_string())
+            if (body_string != trusted_script_body->to_string())
                 is_trusted = false;
         }
 
@@ -499,7 +502,7 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
                 auto const& arg = parameter_args[i];
 
                 // 2. If arg implements TrustedScript, then:
-                if (auto trusted_script = arg.as_if<TrustedTypes::TrustedScript>()) {
+                if (auto* trusted_script = arg.is_object() ? Bindings::impl_from<TrustedTypes::TrustedScript>(&arg.as_object()) : nullptr) {
                     // 1. if parameterStrings[index] is not equal to arg’s data, set isTrusted to false.
                     if (parameter_strings[i] != trusted_script->to_string()) {
                         is_trusted = false;
@@ -721,7 +724,7 @@ Directives::Directive::Result is_base_allowed_for_document(JS::Realm& realm, URL
             // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and
             //    directive on document’s global object, policy, and "base-uri".
             auto base_uri_string = Directives::Names::BaseUri.to_string();
-            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, document->window(), policy, base_uri_string);
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, HTML::relevant_global_object(*document->window()), policy, base_uri_string);
 
             // 2. Set violation’s resource to "inline".
             violation->set_resource(Violation::Resource::Inline);

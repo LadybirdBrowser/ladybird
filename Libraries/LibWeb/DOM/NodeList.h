@@ -7,14 +7,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/NodeList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#nodelist
-class WEB_API NodeList : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NodeList, Bindings::PlatformObject);
+class WEB_API NodeList : public Bindings::Wrappable {
+    WEB_WRAPPABLE(NodeList, Bindings::Wrappable);
 
 public:
     virtual ~NodeList() override;
@@ -22,12 +23,10 @@ public:
     virtual u32 length() const = 0;
     virtual Node const* item(u32 index) const = 0;
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
 protected:
     explicit NodeList(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

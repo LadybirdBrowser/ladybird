@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MouseEvent.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -52,13 +51,7 @@ MouseEvent::MouseEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
 
 MouseEvent::~MouseEvent() = default;
 
-void MouseEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MouseEvent);
-    Base::initialize(realm);
-}
-
-void MouseEvent::visit_edges(Cell::Visitor& visitor)
+void MouseEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_related_target);

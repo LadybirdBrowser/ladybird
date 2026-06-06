@@ -14,13 +14,13 @@
 namespace Web::CSS {
 
 StyleSheet::StyleSheet(JS::Realm& realm, MediaList& media)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_media(media)
 {
     m_media->set_associated_style_sheet(*this);
 }
 
-void StyleSheet::visit_edges(Cell::Visitor& visitor)
+void StyleSheet::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_owner_node);

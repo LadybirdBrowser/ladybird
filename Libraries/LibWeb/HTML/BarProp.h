@@ -7,15 +7,16 @@
 #pragma once
 
 #include <LibGC/CellAllocator.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/BarProp.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#barprop
-class BarProp : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(BarProp, Bindings::PlatformObject);
+class BarProp : public Bindings::Wrappable {
+    WEB_WRAPPABLE(BarProp, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(BarProp);
 
 public:
@@ -23,9 +24,6 @@ public:
     static GC::Ref<BarProp> create(JS::Realm&);
 
     [[nodiscard]] bool visible() const;
-
-private:
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

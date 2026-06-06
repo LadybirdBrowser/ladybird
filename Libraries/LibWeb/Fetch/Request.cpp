@@ -6,7 +6,6 @@
 
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Request.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -43,20 +42,14 @@ static bool is_empty(Bindings::RequestInit const& request_init)
 GC_DEFINE_ALLOCATOR(Request);
 
 Request::Request(JS::Realm& realm, GC::Ref<Infrastructure::Request> request)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_request(request)
 {
 }
 
 Request::~Request() = default;
 
-void Request::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Request);
-    Base::initialize(realm);
-}
-
-void Request::visit_edges(Cell::Visitor& visitor)
+void Request::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_request);

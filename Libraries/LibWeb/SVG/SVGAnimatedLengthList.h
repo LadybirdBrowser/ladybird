@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SVGAnimatedLengthList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGLengthList.h>
 
 namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedLengthList
-class SVGAnimatedLengthList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGAnimatedLengthList, Bindings::PlatformObject);
+class SVGAnimatedLengthList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGAnimatedLengthList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGAnimatedLengthList);
 
 public:
@@ -29,7 +30,6 @@ public:
 private:
     SVGAnimatedLengthList(JS::Realm&, GC::Ref<SVGLengthList>);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<SVGLengthList> m_base_val;

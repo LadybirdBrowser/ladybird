@@ -6,13 +6,12 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::CSS {
 
 class FontFaceSetLoadEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(FontFaceSetLoadEvent, DOM::Event);
+    WEB_WRAPPABLE(FontFaceSetLoadEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(FontFaceSetLoadEvent);
 
 public:
@@ -26,7 +25,6 @@ public:
 private:
     FontFaceSetLoadEvent(JS::Realm&, FlyString const& type, Bindings::FontFaceSetLoadEventInit const&);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     Vector<GC::Ref<FontFace>> m_fontfaces;

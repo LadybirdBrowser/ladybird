@@ -14,6 +14,7 @@
 #include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch {
@@ -47,8 +48,8 @@ public:
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const = 0;
     virtual GC::Ptr<Infrastructure::Body> body_impl() = 0;
     virtual GC::Ptr<Infrastructure::Body const> body_impl() const = 0;
-    virtual Bindings::PlatformObject& as_platform_object() = 0;
-    virtual Bindings::PlatformObject const& as_platform_object() const = 0;
+    virtual Bindings::Wrappable& as_wrappable() = 0;
+    virtual Bindings::Wrappable const& as_wrappable() const = 0;
 
     [[nodiscard]] bool is_unusable() const;
     [[nodiscard]] GC::Ptr<Streams::ReadableStream> body() const;

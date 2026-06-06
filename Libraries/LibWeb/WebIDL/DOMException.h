@@ -9,8 +9,8 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibJS/Runtime/ErrorData.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -94,10 +94,10 @@ static u16 get_legacy_code_for_name(FlyString const& name)
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
 class WEB_API DOMException
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public JS::ErrorData
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(DOMException, Bindings::PlatformObject);
+    WEB_WRAPPABLE(DOMException, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMException);
 
 public:
@@ -121,12 +121,7 @@ protected:
     DOMException(JS::Realm&, FlyString name, Utf16String const& message);
     explicit DOMException(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
-
-private:
-    virtual ErrorData* error_data() final { return this; }
-    virtual ErrorData const* error_data() const final { return this; }
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     FlyString m_name;
     Utf16FlyString m_message;
@@ -147,10 +142,7 @@ ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 
 namespace Web {
 
-inline JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception)
-{
-    return JS::throw_completion(JS::Value(exception));
-}
+WEB_API JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception);
 
 }
 

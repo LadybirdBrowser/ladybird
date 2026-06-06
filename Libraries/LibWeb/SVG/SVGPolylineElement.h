@@ -11,7 +11,7 @@
 namespace Web::SVG {
 
 class SVGPolylineElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGPolylineElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGPolylineElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGPolylineElement);
 
 public:

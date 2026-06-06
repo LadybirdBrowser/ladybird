@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/QuotaExceededError.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
@@ -21,12 +20,6 @@ QuotaExceededError::QuotaExceededError(JS::Realm& realm)
 QuotaExceededError::QuotaExceededError(JS::Realm& realm, Utf16String const& message)
     : DOMException(realm, "QuotaExceededError"_fly_string, message)
 {
-}
-
-void QuotaExceededError::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(QuotaExceededError);
-    Base::initialize(realm);
 }
 
 GC::Ref<QuotaExceededError> QuotaExceededError::create(JS::Realm& realm)

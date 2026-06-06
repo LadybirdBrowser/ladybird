@@ -94,13 +94,7 @@ PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, Bindings::Po
 
 PointerEvent::~PointerEvent() = default;
 
-void PointerEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PointerEvent);
-    Base::initialize(realm);
-}
-
-void PointerEvent::visit_edges(Cell::Visitor& visitor)
+void PointerEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_coalesced_events);

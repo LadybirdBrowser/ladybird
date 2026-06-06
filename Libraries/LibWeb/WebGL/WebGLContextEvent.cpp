@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 
@@ -29,11 +28,5 @@ WebGLContextEvent::WebGLContextEvent(JS::Realm& realm, FlyString const& type, Bi
 }
 
 WebGLContextEvent::~WebGLContextEvent() = default;
-
-void WebGLContextEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLContextEvent);
-    Base::initialize(realm);
-}
 
 }

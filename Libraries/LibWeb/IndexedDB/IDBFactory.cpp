@@ -8,8 +8,8 @@
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/Bindings/IDBFactory.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -26,17 +26,11 @@ namespace Web::IndexedDB {
 GC_DEFINE_ALLOCATOR(IDBFactory);
 
 IDBFactory::IDBFactory(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 IDBFactory::~IDBFactory() = default;
-
-void IDBFactory::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBFactory);
-    Base::initialize(realm);
-}
 
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-open
 WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& name, Optional<u64> version)
@@ -85,7 +79,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& na
                 request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
             } else {
                 // 1. Set request’s result to result.
-                request->set_result(result.release_value());
+                request->set_result(Bindings::wrap(realm, result.release_value()));
 
                 // 2. Set request’s done flag to true.
                 request->set_done(true);

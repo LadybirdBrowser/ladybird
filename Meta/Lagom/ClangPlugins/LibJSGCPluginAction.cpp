@@ -775,6 +775,9 @@ static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRe
             if (base_name == "Web::Bindings::PlatformObject")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::WebPlatformObject };
 
+            if (base_name == "Web::Bindings::Wrappable")
+                return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::WebWrappable };
+
             if (auto origin = find_cell_type_with_origin(*base_record))
                 return CellTypeWithOrigin { *base_record, origin->type };
         }
@@ -929,6 +932,8 @@ char const* LibJSCellMacro::type_name(Type type)
         return "JS_PROTOTYPE_OBJECT";
     case Type::WebPlatformObject:
         return "WEB_PLATFORM_OBJECT";
+    case Type::WebWrappable:
+        return "WEB_WRAPPABLE";
     default:
         __builtin_unreachable();
     }
@@ -955,6 +960,8 @@ void LibJSPPCallbacks::MacroExpands(clang::Token const& name_token, clang::Macro
             { "JS_PROTOTYPE_OBJECT", LibJSCellMacro::Type::JSPrototypeObject },
             { "WEB_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
             { "WEB_NON_IDL_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
+            { "WEB_WRAPPABLE", LibJSCellMacro::Type::WebWrappable },
+            { "WEB_NON_IDL_WRAPPABLE", LibJSCellMacro::Type::WebWrappable },
         };
 
         auto name = ident_info->getName();

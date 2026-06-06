@@ -9,8 +9,9 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Navigator.h>
+#include <LibWeb/Bindings/XRSystem.h>
+#include <LibWeb/Bindings/XRTest.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/CredentialManagement/CredentialsContainer.h>
 #include <LibWeb/Geolocation/Geolocation.h>
@@ -35,25 +36,19 @@ GC::Ref<Navigator> Navigator::create(JS::Realm& realm)
 }
 
 Navigator::Navigator(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
+    NavigatorGamepadPartial::check_for_connected_gamepads();
 }
 
 Navigator::~Navigator() = default;
-
-void Navigator::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Navigator);
-    Base::initialize(realm);
-    NavigatorGamepadPartial::check_for_connected_gamepads();
-}
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-pdfviewerenabled
 bool Navigator::pdf_viewer_enabled() const
 {
     // The NavigatorPlugins mixin's pdfViewerEnabled getter steps are to return the user agent's PDF viewer supported.
     // NOTE: The NavigatorPlugins mixin should only be exposed on the Window object.
-    auto const& window = as<HTML::Window>(HTML::current_global_object());
+    auto const& window = HTML::current_window();
     return window.page().pdf_viewer_supported();
 }
 
@@ -63,11 +58,11 @@ bool Navigator::webdriver() const
     // Returns true if webdriver-active flag is set, false otherwise.
 
     // NOTE: The NavigatorAutomationInformation interface should not be exposed on WorkerNavigator.
-    auto const& window = as<HTML::Window>(HTML::current_global_object());
+    auto const& window = HTML::current_window();
     return window.page().is_webdriver_active();
 }
 
-void Navigator::visit_edges(Cell::Visitor& visitor)
+void Navigator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     NavigatorGamepadPartial::visit_edges(visitor);
@@ -141,7 +136,7 @@ GC::Ref<WebXR::XRSystem> Navigator::xr()
         auto& realm = this->realm();
         m_xr = realm.create<WebXR::XRSystem>(realm);
         if (Window::is_internals_object_exposed())
-            m_xr->define_direct_property("test"_utf16_fly_string, realm.create<Internals::XRTest>(realm), JS::default_attributes);
+            Bindings::wrap(realm, m_xr)->define_direct_property("test"_utf16_fly_string, Bindings::wrap(realm, realm.create<Internals::XRTest>(realm)), JS::default_attributes);
     }
     return *m_xr;
 }

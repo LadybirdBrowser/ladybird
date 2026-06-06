@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StorageEvent.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
@@ -59,12 +58,6 @@ StorageEvent::StorageEvent(JS::Realm& realm, FlyString const& event_name, Bindin
     , m_url(event_init.url)
     , m_storage_area(event_init.storage_area)
 {
-}
-
-void StorageEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StorageEvent);
-    Base::initialize(realm);
 }
 
 void StorageEvent::visit_edges(Visitor& visitor)

@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextElement
 class SVGTextElement : public SVGTextPositioningElement {
-    WEB_PLATFORM_OBJECT(SVGTextElement, SVGTextPositioningElement);
+    WEB_WRAPPABLE(SVGTextElement, SVGTextPositioningElement);
     GC_DECLARE_ALLOCATOR(SVGTextElement);
 
 public:

@@ -19,7 +19,7 @@ namespace Web::HTML {
 class SharedWorker final
     : public DOM::EventTarget
     , public HTML::AbstractWorker {
-    WEB_PLATFORM_OBJECT(SharedWorker, DOM::EventTarget);
+    WEB_WRAPPABLE(SharedWorker, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SharedWorker);
 
 public:

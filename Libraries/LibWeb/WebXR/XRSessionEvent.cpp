@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/XRSessionEvent.h>
 #include <LibWeb/WebXR/XRSession.h>
 #include <LibWeb/WebXR/XRSessionEvent.h>
@@ -30,13 +29,7 @@ XRSessionEvent::XRSessionEvent(JS::Realm& realm, FlyString const& type, Bindings
 {
 }
 
-void XRSessionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XRSessionEvent);
-    Base::initialize(realm);
-}
-
-void XRSessionEvent::visit_edges(Cell::Visitor& visitor)
+void XRSessionEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 

@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MessageChannel.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-channels
-class MessageChannel final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MessageChannel, Bindings::PlatformObject);
+class MessageChannel final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MessageChannel, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MessageChannel);
 
 public:
@@ -29,8 +30,7 @@ public:
 private:
     explicit MessageChannel(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<MessagePort> m_port1;
     GC::Ptr<MessagePort> m_port2;

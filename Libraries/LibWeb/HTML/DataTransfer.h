@@ -7,7 +7,8 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DataTransfer.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/DragDataStore.h>
 #include <LibWeb/WebIDL/CachedAttribute.h>
 
@@ -33,8 +34,8 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface
-class DataTransfer : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DataTransfer, Bindings::PlatformObject);
+class DataTransfer : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DataTransfer, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DataTransfer);
 
 public:
@@ -73,8 +74,7 @@ public:
 private:
     DataTransfer(JS::Realm&, NonnullRefPtr<DragDataStore>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void update_data_transfer_types_list();
 

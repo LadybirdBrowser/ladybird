@@ -32,7 +32,7 @@ struct StyleCache;
 
 // https://drafts.csswg.org/cssom-1/#cssstylesheet
 class WEB_API CSSStyleSheet final : public StyleSheet {
-    WEB_PLATFORM_OBJECT(CSSStyleSheet, StyleSheet);
+    WEB_WRAPPABLE(CSSStyleSheet, StyleSheet);
     GC_DECLARE_ALLOCATOR(CSSStyleSheet);
 
 public:
@@ -50,7 +50,7 @@ public:
 
         virtual GC::Ptr<CSSStyleSheet> parent_style_sheet_for_subresource() = 0;
         LoadingState loading_state() const { return m_loading_state; }
-        virtual void visit_edges(Cell::Visitor&) = 0;
+        virtual void visit_edges(GC::Cell::Visitor&) = 0;
 
         void set_loading_state(LoadingState);
 
@@ -133,8 +133,7 @@ public:
 private:
     CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<::URL::URL> location);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     void recalculate_rule_caches();

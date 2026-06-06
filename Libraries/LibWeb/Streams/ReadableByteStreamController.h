@@ -9,7 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/SinglyLinkedList.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
@@ -63,7 +63,7 @@ struct PullIntoDescriptor : public GC::Cell {
     ReaderType reader_type;
 
 protected:
-    virtual void visit_edges(Cell::Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     PullIntoDescriptor(
@@ -105,8 +105,8 @@ struct ReadableByteStreamQueueEntry {
 };
 
 // https://streams.spec.whatwg.org/#readablebytestreamcontroller
-class ReadableByteStreamController : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ReadableByteStreamController, Bindings::PlatformObject);
+class ReadableByteStreamController : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ReadableByteStreamController, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableByteStreamController);
 
 public:
@@ -169,9 +169,7 @@ public:
 private:
     explicit ReadableByteStreamController(JS::Realm&);
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#readablebytestreamcontroller-autoallocatechunksize
     // A positive integer, when the automatic buffer allocation feature is enabled. In that case, this value specifies the size of buffer to allocate. It is undefined otherwise.

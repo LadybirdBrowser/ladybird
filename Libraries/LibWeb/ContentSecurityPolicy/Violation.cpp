@@ -46,8 +46,9 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
     // SPEC ISSUE 1:  Is this kind of thing specified anywhere? I didn’t see anything that looked useful in [ECMA262].
 
     // 3. If global is a Window object, set violation’s referrer to global’s document's referrer.
-    if (auto* window = as_if<HTML::Window>(global_object.ptr())) {
-        violation->m_referrer = URL::Parser::basic_parse(window->associated_document().referrer());
+    if (auto* global = global_object.ptr()) {
+        if (auto* window = HTML::window_from_global_object(*global))
+            violation->m_referrer = URL::Parser::basic_parse(window->associated_document().referrer());
     }
 
     // FIXME: 4. Set violation’s status to the HTTP status code for the resource associated with violation’s global object.
@@ -98,14 +99,14 @@ URL::URL Violation::url() const
         return URL::URL {};
     }
 
-    auto& universal_scope = as<HTML::UniversalGlobalScopeMixin>(*m_global_object);
-    auto& global = HTML::relevant_global_object(universal_scope.this_impl());
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(*m_global_object);
+    VERIFY(global_scope);
 
-    if (auto* window = as_if<HTML::Window>(global)) {
+    if (auto* window = as_if<HTML::Window>(global_scope->this_impl())) {
         return window->associated_document().url();
     }
 
-    if (auto* worker = as_if<HTML::WorkerGlobalScope>(global)) {
+    if (auto* worker = as_if<HTML::WorkerGlobalScope>(global_scope->this_impl())) {
         return worker->url();
     }
 
@@ -285,7 +286,7 @@ void Violation::report_a_violation(JS::Realm& realm)
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [this, global, target, &realm] {
         auto& vm = realm.vm();
 
-        GC::Ptr<JS::Object> target_as_object = target;
+        GC::Ptr<DOM::EventTarget> event_target = target;
 
         // 1. If target is not null, and global is a Window, and target’s shadow-including root is not global’s
         //    associated Document, set target to null.
@@ -293,29 +294,32 @@ void Violation::report_a_violation(JS::Realm& realm)
         //            If a violation is caused by an element which isn’t connected to that document, we’ll fire the
         //            event at the document rather than the element in order to ensure that the violation is visible
         //            to the document’s listeners.
-        if (target && is<HTML::Window>(global.ptr())) {
-            auto const& window = static_cast<HTML::Window const&>(*global.ptr());
-            if (&target->shadow_including_root() != &window.associated_document())
-                target_as_object = nullptr;
+        if (target && global) {
+            auto const* window = HTML::window_from_global_object(*global);
+            if (window && &target->shadow_including_root() != &window->associated_document())
+                event_target = nullptr;
         }
 
         // 2. If target is null:
-        if (!target_as_object) {
+        if (!event_target) {
             // 1. Set target to violation’s global object.
-            target_as_object = m_global_object;
+            if (global) {
+                event_target = [&]() -> GC::Ptr<DOM::EventTarget> {
+                    // 2. If target is a Window, set target to target’s associated Document.
+                    if (auto* window = HTML::window_from_global_object(*global))
+                        return window->associated_document();
 
-            // 2. If target is a Window, set target to target’s associated Document.
-            if (is<HTML::Window>(target_as_object.ptr())) {
-                auto& window = static_cast<HTML::Window&>(*target_as_object.ptr());
-                target_as_object = window.associated_document();
+                    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(*global);
+                    if (!global_scope)
+                        return nullptr;
+                    return global_scope->this_impl();
+                }();
             }
         }
 
         // 3. If target implements EventTarget, fire an event named securitypolicyviolation that uses the
         //    SecurityPolicyViolationEvent interface at target with its attributes initialized as follows:
-        if (is<DOM::EventTarget>(target_as_object.ptr())) {
-            auto& event_target = static_cast<DOM::EventTarget&>(*target_as_object.ptr());
-
+        if (event_target) {
             Bindings::SecurityPolicyViolationEventInit event_init {};
 
             // bubbles
@@ -384,7 +388,7 @@ void Violation::report_a_violation(JS::Realm& realm)
 
             auto event = SecurityPolicyViolationEvent::create(realm, HTML::EventNames::securitypolicyviolation, event_init);
             event->set_is_trusted(true);
-            event_target.dispatch_event(event);
+            event_target->dispatch_event(event);
         }
 
         // 4. If violation’s policy’s directive set contains a directive named "report-uri" directive:

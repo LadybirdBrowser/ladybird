@@ -12,7 +12,7 @@
 namespace Web::WebGL {
 
 class WebGLSampler : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLSampler, WebGLObject);
+    WEB_WRAPPABLE(WebGLSampler, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLSampler);
 
 public:
@@ -22,8 +22,6 @@ public:
 
 protected:
     explicit WebGLSampler(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

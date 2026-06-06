@@ -5,8 +5,6 @@
  */
 
 #include "CSSNumericArray.h"
-#include <LibWeb/Bindings/CSSNumericArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 
 namespace Web::CSS {
@@ -19,23 +17,14 @@ GC::Ref<CSSNumericArray> CSSNumericArray::create(JS::Realm& realm, Vector<GC::Re
 }
 
 CSSNumericArray::CSSNumericArray(JS::Realm& realm, Vector<GC::Ref<CSSNumericValue>> values)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_values(move(values))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-    };
 }
 
 CSSNumericArray::~CSSNumericArray() = default;
 
-void CSSNumericArray::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSNumericArray);
-    Base::initialize(realm);
-}
-
-void CSSNumericArray::visit_edges(Visitor& visitor)
+void CSSNumericArray::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_values);
@@ -49,11 +38,11 @@ WebIDL::UnsignedLong CSSNumericArray::length() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericarray-indexed-property-getter
-Optional<JS::Value> CSSNumericArray::item_value(size_t index) const
+Optional<JS::Value> CSSNumericArray::item_value(JS::Realm& realm, size_t index) const
 {
     // The indexed property getter of CSSNumericArray retrieves the CSSNumericValue at the provided index.
     if (auto item = m_values.get(index); item.has_value())
-        return item.release_value();
+        return Bindings::wrap(realm, item.release_value());
     return {};
 }
 

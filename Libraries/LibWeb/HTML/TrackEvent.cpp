@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TrackEvent.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/TextTrack.h>
@@ -30,12 +29,6 @@ TrackEvent::TrackEvent(JS::Realm& realm, FlyString const& event_name, Bindings::
     : DOM::Event(realm, event_name, event_init)
     , m_track(event_init.track)
 {
-}
-
-void TrackEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TrackEvent);
-    Base::initialize(realm);
 }
 
 void TrackEvent::visit_edges(Visitor& visitor)

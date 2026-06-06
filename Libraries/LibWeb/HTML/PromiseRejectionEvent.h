@@ -16,7 +16,7 @@
 namespace Web::HTML {
 
 class PromiseRejectionEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(PromiseRejectionEvent, DOM::Event);
+    WEB_WRAPPABLE(PromiseRejectionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PromiseRejectionEvent);
 
 public:
@@ -32,8 +32,7 @@ public:
 private:
     PromiseRejectionEvent(JS::Realm&, FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<JS::Object> m_promise;
     JS::Value m_reason;

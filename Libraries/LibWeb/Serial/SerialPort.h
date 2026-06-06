@@ -25,7 +25,7 @@ enum SerialPortState : u8 {
 
 // https://wicg.github.io/serial/#serialport-interface
 class SerialPort : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(SerialPort, DOM::EventTarget);
+    WEB_WRAPPABLE(SerialPort, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SerialPort);
 
     // https://wicg.github.io/serial/#getinfo-method

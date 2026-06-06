@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -185,7 +186,7 @@ void HTMLScriptElement::execute_script()
         HTML::TemporaryExecutionContext execution_context { realm() };
 
         // 1. Register an import map given el's relevant global object and el's result.
-        m_result.get<GC::Ref<ImportMapParseResult>>()->register_import_map(as<Window>(relevant_global_object(*this)));
+        m_result.get<GC::Ref<ImportMapParseResult>>()->register_import_map(relevant_window(*this));
     }
 
     // 7. Decrement the ignore-destructive-writes counter of document, if it was incremented in the earlier step.

@@ -16,7 +16,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextContentElement
 class SVGTextContentElement : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGTextContentElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGTextContentElement, SVGGraphicsElement);
 
 public:
     WebIDL::ExceptionOr<WebIDL::Long> get_number_of_chars() const;

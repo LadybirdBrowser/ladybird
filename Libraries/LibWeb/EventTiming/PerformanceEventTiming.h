@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/PerformanceEventTiming.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 
@@ -14,7 +14,7 @@ namespace Web::EventTiming {
 
 // https://www.w3.org/TR/event-timing/#sec-performance-event-timing
 class PerformanceEventTiming final : public PerformanceTimeline::PerformanceEntry {
-    WEB_PLATFORM_OBJECT(PerformanceEventTiming, PerformanceTimeline::PerformanceEntry);
+    WEB_WRAPPABLE(PerformanceEventTiming, PerformanceTimeline::PerformanceEntry);
     GC_DECLARE_ALLOCATOR(PerformanceEventTiming);
 
 public:
@@ -57,11 +57,10 @@ private:
     unsigned long long m_interaction_id;
 
     static WebIDL::ExceptionOr<GC::Ref<PerformanceEventTiming>> construct_impl(DOM::Event const&, HighResolutionTime::DOMHighResTimeStamp, unsigned long long);
-    virtual void initialize(JS::Realm&) override;
 
     PerformanceTimeline::ShouldAddEntry should_add_performance_event_timing() const;
 
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // FIXME: remaining algorithms described in this spec:
     // https://www.w3.org/TR/event-timing/#sec-increasing-interaction-count

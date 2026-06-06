@@ -12,7 +12,7 @@
 namespace Web::Gamepad {
 
 class GamepadEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(GamepadEvent, DOM::Event);
+    WEB_WRAPPABLE(GamepadEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(GamepadEvent);
 
 public:
@@ -24,8 +24,7 @@ public:
 
 private:
     GamepadEvent(JS::Realm&, FlyString const& event_name, Bindings::GamepadEventInit const& event_init);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<Gamepad> m_gamepad;
 };

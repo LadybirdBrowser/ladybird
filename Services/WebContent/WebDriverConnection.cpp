@@ -26,6 +26,7 @@
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -1377,7 +1378,8 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
         // 5. Let property be the result of calling the Object.[[GetProperty]](name) on element.
         Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
 
-        if (auto property_or_error = element->get(Utf16FlyString::from_utf8(name)); !property_or_error.is_throw_completion()) {
+        auto wrapped_element = Web::Bindings::wrap(current_browsing_context().active_document()->realm(), element);
+        if (auto property_or_error = wrapped_element->get(Utf16FlyString::from_utf8(name)); !property_or_error.is_throw_completion()) {
             auto property = property_or_error.release_value();
 
             // 6. Let result be the value of property if not undefined, or null.
@@ -2818,7 +2820,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
 
     // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
     //    navigation to mature.
-    m_navigation_observer = realm.create<Web::HTML::NavigationObserver>(realm, *navigable);
+    m_navigation_observer = realm.create<Web::HTML::NavigationObserver>(*navigable);
 
     m_navigation_observer->set_navigation_complete([this, &realm, reset_observers]() {
         reset_observers(*this);

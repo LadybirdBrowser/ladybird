@@ -6,10 +6,9 @@
  */
 
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/DOMMatrix.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -33,7 +32,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(JS::Realm& rea
     // -> If init is a DOMString
     if (init_value.has<String>()) {
         // 1. If current global object is not a Window object, then throw a TypeError exception.
-        if (!is<HTML::Window>(realm.global_object()))
+        if (!HTML::window_from_global_object(realm.global_object()))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "This can only be used in a Window context"_string };
 
         // 2. Parse init into an abstract matrix, and let matrix and 2dTransform be the result. If the result is failure, then throw a "SyntaxError" DOMException.
@@ -145,12 +144,6 @@ DOMMatrix::DOMMatrix(JS::Realm& realm)
 }
 
 DOMMatrix::~DOMMatrix() = default;
-
-void DOMMatrix::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMMatrix);
-    Base::initialize(realm);
-}
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-frommatrix
 WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, Bindings::DOMMatrixInit other)

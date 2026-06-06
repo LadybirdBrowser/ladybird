@@ -54,7 +54,7 @@ void ReadableStreamAsyncIterator::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void ReadableStreamAsyncIterator::visit_edges(JS::Cell::Visitor& visitor)
+void ReadableStreamAsyncIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_reader);

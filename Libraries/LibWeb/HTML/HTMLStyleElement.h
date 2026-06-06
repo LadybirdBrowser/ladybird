@@ -15,7 +15,7 @@ namespace Web::HTML {
 class HTMLStyleElement final
     : public HTMLElement
     , public DOM::StyleElementBase {
-    WEB_PLATFORM_OBJECT(HTMLStyleElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLStyleElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLStyleElement);
 
 public:

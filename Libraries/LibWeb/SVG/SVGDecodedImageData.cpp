@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -68,8 +69,8 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     navigable->set_ongoing_navigation({});
     navigable->active_document()->destroy();
     navigable->set_active_document(document);
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
-    document->browsing_context()->window_proxy()->set_window(window);
+    auto& window = HTML::relevant_window(document);
+    document->browsing_context()->window_proxy()->set_window(GC::Ref { window });
 
     XML::Parser parser(data, { .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { document, XMLScriptingSupport::Disabled };

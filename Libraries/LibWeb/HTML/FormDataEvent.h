@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class FormDataEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(FormDataEvent, DOM::Event);
+    WEB_WRAPPABLE(FormDataEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(FormDataEvent);
 
 public:
@@ -26,9 +26,7 @@ public:
 private:
     FormDataEvent(JS::Realm&, FlyString const& event_name, Bindings::FormDataEventInit const& event_init);
 
-    void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<XHR::FormData> m_form_data;
 };

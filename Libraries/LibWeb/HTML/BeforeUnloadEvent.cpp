@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/BeforeUnloadEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/BeforeUnloadEvent.h>
 
 namespace Web::HTML {
@@ -25,11 +24,5 @@ BeforeUnloadEvent::BeforeUnloadEvent(JS::Realm& realm, FlyString const& event_na
 }
 
 BeforeUnloadEvent::~BeforeUnloadEvent() = default;
-
-void BeforeUnloadEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(BeforeUnloadEvent);
-    Base::initialize(realm);
-}
 
 }

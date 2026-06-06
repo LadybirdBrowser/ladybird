@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaQueryListEvent.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 
@@ -32,11 +31,5 @@ MediaQueryListEvent::MediaQueryListEvent(JS::Realm& realm, FlyString const& even
 }
 
 MediaQueryListEvent::~MediaQueryListEvent() = default;
-
-void MediaQueryListEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaQueryListEvent);
-    Base::initialize(realm);
-}
 
 }

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/OfflineAudioCompletionEvent.h>
 #include <LibWeb/WebAudio/OfflineAudioCompletionEvent.h>
 
@@ -25,13 +24,7 @@ OfflineAudioCompletionEvent::OfflineAudioCompletionEvent(JS::Realm& realm, FlySt
 
 OfflineAudioCompletionEvent::~OfflineAudioCompletionEvent() = default;
 
-void OfflineAudioCompletionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OfflineAudioCompletionEvent);
-    Base::initialize(realm);
-}
-
-void OfflineAudioCompletionEvent::visit_edges(Cell::Visitor& visitor)
+void OfflineAudioCompletionEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rendered_buffer);

@@ -14,7 +14,7 @@ namespace Web::CookieStore {
 
 // https://cookiestore.spec.whatwg.org/#cookiechangeevent
 class CookieChangeEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(CookieChangeEvent, DOM::Event);
+    WEB_WRAPPABLE(CookieChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CookieChangeEvent);
 
 public:
@@ -32,8 +32,7 @@ public:
 private:
     CookieChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::CookieChangeEventInit const& event_init);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<Bindings::CookieListItem> m_changed;
     Vector<Bindings::CookieListItem> m_deleted;

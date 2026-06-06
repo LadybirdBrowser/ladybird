@@ -15,7 +15,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-cascade-6/#the-cssscoperule-interface
 class CSSScopeRule final : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSScopeRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSScopeRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSScopeRule);
 
 public:
@@ -34,9 +34,7 @@ public:
 
 private:
     CSSScopeRule(JS::Realm&, Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

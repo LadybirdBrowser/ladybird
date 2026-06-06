@@ -12,14 +12,13 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(DocumentObserver);
 
-DocumentObserver::DocumentObserver(JS::Realm& realm, Document& document)
-    : Bindings::PlatformObject(realm)
-    , m_document(document)
+DocumentObserver::DocumentObserver(JS::Realm&, Document& document)
+    : m_document(document)
 {
     m_document->register_document_observer({}, *this);
 }
 
-void DocumentObserver::visit_edges(Cell::Visitor& visitor)
+void DocumentObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
@@ -48,7 +47,7 @@ void DocumentObserver::set_document(GC::Ref<Document> document)
 void DocumentObserver::set_document_became_active(Function<void()> callback)
 {
     if (callback)
-        m_document_became_active = GC::create_function(vm().heap(), move(callback));
+        m_document_became_active = GC::create_function(m_document->realm().heap(), move(callback));
     else
         m_document_became_active = nullptr;
 }
@@ -56,7 +55,7 @@ void DocumentObserver::set_document_became_active(Function<void()> callback)
 void DocumentObserver::set_document_became_inactive(Function<void()> callback)
 {
     if (callback)
-        m_document_became_inactive = GC::create_function(vm().heap(), move(callback));
+        m_document_became_inactive = GC::create_function(m_document->realm().heap(), move(callback));
     else
         m_document_became_inactive = nullptr;
 }
@@ -64,7 +63,7 @@ void DocumentObserver::set_document_became_inactive(Function<void()> callback)
 void DocumentObserver::set_document_completely_loaded(Function<void()> callback)
 {
     if (callback)
-        m_document_completely_loaded = GC::create_function(vm().heap(), move(callback));
+        m_document_completely_loaded = GC::create_function(m_document->realm().heap(), move(callback));
     else
         m_document_completely_loaded = nullptr;
 }
@@ -72,7 +71,7 @@ void DocumentObserver::set_document_completely_loaded(Function<void()> callback)
 void DocumentObserver::set_document_readiness_observer(Function<void(HTML::DocumentReadyState)> callback)
 {
     if (callback)
-        m_document_readiness_observer = GC::create_function(vm().heap(), move(callback));
+        m_document_readiness_observer = GC::create_function(m_document->realm().heap(), move(callback));
     else
         m_document_readiness_observer = nullptr;
 }
@@ -80,7 +79,7 @@ void DocumentObserver::set_document_readiness_observer(Function<void(HTML::Docum
 void DocumentObserver::set_document_visibility_state_observer(Function<void(HTML::VisibilityState)> callback)
 {
     if (callback)
-        m_document_visibility_state_observer = GC::create_function(vm().heap(), move(callback));
+        m_document_visibility_state_observer = GC::create_function(m_document->realm().heap(), move(callback));
     else
         m_document_visibility_state_observer = nullptr;
 }
@@ -88,7 +87,7 @@ void DocumentObserver::set_document_visibility_state_observer(Function<void(HTML
 void DocumentObserver::set_document_page_showing_observer(Function<void(bool)> callback)
 {
     if (callback)
-        m_document_page_showing_observer = GC::create_function(vm().heap(), move(callback));
+        m_document_page_showing_observer = GC::create_function(m_document->realm().heap(), move(callback));
     else
         m_document_page_showing_observer = nullptr;
 }

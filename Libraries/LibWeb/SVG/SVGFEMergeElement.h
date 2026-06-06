@@ -15,7 +15,7 @@ namespace Web::SVG {
 class SVGFEMergeElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEMergeElement> {
-    WEB_PLATFORM_OBJECT(SVGFEMergeElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEMergeElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEMergeElement);
 
 public:

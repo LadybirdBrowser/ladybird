@@ -7,7 +7,6 @@
 
 #include <AK/StringBuilder.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSMathMax.h>
 #include <LibWeb/CSS/CSSMathMin.h>
@@ -55,12 +54,6 @@ CSSNumericValue::CSSNumericValue(JS::Realm& realm, NumericType type)
     : CSSStyleValue(realm)
     , m_type(move(type))
 {
-}
-
-void CSSNumericValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSNumericValue);
-    Base::initialize(realm);
 }
 
 static bool all_values_are_css_unit_values_with_the_same_unit(ReadonlySpan<GC::Ref<CSSNumericValue>> const& values)

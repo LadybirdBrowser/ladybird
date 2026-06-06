@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLTransformFeedback.h>
 #include <LibWeb/WebGL/WebGLTransformFeedback.h>
 
@@ -24,11 +23,5 @@ WebGLTransformFeedback::WebGLTransformFeedback(JS::Realm& realm, GC::Ref<WebGLRe
 }
 
 WebGLTransformFeedback::~WebGLTransformFeedback() = default;
-
-void WebGLTransformFeedback::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLTransformFeedback);
-    Base::initialize(realm);
-}
 
 }

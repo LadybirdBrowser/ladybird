@@ -8,15 +8,15 @@
 #pragma once
 
 #include <LibWeb/Bindings/History.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
-class History final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(History, Bindings::PlatformObject);
+class History final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(History, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(History);
 
 public:
@@ -43,8 +43,7 @@ public:
 private:
     History(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     WebIDL::ExceptionOr<void> delta_traverse(WebIDL::Long delta);
 
     WebIDL::ExceptionOr<void> shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior);

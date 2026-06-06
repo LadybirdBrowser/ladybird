@@ -21,7 +21,7 @@ namespace Web::HTML {
 class WEB_API HTMLSelectElement final
     : public HTMLElement
     , public AutocompleteElement {
-    WEB_PLATFORM_OBJECT(HTMLSelectElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLSelectElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSelectElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLSelectElement);
 
@@ -40,7 +40,7 @@ public:
     WebIDL::UnsignedLong length();
     WebIDL::ExceptionOr<void> set_length(WebIDL::UnsignedLong);
     HTMLOptionElement* item(WebIDL::UnsignedLong index);
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
     HTMLOptionElement* named_item(FlyString const& name);
     WebIDL::ExceptionOr<void> add(HTMLOptionOrOptGroupElement element, NullableHTMLElementOrElementIndex before = { Empty {} });
     virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value) override;

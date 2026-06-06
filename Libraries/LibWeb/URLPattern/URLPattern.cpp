@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/URLPattern.h>
 #include <LibWeb/URLPattern/URLPattern.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -87,18 +85,12 @@ static Bindings::URLPatternResult to_bindings_url_pattern_result(URL::RustIntegr
 }
 
 URLPattern::URLPattern(JS::Realm& realm, URL::RustIntegration::URLPattern pattern)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_url_pattern(move(pattern))
 {
 }
 
 URLPattern::~URLPattern() = default;
-
-void URLPattern::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(URLPattern);
-    Base::initialize(realm);
-}
 
 // https://urlpattern.spec.whatwg.org/#dom-urlpattern-urlpattern
 WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& realm, URLPatternInput const& input, String const& base_url, URLPatternOptions const& options)

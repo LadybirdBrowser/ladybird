@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class HTMLHeadingElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLHeadingElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLHeadingElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLHeadingElement);
 
 public:

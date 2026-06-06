@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaDeviceInfo.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/MediaCapture/MediaDeviceInfo.h>
 
 namespace Web::MediaCapture {
@@ -22,7 +21,7 @@ GC::Ref<MediaDeviceInfo> MediaDeviceInfo::create(JS::Realm& realm, String device
 }
 
 MediaDeviceInfo::MediaDeviceInfo(JS::Realm& realm, String device_id, Bindings::MediaDeviceKind kind, String label, String group_id)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , m_device_id(move(device_id))
     , m_kind(kind)
     , m_label(move(label))
@@ -31,11 +30,5 @@ MediaDeviceInfo::MediaDeviceInfo(JS::Realm& realm, String device_id, Bindings::M
 }
 
 MediaDeviceInfo::~MediaDeviceInfo() = default;
-
-void MediaDeviceInfo::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaDeviceInfo);
-    Base::initialize(realm);
-}
 
 }

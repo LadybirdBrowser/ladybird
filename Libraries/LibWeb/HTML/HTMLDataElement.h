@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLDataElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLDataElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLDataElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLDataElement);
 
 public:

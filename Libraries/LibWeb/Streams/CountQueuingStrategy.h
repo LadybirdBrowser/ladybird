@@ -8,15 +8,16 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/CountQueuingStrategy.h>
 #include <LibWeb/Bindings/QueuingStrategyInit.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#countqueuingstrategy
-class CountQueuingStrategy final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CountQueuingStrategy, Bindings::PlatformObject);
+class CountQueuingStrategy final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CountQueuingStrategy, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CountQueuingStrategy);
 
 public:
@@ -36,8 +37,6 @@ public:
 
 private:
     explicit CountQueuingStrategy(JS::Realm&, double high_water_mark);
-
-    virtual void initialize(JS::Realm&) override;
 
     // https://streams.spec.whatwg.org/#countqueuingstrategy-highwatermark
     double m_high_water_mark { 0 };

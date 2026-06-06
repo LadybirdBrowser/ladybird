@@ -6,7 +6,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLRenderbuffer.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
 
@@ -25,11 +24,5 @@ WebGLRenderbuffer::WebGLRenderbuffer(JS::Realm& realm, GC::Ref<WebGLRenderingCon
 }
 
 WebGLRenderbuffer::~WebGLRenderbuffer() = default;
-
-void WebGLRenderbuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderbuffer);
-    Base::initialize(realm);
-}
 
 }

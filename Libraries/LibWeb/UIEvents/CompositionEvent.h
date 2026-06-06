@@ -12,7 +12,7 @@
 namespace Web::UIEvents {
 
 class CompositionEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(CompositionEvent, UIEvent);
+    WEB_WRAPPABLE(CompositionEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(CompositionEvent);
 
 public:
@@ -28,8 +28,6 @@ public:
 
 private:
     CompositionEvent(JS::Realm&, FlyString const& event_name, Bindings::CompositionEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_data;
 };

@@ -12,7 +12,7 @@
 namespace Web::WebGL {
 
 class WebGLSync : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLSync, WebGLObject);
+    WEB_WRAPPABLE(WebGLSync, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLSync);
 
 public:
@@ -24,8 +24,6 @@ public:
 
 protected:
     explicit WebGLSync(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLsyncInternal handle);
-
-    virtual void initialize(JS::Realm&) override;
 
     GLsyncInternal m_sync_handle { nullptr };
 };

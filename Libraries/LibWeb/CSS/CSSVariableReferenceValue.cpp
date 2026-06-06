@@ -5,8 +5,6 @@
  */
 
 #include "CSSVariableReferenceValue.h"
-#include <LibWeb/Bindings/CSSVariableReferenceValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/HTML/CustomElements/CustomElementName.h>
@@ -33,7 +31,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValu
 }
 
 CSSVariableReferenceValue::CSSVariableReferenceValue(JS::Realm& realm, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_variable(move(variable))
     , m_fallback(move(fallback))
 {
@@ -41,13 +39,7 @@ CSSVariableReferenceValue::CSSVariableReferenceValue(JS::Realm& realm, FlyString
 
 CSSVariableReferenceValue::~CSSVariableReferenceValue() = default;
 
-void CSSVariableReferenceValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSVariableReferenceValue);
-    Base::initialize(realm);
-}
-
-void CSSVariableReferenceValue::visit_edges(Visitor& visitor)
+void CSSVariableReferenceValue::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_fallback);

@@ -5,10 +5,10 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/BarProp.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {
@@ -21,7 +21,7 @@ GC::Ref<BarProp> BarProp::create(JS::Realm& realm)
 }
 
 BarProp::BarProp(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
@@ -29,8 +29,7 @@ BarProp::BarProp(JS::Realm& realm)
 bool BarProp::visible() const
 {
     // 1. Let browsingContext be this's relevant global object's browsing context.
-    auto& global_object = HTML::relevant_global_object(*this);
-    auto browsing_context = as<HTML::Window>(global_object).associated_document().browsing_context();
+    auto browsing_context = relevant_window(*this).associated_document().browsing_context();
 
     // 2. If browsingContext is null, then return true.
     if (!browsing_context) {
@@ -42,12 +41,6 @@ bool BarProp::visible() const
     if (!top_level_browsing_context)
         return true;
     return top_level_browsing_context->is_popup() != TokenizedFeature::Popup::Yes;
-}
-
-void BarProp::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(BarProp);
-    Base::initialize(realm);
 }
 
 }

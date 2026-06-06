@@ -12,7 +12,7 @@
 namespace Web::DOM {
 
 class CDATASection final : public Text {
-    WEB_PLATFORM_OBJECT(CDATASection, Text);
+    WEB_WRAPPABLE(CDATASection, Text);
     GC_DECLARE_ALLOCATOR(CDATASection);
 
 public:

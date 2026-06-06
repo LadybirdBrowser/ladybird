@@ -12,7 +12,7 @@
 namespace Web::WebAudio {
 
 class OfflineAudioCompletionEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(OfflineAudioCompletionEvent, DOM::Event);
+    WEB_WRAPPABLE(OfflineAudioCompletionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(OfflineAudioCompletionEvent);
 
 public:
@@ -25,9 +25,7 @@ public:
 private:
     OfflineAudioCompletionEvent(JS::Realm&, FlyString const& event_name, Bindings::OfflineAudioCompletionEventInit const&);
 
-    void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ptr<AudioBuffer> m_rendered_buffer;
 };

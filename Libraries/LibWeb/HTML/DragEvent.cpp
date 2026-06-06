@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/DragEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/DragEvent.h>
 
 namespace Web::HTML {
@@ -30,13 +29,7 @@ DragEvent::DragEvent(JS::Realm& realm, FlyString const& event_name, Bindings::Dr
 
 DragEvent::~DragEvent() = default;
 
-void DragEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DragEvent);
-    Base::initialize(realm);
-}
-
-void DragEvent::visit_edges(JS::Cell::Visitor& visitor)
+void DragEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_data_transfer);

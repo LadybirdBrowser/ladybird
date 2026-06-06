@@ -7,8 +7,6 @@
  */
 
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibWeb/Bindings/CanvasPattern.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 
@@ -17,7 +15,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(CanvasPattern);
 
 CanvasPattern::CanvasPattern(JS::Realm& realm, Gfx::CanvasPatternPaintStyle& pattern)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_pattern(pattern)
 {
 }
@@ -68,12 +66,6 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& rea
 
     // 8. Return pattern.
     return pattern;
-}
-
-void CanvasPattern::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CanvasPattern);
-    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvaspattern-settransform

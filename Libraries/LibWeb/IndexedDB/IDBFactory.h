@@ -8,14 +8,14 @@
 #pragma once
 
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/IDBOpenDBRequest.h>
 
 namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#idbfactory
-class IDBFactory : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBFactory, Bindings::PlatformObject);
+class IDBFactory : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBFactory, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBFactory);
 
 public:
@@ -29,8 +29,6 @@ public:
 
 protected:
     explicit IDBFactory(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

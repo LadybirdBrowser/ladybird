@@ -6,7 +6,6 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/IDBVersionChangeEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
 
 namespace Web::IndexedDB {
@@ -26,11 +25,5 @@ IDBVersionChangeEvent::IDBVersionChangeEvent(JS::Realm& realm, FlyString const& 
 }
 
 IDBVersionChangeEvent::~IDBVersionChangeEvent() = default;
-
-void IDBVersionChangeEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBVersionChangeEvent);
-    Base::initialize(realm);
-}
 
 }

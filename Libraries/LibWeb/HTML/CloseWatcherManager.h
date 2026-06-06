@@ -6,14 +6,17 @@
 
 #pragma once
 
-#include <AK/Forward.h>
-#include <LibWeb/DOM/EventTarget.h>
+#include <AK/Vector.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Ptr.h>
+#include <LibJS/Forward.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-manager
-class CloseWatcherManager final : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(CloseWatcherManager, Bindings::PlatformObject);
+class CloseWatcherManager final : public GC::Cell {
+    GC_CELL(CloseWatcherManager, GC::Cell);
     GC_DECLARE_ALLOCATOR(CloseWatcherManager);
 
 public:
@@ -30,7 +33,7 @@ public:
 private:
     explicit CloseWatcherManager(JS::Realm&);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<Vector<GC::Ref<CloseWatcher>>> m_groups;
     uint32_t m_allowed_number_of_groups { 1 };

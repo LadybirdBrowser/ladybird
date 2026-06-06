@@ -87,6 +87,9 @@ static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << GC::TAG_SHIFT;
 // this is not needed.
 
 class JS_API Value : public GC::NanBoxedValue {
+    template<typename T>
+    static constexpr bool HasForbiddenDirectJSValueConversion = requires { typename RemoveCV<T>::JSValueConversionIsForbidden; };
+
 public:
     enum class PreferredType {
         Default,
@@ -267,6 +270,9 @@ public:
     {
     }
 
+    template<typename T>
+    requires(HasForbiddenDirectJSValueConversion<T>) Value(T*) = delete;
+
     Value(Cell const* cell)
         : Value(GC::IS_CELL_BIT << GC::TAG_SHIFT, reinterpret_cast<void const*>(cell))
     {
@@ -298,22 +304,31 @@ public:
     }
 
     template<typename T>
-    Value(GC::Ptr<T> ptr)
+    requires(!HasForbiddenDirectJSValueConversion<T>) Value(GC::Ptr<T> ptr)
         : Value(ptr.ptr())
     {
     }
 
     template<typename T>
-    Value(GC::Ref<T> ptr)
+    requires(HasForbiddenDirectJSValueConversion<T>) Value(GC::Ptr<T>) = delete;
+
+    template<typename T>
+    requires(!HasForbiddenDirectJSValueConversion<T>) Value(GC::Ref<T> ptr)
         : Value(ptr.ptr())
     {
     }
 
     template<typename T>
-    Value(GC::Root<T> const& ptr)
+    requires(HasForbiddenDirectJSValueConversion<T>) Value(GC::Ref<T>) = delete;
+
+    template<typename T>
+    requires(!HasForbiddenDirectJSValueConversion<T>) Value(GC::Root<T> const& ptr)
         : Value(ptr.ptr())
     {
     }
+
+    template<typename T>
+    requires(HasForbiddenDirectJSValueConversion<T>) Value(GC::Root<T> const&) = delete;
 
     Cell& as_cell()
     {

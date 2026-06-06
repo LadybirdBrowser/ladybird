@@ -5,9 +5,8 @@
  */
 
 #include <AK/Optional.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/IDBKeyRange.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 
@@ -18,7 +17,7 @@ GC_DEFINE_ALLOCATOR(IDBKeyRange);
 IDBKeyRange::~IDBKeyRange() = default;
 
 IDBKeyRange::IDBKeyRange(JS::Realm& realm, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_lower_bound(lower_bound)
     , m_upper_bound(upper_bound)
     , m_lower_open(lower_open == LowerOpen::Yes)
@@ -31,13 +30,7 @@ GC::Ref<IDBKeyRange> IDBKeyRange::create(JS::Realm& realm, GC::Ptr<Key> lower_bo
     return realm.create<IDBKeyRange>(realm, lower_bound, upper_bound, lower_open, upper_open);
 }
 
-void IDBKeyRange::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBKeyRange);
-    Base::initialize(realm);
-}
-
-void IDBKeyRange::visit_edges(Visitor& visitor)
+void IDBKeyRange::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_lower_bound);

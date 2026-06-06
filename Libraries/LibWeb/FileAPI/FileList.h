@@ -9,7 +9,7 @@
 
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -17,9 +17,9 @@
 namespace Web::FileAPI {
 
 class WEB_API FileList
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(FileList, Bindings::PlatformObject);
+    WEB_WRAPPABLE(FileList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(FileList);
 
 public:
@@ -44,7 +44,7 @@ public:
         return index < m_files.size() ? m_files[index].ptr() : nullptr;
     }
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
@@ -52,8 +52,7 @@ public:
 private:
     explicit FileList(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<GC::Ref<File>> m_files;
 };

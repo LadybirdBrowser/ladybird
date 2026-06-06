@@ -13,7 +13,7 @@ namespace Web::UserTiming {
 
 // https://w3c.github.io/user-timing/#dom-performancemark
 class PerformanceMark final : public PerformanceTimeline::PerformanceEntry {
-    WEB_PLATFORM_OBJECT(PerformanceMark, PerformanceTimeline::PerformanceEntry);
+    WEB_WRAPPABLE(PerformanceMark, PerformanceTimeline::PerformanceEntry);
     GC_DECLARE_ALLOCATOR(PerformanceMark);
 
 public:
@@ -41,8 +41,7 @@ public:
 private:
     PerformanceMark(JS::Realm&, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://w3c.github.io/user-timing/#dom-performancemark-detail
     JS::Value m_detail { JS::js_null() };

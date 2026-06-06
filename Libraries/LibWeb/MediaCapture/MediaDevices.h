@@ -25,7 +25,7 @@ class MediaDeviceInfo;
 
 // https://w3c.github.io/mediacapture-main/#mediadevices
 class MediaDevices final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaDevices, DOM::EventTarget);
+    WEB_WRAPPABLE(MediaDevices, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaDevices);
 
 public:

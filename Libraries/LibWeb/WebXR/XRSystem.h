@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/XRSystem.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -15,7 +14,7 @@ namespace Web::WebXR {
 
 // https://immersive-web.github.io/webxr/#xrsystem-interface
 class XRSystem final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(XRSystem, DOM::EventTarget);
+    WEB_WRAPPABLE(XRSystem, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(XRSystem);
 
 public:

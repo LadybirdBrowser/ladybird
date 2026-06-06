@@ -7,15 +7,16 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/FileReaderSync.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/FileAPI/FileReader.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::FileAPI {
 
 // https://w3c.github.io/FileAPI/#FileReaderSync
-class FileReaderSync : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FileReaderSync, Bindings::PlatformObject);
+class FileReaderSync : public Bindings::Wrappable {
+    WEB_WRAPPABLE(FileReaderSync, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(FileReaderSync);
 
 public:
@@ -34,8 +35,6 @@ private:
 
     template<typename Result>
     WebIDL::ExceptionOr<Result> read_as(Blob&, FileReader::Type, Optional<String> const& encoding = {});
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

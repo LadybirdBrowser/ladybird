@@ -7,7 +7,6 @@
 
 #include <AK/FlyString.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoder.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -49,31 +48,25 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
 TextDecoder::TextDecoder(JS::Realm& realm, TextCodec::Decoder& decoder, FlyString encoding, ErrorMode error_mode, bool ignore_bom)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , TextDecoderCommonMixin(decoder, move(encoding), error_mode, ignore_bom)
 {
 }
 
 TextDecoder::~TextDecoder() = default;
 
-void TextDecoder::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextDecoder);
-    Base::initialize(realm);
-}
-
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
 WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> input, Optional<Bindings::TextDecodeOptions> const&) const
 {
     if (!input.has_value())
-        return TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({}));
+        return TRY_OR_THROW_OOM(realm().vm(), m_decoder.to_utf8({}));
 
     // FIXME: Implement the streaming stuff.
     auto data_buffer_or_error = WebIDL::get_buffer_source_copy(*input);
     if (data_buffer_or_error.is_error())
         return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_utf16);
     auto& data_buffer = data_buffer_or_error.value();
-    auto result = TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }));
+    auto result = TRY_OR_THROW_OOM(realm().vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }));
     if (this->fatal() && result.contains(0xfffd))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
     return result;

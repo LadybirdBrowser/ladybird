@@ -5,13 +5,12 @@
  */
 
 #include <AK/QuickSort.h>
-#include <LibWeb/Bindings/IntersectionObserver.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
@@ -85,7 +84,7 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
 }
 
 IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_callback(callback)
     , m_root_margin(root_margin)
     , m_scroll_margin(scroll_margin)
@@ -109,13 +108,7 @@ void IntersectionObserver::finalize()
         m_document->unregister_intersection_observer({}, *this);
 }
 
-void IntersectionObserver::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IntersectionObserver);
-    Base::initialize(realm);
-}
-
-void IntersectionObserver::visit_edges(JS::Cell::Visitor& visitor)
+void IntersectionObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
@@ -265,7 +258,7 @@ GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
         return *m_root;
 
     // The implicit root is the top-level browsing context’s document node.
-    return *as<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document();
+    return *HTML::relevant_window(*this).page().top_level_browsing_context().active_document();
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle

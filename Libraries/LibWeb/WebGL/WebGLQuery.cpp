@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLQuery.h>
 #include <LibWeb/WebGL/WebGLQuery.h>
 
@@ -24,11 +23,5 @@ WebGLQuery::WebGLQuery(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> cont
 }
 
 WebGLQuery::~WebGLQuery() = default;
-
-void WebGLQuery::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLQuery);
-    Base::initialize(realm);
-}
 
 }

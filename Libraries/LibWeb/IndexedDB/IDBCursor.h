@@ -9,7 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/IDBCursor.h>
 #include <LibWeb/Bindings/IDBCursorWithValue.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/IDBObjectStore.h>
@@ -22,8 +22,8 @@ using CursorSourceHandle = Variant<GC::Ref<IDBObjectStore>, GC::Ref<IDBIndex>>;
 using CursorSource = Variant<GC::Ref<ObjectStore>, GC::Ref<Index>>;
 
 // https://w3c.github.io/IndexedDB/#cursor-interface
-class IDBCursor : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBCursor, Bindings::PlatformObject);
+class IDBCursor : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBCursor, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBCursor);
 
     enum class GotValue {
@@ -74,8 +74,7 @@ public:
 
 protected:
     explicit IDBCursor(JS::Realm&, CursorSourceHandle, GC::Ptr<Key>, Bindings::IDBCursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
     // A cursor has a value which represent the value of the last iterated record.
     Optional<JS::Value> m_value;

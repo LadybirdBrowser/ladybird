@@ -12,8 +12,10 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/QueuingStrategy.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
@@ -88,8 +90,9 @@ GC_DEFINE_ALLOCATOR(PromiseHolder);
 static void add_message_event_listener(JS::Realm& realm, HTML::MessagePort& port, FlyString const& name, Function<void(JS::VM&, HTML::MessageEvent const&)> handler)
 {
     auto behavior = [handler = GC::create_function(realm.heap(), move(handler))](JS::VM& vm) {
-        auto& message_event = vm.argument(0).as<HTML::MessageEvent>();
-        handler->function()(vm, message_event);
+        auto* message_event = Bindings::impl_from<HTML::MessageEvent>(&vm.argument(0).as_object());
+        VERIFY(message_event);
+        handler->function()(vm, *message_event);
 
         return JS::js_undefined();
     };
@@ -205,12 +208,13 @@ void set_up_cross_realm_transform_readable(JS::Realm& realm, ReadableStream& str
         [&realm, &port, controller](JS::VM&, HTML::MessageEvent const&) {
             // 1. Let error be a new "DataCloneError" DOMException.
             auto error = WebIDL::DataCloneError::create(realm, "Unable to transfer stream"_utf16);
+            auto error_value = throw_completion(error).value();
 
             // 2. Perform ! CrossRealmTransformSendError(port, error).
-            cross_realm_transform_send_error(realm, port, error);
+            cross_realm_transform_send_error(realm, port, error_value);
 
             // 3. Perform ! ReadableStreamDefaultControllerError(controller, error).
-            readable_stream_default_controller_error(controller, error);
+            readable_stream_default_controller_error(controller, error_value);
 
             // 4. Disentangle port.
             port.disentangle();
@@ -320,12 +324,13 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
         [&realm, &port, controller](JS::VM&, HTML::MessageEvent const&) {
             // 1. Let error be a new "DataCloneError" DOMException
             auto error = WebIDL::DataCloneError::create(realm, "Unable to transfer stream"_utf16);
+            auto error_value = throw_completion(error).value();
 
             // 2. Perform ! CrossRealmTransformSendError(port, error).
-            cross_realm_transform_send_error(realm, port, error);
+            cross_realm_transform_send_error(realm, port, error_value);
 
             // 3. Perform ! WritableStreamDefaultControllerErrorIfNeeded(controller, error).
-            writable_stream_default_controller_error_if_needed(controller, error);
+            writable_stream_default_controller_error_if_needed(controller, error_value);
 
             // 4. Disentangle port.
             port.disentangle();

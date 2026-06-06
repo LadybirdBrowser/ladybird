@@ -8,7 +8,6 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/CSSStyleProperties.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -113,12 +112,6 @@ Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_orde
     }
 
     return specified_order_declarations;
-}
-
-void CSSStyleProperties::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleProperties);
-    Base::initialize(realm);
 }
 
 size_t CSSStyleProperties::external_memory_size() const

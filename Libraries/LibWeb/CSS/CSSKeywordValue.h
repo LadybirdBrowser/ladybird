@@ -16,7 +16,7 @@ using CSSKeywordish = Variant<String, GC::Ref<CSSKeywordValue>>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csskeywordvalue
 class CSSKeywordValue final : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSKeywordValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSKeywordValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSKeywordValue);
 
 public:
@@ -34,8 +34,6 @@ public:
 
 private:
     explicit CSSKeywordValue(JS::Realm&, FlyString value);
-
-    virtual void initialize(JS::Realm&) override;
 
     FlyString m_value;
 };

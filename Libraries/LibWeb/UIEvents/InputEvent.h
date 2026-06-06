@@ -12,7 +12,7 @@
 namespace Web::UIEvents {
 
 class InputEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(InputEvent, UIEvent);
+    WEB_WRAPPABLE(InputEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(InputEvent);
 
 public:
@@ -35,7 +35,6 @@ public:
 private:
     InputEvent(JS::Realm&, FlyString const& event_name, Bindings::InputEventInit const&, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges = {});
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
     Optional<Utf16String> m_data;

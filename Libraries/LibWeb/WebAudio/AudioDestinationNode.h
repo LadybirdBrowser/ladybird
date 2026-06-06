@@ -16,7 +16,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioDestinationNode
 class AudioDestinationNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(AudioDestinationNode, AudioNode);
+    WEB_WRAPPABLE(AudioDestinationNode, AudioNode);
     GC_DECLARE_ALLOCATOR(AudioDestinationNode);
 
 public:

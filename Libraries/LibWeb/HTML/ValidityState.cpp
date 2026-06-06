@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ValidityState.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/ValidityState.h>
 
@@ -19,18 +17,12 @@ GC::Ref<ValidityState> ValidityState::create(JS::Realm& realm, FormAssociatedEle
 }
 
 ValidityState::ValidityState(JS::Realm& realm, FormAssociatedElement const& control)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_control(control)
 {
 }
 
-void ValidityState::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ValidityState);
-    Base::initialize(realm);
-}
-
-void ValidityState::visit_edges(Cell::Visitor& visitor)
+void ValidityState::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_control.form_associated_element_to_html_element());

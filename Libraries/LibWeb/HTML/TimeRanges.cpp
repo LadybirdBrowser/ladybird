@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TimeRanges.h>
 #include <LibWeb/HTML/TimeRanges.h>
 
 namespace Web::HTML {
@@ -14,14 +12,8 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(TimeRanges);
 
 TimeRanges::TimeRanges(JS::Realm& realm)
-    : Base(realm)
+    : Wrappable(realm)
 {
-}
-
-void TimeRanges::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TimeRanges);
-    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-timeranges-length

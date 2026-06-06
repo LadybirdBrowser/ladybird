@@ -14,7 +14,7 @@ namespace Web::DOM {
 
 class WEB_API DocumentFragment
     : public ParentNode {
-    WEB_PLATFORM_OBJECT(DocumentFragment, ParentNode);
+    WEB_WRAPPABLE(DocumentFragment, ParentNode);
     GC_DECLARE_ALLOCATOR(DocumentFragment);
 
 public:

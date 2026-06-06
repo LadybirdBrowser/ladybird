@@ -19,7 +19,7 @@ namespace Web::SVG {
 class SVGFilterElement final
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::No> {
-    WEB_PLATFORM_OBJECT(SVGFilterElement, SVGElement);
+    WEB_WRAPPABLE(SVGFilterElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFilterElement);
 
 public:

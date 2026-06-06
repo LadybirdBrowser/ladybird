@@ -9,13 +9,14 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SpeechSynthesisVoice.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Speech {
 
-class SpeechSynthesisVoice final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechSynthesisVoice, Bindings::PlatformObject);
+class SpeechSynthesisVoice final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechSynthesisVoice, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechSynthesisVoice);
 
 public:
@@ -39,8 +40,6 @@ public:
 
 private:
     explicit SpeechSynthesisVoice(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_voice_uri;
     String m_name;

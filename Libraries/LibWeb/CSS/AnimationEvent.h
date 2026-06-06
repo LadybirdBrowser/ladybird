@@ -7,14 +7,13 @@
 #pragma once
 
 #include <LibWeb/Bindings/AnimationEvent.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/css-animations-1/#animationevent
 class AnimationEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(AnimationEvent, DOM::Event);
+    WEB_WRAPPABLE(AnimationEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(AnimationEvent);
 
 public:
@@ -29,8 +28,6 @@ public:
 
 private:
     AnimationEvent(JS::Realm&, FlyString const& type, Bindings::AnimationEventInit const& event_init);
-
-    virtual void initialize(JS::Realm&) override;
 
     // https://www.w3.org/TR/css-animations-1/#dom-animationevent-animationname
     FlyString m_animation_name {};

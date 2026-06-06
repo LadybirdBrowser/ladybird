@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLSpanElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLSpanElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLSpanElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSpanElement);
 
 public:

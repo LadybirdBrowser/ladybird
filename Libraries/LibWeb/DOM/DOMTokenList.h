@@ -13,15 +13,15 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#domtokenlist
-class DOMTokenList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMTokenList, Bindings::PlatformObject);
+class DOMTokenList final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMTokenList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMTokenList);
 
 public:
@@ -30,7 +30,7 @@ public:
 
     void associated_attribute_changed(StringView value);
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     size_t length() const { return m_token_set.size(); }
     Optional<String> item(size_t index) const;
@@ -46,8 +46,7 @@ public:
 private:
     DOMTokenList(Element& associated_element, FlyString associated_attribute);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     WebIDL::ExceptionOr<void> validate_token(StringView token) const;

@@ -11,14 +11,15 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/IDBKeyRange.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 
 namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#keyrange
-class IDBKeyRange : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBKeyRange, Bindings::PlatformObject);
+class IDBKeyRange : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBKeyRange, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBKeyRange);
 
     enum class LowerOpen {
@@ -53,8 +54,7 @@ public:
 
 protected:
     explicit IDBKeyRange(JS::Realm&, GC::Ptr<Key> lower_bound, GC::Ptr<Key> upper_bound, LowerOpen lower_open, UpperOpen upper_open);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     // A key range has an associated lower bound (null or a key).

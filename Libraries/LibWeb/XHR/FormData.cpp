@@ -6,7 +6,6 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -76,20 +75,14 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, GC::Co
 }
 
 FormData::FormData(JS::Realm& realm, GC::ConservativeVector<FormDataEntry> entry_list)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_entry_list(entry_list)
 {
 }
 
 FormData::~FormData() = default;
 
-void FormData::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FormData);
-    Base::initialize(realm);
-}
-
-void FormData::visit_edges(Cell::Visitor& visitor)
+void FormData::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto const& entry : m_entry_list)
@@ -155,7 +148,7 @@ WebIDL::ExceptionOr<Vector<FormDataEntryValue>> FormData::get_all(String const& 
     Vector<FormDataEntryValue> values;
     for (auto const& entry : m_entry_list) {
         if (entry.name == name)
-            TRY_OR_THROW_OOM(vm(), values.try_append(entry.value));
+            TRY_OR_THROW_OOM(realm().vm(), values.try_append(entry.value));
     }
     return values;
 }

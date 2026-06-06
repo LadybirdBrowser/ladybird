@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/WebXR/XRLayer.h>
 #include <LibWeb/WebXR/XRSession.h>
@@ -15,7 +14,7 @@ namespace Web::WebXR {
 
 // https://www.w3.org/TR/webxr/#xrwebgllayer-interface
 class XRWebGLLayer : public XRLayer {
-    WEB_PLATFORM_OBJECT(XRWebGLLayer, XRLayer);
+    WEB_WRAPPABLE(XRWebGLLayer, XRLayer);
     GC_DECLARE_ALLOCATOR(XRWebGLLayer);
 
 public:

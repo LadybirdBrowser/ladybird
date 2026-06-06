@@ -11,7 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Encoding/TextEncoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -21,9 +21,9 @@ namespace Web::Encoding {
 
 // https://encoding.spec.whatwg.org/#textencoder
 class TextEncoder final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public TextEncoderCommonMixin {
-    WEB_PLATFORM_OBJECT(TextEncoder, Bindings::PlatformObject);
+    WEB_WRAPPABLE(TextEncoder, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TextEncoder);
 
 public:
@@ -37,8 +37,6 @@ public:
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder
     explicit TextEncoder(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

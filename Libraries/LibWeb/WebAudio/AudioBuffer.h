@@ -8,7 +8,8 @@
 
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/AudioBuffer.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -16,8 +17,8 @@
 namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioBuffer
-class AudioBuffer final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AudioBuffer, Bindings::PlatformObject);
+class AudioBuffer final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AudioBuffer, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AudioBuffer);
 
 public:
@@ -37,8 +38,7 @@ public:
 private:
     explicit AudioBuffer(JS::Realm&, Bindings::AudioBufferOptions const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-number-of-channels-slot

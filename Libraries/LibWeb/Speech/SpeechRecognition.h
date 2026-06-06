@@ -32,7 +32,7 @@
 namespace Web::Speech {
 
 class SpeechRecognition final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(SpeechRecognition, DOM::EventTarget);
+    WEB_WRAPPABLE(SpeechRecognition, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SpeechRecognition);
 
 public:

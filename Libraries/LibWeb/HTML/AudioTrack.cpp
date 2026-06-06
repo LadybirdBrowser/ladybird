@@ -8,7 +8,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/AudioTrack.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>
@@ -27,13 +26,7 @@ AudioTrack::AudioTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element
 
 AudioTrack::~AudioTrack() = default;
 
-void AudioTrack::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioTrack);
-    Base::initialize(realm);
-}
-
-void AudioTrack::visit_edges(Cell::Visitor& visitor)
+void AudioTrack::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_audio_track_list);

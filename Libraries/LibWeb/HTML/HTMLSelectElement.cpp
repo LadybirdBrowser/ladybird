@@ -9,6 +9,7 @@
 
 #include <LibWeb/Bindings/HTMLSelectElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -29,6 +30,7 @@
 #include <LibWeb/HTML/HTMLSelectedContentElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
@@ -43,11 +45,6 @@ GC_DEFINE_ALLOCATOR(HTMLSelectElement);
 HTMLSelectElement::HTMLSelectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .has_indexed_property_setter = true,
-        .indexed_property_setter_has_identifier = true,
-    };
 }
 
 HTMLSelectElement::~HTMLSelectElement() = default;
@@ -166,11 +163,14 @@ HTMLOptionElement* HTMLSelectElement::item(WebIDL::UnsignedLong index)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:htmlselectelement
-Optional<JS::Value> HTMLSelectElement::item_value(size_t index) const
+Optional<JS::Value> HTMLSelectElement::item_value(JS::Realm& realm, size_t index) const
 {
     // The options collection is also mirrored on the HTMLSelectElement object. The supported property indices at any
     // instant are the indices supported by the object returned by the options attribute at that instant.
-    return (const_cast<HTMLOptionsCollection&>(*options()).item_value(index));
+    auto* option = const_cast<HTMLOptionsCollection&>(*options()).item(index);
+    if (!option)
+        return {};
+    return Bindings::wrap(realm, GC::Ref { *option }).ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-nameditem
@@ -549,7 +549,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     // To show the picker, if applicable for a select element element:
 
     // 1. If element's relevant global object does not have transient activation, then return.
-    auto& relevant_global = as<HTML::Window>(relevant_global_object(*this));
+    auto& relevant_global = relevant_window(*this);
     if (!relevant_global.has_transient_activation())
         return;
 
@@ -629,8 +629,8 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
-    auto& global_object = relevant_global_object(*this);
-    if (!as<HTML::Window>(global_object).has_transient_activation()) {
+    auto* relevant_window = window_from_global_object(relevant_global_object(*this));
+    if (!relevant_window || !relevant_window->has_transient_activation()) {
         return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_utf16);
     }
 

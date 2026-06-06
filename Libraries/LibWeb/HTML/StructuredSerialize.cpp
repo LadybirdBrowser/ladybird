@@ -26,25 +26,9 @@
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/DOMException.h>
-#include <LibWeb/Bindings/DOMMatrix.h>
-#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
-#include <LibWeb/Bindings/DOMPoint.h>
-#include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/Bindings/DOMQuad.h>
-#include <LibWeb/Bindings/DOMRect.h>
-#include <LibWeb/Bindings/DOMRectReadOnly.h>
-#include <LibWeb/Bindings/File.h>
-#include <LibWeb/Bindings/FileList.h>
-#include <LibWeb/Bindings/ImageBitmap.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessagePort.h>
-#include <LibWeb/Bindings/QuotaExceededError.h>
-#include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Transferable.h>
-#include <LibWeb/Bindings/TransformStream.h>
-#include <LibWeb/Bindings/WritableStream.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
@@ -68,6 +52,41 @@
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
 namespace Web::HTML {
+
+static Bindings::Transferable* transferable_from_object(JS::Object& object)
+{
+    auto* platform_object = as_if<Bindings::PlatformObject>(object);
+    if (!platform_object)
+        return nullptr;
+
+    auto* wrappable = Bindings::wrappable_impl_from(platform_object);
+    if (!wrappable)
+        return nullptr;
+
+    return as_if<Bindings::Transferable>(*wrappable);
+}
+
+struct SerializableObject {
+    Bindings::Serializable* serializable { nullptr };
+    Bindings::InterfaceName interface_name { Bindings::InterfaceName::Unknown };
+};
+
+static Optional<SerializableObject> serializable_from_object(JS::Object& object)
+{
+    auto* platform_object = as_if<Bindings::PlatformObject>(object);
+    if (!platform_object)
+        return {};
+
+    auto* wrappable = Bindings::wrappable_impl_from(platform_object);
+    if (!wrappable)
+        return {};
+
+    auto* serializable = as_if<Bindings::Serializable>(*wrappable);
+    if (!serializable)
+        return {};
+
+    return SerializableObject { serializable, platform_object->interface_name() };
+}
 
 enum class ValueTag : u8 {
     Empty, // Unused, for ease of catching bugs.
@@ -440,13 +459,13 @@ public:
             }
 
             // 19. Otherwise, if value is a platform object that is a serializable object:
-            else if (auto const* serializable = as_if<Bindings::Serializable>(*object)) {
+            else if (auto serializable = serializable_from_object(*object); serializable.has_value()) {
                 // FIXME: 1. If value has a [[Detached]] internal slot whose value is true, then throw a "DataCloneError" DOMException.
 
                 // 2. Let typeString be the identifier of the primary interface of value.
                 // 3. Set serialized to { [[Type]]: typeString }.
                 serialized.encode(ValueTag::SerializableObject);
-                serialized.encode(as<Bindings::PlatformObject>(serializable)->interface_name());
+                serialized.encode(serializable->interface_name);
 
                 // 4. Set deep to true
                 deep = true;
@@ -535,8 +554,8 @@ public:
             }
 
             // 3. Otherwise, if value is a platform object that is a serializable object, then perform the serialization steps for value's primary interface, given value, serialized, and forStorage.
-            else if (auto* serializable = as_if<Bindings::Serializable>(object)) {
-                TRY(serializable->serialization_steps(serialized, m_for_storage, m_memory));
+            else if (auto serializable = serializable_from_object(object); serializable.has_value()) {
+                TRY(serializable->serializable->serialization_steps(serialized, m_for_storage, m_memory));
             }
 
             // 4. Otherwise, for each key in ! EnumerableOwnProperties(value, key):
@@ -937,8 +956,9 @@ public:
             // 4. Otherwise:
             else {
                 // 1. Perform the appropriate deserialization steps for the interface identified by serialized.[[Type]], given serialized, value, and targetRealm.
-                auto& serializable = as<Bindings::Serializable>(value.as_object());
-                TRY(serializable.deserialization_steps(m_serialized, m_memory));
+                auto serializable = serializable_from_object(value.as_object());
+                VERIFY(serializable.has_value());
+                TRY(serializable->serializable->deserialization_steps(m_serialized, m_memory));
             }
         }
 
@@ -951,35 +971,35 @@ private:
     {
         switch (serialize_type) {
         case Bindings::InterfaceName::Blob:
-            return FileAPI::Blob::create(realm);
+            return Bindings::wrap(realm, FileAPI::Blob::create(realm));
         case Bindings::InterfaceName::File:
-            return FileAPI::File::create(realm);
+            return Bindings::wrap(realm, FileAPI::File::create(realm));
         case Bindings::InterfaceName::FileList:
-            return FileAPI::FileList::create(realm);
+            return Bindings::wrap(realm, FileAPI::FileList::create(realm));
         case Bindings::InterfaceName::DOMException:
-            return WebIDL::DOMException::create(realm);
+            return Bindings::wrap(realm, WebIDL::DOMException::create(realm));
         case Bindings::InterfaceName::DOMMatrixReadOnly:
-            return Geometry::DOMMatrixReadOnly::create(realm);
+            return Bindings::wrap(realm, Geometry::DOMMatrixReadOnly::create(realm));
         case Bindings::InterfaceName::DOMMatrix:
-            return Geometry::DOMMatrix::create(realm);
+            return Bindings::wrap(realm, Geometry::DOMMatrix::create(realm));
         case Bindings::InterfaceName::DOMPointReadOnly:
-            return Geometry::DOMPointReadOnly::create(realm);
+            return Bindings::wrap(realm, Geometry::DOMPointReadOnly::create(realm));
         case Bindings::InterfaceName::DOMPoint:
-            return Geometry::DOMPoint::create(realm);
+            return Bindings::wrap(realm, Geometry::DOMPoint::create(realm));
         case Bindings::InterfaceName::DOMRectReadOnly:
-            return Geometry::DOMRectReadOnly::create(realm);
+            return Bindings::wrap(realm, Geometry::DOMRectReadOnly::create(realm));
         case Bindings::InterfaceName::DOMRect:
-            return Geometry::DOMRect::create(realm);
+            return Bindings::wrap(realm, Geometry::DOMRect::create(realm));
         case Bindings::InterfaceName::CryptoKey:
-            return Crypto::CryptoKey::create(realm);
+            return Bindings::wrap(realm, Crypto::CryptoKey::create(realm));
         case Bindings::InterfaceName::DOMQuad:
-            return Geometry::DOMQuad::create(realm);
+            return Bindings::wrap(realm, Geometry::DOMQuad::create(realm));
         case Bindings::InterfaceName::ImageData:
-            return ImageData::create(realm);
+            return Bindings::wrap(realm, ImageData::create(realm));
         case Bindings::InterfaceName::ImageBitmap:
-            return ImageBitmap::create(realm);
+            return Bindings::wrap(realm, ImageBitmap::create(realm));
         case Bindings::InterfaceName::QuotaExceededError:
-            return WebIDL::QuotaExceededError::create(realm);
+            return Bindings::wrap(realm, WebIDL::QuotaExceededError::create(realm));
         case Bindings::InterfaceName::Unknown:
         default:
             VERIFY_NOT_REACHED();
@@ -1003,7 +1023,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
         // 1. If transferable has neither an [[ArrayBufferData]] internal slot nor a [[Detached]] internal slot, then throw a "DataCloneError" DOMException.
         // FIXME: Handle transferring objects with [[Detached]] internal slot.
-        if (!as_array_buffer && !is<Bindings::Transferable>(*transferable))
+        if (!as_array_buffer && !transferable_from_object(*transferable))
             return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer type"_utf16);
 
         // 2. If transferable has an [[ArrayBufferData]] internal slot and IsSharedArrayBuffer(transferable) is true, then throw a "DataCloneError" DOMException.
@@ -1037,7 +1057,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot transfer detached buffer"_utf16);
 
         // 2. If transferable has a [[Detached]] internal slot and transferable.[[Detached]] is true, then throw a "DataCloneError" DOMException.
-        if (auto* transferable_object = as_if<Bindings::Transferable>(*transferable)) {
+        if (auto* transferable_object = transferable_from_object(*transferable)) {
             if (transferable_object->is_detached())
                 return WebIDL::DataCloneError::create(*vm.current_realm(), "Value already transferred"_utf16);
         }
@@ -1079,7 +1099,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         // 5. Otherwise:
         else {
             // 1. Assert: transferable is a platform object that is a transferable object.
-            auto& transferable_object = as<Bindings::Transferable>(*transferable);
+            auto& transferable_object = *transferable_from_object(*transferable);
             VERIFY(is<Bindings::PlatformObject>(*transferable));
 
             // 2. Let interfaceName be the identifier of the primary interface of transferable.
@@ -1131,27 +1151,27 @@ static WebIDL::ExceptionOr<GC::Ref<Bindings::PlatformObject>> create_transferred
     case TransferType::MessagePort: {
         auto message_port = HTML::MessagePort::create(target_realm);
         TRY(message_port->transfer_receiving_steps(decoder));
-        return message_port;
+        return Bindings::wrap(target_realm, message_port);
     }
     case TransferType::ReadableStream: {
         auto readable_stream = target_realm.create<Streams::ReadableStream>(target_realm);
         TRY(readable_stream->transfer_receiving_steps(decoder));
-        return readable_stream;
+        return Bindings::wrap(target_realm, readable_stream);
     }
     case TransferType::WritableStream: {
         auto writable_stream = target_realm.create<Streams::WritableStream>(target_realm);
         TRY(writable_stream->transfer_receiving_steps(decoder));
-        return writable_stream;
+        return Bindings::wrap(target_realm, writable_stream);
     }
     case TransferType::TransformStream: {
         auto transform_stream = target_realm.create<Streams::TransformStream>(target_realm);
         TRY(transform_stream->transfer_receiving_steps(decoder));
-        return transform_stream;
+        return Bindings::wrap(target_realm, transform_stream);
     }
     case TransferType::ImageBitmap: {
         auto image_bitmap = target_realm.create<ImageBitmap>(target_realm);
         TRY(image_bitmap->transfer_receiving_steps(decoder));
-        return image_bitmap;
+        return Bindings::wrap(target_realm, image_bitmap);
     }
     case TransferType::ArrayBuffer:
     case TransferType::ResizableArrayBuffer:

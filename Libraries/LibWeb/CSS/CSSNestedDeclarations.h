@@ -13,7 +13,7 @@
 namespace Web::CSS {
 
 class CSSNestedDeclarations final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSNestedDeclarations, CSSRule);
+    WEB_WRAPPABLE(CSSNestedDeclarations, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSNestedDeclarations);
 
 public:
@@ -32,9 +32,7 @@ public:
 
 private:
     CSSNestedDeclarations(JS::Realm&, CSSStyleProperties&);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;
     virtual void clear_caches() override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

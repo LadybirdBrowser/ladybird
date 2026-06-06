@@ -71,6 +71,11 @@ GC::Ref<Promise> create_rejected_promise(JS::Realm& realm, JS::Value reason)
     return promise_capability;
 }
 
+GC::Ref<Promise> create_rejected_promise(JS::Realm& realm, GC::Ref<DOMException> exception)
+{
+    return create_rejected_promise(realm, Web::throw_completion(exception).value());
+}
+
 // https://webidl.spec.whatwg.org/#resolve
 void resolve_promise(JS::Realm& realm, Promise const& promise, JS::Value value)
 {
@@ -91,6 +96,11 @@ void reject_promise(JS::Realm& realm, Promise const& promise, JS::Value reason)
 
     // 1. Perform ! Call(p.[[Reject]], undefined, « r »).
     MUST(JS::call(vm, *promise.reject(), JS::js_undefined(), reason));
+}
+
+void reject_promise(JS::Realm& realm, Promise const& promise, GC::Ref<DOMException> exception)
+{
+    reject_promise(realm, promise, Web::throw_completion(exception).value());
 }
 
 // https://webidl.spec.whatwg.org/#dfn-perform-steps-once-promise-is-settled

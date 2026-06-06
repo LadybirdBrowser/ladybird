@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
@@ -24,6 +25,11 @@
 namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(Animation);
+
+static JS::Value animation_wrapper_value(JS::Realm& realm, Animation const& animation)
+{
+    return Bindings::wrap(realm, GC::Ref { const_cast<Animation&>(animation) }).ptr();
+}
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-animation
 GC::Ref<Animation> Animation::create(JS::Realm& realm, GC::Ptr<AnimationEffect> effect, Optional<GC::Ptr<AnimationTimeline>> timeline)
@@ -35,7 +41,7 @@ GC::Ref<Animation> Animation::create(JS::Realm& realm, GC::Ptr<AnimationEffect> 
     //    a timeline argument is missing, passing the default document timeline of the Document associated with the
     //    Window that is the current global object.
     if (!timeline.has_value()) {
-        auto& window = as<HTML::Window>(HTML::current_global_object());
+        auto& window = HTML::current_window();
         timeline = window.associated_document().timeline();
     }
     animation->set_timeline(timeline.release_value());
@@ -266,7 +272,7 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
 
     // FIXME: Figure out which element we should use for this, for now we just use the document element of the current
     //        window
-    return TimeValue::from_css_numberish(time.downcast<double, GC::Ref<CSS::CSSNumericValue>>(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
+    return TimeValue::from_css_numberish(time.downcast<double, GC::Ref<CSS::CSSNumericValue>>(), DOM::AbstractElement { *HTML::relevant_window(realm().global_object()).associated_document().document_element() });
 
     VERIFY_NOT_REACHED();
 }
@@ -325,7 +331,7 @@ WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(NullableCSSNumb
     if (pending()) {
         m_pending_play_task = TaskState::None;
         m_pending_pause_task = TaskState::None;
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        WebIDL::resolve_promise(realm(), current_ready_promise(), animation_wrapper_value(realm(), *this));
     }
 
     // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -429,7 +435,7 @@ WebIDL::ExceptionOr<void> Animation::set_current_time_for_bindings(NullableCSSNu
         m_pending_pause_task = TaskState::None;
 
         // 5 Resolve animation’s current ready promise with animation.
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        WebIDL::resolve_promise(realm(), current_ready_promise(), animation_wrapper_value(realm(), *this));
     }
 
     // 3. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -750,7 +756,7 @@ WebIDL::ExceptionOr<void> Animation::finish()
 
     if (should_resolve_ready_promise) {
         HTML::TemporaryExecutionContext execution_context { realm() };
-        WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+        WebIDL::resolve_promise(realm(), current_ready_promise(), animation_wrapper_value(realm(), *this));
     }
 
     // 8. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
@@ -1321,7 +1327,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
                 return;
 
             // 2. Resolve animation’s current finished promise object with animation.
-            WebIDL::resolve_promise(realm, current_finished_promise(), this);
+            WebIDL::resolve_promise(realm, current_finished_promise(), animation_wrapper_value(realm, *this));
             m_is_finished = true;
 
             // 3. Create an AnimationPlaybackEvent, finishEvent.
@@ -1352,7 +1358,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             //    manipulation task source.
             else {
                 // Manually create a task so its ID can be saved
-                auto& document = as<HTML::Window>(realm.global_object()).associated_document();
+                auto& document = HTML::relevant_window(realm.global_object()).associated_document();
                 auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document,
                     GC::create_function(heap(), [this, finish_event]() {
                         dispatch_event(finish_event);
@@ -1375,7 +1381,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
         //    Otherwise, if synchronously notify is false, queue a microtask to run finish notification steps for
         //    animation unless there is already a microtask queued to run those steps for animation.
         else if (!m_pending_finish_microtask_id.has_value()) {
-            auto& document = as<HTML::Window>(realm.global_object()).associated_document();
+            auto& document = HTML::relevant_window(realm.global_object()).associated_document();
 
             auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document, GC::create_function(heap(), [finish_notification_steps, &realm]() {
                 HTML::TemporaryExecutionContext context { realm };
@@ -1424,7 +1430,7 @@ void Animation::reset_an_animations_pending_tasks()
 
     // 7. Let animation’s current ready promise be the result of creating a new resolved Promise object with value
     //    animation in the relevant Realm of animation.
-    m_current_ready_promise = WebIDL::create_resolved_promise(realm, this);
+    m_current_ready_promise = WebIDL::create_resolved_promise(realm, animation_wrapper_value(realm, *this));
 }
 
 // https://drafts.csswg.org/web-animations-2/#ready
@@ -1499,7 +1505,7 @@ void Animation::run_pending_play_task()
     }
 
     // 4. Resolve animation’s current ready promise with animation.
-    WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+    WebIDL::resolve_promise(realm(), current_ready_promise(), animation_wrapper_value(realm(), *this));
 
     // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
@@ -1550,7 +1556,7 @@ void Animation::run_pending_pause_task()
     m_start_time = {};
 
     // 5. Resolve animation’s current ready promise with animation.
-    WebIDL::resolve_promise(realm(), current_ready_promise(), this);
+    WebIDL::resolve_promise(realm(), current_ready_promise(), animation_wrapper_value(realm(), *this));
 
     // 6. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
@@ -1562,7 +1568,7 @@ GC::Ref<WebIDL::Promise> Animation::current_ready_promise() const
     if (!m_current_ready_promise) {
         // The current ready promise is initially a resolved Promise created using the procedure to create a new
         // resolved Promise with the animation itself as its value and created in the relevant Realm of the animation.
-        m_current_ready_promise = WebIDL::create_resolved_promise(realm(), this);
+        m_current_ready_promise = WebIDL::create_resolved_promise(realm(), animation_wrapper_value(realm(), *this));
     }
 
     return *m_current_ready_promise;

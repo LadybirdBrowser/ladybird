@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SpeechRecognitionEvent.h>
 #include <LibWeb/Speech/SpeechRecognitionEvent.h>
 
@@ -29,13 +28,7 @@ SpeechRecognitionEvent::SpeechRecognitionEvent(JS::Realm& realm, FlyString const
 {
 }
 
-void SpeechRecognitionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SpeechRecognitionEvent);
-    Base::initialize(realm);
-}
-
-void SpeechRecognitionEvent::visit_edges(Cell::Visitor& visitor)
+void SpeechRecognitionEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_results);

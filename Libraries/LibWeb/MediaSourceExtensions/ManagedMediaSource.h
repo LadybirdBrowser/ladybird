@@ -12,7 +12,7 @@ namespace Web::MediaSourceExtensions {
 
 // https://w3c.github.io/media-source/#managedmediasource-interface
 class ManagedMediaSource : public MediaSource {
-    WEB_PLATFORM_OBJECT(ManagedMediaSource, MediaSource);
+    WEB_WRAPPABLE(ManagedMediaSource, MediaSource);
     GC_DECLARE_ALLOCATOR(ManagedMediaSource);
 
 public:

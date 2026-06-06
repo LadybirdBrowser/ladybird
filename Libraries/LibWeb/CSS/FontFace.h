@@ -10,7 +10,7 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/FontFace.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -19,8 +19,8 @@ namespace Web::CSS {
 
 class FontLoader;
 
-class FontFace final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FontFace, Bindings::PlatformObject);
+class FontFace final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(FontFace, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(FontFace);
 
 public:
@@ -113,9 +113,9 @@ public:
 private:
     FontFace(JS::Realm&, GC::Ref<WebIDL::Promise> font_status_promise);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     void reject_status_promise(JS::Value reason);
+    void reject_status_promise(GC::Ref<WebIDL::DOMException> reason);
 
     Optional<FontComputer&> font_computer() const;
 

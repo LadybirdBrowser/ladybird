@@ -11,7 +11,7 @@
 namespace Web::DOM {
 
 class Comment final : public CharacterData {
-    WEB_PLATFORM_OBJECT(Comment, CharacterData);
+    WEB_WRAPPABLE(Comment, CharacterData);
     GC_DECLARE_ALLOCATOR(Comment);
 
 public:

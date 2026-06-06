@@ -10,6 +10,7 @@
 
 #include <AK/FlyString.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 
@@ -22,7 +23,7 @@ using NullableMessageEventSource = Variant<GC::Ref<WindowProxy>, GC::Ref<Message
 
 // https://html.spec.whatwg.org/multipage/comms.html#messageevent
 class WEB_API MessageEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(MessageEvent, DOM::Event);
+    WEB_WRAPPABLE(MessageEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(MessageEvent);
 
 public:
@@ -46,8 +47,7 @@ public:
     void init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, NullableMessageEventSource source, GC::RootVector<GC::Ref<MessagePort>> const& ports);
 
 private:
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     MessageEvent(JS::Realm&, FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, String, Empty>);
 
@@ -59,8 +59,9 @@ private:
 
     String m_last_event_id;
     NullableMessageEventSource m_source;
-    Vector<GC::Ref<JS::Object>> m_ports;
-    mutable GC::Ptr<JS::Array> m_ports_array;
+    Vector<GC::Ref<MessagePort>> m_ports;
+    mutable GC::Weak<JS::Array> m_ports_array;
+    mutable Vector<GC::Weak<JS::Array>> m_live_ports_arrays;
 };
 
 }

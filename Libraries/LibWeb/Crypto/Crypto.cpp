@@ -7,8 +7,6 @@
 
 #include <AK/Random.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Crypto.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -24,20 +22,14 @@ GC::Ref<Crypto> Crypto::create(JS::Realm& realm)
 }
 
 Crypto::Crypto(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
+    , m_subtle(SubtleCrypto::create(realm))
 {
 }
 
 Crypto::~Crypto() = default;
 
-void Crypto::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Crypto);
-    Base::initialize(realm);
-    m_subtle = SubtleCrypto::create(realm);
-}
-
-void Crypto::visit_edges(Cell::Visitor& visitor)
+void Crypto::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_subtle);

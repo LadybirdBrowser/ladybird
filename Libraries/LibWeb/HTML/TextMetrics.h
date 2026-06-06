@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/TextMetrics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class TextMetrics : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TextMetrics, Bindings::PlatformObject);
+class TextMetrics : public Bindings::Wrappable {
+    WEB_WRAPPABLE(TextMetrics, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(TextMetrics);
 
 public:
@@ -47,8 +48,6 @@ public:
 
 private:
     explicit TextMetrics(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     double m_width { 0 };
     double m_actual_bounding_box_left { 0 };

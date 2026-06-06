@@ -9,8 +9,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/AudioBuffer.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -94,7 +92,7 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Ref<JS::Float32Arra
     // Let buffer be the AudioBuffer with Nb frames, let Nf be the number of elements in the destination array, and k be the value
     // of bufferOffset. Then the number of frames copied from buffer to destination is max(0,min(Nb−k,Nf)). If this is less than Nf,
     // then the remaining elements of destination are not modified.
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     if (destination->viewed_array_buffer()->is_shared_array_buffer())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer, "Float32Array");
@@ -122,7 +120,7 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Ref<JS::Float32Array>
     // Let buffer be the AudioBuffer with Nb frames, let Nf be the number of elements in the source array, and k be the value
     // of bufferOffset. Then the number of frames copied from source to the buffer is max(0,min(Nb−k,Nf)). If this is less than Nf,
     // then the remaining elements of buffer are not modified.
-    auto& vm = this->vm();
+    auto& vm = realm().vm();
 
     if (source->viewed_array_buffer()->is_shared_array_buffer())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer, "Float32Array");
@@ -141,19 +139,13 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Ref<JS::Float32Array>
 }
 
 AudioBuffer::AudioBuffer(JS::Realm& realm, Bindings::AudioBufferOptions const& options)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_length(options.length)
     , m_sample_rate(options.sample_rate)
 {
 }
 
-void AudioBuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioBuffer);
-    Base::initialize(realm);
-}
-
-void AudioBuffer::visit_edges(Cell::Visitor& visitor)
+void AudioBuffer::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_channels);

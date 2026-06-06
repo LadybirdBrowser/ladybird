@@ -7,12 +7,12 @@
 #pragma once
 
 #include <LibMedia/Track.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class MediaTrackBase : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(MediaTrackBase, Bindings::PlatformObject);
+class MediaTrackBase : public Bindings::Wrappable {
+    WEB_NON_IDL_WRAPPABLE(MediaTrackBase, Bindings::Wrappable);
 
 public:
     virtual ~MediaTrackBase() override;
@@ -31,7 +31,7 @@ public:
 protected:
     MediaTrackBase(JS::Realm&, GC::Ref<HTMLMediaElement>, Media::Track const&);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     GC::Ref<HTMLMediaElement> m_media_element;

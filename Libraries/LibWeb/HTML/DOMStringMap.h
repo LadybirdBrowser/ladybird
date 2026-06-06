@@ -7,14 +7,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DOMStringMap.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dom.html#domstringmap
-class DOMStringMap final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMStringMap, Bindings::PlatformObject);
+class DOMStringMap final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMStringMap, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMStringMap);
 
 public:
@@ -27,16 +28,15 @@ public:
     virtual WebIDL::ExceptionOr<void> set_value_of_new_named_property(String const&, JS::Value) override;
     virtual WebIDL::ExceptionOr<void> set_value_of_existing_named_property(String const&, JS::Value) override;
 
-    virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(String const&) override;
+    virtual WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> delete_value(String const&) override;
 
 private:
     explicit DOMStringMap(DOM::Element&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    // ^PlatformObject
-    virtual JS::Value named_item_value(FlyString const&) const override;
+    // ^Wrappable
+    virtual JS::Value named_item_value(JS::Realm&, FlyString const&) const override;
     virtual Vector<FlyString> supported_property_names() const override;
 
     struct NameValuePair {

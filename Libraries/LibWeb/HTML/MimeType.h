@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/MimeType.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#mimetype
-class MimeType : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MimeType, Bindings::PlatformObject);
+class MimeType : public Bindings::Wrappable {
+    WEB_WRAPPABLE(MimeType, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(MimeType);
 
 public:
@@ -25,8 +26,6 @@ public:
 
 private:
     MimeType(JS::Realm&, String type);
-
-    virtual void initialize(JS::Realm&) override;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#concept-mimetype-type
     String m_type;

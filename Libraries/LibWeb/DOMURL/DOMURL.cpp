@@ -11,7 +11,6 @@
 #include <AK/IPv6Address.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/DOMURL.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
@@ -99,7 +98,7 @@ WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, St
 }
 
 DOMURL::DOMURL(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_url(move(url))
     , m_query(move(query))
 {
@@ -107,13 +106,7 @@ DOMURL::DOMURL(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
 
 DOMURL::~DOMURL() = default;
 
-void DOMURL::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(DOMURL, URL);
-    Base::initialize(realm);
-}
-
-void DOMURL::visit_edges(Cell::Visitor& visitor)
+void DOMURL::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_query);

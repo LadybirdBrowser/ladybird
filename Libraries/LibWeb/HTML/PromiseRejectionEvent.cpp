@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 
@@ -33,17 +32,11 @@ PromiseRejectionEvent::PromiseRejectionEvent(JS::Realm& realm, FlyString const& 
 
 PromiseRejectionEvent::~PromiseRejectionEvent() = default;
 
-void PromiseRejectionEvent::visit_edges(Cell::Visitor& visitor)
+void PromiseRejectionEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_promise);
     visitor.visit(m_reason);
-}
-
-void PromiseRejectionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PromiseRejectionEvent);
-    Base::initialize(realm);
 }
 
 }

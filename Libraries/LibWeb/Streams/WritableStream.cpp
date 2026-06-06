@@ -5,8 +5,9 @@
  */
 
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/UnderlyingSink.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -57,17 +58,11 @@ WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::
 }
 
 WritableStream::WritableStream(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
-void WritableStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStream);
-    Base::initialize(realm);
-}
-
-void WritableStream::visit_edges(Cell::Visitor& visitor)
+void WritableStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_close_request);
@@ -168,7 +163,8 @@ WebIDL::ExceptionOr<void> WritableStream::transfer_steps(HTML::TransferDataEncod
     WebIDL::mark_promise_as_handled(promise);
 
     // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
-    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2, { { port2 } }));
+    auto port2_wrapper = Bindings::wrap(realm, port2);
+    auto result = MUST(HTML::structured_serialize_with_transfer(vm, port2_wrapper.ptr(), { { port2_wrapper } }));
     data_holder.extend(move(result.transfer_data_holders));
 
     return {};
@@ -185,10 +181,11 @@ WebIDL::ExceptionOr<void> WritableStream::transfer_receiving_steps(HTML::Transfe
     auto deserialized_record = MUST(HTML::structured_deserialize_with_transfer_internal(data_holder, realm));
 
     // 2. Let port be deserializedRecord.[[Deserialized]].
-    auto& port = as<HTML::MessagePort>(deserialized_record.as_object());
+    auto* port = Bindings::impl_from<HTML::MessagePort>(&deserialized_record.as_object());
+    VERIFY(port);
 
     // 3. Perform ! SetUpCrossRealmTransformWritable(value, port).
-    set_up_cross_realm_transform_writable(realm, *this, port);
+    set_up_cross_realm_transform_writable(realm, *this, *port);
 
     return {};
 }

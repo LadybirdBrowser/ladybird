@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csstransformvalue
 class CSSTransformValue final : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSTransformValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSTransformValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSTransformValue);
 
 public:
@@ -23,7 +23,7 @@ public:
     virtual ~CSSTransformValue() override;
 
     WebIDL::UnsignedLong length() const;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
     virtual WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
     virtual WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
 
@@ -36,9 +36,7 @@ public:
 
 private:
     explicit CSSTransformValue(JS::Realm&, Vector<GC::Ref<CSSTransformComponent>>);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Vector<GC::Ref<CSSTransformComponent>> m_transforms;
 };

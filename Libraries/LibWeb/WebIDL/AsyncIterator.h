@@ -8,6 +8,7 @@
 
 #include <AK/StringView.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
@@ -17,8 +18,8 @@
 
 namespace Web::WebIDL {
 
-class WEB_API AsyncIterator : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(AsyncIterator, Bindings::PlatformObject);
+class WEB_API AsyncIterator : public JS::Object {
+    JS_OBJECT(AsyncIterator, JS::Object);
     GC_DECLARE_ALLOCATOR(AsyncIterator);
 
 public:
@@ -58,7 +59,9 @@ public:
 protected:
     AsyncIterator(JS::Realm&, JS::Object::PropertyKind);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    JS::Realm& realm() const { return shape().realm(); }
+
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     virtual GC::Ref<WebIDL::Promise> next_iteration_result(JS::Realm&) = 0;
     virtual GC::Ref<WebIDL::Promise> iterator_return(JS::Realm&, JS::Value);

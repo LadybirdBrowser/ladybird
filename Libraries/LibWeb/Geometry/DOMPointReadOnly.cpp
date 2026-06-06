@@ -6,8 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
@@ -29,7 +28,7 @@ GC::Ref<DOMPointReadOnly> DOMPointReadOnly::create(JS::Realm& realm)
 }
 
 DOMPointReadOnly::DOMPointReadOnly(JS::Realm& realm, double x, double y, double z, double w)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_x(x)
     , m_y(y)
     , m_z(z)
@@ -38,7 +37,7 @@ DOMPointReadOnly::DOMPointReadOnly(JS::Realm& realm, double x, double y, double 
 }
 
 DOMPointReadOnly::DOMPointReadOnly(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
@@ -59,12 +58,6 @@ WebIDL::ExceptionOr<GC::Ref<DOMPoint>> DOMPointReadOnly::matrix_transform(Bindin
 
     // 2. Return the result of invoking transform a point with a matrix, given the current point and matrixObject. The current point does not get modified.
     return matrix_object->transform_point(*this);
-}
-
-void DOMPointReadOnly::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMPointReadOnly);
-    Base::initialize(realm);
 }
 
 WebIDL::ExceptionOr<void> DOMPointReadOnly::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)

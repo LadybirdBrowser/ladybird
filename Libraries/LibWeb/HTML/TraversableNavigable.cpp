@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -1020,7 +1021,7 @@ void ApplyHistoryStepState::process_continuations()
             navigable->set_ongoing_navigation({}, m_navigation_api_abort_behavior);
 
             // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
-            queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), after_potential_unload);
+            queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*navigable->active_window()), after_potential_unload);
         }
         // 11. Otherwise:
         else {
@@ -1276,7 +1277,7 @@ private:
     {
         // 4. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
         VERIFY(m_traversable->active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, *m_traversable->active_window(), GC::create_function(heap(), [this] {
+        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*m_traversable->active_window()), GC::create_function(heap(), [this] {
             // 1. if needsBeforeunload is true, then:
             if (m_needs_beforeunload) {
                 // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.

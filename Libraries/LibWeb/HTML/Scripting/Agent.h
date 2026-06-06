@@ -27,5 +27,6 @@ protected:
 };
 
 Agent& relevant_agent(JS::Object const&);
+Agent& relevant_agent(Bindings::Wrappable const&);
 
 }

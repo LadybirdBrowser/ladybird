@@ -23,7 +23,7 @@ GC::Ref<ElementInternals> ElementInternals::create(JS::Realm& realm, HTMLElement
 }
 
 ElementInternals::ElementInternals(JS::Realm& realm, HTMLElement& target_element)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_target_element(target_element)
 {
 }
@@ -265,13 +265,7 @@ GC::Ptr<CustomStateSet> ElementInternals::states()
     return m_target_element->ensure_custom_state_set();
 }
 
-void ElementInternals::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ElementInternals);
-    Base::initialize(realm);
-}
-
-void ElementInternals::visit_edges(JS::Cell::Visitor& visitor)
+void ElementInternals::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target_element);

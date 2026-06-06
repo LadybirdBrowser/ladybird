@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Storage.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -16,8 +17,8 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storage-2
-class WEB_API Storage : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Storage, Bindings::PlatformObject);
+class WEB_API Storage : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Storage, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Storage);
 
 public:
@@ -44,12 +45,11 @@ public:
 private:
     Storage(JS::Realm&, Type, GC::Ref<StorageAPI::StorageBottle>);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    // ^PlatformObject
-    virtual JS::Value named_item_value(FlyString const&) const override;
-    virtual WebIDL::ExceptionOr<DidDeletionFail> delete_value(String const&) override;
+    // ^Wrappable
+    virtual JS::Value named_item_value(JS::Realm&, FlyString const&) const override;
+    virtual WebIDL::ExceptionOr<Bindings::NamedPropertyDeletionResult> delete_value(String const&) override;
     virtual Vector<FlyString> supported_property_names() const override;
     virtual WebIDL::ExceptionOr<void> set_value_of_named_property(String const& key, JS::Value value) override;
 

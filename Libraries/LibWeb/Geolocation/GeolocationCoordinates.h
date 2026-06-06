@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/GeolocationCoordinates.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Geolocation {
 
@@ -21,8 +22,8 @@ struct CoordinatesData {
 };
 
 // https://w3c.github.io/geolocation/#coordinates_interface
-class GeolocationCoordinates : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(GeolocationCoordinates, Bindings::PlatformObject);
+class GeolocationCoordinates : public Bindings::Wrappable {
+    WEB_WRAPPABLE(GeolocationCoordinates, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(GeolocationCoordinates);
 
 public:
@@ -37,8 +38,6 @@ public:
 private:
     explicit GeolocationCoordinates(JS::Realm&);
     GeolocationCoordinates(JS::Realm&, CoordinatesData);
-
-    virtual void initialize(JS::Realm&) override;
 
     CoordinatesData m_coordinates_data;
 };

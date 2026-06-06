@@ -57,7 +57,7 @@ class WEB_API HTMLInputElement final
     , public Layout::ImageProvider
     , public PopoverTargetAttributes
     , public AutocompleteElement {
-    WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLInputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLInputElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLInputElement);
 
@@ -425,15 +425,5 @@ namespace Web::DOM {
 
 template<>
 inline bool Node::fast_is<HTML::HTMLInputElement>() const { return is_html_input_element(); }
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::HTMLInputElement>() const
-{
-    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_input_element();
-}
 
 }

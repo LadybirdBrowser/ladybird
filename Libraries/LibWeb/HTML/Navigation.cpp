@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/Navigation.h>
+#include <LibWeb/Bindings/NavigationHistoryEntry.h>
 #include <LibWeb/DOM/AbortController.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DocumentState.h>
@@ -22,6 +23,7 @@
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/NavigationTransition.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -29,6 +31,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
 
 namespace Web::HTML {
@@ -234,7 +237,7 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::navigate(String url,
         return early_error_result(WebIDL::SyntaxError::create(realm, "Cannot navigate to Invalid URL"_utf16));
 
     // 2. Let document be this's relevant global object's associated Document.
-    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = relevant_window(*this).associated_document();
 
     // 3. If options["history"] is "push", and the navigation must be a replace given urlRecord and document,
     //    then return an early error result for a "NotSupportedError" DOMException.
@@ -302,7 +305,7 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::reload(Bindings::Nav
     // The reload(options) method steps are:
 
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = relevant_window(*this).associated_document();
 
     // 2. Let serializedState be StructuredSerializeForStorage(undefined).
     auto serialized_state = MUST(structured_serialize_for_storage(vm, JS::js_undefined()));
@@ -451,7 +454,7 @@ bool Navigation::has_entries_and_events_disabled() const
     // A Navigation navigation has entries and events disabled if the following steps return true:
 
     // 1. Let document be navigation's relevant global object's associated Document.
-    auto const& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto const& document = relevant_window(*this).associated_document();
 
     // 2. If document is not fully active, then return true.
     if (!document.is_fully_active())
@@ -507,6 +510,16 @@ Bindings::NavigationResult Navigation::early_error_result(AnyException e)
     return {
         .committed = WebIDL::create_rejected_promise_from_exception(realm, e),
         .finished = WebIDL::create_rejected_promise_from_exception(realm, e),
+    };
+}
+
+Bindings::NavigationResult Navigation::early_error_result(GC::Ref<WebIDL::DOMException> exception)
+{
+    auto& realm = this->realm();
+
+    return {
+        .committed = WebIDL::create_rejected_promise(realm, exception),
+        .finished = WebIDL::create_rejected_promise(realm, exception),
     };
 }
 
@@ -625,7 +638,7 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::perform_a_navigation
     // To perform a navigation API traversal given a Navigation navigation, a string key, and a NavigationOptions options:
 
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = relevant_window(*this).associated_document();
 
     // 2. If document is not fully active, then return an early error result for an "InvalidStateError" DOMException.
     if (!document.is_fully_active())
@@ -642,8 +655,8 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::perform_a_navigation
     //    «[ "committed" → a promise resolved with current, "finished" → a promise resolved with current ]».
     if (key == current->session_history_entry().navigation_api_key()) {
         return Bindings::NavigationResult {
-            .committed = WebIDL::create_resolved_promise(realm, current),
-            .finished = WebIDL::create_resolved_promise(realm, current)
+            .committed = WebIDL::create_resolved_promise(realm, Bindings::wrap(realm, current).ptr()),
+            .finished = WebIDL::create_resolved_promise(realm, Bindings::wrap(realm, current).ptr())
         };
     }
 
@@ -777,14 +790,16 @@ void Navigation::abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> erro
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#abort-a-navigateevent
 void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<WebIDL::DOMException> reason)
 {
+    auto reason_value = throw_completion(reason).value();
+
     // 1. Let navigation be event's relevant global object's navigation API.
     // NB: Navigation is `this`.
 
     // 2. Signal abort on event's abort controller given reason.
-    event->abort_controller()->abort(reason);
+    event->abort_controller()->abort(reason_value);
 
     // 3. Let errorInfo be the result of extracting error information from reason.
-    auto error_info = extract_error_information(vm(), reason);
+    auto error_info = extract_error_information(vm(), reason_value);
 
     // 4. Set navigation's ongoing navigate event to null.
     m_ongoing_navigate_event = nullptr;
@@ -810,10 +825,10 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<We
         return;
 
     // 8. Reject navigation's transition's committed promise with error.
-    WebIDL::reject_promise(realm(), m_transition->committed(), reason);
+    WebIDL::reject_promise(realm(), m_transition->committed(), reason_value);
 
     // 9. Reject navigation's transition's finished promise with reason.
-    WebIDL::reject_promise(realm(), m_transition->finished(), reason);
+    WebIDL::reject_promise(realm(), m_transition->finished(), reason_value);
 
     // 10. Set navigation's transition to null.
     m_transition = nullptr;
@@ -885,7 +900,7 @@ void Navigation::resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker
     VERIFY(api_method_tracker->committed_to_entry != nullptr);
 
     // 2. Resolve apiMethodTracker's finished promise with its committed-to entry.
-    WebIDL::resolve_promise(realm, api_method_tracker->finished_promise, api_method_tracker->committed_to_entry);
+    WebIDL::resolve_promise(realm, api_method_tracker->finished_promise, Bindings::wrap(realm, api_method_tracker->committed_to_entry).ptr());
 
     // 3. Clean up apiMethodTracker.
     clean_up(api_method_tracker);
@@ -908,6 +923,11 @@ void Navigation::reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>
     clean_up(api_method_tracker);
 }
 
+void Navigation::reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker> api_method_tracker, GC::Ref<WebIDL::DOMException> exception)
+{
+    reject_the_finished_promise(api_method_tracker, throw_completion(exception).value());
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#notify-about-the-committed-to-entry
 void Navigation::notify_about_the_committed_to_entry(GC::Ref<NavigationAPIMethodTracker> api_method_tracker, GC::Ref<NavigationHistoryEntry> nhe)
 {
@@ -927,7 +947,7 @@ void Navigation::notify_about_the_committed_to_entry(GC::Ref<NavigationAPIMethod
 
     // 3. Resolve apiMethodTracker's committed promise with nhe.
     TemporaryExecutionContext execution_context { realm };
-    WebIDL::resolve_promise(realm, api_method_tracker->committed_promise, nhe);
+    WebIDL::resolve_promise(realm, api_method_tracker->committed_promise, Bindings::wrap(realm, nhe));
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigate-event-intercept-commit-handler-steps
@@ -1085,11 +1105,11 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     auto api_method_tracker = m_ongoing_api_method_tracker;
 
     // 7. Let navigable be navigation's relevant global object's navigable.
-    auto& relevant_global_object = as<HTML::Window>(Web::HTML::relevant_global_object(*this));
-    auto navigable = relevant_global_object.navigable();
+    auto& window = relevant_window(*this);
+    auto navigable = window.navigable();
 
     // 8. Let document be navigation's relevant global object's associated Document.
-    auto& document = relevant_global_object.associated_document();
+    auto& document = window.associated_document();
 
     // 19. Set event's abort controller to a new AbortController created in navigation's relevant realm.
     // AD-HOC: Set on the NavigateEvent later after construction
@@ -1111,7 +1131,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     //     Otherwise, let it be false.
     bool const traverse_can_be_canceled = navigable->is_top_level_traversable()
         && destination->same_document()
-        && (user_involvement != UserNavigationInvolvement::BrowserUI || relevant_global_object.has_history_action_activation());
+        && (user_involvement != UserNavigationInvolvement::BrowserUI || window.has_history_action_activation());
 
     // 11. If either:
     //      - navigationType is not "traverse"; or
@@ -1202,7 +1222,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     if (!dispatch_result) {
         // 1. If navigationType is "traverse", then consume history-action user activation given navigation's relevant global object.
         if (navigation_type == Bindings::NavigationType::Traverse)
-            relevant_global_object.consume_history_action_user_activation();
+            window.consume_history_action_user_activation();
 
         // 2. If event's abort controller's signal is not aborted, then abort the ongoing navigation given navigation.
         if (!event->abort_controller()->signal()->aborted())
@@ -1370,7 +1390,7 @@ bool Navigation::fire_a_traverse_navigate_event(NonnullRefPtr<SessionHistoryEntr
 
     // 8. Set destination's is same document to true if destinationSHE's document is equal to
     //    navigation's relevant global object's associated Document; otherwise false.
-    auto& associated_document = as<Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = relevant_window(*this).associated_document();
     destination->set_is_same_document(destination_she->document_state()->document_id() == associated_document.unique_id());
 
     // 9. Return the result of performing the inner navigate event firing algorithm given navigation, "traverse",

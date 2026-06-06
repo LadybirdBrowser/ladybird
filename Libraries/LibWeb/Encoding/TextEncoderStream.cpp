@@ -9,8 +9,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextEncoderStream.h>
 #include <LibWeb/Encoding/TextEncoderStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>
@@ -67,20 +65,14 @@ WebIDL::ExceptionOr<GC::Ref<TextEncoderStream>> TextEncoderStream::construct_imp
 }
 
 TextEncoderStream::TextEncoderStream(JS::Realm& realm, GC::Ref<Streams::TransformStream> transform)
-    : Bindings::PlatformObject(realm)
+    : Wrappable(realm)
     , Streams::GenericTransformStreamMixin(transform)
 {
 }
 
 TextEncoderStream::~TextEncoderStream() = default;
 
-void TextEncoderStream::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextEncoderStream);
-    Base::initialize(realm);
-}
-
-void TextEncoderStream::visit_edges(JS::Cell::Visitor& visitor)
+void TextEncoderStream::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Streams::GenericTransformStreamMixin::visit_edges(visitor);
@@ -93,7 +85,7 @@ WebIDL::ExceptionOr<void> TextEncoderStream::encode_and_enqueue_chunk(JS::Value 
     //            Standard, but allows for surrogate pairs that are split between strings. [INFRA]
 
     auto& realm = this->realm();
-    auto& vm = this->vm();
+    auto& vm = realm.vm();
 
     // 1. Let input be the result of converting chunk to a DOMString.
     auto input = TRY(chunk.to_string(vm));

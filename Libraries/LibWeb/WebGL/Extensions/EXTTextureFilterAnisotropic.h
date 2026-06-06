@@ -6,21 +6,21 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/EXTTextureFilterAnisotropic.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebGL {
 
-class EXTTextureFilterAnisotropic : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(EXTTextureFilterAnisotropic, Bindings::PlatformObject);
+class EXTTextureFilterAnisotropic : public Bindings::Wrappable {
+    WEB_WRAPPABLE(EXTTextureFilterAnisotropic, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(EXTTextureFilterAnisotropic);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
 
 protected:
-    void initialize(JS::Realm&) override;
-    void visit_edges(Visitor&) override;
+    void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     EXTTextureFilterAnisotropic(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);

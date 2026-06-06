@@ -18,7 +18,7 @@ namespace Web::SVG {
 class SVGTextPathElement
     : public SVGTextContentElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGTextPathElement, SVGTextContentElement);
+    WEB_WRAPPABLE(SVGTextPathElement, SVGTextContentElement);
     GC_DECLARE_ALLOCATOR(SVGTextPathElement);
 
 public:

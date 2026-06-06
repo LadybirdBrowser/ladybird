@@ -7,14 +7,15 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Origin.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOMURL {
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-interface
-class Origin : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Origin, Bindings::PlatformObject);
+class Origin : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Origin, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Origin);
 
 public:
@@ -30,7 +31,6 @@ public:
 
 private:
     Origin(JS::Realm&, URL::Origin);
-    virtual void initialize(JS::Realm&) override;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-origin
     // Origin objects have an associated origin, which holds an origin.

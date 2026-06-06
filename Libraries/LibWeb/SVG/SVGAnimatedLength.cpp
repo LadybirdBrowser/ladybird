@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 
 namespace Web::SVG {
@@ -18,7 +16,7 @@ GC::Ref<SVGAnimatedLength> SVGAnimatedLength::create(JS::Realm& realm, GC::Ref<S
 }
 
 SVGAnimatedLength::SVGAnimatedLength(JS::Realm& realm, GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_base_val(base_val)
     , m_anim_val(anim_val)
 {
@@ -32,12 +30,6 @@ SVGAnimatedLength::SVGAnimatedLength(JS::Realm& realm, GC::Ref<SVGLength> base_v
 }
 
 SVGAnimatedLength::~SVGAnimatedLength() = default;
-
-void SVGAnimatedLength::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedLength);
-    Base::initialize(realm);
-}
 
 void SVGAnimatedLength::visit_edges(Visitor& visitor)
 {

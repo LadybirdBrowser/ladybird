@@ -8,8 +8,8 @@
 
 #include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/IDBRecord.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 
@@ -45,8 +45,8 @@ struct IndexRecord {
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#record-snapshot
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/461/95f98c0...43e154b.html#record-interface
-class IDBRecord : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBRecord, Bindings::PlatformObject);
+class IDBRecord : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBRecord, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBRecord);
 
 public:
@@ -59,8 +59,7 @@ public:
 
 protected:
     explicit IDBRecord(JS::Realm&, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     GC::Ref<Key> m_key;

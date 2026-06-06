@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CommandEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CommandEvent.h>
 
 namespace Web::HTML {
@@ -33,12 +32,6 @@ void CommandEvent::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_source);
-}
-
-void CommandEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CommandEvent);
-    Base::initialize(realm);
 }
 
 }

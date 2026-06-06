@@ -20,7 +20,7 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-animations/#interface-csskeyframesrule
 class CSSKeyframesRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSKeyframesRule, CSSRule);
+    WEB_WRAPPABLE(CSSKeyframesRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSKeyframesRule);
 
 public:
@@ -36,9 +36,7 @@ public:
 
 private:
     CSSKeyframesRule(JS::Realm&, FlyString name, GC::Ref<CSSRuleList> keyframes);
-    virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

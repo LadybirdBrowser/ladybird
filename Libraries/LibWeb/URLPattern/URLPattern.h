@@ -8,8 +8,8 @@
 
 #include <AK/String.h>
 #include <LibURL/RustIntegration.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/URLPattern.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::URLPattern {
 
@@ -19,8 +19,8 @@ using URLPatternResult = Bindings::URLPatternResult;
 using URLPatternOptions = Bindings::URLPatternOptions;
 
 // https://urlpattern.spec.whatwg.org/#urlpattern
-class URLPattern : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(URLPattern, Bindings::PlatformObject);
+class URLPattern : public Bindings::Wrappable {
+    WEB_WRAPPABLE(URLPattern, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(URLPattern);
 
 public:
@@ -45,8 +45,6 @@ public:
     virtual ~URLPattern() override;
 
 protected:
-    virtual void initialize(JS::Realm&) override;
-
     explicit URLPattern(JS::Realm&, URL::RustIntegration::URLPattern);
 
 private:

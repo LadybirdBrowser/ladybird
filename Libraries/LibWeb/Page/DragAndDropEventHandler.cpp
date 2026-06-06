@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/MimeSniff/Resource.h>
@@ -605,7 +606,7 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     event_init.data_transfer = data_transfer;
 
     if (target) {
-        auto& window = static_cast<HTML::Window&>(HTML::relevant_global_object(*target));
+        auto& window = HTML::relevant_window(*target);
         event_init.view = window.window();
     }
 

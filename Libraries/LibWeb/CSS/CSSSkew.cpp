@@ -6,7 +6,6 @@
 
 #include "CSSSkew.h"
 #include <LibWeb/Bindings/CSSSkew.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -48,13 +47,7 @@ CSSSkew::CSSSkew(JS::Realm& realm, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumer
 
 CSSSkew::~CSSSkew() = default;
 
-void CSSSkew::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSSkew);
-    Base::initialize(realm);
-}
-
-void CSSSkew::visit_edges(Visitor& visitor)
+void CSSSkew::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_ax);

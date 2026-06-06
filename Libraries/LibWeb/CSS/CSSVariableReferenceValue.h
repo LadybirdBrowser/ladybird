@@ -7,12 +7,13 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/CSSVariableReferenceValue.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::CSS {
 
-class CSSVariableReferenceValue : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSVariableReferenceValue, Bindings::PlatformObject);
+class CSSVariableReferenceValue : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSVariableReferenceValue, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CSSVariableReferenceValue);
 
 public:
@@ -32,8 +33,7 @@ public:
 private:
     CSSVariableReferenceValue(JS::Realm&, FlyString variable, GC::Ptr<CSSUnparsedValue> fallback);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     FlyString m_variable;
     GC::Ptr<CSSUnparsedValue> m_fallback;

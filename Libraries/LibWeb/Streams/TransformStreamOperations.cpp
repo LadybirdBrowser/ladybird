@@ -9,6 +9,7 @@
  */
 
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/TransformStreamDefaultController.h>
 #include <LibWeb/Bindings/Transformer.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
@@ -199,7 +200,8 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     //    callback this value transformer.
     if (transformer_dict.transform) {
         transform_algorithm = GC::create_function(realm.heap(), [transformer, controller, callback = transformer_dict.transform](JS::Value chunk) {
-            return WebIDL::invoke_promise_callback(*callback, transformer, { { chunk, controller } });
+            auto wrapped_controller = Bindings::wrap(controller->realm(), controller);
+            return WebIDL::invoke_promise_callback(*callback, transformer, { { chunk, wrapped_controller } });
         });
     }
 
@@ -207,7 +209,8 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
     //    transformerDict["flush"] with argument list « controller » and callback this value transformer.
     if (transformer_dict.flush) {
         flush_algorithm = GC::create_function(realm.heap(), [transformer, callback = transformer_dict.flush, controller]() {
-            return WebIDL::invoke_promise_callback(*callback, transformer, { { controller } });
+            auto wrapped_controller = Bindings::wrap(controller->realm(), controller);
+            return WebIDL::invoke_promise_callback(*callback, transformer, { { wrapped_controller } });
         });
     }
 
@@ -240,7 +243,7 @@ void transform_stream_default_controller_clear_algorithms(TransformStreamDefault
 // https://streams.spec.whatwg.org/#transform-stream-default-controller-enqueue
 WebIDL::ExceptionOr<void> transform_stream_default_controller_enqueue(TransformStreamDefaultController& controller, JS::Value chunk)
 {
-    auto& vm = controller.vm();
+    auto& vm = controller.realm().vm();
 
     // 1. Let stream be controller.[[stream]].
     auto stream = controller.stream();

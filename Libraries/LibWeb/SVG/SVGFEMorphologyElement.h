@@ -19,7 +19,7 @@ namespace Web::SVG {
 class SVGFEMorphologyElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEMorphologyElement> {
-    WEB_PLATFORM_OBJECT(SVGFEMorphologyElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEMorphologyElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEMorphologyElement);
 
 public:

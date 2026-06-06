@@ -1,5 +1,5 @@
 // https://w3c.github.io/encrypted-media/#mediakeysystemaccess-interface
-[Exposed=Window, SecureContext] 
+[Exposed=Window, SecureContext]
 interface MediaKeySystemAccess {
     readonly attribute Utf16DOMString keySystem;
     MediaKeySystemConfiguration getConfiguration();

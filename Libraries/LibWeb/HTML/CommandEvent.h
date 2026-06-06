@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 class CommandEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(CommandEvent, DOM::Event);
+    WEB_WRAPPABLE(CommandEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CommandEvent);
 
 public:
@@ -32,8 +32,6 @@ private:
     void visit_edges(Visitor&) override;
 
     CommandEvent(JS::Realm&, FlyString const& event_name, Bindings::CommandEventInit const&);
-
-    void initialize(JS::Realm&) override;
 
     GC::Ptr<DOM::Element> m_source;
     String m_command;

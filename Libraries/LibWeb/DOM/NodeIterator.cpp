@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/NodeIterator.h>
+#include <LibWeb/Bindings/Node.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeIterator.h>
@@ -16,7 +16,7 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(NodeIterator);
 
 NodeIterator::NodeIterator(JS::Realm& realm, Node& root)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_root(root)
     , m_reference({ root })
 {
@@ -25,19 +25,13 @@ NodeIterator::NodeIterator(JS::Realm& realm, Node& root)
 
 NodeIterator::~NodeIterator() = default;
 
-void NodeIterator::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(NodeIterator);
-    Base::initialize(realm);
-}
-
 void NodeIterator::finalize()
 {
     Base::finalize();
     m_root->document().unregister_node_iterator({}, *this);
 }
 
-void NodeIterator::visit_edges(Cell::Visitor& visitor)
+void NodeIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_filter);
@@ -166,7 +160,9 @@ JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(Node& node)
 
     // 6. Let result be the return value of call a user object’s operation with traverser’s filter, "acceptNode", and « node ».
     //    If this throws an exception, then unset traverser’s active flag and rethrow the exception.
-    auto result = WebIDL::call_user_object_operation(m_filter->callback(), "acceptNode"_utf16_fly_string, {}, { { &node } });
+    auto& callback = m_filter->callback();
+    auto wrapped_node = Bindings::wrap(callback.callback->shape().realm(), GC::Ref { node });
+    auto result = WebIDL::call_user_object_operation(callback, "acceptNode"_utf16_fly_string, {}, { { wrapped_node } });
     if (result.is_abrupt()) {
         m_active = false;
         return result;
@@ -176,7 +172,7 @@ JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(Node& node)
     m_active = false;
 
     // 8. Return result.
-    auto result_value = TRY(result.value().to_i32(vm()));
+    auto result_value = TRY(result.value().to_i32(realm().vm()));
     return static_cast<NodeFilter::Result>(result_value);
 }
 

@@ -18,13 +18,15 @@ using HTMLElementOrElementIndex = Variant<GC::Ref<HTMLElement>, i32>;
 using NullableHTMLElementOrElementIndex = Variant<GC::Ref<HTMLElement>, i32, Empty>;
 
 class HTMLOptionsCollection final : public DOM::HTMLCollection {
-    WEB_PLATFORM_OBJECT(HTMLOptionsCollection, DOM::HTMLCollection);
+    WEB_WRAPPABLE(HTMLOptionsCollection, DOM::HTMLCollection);
     GC_DECLARE_ALLOCATOR(HTMLOptionsCollection);
 
 public:
     [[nodiscard]] static GC::Ref<HTMLOptionsCollection> create(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);
     virtual ~HTMLOptionsCollection() override;
 
+    WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(u32, JS::Value) override;
+    WebIDL::ExceptionOr<void> set_value_of_existing_indexed_property(u32, JS::Value) override;
     WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value) override;
 
     WebIDL::ExceptionOr<void> set_length(WebIDL::UnsignedLong);
@@ -38,8 +40,6 @@ public:
 
 private:
     HTMLOptionsCollection(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

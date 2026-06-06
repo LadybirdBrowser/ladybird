@@ -9,17 +9,17 @@
 
 #include <LibGfx/Rect.h>
 #include <LibWeb/Bindings/DOMRectReadOnly.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#domrectreadonly
 class DOMRectReadOnly
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(DOMRectReadOnly, Bindings::PlatformObject);
+    WEB_WRAPPABLE(DOMRectReadOnly, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMRectReadOnly);
 
 public:
@@ -68,8 +68,6 @@ public:
 protected:
     DOMRectReadOnly(JS::Realm&, double x, double y, double width, double height);
     explicit DOMRectReadOnly(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     Gfx::DoubleRect m_rect;
 };

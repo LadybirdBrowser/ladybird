@@ -7,7 +7,6 @@
 #include "CSSKeywordValue.h"
 #include <AK/StringBuilder.h>
 #include <LibWeb/Bindings/CSSKeywordValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -40,12 +39,6 @@ CSSKeywordValue::CSSKeywordValue(JS::Realm& realm, FlyString value)
     : CSSStyleValue(realm)
     , m_value(move(value))
 {
-}
-
-void CSSKeywordValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeywordValue);
-    Base::initialize(realm);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csskeywordvalue-value

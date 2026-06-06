@@ -5,8 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGTransform.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/SVG/SVGTransform.h>
 
 namespace Web::SVG {
@@ -19,17 +18,11 @@ GC::Ref<SVGTransform> SVGTransform::create(JS::Realm& realm)
 }
 
 SVGTransform::SVGTransform(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 SVGTransform::~SVGTransform() = default;
-
-void SVGTransform::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTransform);
-    Base::initialize(realm);
-}
 
 // https://svgwg.org/svg2-draft/single-page.html#coords-__svg__SVGTransform__type
 SVGTransform::Type SVGTransform::type()

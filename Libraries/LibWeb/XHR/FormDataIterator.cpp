@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibWeb/Bindings/File.h>
 #include <LibWeb/Bindings/FormData.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
@@ -32,7 +33,7 @@ GC::Ref<FormDataIterator> FormDataIterator::create(FormData const& form_data, JS
 }
 
 FormDataIterator::FormDataIterator(Web::XHR::FormData const& form_data, JS::Object::PropertyKind iterator_kind)
-    : PlatformObject(form_data.realm())
+    : JS::Object(form_data.realm(), nullptr)
     , m_form_data(form_data)
     , m_iterator_kind(iterator_kind)
 {
@@ -46,7 +47,7 @@ void FormDataIterator::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void FormDataIterator::visit_edges(Cell::Visitor& visitor)
+void FormDataIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_form_data);
@@ -65,7 +66,7 @@ JS::Object* FormDataIterator::next()
 
     auto entry_value = entry.value.visit(
         [&](GC::Ref<FileAPI::File> file) -> JS::Value {
-            return file;
+            return Bindings::wrap(shape().realm(), file);
         },
         [&](String const& string) -> JS::Value {
             return JS::PrimitiveString::create(vm, string);
@@ -74,7 +75,7 @@ JS::Object* FormDataIterator::next()
     if (m_iterator_kind == JS::Object::PropertyKind::Value)
         return create_iterator_result_object(vm, entry_value, false);
 
-    return create_iterator_result_object(vm, JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm, entry.name), entry_value }), false).ptr();
+    return create_iterator_result_object(vm, JS::Array::create_from(shape().realm(), { JS::PrimitiveString::create(vm, entry.name), entry_value }), false).ptr();
 }
 
 }

@@ -7,12 +7,12 @@
 #pragma once
 
 #include <LibWeb/Bindings/GamepadHapticActuator.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Gamepad {
 
-class GamepadHapticActuator final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(GamepadHapticActuator, Bindings::PlatformObject);
+class GamepadHapticActuator final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(GamepadHapticActuator, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(GamepadHapticActuator);
 
 public:
@@ -27,8 +27,7 @@ public:
 
 private:
     GamepadHapticActuator(JS::Realm&, GC::Ref<Gamepad>, GC::Ref<DOM::DocumentObserver>);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void document_became_hidden();
     void issue_haptic_effect(Bindings::GamepadHapticEffectType, Bindings::GamepadEffectParameters const&, GC::Ref<GC::Function<void()>> on_complete);

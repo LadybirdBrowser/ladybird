@@ -13,7 +13,7 @@
 namespace Web::XHR {
 
 class ProgressEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(ProgressEvent, DOM::Event);
+    WEB_WRAPPABLE(ProgressEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ProgressEvent);
 
 public:
@@ -28,8 +28,6 @@ public:
 
 private:
     ProgressEvent(JS::Realm&, FlyString const& event_name, Bindings::ProgressEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
 
     bool m_length_computable { false };
     WebIDL::Double m_loaded { 0 };

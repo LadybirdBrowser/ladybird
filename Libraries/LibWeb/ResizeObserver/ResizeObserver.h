@@ -7,16 +7,16 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ResizeObserver.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ResizeObserver/ResizeObservation.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 
 namespace Web::ResizeObserver {
 
 // https://drafts.csswg.org/resize-observer-1/#resize-observer-interface
-class ResizeObserver : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ResizeObserver, Bindings::PlatformObject);
+class ResizeObserver : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ResizeObserver, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ResizeObserver);
 
 public:
@@ -30,7 +30,7 @@ public:
     void unobserve(DOM::Element& target);
     void disconnect();
 
-    void invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const;
+    void invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries);
 
     Vector<GC::Ref<ResizeObservation>>& observation_targets() { return m_observation_targets; }
     Vector<GC::Ref<ResizeObservation>>& active_targets() { return m_active_targets; }
@@ -40,8 +40,7 @@ public:
 private:
     explicit ResizeObserver(JS::Realm&, WebIDL::CallbackType* callback);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     void unregister_observer_if_needed();

@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csstransformcomponent
-class CSSTransformComponent : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSTransformComponent, Bindings::PlatformObject);
+class CSSTransformComponent : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSTransformComponent, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CSSTransformComponent);
 
 public:
@@ -20,8 +20,6 @@ public:
         No,
         Yes,
     };
-
-    virtual void initialize(JS::Realm&) override;
     virtual ~CSSTransformComponent() override;
 
     virtual WebIDL::ExceptionOr<Utf16String> to_string() const = 0;

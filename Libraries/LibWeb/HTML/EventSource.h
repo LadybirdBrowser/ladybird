@@ -22,7 +22,7 @@
 namespace Web::HTML {
 
 class EventSource : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(EventSource, DOM::EventTarget);
+    WEB_WRAPPABLE(EventSource, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(EventSource);
 
 public:

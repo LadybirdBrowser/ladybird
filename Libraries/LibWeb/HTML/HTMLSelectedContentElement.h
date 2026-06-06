@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-selectedcontent-element
 class HTMLSelectedContentElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLSelectedContentElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLSelectedContentElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSelectedContentElement);
 
 public:

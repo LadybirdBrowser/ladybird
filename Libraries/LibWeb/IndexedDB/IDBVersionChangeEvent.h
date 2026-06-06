@@ -15,7 +15,7 @@ namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#events
 class IDBVersionChangeEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(IDBVersionChangeEvent, DOM::Event);
+    WEB_WRAPPABLE(IDBVersionChangeEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(IDBVersionChangeEvent);
 
 public:
@@ -28,8 +28,6 @@ public:
 
 protected:
     explicit IDBVersionChangeEvent(JS::Realm&, FlyString const& event_name, Bindings::IDBVersionChangeEventInit const& event_init);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     u64 m_old_version { 0 };

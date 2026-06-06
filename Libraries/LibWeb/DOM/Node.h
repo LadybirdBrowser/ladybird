@@ -108,7 +108,7 @@ enum class SetNeedsLayoutTreeUpdateReason {
 
 class WEB_API Node : public EventTarget
     , public TreeNode<Node> {
-    WEB_PLATFORM_OBJECT(Node, EventTarget);
+    WEB_WRAPPABLE(Node, EventTarget);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
@@ -546,6 +546,3 @@ private:
 };
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Node>() const { return is_dom_node(); }

@@ -6,7 +6,6 @@
 
 #include "CSSImageValue.h"
 #include <LibWeb/Bindings/CSSImageValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -23,12 +22,6 @@ GC::Ref<CSSImageValue> CSSImageValue::create(JS::Realm& realm, NonnullRefPtr<Sty
 CSSImageValue::CSSImageValue(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
     : CSSStyleValue(realm, move(source_value))
 {
-}
-
-void CSSImageValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSImageValue);
-    Base::initialize(realm);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylevalue-serialization

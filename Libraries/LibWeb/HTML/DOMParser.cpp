@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/DOMParser.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/DOMParser.h>
 #include <LibWeb/HTML/HTMLDocument.h>
@@ -27,17 +26,11 @@ WebIDL::ExceptionOr<GC::Ref<DOMParser>> DOMParser::construct_impl(JS::Realm& rea
 }
 
 DOMParser::DOMParser(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 DOMParser::~DOMParser() = default;
-
-void DOMParser::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMParser);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
 WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(TrustedTypes::TrustedHTMLOrString string, Bindings::DOMParserSupportedType type)
@@ -53,7 +46,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(Trusted
 
     // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
     GC::Ptr<DOM::Document> document;
-    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = relevant_window(*this).associated_document();
 
     // 3. Switch on type:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {

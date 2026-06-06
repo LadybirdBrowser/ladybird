@@ -9,7 +9,8 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/CSSRuleList.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/Export.h>
@@ -20,8 +21,8 @@
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom/#the-cssrulelist-interface
-class WEB_API CSSRuleList : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSRuleList, Bindings::PlatformObject);
+class WEB_API CSSRuleList : public Bindings::Wrappable {
+    WEB_WRAPPABLE(CSSRuleList, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(CSSRuleList);
 
 public:
@@ -51,7 +52,7 @@ public:
     auto end() const { return m_rules.end(); }
     auto end() { return m_rules.end(); }
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     WebIDL::ExceptionOr<void> remove_a_css_rule(u32 index);
     enum class Nested {
@@ -73,8 +74,7 @@ public:
 private:
     explicit CSSRuleList(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     Vector<Parser::RuleContext> rule_context() const;

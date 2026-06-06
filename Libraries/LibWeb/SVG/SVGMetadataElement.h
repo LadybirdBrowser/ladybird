@@ -12,7 +12,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/struct.html#InterfaceSVGMetadataElement
 class SVGMetadataElement final : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGMetadataElement, SVGElement);
+    WEB_WRAPPABLE(SVGMetadataElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGMetadataElement);
 
 private:

@@ -17,7 +17,7 @@ namespace Web::DOM {
 class WEB_API Text
     : public CharacterData
     , public SlottableMixin {
-    WEB_PLATFORM_OBJECT(Text, CharacterData);
+    WEB_WRAPPABLE(Text, CharacterData);
     GC_DECLARE_ALLOCATOR(Text);
 
 public:

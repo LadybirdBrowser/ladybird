@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibGC/Cell.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::DOM {
 
-class NodeFilter final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NodeFilter, Bindings::PlatformObject);
+class NodeFilter final : public GC::Cell {
+    GC_CELL(NodeFilter, GC::Cell);
     GC_DECLARE_ALLOCATOR(NodeFilter);
 
 public:
@@ -45,7 +45,7 @@ public:
 private:
     NodeFilter(JS::Realm&, GC::Ref<WebIDL::CallbackType>);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<WebIDL::CallbackType> m_callback;
 };

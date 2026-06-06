@@ -7,7 +7,6 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSMediaRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/Dump.h>
 
@@ -26,13 +25,7 @@ CSSMediaRule::CSSMediaRule(JS::Realm& realm, MediaList& media, CSSRuleList& rule
 {
 }
 
-void CSSMediaRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMediaRule);
-    Base::initialize(realm);
-}
-
-void CSSMediaRule::visit_edges(Cell::Visitor& visitor)
+void CSSMediaRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media);

@@ -12,7 +12,7 @@
 #include <LibGC/ConservativeHashMap.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/EasingFunction.h>
 
 namespace Web::Animations {
@@ -41,8 +41,8 @@ struct AnimationUpdateContext {
 };
 
 // https://www.w3.org/TR/web-animations-1/#the-animationeffect-interface
-class AnimationEffect : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AnimationEffect, Bindings::PlatformObject);
+class AnimationEffect : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AnimationEffect, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AnimationEffect);
 
 public:
@@ -135,9 +135,7 @@ protected:
 
     void invalidate_effect();
 
-    virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     TimeValue intrinsic_iteration_duration() const;
     void convert_a_time_based_animation_to_a_proportional_animation();

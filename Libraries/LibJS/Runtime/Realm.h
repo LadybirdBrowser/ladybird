@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/OwnPtr.h>
 #include <AK/StringView.h>
+#include <AK/Traits.h>
 #include <AK/Weakable.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
@@ -44,7 +45,8 @@ public:
     GC::Ref<T> create(Args&&... args)
     {
         auto object = heap().allocate<T>(forward<Args>(args)...);
-        static_cast<Cell*>(object)->initialize(*this);
+        if constexpr (IsBaseOf<Cell, T>)
+            static_cast<Cell*>(object)->initialize(*this);
         return *object;
     }
 

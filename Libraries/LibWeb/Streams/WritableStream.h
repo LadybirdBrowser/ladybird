@@ -9,9 +9,9 @@
 #include <AK/Forward.h>
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/QueuingStrategy.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -34,9 +34,9 @@ struct PendingAbortRequest {
 
 // https://streams.spec.whatwg.org/#writablestream
 class WritableStream final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(WritableStream, Bindings::PlatformObject);
+    WEB_WRAPPABLE(WritableStream, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(WritableStream);
 
 public:
@@ -96,9 +96,7 @@ public:
 private:
     explicit WritableStream(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#writablestream-backpressure
     // A boolean indicating the backpressure signal set by the controller

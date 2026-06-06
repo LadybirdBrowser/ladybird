@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/DataTransferItemList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
@@ -23,21 +21,14 @@ GC::Ref<DataTransferItemList> DataTransferItemList::create(JS::Realm& realm, GC:
 }
 
 DataTransferItemList::DataTransferItemList(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_data_transfer(data_transfer)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
 }
 
 DataTransferItemList::~DataTransferItemList() = default;
 
-void DataTransferItemList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DataTransferItemList);
-    Base::initialize(realm);
-}
-
-void DataTransferItemList::visit_edges(JS::Cell::Visitor& visitor)
+void DataTransferItemList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_data_transfer);
@@ -135,14 +126,14 @@ void DataTransferItemList::clear()
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-item
-Optional<JS::Value> DataTransferItemList::item_value(size_t index) const
+Optional<JS::Value> DataTransferItemList::item_value(JS::Realm& realm, size_t index) const
 {
     // To determine the value of an indexed property i of a DataTransferItemList object, the user agent must return a
     // DataTransferItem object representing the ith item in the drag data store. The same object must be returned each
     // time a particular item is obtained from this DataTransferItemList object. The DataTransferItem object must be
     // associated with the same DataTransfer object as the DataTransferItemList object when it is first created.
     if (index < m_data_transfer->length())
-        return m_data_transfer->item(index);
+        return Bindings::wrap(realm, m_data_transfer->item(index));
     return {};
 }
 

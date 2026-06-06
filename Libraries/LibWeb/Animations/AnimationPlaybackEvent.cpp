@@ -7,7 +7,6 @@
 
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
 #include <LibWeb/Bindings/AnimationPlaybackEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 
 namespace Web::Animations {
@@ -30,12 +29,6 @@ AnimationPlaybackEvent::AnimationPlaybackEvent(JS::Realm& realm, FlyString const
     , m_current_time(event_init.current_time)
     , m_timeline_time(event_init.timeline_time)
 {
-}
-
-void AnimationPlaybackEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationPlaybackEvent);
-    Base::initialize(realm);
 }
 
 void AnimationPlaybackEvent::visit_edges(Visitor& visitor)

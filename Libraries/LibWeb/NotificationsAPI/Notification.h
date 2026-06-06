@@ -63,7 +63,7 @@ struct ConceptNotification {
 
 // https://notifications.spec.whatwg.org/#notifications
 class WEB_API Notification final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Notification, DOM::EventTarget);
+    WEB_WRAPPABLE(Notification, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Notification);
 
 public:

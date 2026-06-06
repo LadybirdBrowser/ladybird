@@ -41,10 +41,13 @@
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/Bindings/IntersectionObserver.h>
+#include <LibWeb/Bindings/IntersectionObserverEntry.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/PointerEvent.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -371,7 +374,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             [&](JS::Realm& realm) -> JS::Object* {
                 // - For the global object, create a new Window object.
                 window = HTML::Window::create(realm);
-                return window;
+                return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
             },
             [&](JS::Realm&) -> JS::Object* {
                 // - For the global this binding, use browsingContext's WindowProxy object.
@@ -379,7 +382,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             });
 
         // 6. Set window to the global object of realmExecutionContext's Realm component.
-        window = as<HTML::Window>(realm_execution_context->realm->global_object());
+        window = HTML::window_from_global_object(realm_execution_context->realm->global_object());
+        VERIFY(window);
 
         // 7. Let topLevelCreationURL be creationURL.
         auto top_level_creation_url = creation_url;
@@ -517,7 +521,7 @@ GC::Ref<Document> Document::construct_impl(JS::Realm& realm)
 {
     // The new Document() constructor steps are to set this’s origin to the origin of current global object’s associated Document. [HTML]
     auto document = Document::create(realm);
-    document->set_origin(as<HTML::Window>(HTML::current_global_object()).associated_document().origin());
+    document->set_origin(HTML::current_window().associated_document().origin());
     return document;
 }
 
@@ -551,11 +555,6 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
     // Spec issue: https://github.com/whatwg/html/issues/11023
     if (is_temporary_document_for_fragment_parsing())
         set_is_connected(false);
-
-    m_legacy_platform_object_flags = PlatformObject::LegacyPlatformObjectFlags {
-        .supports_named_properties = true,
-        .has_legacy_override_built_ins_interface_extended_attribute = true,
-    };
 
     m_is_decoded_svg = m_page->client().is_svg_page_client();
 
@@ -630,7 +629,6 @@ void Document::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Document);
     Base::initialize(realm);
-    Bindings::DocumentPrototype::define_unforgeable_attributes(realm, *this);
 
     m_selection = realm.create<Selection::Selection>(realm, *this);
 
@@ -967,7 +965,9 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
         return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
     // 3. Let entryDocument be the entry global object's associated Document.
-    auto& entry_document = as<HTML::Window>(HTML::entry_global_object()).associated_document();
+    auto* entry_window = HTML::window_from_global_object(HTML::entry_global_object());
+    VERIFY(entry_window);
+    auto& entry_document = entry_window->associated_document();
 
     // 4. If document's origin is not same origin to entryDocument's origin, then throw a "SecurityError" DOMException.
     if (origin() != entry_document.origin())
@@ -1024,7 +1024,7 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     // AD-HOC: Record that this document was an initial about:blank before document.open() cleared the flag, so the
     //         Navigation API can keep entries and events disabled.
     if (is_initial_about_blank())
-        as<HTML::Window>(HTML::relevant_global_object(*this)).navigation()->set_was_initial_about_blank_opened(true);
+        HTML::relevant_window(*this).navigation()->set_was_initial_about_blank_opened(true);
 
     // 13. Set document's is initial about:blank to false.
     set_is_initial_about_blank(false);
@@ -3496,8 +3496,8 @@ void Document::adopt_node(Node& node)
         node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
             if (auto* element = as_if<Element>(inclusive_descendant); element && element->is_custom()) {
                 GC::RootVector<JS::Value> arguments;
-                arguments.append(&old_document);
-                arguments.append(this);
+                arguments.append(Bindings::wrap(old_document.realm(), GC::Ref { old_document }));
+                arguments.append(Bindings::wrap(realm(), GC::Ref { *this }));
 
                 element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::adoptedCallback, move(arguments));
             }
@@ -4769,7 +4769,7 @@ bool Document::allow_focus() const
         return true;
 
     // 2. If target's relevant global object has transient activation, then return true.
-    if (as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation())
+    if (HTML::relevant_window(*this).has_transient_activation())
         return true;
 
     // 3. Return false.
@@ -5160,7 +5160,7 @@ GC::Ref<HTML::SourceSnapshotParams> Document::snapshot_source_snapshot_params() 
     return heap().allocate<HTML::SourceSnapshotParams>(
         // has transient activation
         //    true if sourceDocument's relevant global object has transient activation; otherwise false
-        as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
+        HTML::relevant_window(*this).has_transient_activation(),
 
         // sandboxing flags
         //     sourceDocument's active sandboxing flag set
@@ -5323,7 +5323,7 @@ Vector<GC::Root<HTML::Navigable>> Document::document_tree_child_navigables()
 void Document::run_unloading_cleanup_steps()
 {
     // 1. Let window be document's relevant global object.
-    auto& window = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    auto& window = HTML::relevant_window_or_worker_global_scope(*this);
 
     // 2. For each WebSocket object webSocket whose relevant global object is window, make disappear webSocket.
     //    If this affected any WebSocket objects, then make document unsalvageable given document and "websocket".
@@ -5380,11 +5380,11 @@ void Document::destroy()
     // 5. For each port in ports, disentangle port.
     HTML::MessagePort::for_each_message_port([&](HTML::MessagePort& port) {
         auto& global = HTML::relevant_global_object(port);
-        if (!is<HTML::Window>(global))
+        auto* window = HTML::window_from_global_object(global);
+        if (!window)
             return;
 
-        auto& window = static_cast<HTML::Window&>(global);
-        if (&window.associated_document() == this)
+        if (&window->associated_document() == this)
             port.disentangle();
     });
 
@@ -5522,7 +5522,7 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     // 4. For each childNavigable of childNavigables, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
-        queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(),
+        queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*child_navigable->active_window()),
             GC::create_function(heap(), [&heap = heap(), destruction_state, child_navigable] {
                 // 1. Let incrementDestroyed be an algorithm step which increments numberDestroyed.
                 auto increment_destroyed = GC::create_function(heap, [destruction_state] { destruction_state->did_process_child(); });
@@ -5580,7 +5580,7 @@ void Document::abort_a_document_and_its_descendants()
 
     // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
     for (auto& descendant_navigable : descendant_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *descendant_navigable->active_window(), GC::create_function(heap(), [this, descendant_navigable = descendant_navigable.ptr()] {
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable->active_window()), GC::create_function(heap(), [this, descendant_navigable = descendant_navigable.ptr()] {
             // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
             //       See https://github.com/whatwg/html/issues/9711
             descendant_navigable->set_ongoing_navigation({});
@@ -5651,7 +5651,7 @@ void Document::unload(GC::Ptr<Document>)
 
         // 2. Fire a page transition event named pagehide at oldDocument's relevant global object with oldDocument's
         //    salvageable state.
-        as<HTML::Window>(relevant_global_object(*this)).fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
+        HTML::relevant_window(*this).fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
 
         // 3. Update the visibility state of oldDocument to "hidden".
         update_the_visibility_state(HTML::VisibilityState::Hidden);
@@ -5668,7 +5668,7 @@ void Document::unload(GC::Ptr<Document>)
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
         auto event = DOM::Event::create(realm(), HTML::EventNames::unload);
-        as<HTML::Window>(relevant_global_object(*this)).dispatch_event(event);
+        HTML::relevant_window(*this).dispatch_event(event);
     }
 
     // FIXME: 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high
@@ -5903,7 +5903,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<FlyStr
 void Document::make_active()
 {
     // 1. Let window be document's relevant global object.
-    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = HTML::relevant_window(*this);
 
     set_window(window);
 
@@ -6032,9 +6032,7 @@ void Document::queue_intersection_observer_task()
     m_intersection_observer_task_queued = true;
 
     // 3. Queue a task on the IntersectionObserver task source associated with the document's event loop to notify intersection observers.
-    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, *window, GC::create_function(heap(), [this]() {
-        auto& realm = this->realm();
-
+    HTML::queue_global_task(HTML::Task::Source::IntersectionObserver, HTML::relevant_global_object(*window), GC::create_function(heap(), [this]() {
         // https://www.w3.org/TR/intersection-observer/#notify-intersection-observers
         // 1. Set document’s IntersectionObserverTaskQueued flag to false.
         m_intersection_observer_task_queued = false;
@@ -6054,19 +6052,22 @@ void Document::queue_intersection_observer_task()
             if (queue.is_empty())
                 continue;
 
-            auto wrapped_queue = MUST(JS::Array::create(realm, 0));
+            auto& callback = observer->callback();
+            auto& callback_realm = callback.callback_context->realm();
+
+            auto wrapped_queue = MUST(JS::Array::create(callback_realm, 0));
             for (size_t i = 0; i < queue.size(); ++i) {
                 auto& record = queue.at(i);
                 auto property_index = JS::PropertyKey { i };
-                MUST(wrapped_queue->create_data_property(property_index, record.ptr()));
+                MUST(wrapped_queue->create_data_property(property_index, Bindings::wrap(callback_realm, GC::Ref { *record })));
             }
 
             // 4. Let callback be the value of observer’s internal [[callback]] slot.
-            auto& callback = observer->callback();
 
             // 5. Invoke callback with queue as the first argument, observer as the second argument, and observer as the callback this value. If this throws an exception, report the exception.
             // NOTE: This does not follow the spec as written precisely, but this is the same thing we do elsewhere and there is a WPT test that relies on this.
-            (void)WebIDL::invoke_callback(callback, observer.ptr(), WebIDL::ExceptionBehavior::Report, { { wrapped_queue, observer.ptr() } });
+            auto wrapped_observer = Bindings::wrap(callback_realm, observer);
+            (void)WebIDL::invoke_callback(callback, wrapped_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_queue, wrapped_observer } });
         }
     }));
 }
@@ -6295,16 +6296,18 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
 
             for (size_t i = 0; i < entries_length; ++i) {
                 auto property_key = JS::PropertyKey { i };
-                auto& entry = as<IntersectionObserver::IntersectionObserverEntry>(entries.get_without_side_effects(property_key).as_object());
+                auto& entry_object = entries.get_without_side_effects(property_key).as_object();
+                auto* entry = Bindings::impl_from<IntersectionObserver::IntersectionObserverEntry>(&entry_object);
+                VERIFY(entry);
 
                 // 1. Let resumptionSteps be null.
                 GC::Ptr<GC::Function<void()>> resumption_steps;
 
                 // 2. If entry.isIntersecting is true, then set resumptionSteps to entry.target's lazy load resumption steps.
-                if (entry.is_intersecting()) {
+                if (entry->is_intersecting()) {
                     // 5. Set entry.target's lazy load resumption steps to null.
-                    VERIFY(entry.target()->is_lazy_loading());
-                    resumption_steps = entry.target()->take_lazy_load_resumption_steps({});
+                    VERIFY(entry->target()->is_lazy_loading());
+                    resumption_steps = entry->target()->take_lazy_load_resumption_steps({});
                 }
 
                 // 3. If resumptionSteps is null, then return.
@@ -6316,10 +6319,10 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
                 }
 
                 // 4. Stop intersection-observing a lazy loading element for entry.target.
-                stop_intersection_observing_a_lazy_loading_element(entry.target());
+                stop_intersection_observing_a_lazy_loading_element(entry->target());
 
                 // 5. Set entry.target's lazy load resumption steps to null.
-                entry.target()->take_lazy_load_resumption_steps({});
+                entry->target()->take_lazy_load_resumption_steps({});
 
                 // 6. Invoke resumptionSteps.
                 resumption_steps->function()();
@@ -6580,7 +6583,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
     history()->m_length = script_history_length;
 
     // 5. Let navigation be history's relevant global object's navigation API.
-    auto navigation = as<HTML::Window>(HTML::relevant_global_object(*this)).navigation();
+    auto navigation = HTML::relevant_window(*this).navigation();
 
     // 6. If documentsEntryChanged is true, then:
     // NOTE: documentsEntryChanged can be false for one of two reasons: either we are restoring from bfcache,
@@ -6615,9 +6618,10 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             // FIXME: Initialise hasUAVisualTransition
             Bindings::PopStateEventInit popstate_event_init;
             popstate_event_init.state = history()->unsafe_state();
-            auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*this));
+            auto& relevant_global_object = HTML::relevant_global_object(*this);
+            auto& window = HTML::relevant_window(*this);
             auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
-            relevant_global_object.dispatch_event(pop_state_event);
+            window.dispatch_event(pop_state_event);
 
             // FIXME: 4. Restore persisted state given entry.
 
@@ -6630,8 +6634,8 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
                 hashchange_event_init.old_url = old_url.serialize();
                 hashchange_event_init.new_url = entry->url().serialize();
                 auto hashchange_event = HTML::HashChangeEvent::create(realm(), "hashchange"_fly_string, hashchange_event_init);
-                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(heap(), [hashchange_event, &relevant_global_object]() {
-                    relevant_global_object.dispatch_event(hashchange_event);
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(heap(), [hashchange_event, &window]() {
+                    window.dispatch_event(hashchange_event);
                 }));
             }
         }
@@ -7466,7 +7470,7 @@ static Vector<GC::Ref<DOM::Element>> named_elements_with_name(Document const& do
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
-JS::Value Document::named_item_value(FlyString const& name) const
+JS::Value Document::named_item_value(JS::Realm& realm, FlyString const& name) const
 {
     // 1. Let elements be the list of named elements with the name name that are in a document tree with the Document as their root.
     // NOTE: There will be at least one such element, since the algorithm would otherwise not have been invoked by Web IDL.
@@ -7482,12 +7486,13 @@ JS::Value Document::named_item_value(FlyString const& name) const
 
     // 3. Otherwise, if elements has only one element, return that element.
     if (elements.size() == 1)
-        return elements.first();
+        return Bindings::wrap(realm, elements.first()).ptr();
 
     // 4. Otherwise return an HTMLCollection rooted at the Document node, whose filter matches only named elements with the name name.
-    return HTMLCollection::create(*const_cast<Document*>(this), HTMLCollection::Scope::Descendants, [name](auto& element) {
+    auto collection = HTMLCollection::create(*const_cast<Document*>(this), HTMLCollection::Scope::Descendants, [name](auto& element) {
         return is_named_element_with_name(element, name);
     });
+    return Bindings::wrap(realm, collection);
 }
 
 // https://drafts.csswg.org/resize-observer-1/#calculate-depth-for-node
@@ -7588,15 +7593,15 @@ size_t Document::broadcast_active_resize_observations()
             switch (observation->observed_box()) {
             case Bindings::ResizeObserverBoxOptions::BorderBox:
                 // Matching sizes are entry.borderBoxSize if observation.observedBox is "border-box"
-                observation->last_reported_sizes() = entry->border_box_size();
+                observation->set_last_reported_sizes(entry->border_box_size());
                 break;
             case Bindings::ResizeObserverBoxOptions::ContentBox:
                 // Matching sizes are entry.contentBoxSize if observation.observedBox is "content-box"
-                observation->last_reported_sizes() = entry->content_box_size();
+                observation->set_last_reported_sizes(entry->content_box_size());
                 break;
             case Bindings::ResizeObserverBoxOptions::DevicePixelContentBox:
                 // Matching sizes are entry.devicePixelContentBoxSize if observation.observedBox is "device-pixel-content-box"
-                observation->last_reported_sizes() = entry->device_pixel_content_box_size();
+                observation->set_last_reported_sizes(entry->device_pixel_content_box_size());
                 break;
             default:
                 VERIFY_NOT_REACHED();
@@ -7687,7 +7692,7 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&
     }
 
     if (m_adopted_style_sheets) {
-        m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+        for_each_adopted_style_sheet(*m_adopted_style_sheets, [&](auto& style_sheet) {
             if (!style_sheet.disabled())
                 callback(style_sheet);
         });
@@ -7754,7 +7759,7 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
 
         if (m_adopted_style_sheets) {
             Optional<String> result;
-            m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+            for_each_adopted_style_sheet(*m_adopted_style_sheets, [&](auto& style_sheet) {
                 if (result.has_value())
                     return;
 
@@ -8306,7 +8311,7 @@ void Document::parse_html_from_a_string(StringView html)
     auto parser = HTML::HTMLParser::create_for_decoded_string(*this, html, scripting_mode, "UTF-8"sv);
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
-    parser->run(as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
+    parser->run(HTML::relevant_window(*this).associated_document().url());
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
@@ -8335,7 +8340,9 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
     document->parse_html_from_a_string(compliant_html.to_utf8_but_should_be_ported_to_utf16());
 
     // AD-HOC: Setting the origin to match that of the associated document matches the behavior of existing browsers.
-    auto& associated_document = as<HTML::Window>(realm.global_object()).associated_document();
+    auto* window = HTML::window_from_global_object(realm.global_object());
+    VERIFY(window);
+    auto& associated_document = window->associated_document();
     document->set_origin(associated_document.origin());
 
     // 5. Return document.
@@ -8754,8 +8761,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
 
     // 4. Let eventFiringResult be the result of firing an event named beforeunload at document's relevant global object,
     //    using BeforeUnloadEvent, with the cancelable attribute initialized to true.
-    auto& global_object = HTML::relevant_global_object(*this);
-    auto& window = as<HTML::Window>(global_object);
+    auto& window = HTML::relevant_window(*this);
     auto beforeunload_event = HTML::BeforeUnloadEvent::create(realm(), HTML::EventNames::beforeunload);
     beforeunload_event->set_cancelable(true);
     auto event_firing_result = window.dispatch_event(*beforeunload_event);
@@ -8892,7 +8898,7 @@ GC::Ptr<ViewTransition::ViewTransition> Document::start_view_transition(GC::Ptr<
         transition->set_update_callback(update_callback);
 
     // 3. Let document be this’s relevant global object’s associated document.
-    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = HTML::relevant_window(*this).associated_document();
 
     // 4. If document’s visibility state is "hidden", then skip transition with an "InvalidStateError" DOMException,
     //    and return transition.

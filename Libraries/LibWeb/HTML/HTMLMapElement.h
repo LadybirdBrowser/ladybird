@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLMapElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLMapElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLMapElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLMapElement);
 
 public:

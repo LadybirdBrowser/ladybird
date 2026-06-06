@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLPictureElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLPictureElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLPictureElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLPictureElement);
 
 public:

@@ -13,7 +13,7 @@ namespace Web::MediaCapture {
 
 // https://w3c.github.io/mediacapture-main/#mediastreamtrackevent
 class MediaStreamTrackEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(MediaStreamTrackEvent, DOM::Event);
+    WEB_WRAPPABLE(MediaStreamTrackEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(MediaStreamTrackEvent);
 
 public:
@@ -27,8 +27,7 @@ public:
 private:
     MediaStreamTrackEvent(JS::Realm&, FlyString const& event_name, Bindings::MediaStreamTrackEventInit const&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<MediaStreamTrack> m_track;
 };

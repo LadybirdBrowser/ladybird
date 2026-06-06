@@ -28,7 +28,7 @@ StaticNodeList::StaticNodeList(JS::Realm& realm, Vector<GC::Root<Node>> static_n
 
 StaticNodeList::~StaticNodeList() = default;
 
-void StaticNodeList::visit_edges(Cell::Visitor& visitor)
+void StaticNodeList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_static_nodes);

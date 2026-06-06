@@ -5,19 +5,11 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/External.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/External.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(External);
-
-void External::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(External);
-    Base::initialize(realm);
-}
 
 GC::Ref<External> External::create(JS::Realm& realm)
 {
@@ -25,7 +17,7 @@ GC::Ref<External> External::create(JS::Realm& realm)
 }
 
 External::External(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 

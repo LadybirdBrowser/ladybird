@@ -12,7 +12,7 @@ namespace Web::SVG {
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElement
 class SVGRectElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGRectElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGRectElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGRectElement);
 
 public:

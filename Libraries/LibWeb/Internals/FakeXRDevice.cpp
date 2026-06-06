@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/FakeXRDevice.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -24,12 +23,6 @@ FakeXRDevice::FakeXRDevice(JS::Realm& realm)
 }
 
 FakeXRDevice::~FakeXRDevice() = default;
-
-void FakeXRDevice::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FakeXRDevice);
-    Base::initialize(realm);
-}
 
 GC::Ref<WebIDL::Promise> FakeXRDevice::disconnect() const
 {

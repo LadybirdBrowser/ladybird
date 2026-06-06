@@ -12,7 +12,7 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csstranslate
 class CSSTranslate final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSTranslate, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSTranslate, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSTranslate);
 
 public:
@@ -36,9 +36,7 @@ public:
 
 private:
     explicit CSSTranslate(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_x;
     GC::Ref<CSSNumericValue> m_y;

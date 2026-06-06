@@ -10,7 +10,7 @@
 #include <AK/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/WeakContainer.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -23,9 +23,9 @@ namespace Web::DOM {
 // "is this Element part of the collection?"
 
 class HTMLCollection
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public GC::WeakContainer {
-    WEB_PLATFORM_OBJECT(HTMLCollection, Bindings::PlatformObject);
+    WEB_WRAPPABLE(HTMLCollection, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(HTMLCollection);
 
 public:
@@ -43,21 +43,19 @@ public:
 
     GC::RootVector<GC::Ref<Element>> collect_matching_elements() const;
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(FlyString const& name) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
+    virtual JS::Value named_item_value(JS::Realm& realm, FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     virtual bool is_supported_property_name(FlyString const&) const override;
 
 protected:
     HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr);
 
-    virtual void initialize(JS::Realm&) override;
-
     GC::Ref<ParentNode> root() { return *m_root; }
     GC::Ref<ParentNode const> root() const { return *m_root; }
 
 private:
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
     virtual GC::Cell const& owner_cell(Badge<GC::Heap>) const override;
 

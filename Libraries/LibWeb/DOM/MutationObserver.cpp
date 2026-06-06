@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Bindings/MutationObserver.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
@@ -24,7 +22,7 @@ WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::construct_impl(
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-mutationobserver
 MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_callback(move(callback))
 {
     // The new MutationObserver(callback) constructor steps are to set this’s callback to callback.
@@ -32,13 +30,7 @@ MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackTyp
 
 MutationObserver::~MutationObserver() = default;
 
-void MutationObserver::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MutationObserver);
-    Base::initialize(realm);
-}
-
-void MutationObserver::visit_edges(Cell::Visitor& visitor)
+void MutationObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_callback);

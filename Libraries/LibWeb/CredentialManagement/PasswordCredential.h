@@ -8,7 +8,6 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PasswordCredential.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CredentialManagement/Credential.h>
 #include <LibWeb/CredentialManagement/CredentialUserData.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -19,7 +18,7 @@ namespace Web::CredentialManagement {
 class PasswordCredential final
     : public Credential
     , public CredentialUserData {
-    WEB_PLATFORM_OBJECT(PasswordCredential, Credential);
+    WEB_WRAPPABLE(PasswordCredential, Credential);
     GC_DECLARE_ALLOCATOR(PasswordCredential);
 
 public:
@@ -35,7 +34,6 @@ public:
 
 private:
     PasswordCredential(JS::Realm&, Bindings::PasswordCredentialData const&, URL::Origin);
-    virtual void initialize(JS::Realm&) override;
 
     // TODO: Use Core::SecretString when it comes back
     String m_password;

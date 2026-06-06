@@ -29,7 +29,7 @@ LiveNodeList::LiveNodeList(JS::Realm& realm, Node const& root, Scope scope, Func
 
 LiveNodeList::~LiveNodeList() = default;
 
-void LiveNodeList::visit_edges(Cell::Visitor& visitor)
+void LiveNodeList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);

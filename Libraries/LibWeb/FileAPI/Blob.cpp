@@ -8,11 +8,10 @@
 #include <AK/GenericLexer.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -130,30 +129,24 @@ bool is_basic_latin(StringView view)
 }
 
 Blob::Blob(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 Blob::Blob(JS::Realm& realm, ByteBuffer byte_buffer, String type)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_byte_buffer(move(byte_buffer))
     , m_type(move(type))
 {
 }
 
 Blob::Blob(JS::Realm& realm, ByteBuffer byte_buffer)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_byte_buffer(move(byte_buffer))
 {
 }
 
 Blob::~Blob() = default;
-
-void Blob::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Blob);
-    Base::initialize(realm);
-}
 
 WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
 {

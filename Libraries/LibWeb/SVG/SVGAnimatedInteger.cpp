@@ -6,8 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedInteger.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedInteger.h>
 
@@ -34,7 +32,7 @@ SVGAnimatedInteger::SVGAnimatedInteger(
     WebIDL::Long initial_value,
     SupportsSecondValue supports_second_value,
     ValueRepresented value_represented)
-    : PlatformObject(realm)
+    : Bindings::Wrappable(realm)
     , m_element(element)
     , m_reflected_attribute(move(reflected_attribute))
     , m_initial_value(initial_value)
@@ -151,13 +149,7 @@ WebIDL::Long SVGAnimatedInteger::get_base_or_anim_value() const
     return parse_value_or_initial(value);
 }
 
-void SVGAnimatedInteger::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedInteger);
-    Base::initialize(realm);
-}
-
-void SVGAnimatedInteger::visit_edges(Visitor& visitor)
+void SVGAnimatedInteger::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);

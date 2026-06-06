@@ -6,10 +6,7 @@
  */
 
 #include <LibURL/Origin.h>
-#include <LibWeb/Bindings/DOMImplementation.h>
 #include <LibWeb/Bindings/Document.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/DOMImplementation.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -29,20 +26,14 @@ GC::Ref<DOMImplementation> DOMImplementation::create(Document& document)
 }
 
 DOMImplementation::DOMImplementation(Document& document)
-    : PlatformObject(document.realm())
+    : Wrappable(document.realm())
     , m_document(document)
 {
 }
 
 DOMImplementation::~DOMImplementation() = default;
 
-void DOMImplementation::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMImplementation);
-    Base::initialize(realm);
-}
-
-void DOMImplementation::visit_edges(Cell::Visitor& visitor)
+void DOMImplementation::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);

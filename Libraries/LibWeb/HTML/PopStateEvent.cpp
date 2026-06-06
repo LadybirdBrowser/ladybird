@@ -6,7 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PopStateEvent.h>
 #include <LibWeb/HTML/PopStateEvent.h>
 
@@ -30,13 +29,7 @@ PopStateEvent::PopStateEvent(JS::Realm& realm, FlyString const& event_name, Bind
 {
 }
 
-void PopStateEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PopStateEvent);
-    Base::initialize(realm);
-}
-
-void PopStateEvent::visit_edges(JS::Cell::Visitor& visitor)
+void PopStateEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_state);

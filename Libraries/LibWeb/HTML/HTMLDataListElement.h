@@ -14,7 +14,7 @@
 namespace Web::HTML {
 
 class WEB_API HTMLDataListElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLDataListElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLDataListElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLDataListElement);
 
 public:

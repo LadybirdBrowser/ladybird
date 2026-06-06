@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageChannel.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/MessageChannel.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -20,7 +18,7 @@ WebIDL::ExceptionOr<GC::Ref<MessageChannel>> MessageChannel::construct_impl(JS::
 }
 
 MessageChannel::MessageChannel(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
     // 1. Set this's port 1 to a new MessagePort in this's relevant Realm.
     m_port1 = MessagePort::create(realm);
@@ -34,17 +32,11 @@ MessageChannel::MessageChannel(JS::Realm& realm)
 
 MessageChannel::~MessageChannel() = default;
 
-void MessageChannel::visit_edges(Cell::Visitor& visitor)
+void MessageChannel::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_port1);
     visitor.visit(m_port2);
-}
-
-void MessageChannel::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MessageChannel);
-    Base::initialize(realm);
 }
 
 MessagePort* MessageChannel::port1()

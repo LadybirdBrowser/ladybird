@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/DOMException.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -29,7 +28,7 @@ GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, Utf16String
 }
 
 DOMException::DOMException(JS::Realm& realm, FlyString name, Utf16String const& message)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , ErrorData(realm.vm())
     , m_name(move(name))
     , m_message(message)
@@ -37,20 +36,14 @@ DOMException::DOMException(JS::Realm& realm, FlyString name, Utf16String const& 
 }
 
 DOMException::DOMException(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , ErrorData(realm.vm())
 {
 }
 
 DOMException::~DOMException() = default;
 
-void DOMException::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMException);
-    Base::initialize(realm);
-}
-
-void DOMException::visit_edges(Visitor& visitor)
+void DOMException::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     ErrorData::visit_edges(visitor);
@@ -80,6 +73,15 @@ WebIDL::ExceptionOr<void> DOMException::deserialization_steps(HTML::TransferData
     // FIXME: 3. If any other data is attached to serialized, then deserialize and attach it to value.
 
     return {};
+}
+
+}
+
+namespace Web {
+
+JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception)
+{
+    return JS::throw_completion(Bindings::wrap(exception->realm(), exception));
 }
 
 }

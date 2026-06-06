@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -16,8 +16,8 @@
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#readablestreambyobrequest
-class ReadableStreamBYOBRequest : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ReadableStreamBYOBRequest, Bindings::PlatformObject);
+class ReadableStreamBYOBRequest : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ReadableStreamBYOBRequest, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableStreamBYOBRequest);
 
 public:
@@ -35,9 +35,7 @@ public:
 private:
     explicit ReadableStreamBYOBRequest(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#readablestreambyobrequest-controller
     // The parent ReadableByteStreamController instance

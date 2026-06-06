@@ -47,7 +47,7 @@ WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::D
     , m_document(document)
 {
     auto& realm = m_document->realm();
-    m_document->window()->define_direct_property(ladybird_property(), realm.create<Web::Internals::WebUI>(realm), JS::default_attributes);
+    realm.global_object().define_direct_property(ladybird_property(), Web::Internals::WebUI::create(realm), JS::default_attributes);
 
     Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, m_document, GC::create_function(realm.heap(), [&document = *m_document]() {
         document.dispatch_event(Web::DOM::Event::create(document.realm(), web_ui_loaded_event()));
@@ -59,7 +59,7 @@ WebUIConnection::~WebUIConnection()
     if (!m_document->window())
         return;
 
-    (void)m_document->window()->internal_delete(ladybird_property());
+    (void)m_document->realm().global_object().internal_delete(ladybird_property());
 }
 
 void WebUIConnection::visit_edges(JS::Cell::Visitor& visitor)

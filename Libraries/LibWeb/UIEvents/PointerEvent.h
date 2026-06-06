@@ -14,7 +14,7 @@ namespace Web::UIEvents {
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
 class PointerEvent : public MouseEvent {
-    WEB_PLATFORM_OBJECT(PointerEvent, MouseEvent);
+    WEB_WRAPPABLE(PointerEvent, MouseEvent);
     GC_DECLARE_ALLOCATOR(PointerEvent);
 
 public:
@@ -60,8 +60,7 @@ public:
 protected:
     PointerEvent(JS::Realm&, FlyString const& type, Bindings::PointerEventInit const&, double page_x, double page_y, double offset_x, double offset_y);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     bool should_have_fractional_coordinates() const;

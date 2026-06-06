@@ -23,20 +23,14 @@ namespace Web::DOMURL {
 GC_DEFINE_ALLOCATOR(URLSearchParams);
 
 URLSearchParams::URLSearchParams(JS::Realm& realm, Vector<QueryParam> list)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_list(move(list))
 {
 }
 
 URLSearchParams::~URLSearchParams() = default;
 
-void URLSearchParams::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(URLSearchParams);
-    Base::initialize(realm);
-}
-
-void URLSearchParams::visit_edges(Cell::Visitor& visitor)
+void URLSearchParams::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_url);

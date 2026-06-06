@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Object.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeFilter.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#nodeiterator
-class NodeIterator final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NodeIterator, Bindings::PlatformObject);
+class NodeIterator final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(NodeIterator, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(NodeIterator);
 
 public:
@@ -40,8 +40,7 @@ public:
 private:
     explicit NodeIterator(JS::Realm&, Node& root);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     enum class Direction {

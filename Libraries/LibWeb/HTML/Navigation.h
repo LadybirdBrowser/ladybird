@@ -42,7 +42,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-interface
 class Navigation : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Navigation, DOM::EventTarget);
+    WEB_WRAPPABLE(Navigation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Navigation);
 
 public:
@@ -117,6 +117,7 @@ private:
 
     using AnyException = decltype(declval<WebIDL::ExceptionOr<void>>().exception());
     Bindings::NavigationResult early_error_result(AnyException);
+    Bindings::NavigationResult early_error_result(GC::Ref<WebIDL::DOMException>);
 
     GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<SerializationRecord>);
     GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(String destination_key, JS::Value info);
@@ -124,6 +125,7 @@ private:
     void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<String> destination_key);
     void resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>);
     void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, JS::Value exception);
+    void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, GC::Ref<WebIDL::DOMException> exception);
     void clean_up(GC::Ref<NavigationAPIMethodTracker>);
     void notify_about_the_committed_to_entry(GC::Ref<NavigationAPIMethodTracker>, GC::Ref<NavigationHistoryEntry>);
     void run_the_navigate_event_intercept_commit_handler_steps(GC::Ref<NavigateEvent>, GC::Ptr<NavigationAPIMethodTracker>);

@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedRect.h>
 #include <LibWeb/SVG/SVGAnimatedRect.h>
 
 namespace Web::SVG {
@@ -14,19 +11,13 @@ namespace Web::SVG {
 GC_DEFINE_ALLOCATOR(SVGAnimatedRect);
 
 SVGAnimatedRect::SVGAnimatedRect(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
+    , m_base_val(Geometry::DOMRect::create(realm, { 0, 0, 0, 0 }))
+    , m_anim_val(Geometry::DOMRect::create(realm, { 0, 0, 0, 0 }))
 {
 }
 
 SVGAnimatedRect::~SVGAnimatedRect() = default;
-
-void SVGAnimatedRect::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedRect);
-    Base::initialize(realm);
-    m_base_val = Geometry::DOMRect::create(realm, { 0, 0, 0, 0 });
-    m_anim_val = Geometry::DOMRect::create(realm, { 0, 0, 0, 0 });
-}
 
 void SVGAnimatedRect::visit_edges(Visitor& visitor)
 {

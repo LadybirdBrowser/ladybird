@@ -9,8 +9,10 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace WebContent {
@@ -55,7 +57,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$0_getter)
     if (!inspected_node)
         return JS::js_undefined();
 
-    return inspected_node;
+    return Web::Bindings::wrap(*vm.current_realm(), GC::Ref { const_cast<Web::DOM::Node&>(*inspected_node) });
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$__getter)
@@ -72,18 +74,24 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
     auto selector = TRY(vm.argument(0).to_string(vm));
 
     if (vm.argument_count() > 1) {
-        auto node = vm.argument(1).as_if<Web::DOM::ParentNode>();
+        auto node = vm.argument(1).is_object() ? Web::Bindings::impl_from<Web::DOM::ParentNode>(&vm.argument(1).as_object()) : nullptr;
         if (!node)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Node");
 
-        return TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
+        auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
             return node->query_selector(selector);
         }));
+        if (!element)
+            return JS::js_null();
+        return Web::Bindings::wrap(*vm.current_realm(), element);
     }
 
-    return TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
+    auto element = TRY(Web::Bindings::throw_dom_exception_if_needed(vm, [&]() {
         return window.associated_document().query_selector(selector);
     }));
+    if (!element)
+        return JS::js_null();
+    return Web::Bindings::wrap(*vm.current_realm(), element);
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
@@ -96,7 +104,7 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
     Web::DOM::ParentNode* element = &window.associated_document();
 
     if (vm.argument_count() > 1) {
-        auto node = vm.argument(1).as_if<Web::DOM::ParentNode>();
+        auto node = vm.argument(1).is_object() ? Web::Bindings::impl_from<Web::DOM::ParentNode>(&vm.argument(1).as_object()) : nullptr;
         if (!node)
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Node");
         element = node;
@@ -108,7 +116,10 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
 
     auto array = TRY(JS::Array::create(*vm.current_realm(), node_list->length()));
     for (auto i = 0u; i < node_list->length(); ++i) {
-        TRY(array->create_data_property_or_throw(i, *node_list->item_value(i)));
+        auto* node = node_list->item(i);
+        VERIFY(node);
+        auto wrapped_node = Web::Bindings::wrap(*vm.current_realm(), GC::Ref { const_cast<Web::DOM::Node&>(*node) });
+        TRY(array->create_data_property_or_throw(i, wrapped_node));
     }
 
     return array;

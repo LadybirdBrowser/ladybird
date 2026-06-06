@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 class VideoTrackList final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(VideoTrackList, DOM::EventTarget);
+    WEB_WRAPPABLE(VideoTrackList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(VideoTrackList);
 
 public:
@@ -55,7 +55,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;
-    virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
+    virtual Optional<JS::Value> item_value(JS::Realm& realm, size_t index) const override;
 
     GC::Ptr<HTMLMediaElement> m_media_element;
 

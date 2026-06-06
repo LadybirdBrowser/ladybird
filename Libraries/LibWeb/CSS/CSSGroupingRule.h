@@ -15,7 +15,7 @@
 namespace Web::CSS {
 
 class CSSGroupingRule : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSGroupingRule, CSSRule);
+    WEB_WRAPPABLE(CSSGroupingRule, CSSRule);
 
 public:
     virtual ~CSSGroupingRule() = default;
@@ -32,9 +32,7 @@ public:
 
 protected:
     CSSGroupingRule(JS::Realm&, CSSRuleList&, Type);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
 
 private:

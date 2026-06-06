@@ -12,7 +12,7 @@
 namespace Web::CSS {
 
 class TransitionEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(TransitionEvent, DOM::Event);
+    WEB_WRAPPABLE(TransitionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(TransitionEvent);
 
 public:
@@ -27,8 +27,6 @@ public:
 
 private:
     TransitionEvent(JS::Realm&, FlyString const& event_name, Bindings::TransitionEventInit const& event_init);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_property_name {};
     double m_elapsed_time {};

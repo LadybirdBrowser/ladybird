@@ -31,7 +31,7 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> URLSearchParamsIterator::c
 }
 
 URLSearchParamsIterator::URLSearchParamsIterator(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
-    : PlatformObject(url_search_params.realm())
+    : JS::Object(url_search_params.realm(), nullptr)
     , m_url_search_params(url_search_params)
     , m_iteration_kind(iteration_kind)
 {
@@ -45,7 +45,7 @@ void URLSearchParamsIterator::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void URLSearchParamsIterator::visit_edges(JS::Cell::Visitor& visitor)
+void URLSearchParamsIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_url_search_params);
@@ -62,7 +62,7 @@ JS::Object* URLSearchParamsIterator::next()
     else if (m_iteration_kind == JS::Object::PropertyKind::Value)
         return create_iterator_result_object(vm(), JS::PrimitiveString::create(vm(), entry.value), false);
 
-    return create_iterator_result_object(vm(), JS::Array::create_from(realm(), { JS::PrimitiveString::create(vm(), entry.name), JS::PrimitiveString::create(vm(), entry.value) }), false);
+    return create_iterator_result_object(vm(), JS::Array::create_from(shape().realm(), { JS::PrimitiveString::create(vm(), entry.name), JS::PrimitiveString::create(vm(), entry.value) }), false);
 }
 
 }

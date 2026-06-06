@@ -7,7 +7,6 @@
 
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStreamBYOBRequest.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStreamBYOBRequest.h>
@@ -26,17 +25,11 @@ WebIDL::NullableArrayBufferViewVariant ReadableStreamBYOBRequest::view()
 }
 
 ReadableStreamBYOBRequest::ReadableStreamBYOBRequest(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
-void ReadableStreamBYOBRequest::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamBYOBRequest);
-    Base::initialize(realm);
-}
-
-void ReadableStreamBYOBRequest::visit_edges(Cell::Visitor& visitor)
+void ReadableStreamBYOBRequest::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_controller);

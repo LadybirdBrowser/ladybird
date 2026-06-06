@@ -5,8 +5,6 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/ANGLEInstancedArrays.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -19,13 +17,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(ANGLEInstancedArrays);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> ANGLEInstancedArrays::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+JS::ThrowCompletionOr<GC::Ref<Bindings::Wrappable>> ANGLEInstancedArrays::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
-    return realm.create<ANGLEInstancedArrays>(realm, context);
+    auto extension = realm.create<ANGLEInstancedArrays>(realm, context);
+    return GC::Ref<Bindings::Wrappable> { extension };
 }
 
 ANGLEInstancedArrays::ANGLEInstancedArrays(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
+    : Wrappable(realm)
     , m_context(context)
 {
 }
@@ -48,13 +47,7 @@ void ANGLEInstancedArrays::draw_elements_instanced_angle(GLenum mode, GLsizei co
     glDrawElementsInstancedANGLE(mode, count, type, reinterpret_cast<void*>(offset), primcount);
 }
 
-void ANGLEInstancedArrays::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ANGLEInstancedArrays);
-    Base::initialize(realm);
-}
-
-void ANGLEInstancedArrays::visit_edges(Visitor& visitor)
+void ANGLEInstancedArrays::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

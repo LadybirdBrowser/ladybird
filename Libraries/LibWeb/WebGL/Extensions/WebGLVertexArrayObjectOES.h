@@ -13,7 +13,7 @@
 namespace Web::WebGL {
 
 class WebGLVertexArrayObjectOES : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLVertexArrayObjectOES, WebGLObject);
+    WEB_WRAPPABLE(WebGLVertexArrayObjectOES, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLVertexArrayObjectOES);
 
 public:
@@ -23,8 +23,6 @@ public:
 
 protected:
     explicit WebGLVertexArrayObjectOES(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

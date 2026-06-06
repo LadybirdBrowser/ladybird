@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/CompositionEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
 
 namespace Web::UIEvents {
@@ -29,12 +28,6 @@ CompositionEvent::CompositionEvent(JS::Realm& realm, FlyString const& event_name
 }
 
 CompositionEvent::~CompositionEvent() = default;
-
-void CompositionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CompositionEvent);
-    Base::initialize(realm);
-}
 
 // https://w3c.github.io/uievents/#dom-compositionevent-initcompositionevent
 void CompositionEvent::init_composition_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data)

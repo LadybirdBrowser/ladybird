@@ -2674,7 +2674,7 @@ GC::Ref<WebIDL::Promise> Element::request_fullscreen(FullscreenRequester fullscr
 
     // 6. If error is false, then consume user activation given pendingDoc’s relevant global object.
     if (error == RequestFullscreenError::False) {
-        auto& relevant_global = as<HTML::Window>(relevant_global_object(*pending_doc));
+        auto& relevant_global = HTML::relevant_window(*pending_doc);
         relevant_global.consume_user_activation();
     }
 
@@ -2741,8 +2741,8 @@ RequestFullscreenError Element::is_element_allowed_to_enter_fullscreen(Fullscree
     // FIXME: Spec issue: We don't require transient activations for WebDriver.
     //        https://github.com/w3c/webdriver/issues/1888
     if (fullscreen_requester != FullscreenRequester::WebDriver) {
-        auto* window = as<HTML::Window>(&HTML::relevant_global_object(*this));
-        if (!window->has_transient_activation())
+        auto& window = HTML::relevant_window(*this);
+        if (!window.has_transient_activation())
             return RequestFullscreenError::NoTransientUserActivation;
     }
 
@@ -3369,12 +3369,16 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
             GC::RootVector<JS::Value> no_arguments;
 
             // 1. If disconnectedCallback is not null, then call disconnectedCallback with no arguments.
-            if (disconnected_callback)
-                (void)WebIDL::invoke_callback(*disconnected_callback, this, WebIDL::ExceptionBehavior::Report, no_arguments);
+            if (disconnected_callback) {
+                auto this_value = Bindings::wrap(disconnected_callback->callback->shape().realm(), GC::Ref { *this });
+                (void)WebIDL::invoke_callback(*disconnected_callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, no_arguments);
+            }
 
             // 2. If connectedCallback is not null, then call connectedCallback with no arguments.
-            if (connected_callback)
-                (void)WebIDL::invoke_callback(*connected_callback, this, WebIDL::ExceptionBehavior::Report, no_arguments);
+            if (connected_callback) {
+                auto this_value = Bindings::wrap(connected_callback->callback->shape().realm(), GC::Ref { *this });
+                (void)WebIDL::invoke_callback(*connected_callback, this_value.ptr(), WebIDL::ExceptionBehavior::Report, no_arguments);
+            }
 
             return JS::js_undefined(); }, 0, Utf16FlyString {}, &realm());
         callback = realm().heap().allocate<WebIDL::CallbackType>(steps, realm());
@@ -3460,7 +3464,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         // 1. If definition's disable shadow is true and element's shadow root is non-null, then throw a
         //    "NotSupportedError" DOMException.
         if (custom_element_definition->disable_shadow() && shadow_root())
-            return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_utf16));
+            return throw_completion(WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_utf16));
 
         // 2. Set element's custom element state to "precustomized".
         set_custom_element_state(CustomElementState::Precustomized);
@@ -3469,7 +3473,8 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         auto construct_result = TRY(WebIDL::construct(constructor, {}));
 
         // 4. If SameValue(constructResult, element) is false, then throw a TypeError.
-        if (!JS::same_value(construct_result, this))
+        auto this_value = Bindings::wrap(realm, GC::Ref { *this });
+        if (!JS::same_value(construct_result, this_value.ptr()))
             return vm.throw_completion<JS::TypeError>("Constructing the custom element returned a different element from the custom element"sv);
 
         return {};

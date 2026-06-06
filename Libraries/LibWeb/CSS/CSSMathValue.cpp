@@ -5,7 +5,6 @@
  */
 
 #include "CSSMathValue.h"
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
@@ -17,12 +16,6 @@ CSSMathValue::CSSMathValue(JS::Realm& realm, Bindings::CSSMathOperator operator_
     : CSSNumericValue(realm, move(type))
     , m_operator(operator_)
 {
-}
-
-void CSSMathValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathValue);
-    Base::initialize(realm);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#create-an-internal-representation

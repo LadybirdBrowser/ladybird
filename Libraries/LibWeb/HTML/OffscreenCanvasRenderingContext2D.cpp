@@ -9,7 +9,6 @@
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -40,8 +39,8 @@ JS::ThrowCompletionOr<GC::Ref<OffscreenCanvasRenderingContext2D>> OffscreenCanva
 }
 
 OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(JS::Realm& realm, OffscreenCanvas& offscreen_canvas, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : PlatformObject(realm)
-    , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
+    : Bindings::Wrappable(realm)
+    , CanvasPath(static_cast<CanvasState const&>(*this))
     , m_canvas(offscreen_canvas)
     , m_size(offscreen_canvas.bitmap_size_for_canvas())
     , m_context_attributes(context_attributes)
@@ -50,13 +49,7 @@ OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(JS::Realm& 
 
 OffscreenCanvasRenderingContext2D::~OffscreenCanvasRenderingContext2D() = default;
 
-void OffscreenCanvasRenderingContext2D::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::OffscreenCanvasRenderingContext2DPrototype>(realm, "OffscreenCanvasRenderingContext2D"_string));
-}
-
-void OffscreenCanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
+void OffscreenCanvasRenderingContext2D::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     CanvasState::visit_edges(visitor);

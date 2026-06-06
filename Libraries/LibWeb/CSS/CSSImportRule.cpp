@@ -11,7 +11,6 @@
 #include <AK/ScopeGuard.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/CSSImportRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSScopeRule.h>
@@ -52,13 +51,7 @@ CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> d
 
 CSSImportRule::~CSSImportRule() = default;
 
-void CSSImportRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSImportRule);
-    Base::initialize(realm);
-}
-
-void CSSImportRule::visit_edges(Cell::Visitor& visitor)
+void CSSImportRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);

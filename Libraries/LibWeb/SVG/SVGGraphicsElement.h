@@ -22,7 +22,7 @@
 namespace Web::SVG {
 
 class WEB_API SVGGraphicsElement : public SVGElement {
-    WEB_PLATFORM_OBJECT(SVGGraphicsElement, SVGElement);
+    WEB_WRAPPABLE(SVGGraphicsElement, SVGElement);
 
 public:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

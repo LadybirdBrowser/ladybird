@@ -14,7 +14,7 @@
 namespace Web::HTML {
 
 class HTMLOListElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLOListElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLOListElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOListElement);
 
 public:

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SubmitEvent.h>
 #include <LibWeb/HTML/SubmitEvent.h>
 
@@ -32,13 +31,7 @@ SubmitEvent::SubmitEvent(JS::Realm& realm, FlyString const& event_name, Bindings
 
 SubmitEvent::~SubmitEvent() = default;
 
-void SubmitEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SubmitEvent);
-    Base::initialize(realm);
-}
-
-void SubmitEvent::visit_edges(Cell::Visitor& visitor)
+void SubmitEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_submitter);

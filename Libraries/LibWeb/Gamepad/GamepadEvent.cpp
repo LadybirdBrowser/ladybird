@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Bindings/GamepadEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Gamepad/Gamepad.h>
 #include <LibWeb/Gamepad/GamepadEvent.h>
 
@@ -26,13 +25,7 @@ GamepadEvent::GamepadEvent(JS::Realm& realm, FlyString const& event_name, Bindin
 
 GamepadEvent::~GamepadEvent() = default;
 
-void GamepadEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(GamepadEvent);
-    Base::initialize(realm);
-}
-
-void GamepadEvent::visit_edges(Cell::Visitor& visitor)
+void GamepadEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_gamepad);

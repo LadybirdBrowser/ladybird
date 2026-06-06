@@ -7,7 +7,9 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/Clipboard.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/Clipboard/ClipboardItem.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
@@ -91,7 +93,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
 // https://w3c.github.io/clipboard-apis/#write-blobs-and-option-to-the-clipboard
 static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<GC::Ref<FileAPI::Blob>> items, StringView presentation_style)
 {
-    auto& window = as<HTML::Window>(realm.global_object());
+    auto& window = HTML::relevant_window(realm.global_object());
 
     // FIXME: 1. Let webCustomFormats be a sequence<Blob>.
 
@@ -132,7 +134,7 @@ static bool check_clipboard_read_permission(JS::Realm& realm)
     //       https://pr-preview.s3.amazonaws.com/w3c/clipboard-apis/pull/164.html#read-permission
 
     // 1. Let hasGesture be true if the relevant global object of this has transient activation, false otherwise.
-    auto has_gesture = as<HTML::Window>(realm.global_object()).has_transient_activation();
+    auto has_gesture = HTML::relevant_window(realm.global_object()).has_transient_activation();
 
     // 2. If hasGesture then,
     if (has_gesture) {
@@ -153,7 +155,7 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
     //       https://pr-preview.s3.amazonaws.com/w3c/clipboard-apis/pull/164.html#write-permission
 
     // 1. Let hasGesture be true if the relevant global object of this has transient activation, false otherwise.
-    auto has_gesture = as<HTML::Window>(realm.global_object()).has_transient_activation();
+    auto has_gesture = HTML::relevant_window(realm.global_object()).has_transient_activation();
 
     // 2. If hasGesture then,
     if (has_gesture) {
@@ -204,11 +206,11 @@ GC::Ref<WebIDL::Promise> Clipboard::read(Bindings::ClipboardUnsanitizedFormats f
         }
 
         // 3. Let data be a copy of the system clipboard data.
-        as<HTML::Window>(realm.global_object()).page().request_clipboard_entries(GC::create_function(realm.heap(), [&realm, promise, formats = move(formats)](Vector<SystemClipboardItem> data) mutable {
+        HTML::relevant_window(realm.global_object()).page().request_clipboard_entries(GC::create_function(realm.heap(), [&realm, promise, formats = move(formats)](Vector<SystemClipboardItem> data) mutable {
             HTML::TemporaryExecutionContext execution_context { realm };
 
             // 4. Let items be a sequence<clipboard item>.
-            GC::RootVector<JS::Value> items;
+            GC::RootVector<GC::Ref<ClipboardItem>> items;
 
             // 5. For each systemClipboardItem in data:
             for (auto const& system_clipboard_item : data) {
@@ -297,7 +299,9 @@ GC::Ref<WebIDL::Promise> Clipboard::read(Bindings::ClipboardUnsanitizedFormats f
 
                 // NOTE: We do not perform this song-and-dance of having ClipboardItem and "clipboard item" being
                 //       separate concepts. But we do still need to convert the RootVector to a JS array.
-                auto clipboard_items = JS::Array::create_from(realm, items);
+                auto clipboard_items = MUST(JS::Array::create(realm, 0));
+                for (size_t i = 0; i < items.size(); ++i)
+                    MUST(clipboard_items->create_data_property(JS::PropertyKey { i }, Bindings::wrap(realm, items.at(i))));
 
                 // 2. Resolve p with clipboardItems.
                 WebIDL::resolve_promise(realm, promise, clipboard_items);
@@ -337,7 +341,7 @@ GC::Ref<WebIDL::Promise> Clipboard::read_text()
         }
 
         // 3. Let data be a copy of the system clipboard data.
-        as<HTML::Window>(realm.global_object()).page().request_clipboard_entries(GC::create_function(realm.heap(), [&realm, promise](Vector<SystemClipboardItem> data) mutable {
+        HTML::relevant_window(realm.global_object()).page().request_clipboard_entries(GC::create_function(realm.heap(), [&realm, promise](Vector<SystemClipboardItem> data) mutable {
             // 4. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
             queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
@@ -465,8 +469,9 @@ GC::Ref<WebIDL::Promise> Clipboard::write(GC::RootVector<GC::Ref<ClipboardItem>>
                                 item_list.append(blob_data);
                             }
                             // 2. If v is a Blob, then add v to itemList.
-                            else if (auto blob = value.as_if<FileAPI::Blob>()) {
-                                item_list.append(*blob);
+                            else if (value.is_object()) {
+                                if (auto* blob = Bindings::impl_from<FileAPI::Blob>(&value.as_object()))
+                                    item_list.append(*blob);
                             }
 
                             return JS::js_undefined();

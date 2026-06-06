@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLSourceElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLSourceElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLSourceElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSourceElement);
 
 public:

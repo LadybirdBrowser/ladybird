@@ -8,7 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSNamespaceRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
@@ -28,12 +27,6 @@ CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix,
 GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
 {
     return realm.create<CSSNamespaceRule>(realm, move(prefix), move(namespace_uri));
-}
-
-void CSSNamespaceRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSNamespaceRule);
-    Base::initialize(realm);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule

@@ -9,14 +9,15 @@
 #include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/SpeechGrammar.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Speech {
 
-class SpeechGrammar final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SpeechGrammar, Bindings::PlatformObject);
+class SpeechGrammar final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SpeechGrammar, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SpeechGrammar);
 
 public:
@@ -33,8 +34,6 @@ public:
 
 private:
     explicit SpeechGrammar(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     String m_src;
     float m_weight { 1.f };

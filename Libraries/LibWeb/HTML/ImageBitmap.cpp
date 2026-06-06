@@ -58,19 +58,13 @@ GC::Ref<ImageBitmap> ImageBitmap::create(JS::Realm& realm)
 }
 
 ImageBitmap::ImageBitmap(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 ImageBitmap::~ImageBitmap() = default;
 
-void ImageBitmap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ImageBitmap);
-    Base::initialize(realm);
-}
-
-void ImageBitmap::visit_edges(Cell::Visitor& visitor)
+void ImageBitmap::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 }

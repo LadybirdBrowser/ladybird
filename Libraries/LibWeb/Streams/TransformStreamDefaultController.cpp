@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransformStreamDefaultController.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/Streams/TransformStream.h>
@@ -16,19 +15,13 @@ namespace Web::Streams {
 GC_DEFINE_ALLOCATOR(TransformStreamDefaultController);
 
 TransformStreamDefaultController::TransformStreamDefaultController(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
+    : Bindings::Wrappable(realm)
 {
 }
 
 TransformStreamDefaultController::~TransformStreamDefaultController() = default;
 
-void TransformStreamDefaultController::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TransformStreamDefaultController);
-    Base::initialize(realm);
-}
-
-void TransformStreamDefaultController::visit_edges(Cell::Visitor& visitor)
+void TransformStreamDefaultController::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_stream);

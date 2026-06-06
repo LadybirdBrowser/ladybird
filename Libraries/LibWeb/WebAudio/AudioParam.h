@@ -8,13 +8,13 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioParam.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioParam
-class AudioParam final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AudioParam, Bindings::PlatformObject);
+class AudioParam final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(AudioParam, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(AudioParam);
 
 public:
@@ -63,8 +63,7 @@ private:
 
     FixedAutomationRate m_fixed_automation_rate { FixedAutomationRate::No };
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 };
 
 }

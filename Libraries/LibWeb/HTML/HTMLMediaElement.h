@@ -38,7 +38,7 @@ class SourceElementSelector;
 using OptionalMediaProvider = Variant<Empty, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
 
 class HTMLMediaElement : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLMediaElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLMediaElement, HTMLElement);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;

@@ -9,17 +9,18 @@
 #pragma once
 
 #include <LibGfx/Point.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dompointreadonly
 class DOMPointReadOnly
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public Bindings::Serializable {
-    WEB_PLATFORM_OBJECT(DOMPointReadOnly, Bindings::PlatformObject);
+    WEB_WRAPPABLE(DOMPointReadOnly, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMPointReadOnly);
 
 public:
@@ -43,8 +44,6 @@ public:
 protected:
     DOMPointReadOnly(JS::Realm&, double x, double y, double z, double w);
     explicit DOMPointReadOnly(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
 
     double m_x;
     double m_y;

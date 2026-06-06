@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextMetrics.h>
 #include <LibWeb/HTML/TextMetrics.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -19,16 +17,10 @@ GC::Ref<TextMetrics> TextMetrics::create(JS::Realm& realm)
 }
 
 TextMetrics::TextMetrics(JS::Realm& realm)
-    : PlatformObject(realm)
+    : Wrappable(realm)
 {
 }
 
 TextMetrics::~TextMetrics() = default;
-
-void TextMetrics::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextMetrics);
-    Base::initialize(realm);
-}
 
 }
