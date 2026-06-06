@@ -15,5 +15,3 @@ function(lagom_tool tool)
         )
     endif()
 endfunction()
-
-add_subdirectory(CodeGenerators)
