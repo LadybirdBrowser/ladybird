@@ -1,6 +1,5 @@
 add_subdirectory(LibCore)
 add_subdirectory(LibFileSystem)
-add_subdirectory(LibIDL)
 add_subdirectory(LibMain)
 add_subdirectory(LibRegex)
 add_subdirectory(LibSync)

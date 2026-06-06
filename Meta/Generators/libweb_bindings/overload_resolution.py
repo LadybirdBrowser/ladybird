@@ -51,7 +51,7 @@ def write_overload_resolution_switch(
     dictionary_types: set[str] = set()
     out.write(
         f"""    Optional<int> chosen_overload_callable_id;
-    Optional<IDL::EffectiveOverloadSet> effective_overload_set;
+    Optional<WebIDL::EffectiveOverloadSet> effective_overload_set;
 
     switch (min({maximum_argument_count}, vm.argument_count())) {{
 """
@@ -77,7 +77,7 @@ def write_overload_resolution_switch(
         )
         out.write(
             f"""    case {argument_count}: {{
-        Vector<IDL::EffectiveOverloadSet::Item> overloads;
+        Vector<WebIDL::EffectiveOverloadSet::Item> overloads;
         overloads.ensure_capacity({len(effective_overload_set)});
 """
         )
@@ -85,10 +85,10 @@ def write_overload_resolution_switch(
             dictionary_types.update(context.dictionary_type_names(*overload.types))
             types = ", ".join(constructor_for_idl_type(idl_type, context) for idl_type in overload.types)
             optionality_values = ", ".join(
-                f"IDL::Optionality::{optionality.value}" for optionality in overload.optionality_values
+                f"WebIDL::Optionality::{optionality.value}" for optionality in overload.optionality_values
             )
             out.write(
-                f"""        overloads.empend({overload.callable_id}, Vector<NonnullRefPtr<IDL::Type const>> {{ {types} }}, Vector<IDL::Optionality> {{ {optionality_values} }});
+                f"""        overloads.empend({overload.callable_id}, Vector<NonnullRefPtr<WebIDL::Type const>> {{ {types} }}, Vector<WebIDL::Optionality> {{ {optionality_values} }});
 """
             )
         out.write(
@@ -130,7 +130,7 @@ def write_overload_arbiter(
 
     includes.add("AK/Optional.h")
     includes.add("AK/Vector.h")
-    includes.add("LibIDL/Types.h")
+    includes.add("LibWeb/WebIDL/OverloadTypes.h")
     includes.add("LibWeb/WebIDL/OverloadResolution.h")
     includes.add("LibWeb/WebIDL/Tracing.h")
 
@@ -284,18 +284,18 @@ def constructor_for_idl_type(idl_type: IDLType, context: GenerationContext) -> s
     if isinstance(idl_type, IDLParameterizedType):
         parameters = ", ".join(constructor_for_idl_type(parameter, context) for parameter in idl_type.parameters)
         return (
-            f'make_ref_counted<IDL::ParameterizedType>("{idl_type.name}", {nullable}, '
-            f"Vector<NonnullRefPtr<IDL::Type const>> {{ {parameters} }})"
+            f'make_ref_counted<WebIDL::ParameterizedType>("{idl_type.name}", {nullable}, '
+            f"Vector<NonnullRefPtr<WebIDL::Type const>> {{ {parameters} }})"
         )
     if isinstance(idl_type, IDLUnionType):
         member_types = ", ".join(
             constructor_for_idl_type(member_type, context) for member_type in idl_type.member_types
         )
         return (
-            f'make_ref_counted<IDL::UnionType>("{idl_type.name}", {nullable}, '
-            f"Vector<NonnullRefPtr<IDL::Type const>> {{ {member_types} }})"
+            f'make_ref_counted<WebIDL::UnionType>("{idl_type.name}", {nullable}, '
+            f"Vector<NonnullRefPtr<WebIDL::Type const>> {{ {member_types} }})"
         )
-    return f'make_ref_counted<IDL::Type>("{idl_type.name}", {nullable})'
+    return f'make_ref_counted<WebIDL::Type>("{idl_type.name}", {nullable})'
 
 
 # https://webidl.spec.whatwg.org/#dfn-distinguishable
