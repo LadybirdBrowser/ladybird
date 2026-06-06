@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        font-size: 0;
+        margin: 0;
+    }
+
+    img {
+        display: block;
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+    }
+</style>
+<script>
+    asyncTest((done) => {
+        const image = document.createElement("img");
+        image.onload = () => {
+            println(internals.dumpDisplayList());
+            done();
+        };
+        document.body.appendChild(image);
+        image.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAGQAQMAAADRPL3zAAAABlBMVEUwMDCAgIDHGf6uAAAAQ0lEQVRo3u3YMREAQAgDQRzg3+U7gDbl9+y1i4AMNdGrjBBCCCGEXJas84wQQgghhJwWW5kQQgghhPgnEkIIIYSQT1nvD3WWWfRskgAAAABJRU5ErkJggg==";
+    });
+</script>

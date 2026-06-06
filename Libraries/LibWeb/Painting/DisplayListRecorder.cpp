@@ -534,13 +534,12 @@ void DisplayListRecorder::draw_video_frame(Gfx::IntRect const& dst_rect, VideoFr
     });
 }
 
-void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::IntRect const& clip_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
         return;
     append_command(DrawScaledDecodedImageFrame {
         .dst_rect = dst_rect,
-        .clip_rect = clip_rect,
         .frame_id = resource_storage().add_image_frame(frame),
         .scaling_mode = scaling_mode,
     });

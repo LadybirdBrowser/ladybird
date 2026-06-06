@@ -32,7 +32,7 @@ void FillRect::dump(StringBuilder& builder) const
 
 void DrawScaledDecodedImageFrame::dump(StringBuilder& builder) const
 {
-    builder.appendff(" dst_rect={} clip_rect={}", dst_rect, clip_rect);
+    builder.appendff(" dst_rect={}", dst_rect);
 }
 
 void DrawRepeatedDecodedImageFrame::dump(StringBuilder& builder) const

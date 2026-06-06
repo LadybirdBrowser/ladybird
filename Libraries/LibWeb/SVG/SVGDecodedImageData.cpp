@@ -310,16 +310,13 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::surface(size_t, Gfx::IntSize s
     return render_to_surface(size);
 }
 
-void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode) const
+void SVGDecodedImageData::paint(DisplayListRecordingContext& context, size_t, Gfx::IntRect dst_rect, Gfx::ScalingMode) const
 {
     auto display_list = record_display_list(dst_rect.size(), context.display_list_recorder().resource_storage());
     if (!display_list.has_value())
         return;
 
-    context.display_list_recorder().save();
-    context.display_list_recorder().add_clip_rect(clip_rect);
     context.display_list_recorder().paint_nested_display_list(*display_list, dst_rect);
-    context.display_list_recorder().restore();
 }
 
 }
