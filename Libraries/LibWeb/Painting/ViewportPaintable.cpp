@@ -175,7 +175,7 @@ void ViewportPaintable::assign_scroll_frames()
 
     for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
         ScrollFrameIndex sticky_scroll_frame_index;
-        if (paintable_box.is_sticky_position()) {
+        if (paintable_box.is_sticky_position() && paintable_box.has_sticky_insets()) {
             auto parent_index = paintable_box.nearest_scroll_frame_index();
             sticky_scroll_frame_index = m_scroll_state.create_sticky_frame_for(paintable_box, parent_index);
             precompute_sticky_constraints(sticky_scroll_frame_index, paintable_box);

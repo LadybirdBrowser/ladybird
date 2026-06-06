@@ -275,6 +275,7 @@ public:
     RefPtr<PaintableBox const> nearest_scrollable_ancestor() const;
 
     using StickyInsets = Painting::StickyInsets;
+    bool has_sticky_insets() const { return !!m_sticky_insets; }
     StickyInsets const& sticky_insets() const { return *m_sticky_insets; }
     void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
 
