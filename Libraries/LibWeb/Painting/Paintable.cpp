@@ -258,6 +258,8 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
     // NOTE: We iterate twice as a form of iterative refinement. A single scaling pass using
     // fixed-point arithmetic can result in small rounding errors, causing the scaled radii to
     // still slightly overflow the box dimensions. A second pass corrects this remaining error.
+    auto border_width = max(CSSPixels(0), border_rect.width());
+    auto border_height = max(CSSPixels(0), border_rect.height());
     for (int iteration = 0; iteration < 2; ++iteration) {
         auto s_top = radii_px.top_left.horizontal_radius + radii_px.top_right.horizontal_radius;
         auto s_right = radii_px.top_right.vertical_radius + radii_px.bottom_right.vertical_radius;
@@ -265,14 +267,14 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
         auto s_left = radii_px.bottom_left.vertical_radius + radii_px.top_left.vertical_radius;
 
         CSSPixelFraction f = 1;
-        if (s_top > border_rect.width())
-            f = min(f, border_rect.width() / s_top);
-        if (s_right > border_rect.height())
-            f = min(f, border_rect.height() / s_right);
-        if (s_bottom > border_rect.width())
-            f = min(f, border_rect.width() / s_bottom);
-        if (s_left > border_rect.height())
-            f = min(f, border_rect.height() / s_left);
+        if (s_top > 0 && s_top > border_width)
+            f = min(f, border_width / s_top);
+        if (s_right > 0 && s_right > border_height)
+            f = min(f, border_height / s_right);
+        if (s_bottom > 0 && s_bottom > border_width)
+            f = min(f, border_width / s_bottom);
+        if (s_left > 0 && s_left > border_height)
+            f = min(f, border_height / s_left);
 
         // If f is 1 or more, the radii fit perfectly and no more scaling is needed
         if (f >= 1)
