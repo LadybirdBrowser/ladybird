@@ -88,7 +88,7 @@ i64 clip_bigint_to_sane_time(Crypto::SignedBigInteger const& value);
 i64 clip_double_to_sane_time(double value);
 Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, Temporal::ISODateTime const&);
 Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds);
-Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_zone_identifier, double epoch_milliseconds);
+JS_API Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_zone_identifier, double epoch_milliseconds);
 String system_time_zone_identifier();
 JS_API void clear_system_time_zone_cache();
 double local_time(double time);

@@ -414,6 +414,15 @@ Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringVie
     return result;
 }
 
+// ICU can report a time zone as available yet fail resolving an offset for it. So treat it as UTC. See issue #9884.
+static Unicode::TimeZoneOffset time_zone_offset_or_utc(StringView time_zone_identifier, UnixDateTime time)
+{
+    auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
+    if (!offset.has_value())
+        return Unicode::TimeZoneOffset { .offset = AK::Duration {}, .in_dst = Unicode::TimeZoneOffset::InDST::No };
+    return offset.release_value();
+}
+
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
 Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
@@ -422,10 +431,7 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_z
     auto seconds = big_floor(epoch_nanoseconds, Temporal::NANOSECONDS_PER_SECOND);
     auto time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(seconds));
 
-    auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
-    VERIFY(offset.has_value());
-
-    return offset.release_value();
+    return time_zone_offset_or_utc(time_zone_identifier, time);
 }
 
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
@@ -435,10 +441,7 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_
     auto seconds = epoch_milliseconds / 1000.0;
     auto time = UnixDateTime::from_seconds_since_epoch(clip_double_to_sane_time(seconds));
 
-    auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
-    VERIFY(offset.has_value());
-
-    return offset.release_value();
+    return time_zone_offset_or_utc(time_zone_identifier, time);
 }
 
 static Optional<String> cached_system_time_zone_identifier;
@@ -458,8 +461,13 @@ String system_time_zone_identifier()
 
     if (!is_offset_time_zone_identifier(system_time_zone_string)) {
         auto time_zone_identifier = Intl::get_available_named_time_zone_identifier(system_time_zone_string);
-        if (!time_zone_identifier.has_value())
-            return "UTC"_string;
+
+        // The host time zone may be one that ICU enumerates but can't resolve an offset for. In that case, per step 1,
+        // fall back to UTC — rather than handing a broken identifier to downstream time-zone math. See issue #9884.
+        if (!time_zone_identifier.has_value() || !Unicode::time_zone_offset(time_zone_identifier->primary_identifier, UnixDateTime::now()).has_value()) {
+            cached_system_time_zone_identifier = "UTC"_string;
+            return *cached_system_time_zone_identifier;
+        }
 
         system_time_zone_string = time_zone_identifier->primary_identifier;
     }
