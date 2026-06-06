@@ -1142,8 +1142,7 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString
             auto background_color = resolved_background_color();
             if (!background_color)
                 return NumericLimits<u8>::max();
-            VERIFY(is<Layout::NodeWithStyle>(node->layout_node()));
-            return background_color->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle*>(node->layout_node()))).value().alpha();
+            return background_color->to_color(CSS::ColorResolutionContext::for_element({ node_as_element() })).value().alpha();
         };
         while (resolved_background_alpha() == 0 && node->parent() && is<DOM::Element>(*node->parent()))
             node = node->parent();
