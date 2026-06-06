@@ -314,6 +314,8 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
     auto* layout_node = node.layout_node();
     if (!layout_node)
         return items;
+    if (!layout_node->has_style_or_parent_with_style())
+        return items;
 
     auto const& computed_values = layout_node->computed_values();
 
