@@ -232,7 +232,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
 {
     StringBuilder builder;
 
-    auto append_escaped = [&](Utf32View text) {
+    auto append_escaped = [&](Utf8View const& text) {
         for (auto code_point : text) {
             if (code_point == '&') {
                 builder.append("&amp;"sv);
@@ -259,6 +259,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <meta name="color-scheme" content="dark light">)~~~"sv);
 
     if (url.has_value())
@@ -272,16 +273,15 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
 <body>
 <pre class=\"html\">)~~~"sv);
 
-    static constexpr auto href = to_array<u32>({ 'h', 'r', 'e', 'f' });
-    static constexpr auto src = to_array<u32>({ 's', 'r', 'c' });
+    static constexpr auto href = "href"sv;
+    static constexpr auto src = "src"sv;
     bool linkify_attribute = false;
 
-    auto resolve_url_for_attribute = [&](Utf32View const& attribute_value) -> Optional<URL::URL> {
+    auto resolve_url_for_attribute = [&](Utf8View const& attribute_value) -> Optional<URL::URL> {
         if (!linkify_attribute)
             return {};
 
-        auto attribute_url = MUST(String::formatted("{}", attribute_value));
-        auto attribute_url_without_quotes = attribute_url.bytes_as_string_view().trim("\""sv);
+        auto attribute_url_without_quotes = attribute_value.as_string().trim("\""sv);
 
         return Web::DOMURL::parse(attribute_url_without_quotes, base_url);
     };
@@ -299,13 +299,13 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
             if (length == 0)
                 return;
 
-            auto text = line_view.substring_view(start, length);
+            auto text = line_view.unicode_substring_view(start, length);
 
             if (span.has_value()) {
                 bool append_anchor_close = false;
 
                 if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeName)) {
-                    linkify_attribute = text == Utf32View { href } || text == Utf32View { src };
+                    linkify_attribute = text.as_string() == href || text.as_string() == src;
                 } else if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeValue)) {
                     if (auto href = resolve_url_for_attribute(text); href.has_value()) {
                         builder.appendff("<a href=\"{}\">", *href);

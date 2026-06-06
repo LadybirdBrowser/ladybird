@@ -23,7 +23,8 @@ TextDocumentLine::TextDocumentLine(Document& document, StringView text)
 
 void TextDocumentLine::clear(Document& document)
 {
-    m_text.clear();
+    m_text = {};
+    m_length = 0;
     document.update_views({});
 }
 
@@ -33,13 +34,16 @@ bool TextDocumentLine::set_text(Document& document, StringView text)
         clear(document);
         return true;
     }
-    m_text.clear();
+
+    m_text = {};
+    m_length = 0;
+
     Utf8View utf8_view(text);
-    if (!utf8_view.validate()) {
+    if (!utf8_view.validate())
         return false;
-    }
-    for (auto code_point : utf8_view)
-        m_text.append(code_point);
+
+    m_text = String::from_utf8_without_validation(text.bytes());
+    m_length = utf8_view.length();
     document.update_views({});
     return true;
 }

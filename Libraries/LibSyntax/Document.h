@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <AK/Utf32View.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGfx/TextAttributes.h>
 #include <LibSyntax/Forward.h>
@@ -27,16 +27,14 @@ public:
     explicit TextDocumentLine(Document&);
     explicit TextDocumentLine(Document&, StringView);
 
-    Utf32View view() const LIFETIME_BOUND { return { code_points(), length() }; }
-    u32 const* code_points() const { return m_text.data(); }
-    bool is_empty() const { return length() == 0; }
-    size_t length() const { return m_text.size(); }
+    Utf8View view() const LIFETIME_BOUND { return m_text.code_points(); }
+    size_t length() const { return m_length; }
     bool set_text(Document&, StringView);
     void clear(Document&);
 
 private:
-    // NOTE: This vector is null terminated.
-    Vector<u32> m_text;
+    String m_text;
+    size_t m_length { 0 };
 };
 
 class Document : public RefCounted<Document> {
