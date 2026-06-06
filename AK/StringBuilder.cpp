@@ -17,7 +17,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringData.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf32View.h>
 
 #include <simdutf.h>
 
@@ -500,20 +499,6 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
 void StringBuilder::append(Utf16View const& utf16_view)
 {
     MUST(try_append(utf16_view));
-}
-
-ErrorOr<void> StringBuilder::try_append(Utf32View const& utf32_view)
-{
-    for (size_t i = 0; i < utf32_view.length(); ++i) {
-        auto code_point = utf32_view.code_points()[i];
-        TRY(try_append_code_point(code_point));
-    }
-    return {};
-}
-
-void StringBuilder::append(Utf32View const& utf32_view)
-{
-    MUST(try_append(utf32_view));
 }
 
 void StringBuilder::append_as_lowercase(char ch)

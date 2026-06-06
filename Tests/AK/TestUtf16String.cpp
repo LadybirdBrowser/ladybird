@@ -12,7 +12,6 @@
 #include <AK/MemoryStream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
-#include <AK/Utf32View.h>
 
 static_assert(AK::Concepts::HashCompatible<Utf16String, Utf16View>);
 static_assert(AK::Concepts::HashCompatible<Utf16View, Utf16String>);
@@ -187,81 +186,6 @@ TEST_CASE(from_utf16)
     }
     {
         auto string = Utf16String::from_utf16(u"hello \xdc00!"sv);
-        EXPECT(!string.is_empty());
-        EXPECT(!string.is_ascii());
-        EXPECT(!string.has_long_ascii_storage());
-        EXPECT(!string.has_short_ascii_storage());
-        EXPECT_EQ(string.length_in_code_units(), 8uz);
-        EXPECT_EQ(string.length_in_code_points(), 8uz);
-        EXPECT_EQ(string.utf16_view(), u"hello \xdc00!"sv);
-    }
-}
-
-TEST_CASE(from_utf32)
-{
-    auto strlen32 = [](char32_t const* string) {
-        auto const* start = string;
-        while (*start)
-            ++start;
-        return static_cast<size_t>(start - string);
-    };
-
-    auto to_utf32_view = [&](char32_t const* string) {
-        return Utf32View { reinterpret_cast<u32 const*>(string), strlen32(string) };
-    };
-
-    {
-        auto string = Utf16String::from_utf32(to_utf32_view(U"hello!"));
-        EXPECT(!string.is_empty());
-        EXPECT(string.is_ascii());
-        EXPECT(!string.has_long_ascii_storage());
-        EXPECT(string.has_short_ascii_storage());
-        EXPECT_EQ(string.length_in_code_units(), 6uz);
-        EXPECT_EQ(string.length_in_code_points(), 6uz);
-        EXPECT_EQ(string.ascii_view(), "hello!"sv);
-    }
-    {
-        auto string = Utf16String::from_utf32(to_utf32_view(U"hello there!"));
-        EXPECT(!string.is_empty());
-        EXPECT(string.is_ascii());
-        EXPECT(string.has_long_ascii_storage());
-        EXPECT(!string.has_short_ascii_storage());
-        EXPECT_EQ(string.length_in_code_units(), 12uz);
-        EXPECT_EQ(string.length_in_code_points(), 12uz);
-        EXPECT_EQ(string.ascii_view(), "hello there!"sv);
-    }
-    {
-        auto string = Utf16String::from_utf32(to_utf32_view(U"😀"));
-        EXPECT(!string.is_empty());
-        EXPECT(!string.is_ascii());
-        EXPECT(!string.has_long_ascii_storage());
-        EXPECT(!string.has_short_ascii_storage());
-        EXPECT_EQ(string.length_in_code_units(), 2uz);
-        EXPECT_EQ(string.length_in_code_points(), 1uz);
-        EXPECT_EQ(string.utf16_view(), u"😀"sv);
-    }
-    {
-        auto string = Utf16String::from_utf32(to_utf32_view(U"hello 😀 there!"));
-        EXPECT(!string.is_empty());
-        EXPECT(!string.is_ascii());
-        EXPECT(!string.has_long_ascii_storage());
-        EXPECT(!string.has_short_ascii_storage());
-        EXPECT_EQ(string.length_in_code_units(), 15uz);
-        EXPECT_EQ(string.length_in_code_points(), 14uz);
-        EXPECT_EQ(string.utf16_view(), u"hello 😀 there!"sv);
-    }
-    {
-        auto string = Utf16String::from_utf32(to_utf32_view(U"hello \xd800!"));
-        EXPECT(!string.is_empty());
-        EXPECT(!string.is_ascii());
-        EXPECT(!string.has_long_ascii_storage());
-        EXPECT(!string.has_short_ascii_storage());
-        EXPECT_EQ(string.length_in_code_units(), 8uz);
-        EXPECT_EQ(string.length_in_code_points(), 8uz);
-        EXPECT_EQ(string.utf16_view(), u"hello \xd800!"sv);
-    }
-    {
-        auto string = Utf16String::from_utf32(to_utf32_view(U"hello \xdc00!"));
         EXPECT(!string.is_empty());
         EXPECT(!string.is_ascii());
         EXPECT(!string.has_long_ascii_storage());

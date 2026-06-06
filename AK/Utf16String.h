@@ -73,8 +73,6 @@ public:
     requires(IsOneOf<RemoveCVReference<T>, Utf16String, Utf16FlyString>)
     static Utf16String from_utf16(T&&) = delete;
 
-    static Utf16String from_utf32(Utf32View const&);
-
     ALWAYS_INLINE static constexpr Utf16String from_ascii_character(u8 character)
     {
         auto short_string = Detail::ShortString::create_with_byte_count(1);

@@ -8,7 +8,6 @@
 #include <AK/Stream.h>
 #include <AK/TypedTransfer.h>
 #include <AK/Utf16StringData.h>
-#include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
 
 #include <simdutf.h>
@@ -105,36 +104,6 @@ NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf16(Utf16View const& utf1
         TypedTransfer<char16_t>::copy(string->m_utf16_data, utf16_string.utf16_span().data(), utf16_string.length_in_code_units());
 
         string->m_length_in_code_points = utf16_string.m_length_in_code_points;
-    }
-
-    return string.release_nonnull();
-}
-
-NonnullRefPtr<Utf16StringData> Utf16StringData::from_utf32(Utf32View const& utf32_string)
-{
-    RefPtr<Utf16StringData> string;
-
-    auto const* utf32_data = reinterpret_cast<char32_t const*>(utf32_string.code_points());
-    auto utf32_length = utf32_string.length();
-
-    if (utf32_string.is_ascii()) {
-        VERIFY_UTF16_LENGTH(utf32_length);
-
-        string = create_uninitialized(StorageType::ASCII, utf32_length);
-
-        auto result = simdutf::convert_utf32_to_utf8(utf32_data, utf32_length, string->m_ascii_data);
-        VERIFY(result == utf32_length);
-    } else if (simdutf::validate_utf32(utf32_data, utf32_length)) {
-        auto code_unit_length = simdutf::utf16_length_from_utf32(utf32_data, utf32_length);
-        VERIFY_UTF16_LENGTH(code_unit_length);
-
-        string = create_uninitialized(StorageType::UTF16, code_unit_length);
-        string->m_length_in_code_points = utf32_length;
-
-        auto result = simdutf::convert_utf32_to_utf16(utf32_data, utf32_length, string->m_utf16_data);
-        VERIFY(result == code_unit_length);
-    } else {
-        string = create_from_code_point_iterable(utf32_string);
     }
 
     return string.release_nonnull();
