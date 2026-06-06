@@ -109,11 +109,11 @@ void DisplayListResourceStorage::collect_referenced_resources(
     ReadonlyBytes command_bytes,
     DisplayListResourceSet& referenced_resources) const
 {
-    auto add_display_list_resource = [&](DisplayListResourceId id, Optional<ReadonlyBytes> command_bytes_to_collect) {
+    auto add_display_list_resource = [&](DisplayListResourceId id) {
         if (referenced_resources.display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep) != HashSetResult::InsertedNewEntry)
             return;
         auto const& nested_display_list = display_list(id);
-        collect_referenced_resources(command_bytes_to_collect.value_or(nested_display_list.command_bytes()), referenced_resources);
+        collect_referenced_resources(nested_display_list.command_bytes(), referenced_resources);
     };
 
     DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
@@ -127,7 +127,7 @@ void DisplayListResourceStorage::collect_referenced_resources(
             if constexpr (requires { command.paint_style; command.paint_kind; }) {
                 if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
                     && command.paint_style.type == DisplayListPaintStyleType::Pattern)
-                    add_display_list_resource(command.paint_style.pattern_tile_display_list_id, {});
+                    add_display_list_resource(command.paint_style.pattern_tile_display_list_id);
             }
             if constexpr (requires { command.backdrop_filter_data; }) {
                 if (command.has_backdrop_filter) {
@@ -146,10 +146,7 @@ void DisplayListResourceStorage::collect_referenced_resources(
                 }
             }
             if constexpr (requires { command.display_list_id; }) {
-                if constexpr (requires { command.command_bytes; })
-                    add_display_list_resource(command.display_list_id, inline_data(payload, command.command_bytes));
-                else
-                    add_display_list_resource(command.display_list_id, {});
+                add_display_list_resource(command.display_list_id);
             }
         });
     });
