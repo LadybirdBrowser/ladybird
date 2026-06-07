@@ -21,22 +21,16 @@ TEST_CASE(public_suffix_matching_for_psl_rules)
     TestCase test_cases[] {
         { "com"sv, true, "com"sv, OptionalNone {} },
         { "COM"sv, true, "com"sv, OptionalNone {} },
-        // FIXME: Enable these dotted host cases once URL::Host handles dot
-        // normalization correctly.
-        // { ".com"sv, false, "com"sv, OptionalNone {} },
-        // { "com."sv, false, "com"sv, OptionalNone {} },
-        // { ".com."sv, false, "com"sv, OptionalNone {} },
-        // { "..com."sv, false, "com"sv, OptionalNone {} },
+        { ".com"sv, true, "com"sv, OptionalNone {} },
+        { "com."sv, true, "com."sv, OptionalNone {} },
+        { ".com."sv, true, "com."sv, OptionalNone {} },
+        { "..com."sv, true, "com."sv, OptionalNone {} },
         { "example.com"sv, false, "com"sv, "example.com"sv },
         { "EXAMPLE.COM"sv, false, "com"sv, "example.com"sv },
-        // FIXME: Enable these dotted host cases once URL::Host handles dot
-        // normalization correctly.
-        // { ".example.com"sv, false, "com"sv, "example.com"sv },
+        { ".example.com"sv, false, "com"sv, "example.com"sv },
         { "www.example.com"sv, false, "com"sv, "example.com"sv },
         { "sub.www.example.com"sv, false, "com"sv, "example.com"sv },
-        // FIXME: Enable this trailing-dot case once URL::Host handles dot
-        // normalization correctly.
-        // { "www.example.com."sv, false, "com"sv, OptionalNone {} },
+        { "www.example.com."sv, false, "com."sv, "example.com."sv },
         { "not-a-public-suffix.com"sv, false, "com"sv, "not-a-public-suffix.com"sv },
         { "com.br"sv, true, "com.br"sv, OptionalNone {} },
         { "not-a-public-suffix.com.br"sv, false, "com.br"sv, "not-a-public-suffix.com.br"sv },

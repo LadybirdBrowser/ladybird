@@ -117,6 +117,37 @@ static Optional<StringView> serialized_domain(Host const& host)
     return host.get<String>().bytes_as_string_view();
 }
 
+struct NormalizedDomain {
+    StringView host;
+    StringView trailing_dot;
+};
+
+static Optional<NormalizedDomain> normalize_domain_for_matching(StringView host)
+{
+    host = host.trim("."sv, TrimMode::Left);
+    if (host.is_empty())
+        return OptionalNone {};
+
+    auto trailing_dot = ""sv;
+    if (host.ends_with('.')) {
+        trailing_dot = "."sv;
+        host = host.substring_view(0, host.length() - 1);
+        if (host.is_empty())
+            return OptionalNone {};
+    }
+
+    return NormalizedDomain { host, trailing_dot };
+}
+
+static Optional<NormalizedDomain> normalized_domain_for_host(Host const& host)
+{
+    auto domain = serialized_domain(host);
+    if (!domain.has_value())
+        return OptionalNone {};
+
+    return normalize_domain_for_matching(*domain);
+}
+
 static bool is_matching_public_suffix_impl(StringView host)
 {
     // Empty labels are kept so that inputs such as "com." do not match the bare "com" entry.
@@ -143,16 +174,16 @@ bool PublicSuffixData::is_matching_public_suffix(StringView host)
 
 bool PublicSuffixData::is_matching_public_suffix(Host const& host)
 {
-    auto domain = serialized_domain(host);
-    if (!domain.has_value())
+    auto normalized_domain = normalized_domain_for_host(host);
+    if (!normalized_domain.has_value())
         return false;
 
-    return is_matching_public_suffix_impl(*domain);
+    return is_matching_public_suffix_impl(normalized_domain->host);
 }
 
-static Optional<String> find_matching_public_suffix_impl(StringView string)
+static Optional<String> find_matching_public_suffix_impl(StringView host)
 {
-    auto input = string.split_view('.');
+    auto input = host.split_view('.');
     input.reverse();
 
     StringBuilder overall_search_string;
@@ -205,11 +236,15 @@ Optional<String> PublicSuffixData::find_matching_public_suffix(StringView string
 
 Optional<String> PublicSuffixData::find_matching_public_suffix(Host const& host)
 {
-    auto domain = serialized_domain(host);
-    if (!domain.has_value())
+    auto normalized_domain = normalized_domain_for_host(host);
+    if (!normalized_domain.has_value())
         return {};
 
-    return find_matching_public_suffix_impl(*domain);
+    auto public_suffix = find_matching_public_suffix_impl(normalized_domain->host);
+    if (!public_suffix.has_value())
+        return {};
+
+    return MUST(String::formatted("{}{}", public_suffix.value(), normalized_domain->trailing_dot));
 }
 
 // https://github.com/publicsuffix/list/wiki/Format#algorithm
@@ -250,11 +285,15 @@ Optional<String> PublicSuffixData::find_matching_registrable_domain(StringView s
 
 Optional<String> PublicSuffixData::find_matching_registrable_domain(Host const& host)
 {
-    auto domain = serialized_domain(host);
-    if (!domain.has_value())
+    auto normalized_domain = normalized_domain_for_host(host);
+    if (!normalized_domain.has_value())
         return {};
 
-    return find_matching_registrable_domain_impl(*domain);
+    auto registrable_domain = find_matching_registrable_domain_impl(normalized_domain->host);
+    if (!registrable_domain.has_value())
+        return {};
+
+    return MUST(String::formatted("{}{}", registrable_domain.value(), normalized_domain->trailing_dot));
 }
 
 }
