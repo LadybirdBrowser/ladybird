@@ -1079,6 +1079,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         shuffle(tests);
 
     if (app.test_dry_run) {
+        tests.remove_all_matching([](auto const& test) { return s_skipped_tests.contains_slow(test.input_path); });
+
         outln("Found {} tests...", tests.size());
 
         for (auto const& [i, test] : enumerate(tests))
