@@ -11,7 +11,7 @@
 
 namespace Web::FileAPI {
 
-class File : public Blob {
+class WEB_API File : public Blob {
     WEB_PLATFORM_OBJECT(File, Blob);
     GC_DECLARE_ALLOCATOR(File);
 

@@ -16,7 +16,7 @@
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dompointreadonly
-class DOMPointReadOnly
+class WEB_API DOMPointReadOnly
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMPointReadOnly, Bindings::PlatformObject);

@@ -29,7 +29,7 @@ struct OKPPrivateKey {
     ByteBuffer bytes;
 };
 
-class CryptoKey final
+class WEB_API CryptoKey final
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(CryptoKey, Bindings::PlatformObject);

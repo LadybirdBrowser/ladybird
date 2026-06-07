@@ -9,13 +9,14 @@
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <LibWeb/Bindings/IntrinsicDefinitions.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
 namespace Web::Bindings {
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#serializable-objects
-class Serializable {
+class WEB_API Serializable {
 public:
     virtual ~Serializable() = default;
 

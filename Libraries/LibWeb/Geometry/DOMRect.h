@@ -11,7 +11,7 @@
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#DOMRect
-class DOMRect final : public DOMRectReadOnly {
+class WEB_API DOMRect final : public DOMRectReadOnly {
     WEB_PLATFORM_OBJECT(DOMRect, DOMRectReadOnly);
     GC_DECLARE_ALLOCATOR(DOMRect);
 

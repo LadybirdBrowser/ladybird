@@ -19,7 +19,7 @@
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dommatrixreadonly
-class DOMMatrixReadOnly
+class WEB_API DOMMatrixReadOnly
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMMatrixReadOnly, Bindings::PlatformObject);

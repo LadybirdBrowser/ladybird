@@ -14,7 +14,7 @@
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#domquad
-class DOMQuad
+class WEB_API DOMQuad
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMQuad, Bindings::PlatformObject);
