@@ -40,7 +40,6 @@ option(ENABLE_MEMORY_SANITIZER "Enable memory sanitizer testing in gcc/clang" OF
 option(ENABLE_FUZZERS "Build fuzzing targets" OFF)
 option(ENABLE_FUZZERS_LIBFUZZER "Build fuzzers using Clang's libFuzzer" OFF)
 option(ENABLE_FUZZERS_OSSFUZZ "Build OSS-Fuzz compatible fuzzers" OFF)
-option(LAGOM_TOOLS_ONLY "Don't build libraries, utilities and tests, only host build tools" OFF)
 option(ENABLE_LAGOM_CCACHE "Enable ccache for Lagom builds" ON)
 set(LAGOM_USE_LINKER "" CACHE STRING "The linker to use (e.g. lld, mold) instead of the system default")
 set(LAGOM_LINK_POOL_SIZE "" CACHE STRING "The maximum number of parallel jobs to use for linking")

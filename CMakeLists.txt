@@ -68,15 +68,6 @@ if (ENABLE_FUZZERS_LIBFUZZER OR ENABLE_FUZZERS_OSSFUZZ)
     set(ENABLE_FUZZERS ON)
 endif()
 
-# We need to make sure not to build code generators for Fuzzer builds, as they already have their own main.cpp
-# Instead, we import them from a previous install of Lagom. This mandates a two-stage build for fuzzers.
-# The same concern goes for cross-compile builds, where we need the tools built for the host
-set(BUILD_LAGOM_TOOLS ON)
-if (ENABLE_FUZZERS OR CMAKE_CROSSCOMPILING)
-    find_package(LagomTools REQUIRED)
-    set(BUILD_LAGOM_TOOLS OFF)
-endif()
-
 if (ENABLE_COMPILETIME_FORMAT_CHECK)
     add_compile_definitions(ENABLE_COMPILETIME_FORMAT_CHECK)
 endif()
@@ -133,15 +124,6 @@ add_lagom_library_install_rules(JSClangPlugin)
 
 add_subdirectory(AK)
 add_subdirectory(Libraries)
-
-# Code Generators and other host tools
-if (BUILD_LAGOM_TOOLS)
-    add_subdirectory(Meta/Lagom/Tools)
-endif()
-
-if (LAGOM_TOOLS_ONLY)
-    return()
-endif()
 
 if (ENABLE_FUZZERS)
     add_subdirectory(Meta/Lagom/Fuzzers)
