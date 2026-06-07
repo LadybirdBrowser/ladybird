@@ -487,15 +487,6 @@ struct ContentData {
     Vector<Variant<String, NonnullRefPtr<ImageStyleValue>>> data;
     Vector<ValueComparingRefPtr<CounterStyle const>> counter_style_dependencies;
     Optional<String> alt_text {};
-
-    void visit_edges(GC::Cell::Visitor& visitor) const
-    {
-        for (auto const& item : data) {
-            if (auto* ptr = item.get_pointer<NonnullRefPtr<ImageStyleValue>>()) {
-                (*ptr)->visit_edges(visitor);
-            }
-        }
-    }
 };
 
 struct CounterData {
@@ -545,11 +536,6 @@ class ComputedValues {
 public:
     ComputedValues() = default;
     ~ComputedValues() = default;
-
-    void visit_edges(GC::Cell::Visitor& visitor)
-    {
-        m_noninherited.visit_edges(visitor);
-    }
 
     AspectRatio aspect_ratio() const { return m_noninherited.aspect_ratio; }
     Float float_() const { return m_noninherited.float_; }
@@ -977,26 +963,6 @@ protected:
         Vector<CounterData, 0> counter_set;
         WillChange will_change { InitialValues::will_change() };
         Resize resize { InitialValues::resize() };
-
-        void visit_edges(GC::Cell::Visitor& visitor)
-        {
-            for (auto& layer : background_layers)
-                layer.background_image->visit_edges(visitor);
-            for (auto& layer : mask_layers)
-                layer.background_image->visit_edges(visitor);
-            if (mask_image)
-                mask_image->visit_edges(visitor);
-            for (auto const& transform : transformations)
-                transform->visit_edges(visitor);
-            if (rotate)
-                rotate->visit_edges(visitor);
-            if (translate)
-                translate->visit_edges(visitor);
-            if (scale)
-                scale->visit_edges(visitor);
-            if (content.has_value())
-                content->visit_edges(visitor);
-        }
     };
 
     NonInheritedValues m_noninherited;

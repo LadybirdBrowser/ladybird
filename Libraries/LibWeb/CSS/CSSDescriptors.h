@@ -39,8 +39,6 @@ protected:
 private:
     bool set_a_css_declaration(DescriptorNameAndID const&, NonnullRefPtr<StyleValue const>, Important);
 
-    virtual void visit_edges(Visitor&) override;
-
     AtRuleID m_at_rule_id;
     Vector<Descriptor> m_descriptors;
 };

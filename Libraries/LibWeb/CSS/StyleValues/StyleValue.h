@@ -173,7 +173,6 @@ public:
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) { }
-    virtual void visit_edges(JS::Cell::Visitor&) const { }
 
     virtual bool equals(StyleValue const& other) const = 0;
 

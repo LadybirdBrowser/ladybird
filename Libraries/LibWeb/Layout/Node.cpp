@@ -700,13 +700,6 @@ void NodeWithStyle::rebuild_image_observers()
 void NodeWithStyle::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    for (auto const& layer : computed_values().background_layers())
-        layer.background_image->visit_edges(visitor);
-
-    if (m_list_style_image)
-        m_list_style_image->visit_edges(visitor);
-
-    m_computed_values->visit_edges(visitor);
 }
 
 void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)

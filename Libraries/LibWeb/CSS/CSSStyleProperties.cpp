@@ -120,14 +120,6 @@ void CSSStyleProperties::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void CSSStyleProperties::visit_edges(Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    for (auto& property : m_properties) {
-        property.value->visit_edges(visitor);
-    }
-}
-
 size_t CSSStyleProperties::external_memory_size() const
 {
     auto size = Base::external_memory_size();
