@@ -201,6 +201,20 @@ jobs:
             --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-native" \
             --load="module-null-sink sink_name=virtual_sink"
 
+      - name: Check new tests for flakiness
+        if: ${{ github.event_name == 'pull_request' && inputs.build_preset == 'Sanitizer' && (inputs.os_name == 'Linux' || inputs.os_name == 'macOS') }}
+        timeout-minutes: 30
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        run: |
+          git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}
+          "${{ env.pythonLocation }}/bin/python" Meta/check-test-flakiness.py \
+            --test-web-binary Build/bin/test-web \
+            --base-ref ${{ github.event.pull_request.base.sha }} \
+            --deadline-seconds 1200 \
+            --python-executable "${{ env.pythonLocation }}/bin/python" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Test
         if: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
