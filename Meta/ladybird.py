@@ -142,9 +142,7 @@ def main():
     if "target" in args:
         if platform.host_system != HostSystem.Windows and args.target == "ladybird":
             args.target = "Ladybird"
-        if not args.target and not (
-            args.command in ("build", "rebuild") or (args.preset == "Host_Tools" and args.command == "install")
-        ):
+        if not args.target and args.command not in ("build", "rebuild"):
             args.target = "ladybird" if platform.host_system == HostSystem.Windows else "Ladybird"
 
     if args.command == "build":
@@ -295,7 +293,6 @@ def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = N
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
-        "Host_Tools": build_root_dir / "host-tools-build",
     }
 
     build_preset_dir = known_presets.get(preset, None)

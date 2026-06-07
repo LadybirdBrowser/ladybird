@@ -161,18 +161,11 @@ jobs:
           VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
           VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
-          cmake --preset=Host_Tools -B "${GITHUB_WORKSPACE}/Build/host-tools-build" \
-            ${{ steps.build-parameters.outputs.cmake_options }} \
-            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python
-
-          ninja -C "${GITHUB_WORKSPACE}/Build/host-tools-build" install
-
           cmake --preset ${{ inputs.build_preset }} -B Build \
             ${{ steps.build-parameters.outputs.cmake_options }} \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
-            -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
-            -DLagomTools_DIR=${GITHUB_WORKSPACE}/Build/host-tools/share/LagomTools
+            -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
       # === BUILD ===
 
