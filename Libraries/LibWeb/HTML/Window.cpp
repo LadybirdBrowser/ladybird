@@ -652,6 +652,11 @@ void Window::consume_user_activation()
 void Window::start_an_idle_period()
 {
     // 1. Optionally, if the user agent determines the idle period should be delayed, return from this algorithm.
+    // NB: The requestIdleCallback spec allows user agents to delay idle periods, and explicitly calls out hidden
+    // documents as a case where throttling idle period generation is appropriate. We currently keep hidden-document
+    // idle callbacks pending until the document becomes visible.
+    if (associated_document().hidden())
+        return;
 
     // 2. Let pending_list be window's list of idle request callbacks.
     auto& pending_list = m_idle_request_callbacks;
@@ -691,9 +696,11 @@ void Window::invoke_idle_callbacks()
             report_exception(result, realm());
         // 4. If window's list of runnable idle callbacks is not empty, queue a task which performs the steps
         //    in the invoke idle callbacks algorithm with getDeadline and window as a parameters and return from this algorithm
-        queue_global_task(Task::Source::IdleTask, *this, GC::create_function(heap(), [this] {
-            invoke_idle_callbacks();
-        }));
+        if (!m_runnable_idle_callbacks.is_empty()) {
+            queue_global_task(Task::Source::IdleTask, *this, GC::create_function(heap(), [this] {
+                invoke_idle_callbacks();
+            }));
+        }
     }
 }
 
