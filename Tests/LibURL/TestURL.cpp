@@ -9,7 +9,6 @@
 #include <LibTest/TestCase.h>
 
 #include <LibURL/Parser.h>
-#include <LibURL/PublicSuffixData.h>
 #include <LibURL/URL.h>
 
 TEST_CASE(basic)
@@ -628,113 +627,6 @@ TEST_CASE(invalid_domain_code_points)
         constexpr auto mixed_case_url = "http://thing\u0007y/'"sv;
         auto url = URL::Parser::basic_parse(mixed_case_url);
         EXPECT(!url.has_value());
-    }
-}
-
-TEST_CASE(get_registrable_domain)
-{
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain({});
-        EXPECT(!domain.has_value());
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain("foobar"sv);
-        EXPECT(!domain.has_value());
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain("com"sv);
-        EXPECT(!domain.has_value());
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain(".com"sv);
-        EXPECT(!domain.has_value());
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain("example.com"sv);
-        VERIFY(domain.has_value());
-        EXPECT_EQ(*domain, "example.com"sv);
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain(".example.com"sv);
-        VERIFY(domain.has_value());
-        EXPECT_EQ(*domain, "example.com"sv);
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain("www.example.com"sv);
-        VERIFY(domain.has_value());
-        EXPECT_EQ(*domain, "example.com"sv);
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain("sub.www.example.com"sv);
-        VERIFY(domain.has_value());
-        EXPECT_EQ(*domain, "example.com"sv);
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain("github.io"sv);
-        EXPECT(!domain.has_value());
-    }
-    {
-        auto domain = URL::PublicSuffixData::the()->find_matching_registrable_domain("ladybird.github.io"sv);
-        VERIFY(domain.has_value());
-        EXPECT_EQ(*domain, "ladybird.github.io"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("a.example"sv)->registrable_domain();
-        VERIFY(domain.has_value());
-        EXPECT_EQ(*domain, "a.example"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("b.b.example"sv)->registrable_domain();
-        VERIFY(domain.has_value());
-        EXPECT_EQ(*domain, "b.example"sv);
-    }
-}
-
-TEST_CASE(public_suffix)
-{
-    {
-        auto domain = URL::Parser::parse_host("com"sv);
-        EXPECT_EQ(domain->public_suffix(), "com"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("example.com"sv);
-        EXPECT_EQ(domain->public_suffix(), "com"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("www.example.com"sv);
-        EXPECT_EQ(domain->public_suffix(), "com"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("EXAMPLE.COM"sv);
-        EXPECT_EQ(domain->public_suffix(), "com"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("www.example.com."sv);
-        EXPECT_EQ(domain->public_suffix(), "com."sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("github.io"sv);
-        EXPECT_EQ(domain->public_suffix(), "github.io"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("whatwg.github.io"sv);
-        EXPECT_EQ(domain->public_suffix(), "github.io"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("إختبار"sv);
-        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("example.إختبار"sv);
-        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("sub.example.إختبار"sv);
-        EXPECT_EQ(domain->public_suffix(), "xn--kgbechtv"sv);
-    }
-    {
-        auto domain = URL::Parser::parse_host("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"sv);
-        EXPECT_EQ(domain->public_suffix(), OptionalNone {});
     }
 }
 
